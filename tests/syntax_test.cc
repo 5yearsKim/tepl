@@ -26,7 +26,10 @@ struct Case {
 void TestValidSyntax() {
   const Case cases[] = {
       {"minimal", "rule r { X => X }"},
-      {"scalar shape", "rule r { X: [] X => X }"},
+      {"rank-zero tensor", "rule r { X: [] X => X }"},
+      {"scalar declaration", "rule r { S: scalar S => S }"},
+      {"mixed declarations",
+       "rule r { X: [M, K] S: scalar (mul X S) => (mul S X) }"},
       {"fixed dimensions", "rule r { X: [M, _, N] X => X }"},
       {"anonymous sequence", "rule r { X: [...] X => X }"},
       {"named sequence", "rule r { X: [Batch...] X => X }"},
@@ -82,6 +85,9 @@ void TestInvalidSyntax() {
       {"trailing shape comma", "rule r { X: [M,] X => X }"},
       {"missing shape comma", "rule r { X: [M N] X => X }"},
       {"shape in wrong location", "rule r { X => X X: [M] }"},
+      {"unknown scalar marker", "rule r { S: scalr S => S }"},
+      {"quoted scalar marker", "rule r { S: \"scalar\" S => S }"},
+      {"scalar with dimensions", "rule r { S: scalar[M] S => S }"},
       {"missing guard terminator", "rule r { X => X where { rank(X) == 2 } }"},
       {"incomplete comparison", "rule r { X => X where { K >=; } }"},
       {"chained comparison", "rule r { X => X where { M < N < K; } }"},

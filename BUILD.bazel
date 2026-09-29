@@ -24,5 +24,9 @@ cc_library(
 cc_binary(
     name = "tepl",
     srcs = ["src/main.cc"],
-    deps = [":frontend"],
+    visibility = ["//tests:__pkg__"],
+    deps = [
+        ":frontend",
+        "@cli11//:cli11",
+    ],
 )

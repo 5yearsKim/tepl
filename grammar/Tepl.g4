@@ -11,7 +11,8 @@ ruleDecl
     ;
 
 shapeDecl
-    : ID ':' '[' shapeElements? ']'
+    : ID ':' '[' shapeElements? ']'           # TensorDecl
+    | ID ':' SCALAR                           # ScalarDecl
     ;
 
 // A sequence may appear anywhere, but each shape has at most one sequence.
@@ -115,6 +116,7 @@ arguments
 RULE: 'rule';
 WHERE: 'where';
 DERIVE: 'derive';
+SCALAR: 'scalar';
 GET: 'get';
 TRUE: 'true';
 FALSE: 'false';

@@ -5,9 +5,10 @@ rule shape_constraints {
     Y: [M, Batch..., K]
     Z: [M, K, Tail...]
     T: [_, N]
-    S: []
+    S: scalar
+    U: []
 
-    (tuple X W B Y Z T S) => (tuple X W B Y Z T S)
+    (tuple X W B Y Z T S U) => (tuple X W B Y Z T S U)
 
     where {
         rank(X) >= 2;

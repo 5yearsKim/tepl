@@ -13,6 +13,7 @@ is needed. Both ANTLR dependencies are pinned to 4.13.2 with SHA-256 checksums.
 ```sh
 bazel build //:tepl
 bazel test //...
+bazel run //:tepl -- --help
 bazel run //:tepl -- parse "$PWD/examples/lora.tepl"
 bazel run //:tepl -- parse "$PWD/examples/lora.tepl" --tree
 ```
@@ -20,7 +21,9 @@ bazel run //:tepl -- parse "$PWD/examples/lora.tepl" --tree
 Use an absolute input path with `bazel run`, which starts the executable from its
 runfiles directory. `--tree` prints the ANTLR parse tree. Successful parses return
 0; syntax errors return 1 with `file:line:column` diagnostics; usage and file errors
-return 2. Lines and columns start at 1.
+return 2. Lines and columns start at 1. CLI11 handles argument parsing and provides
+`-h`/`--help` for the program and `parse` command. `--tree` may appear before or
+after the input path; help exits with 0.
 
 ## Format C++ code
 
@@ -48,7 +51,7 @@ wrapper does not pin or download it.
 
 ```text
 rule NAME {
-    zero or more tensor shape declarations
+    zero or more tensor or scalar declarations
     LHS => RHS
     optional where { CONDITION; ... }
     optional derive { @NAME = EXPRESSION; ... }
@@ -57,10 +60,11 @@ rule NAME {
 
 - A file contains one or more rules. Whitespace and newlines are insignificant.
 - `//` line comments and `/* ... */` block comments are supported.
-- Shapes precede the rewrite and have no semicolon: `X: [Batch..., M, K]`.
-  A shape may be empty (`[]`), contain named dimensions or `_`, and have at most
-  one named or anonymous `...` segment anywhere in the list. Shape arithmetic
-  belongs in `where`.
+- Declarations precede the rewrite and have no semicolon. Tensor declarations
+  use brackets (`X: [Batch..., M, K]`); scalar declarations use `S: scalar`.
+  A tensor shape may be empty (`[]`), contain named dimensions or `_`, and have
+  at most one named or anonymous `...` segment anywhere in the list. Shape
+  arithmetic belongs in `where`.
 - Graph expressions are variables, binder references, operator applications,
   or bindings: `X`, `?Y`, `(dot[@d] X W)`, `?Y = (dot X W)`,
   and `(?Y = (dot X W))`. Operators may have zero or more operands.
@@ -75,7 +79,8 @@ rule NAME {
   Arithmetic and logical operators associate to the left; comparisons and
   equality cannot be chained at their respective precedence levels.
 - Identifiers use ASCII letters, digits, and underscores, and cannot start with
-  a digit. `rule`, `where`, `derive`, `get`, `true`, `false`, and `_` are reserved.
+  a digit. `rule`, `where`, `derive`, `scalar`, `get`, `true`, `false`, and `_`
+  are reserved.
 
 See [examples](examples/) for simple rules, shape patterns, binders, tuples,
 and the complete LoRA example from the design document.
