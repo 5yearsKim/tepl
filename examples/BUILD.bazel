@@ -1,0 +1,7 @@
+exports_files(glob(["*.tepl"]))
+
+filegroup(
+    name = "all",
+    srcs = glob(["*.tepl"]),
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,35 @@
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+cc_test(
+    name = "syntax_test",
+    size = "small",
+    srcs = ["syntax_test.cc"],
+    deps = [
+        "//:frontend",
+        "//grammar:parser",
+    ],
+)
+
+cc_test(
+    name = "examples_test",
+    size = "small",
+    srcs = ["examples_test.cc"],
+    args = [
+        "$(rlocationpath //examples:simple.tepl)",
+        "$(rlocationpath //examples:shapes.tepl)",
+        "$(rlocationpath //examples:binders.tepl)",
+        "$(rlocationpath //examples:tuples.tepl)",
+        "$(rlocationpath //examples:lora.tepl)",
+    ],
+    data = [
+        "//examples:simple.tepl",
+        "//examples:shapes.tepl",
+        "//examples:binders.tepl",
+        "//examples:tuples.tepl",
+        "//examples:lora.tepl",
+    ],
+    deps = [
+        "//:frontend",
+        "@rules_cc//cc/runfiles",
+    ],
+)

@@ -1,0 +1,16 @@
+rule shared_expression {
+    (add
+        (?Y = (dot[@d] X W))
+        (mul ?Y Z))
+    =>
+    (mul ?Y (add Z (one)))
+
+    where {
+        reusable(?Y, @d);
+    }
+}
+
+/* A root binding may be written without surrounding parentheses. */
+rule root_binding {
+    ?Y = (transpose[@t] X) => ?Y
+}

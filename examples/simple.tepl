@@ -1,0 +1,4 @@
+// A minimal rule with no shape constraints or operator attributes.
+rule commute_add {
+    (add X Y) => (add Y X)
+}

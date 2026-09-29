@@ -1,0 +1,42 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+exports_files(["Tepl.g4"])
+
+genrule(
+    name = "generate_parser",
+    srcs = ["Tepl.g4"],
+    outs = [
+        "Tepl.interp",
+        "Tepl.tokens",
+        "TeplBaseVisitor.cpp",
+        "TeplBaseVisitor.h",
+        "TeplLexer.cpp",
+        "TeplLexer.h",
+        "TeplLexer.interp",
+        "TeplLexer.tokens",
+        "TeplParser.cpp",
+        "TeplParser.h",
+        "TeplVisitor.cpp",
+        "TeplVisitor.h",
+    ],
+    cmd = "$(location //third_party:antlr) -Dlanguage=Cpp -package tepl_generated -visitor -no-listener -Werror -Xexact-output-dir -o $(@D) $(location Tepl.g4)",
+    tools = ["//third_party:antlr"],
+)
+
+cc_library(
+    name = "parser",
+    srcs = [
+        "TeplBaseVisitor.cpp",
+        "TeplLexer.cpp",
+        "TeplParser.cpp",
+        "TeplVisitor.cpp",
+    ],
+    hdrs = [
+        "TeplBaseVisitor.h",
+        "TeplLexer.h",
+        "TeplParser.h",
+        "TeplVisitor.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["@antlr_runtime//:runtime"],
+)

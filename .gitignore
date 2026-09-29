@@ -1,0 +1,5 @@
+# Bazel outputs
+/bazel-*
+
+# ANTLR editor outputs
+.antlr/

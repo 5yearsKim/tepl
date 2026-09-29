@@ -1,0 +1,24 @@
+module(name = "tepl", version = "0.1.0")
+
+bazel_dep(name = "rules_cc", version = "0.2.19")
+bazel_dep(name = "rules_java", version = "9.3.0")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+# Keep the generator and C++ runtime on the same ANTLR release.
+http_file(
+    name = "antlr_tool",
+    downloaded_file_path = "antlr-4.13.2-complete.jar",
+    sha256 = "eae2dfa119a64327444672aff63e9ec35a20180dc5b8090b7a6ab85125df4d76",
+    url = "https://www.antlr.org/download/antlr-4.13.2-complete.jar",
+)
+
+http_archive(
+    name = "antlr_runtime",
+    build_file = "//third_party:antlr_runtime.BUILD.bazel",
+    sha256 = "0ed13668906e86dbc0dcddf30fdee68c10203dea4e83852b4edb810821bee3c4",
+    url = "https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip",
+)

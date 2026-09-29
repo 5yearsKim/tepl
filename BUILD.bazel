@@ -1,0 +1,28 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+sh_binary(
+    name = "format",
+    srcs = ["tools/format.sh"],
+)
+
+sh_binary(
+    name = "format_check",
+    srcs = ["tools/format.sh"],
+    args = ["--check"],
+)
+
+cc_library(
+    name = "frontend",
+    srcs = ["src/parse.cc"],
+    hdrs = ["src/parse.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//grammar:parser"],
+)
+
+cc_binary(
+    name = "tepl",
+    srcs = ["src/main.cc"],
+    deps = [":frontend"],
+)

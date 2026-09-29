@@ -1,0 +1,25 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "runtime",
+    srcs = glob(["runtime/src/**/*.cpp"]),
+    hdrs = glob(["runtime/src/**/*.h"]),
+    defines = ["ANTLR4CPP_STATIC"],
+    includes = [
+        "runtime/src",
+        "runtime/src/atn",
+        "runtime/src/dfa",
+        "runtime/src/internal",
+        "runtime/src/misc",
+        "runtime/src/support",
+        "runtime/src/tree",
+        "runtime/src/tree/pattern",
+        "runtime/src/tree/xpath",
+    ],
+    linkopts = select({
+        "@platforms//os:linux": ["-pthread"],
+        "@platforms//os:macos": ["-pthread"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
