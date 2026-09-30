@@ -22,6 +22,7 @@ grep -Fq 'parse' "$output"
 check_exit 0 -h
 check_exit 0 parse --help
 grep -Fq -- '--tree' "$output"
+grep -Fq -- '--ast' "$output"
 check_exit 0 parse -h
 
 check_exit 0 parse "$example"
@@ -31,11 +32,18 @@ grep -Fq '(program' "$output"
 cp "$output" "${TEST_TMPDIR}/tree"
 check_exit 0 parse --tree "$example"
 cmp "$output" "${TEST_TMPDIR}/tree"
+check_exit 0 parse "$example" --ast
+grep -Fq '  rule commute_add' "$output"
+grep -Fq '      operator add' "$output"
+cp "$output" "${TEST_TMPDIR}/ast"
+check_exit 0 parse --ast "$example"
+cmp "$output" "${TEST_TMPDIR}/ast"
 
 check_exit 2
 check_exit 2 parse
 check_exit 2 unknown "$example"
 check_exit 2 parse "$example" --unknown
+check_exit 2 parse "$example" --tree --ast
 check_exit 2 parse "$example" extra
 check_exit 2 parse "${TEST_TMPDIR}/missing.tepl"
 grep -Fq 'cannot open file' "$output"

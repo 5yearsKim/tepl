@@ -14,11 +14,18 @@ sh_binary(
 )
 
 cc_library(
-    name = "frontend",
-    srcs = ["src/parse.cc"],
-    hdrs = ["src/parse.h"],
+    name = "ast",
+    srcs = ["src/ast_print.cc"],
+    hdrs = ["src/ast.h", "src/ast_print.h"],
     visibility = ["//visibility:public"],
-    deps = ["//grammar:parser"],
+)
+
+cc_library(
+    name = "frontend",
+    srcs = ["src/ast_builder.cc", "src/parse.cc"],
+    hdrs = ["src/ast_builder.h", "src/parse.h"],
+    visibility = ["//visibility:public"],
+    deps = [":ast", "//grammar:parser"],
 )
 
 cc_binary(
@@ -26,6 +33,7 @@ cc_binary(
     srcs = ["src/main.cc"],
     visibility = ["//tests:__pkg__"],
     deps = [
+        ":ast",
         ":frontend",
         "@cli11//:cli11",
     ],

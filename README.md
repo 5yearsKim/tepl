@@ -16,14 +16,17 @@ bazel test //...
 bazel run //:tepl -- --help
 bazel run //:tepl -- parse "$PWD/examples/lora.tepl"
 bazel run //:tepl -- parse "$PWD/examples/lora.tepl" --tree
+bazel run //:tepl -- parse "$PWD/examples/lora.tepl" --ast
 ```
 
 Use an absolute input path with `bazel run`, which starts the executable from its
-runfiles directory. `--tree` prints the ANTLR parse tree. Successful parses return
+runfiles directory. `--tree` prints the ANTLR parse tree; `--ast` prints an
+indented AST with grammar wrappers removed. Successful parses return
 0; syntax errors return 1 with `file:line:column` diagnostics; usage and file errors
 return 2. Lines and columns start at 1. CLI11 handles argument parsing and provides
-`-h`/`--help` for the program and `parse` command. `--tree` may appear before or
-after the input path; help exits with 0.
+`-h`/`--help` for the program and `parse` command. `--tree` and `--ast` may each
+appear before or after the input path, but cannot be used together. Help exits
+with 0.
 
 ## Format C++ code
 
@@ -87,12 +90,13 @@ and the complete LoRA example from the design document.
 
 ## Scope and next steps
 
-This milestone validates syntax and prints a parse tree. Symbol resolution,
+The parser also builds an owning AST with source spans for valid input.
+Symbol resolution,
 operator arity/types (except `get` syntax), host-function signatures, legality,
 derived metadata dependencies, and e-graph behavior need later semantic passes.
 The examples are parser fixtures, not claims of tensor equivalence.
 Multiple-root patterns and variadic expression operands are deferred.
 
 The grammar contains no C++ actions. Bazel generates lexer/parser and visitor
-sources under the build directory. The next step is a visitor that builds an AST
-with source spans, followed by symbol and metadata dependency validation.
+sources under the build directory. `AstBuilder` converts their parse tree into
+the project AST. The next step is symbol and metadata dependency validation.

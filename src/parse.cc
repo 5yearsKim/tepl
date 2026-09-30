@@ -5,6 +5,7 @@
 #include "antlr4-runtime.h"
 #include "grammar/TeplLexer.h"
 #include "grammar/TeplParser.h"
+#include "src/ast_builder.h"
 
 namespace tepl {
 namespace {
@@ -26,7 +27,7 @@ class ErrorListener final : public antlr4::BaseErrorListener {
 
 }  // namespace
 
-ParseResult Parse(std::string_view source) {
+ParseResult parse(std::string_view source, std::string_view source_name) {
   ParseResult result;
   ErrorListener errors(result.diagnostics);
   antlr4::ANTLRInputStream input{std::string(source)};
@@ -42,6 +43,7 @@ ParseResult Parse(std::string_view source) {
   if (result.ok()) {
     result.rule_count = program->ruleDecl().size();
     result.tree = program->toStringTree(&parser);
+    result.program = AstBuilder{}.build(program, std::string(source_name));
   }
   return result;
 }

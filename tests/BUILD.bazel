@@ -16,6 +16,19 @@ sh_test(
 )
 
 cc_test(
+    name = "ast_test",
+    size = "small",
+    srcs = ["ast_test.cc"],
+    args = ["$(rlocationpath //examples:lora.tepl)"],
+    data = ["//examples:lora.tepl"],
+    deps = [
+        "//:ast",
+        "//:frontend",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
+cc_test(
     name = "syntax_test",
     size = "small",
     srcs = ["syntax_test.cc"],

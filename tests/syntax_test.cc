@@ -11,7 +11,7 @@ namespace {
 
 int failures = 0;
 
-void Check(bool condition, std::string_view message) {
+void check(bool condition, std::string_view message) {
   if (!condition) {
     std::cerr << message << '\n';
     ++failures;
@@ -23,7 +23,7 @@ struct Case {
   std::string_view source;
 };
 
-void TestValidSyntax() {
+void testValidSyntax() {
   const Case cases[] = {
       {"minimal", "rule r { X => X }"},
       {"rank-zero tensor", "rule r { X: [] X => X }"},
@@ -53,19 +53,19 @@ void TestValidSyntax() {
       {"multiple rules", "rule a { X => X } rule b { Y => Y }"},
   };
   for (const auto& test : cases) {
-    auto result = tepl::Parse(test.source);
-    Check(result.ok(),
+    auto result = tepl::parse(test.source);
+    check(result.ok(),
           std::string("Valid syntax rejected: ") + std::string(test.name));
     if (!result.ok()) {
       for (const auto& diagnostic : result.diagnostics) {
         std::cerr << diagnostic.message << '\n';
       }
     }
-    Check(!result.tree.empty(), "Successful parse must expose its tree");
+    check(!result.tree.empty(), "Successful parse must expose its tree");
   }
 }
 
-void TestInvalidSyntax() {
+void testInvalidSyntax() {
   const Case cases[] = {
       {"empty program", ""},
       {"missing name", "rule { X => X }"},
@@ -109,35 +109,35 @@ void TestInvalidSyntax() {
       {"unterminated comment", "rule r { X => X } /* unfinished"},
   };
   for (const auto& test : cases) {
-    auto result = tepl::Parse(test.source);
-    Check(!result.ok(),
+    auto result = tepl::parse(test.source);
+    check(!result.ok(),
           std::string("Invalid syntax accepted: ") + std::string(test.name));
-    Check(result.tree.empty() && result.rule_count == 0,
+    check(result.tree.empty() && result.rule_count == 0,
           "Failed parse must not expose recovered rules or a tree");
   }
 }
 
-void TestDiagnostics() {
-  auto lexical = tepl::Parse("rule r {\n X => X $\n}");
-  Check(lexical.diagnostics.size() == 1, "Expected one lexical diagnostic");
+void testDiagnostics() {
+  auto lexical = tepl::parse("rule r {\n X => X $\n}");
+  check(lexical.diagnostics.size() == 1, "Expected one lexical diagnostic");
   if (lexical.diagnostics.size() == 1) {
-    Check(
+    check(
         lexical.diagnostics[0].line == 2 && lexical.diagnostics[0].column == 9,
         "Lexer coordinates must be one-based and point to '$'");
   }
-  auto syntax = tepl::Parse("rule r {\n X =>\n}");
-  Check(syntax.diagnostics.size() == 1, "Expected one parser diagnostic");
+  auto syntax = tepl::parse("rule r {\n X =>\n}");
+  check(syntax.diagnostics.size() == 1, "Expected one parser diagnostic");
   if (syntax.diagnostics.size() == 1) {
-    Check(syntax.diagnostics[0].line == 3 && syntax.diagnostics[0].column == 1,
+    check(syntax.diagnostics[0].line == 3 && syntax.diagnostics[0].column == 1,
           "Parser coordinates must point to the unexpected closing brace");
   }
 }
 
-void TestPrecedence() {
+void testPrecedence() {
   const std::string source =
       "rule r { X => X where { K + 2 * N >= 128 && !false || true; } }";
-  if (!tepl::Parse(source).ok()) {
-    Check(false, "Precedence example must parse");
+  if (!tepl::parse(source).ok()) {
+    check(false, "Precedence example must parse");
     return;
   }
 
@@ -150,18 +150,18 @@ void TestPrecedence() {
                          ->whereBlock()
                          ->constraintExpr(0)
                          ->logicalOr();
-  Check(expression->logicalAnd().size() == 2,
+  check(expression->logicalAnd().size() == 2,
         "Logical OR must be the outermost operation");
   auto* conjunction = expression->logicalAnd(0);
-  Check(conjunction->equality().size() == 2,
+  check(conjunction->equality().size() == 2,
         "Logical AND must bind more tightly than OR");
   auto* comparison = conjunction->equality(0)->comparison(0);
-  Check(comparison->additive().size() == 2,
+  check(comparison->additive().size() == 2,
         "Comparison must bind more tightly than AND");
   auto* sum = comparison->additive(0);
-  Check(sum->multiplicative().size() == 2,
+  check(sum->multiplicative().size() == 2,
         "Addition must bind more tightly than comparison");
-  Check(sum->multiplicative(1)->getText() == "2*N" &&
+  check(sum->multiplicative(1)->getText() == "2*N" &&
             sum->multiplicative(1)->unary().size() == 2,
         "Multiplication must bind more tightly than addition");
 }
@@ -169,9 +169,9 @@ void TestPrecedence() {
 }  // namespace
 
 int main() {
-  TestValidSyntax();
-  TestInvalidSyntax();
-  TestDiagnostics();
-  TestPrecedence();
+  testValidSyntax();
+  testInvalidSyntax();
+  testDiagnostics();
+  testPrecedence();
   return failures == 0 ? 0 : 1;
 }

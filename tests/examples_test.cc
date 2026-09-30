@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
     }
     std::string source{std::istreambuf_iterator<char>(input),
                        std::istreambuf_iterator<char>()};
-    auto result = tepl::Parse(source);
+    auto result = tepl::parse(source);
     for (const auto& diagnostic : result.diagnostics) {
       std::cerr << argv[i] << ':' << diagnostic.line << ':' << diagnostic.column
                 << ": " << diagnostic.message << '\n';
