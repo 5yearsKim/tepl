@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "grammar/TeplBaseVisitor.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
 
 namespace tepl {
 
@@ -17,6 +17,20 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
 
  private:
   std::any visitProgram(tepl_generated::TeplParser::ProgramContext*) override;
+  std::any visitImportDecl(
+      tepl_generated::TeplParser::ImportDeclContext*) override;
+  std::any visitUseDecl(tepl_generated::TeplParser::UseDeclContext*) override;
+  std::any visitDialectDecl(
+      tepl_generated::TeplParser::DialectDeclContext*) override;
+  std::any visitAttrsDecl(
+      tepl_generated::TeplParser::AttrsDeclContext*) override;
+  std::any visitOpDecl(tepl_generated::TeplParser::OpDeclContext*) override;
+  std::any visitOperandDecl(
+      tepl_generated::TeplParser::OperandDeclContext*) override;
+  std::any visitVariadicOperand(
+      tepl_generated::TeplParser::VariadicOperandContext*) override;
+  std::any visitAttrField(
+      tepl_generated::TeplParser::AttrFieldContext*) override;
   std::any visitRuleDecl(tepl_generated::TeplParser::RuleDeclContext*) override;
   std::any visitTensorDecl(
       tepl_generated::TeplParser::TensorDeclContext*) override;

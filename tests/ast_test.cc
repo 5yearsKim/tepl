@@ -1,5 +1,6 @@
-#include "src/ast.h"
+#include "src/ast/ast.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -10,7 +11,7 @@
 #include <variant>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/ast_print.h"
+#include "src/ast/print.h"
 #include "src/parse.h"
 
 namespace {
@@ -27,12 +28,45 @@ const Node& as(const std::variant<Alternatives...>& value,
   return *node;
 }
 
-void testLora(const std::string& source) {
-  auto parsed = tepl::parse(source, "lora.tepl");
+void testLora(const std::string& source, const std::string& path) {
+  auto parsed = tepl::parse(source, path);
   check(parsed.ok() && parsed.program.has_value(), "LoRA must build an AST");
+  check(tepl::resolveImports(*parsed.program).empty(),
+        "LoRA dialect import must resolve");
+  check(tepl::validateDialectUses(*parsed.program).empty(),
+        "LoRA operations must match the dialect");
   const auto& program = *parsed.program;
-  check(program.source_name == "lora.tepl" && program.rules.size() == 1,
+  check(program.source_name == path && program.rules.size() == 1,
         "LoRA program name or rule count is wrong");
+  check(program.imports.size() == 1 &&
+            program.imports[0].path == "dialects/tensor.tepl" &&
+            program.imports[0].dialect == "TensorLang" &&
+            program.imports[0].alias == "t" && program.uses.size() == 1 &&
+            program.uses[0].alias == "t" &&
+            program.uses[0].operations ==
+                std::vector<std::string>({"add", "dot"}),
+        "LoRA dialect import is missing");
+  check(program.dialects.size() == 1 &&
+            program.dialects[0].name == "TensorLang" &&
+            program.dialects[0].operations.size() == 33,
+        "Imported tensor operations are missing");
+  const auto& operations = program.dialects[0].operations;
+  const auto dot =
+      std::find_if(operations.begin(), operations.end(),
+                   [](const auto& op) { return op.name == "dot_general"; });
+  check(dot != operations.end() && dot->alias == "dot" &&
+            dot->operands.size() == 2 && dot->attrs.size() == 4 &&
+            dot->attrs[0].type == "index" && dot->attrs[0].list,
+        "Dot signature or attributes were not preserved");
+  const auto concat =
+      std::find_if(operations.begin(), operations.end(),
+                   [](const auto& op) { return op.name == "concatenate"; });
+  check(concat != operations.end() && concat->operands.size() == 3 &&
+            concat->operands.back().variadic,
+        "Variadic concatenation operand was not preserved");
+  check(program.dialects[0].schemas.size() == 1 &&
+            program.dialects[0].schemas[0].fields[0].type == "string",
+        "Shared string attributes were not preserved");
 
   const auto& rule = program.rules.front();
   check(rule.name == "lora" && rule.declarations.size() == 4,
@@ -49,7 +83,7 @@ void testLora(const std::string& source) {
           as<tepl::ast::NamedDimension>(x.shape[2].value, "Expected K").name ==
               "K",
       "Dimensions must preserve source order");
-  check(x.shape[0].span.begin.line == 2 && x.shape[0].span.begin.column == 9 &&
+  check(x.shape[0].span.begin.line == 5 && x.shape[0].span.begin.column == 9 &&
             x.shape[0].span.end.column == 17,
         "Named sequence source span is wrong");
 
@@ -72,8 +106,8 @@ void testLora(const std::string& source) {
   check(binding.binder.name == "XA" && bound_dot.attribute &&
             bound_dot.attribute->name == "xa",
         "Intermediate ?XA was not preserved");
-  check(binding.expression->span.begin.line == 14 &&
-            final_dot.operands[0]->span.begin.line == 14,
+  check(binding.expression->span.begin.line == 17 &&
+            final_dot.operands[0]->span.begin.line == 17,
         "Nested expression spans are wrong");
 
   check(rule.conditions.size() == 2 && rule.derivations.size() == 3,
@@ -195,17 +229,18 @@ void testInvalidSource() {
 
 int main(int argc, char** argv) {
   try {
-    check(argc == 2, "Expected path to LoRA fixture");
+    check(argc == 3, "Expected paths to LoRA and dialect fixtures");
     std::string error;
     std::unique_ptr<rules_cc::cc::runfiles::Runfiles> runfiles(
         rules_cc::cc::runfiles::Runfiles::CreateForTest(
             BAZEL_CURRENT_REPOSITORY, &error));
     check(runfiles != nullptr, "Cannot load runfiles: " + error);
-    std::ifstream input(runfiles->Rlocation(argv[1]));
+    const std::string path = runfiles->Rlocation(argv[1]);
+    std::ifstream input(path);
     check(static_cast<bool>(input), "Cannot read LoRA fixture");
     std::string source{std::istreambuf_iterator<char>(input),
                        std::istreambuf_iterator<char>()};
-    testLora(source);
+    testLora(source, path);
     testExpressionsAndSpans();
     testInvalidSource();
   } catch (const std::exception& error) {

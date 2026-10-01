@@ -1,4 +1,4 @@
-#include "src/ast_print.h"
+#include "src/ast/print.h"
 
 #include <cstddef>
 #include <ostream>
@@ -158,6 +158,60 @@ void printDeclaration(std::ostream& out, const ast::Declaration& declaration) {
 std::string formatAst(const ast::Program& program) {
   std::ostringstream out;
   out << "program " << program.source_name << '\n';
+  for (const auto& imported : program.imports) {
+    if (imported.dialect) {
+      out << "  from \"" << imported.path << "\" import " << *imported.dialect;
+      if (imported.alias && imported.alias != imported.dialect) {
+        out << " as " << *imported.alias;
+      }
+      out << '\n';
+    } else {
+      out << "  import \"" << imported.path << "\"\n";
+    }
+  }
+  for (const auto& used : program.uses) {
+    out << "  use " << used.alias;
+    if (!used.operations.empty()) {
+      out << "::{";
+      for (std::size_t index = 0; index < used.operations.size(); ++index) {
+        if (index != 0) out << ", ";
+        out << used.operations[index];
+      }
+      out << '}';
+    }
+    out << '\n';
+  }
+  for (const auto& dialect : program.dialects) {
+    out << "  dialect " << dialect.name << '\n';
+    for (const auto& schema : dialect.schemas) {
+      out << "    attrs " << schema.name << '\n';
+      for (const auto& field : schema.fields) {
+        out << "      " << field.name << ": " << field.type;
+        if (field.list) out << "[]";
+        if (field.empty_default) out << " = []";
+        out << '\n';
+      }
+    }
+    for (const auto& op : dialect.operations) {
+      out << "    op " << op.name << '(';
+      for (std::size_t index = 0; index < op.operands.size(); ++index) {
+        if (index != 0) out << ", ";
+        const auto& operand = op.operands[index];
+        out << operand.name << ": " << operand.type;
+        if (operand.variadic) out << "...";
+      }
+      out << ") -> " << op.result_type;
+      if (op.alias) out << " alias " << *op.alias;
+      if (op.shared_attrs) out << " attrs " << *op.shared_attrs;
+      out << '\n';
+      for (const auto& field : op.attrs) {
+        out << "      " << field.name << ": " << field.type;
+        if (field.list) out << "[]";
+        if (field.empty_default) out << " = []";
+        out << '\n';
+      }
+    }
+  }
   for (const auto& rule : program.rules) {
     out << "  rule " << rule.name << '\n';
     for (const auto& declaration : rule.declarations) {

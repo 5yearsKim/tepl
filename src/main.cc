@@ -4,7 +4,7 @@
 #include <string>
 
 #include "CLI/CLI.hpp"
-#include "src/ast_print.h"
+#include "src/ast/print.h"
 #include "src/host_codegen.h"
 #include "src/parse.h"
 
@@ -46,9 +46,23 @@ int main(int argc, char** argv) {
   }
 
   auto result = tepl::parse(source, filename);
+  if (result.ok()) {
+    auto import_diagnostics = tepl::resolveImports(*result.program);
+    result.diagnostics.insert(result.diagnostics.end(),
+                              import_diagnostics.begin(),
+                              import_diagnostics.end());
+    if (result.ok()) {
+      auto dialect_diagnostics = tepl::validateDialectUses(*result.program);
+      result.diagnostics.insert(result.diagnostics.end(),
+                                dialect_diagnostics.begin(),
+                                dialect_diagnostics.end());
+    }
+  }
   for (const auto& diagnostic : result.diagnostics) {
-    std::cerr << filename << ':' << diagnostic.line << ':' << diagnostic.column
-              << ": " << diagnostic.message << '\n';
+    std::cerr << (diagnostic.source_name.empty() ? filename
+                                                 : diagnostic.source_name)
+              << ':' << diagnostic.line << ':' << diagnostic.column << ": "
+              << diagnostic.message << '\n';
   }
   if (!result.ok()) {
     return 1;

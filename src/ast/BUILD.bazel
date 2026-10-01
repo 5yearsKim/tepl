@@ -1,0 +1,26 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "ast",
+    srcs = ["print.cc"],
+    hdrs = ["ast.h", "print.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "builder",
+    srcs = [
+        "builder.cc",
+        "builder_dialect.cc",
+        "builder_rule.cc",
+    ],
+    hdrs = [
+        "builder.h",
+        "builder_detail.h",
+    ],
+    visibility = ["//:__pkg__"],
+    deps = [
+        ":ast",
+        "//grammar:parser",
+    ],
+)

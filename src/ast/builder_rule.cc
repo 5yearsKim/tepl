@@ -1,30 +1,14 @@
-#include "src/ast_builder.h"
-
 #include <stdexcept>
 #include <string_view>
 #include <utility>
 
+#include "src/ast/builder.h"
+#include "src/ast/builder_detail.h"
+
 namespace tepl {
 namespace {
-
 using Parser = tepl_generated::TeplParser;
-
-ast::SourcePosition getPosition(const antlr4::Token* token) {
-  return {token->getLine(), token->getCharPositionInLine() + 1};
-}
-
-ast::SourceSpan getSpan(const antlr4::Token* start, const antlr4::Token* stop) {
-  auto end = getPosition(stop);
-  if (stop->getType() != antlr4::Token::EOF) {
-    // Token indexes count Unicode code points, as do lexer columns.
-    end.column += stop->getStopIndex() - stop->getStartIndex() + 1;
-  }
-  return {getPosition(start), end};
-}
-
-ast::SourceSpan getSpan(const antlr4::ParserRuleContext* context) {
-  return getSpan(context->getStart(), context->getStop());
-}
+using detail::getSpan;
 
 template <typename Value>
 ast::GraphExprPtr makeGraph(const antlr4::ParserRuleContext* context,
@@ -64,20 +48,6 @@ ast::UnaryOp unaryOperator(std::string_view spelling) {
 }
 
 }  // namespace
-
-ast::Program AstBuilder::build(Parser::ProgramContext* context,
-                               std::string source_name) {
-  source_name_ = std::move(source_name);
-  return std::any_cast<ast::Program>(visit(context));
-}
-
-std::any AstBuilder::visitProgram(Parser::ProgramContext* context) {
-  ast::Program program{getSpan(context), std::move(source_name_), {}};
-  for (auto* rule : context->ruleDecl()) {
-    program.rules.push_back(std::any_cast<ast::Rule>(visit(rule)));
-  }
-  return program;
-}
 
 std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
   ast::Rule rule;
@@ -179,7 +149,7 @@ std::any AstBuilder::visitGetGraph(Parser::GetGraphContext* context) {
 }
 
 std::any AstBuilder::visitOperatorGraph(Parser::OperatorGraphContext* context) {
-  ast::Operator op{context->ID()->getText(), std::nullopt, {}};
+  ast::Operator op{context->opRef()->getText(), std::nullopt, {}};
   if (auto* attribute = context->attribute()) {
     op.attribute = ast::AttributeRef{attribute->attrRef()->ID()->getText()};
   }

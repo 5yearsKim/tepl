@@ -1,0 +1,94 @@
+// Tensor operations used by labs/rust-egg/src/ir/mod.rs.
+// Operand names document their roles; types and a trailing ... determine arity.
+dialect TensorLang {
+    attrs CollectiveReduce {
+        kind: string;
+    }
+
+    op add(lhs: tensor, rhs: tensor) -> tensor;
+    op subtract(lhs: tensor, rhs: tensor) -> tensor;
+    op multiply(lhs: tensor, rhs: tensor) -> tensor {
+        alias: mul;
+    }
+    op divide(lhs: tensor, rhs: tensor) -> tensor;
+    op maximum(lhs: tensor, rhs: tensor) -> tensor;
+    op minimum(lhs: tensor, rhs: tensor) -> tensor;
+    op negate(input: tensor) -> tensor;
+    op exp(input: tensor) -> tensor;
+    op log(input: tensor) -> tensor;
+    op abs(input: tensor) -> tensor;
+    op relu(input: tensor) -> tensor;
+    op scale(lhs: tensor, rhs: tensor) -> tensor;
+    op square(input: tensor) -> tensor;
+    op sqrt(input: tensor) -> tensor;
+    op rsqrt(input: tensor) -> tensor;
+
+    op reshape(input: tensor) -> tensor {
+        attrs {
+            shape: index[];
+        }
+    }
+    op transpose(input: tensor) -> tensor {
+        attrs {
+            permutation: index[];
+        }
+    }
+    op broadcast(input: tensor) -> tensor {
+        attrs {
+            dimensions: index[];
+            shape: index[];
+        }
+    }
+    op slice(input: tensor) -> tensor {
+        attrs {
+            start: index[];
+            limit: index[];
+            strides: index[];
+        }
+    }
+    op concatenate(first: tensor, second: tensor, rest: tensor...) -> tensor {
+        attrs {
+            axis: index;
+        }
+    }
+    op reduce(input: tensor) -> tensor {
+        attrs {
+            kind: string;
+            axes: index[];
+        }
+    }
+    op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+        alias: dot;
+        attrs {
+            lhs_contracting: index[];
+            rhs_contracting: index[];
+            lhs_batch: index[];
+            rhs_batch: index[];
+        }
+    }
+    op convolution(input: tensor, kernel: tensor) -> tensor;
+
+    op all_gather(input: tensor) -> tensor;
+    op all_reduce(input: tensor) -> tensor {
+        attrs: CollectiveReduce;
+    }
+    op reduce_scatter(input: tensor) -> tensor {
+        attrs: CollectiveReduce;
+    }
+    op all_to_all(input: tensor) -> tensor;
+    op alias(input: tensor) -> tensor;
+    op rmsnorm(input: tensor) -> tensor;
+    op vocab_cross_entropy(logits: tensor, labels: tensor) -> tensor;
+    op online_attention(query: tensor, key_value: tensor) -> tensor;
+
+    op constant() -> tensor {
+        attrs {
+            name: string;
+        }
+    }
+    op symbol() -> tensor {
+        attrs {
+            name: string;
+        }
+    }
+}

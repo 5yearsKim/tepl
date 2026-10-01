@@ -174,12 +174,69 @@ struct Rule {
   std::vector<Derivation> derivations;
 };
 
+struct Import {
+  SourceSpan span;
+  std::string path;
+  // Empty for the original `import "path";` form.
+  std::optional<std::string> dialect;
+  std::optional<std::string> alias;
+};
+
+struct Use {
+  SourceSpan span;
+  std::string alias;
+  // Empty means `use alias;`, which opens every operation in the dialect.
+  std::vector<std::string> operations;
+};
+
+struct AttrField {
+  SourceSpan span;
+  std::string name;
+  std::string type;
+  bool list = false;
+  bool empty_default = false;
+};
+
+struct AttrSchema {
+  SourceSpan span;
+  std::string name;
+  std::vector<AttrField> fields;
+};
+
+struct OperandDecl {
+  SourceSpan span;
+  std::string name;
+  std::string type;
+  bool variadic = false;
+};
+
+struct OpDecl {
+  SourceSpan span;
+  std::string name;
+  std::vector<OperandDecl> operands;
+  std::string result_type;
+  std::optional<std::string> alias;
+  std::optional<std::string> shared_attrs;
+  std::vector<AttrField> attrs;
+};
+
+struct Dialect {
+  SourceSpan span;
+  std::string name;
+  std::vector<AttrSchema> schemas;
+  std::vector<OpDecl> operations;
+  std::string source_name;
+};
+
 struct Program {
   SourceSpan span;
-  // All spans refer to this source file (or a descriptive name for memory
-  // input).
+  // Root rules, imports, uses, and local dialects use this source file.
+  // Imported dialects carry their own source_name.
   std::string source_name;
   std::vector<Rule> rules;
+  std::vector<Import> imports;
+  std::vector<Dialect> dialects;
+  std::vector<Use> uses;
 };
 
 }  // namespace tepl::ast

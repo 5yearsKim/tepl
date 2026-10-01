@@ -1,7 +1,0 @@
-rule tuple_projection {
-    (get[0] (tuple X Y)) => X
-}
-
-rule topk_projection {
-    ?T = (topk[@k] X) => (get[1] ?T)
-}

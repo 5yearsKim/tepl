@@ -1,9 +1,62 @@
 grammar Tepl;
 
-// Whitespace, including newlines, is insignificant. A file contains one or more
-// single-root rules. Bindings and typing are validated after parsing.
+// Whitespace, including newlines, is insignificant. A file contains imports,
+// dialects, and/or single-root rules. Bindings and typing are validated later.
 program
-    : ruleDecl+ EOF
+    : (importDecl | useDecl | dialectDecl | ruleDecl)+ EOF
+    ;
+
+importDecl
+    : IMPORT STRING ';'
+    | FROM STRING IMPORT ID (AS ID)? ';'
+    ;
+
+useDecl
+    : USE ID ('::' '{' opName (',' opName)* '}')? ';'
+    ;
+
+dialectDecl
+    : DIALECT ID '{' (attrsDecl | opDecl)* '}'
+    ;
+
+attrsDecl
+    : ATTRS ID '{' attrField* '}'
+    ;
+
+opDecl
+    : OP opName '(' operandDecls? ')' '->' ID (';' | '{' opProperty* '}')
+    ;
+
+opName
+    : ID
+    | ALIAS
+    ;
+
+opRef
+    : opName ('.' opName)?
+    ;
+
+operandDecls
+    : operandDecl (',' operandDecl)* (',' variadicOperand)?
+    | variadicOperand
+    ;
+
+operandDecl
+    : ID ':' ID
+    ;
+
+variadicOperand
+    : ID ':' ID ELLIPSIS
+    ;
+
+opProperty
+    : ALIAS ':' ID ';'                 # AliasProperty
+    | ATTRS ':' ID ';'                 # SharedAttrsProperty
+    | ATTRS '{' attrField* '}'         # InlineAttrsProperty
+    ;
+
+attrField
+    : ID ':' ID ('[' ']')? ('=' '[' ']')? ';'
     ;
 
 ruleDecl
@@ -36,7 +89,7 @@ graphExpr
     | ID                                     # VariableGraph
     | '(' binding ')'                        # ParenthesizedBindingGraph
     | '(' GET '[' INT ']' graphExpr ')'       # GetGraph
-    | '(' ID attribute? graphExpr* ')'        # OperatorGraph
+    | '(' opRef attribute? graphExpr* ')'     # OperatorGraph
     ;
 
 binding
@@ -114,6 +167,14 @@ arguments
     ;
 
 RULE: 'rule';
+IMPORT: 'import';
+FROM: 'from';
+AS: 'as';
+USE: 'use';
+DIALECT: 'dialect';
+OP: 'op';
+ATTRS: 'attrs';
+ALIAS: 'alias';
 WHERE: 'where';
 DERIVE: 'derive';
 SCALAR: 'scalar';
@@ -125,6 +186,7 @@ ELLIPSIS: '...';
 WILDCARD: '_';
 ID: [a-zA-Z_] [a-zA-Z_0-9]*;
 INT: [0-9]+;
+STRING: '"' (~["\\\r\n] | '\\' ["\\])* '"';
 
 LINE_COMMENT: '//' ~[\r\n]* -> skip;
 BLOCK_COMMENT: '/*' .*? '*/' -> skip;

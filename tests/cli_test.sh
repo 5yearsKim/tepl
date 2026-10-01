@@ -35,6 +35,9 @@ cmp "$output" "${TEST_TMPDIR}/tree"
 check_exit 0 parse "$example" --ast
 grep -Fq '  rule commute_add' "$output"
 grep -Fq '      operator add' "$output"
+grep -Fq '  from "dialects/tensor.tepl" import TensorLang as t' "$output"
+grep -Fq '  use t::{add}' "$output"
+grep -Fq '  dialect TensorLang' "$output"
 cp "$output" "${TEST_TMPDIR}/ast"
 check_exit 0 parse --ast "$example"
 cmp "$output" "${TEST_TMPDIR}/ast"
@@ -52,3 +55,91 @@ invalid="${TEST_TMPDIR}/invalid.tepl"
 printf 'rule r { X => }\n' >"$invalid"
 check_exit 1 parse "$invalid"
 grep -Fq "${invalid}:1:" "$output"
+
+missing_import="${TEST_TMPDIR}/missing_import.tepl"
+printf 'import "missing.tepl"; rule r { X => X }\n' >"$missing_import"
+check_exit 1 parse "$missing_import"
+grep -Fq "cannot open import 'missing.tepl'" "$output"
+
+bad_arity="${TEST_TMPDIR}/bad_arity.tepl"
+printf 'import "%s"; rule r { (add X) => X }\n' "$example" >"$bad_arity"
+# An import must contain dialect declarations only.
+check_exit 1 parse "$bad_arity"
+grep -Fq 'contains rules' "$output"
+
+dialect="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/dialects/tensor.tepl"
+printf 'from "%s" import TensorLang as t; use t; rule r { (multiply X Y) => (multiply Y X) }\n' "$dialect" >"$bad_arity"
+check_exit 0 parse "$bad_arity"
+
+printf 'from "%s" import TensorLang as t; rule r { (t.add X Y) => (t.add Y X) }\n' "$dialect" >"$bad_arity"
+check_exit 0 parse "$bad_arity"
+
+printf 'from "%s" import TensorLang as t; rule r { (t.dot[@d] X Y) => (t.dot[@d] X Y) }\n' "$dialect" >"$bad_arity"
+check_exit 0 parse "$bad_arity"
+
+printf 'from "%s" import TensorLang as t; rule r { (missing.add X Y) => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "unknown dialect alias 'missing'" "$output"
+
+printf 'from "%s" import TensorLang; use TensorLang::{add}; rule r { (add X Y) => X }\n' "$dialect" >"$bad_arity"
+check_exit 0 parse "$bad_arity"
+
+printf 'from "%s" import TensorLang as t; use t::{add}; rule r { (multiply X Y) => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "unknown operation 'multiply'" "$output"
+
+printf 'from "%s" import TensorLang as t; use t::{missing}; rule r { X => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "unknown operation 'missing' in dialect alias 't'" "$output"
+
+printf 'from "%s" import Missing as t; use t; rule r { X => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "dialect 'Missing' is not defined" "$output"
+
+printf 'from "%s" import TensorLang as t; use missing; rule r { X => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "unknown dialect alias 'missing'" "$output"
+
+printf 'import "%s"; rule r { (add X) => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq 'expects exactly 2 operands' "$output"
+
+other="${TEST_TMPDIR}/other.tepl"
+printf 'dialect Other { op add(lhs: tensor, rhs: tensor) -> tensor; }\n' >"$other"
+printf 'from "%s" import TensorLang as t; from "other.tepl" import Other as o; use t::{add}; use o::{add}; rule r { X => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "ambiguous operation 'add'" "$output"
+
+same_name="${TEST_TMPDIR}/same_name.tepl"
+printf 'dialect TensorLang { op add(lhs: tensor, rhs: tensor) -> tensor; }\n' >"$same_name"
+printf 'from "%s" import TensorLang as t; from "same_name.tepl" import TensorLang as other; rule r { (t.add X Y) => (other.add X Y) }\n' "$dialect" >"$bad_arity"
+check_exit 0 parse "$bad_arity"
+
+duplicate="${TEST_TMPDIR}/duplicate.tepl"
+printf 'dialect Duplicate {} dialect Duplicate {}\n' >"$duplicate"
+printf 'from "duplicate.tepl" import Duplicate as d; rule r { X => X }\n' >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "duplicate dialect 'Duplicate'" "$output"
+
+printf 'import "%s"; rule r { (dot X Y) => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq 'requires an attribute descriptor' "$output"
+
+printf 'import "%s"; rule r { (missing X) => X }\n' "$dialect" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "unknown operation 'missing'" "$output"
+
+printf 'dialect t { op bad(x: tensor) -> tensor { attrs { axis: mystery; } } }\n' >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "unknown attribute type 'mystery'" "$output"
+
+printf 'dialect t { op bad(x: tensor) -> tensor { attrs { kind: symbol; } } }\n' >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "unknown attribute type 'symbol'" "$output"
+
+cycle_a="${TEST_TMPDIR}/a.tepl"
+cycle_b="${TEST_TMPDIR}/b.tepl"
+printf 'import "b.tepl"; rule r { X => X }\n' >"$cycle_a"
+printf 'import "a.tepl";\n' >"$cycle_b"
+check_exit 1 parse "$cycle_a"
+grep -Fq 'cyclic import' "$output"

@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 
 namespace tepl {
 

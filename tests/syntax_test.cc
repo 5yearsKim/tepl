@@ -51,6 +51,21 @@ void testValidSyntax() {
        "derive { @out = infer(?Y, @d); } }"},
       {"comments", "// rule\nrule r { /* graph */ X => X } // end\n"},
       {"multiple rules", "rule a { X => X } rule b { Y => Y }"},
+      {"dialect and import",
+       "import \"tensor.tepl\"; dialect tensor { "
+       "attrs CollectiveReduce { kind: string; } "
+       "op add(lhs: tensor, rhs: tensor) -> tensor; "
+       "op dot_general(lhs: tensor, rhs: tensor) -> tensor { "
+       "alias: dot; attrs { axes: index[] = []; } } "
+       "op all_reduce(input: tensor) -> tensor { "
+       "attrs: CollectiveReduce; } "
+       "op concat(first: tensor, rest: tensor...) -> tensor; }"},
+      {"named dialect import",
+       "from \"tensor.tepl\" import TensorLang as t; "
+       "use t::{add, dot}; rule r { (t.dot[@d] X Y) => (add X Y) }"},
+      {"open dialect",
+       "from \"tensor.tepl\" import TensorLang as t; "
+       "use t; rule r { (add X Y) => (add Y X) }"},
   };
   for (const auto& test : cases) {
     auto result = tepl::parse(test.source);
@@ -105,6 +120,14 @@ void testInvalidSyntax() {
       {"variadic operands deferred", "rule r { (concat Xs...) => X }"},
       {"multiple roots deferred", "rule r { match { X Y } rewrite { X } }"},
       {"trailing input", "rule r { X => X } garbage"},
+      {"unnamed operand", "dialect t { op add(tensor) -> tensor; }"},
+      {"variadic not last",
+       "dialect t { op bad(xs: tensor..., last: tensor) -> tensor; }"},
+      {"missing attribute type",
+       "dialect t { op bad(x: tensor) -> tensor { attrs { axis:; } } }"},
+      {"named import missing dialect", "from \"tensor.tepl\" import;"},
+      {"empty selected use", "use t::{}; rule r { X => X }"},
+      {"selected use missing brace", "use t::{add; rule r { X => X }"},
       {"lexical error", "rule r { X => X $ }"},
       {"unterminated comment", "rule r { X => X } /* unfinished"},
   };

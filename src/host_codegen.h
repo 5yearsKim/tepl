@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 
 namespace tepl {
 

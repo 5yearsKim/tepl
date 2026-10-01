@@ -14,18 +14,15 @@ sh_binary(
 )
 
 cc_library(
-    name = "ast",
-    srcs = ["src/ast_print.cc"],
-    hdrs = ["src/ast.h", "src/ast_print.h"],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
     name = "frontend",
-    srcs = ["src/ast_builder.cc", "src/parse.cc"],
-    hdrs = ["src/ast_builder.h", "src/parse.h"],
+    srcs = ["src/parse.cc"],
+    hdrs = ["src/parse.h"],
     visibility = ["//visibility:public"],
-    deps = [":ast", "//grammar:parser"],
+    deps = [
+        "//grammar:parser",
+        "//src/ast:ast",
+        "//src/ast:builder",
+    ],
 )
 
 cc_library(
@@ -33,7 +30,7 @@ cc_library(
     srcs = ["src/semantic.cc"],
     hdrs = ["src/semantic.h"],
     visibility = ["//visibility:public"],
-    deps = [":ast"],
+    deps = ["//src/ast:ast"],
 )
 
 cc_library(
@@ -41,7 +38,7 @@ cc_library(
     srcs = ["src/host_codegen.cc"],
     hdrs = ["src/host_codegen.h"],
     visibility = ["//visibility:public"],
-    deps = [":ast"],
+    deps = ["//src/ast:ast"],
 )
 
 cc_library(
@@ -49,7 +46,7 @@ cc_library(
     srcs = ["src/simple_rewrite.cc"],
     hdrs = ["src/simple_rewrite.h"],
     visibility = ["//visibility:public"],
-    deps = [":ast", ":semantic"],
+    deps = [":semantic", "//src/ast:ast"],
 )
 
 cc_binary(
@@ -57,9 +54,9 @@ cc_binary(
     srcs = ["src/main.cc"],
     visibility = ["//tests:__pkg__"],
     deps = [
-        ":ast",
         ":frontend",
         ":host_codegen",
+        "//src/ast:ast",
         "@cli11//:cli11",
     ],
 )

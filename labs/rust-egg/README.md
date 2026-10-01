@@ -3,6 +3,10 @@
 The library contains a tensor IR and a reusable rewrite adapter. The
 `tensor_pattern` module separates pattern data, matching, metadata lookup, and
 application. `tests/lora_pattern.rs` shows a LoRA rule built from this API.
+The operation signatures and attribute schemas are now declared in
+[`examples/dialects/tensor.tepl`](../../examples/dialects/tensor.tepl), which
+the TEPL LoRA example imports. The Rust IR is still maintained manually;
+generating it from the dialect is a later compiler stage.
 
 The TEPL compiler discovers function calls in `where` and `derive` and emits a
 Rust host interface. For `examples/lora.tepl`:

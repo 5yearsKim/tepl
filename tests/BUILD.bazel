@@ -12,6 +12,7 @@ sh_test(
     data = [
         "//:tepl",
         "//examples:simple.tepl",
+        "//examples:dialects/tensor.tepl",
     ],
 )
 
@@ -19,10 +20,13 @@ cc_test(
     name = "ast_test",
     size = "small",
     srcs = ["ast_test.cc"],
-    args = ["$(rlocationpath //examples:lora.tepl)"],
-    data = ["//examples:lora.tepl"],
+    args = [
+        "$(rlocationpath //examples:lora.tepl)",
+        "$(rlocationpath //examples:dialects/tensor.tepl)",
+    ],
+    data = ["//examples:lora.tepl", "//examples:dialects/tensor.tepl"],
     deps = [
-        "//:ast",
+        "//src/ast:ast",
         "//:frontend",
         "@rules_cc//cc/runfiles",
     ],
@@ -35,30 +39,6 @@ cc_test(
     deps = [
         "//:frontend",
         "//grammar:parser",
-    ],
-)
-
-cc_test(
-    name = "examples_test",
-    size = "small",
-    srcs = ["examples_test.cc"],
-    args = [
-        "$(rlocationpath //examples:simple.tepl)",
-        "$(rlocationpath //examples:shapes.tepl)",
-        "$(rlocationpath //examples:binders.tepl)",
-        "$(rlocationpath //examples:tuples.tepl)",
-        "$(rlocationpath //examples:lora.tepl)",
-    ],
-    data = [
-        "//examples:simple.tepl",
-        "//examples:shapes.tepl",
-        "//examples:binders.tepl",
-        "//examples:tuples.tepl",
-        "//examples:lora.tepl",
-    ],
-    deps = [
-        "//:frontend",
-        "@rules_cc//cc/runfiles",
     ],
 )
 
