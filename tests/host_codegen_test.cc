@@ -21,6 +21,10 @@ rule example {
   assert(generated.source.find("fn broadcastable(&self, arg0: &[usize], "
                                "arg1: &[usize]) -> Option<bool>;") !=
          std::string::npos);
+  assert(generated.source.find("pub mod example {") !=
+         std::string::npos);
+  assert(generated.source.find("pub trait Functions: Send + Sync") !=
+         std::string::npos);
   assert(generated.source.find("fn forbidden(&self, arg0: &TensorInfo) "
                                "-> Option<bool>;") != std::string::npos);
   assert(generated.source.find("fn infer_dot(&self, arg0: &TensorInfo, "
@@ -30,7 +34,7 @@ rule example {
 
   const auto implementation = tepl::generateHostTemplate(*parsed.program, true);
   assert(implementation.ok());
-  assert(implementation.source.find("impl HostFunctions for UserFunctions") !=
+  assert(implementation.source.find("impl example::Functions for UserFunctions") !=
          std::string::npos);
   assert(implementation.source.find("todo!(\"implement infer_dot\")") !=
          std::string::npos);
@@ -49,6 +53,8 @@ rule rhs_binding {
   const auto with_bindings =
       tepl::generateHostTemplate(*bindings.program, false);
   assert(with_bindings.ok());
+  assert(with_bindings.source.find("pub mod lhs_binding {") != std::string::npos);
+  assert(with_bindings.source.find("pub mod rhs_binding {") != std::string::npos);
   assert(with_bindings.source.find(
              "fn reusable(&self, arg0: &TensorInfo) -> Option<bool>;") !=
          std::string::npos);

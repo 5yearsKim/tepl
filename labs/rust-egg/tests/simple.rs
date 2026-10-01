@@ -10,7 +10,7 @@ fn commute_add_swaps_operands() {
     let root = egraph.add(TensorLang::binary(OpKind::Add, x, y).unwrap());
     egraph.rebuild();
 
-    let rule = simple::rule_commute_add::<()>().unwrap();
+    let rule = simple::commute_add::build_rewrite::<()>().unwrap();
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     assert_eq!(rule.apply(&mut egraph, &found).len(), 1);

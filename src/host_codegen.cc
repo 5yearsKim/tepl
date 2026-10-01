@@ -18,6 +18,7 @@ struct Signature {
 
 using Types = std::map<std::string, std::string>;
 using Functions = std::map<std::string, Signature>;
+using RuleFunctions = std::vector<std::pair<std::string, Functions>>;
 
 void addDiagnostic(std::vector<HostDiagnostic>& diagnostics,
                    const ast::SourceSpan& span, std::string message) {
@@ -153,15 +154,17 @@ void collectCalls(const ast::ConstraintExpr& expression, const Types& types,
 }
 
 void writeMethod(std::ostringstream& output, const std::string& name,
-                 const Signature& signature, bool implementation) {
-  output << "    fn " << name << "(&self";
+                 const Signature& signature, bool implementation,
+                 const std::string& indent) {
+  output << indent << "fn " << name << "(&self";
   for (size_t index = 0; index < signature.arguments.size(); ++index) {
     output << (implementation ? ", _arg" : ", arg") << index << ": "
            << signature.arguments[index];
   }
   output << ") -> Option<" << signature.result << ">";
   if (implementation) {
-    output << " {\n        todo!(\"implement " << name << "\")\n    }\n";
+    output << " {\n" << indent << "    todo!(\"implement " << name << "\")\n"
+           << indent << "}\n";
   } else {
     output << ";\n";
   }
@@ -172,9 +175,10 @@ void writeMethod(std::ostringstream& output, const std::string& name,
 HostTemplateResult generateHostTemplate(const ast::Program& program,
                                         bool implementation) {
   HostTemplateResult result;
-  Functions functions;
+  RuleFunctions rules;
   for (const auto& rule : program.rules) {
     const Types types = declaredTypes(rule);
+    Functions functions;
     for (const auto& condition : rule.conditions) {
       collectCalls(*condition, types, "bool", functions, result.diagnostics);
     }
@@ -182,19 +186,32 @@ HostTemplateResult generateHostTemplate(const ast::Program& program,
       collectCalls(*derivation.value, types, "InferredTensor", functions,
                    result.diagnostics);
     }
+    if (!functions.empty()) {
+      rules.emplace_back(rule.name, std::move(functions));
+    }
   }
   if (!result.ok()) return result;
 
   std::ostringstream output;
-  output << "// Generated host functions. Keep user implementations in a "
-            "separate file.\n";
+  output << "// Generated per-rule function modules. Keep implementations "
+            "in a separate file.\n";
   std::set<std::string> used_types;
-  for (const auto& [name, signature] : functions) {
-    used_types.insert(signature.result);
-    for (const auto& argument : signature.arguments) {
-      used_types.insert(argument);
+  std::set<std::string> module_names;
+  for (const auto& [name, functions] : rules) {
+    if (!module_names.insert(name).second) {
+      addDiagnostic(result.diagnostics, {},
+                    "rule names produce duplicate Rust module '" + name + "'");
+      continue;
+    }
+    for (const auto& entry : functions) {
+      const auto& signature = entry.second;
+      used_types.insert(signature.result);
+      for (const auto& argument : signature.arguments) {
+        used_types.insert(argument);
+      }
     }
   }
+  if (!result.ok()) return result;
   if (used_types.contains("&OpAttrs")) {
     output << "use rust_egg::ir::OpAttrs;\n";
   }
@@ -212,16 +229,39 @@ HostTemplateResult generateHostTemplate(const ast::Program& program,
   if (implementation) {
     output << "// Save this once and fill in the functions. Do not overwrite "
               "your implementation when regenerating the interface.\n";
-    output << "use crate::generated_host::HostFunctions;\n\n";
-    output << "pub struct UserFunctions;\n\nimpl HostFunctions for "
-              "UserFunctions {\n";
-  } else {
-    output << "pub trait HostFunctions: Send + Sync {\n";
+    if (rules.size() == 1) {
+      output << "use crate::generated_host::" << rules.front().first << ";\n\n";
+    } else if (!rules.empty()) {
+      output << "use crate::generated_host::{";
+      bool first = true;
+      for (const auto& rule : rules) {
+        if (!first) output << ", ";
+        output << rule.first;
+        first = false;
+      }
+      output << "};\n\n";
+    }
+    output << "pub struct UserFunctions;\n";
   }
-  for (const auto& [name, signature] : functions) {
-    writeMethod(output, name, signature, implementation);
+
+  for (const auto& [rule_name, functions] : rules) {
+    if (implementation) {
+      output << "\nimpl " << rule_name << "::Functions for UserFunctions {\n";
+    } else {
+      output << "\npub mod " << rule_name << " {\n"
+             << "    use super::*;\n\n"
+             << "    pub trait Functions: Send + Sync {\n";
+    }
+    for (const auto& [name, signature] : functions) {
+      writeMethod(output, name, signature, implementation,
+                  implementation ? "    " : "        ");
+    }
+    if (implementation) {
+      output << "}\n";
+    } else {
+      output << "    }\n}\n";
+    }
   }
-  output << "}\n";
   result.source = output.str();
   return result;
 }

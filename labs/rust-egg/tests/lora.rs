@@ -4,7 +4,8 @@ use std::collections::HashMap;
 
 use egg::{EGraph, Id, Rewrite, Var};
 use rust_egg::ir::patterns::{AttrVar, InferredTensor, TensorInfo, matches_at};
-use rust_egg::ir::rules::lora::{self, HostFunctions};
+use rust_egg::ir::rules::lora;
+use rust_egg::ir::rules::lora::lora::Functions;
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
 
 fn batched_dot_attrs() -> OpAttrs {
@@ -30,7 +31,7 @@ fn batched_dot_shape(lhs: &[usize], rhs: &[usize], attrs: &OpAttrs) -> Option<Ve
 
 struct TestFunctions;
 
-impl HostFunctions for TestFunctions {
+impl Functions for TestFunctions {
     fn broadcastable(&self, batch: &[usize], weight_batch: &[usize]) -> Option<bool> {
         Some(batch == weight_batch)
     }
@@ -107,7 +108,7 @@ fn test_rule(shapes: HashMap<String, Vec<usize>>) -> Rewrite<TensorLang, ()> {
                 shape: shape.clone(),
             })
     };
-    lora::rule_lora(metadata, TestFunctions).unwrap()
+    lora::lora::build_rewrite(metadata, TestFunctions).unwrap()
 }
 
 #[test]
@@ -118,7 +119,7 @@ fn lora_rule_matches_and_builds_rhs() {
         inputs: [x, w, a, b],
         shapes,
     } = fixture(5);
-    let lhs = lora::pattern();
+    let lhs = lora::lora::pattern();
     let rule = test_rule(shapes);
 
     let captures = matches_at(&egraph, root, &lhs);

@@ -1,6 +1,6 @@
 use egg::{EGraph, Id, Var};
 use rust_egg::ir::patterns::{AttrPattern, TensorInfo, TensorPattern, matches_at};
-use rust_egg::ir::rules::binders::{self, HostFunctions};
+use rust_egg::ir::rules::binders::{self, shared_expression::Functions};
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
 
 fn dot_attrs() -> OpAttrs {
@@ -16,7 +16,7 @@ struct TestFunctions {
     allow: bool,
 }
 
-impl HostFunctions for TestFunctions {
+impl Functions for TestFunctions {
     fn reusable(&self, tensor: &TensorInfo, attrs: &OpAttrs) -> Option<bool> {
         Some(self.allow && tensor.shape.as_slice() == [2, 2] && *attrs == dot_attrs())
     }
@@ -39,18 +39,22 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
     let root = egraph.add(TensorLang::binary(OpKind::Add, dot, product).unwrap());
     egraph.rebuild();
 
-    let matched = matches_at(&egraph, root, &binders::shared_expression_pattern());
+    let matched = matches_at(&egraph, root, &binders::shared_expression::pattern());
     assert_eq!(matched.len(), 1);
     assert_eq!(matched[0].tensors["?Y".parse::<Var>().unwrap()], dot);
     assert_eq!(matched[0].attrs[&"d".into()], dot_attrs());
 
-    let rejected =
-        binders::rule_shared_expression(metadata_for(dot), TestFunctions { allow: false }).unwrap();
+    let rejected = binders::shared_expression::build_rewrite(
+        metadata_for(dot),
+        TestFunctions { allow: false },
+    )
+    .unwrap();
     let found = rejected.search(&egraph);
     assert!(rejected.apply(&mut egraph, &found).is_empty());
 
     let rule =
-        binders::rule_shared_expression(metadata_for(dot), TestFunctions { allow: true }).unwrap();
+        binders::shared_expression::build_rewrite(metadata_for(dot), TestFunctions { allow: true })
+            .unwrap();
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     assert_eq!(rule.apply(&mut egraph, &found).len(), 1);
@@ -79,7 +83,7 @@ fn root_binder_is_visible_to_search_and_rhs() {
     egraph.rebuild();
 
     let y = "?Y".parse::<Var>().unwrap();
-    let matched = matches_at(&egraph, root, &binders::root_binding_pattern());
+    let matched = matches_at(&egraph, root, &binders::root_binding::pattern());
     assert_eq!(matched.len(), 1);
     assert_eq!(matched[0].tensors[y], root);
     assert_eq!(
@@ -89,7 +93,7 @@ fn root_binder_is_visible_to_search_and_rhs() {
         }
     );
 
-    let rule = binders::rule_root_binding::<()>().unwrap();
+    let rule = binders::root_binding::build_rewrite::<()>().unwrap();
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     assert_eq!(found[0].substs[0][y], root);

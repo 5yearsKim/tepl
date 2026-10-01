@@ -19,8 +19,9 @@ struct HostTemplateResult {
   bool ok() const { return diagnostics.empty(); }
 };
 
-// Discover host calls in where/derive and emit a Rust trait or an
-// implementation template. This is deliberately separate from rule lowering.
+// Discover host calls in each rule's where/derive sections and emit per-rule
+// Rust function traits or an implementation template. This is deliberately
+// separate from rule lowering.
 HostTemplateResult generateHostTemplate(const ast::Program& program,
                                         bool implementation);
 

@@ -374,6 +374,27 @@ impl TensorLang {
     }
 }
 
+impl fmt::Display for TensorLang {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.attrs {
+            OpAttrs::None => write!(formatter, "{}", self.op.display_name()),
+            OpAttrs::Symbol { name } | OpAttrs::Constant { name } => {
+                write!(formatter, "{name}")
+            }
+            OpAttrs::DotGeneral {
+                lhs_contracting,
+                rhs_contracting,
+                lhs_batch,
+                rhs_batch,
+            } => write!(
+                formatter,
+                "dot(lc={lhs_contracting:?},rc={rhs_contracting:?},lb={lhs_batch:?},rb={rhs_batch:?})"
+            ),
+            attrs => write!(formatter, "{} {attrs:?}", self.op.display_name()),
+        }
+    }
+}
+
 impl Language for TensorLang {
     type Discriminant = OpKind;
 
