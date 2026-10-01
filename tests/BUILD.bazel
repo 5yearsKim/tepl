@@ -61,3 +61,24 @@ cc_test(
         "@rules_cc//cc/runfiles",
     ],
 )
+
+cc_test(
+    name = "simple_rewrite_test",
+    size = "small",
+    srcs = ["simple_rewrite_test.cc"],
+    deps = [
+        "//:frontend",
+        "//:semantic",
+        "//:simple_rewrite",
+    ],
+)
+
+cc_test(
+    name = "host_codegen_test",
+    size = "small",
+    srcs = ["host_codegen_test.cc"],
+    deps = [
+        "//:frontend",
+        "//:host_codegen",
+    ],
+)

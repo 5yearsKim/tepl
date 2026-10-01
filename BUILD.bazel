@@ -28,6 +28,30 @@ cc_library(
     deps = [":ast", "//grammar:parser"],
 )
 
+cc_library(
+    name = "semantic",
+    srcs = ["src/semantic.cc"],
+    hdrs = ["src/semantic.h"],
+    visibility = ["//visibility:public"],
+    deps = [":ast"],
+)
+
+cc_library(
+    name = "host_codegen",
+    srcs = ["src/host_codegen.cc"],
+    hdrs = ["src/host_codegen.h"],
+    visibility = ["//visibility:public"],
+    deps = [":ast"],
+)
+
+cc_library(
+    name = "simple_rewrite",
+    srcs = ["src/simple_rewrite.cc"],
+    hdrs = ["src/simple_rewrite.h"],
+    visibility = ["//visibility:public"],
+    deps = [":ast", ":semantic"],
+)
+
 cc_binary(
     name = "tepl",
     srcs = ["src/main.cc"],
@@ -35,6 +59,7 @@ cc_binary(
     deps = [
         ":ast",
         ":frontend",
+        ":host_codegen",
         "@cli11//:cli11",
     ],
 )

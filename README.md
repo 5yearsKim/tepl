@@ -91,12 +91,27 @@ and the complete LoRA example from the design document.
 ## Scope and next steps
 
 The parser also builds an owning AST with source spans for valid input.
-Symbol resolution,
-operator arity/types (except `get` syntax), host-function signatures, legality,
-derived metadata dependencies, and e-graph behavior need later semantic passes.
+A first structural rewriter is available through `validateSimpleRule` and
+`rewriteOnce` in `src/semantic.h` and `src/simple_rewrite.h`. It matches a rule
+only at the input root, captures LHS variables, and substitutes them into the
+RHS. Repeated variables must match structurally equal subtrees. This first
+version supports graph variables and operators without attributes. Validation
+reports unsupported declarations, binders, projections, `where`, and `derive`
+instead of silently ignoring them. A mismatch returns `std::nullopt`; an
+invalid rule throws `std::invalid_argument` from `rewriteOnce`.
+
+Full symbol resolution, operator arity/types (except `get` syntax), general
+host-function type checking, legality, derived metadata dependencies, and
+e-graph behavior need later semantic passes.
 The examples are parser fixtures, not claims of tensor equivalence.
 Multiple-root patterns and variadic expression operands are deferred.
 
 The grammar contains no C++ actions. Bazel generates lexer/parser and visitor
 sources under the build directory. `AstBuilder` converts their parse tree into
-the project AST. The next step is symbol and metadata dependency validation.
+the project AST. The next step is broader symbol and metadata dependency
+validation.
+
+The `host-template` command emits a Rust host-function interface from calls in
+`where` and `derive`. Use `--impl` for a separate implementation template.
+See [the egg lab](labs/rust-egg/README.md) for the runtime and an integration
+test. Full rule lowering remains future work.
