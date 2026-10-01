@@ -54,9 +54,17 @@ void testLora(const std::string& source, const std::string& path) {
   const auto dot =
       std::find_if(operations.begin(), operations.end(),
                    [](const auto& op) { return op.name == "dot_general"; });
+  const auto short_name =
+      std::find_if(operations.begin(), operations.end(),
+                   [](const auto& op) { return op.name == "dot"; });
+  const auto* dot_attrs =
+      dot != operations.end() && dot->attrs
+          ? std::get_if<tepl::ast::InlineAttrs>(&*dot->attrs)
+          : nullptr;
   check(dot != operations.end() && dot->alias == "dot" &&
-            dot->operands.size() == 2 && dot->attrs.size() == 4 &&
-            dot->attrs[0].type == "index" && dot->attrs[0].list,
+            short_name == operations.end() && dot->operands.size() == 2 &&
+            dot_attrs && dot_attrs->fields.size() == 4 &&
+            dot_attrs->fields[0].type == "index" && dot_attrs->fields[0].list,
         "Dot signature or attributes were not preserved");
   const auto concat =
       std::find_if(operations.begin(), operations.end(),
@@ -105,7 +113,7 @@ void testLora(const std::string& source, const std::string& path) {
       binding.expression->value, "Binding should contain a dot");
   check(binding.binder.name == "XA" && bound_dot.attribute &&
             bound_dot.attribute->name == "xa",
-        "Intermediate ?XA was not preserved");
+        "Intermediate XA was not preserved");
   check(binding.expression->span.begin.line == 17 &&
             final_dot.operands[0]->span.begin.line == 17,
         "Nested expression spans are wrong");
@@ -120,14 +128,14 @@ void testLora(const std::string& source, const std::string& path) {
   const auto& infer = as<tepl::ast::Call>(rule.derivations[2].value->value,
                                           "Expected infer_dot call");
   check(infer.callee == "infer_dot" && infer.arguments.size() == 3 &&
-            as<tepl::ast::BinderRef>(infer.arguments[0]->value,
-                                     "Expected ?XA in derivation")
+            as<tepl::ast::NameRef>(infer.arguments[0]->value,
+                                   "Expected XA in derivation")
                     .name == "XA",
-        "Derived @out must reference ?XA");
+        "Derived @out must reference XA");
 
   auto printed = tepl::formatAst(program);
   check(printed.find("tensor X [Batch..., M, K]") != std::string::npos &&
-            printed.find("bind ?XA") != std::string::npos &&
+            printed.find("let XA") != std::string::npos &&
             printed.find("derive @out") != std::string::npos,
         "Formatted AST is missing LoRA structure");
 }
@@ -137,9 +145,9 @@ void testExpressionsAndSpans() {
       "rule r {\n"
       "  X: [M, Tail..., _]\n"
       "  S: scalar\n"
-      "  (get[000] (tuple (?Y = (dot[@d] X S)) ?Y)) => ?Y\n"
+      "  (get[000] (tuple (let Y = (dot[@d] X S)) Y)) => Y\n"
       "  where { K + 2 * N >= 128 && !false || true;\n"
-      "          -(M + N) < 0; f(X, @d, ?Y, 999999999999999999999999); }\n"
+      "          -(M + N) < 0; f(X, @d, Y, 999999999999999999999999); }\n"
       "}\n",
       "math.tepl");
   check(parsed.ok() && parsed.program.has_value(), "Expression fixture failed");
@@ -168,10 +176,10 @@ void testExpressionsAndSpans() {
   const auto& tuple = as<tepl::ast::Operator>(projection.tuple->value,
                                               "Expected tuple operation");
   check(tuple.name == "tuple" && tuple.operands.size() == 2 &&
-            as<tepl::ast::BinderRef>(tuple.operands[1]->value,
-                                     "Expected binder reference")
+            as<tepl::ast::NameRef>(tuple.operands[1]->value,
+                                   "Expected bound name reference")
                     .name == "Y",
-        "Tuple or binder reference is wrong");
+        "Tuple or bound name reference is wrong");
 
   const auto& logical_or = as<tepl::ast::BinaryExpr>(
       rule.conditions[0]->value, "Expected outer logical OR");
@@ -225,6 +233,21 @@ void testInvalidSource() {
         "Invalid syntax must not expose an AST");
 }
 
+void testAttributeTypeAndDefault() {
+  auto parsed = tepl::parse(
+      "dialect t { op test(input: tensor) -> tensor { "
+      "attrs { axis: index = []; shape: index[] = []; } } }",
+      "attributes.tepl");
+  check(parsed.ok() && parsed.program.has_value(),
+        "Attribute fixture must build an AST");
+  const auto& op = parsed.program->dialects.front().operations.front();
+  const auto* attrs = std::get_if<tepl::ast::InlineAttrs>(&*op.attrs);
+  check(attrs && attrs->fields.size() == 2 && !attrs->fields[0].list &&
+            attrs->fields[0].empty_default && attrs->fields[1].list &&
+            attrs->fields[1].empty_default,
+        "Attribute list type must be independent of its default");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -242,6 +265,7 @@ int main(int argc, char** argv) {
                        std::istreambuf_iterator<char>()};
     testLora(source, path);
     testExpressionsAndSpans();
+    testAttributeTypeAndDefault();
     testInvalidSource();
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

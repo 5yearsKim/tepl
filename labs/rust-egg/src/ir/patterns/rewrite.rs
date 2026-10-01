@@ -81,12 +81,12 @@ impl<N: Analysis<TensorLang>> Searcher<TensorLang, N> for TensorSearcher {
         egraph: &EGraph<TensorLang, N>,
         mut limit: usize,
     ) -> Vec<SearchMatches<'_, TensorLang>> {
-        let classes: Vec<_> = match &self.pattern {
-            TensorPattern::Op { op, .. } => egraph
-                .classes_for_op(op)
+        let classes: Vec<_> = match self.pattern.root_op() {
+            Some(op) => egraph
+                .classes_for_op(&op)
                 .map(|ids| ids.collect())
                 .unwrap_or_default(),
-            TensorPattern::Var(_) => egraph.classes().map(|class| class.id).collect(),
+            None => egraph.classes().map(|class| class.id).collect(),
         };
         let mut results = Vec::new();
         for eclass in classes {

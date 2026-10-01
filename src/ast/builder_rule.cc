@@ -124,12 +124,6 @@ std::any AstBuilder::visitBareBindingGraph(
   return visit(context->binding());
 }
 
-std::any AstBuilder::visitBinderReferenceGraph(
-    Parser::BinderReferenceGraphContext* context) {
-  return makeGraph(context,
-                   ast::BinderRef{context->binderRef()->ID()->getText()});
-}
-
 std::any AstBuilder::visitVariableGraph(Parser::VariableGraphContext* context) {
   return makeGraph(context, ast::NameRef{context->ID()->getText()});
 }
@@ -160,11 +154,9 @@ std::any AstBuilder::visitOperatorGraph(Parser::OperatorGraphContext* context) {
 }
 
 std::any AstBuilder::visitBinding(Parser::BindingContext* context) {
-  return makeGraph(
-      context,
-      ast::Binding{
-          ast::BinderRef{context->binderRef()->ID()->getText()},
-          std::any_cast<ast::GraphExprPtr>(visit(context->graphExpr()))});
+  return makeGraph(context, ast::Binding{ast::NameRef{context->ID()->getText()},
+                                         std::any_cast<ast::GraphExprPtr>(
+                                             visit(context->graphExpr()))});
 }
 
 std::any AstBuilder::visitConstraintExpr(
@@ -238,11 +230,6 @@ std::any AstBuilder::visitAttributePrimary(
     Parser::AttributePrimaryContext* context) {
   return makeConstraint(context,
                         ast::AttributeRef{context->attrRef()->ID()->getText()});
-}
-
-std::any AstBuilder::visitBinderPrimary(Parser::BinderPrimaryContext* context) {
-  return makeConstraint(context,
-                        ast::BinderRef{context->binderRef()->ID()->getText()});
 }
 
 std::any AstBuilder::visitIntegerPrimary(

@@ -203,14 +203,15 @@ std::vector<Diagnostic> validateDialectUses(const ast::Program& program) {
           report(operand.span, "unknown operand type '" + operand.type + "'");
         }
       }
-      if (op.shared_attrs && !schemas.contains(*op.shared_attrs)) {
-        report(op.span, "unknown attribute schema '" + *op.shared_attrs + "'");
+      if (op.attrs) {
+        if (const auto* shared = std::get_if<ast::SharedAttrs>(&*op.attrs)) {
+          if (!schemas.contains(shared->name)) {
+            report(op.span, "unknown attribute schema '" + shared->name + "'");
+          }
+        } else {
+          checkFields(std::get<ast::InlineAttrs>(*op.attrs).fields);
+        }
       }
-      if (op.shared_attrs && !op.attrs.empty()) {
-        report(op.span,
-               "operation cannot combine shared and inline attributes");
-      }
-      checkFields(op.attrs);
     }
   }
   const auto report = [&](const ast::SourceSpan& span, std::string message) {
@@ -280,63 +281,65 @@ std::vector<Diagnostic> validateDialectUses(const ast::Program& program) {
       }
     }
   }
-  std::function<void(const ast::GraphExpr&)> check =
-      [&](const ast::GraphExpr& expression) {
-        if (const auto* op = std::get_if<ast::Operator>(&expression.value)) {
-          const ast::OpDecl* declaration = nullptr;
-          bool unknown_alias = false;
-          const auto dot = op->name.find('.');
-          if (dot == std::string::npos) {
-            const auto found = visible.find(op->name);
-            if (found != visible.end()) declaration = found->second;
-          } else {
-            const auto alias = op->name.substr(0, dot);
-            const auto found = aliases.find(alias);
-            if (found == aliases.end()) {
-              report(expression.span, "unknown dialect alias '" + alias + "'");
-              unknown_alias = true;
-            } else {
-              const auto& names = operations.at(found->second);
-              const auto operation = names.find(op->name.substr(dot + 1));
-              if (operation != names.end()) declaration = operation->second;
-            }
-          }
-          if (!declaration) {
-            if (!unknown_alias) {
-              report(expression.span, "unknown operation '" + op->name + "'");
-            }
-          } else {
-            const bool variadic = !declaration->operands.empty() &&
-                                  declaration->operands.back().variadic;
-            const std::size_t minimum =
-                declaration->operands.size() - (variadic ? 1 : 0);
-            if (op->operands.size() < minimum ||
-                (!variadic && op->operands.size() != minimum)) {
-              report(expression.span,
-                     "operation '" + op->name + "' expects " +
-                         (variadic ? "at least " : "exactly ") +
-                         std::to_string(minimum) + " operands, got " +
-                         std::to_string(op->operands.size()));
-            }
-            const bool needs_attrs = declaration->shared_attrs.has_value() ||
-                                     !declaration->attrs.empty();
-            if (needs_attrs && !op->attribute) {
-              report(expression.span, "operation '" + op->name +
-                                          "' requires an attribute descriptor");
-            } else if (!needs_attrs && op->attribute) {
-              report(expression.span,
-                     "operation '" + op->name + "' has no attributes");
-            }
-          }
-          for (const auto& operand : op->operands) check(*operand);
-        } else if (const auto* binding =
-                       std::get_if<ast::Binding>(&expression.value)) {
-          check(*binding->expression);
-        } else if (const auto* projection =
-                       std::get_if<ast::Projection>(&expression.value)) {
-          check(*projection->tuple);
+  std::function<void(const ast::GraphExpr&)> check = [&](const ast::GraphExpr&
+                                                             expression) {
+    if (const auto* op = std::get_if<ast::Operator>(&expression.value)) {
+      const ast::OpDecl* declaration = nullptr;
+      bool unknown_alias = false;
+      const auto dot = op->name.find('.');
+      if (dot == std::string::npos) {
+        const auto found = visible.find(op->name);
+        if (found != visible.end()) declaration = found->second;
+      } else {
+        const auto alias = op->name.substr(0, dot);
+        const auto found = aliases.find(alias);
+        if (found == aliases.end()) {
+          report(expression.span, "unknown dialect alias '" + alias + "'");
+          unknown_alias = true;
+        } else {
+          const auto& names = operations.at(found->second);
+          const auto operation = names.find(op->name.substr(dot + 1));
+          if (operation != names.end()) declaration = operation->second;
         }
-      };
+      }
+      if (!declaration) {
+        if (!unknown_alias) {
+          report(expression.span, "unknown operation '" + op->name + "'");
+        }
+      } else {
+        const bool variadic = !declaration->operands.empty() &&
+                              declaration->operands.back().variadic;
+        const std::size_t minimum =
+            declaration->operands.size() - (variadic ? 1 : 0);
+        if (op->operands.size() < minimum ||
+            (!variadic && op->operands.size() != minimum)) {
+          report(expression.span, "operation '" + op->name + "' expects " +
+                                      (variadic ? "at least " : "exactly ") +
+                                      std::to_string(minimum) +
+                                      " operands, got " +
+                                      std::to_string(op->operands.size()));
+        }
+        const bool needs_attrs =
+            declaration->attrs &&
+            (std::holds_alternative<ast::SharedAttrs>(*declaration->attrs) ||
+             !std::get<ast::InlineAttrs>(*declaration->attrs).fields.empty());
+        if (needs_attrs && !op->attribute) {
+          report(expression.span, "operation '" + op->name +
+                                      "' requires an attribute descriptor");
+        } else if (!needs_attrs && op->attribute) {
+          report(expression.span,
+                 "operation '" + op->name + "' has no attributes");
+        }
+      }
+      for (const auto& operand : op->operands) check(*operand);
+    } else if (const auto* binding =
+                   std::get_if<ast::Binding>(&expression.value)) {
+      check(*binding->expression);
+    } else if (const auto* projection =
+                   std::get_if<ast::Projection>(&expression.value)) {
+      check(*projection->tuple);
+    }
+  };
   for (const auto& rule : program.rules) {
     check(*rule.lhs);
     check(*rule.rhs);

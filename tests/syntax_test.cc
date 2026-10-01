@@ -38,17 +38,17 @@ void testValidSyntax() {
       {"trailing sequence", "rule r { X: [M, K, Tail...] X => X }"},
       {"descriptor", "rule r { (dot[@d] X W) => (dot[@d] X W) }"},
       {"nullary operator", "rule r { (zero) => (zero) }"},
-      {"root binding", "rule r { ?Y = (dot X W) => ?Y }"},
+      {"root binding", "rule r { let Y = (dot X W) => Y }"},
       {"nested binding",
-       "rule r { (add (?Y = (dot X W)) ?Y) => (?Z = (mul ?Y ?Y)) }"},
+       "rule r { (add (let Y = (dot X W)) Y) => (let Z = (mul Y Y)) }"},
       {"tuple", "rule r { (get[0] (tuple X Y)) => X }"},
       {"empty sections", "rule r { X => X where {} derive {} }"},
       {"derive only", "rule r { X => (copy[@t] X) derive { @t = infer(X); } }"},
       {"host expressions",
-       "rule r { X => X where { f(g(X, @d), ?Y, 4); "
+       "rule r { X => X where { f(g(X, @d), Y, 4); "
        "K % 128 == 0; -K + +N / 2 != 0; M - 1 < N; "
        "rank(X) >= 2 && !(N <= 0) || true; M > N; } "
-       "derive { @out = infer(?Y, @d); } }"},
+       "derive { @out = infer(Y, @d); } }"},
       {"comments", "// rule\nrule r { /* graph */ X => X } // end\n"},
       {"multiple rules", "rule a { X => X } rule b { Y => Y }"},
       {"dialect and import",
@@ -63,6 +63,13 @@ void testValidSyntax() {
       {"named dialect import",
        "from \"tensor.tepl\" import TensorLang as t; "
        "use t::{add, dot}; rule r { (t.dot[@d] X Y) => (add X Y) }"},
+      {"attributes before alias",
+       "dialect t { op dot_general(lhs: tensor, rhs: tensor) -> tensor { "
+       "attrs { axes: index[] = []; } alias: dot; } }"},
+      {"shared attributes before alias",
+       "dialect t { attrs Metadata { kind: string; } "
+       "op dot_general(lhs: tensor, rhs: tensor) -> tensor { "
+       "attrs: Metadata; alias: dot; } }"},
       {"open dialect",
        "from \"tensor.tepl\" import TensorLang as t; "
        "use t; rule r { (add X Y) => (add Y X) }"},
@@ -91,7 +98,8 @@ void testInvalidSyntax() {
       {"unclosed graph", "rule r { (add X Y => X }"},
       {"unclosed attribute", "rule r { (dot[@d X W) => X }"},
       {"missing attribute sigil", "rule r { (dot[d] X W) => X }"},
-      {"empty binder", "rule r { ? = X => X }"},
+      {"empty binder", "rule r { let = X => X }"},
+      {"legacy binder sigil", "rule r { ?Y = X => Y }"},
       {"empty descriptor", "rule r { (dot[@] X W) => X }"},
       {"two shape sequences", "rule r { X: [A..., B...] X => X }"},
       {"two anonymous sequences", "rule r { X: [..., M, ...] X => X }"},
@@ -125,6 +133,20 @@ void testInvalidSyntax() {
        "dialect t { op bad(xs: tensor..., last: tensor) -> tensor; }"},
       {"missing attribute type",
        "dialect t { op bad(x: tensor) -> tensor { attrs { axis:; } } }"},
+      {"duplicate aliases",
+       "dialect t { op bad(x: tensor) -> tensor { "
+       "alias: one; alias: two; } }"},
+      {"duplicate inline attributes",
+       "dialect t { op bad(x: tensor) -> tensor { "
+       "attrs { axis: index; } attrs { shape: index[]; } } }"},
+      {"shared and inline attributes",
+       "dialect t { attrs Metadata { kind: string; } "
+       "op bad(x: tensor) -> tensor { "
+       "attrs: Metadata; attrs { axis: index; } } }"},
+      {"duplicate shared attributes",
+       "dialect t { attrs First {} attrs Second {} "
+       "op bad(x: tensor) -> tensor { "
+       "attrs: First; attrs: Second; } }"},
       {"named import missing dialect", "from \"tensor.tepl\" import;"},
       {"empty selected use", "use t::{}; rule r { X => X }"},
       {"selected use missing brace", "use t::{add; rule r { X => X }"},

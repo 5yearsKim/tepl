@@ -24,7 +24,7 @@ attrsDecl
     ;
 
 opDecl
-    : OP opName '(' operandDecls? ')' '->' ID (';' | '{' opProperty* '}')
+    : OP opName '(' operandDecls? ')' '->' ID (';' | '{' opProperties? '}')
     ;
 
 opName
@@ -49,14 +49,30 @@ variadicOperand
     : ID ':' ID ELLIPSIS
     ;
 
-opProperty
-    : ALIAS ':' ID ';'                 # AliasProperty
-    | ATTRS ':' ID ';'                 # SharedAttrsProperty
+opProperties
+    : aliasProperty attrsProperty?
+    | attrsProperty aliasProperty?
+    ;
+
+aliasProperty
+    : ALIAS ':' ID ';'
+    ;
+
+attrsProperty
+    : ATTRS ':' ID ';'                 # SharedAttrsProperty
     | ATTRS '{' attrField* '}'         # InlineAttrsProperty
     ;
 
 attrField
-    : ID ':' ID ('[' ']')? ('=' '[' ']')? ';'
+    : ID ':' attrType attrDefault? ';'
+    ;
+
+attrType
+    : ID ('[' ']')?
+    ;
+
+attrDefault
+    : '=' '[' ']'
     ;
 
 ruleDecl
@@ -85,7 +101,6 @@ sequenceDim
 
 graphExpr
     : binding                                # BareBindingGraph
-    | binderRef                              # BinderReferenceGraph
     | ID                                     # VariableGraph
     | '(' binding ')'                        # ParenthesizedBindingGraph
     | '(' GET '[' INT ']' graphExpr ')'       # GetGraph
@@ -93,11 +108,7 @@ graphExpr
     ;
 
 binding
-    : binderRef '=' graphExpr
-    ;
-
-binderRef
-    : '?' ID
+    : LET ID '=' graphExpr
     ;
 
 attribute
@@ -155,7 +166,6 @@ primary
     : ID '(' arguments? ')'                  # CallPrimary
     | ID                                     # NamePrimary
     | attrRef                                # AttributePrimary
-    | binderRef                              # BinderPrimary
     | INT                                    # IntegerPrimary
     | TRUE                                   # TruePrimary
     | FALSE                                  # FalsePrimary
@@ -167,6 +177,7 @@ arguments
     ;
 
 RULE: 'rule';
+LET: 'let';
 IMPORT: 'import';
 FROM: 'from';
 AS: 'as';

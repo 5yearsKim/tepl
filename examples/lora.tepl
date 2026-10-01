@@ -14,7 +14,7 @@ rule lora {
     (add
       (dot[@xw] X W)
       (dot[@out]
-        (?XA = (dot[@xa] X A))
+        (let XA = (dot[@xa] X A))
         B))
 
     where {
@@ -25,6 +25,6 @@ rule lora {
     derive {
         @xw  = infer_dot(X, W, @outer);
         @xa  = infer_dot(X, A, @outer);
-        @out = infer_dot(?XA, B, @inner);
+        @out = infer_dot(XA, B, @inner);
     }
 }

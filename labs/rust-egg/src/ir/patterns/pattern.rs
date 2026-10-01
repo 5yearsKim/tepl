@@ -23,6 +23,11 @@ pub enum AttrPattern {
 #[derive(Clone, Debug)]
 pub enum TensorPattern {
     Var(Var),
+    /// Match `pattern` and bind its result e-class to `var`.
+    Bind {
+        var: Var,
+        pattern: Box<TensorPattern>,
+    },
     Op {
         op: OpKind,
         attrs: AttrPattern,
@@ -31,6 +36,13 @@ pub enum TensorPattern {
 }
 
 impl TensorPattern {
+    pub fn bind(var: Var, pattern: Self) -> Self {
+        Self::Bind {
+            var,
+            pattern: Box::new(pattern),
+        }
+    }
+
     pub fn op(op: OpKind, attrs: AttrPattern, children: Vec<Self>) -> Self {
         Self::Op {
             op,
@@ -44,6 +56,10 @@ impl TensorPattern {
             Self::Var(var) => {
                 found.insert(*var);
             }
+            Self::Bind { var, pattern } => {
+                found.insert(*var);
+                pattern.vars(found);
+            }
             Self::Op { children, .. } => {
                 for child in children {
                     child.vars(found);
@@ -53,16 +69,27 @@ impl TensorPattern {
     }
 
     pub(super) fn attr_vars(&self, found: &mut HashSet<AttrVar>) {
-        if let Self::Op {
-            attrs, children, ..
-        } = self
-        {
-            if let AttrPattern::Bind(var) = attrs {
-                found.insert(*var);
+        match self {
+            Self::Var(_) => {}
+            Self::Bind { pattern, .. } => pattern.attr_vars(found),
+            Self::Op {
+                attrs, children, ..
+            } => {
+                if let AttrPattern::Bind(var) = attrs {
+                    found.insert(*var);
+                }
+                for child in children {
+                    child.attr_vars(found);
+                }
             }
-            for child in children {
-                child.attr_vars(found);
-            }
+        }
+    }
+
+    pub(super) fn root_op(&self) -> Option<OpKind> {
+        match self {
+            Self::Var(_) => None,
+            Self::Bind { pattern, .. } => pattern.root_op(),
+            Self::Op { op, .. } => Some(*op),
         }
     }
 }

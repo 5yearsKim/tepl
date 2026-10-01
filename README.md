@@ -90,11 +90,12 @@ Operands are named. Fixed operands determine exact arity; a final `...`
 operand permits zero or more additional operands. An `attrs` block defines
 operation attributes, and `attrs: Name;` reuses a schema. Attribute fields
 currently support `index`, `string`, and list syntax such as `index[]`.
-`alias` gives a second spelling to the same operation; for example, `dot`
-refers to `dot_general`. In files with a dialect, the CLI checks rule
-operation names, arity, and whether an attribute descriptor is required.
-The Rust IR currently stores these string values as `egg::Symbol`; that is an
-internal representation choice.
+An operation can declare at most one `alias` and one `attrs` property, in
+either order. Inline and shared attributes are alternative forms of the same
+property. `alias` gives a second spelling to the same operation; for example,
+`dot_general` remains the declared name and `dot` refers to it. In files with
+a dialect, the CLI checks rule operation names, arity, and whether an attribute
+descriptor is required.
 
 The parser and AST now carry this information, but Rust IR generation and
 full attribute type checking are future compiler stages. The tuple and binder
@@ -120,14 +121,15 @@ rule NAME {
   A tensor shape may be empty (`[]`), contain named dimensions or `_`, and have
   at most one named or anonymous `...` segment anywhere in the list. Shape
   arithmetic belongs in `where`.
-- Graph expressions are variables, binder references, operator applications,
-  or bindings: `X`, `?Y`, `(dot[@d] X W)`, `?Y = (dot X W)`,
-  and `(?Y = (dot X W))`. Operators may have zero or more operands.
+- Graph expressions are names, operator applications, or bindings: `X`, `Y`,
+  `(dot[@d] X W)`, `let Y = (dot X W)`, and
+  `(let Y = (dot X W))`. Later `Y` references the bound tensor value.
+  Operators may have zero or more operands.
 - Tuples use the ordinary operator syntax `(tuple X Y)`; projection uses
   `(get[0] T)` with exactly one operand and a nonnegative integer index.
 - `where` precedes `derive` when both occur. Statements within either section
   require semicolons. Empty sections are allowed.
-- Constraint expressions support host calls, names, descriptor/binder references,
+- Constraint expressions support host calls, names, descriptor references,
   integers, booleans, and parentheses. Precedence, highest first:
   unary `! + -`, multiplicative `* / %`, additive `+ -`, comparison
   `< <= > >=`, equality `== !=`, logical `&&`, logical `||`.
@@ -135,7 +137,7 @@ rule NAME {
   equality cannot be chained at their respective precedence levels.
 - Identifiers use ASCII letters, digits, and underscores, and cannot start with
   a digit. `rule`, `from`, `import`, `as`, `use`, `dialect`, `op`, `attrs`,
-  `alias`, `where`, `derive`, `scalar`, `get`, `true`, `false`, and `_` are
+  `alias`, `let`, `where`, `derive`, `scalar`, `get`, `true`, `false`, and `_` are
   reserved. `alias`
   remains valid as an operation name.
 

@@ -24,6 +24,20 @@ void addDiagnostic(std::vector<HostDiagnostic>& diagnostics,
   diagnostics.push_back({span, std::move(message)});
 }
 
+void collectBoundNames(const ast::GraphExpr& expression, Types& types) {
+  if (const auto* binding = std::get_if<ast::Binding>(&expression.value)) {
+    types.emplace(binding->binder.name, "&TensorInfo");
+    collectBoundNames(*binding->expression, types);
+  } else if (const auto* op = std::get_if<ast::Operator>(&expression.value)) {
+    for (const auto& operand : op->operands) {
+      collectBoundNames(*operand, types);
+    }
+  } else if (const auto* projection =
+                 std::get_if<ast::Projection>(&expression.value)) {
+    collectBoundNames(*projection->tuple, types);
+  }
+}
+
 Types declaredTypes(const ast::Rule& rule) {
   Types types;
   for (const auto& declaration : rule.declarations) {
@@ -46,6 +60,8 @@ Types declaredTypes(const ast::Rule& rule) {
       types[scalar->name] = "";
     }
   }
+  collectBoundNames(*rule.lhs, types);
+  collectBoundNames(*rule.rhs, types);
   return types;
 }
 
@@ -67,15 +83,13 @@ std::string argumentType(const ast::ConstraintExpr& argument,
                   "unknown host argument '" + name->name + "'");
   } else if (std::holds_alternative<ast::AttributeRef>(argument.value)) {
     return "&OpAttrs";
-  } else if (std::holds_alternative<ast::BinderRef>(argument.value)) {
-    return "&TensorInfo";
   } else if (std::holds_alternative<ast::IntegerLiteral>(argument.value)) {
     return "usize";
   } else if (std::holds_alternative<ast::BooleanLiteral>(argument.value)) {
     return "bool";
   } else {
     addDiagnostic(diagnostics, argument.span,
-                  "host template needs a named, attribute, binder, or literal "
+                  "host template needs a named, attribute, or literal "
                   "argument; type complex expressions before generating it");
   }
   return {};
@@ -186,7 +200,7 @@ HostTemplateResult generateHostTemplate(const ast::Program& program,
   }
   if (used_types.contains("&TensorInfo") ||
       used_types.contains("InferredTensor")) {
-    output << "use rust_egg::tensor_pattern::{";
+    output << "use rust_egg::ir::patterns::{";
     if (used_types.contains("InferredTensor")) output << "InferredTensor";
     if (used_types.contains("&TensorInfo")) {
       if (used_types.contains("InferredTensor")) output << ", ";

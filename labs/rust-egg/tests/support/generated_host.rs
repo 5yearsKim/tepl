@@ -1,6 +1,6 @@
 // Generated host functions. Keep user implementations in a separate file.
 use rust_egg::ir::OpAttrs;
-use rust_egg::tensor_pattern::{InferredTensor, TensorInfo};
+use rust_egg::ir::patterns::{InferredTensor, TensorInfo};
 
 pub trait HostFunctions: Send + Sync {
     fn broadcastable(&self, arg0: &[usize], arg1: &[usize]) -> Option<bool>;

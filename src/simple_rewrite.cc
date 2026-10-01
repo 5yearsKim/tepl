@@ -21,9 +21,6 @@ bool equalGraph(const ast::GraphExpr& lhs, const ast::GraphExpr& rhs) {
   if (const auto* name = std::get_if<ast::NameRef>(&lhs.value)) {
     return name->name == std::get<ast::NameRef>(rhs.value).name;
   }
-  if (const auto* binder = std::get_if<ast::BinderRef>(&lhs.value)) {
-    return binder->name == std::get<ast::BinderRef>(rhs.value).name;
-  }
   if (const auto* op = std::get_if<ast::Operator>(&lhs.value)) {
     const auto& other = std::get<ast::Operator>(rhs.value);
     if (op->name != other.name ||

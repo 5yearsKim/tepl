@@ -1,16 +1,20 @@
+from "dialects/tensor.tepl" import TensorLang as t;
+use t::{add, dot, mul, transpose};
+
+// `let Y` names the dot result. Both later references use its e-class.
 rule shared_expression {
     (add
-        (?Y = (dot[@d] X W))
-        (mul ?Y Z))
+        (let Y = (dot[@d] X W))
+        (mul Y Z))
     =>
-    (mul ?Y (add Z (one)))
+    (add (mul Y Z) Y)
 
     where {
-        reusable(?Y, @d);
+        reusable(Y, @d);
     }
 }
 
-/* A root binding may be written without surrounding parentheses. */
+// A root binding needs no parentheses. This rule demonstrates an identity rewrite.
 rule root_binding {
-    ?Y = (transpose[@t] X) => ?Y
+    let Y = (transpose[@t] X) => Y
 }

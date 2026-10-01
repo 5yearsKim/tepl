@@ -35,6 +35,27 @@ rule example {
   assert(implementation.source.find("todo!(\"implement infer_dot\")") !=
          std::string::npos);
 
+  const auto bindings = tepl::parse(R"(
+rule lhs_binding {
+  let Y = (dot X W) => Y
+  where { reusable(Y); }
+}
+rule rhs_binding {
+  X => (let Z = (dot X W))
+  derive { @out = infer(Z); }
+}
+)");
+  assert(bindings.ok());
+  const auto with_bindings =
+      tepl::generateHostTemplate(*bindings.program, false);
+  assert(with_bindings.ok());
+  assert(with_bindings.source.find(
+             "fn reusable(&self, arg0: &TensorInfo) -> Option<bool>;") !=
+         std::string::npos);
+  assert(with_bindings.source.find(
+             "fn infer(&self, arg0: &TensorInfo) -> Option<InferredTensor>;") !=
+         std::string::npos);
+
   const auto conflicting = tepl::parse(R"(
 rule example {
   X: [Batch...]

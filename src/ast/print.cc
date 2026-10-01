@@ -38,8 +38,6 @@ void printGraph(std::ostream& out, const ast::GraphExpr& expression,
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, ast::NameRef>) {
           out << "variable " << value.name << '\n';
-        } else if constexpr (std::is_same_v<T, ast::BinderRef>) {
-          out << "binder reference ?" << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::Operator>) {
           out << "operator " << value.name;
           if (value.attribute) out << " @" << value.attribute->name;
@@ -48,7 +46,7 @@ void printGraph(std::ostream& out, const ast::GraphExpr& expression,
             printGraph(out, *operand, depth + 1);
           }
         } else if constexpr (std::is_same_v<T, ast::Binding>) {
-          out << "bind ?" << value.binder.name << '\n';
+          out << "let " << value.binder.name << '\n';
           printGraph(out, *value.expression, depth + 1);
         } else {
           out << "get[" << value.index.digits << "]\n";
@@ -112,8 +110,6 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
           out << "name " << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::AttributeRef>) {
           out << "attribute @" << value.name << '\n';
-        } else if constexpr (std::is_same_v<T, ast::BinderRef>) {
-          out << "binder reference ?" << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::IntegerLiteral>) {
           out << "integer " << value.digits << '\n';
         } else if constexpr (std::is_same_v<T, ast::BooleanLiteral>) {
@@ -202,13 +198,22 @@ std::string formatAst(const ast::Program& program) {
       }
       out << ") -> " << op.result_type;
       if (op.alias) out << " alias " << *op.alias;
-      if (op.shared_attrs) out << " attrs " << *op.shared_attrs;
+      if (op.attrs) {
+        if (const auto* shared = std::get_if<ast::SharedAttrs>(&*op.attrs)) {
+          out << " attrs " << shared->name;
+        }
+      }
       out << '\n';
-      for (const auto& field : op.attrs) {
-        out << "      " << field.name << ": " << field.type;
-        if (field.list) out << "[]";
-        if (field.empty_default) out << " = []";
-        out << '\n';
+      if (op.attrs) {
+        if (const auto* inline_attrs =
+                std::get_if<ast::InlineAttrs>(&*op.attrs)) {
+          for (const auto& field : inline_attrs->fields) {
+            out << "      " << field.name << ": " << field.type;
+            if (field.list) out << "[]";
+            if (field.empty_default) out << " = []";
+            out << '\n';
+          }
+        }
       }
     }
   }

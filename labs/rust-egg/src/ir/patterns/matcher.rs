@@ -56,6 +56,17 @@ fn match_pattern<N: Analysis<TensorLang>>(
                 vec![matched]
             }
         }
+        TensorPattern::Bind { var, pattern } => {
+            let mut matched = matched;
+            if let Some(bound) = matched.tensors.get(*var) {
+                if egraph.find(*bound) != eclass {
+                    return vec![];
+                }
+            } else {
+                matched.tensors.insert(*var, eclass);
+            }
+            match_pattern(egraph, eclass, pattern, matched)
+        }
         TensorPattern::Op {
             op,
             attrs,
@@ -104,8 +115,8 @@ mod tests {
     use egg::{EGraph, Var};
 
     use super::matches_at;
+    use crate::ir::patterns::{AttrPattern, AttrVar, TensorPattern};
     use crate::ir::{OpAttrs, OpKind, TensorLang};
-    use crate::tensor_pattern::{AttrPattern, AttrVar, TensorPattern};
 
     #[test]
     fn repeated_attribute_binding_preserves_each_witness() {

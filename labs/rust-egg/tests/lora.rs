@@ -1,17 +1,11 @@
-//! Express the LoRA rewrite using only the reusable tensor pattern API.
+//! Exercises the reusable LoRA rule against test tensor metadata and host functions.
 
 use std::collections::HashMap;
 
-use egg::{EGraph, Id, Rewrite, Symbol, Var};
+use egg::{EGraph, Id, Rewrite, Var};
+use rust_egg::ir::patterns::{AttrVar, InferredTensor, TensorInfo, matches_at};
+use rust_egg::ir::rules::lora::{self, HostFunctions};
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
-use rust_egg::tensor_pattern::{
-    AttrExpr, AttrPattern, AttrVar, InferredTensor, MatchContext, TensorExpr, TensorInfo,
-    TensorPattern, matches_at, tensor_rewrite,
-};
-
-#[path = "support/generated_host.rs"]
-mod generated_host;
-use generated_host::HostFunctions;
 
 fn batched_dot_attrs() -> OpAttrs {
     OpAttrs::DotGeneral {
@@ -77,16 +71,16 @@ struct Fixture {
     egraph: EGraph<TensorLang, ()>,
     root: Id,
     inputs: [Id; 4],
-    shapes: HashMap<Symbol, Vec<usize>>,
+    shapes: HashMap<String, Vec<usize>>,
 }
 
 fn fixture(b_output: usize) -> Fixture {
     // X: [2, 3, 4], W: [2, 4, 5], A: [2, 4, 2], B: [2, 2, b_output].
     let shapes = HashMap::from([
-        (Symbol::from("X"), vec![2, 3, 4]),
-        (Symbol::from("W"), vec![2, 4, 5]),
-        (Symbol::from("A"), vec![2, 4, 2]),
-        (Symbol::from("B"), vec![2, 2, b_output]),
+        (String::from("X"), vec![2, 3, 4]),
+        (String::from("W"), vec![2, 4, 5]),
+        (String::from("A"), vec![2, 4, 2]),
+        (String::from("B"), vec![2, 2, b_output]),
     ]);
     let mut egraph = EGraph::<TensorLang, ()>::default();
     let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| egraph.add(TensorLang::symbol(name)));
@@ -102,114 +96,18 @@ fn fixture(b_output: usize) -> Fixture {
     }
 }
 
-fn lora_pattern(shapes: HashMap<Symbol, Vec<usize>>) -> (TensorPattern, Rewrite<TensorLang, ()>) {
-    let [x, w, a, b] = ["?x", "?w", "?a", "?b"].map(|name| name.parse::<Var>().unwrap());
-    let [outer, inner, xw, xa, out] = ["outer", "inner", "xw", "xa", "out"].map(AttrVar::from);
-
-    // dot[@outer](X, add(W, dot[@inner](A, B)))
-    let lhs = TensorPattern::op(
-        OpKind::DotGeneral,
-        AttrPattern::Bind(outer),
-        vec![
-            TensorPattern::Var(x),
-            TensorPattern::op(
-                OpKind::Add,
-                AttrPattern::Exact(OpAttrs::None),
-                vec![
-                    TensorPattern::Var(w),
-                    TensorPattern::op(
-                        OpKind::DotGeneral,
-                        AttrPattern::Bind(inner),
-                        vec![TensorPattern::Var(a), TensorPattern::Var(b)],
-                    ),
-                ],
-            ),
-        ],
-    );
-
-    // add(dot[@xw](X, W), dot[@out](dot[@xa](X, A), B))
-    let rhs = TensorExpr::op(
-        OpKind::Add,
-        AttrExpr::Exact(OpAttrs::None),
-        vec![
-            TensorExpr::op(
-                OpKind::DotGeneral,
-                AttrExpr::Derived(xw),
-                vec![TensorExpr::Var(x), TensorExpr::Var(w)],
-            ),
-            TensorExpr::op(
-                OpKind::DotGeneral,
-                AttrExpr::Derived(out),
-                vec![
-                    TensorExpr::op(
-                        OpKind::DotGeneral,
-                        AttrExpr::Derived(xa),
-                        vec![TensorExpr::Var(x), TensorExpr::Var(a)],
-                    ),
-                    TensorExpr::Var(b),
-                ],
-            ),
-        ],
-    );
-
+fn test_rule(shapes: HashMap<String, Vec<usize>>) -> Rewrite<TensorLang, ()> {
     let metadata = move |egraph: &EGraph<TensorLang, ()>, id: Id| {
         egraph[egraph.find(id)]
             .nodes
             .iter()
             .find_map(TensorLang::symbol_name)
-            .and_then(|name| shapes.get(&name))
+            .and_then(|name| shapes.get(name))
             .map(|shape| TensorInfo {
                 shape: shape.clone(),
             })
     };
-    let host = TestFunctions;
-    let rule = tensor_rewrite("lora-pattern", lhs.clone(), rhs, move |egraph, matched| {
-        let ctx = MatchContext::new(egraph, matched, &metadata);
-        check_and_derive(&ctx, &host, [x, w, a, b], [outer, inner, xw, xa, out])
-    })
-    .unwrap();
-    (lhs, rule)
-}
-
-// This function is the shape of a generated callback for the LoRA DSL rule.
-fn check_and_derive<M: rust_egg::tensor_pattern::TensorMetadata<()>>(
-    ctx: &MatchContext<'_, (), M>,
-    host: &impl HostFunctions,
-    inputs: [Var; 4],
-    attrs: [AttrVar; 5],
-) -> Option<HashMap<AttrVar, OpAttrs>> {
-    let [x, w, a, b] = inputs;
-    let [outer, inner, xw_attr, xa_attr, out_attr] = attrs;
-    let (x, w, a, b) = (
-        ctx.tensor(x)?,
-        ctx.tensor(w)?,
-        ctx.tensor(a)?,
-        ctx.tensor(b)?,
-    );
-    let (outer, inner) = (ctx.attrs(outer)?, ctx.attrs(inner)?);
-
-    if !host.broadcastable(x.shape.get(..1)?, w.shape.get(..1)?)?
-        || !host.reassociable(&x, &a, &b, outer, inner)?
-    {
-        return None;
-    }
-    if host.infer_dot(&a, &b, inner)?.output != w {
-        return None;
-    }
-
-    let xw = host.infer_dot(&x, &w, outer)?;
-    let xa = host.infer_dot(&x, &a, outer)?;
-    // ?XA is described by xa.output before any RHS node is inserted.
-    let out = host.infer_dot(&xa.output, &b, inner)?;
-    if xw.output != out.output {
-        return None;
-    }
-
-    Some(HashMap::from([
-        (xw_attr, xw.attrs),
-        (xa_attr, xa.attrs),
-        (out_attr, out.attrs),
-    ]))
+    lora::rule_lora(metadata, TestFunctions).unwrap()
 }
 
 #[test]
@@ -220,7 +118,8 @@ fn lora_rule_matches_and_builds_rhs() {
         inputs: [x, w, a, b],
         shapes,
     } = fixture(5);
-    let (lhs, rule) = lora_pattern(shapes);
+    let lhs = lora::pattern();
+    let rule = test_rule(shapes);
 
     let captures = matches_at(&egraph, root, &lhs);
     assert_eq!(captures.len(), 1);
@@ -228,7 +127,7 @@ fn lora_rule_matches_and_builds_rhs() {
         captures[0].attrs[&AttrVar::from("outer")],
         batched_dot_attrs()
     );
-    assert_eq!(captures[0].tensors["?x".parse::<Var>().unwrap()], x);
+    assert_eq!(captures[0].tensors["?X".parse::<Var>().unwrap()], x);
 
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
@@ -252,7 +151,7 @@ fn lora_rule_rejects_incompatible_shapes() {
         shapes,
         ..
     } = fixture(6);
-    let (_, rule) = lora_pattern(shapes);
+    let rule = test_rule(shapes);
     let before = egraph.total_size();
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);

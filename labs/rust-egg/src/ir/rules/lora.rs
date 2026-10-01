@@ -1,0 +1,155 @@
+//! Reference lowering of `examples/lora.tepl`.
+
+use std::collections::HashMap;
+
+use egg::{Analysis, Rewrite, Var};
+
+use crate::ir::patterns::{
+    AttrExpr, AttrPattern, AttrVar, InferredTensor, MatchContext, TensorExpr, TensorInfo,
+    TensorMetadata, TensorPattern, tensor_rewrite,
+};
+use crate::ir::{OpAttrs, OpKind, TensorLang};
+
+/// Host functions called by `lora.tepl`.
+pub trait HostFunctions: Send + Sync {
+    fn broadcastable(&self, batch: &[usize], weight_batch: &[usize]) -> Option<bool>;
+    fn reassociable(
+        &self,
+        x: &TensorInfo,
+        a: &TensorInfo,
+        b: &TensorInfo,
+        outer: &OpAttrs,
+        inner: &OpAttrs,
+    ) -> Option<bool>;
+    fn infer_dot(
+        &self,
+        lhs: &TensorInfo,
+        rhs: &TensorInfo,
+        attrs: &OpAttrs,
+    ) -> Option<InferredTensor>;
+}
+
+pub fn pattern() -> TensorPattern {
+    let [x, w, a, b] = ["?X", "?W", "?A", "?B"].map(|name| name.parse::<Var>().unwrap());
+    TensorPattern::op(
+        OpKind::DotGeneral,
+        AttrPattern::Bind(AttrVar::from("outer")),
+        vec![
+            TensorPattern::Var(x),
+            TensorPattern::op(
+                OpKind::Add,
+                AttrPattern::Exact(OpAttrs::None),
+                vec![
+                    TensorPattern::Var(w),
+                    TensorPattern::op(
+                        OpKind::DotGeneral,
+                        AttrPattern::Bind(AttrVar::from("inner")),
+                        vec![TensorPattern::Var(a), TensorPattern::Var(b)],
+                    ),
+                ],
+            ),
+        ],
+    )
+}
+
+pub fn rule_lora<N, M, H>(metadata: M, host: H) -> Result<Rewrite<TensorLang, N>, String>
+where
+    N: Analysis<TensorLang>,
+    M: TensorMetadata<N> + 'static,
+    H: HostFunctions + 'static,
+{
+    let [x, w, a, b] = ["?X", "?W", "?A", "?B"].map(|name| name.parse::<Var>().unwrap());
+    let [outer, inner, xw, xa, out] = ["outer", "inner", "xw", "xa", "out"].map(AttrVar::from);
+
+    let rhs = TensorExpr::op(
+        OpKind::Add,
+        AttrExpr::Exact(OpAttrs::None),
+        vec![
+            TensorExpr::op(
+                OpKind::DotGeneral,
+                AttrExpr::Derived(xw),
+                vec![TensorExpr::Var(x), TensorExpr::Var(w)],
+            ),
+            TensorExpr::op(
+                OpKind::DotGeneral,
+                AttrExpr::Derived(out),
+                vec![
+                    TensorExpr::op(
+                        OpKind::DotGeneral,
+                        AttrExpr::Derived(xa),
+                        vec![TensorExpr::Var(x), TensorExpr::Var(a)],
+                    ),
+                    TensorExpr::Var(b),
+                ],
+            ),
+        ],
+    );
+    tensor_rewrite("lora", pattern(), rhs, move |egraph, matched| {
+        let ctx = MatchContext::new(egraph, matched, &metadata);
+        check_and_derive(&ctx, &host, [x, w, a, b], [outer, inner, xw, xa, out])
+    })
+}
+
+fn matrix_shape(shape: &[usize]) -> Option<(&[usize], usize, usize)> {
+    let rank = shape.len().checked_sub(2)?;
+    Some((&shape[..rank], shape[rank], shape[rank + 1]))
+}
+
+fn check_and_derive<N, M, H>(
+    ctx: &MatchContext<'_, N, M>,
+    host: &H,
+    inputs: [Var; 4],
+    attrs: [AttrVar; 5],
+) -> Option<HashMap<AttrVar, OpAttrs>>
+where
+    N: Analysis<TensorLang>,
+    M: TensorMetadata<N>,
+    H: HostFunctions,
+{
+    let [x, w, a, b] = inputs;
+    let [outer, inner, xw_attr, xa_attr, out_attr] = attrs;
+    let (x, w, a, b) = (
+        ctx.tensor(x)?,
+        ctx.tensor(w)?,
+        ctx.tensor(a)?,
+        ctx.tensor(b)?,
+    );
+    let (outer, inner) = (ctx.attrs(outer)?, ctx.attrs(inner)?);
+
+    // Check the dimensions shared by the four TEPL declarations. Each batch
+    // prefix can contain any number of axes.
+    let (batch, _, k) = matrix_shape(&x.shape)?;
+    let (weight_batch, wk, n) = matrix_shape(&w.shape)?;
+    let (a_batch, ak, r) = matrix_shape(&a.shape)?;
+    let (b_batch, br, bn) = matrix_shape(&b.shape)?;
+    if weight_batch != a_batch
+        || weight_batch != b_batch
+        || k != wk
+        || k != ak
+        || r != br
+        || n != bn
+    {
+        return None;
+    }
+
+    if !host.broadcastable(batch, weight_batch)? || !host.reassociable(&x, &a, &b, outer, inner)? {
+        return None;
+    }
+    if host.infer_dot(&a, &b, inner)?.output != w {
+        return None;
+    }
+
+    let xw = host.infer_dot(&x, &w, outer)?;
+    let xa = host.infer_dot(&x, &a, outer)?;
+    // The RHS binding XA is described by xa.output before node insertion.
+    let out = host.infer_dot(&xa.output, &b, inner)?;
+    if xw.output != out.output {
+        return None;
+    }
+
+    Some(HashMap::from([
+        (xw_attr, xw.attrs),
+        (xa_attr, xa.attrs),
+        (out_attr, out.attrs),
+    ]))
+}

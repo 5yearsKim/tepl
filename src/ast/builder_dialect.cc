@@ -33,8 +33,7 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
                  {},
                  context->ID()->getText(),
                  std::nullopt,
-                 std::nullopt,
-                 {}};
+                 std::nullopt};
   if (auto* operands = context->operandDecls()) {
     for (auto* operand : operands->operandDecl()) {
       op.operands.push_back(std::any_cast<ast::OperandDecl>(visit(operand)));
@@ -43,16 +42,22 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
       op.operands.push_back(std::any_cast<ast::OperandDecl>(visit(variadic)));
     }
   }
-  for (auto* property : context->opProperty()) {
-    if (auto* alias = dynamic_cast<Parser::AliasPropertyContext*>(property)) {
+  if (auto* properties = context->opProperties()) {
+    if (auto* alias = properties->aliasProperty()) {
       op.alias = alias->ID()->getText();
-    } else if (auto* shared = dynamic_cast<Parser::SharedAttrsPropertyContext*>(
-                   property)) {
-      op.shared_attrs = shared->ID()->getText();
-    } else if (auto* attrs = dynamic_cast<Parser::InlineAttrsPropertyContext*>(
-                   property)) {
-      for (auto* field : attrs->attrField()) {
-        op.attrs.push_back(std::any_cast<ast::AttrField>(visit(field)));
+    }
+    if (auto* property = properties->attrsProperty()) {
+      if (auto* shared =
+              dynamic_cast<Parser::SharedAttrsPropertyContext*>(property)) {
+        op.attrs = ast::SharedAttrs{shared->ID()->getText()};
+      } else if (auto* inline_attrs =
+                     dynamic_cast<Parser::InlineAttrsPropertyContext*>(
+                         property)) {
+        ast::InlineAttrs attrs;
+        for (auto* field : inline_attrs->attrField()) {
+          attrs.fields.push_back(std::any_cast<ast::AttrField>(visit(field)));
+        }
+        op.attrs = std::move(attrs);
       }
     }
   }
@@ -73,10 +78,10 @@ std::any AstBuilder::visitVariadicOperand(
 }
 
 std::any AstBuilder::visitAttrField(Parser::AttrFieldContext* context) {
-  const auto ids = context->ID();
-  return ast::AttrField{getSpan(context), ids[0]->getText(), ids[1]->getText(),
-                        context->getText().find('[') != std::string::npos,
-                        context->getText().find('=') != std::string::npos};
+  auto* type = context->attrType();
+  return ast::AttrField{getSpan(context), context->ID()->getText(),
+                        type->ID()->getText(), type->getText().ends_with("[]"),
+                        context->attrDefault() != nullptr};
 }
 
 }  // namespace tepl

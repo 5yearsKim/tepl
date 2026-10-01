@@ -52,17 +52,14 @@ struct Declaration {
   std::variant<TensorDecl, ScalarDecl> value;
 };
 
-// References own their names. Sigils ('@', '?') are omitted from name strings.
-// Symbol resolution happens after AST construction.
+// References own their names. Attribute sigils ('@') are omitted from names.
+// A plain name may refer to an input or a value introduced by `let`;
+// symbol resolution happens after AST construction.
 struct NameRef {
   std::string name;
 };
 
 struct AttributeRef {
-  std::string name;
-};
-
-struct BinderRef {
   std::string name;
 };
 
@@ -92,7 +89,7 @@ struct Operator {
 };
 
 struct Binding {
-  BinderRef binder;
+  NameRef binder;
   GraphExprPtr expression;
 };
 
@@ -104,7 +101,7 @@ struct Projection {
 struct GraphExpr {
   SourceSpan span;
   // Tuple construction uses Operator with name "tuple".
-  std::variant<NameRef, Operator, Binding, BinderRef, Projection> value;
+  std::variant<NameRef, Operator, Binding, Projection> value;
 };
 
 // makeConstraint expressions used in `where` conditions and `derive` values.
@@ -152,8 +149,8 @@ struct BinaryExpr {
 
 struct ConstraintExpr {
   SourceSpan span;
-  std::variant<NameRef, AttributeRef, BinderRef, IntegerLiteral, BooleanLiteral,
-               Call, UnaryExpr, BinaryExpr>
+  std::variant<NameRef, AttributeRef, IntegerLiteral, BooleanLiteral, Call,
+               UnaryExpr, BinaryExpr>
       value;
 };
 
@@ -210,14 +207,24 @@ struct OperandDecl {
   bool variadic = false;
 };
 
+struct SharedAttrs {
+  std::string name;
+};
+
+struct InlineAttrs {
+  std::vector<AttrField> fields;
+};
+
+using OpAttrs = std::variant<SharedAttrs, InlineAttrs>;
+
 struct OpDecl {
   SourceSpan span;
+  // The declared operation name is canonical; alias is another spelling.
   std::string name;
   std::vector<OperandDecl> operands;
   std::string result_type;
   std::optional<std::string> alias;
-  std::optional<std::string> shared_attrs;
-  std::vector<AttrField> attrs;
+  std::optional<OpAttrs> attrs;
 };
 
 struct Dialect {
