@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::ops::ControlFlow;
 
 use egg::{
     Analysis, Applier, EGraph, Id, PatternAst, Rewrite, SearchMatches, Searcher, Subst, Symbol, Var,
@@ -6,7 +7,7 @@ use egg::{
 
 use crate::ir::{OpAttrs, OpKind, TensorLang};
 
-use super::matcher::{TensorMatch, matches_at};
+use super::matcher::{TensorMatch, for_each_match_at};
 use super::pattern::{AttrExpr, AttrVar, TensorExpr, TensorPattern};
 
 pub type DerivedAttrs = std::collections::HashMap<AttrVar, OpAttrs>;
@@ -31,6 +32,10 @@ where
     if !rhs_captures.is_subset(&lhs_attrs) {
         return Err("RHS refers to an attribute not captured on the LHS".into());
     }
+    let mut lhs_vars = HashSet::new();
+    lhs.vars(&mut lhs_vars);
+    let mut lhs_vars: Vec<_> = lhs_vars.into_iter().collect();
+    lhs_vars.sort_unstable();
 
     Rewrite::new(
         name,
@@ -39,6 +44,7 @@ where
         },
         TensorApplier {
             lhs,
+            lhs_vars,
             rhs,
             check_and_derive,
         },
@@ -61,14 +67,15 @@ impl<N: Analysis<TensorLang>> Searcher<TensorLang, N> for TensorSearcher {
         }
         let mut seen = HashSet::new();
         let mut substs = Vec::new();
-        for matched in matches_at(egraph, eclass, &self.pattern) {
+        for_each_match_at(egraph, eclass, &self.pattern, |matched| {
             if seen.insert(matched.tensors.clone()) {
                 substs.push(matched.tensors);
                 if substs.len() == limit {
-                    break;
+                    return ControlFlow::Break(());
                 }
             }
-        }
+            ControlFlow::Continue(())
+        });
         (!substs.is_empty()).then_some(SearchMatches {
             eclass,
             substs,
@@ -79,26 +86,15 @@ impl<N: Analysis<TensorLang>> Searcher<TensorLang, N> for TensorSearcher {
     fn search_with_limit(
         &self,
         egraph: &EGraph<TensorLang, N>,
-        mut limit: usize,
+        limit: usize,
     ) -> Vec<SearchMatches<'_, TensorLang>> {
-        let classes: Vec<_> = match self.pattern.root_op() {
+        match self.pattern.root_op() {
             Some(op) => egraph
                 .classes_for_op(&op)
-                .map(|ids| ids.collect())
+                .map(|ids| search_classes(self, egraph, ids, limit))
                 .unwrap_or_default(),
-            None => egraph.classes().map(|class| class.id).collect(),
-        };
-        let mut results = Vec::new();
-        for eclass in classes {
-            if limit == 0 {
-                break;
-            }
-            if let Some(found) = self.search_eclass_with_limit(egraph, eclass, limit) {
-                limit -= found.substs.len();
-                results.push(found);
-            }
+            None => search_classes(self, egraph, egraph.classes().map(|class| class.id), limit),
         }
-        results
     }
 
     fn vars(&self) -> Vec<Var> {
@@ -108,36 +104,50 @@ impl<N: Analysis<TensorLang>> Searcher<TensorLang, N> for TensorSearcher {
     }
 }
 
+fn search_classes<'a, N: Analysis<TensorLang>>(
+    searcher: &'a TensorSearcher,
+    egraph: &EGraph<TensorLang, N>,
+    classes: impl Iterator<Item = Id>,
+    mut limit: usize,
+) -> Vec<SearchMatches<'a, TensorLang>> {
+    let mut results = Vec::new();
+    for eclass in classes {
+        if limit == 0 {
+            break;
+        }
+        if let Some(found) = searcher.search_eclass_with_limit(egraph, eclass, limit) {
+            limit -= found.substs.len();
+            results.push(found);
+        }
+    }
+    results
+}
+
 struct TensorApplier<F> {
     lhs: TensorPattern,
+    lhs_vars: Vec<Var>,
     rhs: TensorExpr,
     check_and_derive: F,
 }
 
-impl<N, F> Applier<TensorLang, N> for TensorApplier<F>
-where
-    N: Analysis<TensorLang>,
-    F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync,
-{
-    fn apply_one(
+impl<F> TensorApplier<F> {
+    fn apply_candidates<N: Analysis<TensorLang>>(
         &self,
         egraph: &mut EGraph<TensorLang, N>,
         eclass: Id,
-        subst: &Subst,
-        _searcher_ast: Option<&PatternAst<TensorLang>>,
+        candidates: &[TensorMatch],
         rule_name: Symbol,
-    ) -> Vec<Id> {
-        // egg does not pass attribute values in Subst. Rematch, retaining only
-        // the structural witnesses with this substitution.
-        let mut lhs_vars = HashSet::new();
-        self.lhs.vars(&mut lhs_vars);
-        let lhs_vars: Vec<_> = lhs_vars.into_iter().collect();
-        let valid: Vec<_> = matches_at(egraph, eclass, &self.lhs)
-            .into_iter()
-            .filter(|candidate| same_subst(egraph, &candidate.tensors, subst, &lhs_vars))
+    ) -> Vec<Id>
+    where
+        F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs>,
+    {
+        // Finish all semantic checks before changing this e-class. A rejected
+        // RHS must not leave any of its intermediate nodes in the graph.
+        let valid: Vec<_> = candidates
+            .iter()
             .filter_map(|candidate| {
-                let derived = (self.check_and_derive)(egraph, &candidate)?;
-                plan_rhs(&self.rhs, &candidate, &derived)
+                let derived = (self.check_and_derive)(egraph, candidate)?;
+                plan_rhs(&self.rhs, candidate, &derived)
             })
             .collect();
 
@@ -150,6 +160,74 @@ where
         }
         changed
     }
+}
+
+impl<N, F> Applier<TensorLang, N> for TensorApplier<F>
+where
+    N: Analysis<TensorLang>,
+    F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync,
+{
+    fn apply_matches(
+        &self,
+        egraph: &mut EGraph<TensorLang, N>,
+        matches: &[SearchMatches<TensorLang>],
+        rule_name: Symbol,
+    ) -> Vec<Id> {
+        let mut changed = Vec::new();
+        for mat in matches {
+            // Rematch once per e-class so different attribute witnesses stay
+            // available, even when they share the same tensor substitution.
+            let keys: Vec<_> = mat
+                .substs
+                .iter()
+                .map(|subst| subst_key(egraph, subst, &self.lhs_vars))
+                .collect();
+            let mut groups: HashMap<Vec<Id>, Vec<TensorMatch>> = HashMap::new();
+            for key in keys.iter().flatten() {
+                groups.entry(key.clone()).or_default();
+            }
+            if groups.is_empty() {
+                continue;
+            }
+            for_each_match_at(egraph, mat.eclass, &self.lhs, |candidate| {
+                if let Some(key) = subst_key(egraph, &candidate.tensors, &self.lhs_vars) {
+                    if let Some(group) = groups.get_mut(&key) {
+                        group.push(candidate);
+                    }
+                }
+                ControlFlow::Continue(())
+            });
+            for key in keys.into_iter().flatten() {
+                if let Some(candidates) = groups.get(&key) {
+                    changed
+                        .extend(self.apply_candidates(egraph, mat.eclass, candidates, rule_name));
+                }
+            }
+        }
+        changed
+    }
+
+    fn apply_one(
+        &self,
+        egraph: &mut EGraph<TensorLang, N>,
+        eclass: Id,
+        subst: &Subst,
+        _searcher_ast: Option<&PatternAst<TensorLang>>,
+        rule_name: Symbol,
+    ) -> Vec<Id> {
+        let key = match subst_key(egraph, subst, &self.lhs_vars) {
+            Some(key) => key,
+            None => return Vec::new(),
+        };
+        let mut candidates = Vec::new();
+        for_each_match_at(egraph, eclass, &self.lhs, |candidate| {
+            if subst_key(egraph, &candidate.tensors, &self.lhs_vars).as_ref() == Some(&key) {
+                candidates.push(candidate);
+            }
+            ControlFlow::Continue(())
+        });
+        self.apply_candidates(egraph, eclass, &candidates, rule_name)
+    }
 
     fn vars(&self) -> Vec<Var> {
         let mut found = HashSet::new();
@@ -158,17 +236,14 @@ where
     }
 }
 
-fn same_subst<N: Analysis<TensorLang>>(
+fn subst_key<N: Analysis<TensorLang>>(
     egraph: &EGraph<TensorLang, N>,
-    candidate: &Subst,
-    expected: &Subst,
+    subst: &Subst,
     vars: &[Var],
-) -> bool {
+) -> Option<Vec<Id>> {
     vars.iter()
-        .all(|var| match (candidate.get(*var), expected.get(*var)) {
-            (Some(a), Some(b)) => egraph.find(*a) == egraph.find(*b),
-            _ => false,
-        })
+        .map(|var| subst.get(*var).map(|id| egraph.find(*id)))
+        .collect()
 }
 
 enum PlannedExpr {

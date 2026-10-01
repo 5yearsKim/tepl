@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::ControlFlow;
 
 use egg::{Analysis, EGraph, Id, Language, Subst};
 
@@ -22,8 +23,24 @@ pub fn matches_at<N: Analysis<TensorLang>>(
     eclass: Id,
     pattern: &TensorPattern,
 ) -> Vec<TensorMatch> {
+    let mut matches = Vec::new();
+    for_each_match_at(egraph, eclass, pattern, |matched| {
+        matches.push(matched);
+        ControlFlow::Continue(())
+    });
+    matches
+}
+
+/// Visit witnesses as they are found. Returning `Break` stops traversal,
+/// including any remaining alternatives in parent e-classes.
+pub(super) fn for_each_match_at<N: Analysis<TensorLang>>(
+    egraph: &EGraph<TensorLang, N>,
+    eclass: Id,
+    pattern: &TensorPattern,
+    mut visit: impl FnMut(TensorMatch) -> ControlFlow<()>,
+) {
     let root = egraph.find(eclass);
-    match_pattern(
+    let _ = match_pattern(
         egraph,
         root,
         pattern,
@@ -32,7 +49,8 @@ pub fn matches_at<N: Analysis<TensorLang>>(
             tensors: Subst::default(),
             attrs: HashMap::new(),
         },
-    )
+        &mut visit,
+    );
 }
 
 fn match_pattern<N: Analysis<TensorLang>>(
@@ -40,73 +58,154 @@ fn match_pattern<N: Analysis<TensorLang>>(
     eclass: Id,
     pattern: &TensorPattern,
     matched: TensorMatch,
-) -> Vec<TensorMatch> {
+    visit: &mut dyn FnMut(TensorMatch) -> ControlFlow<()>,
+) -> ControlFlow<()> {
     let eclass = egraph.find(eclass);
     match pattern {
         TensorPattern::Var(var) => {
             if let Some(bound) = matched.tensors.get(*var) {
                 if egraph.find(*bound) == eclass {
-                    vec![matched]
+                    visit(matched)
                 } else {
-                    vec![]
+                    ControlFlow::Continue(())
                 }
             } else {
                 let mut matched = matched;
                 matched.tensors.insert(*var, eclass);
-                vec![matched]
+                visit(matched)
             }
         }
         TensorPattern::Bind { var, pattern } => {
             let mut matched = matched;
             if let Some(bound) = matched.tensors.get(*var) {
                 if egraph.find(*bound) != eclass {
-                    return vec![];
+                    return ControlFlow::Continue(());
                 }
             } else {
                 matched.tensors.insert(*var, eclass);
             }
-            match_pattern(egraph, eclass, pattern, matched)
+            match_pattern(egraph, eclass, pattern, matched, visit)
         }
         TensorPattern::Op {
             op,
             attrs,
             children,
         } => {
-            let mut results = Vec::new();
+            // The memo index can be stale after a union until rebuild. Search
+            // may use it, but application also calls this matcher on dirty graphs.
+            if egraph.clean {
+                match lookup_bound_pattern(egraph, pattern, &matched) {
+                    BoundLookup::Found(id) if id == eclass => return visit(matched),
+                    BoundLookup::Found(_) | BoundLookup::Missing => {
+                        return ControlFlow::Continue(());
+                    }
+                    BoundLookup::NeedsSearch => {}
+                }
+            }
             for node in &egraph[eclass].nodes {
                 if node.op() != *op || node.children().len() != children.len() {
                     continue;
                 }
-                let mut captured = matched.clone();
                 let valid_attrs = match attrs {
                     AttrPattern::Any => true,
                     AttrPattern::Exact(expected) => node.attrs() == expected,
-                    AttrPattern::Bind(var) => match captured.attrs.get(var) {
+                    AttrPattern::Bind(var) => match matched.attrs.get(var) {
                         Some(previous) => previous == node.attrs(),
-                        None => {
-                            captured.attrs.insert(*var, node.attrs().clone());
-                            true
-                        }
+                        None => true,
                     },
                 };
                 if !valid_attrs {
                     continue;
                 }
 
-                let mut branches = vec![captured];
-                for (child_pattern, child_id) in children.iter().zip(node.children()) {
-                    branches = branches
-                        .into_iter()
-                        .flat_map(|branch| match_pattern(egraph, *child_id, child_pattern, branch))
-                        .collect();
-                    if branches.is_empty() {
-                        break;
-                    }
+                let mut captured = matched.clone();
+                if let AttrPattern::Bind(var) = attrs {
+                    captured
+                        .attrs
+                        .entry(*var)
+                        .or_insert_with(|| node.attrs().clone());
                 }
-                results.extend(branches);
+                match_children(egraph, children, node.children(), captured, visit)?;
             }
-            results
+            ControlFlow::Continue(())
         }
+    }
+}
+
+enum BoundLookup {
+    NeedsSearch,
+    Missing,
+    Found(Id),
+}
+
+/// Resolve a subtree using existing bindings and the e-graph's memo index.
+/// No new bindings are introduced here. Wildcards and uncaptured attributes
+/// must still enumerate witnesses, even if all tensor operands are known.
+fn lookup_bound_pattern<N: Analysis<TensorLang>>(
+    egraph: &EGraph<TensorLang, N>,
+    pattern: &TensorPattern,
+    matched: &TensorMatch,
+) -> BoundLookup {
+    match pattern {
+        TensorPattern::Var(var) => match matched.tensors.get(*var) {
+            Some(id) => BoundLookup::Found(egraph.find(*id)),
+            None => BoundLookup::NeedsSearch,
+        },
+        TensorPattern::Bind { var, pattern } => {
+            let Some(bound) = matched.tensors.get(*var) else {
+                return BoundLookup::NeedsSearch;
+            };
+            match lookup_bound_pattern(egraph, pattern, matched) {
+                BoundLookup::Found(id) if id != egraph.find(*bound) => BoundLookup::Missing,
+                result => result,
+            }
+        }
+        TensorPattern::Op {
+            op,
+            attrs,
+            children,
+        } => {
+            let attrs = match attrs {
+                AttrPattern::Exact(attrs) => attrs,
+                AttrPattern::Bind(var) => match matched.attrs.get(var) {
+                    Some(attrs) => attrs,
+                    None => return BoundLookup::NeedsSearch,
+                },
+                AttrPattern::Any => return BoundLookup::NeedsSearch,
+            };
+            let mut operands = Vec::new();
+            for child in children {
+                match lookup_bound_pattern(egraph, child, matched) {
+                    BoundLookup::Found(id) => operands.push(id),
+                    result => return result,
+                }
+            }
+            let Ok(node) = TensorLang::new(*op, operands, attrs.clone()) else {
+                return BoundLookup::Missing;
+            };
+            match egraph.lookup(node) {
+                Some(id) => BoundLookup::Found(id),
+                None => BoundLookup::Missing,
+            }
+        }
+    }
+}
+
+fn match_children<N: Analysis<TensorLang>>(
+    egraph: &EGraph<TensorLang, N>,
+    patterns: &[TensorPattern],
+    eclasses: &[Id],
+    matched: TensorMatch,
+    visit: &mut dyn FnMut(TensorMatch) -> ControlFlow<()>,
+) -> ControlFlow<()> {
+    match (patterns.split_first(), eclasses.split_first()) {
+        (Some((pattern, rest)), Some((eclass, remaining))) => {
+            match_pattern(egraph, *eclass, pattern, matched, &mut |branch| {
+                match_children(egraph, rest, remaining, branch, visit)
+            })
+        }
+        (None, None) => visit(matched),
+        _ => unreachable!("pattern and e-node arities were checked"),
     }
 }
 
