@@ -62,9 +62,9 @@ void testValidSyntax() {
       {"descriptor", "rule r { (dot[@d] X W) => (dot[@d] X W) }"},
       {"nullary operator", "rule r { (zero) => (zero) }"},
       {"root binding", "rule r { let Y = (dot X W) => Y }"},
-      {"nested binding",
-       "rule r { (add (let Y = (dot X W)) Y) => (let Z = (mul Y Y)) }"},
+      {"nested binding", "rule r { (add (let Y = (dot X W)) Y) => (mul Y Y) }"},
       {"tuple", "rule r { (get[0] (tuple X Y)) => X }"},
+      {"RHS projection", "rule r { (tuple X Y) => (get[0] (tuple X Y)) }"},
       {"empty sections", "rule r { X => X where {} derive {} }"},
       {"derive only", "rule r { X => (copy[@t] X) derive { @t = infer(X); } }"},
       {"host expressions",
@@ -112,6 +112,12 @@ void testValidSyntax() {
 
 void testInvalidSyntax() {
   const Case cases[] = {
+      {"bare RHS binding", "rule r { X => let Y = (negate X) }"},
+      {"parenthesized RHS binding", "rule r { X => (let Y = (negate X)) }"},
+      {"nested RHS binding", "rule r { X => (add X (let Y = X)) }"},
+      {"RHS binding in projection", "rule r { X => (get[0] (let Y = X)) }"},
+      {"abstract RHS binding", "abstract rule r() { X => (let Y = X) }"},
+
       {"empty program", ""},
       {"missing fractional digits", "rule r { (add X 1.) => X }"},
       {"missing integer digits", "rule r { (add X .5) => X }"},

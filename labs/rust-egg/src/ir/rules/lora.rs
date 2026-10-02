@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use egg::{Analysis, Rewrite, Var};
 
 use crate::ir::patterns::{
-    AttrExpr, AttrPattern, AttrVar, InferredTensor, MatchContext, TensorExpr, TensorInfo,
-    TensorMetadata, TensorPattern, tensor_rewrite,
+    AttrExpr, AttrPattern, AttrVar, MatchContext, TensorExpr, TensorInfo, TensorMetadata,
+    TensorPattern, tensor_rewrite,
 };
 use crate::ir::{OpAttrs, OpKind, TensorLang};
 
@@ -24,12 +24,16 @@ pub mod rule_lora {
             outer: &OpAttrs,
             inner: &OpAttrs,
         ) -> Option<bool>;
-        fn infer_dot(
+        fn infer_dot(&self, lhs: &TensorInfo, rhs: &TensorInfo, attrs: &OpAttrs)
+        -> Option<OpAttrs>;
+        fn infer_lora_out(
             &self,
-            lhs: &TensorInfo,
-            rhs: &TensorInfo,
-            attrs: &OpAttrs,
-        ) -> Option<InferredTensor>;
+            x: &TensorInfo,
+            a: &TensorInfo,
+            b: &TensorInfo,
+            outer: &OpAttrs,
+            inner: &OpAttrs,
+        ) -> Option<OpAttrs>;
     }
 
     pub fn pattern() -> TensorPattern {
@@ -143,22 +147,14 @@ pub mod rule_lora {
         {
             return None;
         }
-        if functions.infer_dot(&a, &b, inner)?.output != w {
-            return None;
-        }
-
+        // Derivations read only matched LHS metadata and captured descriptors.
         let xw = functions.infer_dot(&x, &w, outer)?;
         let xa = functions.infer_dot(&x, &a, outer)?;
-        // The RHS binding XA is described by xa.output before node insertion.
-        let out = functions.infer_dot(&xa.output, &b, inner)?;
-        if xw.output != out.output {
-            return None;
-        }
-
+        let out = functions.infer_lora_out(&x, &a, &b, outer, inner)?;
         Some(HashMap::from([
-            (xw_attr, xw.attrs),
-            (xa_attr, xa.attrs),
-            (out_attr, out.attrs),
+            (xw_attr, xw),
+            (xa_attr, xa),
+            (out_attr, out),
         ]))
     }
 }

@@ -5,7 +5,7 @@ use egg::{
     Analysis, Applier, EGraph, Id, PatternAst, Rewrite, SearchMatches, Searcher, Subst, Symbol, Var,
 };
 
-use crate::ir::{OpAttrs, OpKind, TensorLang};
+use crate::ir::{OpAttrs, TensorLang};
 
 use super::matcher::{TensorMatch, for_each_match_at};
 use super::pattern::{AttrExpr, AttrVar, TensorExpr, TensorPattern};
@@ -25,6 +25,7 @@ where
     N: Analysis<TensorLang>,
     F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
 {
+    validate_rhs_definition(&rhs)?;
     let mut lhs_attrs = HashSet::new();
     lhs.attr_vars(&mut lhs_attrs);
     let mut rhs_captures = HashSet::new();
@@ -147,13 +148,14 @@ impl<F> TensorApplier<F> {
             .iter()
             .filter_map(|candidate| {
                 let derived = (self.check_and_derive)(egraph, candidate)?;
-                plan_rhs(&self.rhs, candidate, &derived)
+                validate_rhs(&self.rhs, candidate, &derived)?;
+                Some((candidate, derived))
             })
             .collect();
 
         let mut changed = Vec::new();
-        for plan in valid {
-            let result = insert_plan(egraph, plan);
+        for (matched, derived) in valid {
+            let result = insert_rhs(egraph, &self.rhs, matched, &derived);
             if egraph.union_trusted(eclass, result, rule_name) {
                 changed.push(result);
             }
@@ -246,65 +248,82 @@ fn subst_key<N: Analysis<TensorLang>>(
         .collect()
 }
 
-enum PlannedExpr {
-    Input(Id),
-    Node {
-        op: OpKind,
-        attrs: OpAttrs,
-        children: Vec<PlannedExpr>,
-    },
+// Validate static construction errors once when the rewrite is built.
+fn validate_rhs_definition(expr: &TensorExpr) -> Result<(), String> {
+    if let TensorExpr::Op {
+        op,
+        attrs,
+        children,
+    } = expr
+    {
+        if !op.arity().accepts(children.len()) {
+            return Err(format!("invalid RHS arity for {}", op.name()));
+        }
+        if let AttrExpr::Exact(attrs) = attrs {
+            TensorLang::new(*op, vec![Id::from(0); children.len()], attrs.clone())
+                .map_err(|error| error.to_string())?;
+        }
+        for child in children {
+            validate_rhs_definition(child)?;
+        }
+    }
+    Ok(())
 }
 
-fn plan_rhs(
-    expr: &TensorExpr,
+fn resolve_attrs(
+    expr: &AttrExpr,
     matched: &TensorMatch,
     derived: &DerivedAttrs,
-) -> Option<PlannedExpr> {
+) -> Option<OpAttrs> {
+    Some(match expr {
+        AttrExpr::Exact(attrs) => attrs.clone(),
+        AttrExpr::Captured(var) => matched.attrs.get(var)?.clone(),
+        AttrExpr::Derived(var) => derived.get(var)?.clone(),
+    })
+}
+
+// Check the entire RHS before adding nodes; no intermediate metadata is needed.
+fn validate_rhs(expr: &TensorExpr, matched: &TensorMatch, derived: &DerivedAttrs) -> Option<()> {
     match expr {
-        TensorExpr::Var(var) => Some(PlannedExpr::Input(*matched.tensors.get(*var)?)),
+        TensorExpr::Var(var) => {
+            matched.tensors.get(*var)?;
+        }
         TensorExpr::Op {
             op,
             attrs,
             children,
         } => {
-            let attrs = match attrs {
-                AttrExpr::Exact(attrs) => attrs.clone(),
-                AttrExpr::Captured(var) => matched.attrs.get(var)?.clone(),
-                AttrExpr::Derived(var) => derived.get(var)?.clone(),
-            };
-            // Check operator, attributes, and arity before inserting anything.
-            TensorLang::new(*op, vec![Id::from(0); children.len()], attrs.clone()).ok()?;
-            let children = children
-                .iter()
-                .map(|child| plan_rhs(child, matched, derived))
-                .collect::<Option<Vec<_>>>()?;
-            Some(PlannedExpr::Node {
-                op: *op,
-                attrs,
-                children,
-            })
+            let attrs = resolve_attrs(attrs, matched, derived)?;
+            TensorLang::new(*op, vec![Id::from(0); children.len()], attrs).ok()?;
+            for child in children {
+                validate_rhs(child, matched, derived)?;
+            }
         }
     }
+    Some(())
 }
 
-fn insert_plan<N: Analysis<TensorLang>>(
+fn insert_rhs<N: Analysis<TensorLang>>(
     egraph: &mut EGraph<TensorLang, N>,
-    plan: PlannedExpr,
+    expr: &TensorExpr,
+    matched: &TensorMatch,
+    derived: &DerivedAttrs,
 ) -> Id {
-    match plan {
-        PlannedExpr::Input(id) => egraph.find(id),
-        PlannedExpr::Node {
+    match expr {
+        TensorExpr::Var(var) => egraph.find(matched.tensors[*var]),
+        TensorExpr::Op {
             op,
             attrs,
             children,
         } => {
+            let attrs =
+                resolve_attrs(attrs, matched, derived).expect("RHS descriptors were validated");
             let children = children
-                .into_iter()
-                .map(|child| insert_plan(egraph, child))
+                .iter()
+                .map(|child| insert_rhs(egraph, child, matched, derived))
                 .collect::<Vec<_>>();
-            egraph.add(
-                TensorLang::new(op, children, attrs).expect("RHS was checked before insertion"),
-            )
+            egraph
+                .add(TensorLang::new(*op, children, attrs).expect("RHS construction was validated"))
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Shared shape, cost, and evaluation support for the LoRA example and tests.
 
 use egg::{Analysis, CostFunction, DidMerge, EGraph, Id, Language, RecExpr, StopReason};
-use rust_egg::ir::patterns::{InferredTensor, TensorInfo};
+use rust_egg::ir::patterns::TensorInfo;
 use rust_egg::ir::rules::rule_lora;
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
 use std::collections::HashMap;
@@ -134,18 +134,33 @@ impl rule_lora::Functions for DemoLoraFunctions {
         Some(self.allow_reassociation && *outer == dot_attrs() && *inner == dot_attrs())
     }
 
-    fn infer_dot(
+    fn infer_dot(&self, lhs: &TensorInfo, rhs: &TensorInfo, attrs: &OpAttrs) -> Option<OpAttrs> {
+        batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?;
+        Some(attrs.clone())
+    }
+    fn infer_lora_out(
         &self,
-        lhs: &TensorInfo,
-        rhs: &TensorInfo,
-        attrs: &OpAttrs,
-    ) -> Option<InferredTensor> {
-        Some(InferredTensor {
-            attrs: attrs.clone(),
-            output: TensorInfo {
-                shape: batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?,
-            },
-        })
+        x: &TensorInfo,
+        a: &TensorInfo,
+        b: &TensorInfo,
+        outer: &OpAttrs,
+        inner: &OpAttrs,
+    ) -> Option<OpAttrs> {
+        // This demo supports equal rank-three batches and fixed matrix axes.
+        // The final dot has the inner dot's axes under those conventions.
+        if x.shape.len() != 3
+            || a.shape.len() != 3
+            || b.shape.len() != 3
+            || *outer != dot_attrs()
+            || *inner != dot_attrs()
+            || x.shape[0] != a.shape[0]
+            || a.shape[0] != b.shape[0]
+            || x.shape[2] != a.shape[1]
+            || a.shape[2] != b.shape[1]
+        {
+            return None;
+        }
+        Some(inner.clone())
     }
 }
 

@@ -104,7 +104,7 @@ ruleDecl
     ;
 
 rewriteBody
-    : '{' shapeDecl* graphExpr ARROW graphExpr whereBlock? deriveBlock? '}'
+    : '{' shapeDecl* graphExpr ARROW rhsGraphExpr whereBlock? deriveBlock? '}'
     ;
 
 inheritanceClause
@@ -169,6 +169,7 @@ sequenceDim
 // Rule graph expressions: variables, literals, bindings, and operator applications
 // -----------------------------------------------------------------------------
 
+// LHS patterns may bind matched values.
 graphExpr
     : binding                                # BareBindingGraph
     | ID                                     # VariableGraph
@@ -176,6 +177,14 @@ graphExpr
     | '(' binding ')'                        # ParenthesizedBindingGraph
     | '(' GET '[' INT ']' graphExpr ')'       # GetGraph
     | '(' opRef attribute? graphExpr* ')'     # OperatorGraph
+    ;
+
+// RHS expressions construct operations from LHS captures; they introduce no bindings.
+rhsGraphExpr
+    : ID                                     # RhsVariableGraph
+    | ('+' | '-')? (INT | FLOAT)              # RhsNumberGraph
+    | '(' GET '[' INT ']' rhsGraphExpr ')'    # RhsGetGraph
+    | '(' opRef attribute? rhsGraphExpr* ')'  # RhsOperatorGraph
     ;
 
 binding

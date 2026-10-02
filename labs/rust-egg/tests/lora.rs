@@ -1,9 +1,10 @@
 //! Exercises the reusable LoRA rule against test tensor metadata and host functions.
 
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use egg::{EGraph, Id, Rewrite, Var};
-use rust_egg::ir::patterns::{AttrVar, InferredTensor, TensorInfo, matches_at};
+use rust_egg::ir::patterns::{AttrVar, TensorInfo, matches_at};
 use rust_egg::ir::rules::rule_lora;
 use rust_egg::ir::rules::rule_lora::Functions;
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
@@ -49,18 +50,31 @@ impl Functions for TestFunctions {
         Some(*outer == batched_dot_attrs() && *inner == batched_dot_attrs())
     }
 
-    fn infer_dot(
+    fn infer_dot(&self, lhs: &TensorInfo, rhs: &TensorInfo, attrs: &OpAttrs) -> Option<OpAttrs> {
+        batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?;
+        Some(attrs.clone())
+    }
+    fn infer_lora_out(
         &self,
-        lhs: &TensorInfo,
-        rhs: &TensorInfo,
-        attrs: &OpAttrs,
-    ) -> Option<InferredTensor> {
-        Some(InferredTensor {
-            attrs: attrs.clone(),
-            output: TensorInfo {
-                shape: batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?,
-            },
-        })
+        x: &TensorInfo,
+        a: &TensorInfo,
+        b: &TensorInfo,
+        outer: &OpAttrs,
+        inner: &OpAttrs,
+    ) -> Option<OpAttrs> {
+        if x.shape.len() != 3
+            || a.shape.len() != 3
+            || b.shape.len() != 3
+            || *outer != batched_dot_attrs()
+            || *inner != batched_dot_attrs()
+            || x.shape[0] != a.shape[0]
+            || a.shape[0] != b.shape[0]
+            || x.shape[2] != a.shape[1]
+            || a.shape[2] != b.shape[1]
+        {
+            return None;
+        }
+        Some(inner.clone())
     }
 }
 
@@ -159,4 +173,83 @@ fn lora_rule_rejects_incompatible_shapes() {
     assert!(rule.apply(&mut egraph, &found).is_empty());
     assert_eq!(egraph.total_size(), before);
     assert!(egraph.lookup(dot(x, w)).is_none());
+}
+
+#[test]
+fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
+    struct TracingFunctions {
+        calls: Arc<Mutex<Vec<&'static str>>>,
+    }
+    impl Functions for TracingFunctions {
+        fn broadcastable(&self, _: &[usize], _: &[usize]) -> Option<bool> {
+            Some(true)
+        }
+        fn reassociable(
+            &self,
+            _: &TensorInfo,
+            _: &TensorInfo,
+            _: &TensorInfo,
+            _: &OpAttrs,
+            _: &OpAttrs,
+        ) -> Option<bool> {
+            Some(true)
+        }
+        fn infer_dot(
+            &self,
+            lhs: &TensorInfo,
+            rhs: &TensorInfo,
+            source: &OpAttrs,
+        ) -> Option<OpAttrs> {
+            assert_eq!(lhs.shape, [2, 3, 4]);
+            assert_eq!(*source, batched_dot_attrs());
+            let name = if rhs.shape == [2, 4, 5] {
+                "xw"
+            } else {
+                assert_eq!(rhs.shape, [2, 4, 2]);
+                "xa"
+            };
+            self.calls.lock().unwrap().push(name);
+            Some(source.clone())
+        }
+        fn infer_lora_out(
+            &self,
+            x: &TensorInfo,
+            a: &TensorInfo,
+            b: &TensorInfo,
+            outer: &OpAttrs,
+            inner: &OpAttrs,
+        ) -> Option<OpAttrs> {
+            assert_eq!(x.shape, [2, 3, 4]);
+            assert_eq!(a.shape, [2, 4, 2]);
+            assert_eq!(b.shape, [2, 2, 5]);
+            assert_eq!(*outer, batched_dot_attrs());
+            assert_eq!(*inner, batched_dot_attrs());
+            self.calls.lock().unwrap().push("out");
+            Some(inner.clone())
+        }
+    }
+    let Fixture {
+        mut egraph, shapes, ..
+    } = fixture(5);
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let metadata = move |egraph: &EGraph<TensorLang, ()>, id: Id| {
+        egraph[egraph.find(id)]
+            .nodes
+            .iter()
+            .find_map(TensorLang::symbol_name)
+            .and_then(|name| shapes.get(name))
+            .map(|shape| TensorInfo {
+                shape: shape.clone(),
+            })
+    };
+    let rule = rule_lora::build_rewrite(
+        metadata,
+        TracingFunctions {
+            calls: calls.clone(),
+        },
+    )
+    .unwrap();
+    let found = rule.search(&egraph);
+    assert_eq!(rule.apply(&mut egraph, &found).len(), 1);
+    assert_eq!(*calls.lock().unwrap(), ["xw", "xa", "out"]);
 }

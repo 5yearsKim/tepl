@@ -6,6 +6,109 @@ use rust_egg::ir::rules::rule_commute_add;
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
 
 #[test]
+fn invalid_rhs_definitions_are_rejected_when_building_the_rule() {
+    let x = "?X".parse::<Var>().unwrap();
+    let y = "?Y".parse::<Var>().unwrap();
+    let cases = [
+        (
+            TensorExpr::op(
+                OpKind::Add,
+                AttrExpr::Exact(OpAttrs::None),
+                vec![TensorExpr::Var(x)],
+            ),
+            "invalid RHS arity",
+        ),
+        (
+            TensorExpr::op(
+                OpKind::Transpose,
+                AttrExpr::Exact(OpAttrs::None),
+                vec![TensorExpr::Var(x)],
+            ),
+            "invalid attributes",
+        ),
+        (TensorExpr::Var(y), "unbound"),
+        (
+            TensorExpr::op(
+                OpKind::Transpose,
+                AttrExpr::Captured("missing".into()),
+                vec![TensorExpr::Var(x)],
+            ),
+            "not captured on the LHS",
+        ),
+    ];
+    for (rhs, message) in cases {
+        let error = tensor_rewrite::<(), _>("invalid", TensorPattern::Var(x), rhs, |_, _| {
+            Some(Default::default())
+        })
+        .err()
+        .expect("invalid RHS definition should be rejected");
+        assert!(error.contains(message), "{error}");
+    }
+}
+
+#[test]
+fn failed_host_or_missing_invalid_descriptors_leave_no_partial_rhs() {
+    let x = "?X".parse::<Var>().unwrap();
+    let descriptor = AttrVar::from("transpose");
+    for mode in 0..4 {
+        let mut egraph = EGraph::<TensorLang, ()>::default();
+        let input = egraph.add(TensorLang::symbol("X"));
+        egraph.rebuild();
+        let before = egraph.total_number_of_nodes();
+        let rhs = TensorExpr::op(
+            OpKind::Add,
+            AttrExpr::Exact(OpAttrs::None),
+            vec![
+                TensorExpr::op(
+                    OpKind::Negate,
+                    AttrExpr::Exact(OpAttrs::None),
+                    vec![TensorExpr::Var(x)],
+                ),
+                TensorExpr::op(
+                    OpKind::Transpose,
+                    AttrExpr::Derived(descriptor),
+                    vec![TensorExpr::Var(x)],
+                ),
+            ],
+        );
+        let rule = tensor_rewrite(
+            "construct",
+            TensorPattern::Var(x),
+            rhs,
+            move |_, _| match mode {
+                0 => None,
+                1 => Some(Default::default()),
+                2 => Some([(descriptor, OpAttrs::None)].into()),
+                _ => Some(
+                    [(
+                        descriptor,
+                        OpAttrs::Transpose {
+                            permutation: vec![0],
+                        },
+                    )]
+                    .into(),
+                ),
+            },
+        )
+        .unwrap();
+        let found = rule.search(&egraph);
+        let applied = rule.apply(&mut egraph, &found);
+        if mode < 3 {
+            assert!(applied.is_empty());
+            assert_eq!(egraph.total_number_of_nodes(), before);
+            assert!(
+                egraph
+                    .lookup(TensorLang::unary(OpKind::Negate, input).unwrap())
+                    .is_none()
+            );
+        } else {
+            assert_eq!(applied.len(), 1);
+            assert_eq!(egraph.total_number_of_nodes(), before + 3);
+        }
+    }
+}
+
+#[test]
 fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
     let mut egraph = EGraph::<TensorLang, ()>::default();
     let mut additions = Vec::new();

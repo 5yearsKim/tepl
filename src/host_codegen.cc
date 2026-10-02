@@ -25,17 +25,21 @@ void addDiagnostic(std::vector<HostDiagnostic>& diagnostics,
   diagnostics.push_back({span, std::move(message)});
 }
 
-void collectBoundNames(const ast::GraphExpr& expression, Types& types) {
-  if (const auto* binding = std::get_if<ast::Binding>(&expression.value)) {
+void collectCaptures(const ast::GraphExpr& expression, Types& types) {
+  if (const auto* name = std::get_if<ast::NameRef>(&expression.value)) {
+    // Preserve explicit scalar declarations and dimension types for diagnosis.
+    types.emplace(name->name, "&TensorInfo");
+  } else if (const auto* binding =
+                 std::get_if<ast::Binding>(&expression.value)) {
     types.emplace(binding->binder.name, "&TensorInfo");
-    collectBoundNames(*binding->expression, types);
+    collectCaptures(*binding->expression, types);
   } else if (const auto* op = std::get_if<ast::Operator>(&expression.value)) {
     for (const auto& operand : op->operands) {
-      collectBoundNames(*operand, types);
+      collectCaptures(*operand, types);
     }
   } else if (const auto* projection =
                  std::get_if<ast::Projection>(&expression.value)) {
-    collectBoundNames(*projection->tuple, types);
+    collectCaptures(*projection->tuple, types);
   }
 }
 
@@ -61,8 +65,7 @@ Types declaredTypes(const ast::Rule& rule) {
       types[scalar->name] = "";
     }
   }
-  collectBoundNames(*rule.lhs, types);
-  collectBoundNames(*rule.rhs, types);
+  collectCaptures(*rule.lhs, types);
   return types;
 }
 
@@ -215,7 +218,7 @@ HostTemplateResult generateHostTemplate(const ast::Program& program,
       collectCalls(*condition, types, "bool", functions, result.diagnostics);
     }
     for (const auto& derivation : rule.derivations) {
-      collectCalls(*derivation.value, types, "InferredTensor", functions,
+      collectCalls(*derivation.value, types, "OpAttrs", functions,
                    result.diagnostics);
     }
     if (!functions.empty()) {
@@ -244,18 +247,11 @@ HostTemplateResult generateHostTemplate(const ast::Program& program,
     }
   }
   if (!result.ok()) return result;
-  if (used_types.contains("&OpAttrs")) {
+  if (used_types.contains("&OpAttrs") || used_types.contains("OpAttrs")) {
     output << "use rust_egg::ir::OpAttrs;\n";
   }
-  if (used_types.contains("&TensorInfo") ||
-      used_types.contains("InferredTensor")) {
-    output << "use rust_egg::ir::patterns::{";
-    if (used_types.contains("InferredTensor")) output << "InferredTensor";
-    if (used_types.contains("&TensorInfo")) {
-      if (used_types.contains("InferredTensor")) output << ", ";
-      output << "TensorInfo";
-    }
-    output << "};\n";
+  if (used_types.contains("&TensorInfo")) {
+    output << "use rust_egg::ir::patterns::TensorInfo;\n";
   }
   output << '\n';
   if (implementation) {

@@ -25,7 +25,7 @@ rule lora {
     (dot[@outer] X (add W (dot[@inner] A B)))
     =>
     (add (dot[@xw] X W)
-         (dot[@out] (let XA = (dot[@xa] X A)) B))
+         (dot[@out] (dot[@xa] X A) B))
 
     where {
         broadcastable(Batch, WeightBatch);
@@ -34,17 +34,18 @@ rule lora {
     derive {
         @xw = infer_dot(X, W, @outer);
         @xa = infer_dot(X, A, @outer);
-        @out = infer_dot(XA, B, @inner);
+        @out = infer_lora_out(X, A, B, @outer, @inner);
     }
 }
 ```
 
-Graph expressions are names, numeric literals, S-expression applications, or
-`let` bindings.
-`(let Y = (dot[@d] X W))` names an intermediate; a root binding can omit
-parentheses. In the e-graph runtime, repeated tensor names refer to the same
-e-class. LHS bindings capture matched values; RHS bindings name constructed
-intermediates. See [examples/binders.tepl](examples/binders.tepl).
+Graph expressions are names, numeric literals, and S-expression applications.
+LHS patterns additionally allow `let` bindings: `(let Y = (dot[@d] X W))`
+captures the matched operation's result e-class as `Y`; a root binding can omit
+parentheses. Repeated tensor names refer to the same e-class. RHS expressions
+are trees of operations, literals, and LHS capture references. They cannot
+introduce bindings; `let` is rejected on the RHS, including nested occurrences.
+See [examples/binders.tepl](examples/binders.tepl).
 
 Numeric operands and roots accept integers (`1`) and decimals (`1.0`), with
 an optional sign (`-0.5`). Decimals require digits on both sides of the point;
@@ -74,18 +75,30 @@ A shape has at most one sequence, anywhere in its dimension list. Arithmetic
 such as `K % 128 == 0` belongs in `where`.
 
 `where` contains boolean legality checks, intended to be pure. `derive` assigns
-metadata to RHS descriptors. Both support host calls, names, descriptor
+attributes to RHS descriptors. Both support host calls, names, descriptor
 references, integers, decimals, booleans, and conventional arithmetic,
 comparison, and
 logical expressions. Host checks must establish shape and numerical validity,
 including any permission to reassociate floating-point operations.
 
-The Rust host interface uses `TensorInfo { shape }` for tensor metadata and
-`InferredTensor { attrs, output }` for derived attributes and output metadata.
-Predicates return `Option<bool>`; metadata inference returns
-`Option<InferredTensor>`. `None` rejects a match. An intermediate such as `XA`
-can supply its inferred shape to a later derivation before graph insertion.
-Metadata supplied for an e-class must hold for all its alternatives.
+The Rust host interface uses `TensorInfo { shape }` for tensor metadata.
+Predicates return `Option<bool>`; descriptor derivations such as `infer_dot`
+return `Option<OpAttrs>`. A descriptor contains only the attributes needed to
+construct an operation. `None` rejects a match.
+
+`where` and `derive` read LHS tensor captures, captured descriptors, and
+shape variables. Descriptor derivations are evaluated in source order; they do
+not read newly constructed RHS values. LoRA derives its final dot descriptor
+through `infer_lora_out(X, A, B, @outer, @inner)`, allowing the host to choose
+attributes using only existing inputs. There is no runtime dependency scheduler
+or intermediate output-metadata inference.
+
+The host's e-class analysis infers output metadata from inserted operations,
+their operands, and their resolved attributes. Derived descriptors contain no
+output metadata. Metadata supplied for a matched e-class must hold for all its
+alternatives. The runtime finishes host checks and descriptor derivations, then
+validates the whole RHS tree before adding any nodes. A rejected match leaves no
+partial RHS behind.
 
 ## Dialects and imports
 
@@ -159,14 +172,17 @@ Its execution model is:
 
 ```text
 structural match -> metadata lookup and shape checks -> where checks
--> derive metadata -> validate RHS plan -> insert and union with matched root
+-> derive descriptors from LHS inputs
+-> validate RHS tree -> insert and union with matched root
 -> saturation and cost-based extraction
 ```
 
-RHS operation, attribute, and arity checks occur before insertion. The LoRA
-reference rule also checks inferred output shapes through host inference.
+RHS operation, attribute, and arity checks occur before insertion. LoRA applies
+its declared shape constraints and explicit `where` predicates, then derives
+three descriptors from LHS inputs. Additional output compatibility checks are
+left for a future general validation pass using e-class analysis.
 
-Full symbol/type resolution, inheritance expansion, metadata dependency
+Full symbol/type resolution, inheritance expansion, descriptor reference
 validation, and automatic dialect/rule lowering remain future compiler work.
 Multiple-root patterns, variadic graph captures such as `Xs...`, arbitrary
 regions/control flow, and full symbolic shape algebra are outside current

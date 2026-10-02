@@ -79,14 +79,36 @@ several share a source module.
 The `--impl` output is a starting template; fill in its `todo!()` bodies once
 and keep that implementation when regenerating the interface.
 Functions called in `where` return `Option<bool>`. Functions called in
-`derive` return `Option<InferredTensor>`, which holds attributes and the
-output's `TensorInfo`. `None` rejects that match. The output description lets
-a later derive call use a named RHS intermediate before insertion into egg.
+`derive`, including `infer_dot`, return `Option<OpAttrs>`: only the descriptor
+used to construct the operation. `None` rejects the match.
+
+RHS `TensorExpr` is a tree of operations, literals, and references to LHS
+captures. Bindings are supported only in LHS `TensorPattern`; RHS `let` is
+rejected by the TEPL grammar. Both `where` and `derive` use the LHS environment.
+The runtime has no RHS binding environment, dependency scheduler, or intermediate
+output-inference interface.
+
+LoRA constructs its descriptors in source order with `infer_dot(X, W, outer)`,
+`infer_dot(X, A, outer)`, and `infer_lora_out(X, A, B, outer, inner)`. The last
+host function chooses the final dot descriptor directly from matched inputs.
+Its result contains attributes only. Construct the reference rule with:
+
+```rust
+let rewrite = rule_lora::build_rewrite(metadata, functions)?;
+```
+
+The host's e-class analysis infers output metadata after insertion. All host
+checks and descriptor derivations complete first; the runtime then validates the
+whole RHS tree and recursively inserts it. Missing or invalid descriptors reject
+the match without leaving partial RHS nodes. Static RHS arity and exact-attribute
+errors are diagnosed when constructing the rewrite. Additional LoRA output
+compatibility checks are deferred to future general validation.
 
 The integration tests use manually written rule modules and test host
 implementations. Lowering full TEPL rules into those Rust patterns and
 callbacks is a separate compiler stage. The current template generator infers
-arguments from named tensors, dimensions, attributes, binders, and literals.
+arguments from ordinary LHS tensor captures, declared dimensions, descriptors,
+LHS binders, and literals. Both `where` and `derive` use the LHS environment.
 It diagnoses calls whose argument types cannot yet be inferred, including
 untyped scalar declarations and nested function arguments.
 

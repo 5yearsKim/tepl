@@ -107,16 +107,14 @@ void testLora(const std::string& source, const std::string& path) {
             final_dot.attribute->name == "out" &&
             final_dot.operands.size() == 2,
         "Final dot or derived descriptor is wrong");
-  const auto& binding = as<tepl::ast::Binding>(final_dot.operands[0]->value,
-                                               "Expected RHS binding");
-  const auto& bound_dot = as<tepl::ast::Operator>(
-      binding.expression->value, "Binding should contain a dot");
-  check(binding.binder.name == "XA" && bound_dot.attribute &&
-            bound_dot.attribute->name == "xa",
-        "Intermediate XA was not preserved");
-  check(binding.expression->span.begin.line == 17 &&
-            final_dot.operands[0]->span.begin.line == 17,
-        "Nested expression spans are wrong");
+  const auto& inner_rhs_dot = as<tepl::ast::Operator>(
+      final_dot.operands[0]->value, "Expected nested RHS dot");
+  check(inner_rhs_dot.name == "dot" && inner_rhs_dot.attribute &&
+            inner_rhs_dot.attribute->name == "xa" &&
+            inner_rhs_dot.operands.size() == 2,
+        "Nested dot or descriptor was not preserved");
+  check(final_dot.operands[0]->span.begin.line == 17,
+        "Nested expression span is wrong");
 
   check(rule.conditions.size() == 2 && rule.derivations.size() == 3,
         "LoRA where/derive counts are wrong");
@@ -126,16 +124,26 @@ void testLora(const std::string& source, const std::string& path) {
         "Broadcast predicate arguments are wrong");
   check(rule.derivations[2].target.name == "out", "Missing @out derivation");
   const auto& infer = as<tepl::ast::Call>(rule.derivations[2].value->value,
-                                          "Expected infer_dot call");
-  check(infer.callee == "infer_dot" && infer.arguments.size() == 3 &&
-            as<tepl::ast::NameRef>(infer.arguments[0]->value,
-                                   "Expected XA in derivation")
-                    .name == "XA",
-        "Derived @out must reference XA");
+                                          "Expected infer_lora_out call");
+  check(infer.callee == "infer_lora_out" && infer.arguments.size() == 5 &&
+            as<tepl::ast::NameRef>(infer.arguments[0]->value, "Expected X")
+                    .name == "X" &&
+            as<tepl::ast::NameRef>(infer.arguments[1]->value, "Expected A")
+                    .name == "A" &&
+            as<tepl::ast::NameRef>(infer.arguments[2]->value, "Expected B")
+                    .name == "B" &&
+            as<tepl::ast::AttributeRef>(infer.arguments[3]->value,
+                                        "Expected outer descriptor")
+                    .name == "outer" &&
+            as<tepl::ast::AttributeRef>(infer.arguments[4]->value,
+                                        "Expected inner descriptor")
+                    .name == "inner",
+        "Derived @out must use LHS captures and descriptors");
 
   auto printed = tepl::formatAst(program);
   check(printed.find("tensor X [Batch..., M, K]") != std::string::npos &&
-            printed.find("let XA") != std::string::npos &&
+            printed.find("let XA") == std::string::npos &&
+            printed.find("infer_lora_out") != std::string::npos &&
             printed.find("derive @out") != std::string::npos,
         "Formatted AST is missing LoRA structure");
 }

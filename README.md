@@ -124,6 +124,9 @@ rule NAME {
 - Graph expressions are names, operator applications, or bindings: `X`, `Y`,
   `(dot[@d] X W)`, `let Y = (dot X W)`, and
   `(let Y = (dot X W))`. Later `Y` references the bound tensor value.
+  Bindings are allowed only on the LHS, where they capture matched values.
+  RHS expressions contain operations, literals, and LHS capture references;
+  they cannot introduce `let` bindings.
   Operators may have zero or more operands.
 - Graph operands and roots also accept integer and decimal literals:
   `(add X 1)`, `(add X 1.0)`, and `(mul X -0.5)`. An optional `+` or `-`
@@ -213,7 +216,7 @@ instead of silently ignoring them. A mismatch returns `std::nullopt`; an
 invalid rule throws `std::invalid_argument` from `rewriteOnce`.
 
 Full symbol resolution, operator operand types, general
-host-function type checking, legality, derived metadata dependencies, and
+host-function type checking, legality, descriptor references, and
 e-graph behavior need later semantic passes.
 The examples are parser fixtures, not claims of tensor equivalence.
 Multiple-root patterns and variadic expression operands are deferred.
@@ -231,6 +234,14 @@ The `host-template` command emits a Rust host-function interface from calls in
 `where` and `derive`. Use `--impl` for a separate implementation template.
 See [the egg lab](labs/rust-egg/README.md) for the runtime and an integration
 test. Full rule lowering remains future work.
+
+`derive` host functions return `Option<OpAttrs>` containing only operation
+descriptors. Both `where` and `derive` use matched LHS inputs; derivations are
+evaluated in source order. LoRA uses `infer_lora_out(X, A, B, @outer, @inner)`
+for its final descriptor, avoiding any dependency on a constructed RHS value.
+The runtime validates the entire RHS tree before insertion. Output metadata is
+inferred separately by the host's e-class analysis after insertion. Ordinary
+LHS graph variables are valid tensor host arguments without shape declarations.
 
 The host template maps decimal arguments to Rust `f64`, unsigned integer
 arguments to `usize`, and negative integer arguments to `i64`. These are host

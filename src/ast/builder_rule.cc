@@ -96,8 +96,8 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
         std::any_cast<ast::Declaration>(visit(declaration)));
   }
   if (body) {
-    rule.lhs = std::any_cast<ast::GraphExprPtr>(visit(body->graphExpr(0)));
-    rule.rhs = std::any_cast<ast::GraphExprPtr>(visit(body->graphExpr(1)));
+    rule.lhs = std::any_cast<ast::GraphExprPtr>(visit(body->graphExpr()));
+    rule.rhs = std::any_cast<ast::GraphExprPtr>(visit(body->rhsGraphExpr()));
   }
   if (auto* where = body        ? body->whereBlock()
                     : inherited ? inherited->whereBlock()
@@ -206,6 +206,38 @@ std::any AstBuilder::visitBinding(Parser::BindingContext* context) {
   return makeGraph(context, ast::Binding{ast::NameRef{context->ID()->getText()},
                                          std::any_cast<ast::GraphExprPtr>(
                                              visit(context->graphExpr()))});
+}
+
+std::any AstBuilder::visitRhsVariableGraph(
+    Parser::RhsVariableGraphContext* context) {
+  return makeGraph(context, ast::NameRef{context->ID()->getText()});
+}
+
+std::any AstBuilder::visitRhsNumberGraph(
+    Parser::RhsNumberGraphContext* context) {
+  if (context->FLOAT()) {
+    return makeGraph(context, ast::FloatLiteral{context->getText()});
+  }
+  return makeGraph(context, ast::IntegerLiteral{context->getText()});
+}
+
+std::any AstBuilder::visitRhsGetGraph(Parser::RhsGetGraphContext* context) {
+  return makeGraph(
+      context, ast::Projection{ast::IntegerLiteral{context->INT()->getText()},
+                               std::any_cast<ast::GraphExprPtr>(
+                                   visit(context->rhsGraphExpr()))});
+}
+
+std::any AstBuilder::visitRhsOperatorGraph(
+    Parser::RhsOperatorGraphContext* context) {
+  ast::Operator op{context->opRef()->getText(), std::nullopt, {}};
+  if (auto* attribute = context->attribute()) {
+    op.attribute = ast::AttributeRef{attribute->attrRef()->ID()->getText()};
+  }
+  for (auto* operand : context->rhsGraphExpr()) {
+    op.operands.push_back(std::any_cast<ast::GraphExprPtr>(visit(operand)));
+  }
+  return makeGraph(context, std::move(op));
 }
 
 std::any AstBuilder::visitConstraintExpr(

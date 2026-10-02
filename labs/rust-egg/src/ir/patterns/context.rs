@@ -11,13 +11,6 @@ pub struct TensorInfo {
     pub shape: Vec<usize>,
 }
 
-/// A derived node's attributes and output description, available before insertion.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InferredTensor {
-    pub attrs: OpAttrs,
-    pub output: TensorInfo,
-}
-
 /// Supplies metadata valid for every alternative in an e-class. Return `None`
 /// when that cannot be established; choosing one arbitrary node is unsound.
 pub trait TensorMetadata<N: Analysis<TensorLang>>: Send + Sync {

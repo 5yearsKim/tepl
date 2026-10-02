@@ -55,6 +55,14 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
   std::any visitOperatorGraph(
       tepl_generated::TeplParser::OperatorGraphContext*) override;
   std::any visitBinding(tepl_generated::TeplParser::BindingContext*) override;
+  std::any visitRhsVariableGraph(
+      tepl_generated::TeplParser::RhsVariableGraphContext*) override;
+  std::any visitRhsNumberGraph(
+      tepl_generated::TeplParser::RhsNumberGraphContext*) override;
+  std::any visitRhsGetGraph(
+      tepl_generated::TeplParser::RhsGetGraphContext*) override;
+  std::any visitRhsOperatorGraph(
+      tepl_generated::TeplParser::RhsOperatorGraphContext*) override;
 
   std::any visitConstraintExpr(
       tepl_generated::TeplParser::ConstraintExprContext*) override;

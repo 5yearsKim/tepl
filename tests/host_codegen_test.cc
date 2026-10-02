@@ -28,8 +28,7 @@ rule example {
                                "-> Option<bool>;") != std::string::npos);
   assert(generated.source.find("fn infer_dot(&self, arg0: &TensorInfo, "
                                "arg1: &TensorInfo, arg2: &OpAttrs) "
-                               "-> Option<InferredTensor>;") !=
-         std::string::npos);
+                               "-> Option<OpAttrs>;") != std::string::npos);
 
   const auto implementation = tepl::generateHostTemplate(*parsed.program, true);
   assert(implementation.ok());
@@ -43,8 +42,8 @@ rule lhs_binding {
   let Y = (dot X W) => Y
   where { reusable(Y); }
 }
-rule rhs_binding {
-  X => (let Z = (dot X W))
+rule derived_from_binding {
+  let Z = (dot X W) => Z
   derive { @out = infer(Z); }
 }
 )");
@@ -54,14 +53,58 @@ rule rhs_binding {
   assert(with_bindings.ok());
   assert(with_bindings.source.find("pub mod lhs_binding {") !=
          std::string::npos);
-  assert(with_bindings.source.find("pub mod rhs_binding {") !=
+  assert(with_bindings.source.find("pub mod derived_from_binding {") !=
          std::string::npos);
   assert(with_bindings.source.find(
              "fn reusable(&self, arg0: &TensorInfo) -> Option<bool>;") !=
          std::string::npos);
   assert(with_bindings.source.find(
-             "fn infer(&self, arg0: &TensorInfo) -> Option<InferredTensor>;") !=
+             "fn infer(&self, arg0: &TensorInfo) -> Option<OpAttrs>;") !=
          std::string::npos);
+
+  const auto captures = tepl::parse(R"(
+rule captures {
+  (add X (let Z = (negate Y))) => (add Z X)
+  where { allowed(X, Y, Z); }
+}
+rule bound_capture {
+  let Y = (negate X) => Y
+  derive { @d = infer(Y, X); }
+}
+)");
+  assert(captures.ok());
+  const auto capture_host =
+      tepl::generateHostTemplate(*captures.program, false);
+  assert(capture_host.ok());
+  assert(capture_host.source.find(
+             "fn allowed(&self, arg0: &TensorInfo, arg1: &TensorInfo, "
+             "arg2: &TensorInfo) -> Option<bool>;") != std::string::npos);
+  assert(capture_host.source.find(
+             "fn infer(&self, arg0: &TensorInfo, arg1: &TensorInfo) "
+             "-> Option<OpAttrs>;") != std::string::npos);
+
+  for (const auto* source :
+       {"rule r { X => X where { check(Y); } }",
+        "rule r { X => (add X Y) derive { @d = infer(Y); } }"}) {
+    const auto unknown = tepl::parse(source);
+    assert(unknown.ok());
+    const auto unknown_host =
+        tepl::generateHostTemplate(*unknown.program, false);
+    assert(!unknown_host.ok());
+    assert(unknown_host.diagnostics[0].message.find(
+               "unknown host argument 'Y'") != std::string::npos);
+  }
+
+  const auto descriptor_only =
+      tepl::parse("rule r { X => X derive { @d = descriptor(); } }");
+  assert(descriptor_only.ok());
+  const auto descriptor_host =
+      tepl::generateHostTemplate(*descriptor_only.program, false);
+  assert(descriptor_host.ok());
+  assert(descriptor_host.source.find("use rust_egg::ir::OpAttrs;") !=
+         std::string::npos);
+  assert(descriptor_host.source.find(
+             "fn descriptor(&self) -> Option<OpAttrs>;") != std::string::npos);
 
   const auto conflicting = tepl::parse(R"(
 rule example {
@@ -105,7 +148,7 @@ rule numbers {
   assert(numeric_host.source.find("fn threshold(&self) -> Option<f64>;") !=
          std::string::npos);
   assert(numeric_host.source.find(
-             "fn infer(&self, arg0: f64) -> Option<InferredTensor>;") !=
+             "fn infer(&self, arg0: f64) -> Option<OpAttrs>;") !=
          std::string::npos);
 
   for (const auto* source :
