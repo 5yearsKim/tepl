@@ -12,6 +12,7 @@
 
 #include "rules_cc/cc/runfiles/runfiles.h"
 #include "src/ast/print.h"
+#include "src/imports.h"
 #include "src/parse.h"
 
 namespace {
@@ -33,8 +34,6 @@ void testLora(const std::string& source, const std::string& path) {
   check(parsed.ok() && parsed.program.has_value(), "LoRA must build an AST");
   check(tepl::resolveImports(*parsed.program).empty(),
         "LoRA dialect import must resolve");
-  check(tepl::validateDialectUses(*parsed.program).empty(),
-        "LoRA operations must match the dialect");
   const auto& program = *parsed.program;
   check(program.source_name == path && program.rules.size() == 1,
         "LoRA program name or rule count is wrong");
@@ -292,8 +291,8 @@ void testNumericLiterals() {
   auto dialect = tepl::parse(
       "dialect t { op add(lhs: tensor, rhs: tensor) -> tensor; } "
       "rule r { (add X 1.0) => (add 1.0 X) }");
-  check(dialect.ok() && tepl::validateDialectUses(*dialect.program).empty(),
-        "Numeric operands must work with dialect validation");
+  check(dialect.ok() && dialect.program,
+        "Numeric operands must parse with dialect declarations");
 }
 
 void testAttributeTypeAndDefault() {
@@ -384,8 +383,6 @@ void testAbstractAndInherited(const std::string& abstract_path,
   check(tepl::resolveImports(program).empty() &&
             program.imported_rules.size() == 3,
         "Repeated import loading must not duplicate templates");
-  check(tepl::validateDialectUses(program).empty(),
-        "Unexpanded inherited rules must not cause dialect errors");
   const auto printed = tepl::formatAst(program);
   check(
       printed.find("import {commute, associate_right, distribute_left}") !=

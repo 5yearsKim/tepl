@@ -13,6 +13,7 @@
 #include "src/ast/print.h"
 #include "src/core/analyze.h"
 #include "src/core/print.h"
+#include "src/imports.h"
 #include "src/parse.h"
 
 namespace {
@@ -340,6 +341,58 @@ void inheritedRanks() {
   }
 }
 
+void tensorDTypes() {
+  for (const auto* name : {"bool", "i8", "i16", "i32", "i64", "u8", "u16",
+                           "u32", "u64", "f16", "bf16", "f32", "f64"}) {
+    const auto dtype = resolveDType(name);
+    assert(dtype && dtypeName(*dtype) == name);
+    const auto result =
+        analyzeText("rule r { X: " + std::string(name) +
+                    "[Batch..., M, _] X => X where { check(X); } }");
+    assert(result.ok());
+    const auto& rule = result.program->rules.front();
+    assert(rule.constraints.front().dtype == dtype);
+    assert(rule.constraints.front().shape.size() == 3);
+    const auto& host = result.program->host_functions.front();
+    assert(result.program->types[host.signature.arguments[0].value].kind ==
+           TypeKind::kTensor);
+    assert(result.program->types[host.signature.result.value].kind ==
+           TypeKind::kBool);
+  }
+
+  for (const auto* type :
+       {"f32[]", "[]", "scalar", "bf16[...]", "f16[_, S..., N]"}) {
+    assert(analyzeText("rule r { X: " + std::string(type) + " X => X }").ok());
+  }
+  for (const auto* source :
+       {"rule r { -128:i8 => 127:i8 }",
+        "rule r { -9223372036854775808:i64 => 9223372036854775807:i64 }",
+        "rule r { 18446744073709551615:u64 => 000:u64 }",
+        "rule r { +1:bool => 0:bool }", "rule r { 1:f16 => -0.5:bf16 }",
+        "rule r { Y: f32[] let Y = (negate X) => Y }",
+        "abstract rule a(F: op<(tensor) -> tensor>) { X: f32[N] (F X) => X } "
+        "rule r extends a(F = negate);"}) {
+    assert(analyzeText(source).ok());
+  }
+
+  // Abstract body annotations are checked when a concrete rule instantiates it.
+  assert(analyzeText("abstract rule a() { X: typo[N] X => X }").ok());
+  expectError("abstract rule a() { X: typo[N] X => X } rule r extends a();",
+              "unknown dtype");
+
+  // Graph dtypes do not alter scalar host argument types.
+  const auto result = analyzeText(
+      "rule r { S: f32[] S => 1.0:f32 where { check(S, 1, 1.0); } }");
+  assert(result.ok());
+  const auto& host = result.program->host_functions.front();
+  assert(result.program->types[host.signature.arguments[0].value].kind ==
+         TypeKind::kTensor);
+  assert(result.program->types[host.signature.arguments[1].value].kind ==
+         TypeKind::kIndex);
+  assert(result.program->types[host.signature.arguments[2].value].kind ==
+         TypeKind::kF64);
+}
+
 void invalidRules() {
   for (const auto& [source, diagnostic] : {
            std::pair{"rule r { X => Y }", "unknown RHS capture"},
@@ -372,6 +425,10 @@ void invalidRules() {
            {"rule r { X => X where { f(18446744073709551616); } }",
             "invalid for Index"},
            {"rule r { 128:i8 => 0:i8 }", "invalid for dtype"},
+           {"rule r { -129:i8 => 0:i8 }", "invalid for dtype"},
+           {"rule r { 18446744073709551616:u64 => 0:u64 }",
+            "invalid for dtype"},
+           {"rule r { 2:bool => 0:bool }", "invalid for dtype"},
            {"rule r { -1:u64 => 0:u64 }", "invalid for dtype"},
            {"rule r { 1.0:i32 => 1:i32 }", "invalid for dtype"},
            {"rule r { 1:unknown => X }", "unknown dtype"},
@@ -555,6 +612,7 @@ int main(int argc, char** argv) {
   inferenceAcrossRules();
   inheritance();
   inheritedRanks();
+  tensorDTypes();
   invalidRules();
   imports();
   examples(argv[0], argv[1], argv[2]);

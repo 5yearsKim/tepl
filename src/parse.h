@@ -30,15 +30,4 @@ struct ParseResult {
 ParseResult parse(std::string_view source,
                   std::string_view source_name = "<input>");
 
-// Load dialects and selected abstract rules relative to program.source_name.
-// Appends definitions to dialects/imported_rules, without expanding
-// inheritance. Reports missing, invalid, or cyclic imports at the import
-// statement.
-std::vector<Diagnostic> resolveImports(ast::Program& program);
-
-// Check rule operation names, arities, and descriptor use against the loaded
-// dialect declarations. Programs without a dialect keep the old syntax-only
-// behavior.
-std::vector<Diagnostic> validateDialectUses(const ast::Program& program);
-
 }  // namespace tepl

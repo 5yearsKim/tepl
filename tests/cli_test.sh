@@ -45,6 +45,8 @@ cmp "$output" "${TEST_TMPDIR}/ast"
 check_exit 2
 check_exit 2 parse
 check_exit 2 unknown "$example"
+check_exit 2 host-template "$example"
+check_exit 2 parse "$example" --impl
 check_exit 2 parse "$example" --unknown
 check_exit 2 parse "$example" --tree --ast
 check_exit 2 parse "$example" extra
@@ -77,37 +79,40 @@ check_exit 0 parse "$bad_arity"
 printf 'from "%s" import TensorLang as t; rule r { (t.dot[@d] X Y) => (t.dot[@d] X Y) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
+# Parsing preserves unresolved operation names; check resolves them through core.
 printf 'from "%s" import TensorLang as t; rule r { (missing.add X Y) => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 parse "$bad_arity"
-grep -Fq "unknown dialect alias 'missing'" "$output"
+check_exit 0 parse "$bad_arity" --ast
+grep -Fq 'operator missing.add' "$output"
+check_exit 1 check "$bad_arity"
+grep -Fq "unknown operation 'missing.add'" "$output"
 
 printf 'from "%s" import TensorLang; use TensorLang::{add}; rule r { (add X Y) => X }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
 printf 'from "%s" import TensorLang as t; use t::{add}; rule r { (multiply X Y) => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 parse "$bad_arity"
+check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'multiply'" "$output"
 
 printf 'from "%s" import TensorLang as t; use t::{missing}; rule r { X => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 parse "$bad_arity"
-grep -Fq "unknown operation 'missing' in dialect alias 't'" "$output"
+check_exit 1 check "$bad_arity"
+grep -Fq "unknown operation 'missing' in dialect 't'" "$output"
 
 printf 'from "%s" import Missing as t; use t; rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq "dialect 'Missing' is not defined" "$output"
 
 printf 'from "%s" import TensorLang as t; use missing; rule r { X => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 parse "$bad_arity"
+check_exit 1 check "$bad_arity"
 grep -Fq "unknown dialect alias 'missing'" "$output"
 
 printf 'import "%s"; rule r { (add X) => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 parse "$bad_arity"
+check_exit 1 check "$bad_arity"
 grep -Fq 'expects exactly 2 operands' "$output"
 
 other="${TEST_TMPDIR}/other.tepl"
 printf 'dialect Other { op add(lhs: tensor, rhs: tensor) -> tensor; }\n' >"$other"
 printf 'from "%s" import TensorLang as t; from "other.tepl" import Other as o; use t::{add}; use o::{add}; rule r { X => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 parse "$bad_arity"
+check_exit 1 check "$bad_arity"
 grep -Fq "ambiguous operation 'add'" "$output"
 
 same_name="${TEST_TMPDIR}/same_name.tepl"
@@ -122,19 +127,19 @@ check_exit 1 parse "$bad_arity"
 grep -Fq "duplicate dialect 'Duplicate'" "$output"
 
 printf 'import "%s"; rule r { (dot X Y) => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 parse "$bad_arity"
+check_exit 1 check "$bad_arity"
 grep -Fq 'requires an attribute descriptor' "$output"
 
 printf 'import "%s"; rule r { (missing X) => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 parse "$bad_arity"
+check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'missing'" "$output"
 
 printf 'dialect t { op bad(x: tensor) -> tensor { attrs { axis: mystery; } } }\n' >"$bad_arity"
-check_exit 1 parse "$bad_arity"
+check_exit 1 check "$bad_arity"
 grep -Fq "unknown attribute type 'mystery'" "$output"
 
 printf 'dialect t { op bad(x: tensor) -> tensor { attrs { kind: symbol; } } }\n' >"$bad_arity"
-check_exit 1 parse "$bad_arity"
+check_exit 1 check "$bad_arity"
 grep -Fq "unknown attribute type 'symbol'" "$output"
 
 cycle_a="${TEST_TMPDIR}/a.tepl"
@@ -153,8 +158,6 @@ grep -Fxq 'Parsed 7 rule(s).' "$output"
 check_exit 0 parse "$inherited" --ast
 grep -Fq 'parameter F: op<(tensor, tensor) -> tensor>' "$output"
 grep -Fq 'extends associate_right' "$output"
-check_exit 1 host-template "$inherited"
-grep -Fq 'inheritance expansion' "$output"
 
 printf 'from "%s" import {missing};\n' "$abstract" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
@@ -188,23 +191,24 @@ printf 'from "a.tepl" import {a}; abstract rule b() { X => X }\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 
-# Dtype validation runs for both parsing and host generation.
+# Parse preserves dtype annotations; core validates them through check.
 basic="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/basic.tepl"
 check_exit 0 parse "$basic" --ast
 grep -Fq 'tensor X f32[N]' "$output"
 grep -Fq 'float 1.0:f32' "$output"
 grep -Fq 'integer 1:i32' "$output"
-check_exit 0 host-template "$basic"
-grep -Fq 'fn same_dtype(&self, arg0: &TensorInfo, arg1: &TensorInfo)' "$output"
+check_exit 0 check "$basic"
+grep -Fq 'same_dtype' "$output"
 
 bad_dtype="${TEST_TMPDIR}/bad_dtype.tepl"
 printf 'rule r { X: float32[N] X => X }\n' >"$bad_dtype"
-check_exit 1 parse "$bad_dtype"
-grep -Fq "${bad_dtype}:1:13: unknown dtype 'float32'" "$output"
-check_exit 1 host-template "$bad_dtype"
-grep -Fq "unknown dtype 'float32'" "$output"
+check_exit 0 parse "$bad_dtype" --ast
+grep -Fq 'tensor X float32[N]' "$output"
+check_exit 1 check "$bad_dtype"
+grep -Fq "${bad_dtype}:1:10: unknown dtype 'float32'" "$output"
 printf 'rule r { X => 256:u8 }\n' >"$bad_dtype"
-check_exit 1 parse "$bad_dtype"
+check_exit 0 parse "$bad_dtype"
+check_exit 1 check "$bad_dtype"
 grep -Fq "invalid for dtype 'u8'" "$output"
 
 # Semantic analysis emits the checked IR and rejects invalid rules.

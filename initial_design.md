@@ -181,17 +181,11 @@ validates bindings and signatures. See
 ## Implementation and execution
 
 The C++ frontend uses an ANTLR4 grammar without embedded actions and builds an
-owning AST with source spans. The `parse` command resolves imports and validates
-dialect operation names, arity, and descriptor presence while preserving
-abstract/inherited source rules. The `check` command performs semantic analysis
-and expands concrete instances into the core IR. `host-template` emits per-rule Rust host traits
-or implementation stubs; it does not lower full rules.
-
-The C++ `rewriteOnce` API supports root-only structural matching and RHS
-substitution for attribute-free operators, variables, and numeric literals.
-Repeated variables
-require structurally equal subtrees. Declarations, bindings, projections,
-conditions, derivations, and unexpanded templates are rejected.
+owning AST with source spans. The `parse` command checks syntax and resolves
+imports while preserving source rules and annotations. The `check` command
+performs semantic analysis through `src/core/`, validates operation names,
+arity, descriptors, and types, and expands concrete instances into the core IR.
+Code generation from the checked IR remains future work.
 
 [labs/rust-egg](labs/rust-egg/README.md) implements the tensor IR, matching,
 binders, host callbacks, and e-graph rewrite application. Dialect and rule

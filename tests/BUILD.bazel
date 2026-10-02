@@ -17,6 +17,7 @@ cc_test(
     ],
     deps = [
         "//:frontend",
+        "//:imports",
         "//src/ast:ast",
         "//src/core:analysis",
         "//src/core:print",
@@ -61,6 +62,7 @@ cc_test(
     deps = [
         "//src/ast:ast",
         "//:frontend",
+        "//:imports",
         "@rules_cc//cc/runfiles",
     ],
 )
@@ -76,35 +78,11 @@ cc_test(
 )
 
 cc_test(
-    name = "simple_rewrite_test",
-    size = "small",
-    srcs = ["simple_rewrite_test.cc"],
-    deps = [
-        "//:frontend",
-        "//:semantic",
-        "//:simple_rewrite",
-    ],
-)
-
-cc_test(
-    name = "host_codegen_test",
-    size = "small",
-    srcs = ["host_codegen_test.cc"],
-    deps = [
-        "//:frontend",
-        "//:host_codegen",
-    ],
-)
-
-cc_test(
     name = "dtype_test",
     size = "small",
     srcs = ["dtype_test.cc"],
     deps = [
         "//:frontend",
-        "//:host_codegen",
-        "//:semantic",
-        "//:simple_rewrite",
         "//src/ast:ast",
     ],
 )

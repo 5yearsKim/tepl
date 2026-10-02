@@ -53,7 +53,8 @@ let rewrite = rule_commute_mul::build_rewrite::<()>().unwrap();
 ```
 
 Behavior checks live in `tests/inherited.rs`. These files describe the expected
-expanded output; compiler support for the new syntax is future work.
+expanded output. The C++ core analyzer supports template expansion into checked
+IR; Rust code generation remains future work.
 
 The operation signatures and attribute schemas are now declared in
 [`examples/dialects/tensor.tepl`](../../examples/dialects/tensor.tepl), which
@@ -64,24 +65,22 @@ output for the future generator. `src/ir/mod.rs` re-exports the public API; its
 tests live in `tests/ir.rs`. TEPL `string` fields use Rust `String`, and
 `index` fields use `usize`.
 
-The TEPL compiler currently discovers function calls in `where` and `derive`
-and emits a standalone Rust host interface. For `examples/lora.tepl`:
+The TEPL compiler checks host signatures and rules through `core::Program`.
+Rust code generation remains future work. Inspect the checked LoRA IR and run
+the reference runtime tests with:
 
 ```sh
 bazel build //:tepl
-bazel-bin/tepl host-template examples/lora.tepl > labs/rust-egg/tests/support/generated_host.rs
-bazel-bin/tepl host-template examples/lora.tepl --impl > my_functions.rs
+bazel-bin/tepl check examples/lora.tepl
 cargo test --manifest-path labs/rust-egg/Cargo.toml
 ```
 
-`tests/support/generated_host.rs` records an example of that standalone
-interface, compiled by `tests/lora.rs`. The reference `rules/lora.rs` declares the same methods directly
-so its callers can implement `rules::rule_lora::Functions`. Each rule is
-exposed as a module containing its own `Functions` trait, `pattern`, and
-`build_rewrite` constructor, so rules can be used independently even when
-several share a source module.
-The `--impl` output is a starting template; fill in its `todo!()` bodies once
-and keep that implementation when regenerating the interface.
+`tests/support/generated_host.rs` preserves a standalone interface fixture from
+the retired AST-based generator, compiled by `tests/lora.rs`. The reference
+`rules/lora.rs` declares the same methods directly so its callers can implement
+`rules::rule_lora::Functions`. Each rule is exposed as a module containing its
+own `Functions` trait, `pattern`, and `build_rewrite` constructor, so rules can
+be used independently even when several share a source module.
 Functions called in `where` return `Option<bool>`. Functions called in
 `derive`, including `infer_dot`, return `Option<OpAttrs>`: only the descriptor
 used to construct the operation. `None` rejects the match.
@@ -119,12 +118,11 @@ callers to prove complete replacement validity and output compatibility.
 
 The integration tests use manually written rule modules and test host
 implementations. Lowering full TEPL rules into those Rust patterns and
-callbacks is a separate compiler stage. The current template generator infers
-arguments from ordinary LHS tensor captures, declared dimensions, descriptors,
-LHS binders, and literals. Both `where` and `derive` use the LHS environment.
-It diagnoses calls whose argument types cannot yet be inferred, including
-nested function arguments. `scalar` captures are rank-zero tensors passed as
-`&TensorInfo`; numbers in host expressions remain Rust scalar values.
+callbacks is a separate compiler stage. Core infers host argument and result
+types from captures, declared dimensions, descriptors, literals, and expression
+contexts, including nested calls. Both `where` and `derive` use the LHS
+environment. `scalar` captures are rank-zero tensors passed as `&TensorInfo` in
+the reference runtime; numbers in host expressions remain scalar host values.
 
 [`examples/basic.tepl`](../../examples/basic.tepl) and `rules/basic.rs` cover
 f32 vector constraints, shape-only declarations with a `same_dtype` host
@@ -132,13 +130,10 @@ predicate, typed scalar tensors, and integer/float literals. All five reference
 rules use `tensor_rewrite_checked`. The overlapping floating-literal examples
 are represented by one `commute_float_literal` rule. Signed-literal spellings
 remain covered by tests without a separate example rule.
-`tests/dtypes.rs` compiles the generated basic host
-trait and verifies acceptance, rejection, output compatibility, literal identity,
-and absence of partial RHS insertion. Regenerate that fixture with:
-
-```sh
-bazel-bin/tepl host-template examples/basic.tepl > labs/rust-egg/tests/support/generated_basic_host.rs
-```
+`tests/dtypes.rs` compiles the preserved basic host-interface fixture in
+`tests/support/generated_basic_host.rs` and verifies acceptance, rejection,
+output compatibility, literal identity, and absence of partial RHS insertion.
+The fixture remains checked in until code generation from core is implemented.
 
 ## Run the LoRA saturation example
 

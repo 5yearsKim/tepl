@@ -24,12 +24,14 @@ bazel run //:tepl -- check "$PWD/examples/inherited.tepl"
 
 Use an absolute input path with `bazel run`, which starts the executable from its
 runfiles directory. `--tree` prints the ANTLR parse tree; `--ast` prints an
-indented AST with grammar wrappers removed. Successful parses return
-0; syntax errors return 1 with `file:line:column` diagnostics; usage and file errors
-return 2. Lines and columns start at 1. CLI11 handles argument parsing and provides
-`-h`/`--help` for the program and `parse` command. `--tree` and `--ast` may each
-appear before or after the input path, but cannot be used together. Help exits
-with 0.
+indented AST with grammar wrappers removed. `parse` checks syntax and loads
+imports, preserving source annotations and unresolved operation names in the AST.
+Use `check` for semantic validation through core. Successful parses return 0;
+syntax and import errors return 1 with `file:line:column` diagnostics; usage and
+input-file errors return 2. Lines and columns start at 1. CLI11 handles argument
+parsing and provides `-h`/`--help` for the program and both commands. `--tree` and
+`--ast` may each appear before or after the input path, but cannot be used
+together. Help exits with 0.
 
 ## Format C++ code
 
@@ -96,7 +98,7 @@ An operation can declare at most one `alias` and one `attrs` property, in
 either order. Inline and shared attributes are alternative forms of the same
 property. `alias` gives a second spelling to the same operation; for example,
 `dot_general` remains the declared name and `dot` refers to it. In files with
-a dialect, the CLI checks rule operation names, arity, and whether an attribute
+a dialect, `check` validates rule operation names, arity, and whether an attribute
 descriptor is required.
 
 The parser and AST carry this information, and `check` resolves declarations
@@ -205,9 +207,8 @@ Inheritance remains unexpanded in the AST: inherited rules have null local
 `lhs` and `rhs` pointers. The `check` command resolves base rules, checks parameter
 signatures, substitutes bindings, and combines inherited restrictions in a
 separate checked representation.
-Dialect graph validation defers abstract and inherited rules until that pass.
-The existing simple rewriter and host-template generator report that expansion is required
-when given these rules.
+Abstract body annotations and graphs are checked when instantiated by a concrete
+rule; unused abstract bodies remain available in the source AST.
 
 ## Semantic analysis and checked IR
 
@@ -222,7 +223,8 @@ bazel run //:tepl -- check "$PWD/examples/inherited.tepl"
 ```
 
 The API in `src/core/analyze.h` accepts an AST whose imports have already been
-loaded by `resolveImports`. Analysis never mutates the AST or its shared nodes.
+loaded by `resolveImports` from `src/imports.h`. Analysis never mutates the AST
+or its shared nodes.
 `AnalysisResult::program` is present only when every stage succeeds; diagnostics
 include definition locations, instantiation locations, and related declarations.
 The checked program remains valid after the AST is destroyed.
@@ -317,16 +319,6 @@ This stage does not generate executable code or prove tensor equivalence.
 ## Scope and next steps
 
 The parser also builds an owning AST with source spans for valid input.
-A first structural rewriter is available through `validateSimpleRule` and
-`rewriteOnce` in `src/semantic.h` and `src/simple_rewrite.h`. It matches a rule
-only at the input root, captures LHS variables, and substitutes them into the
-RHS. Repeated variables must match structurally equal subtrees. This first
-version supports graph variables, numeric literals, and operators without
-attributes. Literal matching compares kind and exact spelling. Validation
-reports unsupported declarations, binders, projections, `where`, and `derive`
-instead of silently ignoring them. A mismatch returns `std::nullopt`; an
-invalid rule throws `std::invalid_argument` from `rewriteOnce`.
-
 The core analyzer resolves symbols, checks declared tensor operation signatures,
 infers host-function types, and validates descriptor references. Runtime legality
 and e-graph behavior remain host responsibilities.
@@ -338,17 +330,19 @@ sources under the build directory. `AstBuilder` converts their parse tree into
 the project AST. Semantic analysis lowers that AST into the checked core IR.
 
 AST types, printing, and construction live in `src/ast/`. The builder uses one
-visitor with separate rule and dialect source files. Parsing and semantic
-validation remain in `src/`.
+visitor with separate rule and dialect source files. Parsing lives in
+`src/parse.cc`, import loading in `src/imports.cc`, and semantic analysis in
+`src/core/`. Bazel exposes parsing through `//:frontend` and import loading
+through `//:imports`.
 
-The `host-template` command emits a Rust host-function interface from calls in
-`where` and `derive`. Use `--impl` for a separate implementation template.
-See [the egg lab](labs/rust-egg/README.md) for the runtime and an integration
-test. Full rule code generation remains future work.
+Code generation from the checked `core::Program` remains future work.
+See [the egg lab](labs/rust-egg/README.md) for the runtime, reference Rust output,
+and integration tests.
 
-`derive` host functions return `Option<OpAttrs>` containing only operation
-descriptors. Both `where` and `derive` use matched LHS inputs; derivations are
-evaluated in source order. LoRA uses `infer_lora_out(X, A, B, @outer, @inner)`
+In the reference Rust runtime, `derive` host functions return `Option<OpAttrs>`
+containing only operation descriptors. Both `where` and `derive` use matched LHS
+inputs; derivations are evaluated in source order. LoRA uses
+`infer_lora_out(X, A, B, @outer, @inner)`
 for its final descriptor, avoiding any dependency on a constructed RHS value.
 The checked Rust rewrite path validates the entire RHS tree and infers every
 operation's shape and dtype before insertion. It requires output compatibility
@@ -356,14 +350,10 @@ with the matched root before union. Host legality predicates still establish
 numerical equivalence. Ordinary
 LHS graph variables are valid tensor host arguments without shape declarations.
 
-The host template maps decimal arguments to Rust `f64`, unsigned integer
-arguments to `usize`, and negative integer arguments to `i64`. These are host
-interface types; graph literals retain their spelling and use explicit tensor
-dtypes in the runtime. Scalar captures are passed as `&TensorInfo`.
-
 Supported tensor dtypes are `bool`, `i8/i16/i32/i64`, `u8/u16/u32/u64`, and
 `f16/bf16/f32/f64`. An annotation never inserts a cast or implicit promotion.
 Unknown dtype names, invalid integer literal ranges, duplicate local tensor
-declarations, and declarations for missing LHS captures produce diagnostics.
+declarations, and declarations for missing LHS captures produce diagnostics
+through `check`.
 See [basic examples](examples/basic.tepl) and the paired Rust behavior tests in
 [labs/rust-egg/tests/dtypes.rs](labs/rust-egg/tests/dtypes.rs).

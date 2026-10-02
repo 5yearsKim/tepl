@@ -7,9 +7,8 @@
 #include "src/ast/print.h"
 #include "src/core/analyze.h"
 #include "src/core/print.h"
-#include "src/host_codegen.h"
+#include "src/imports.h"
 #include "src/parse.h"
-#include "src/semantic.h"
 
 int main(int argc, char** argv) {
   CLI::App app{"Parse TEPL tensor rewrite rules"};
@@ -17,18 +16,13 @@ int main(int argc, char** argv) {
   std::string filename;
   bool print_tree = false;
   bool print_ast = false;
-  bool implementation = false;
-  auto* parse = app.add_subcommand("parse", "Validate a TEPL file");
+  auto* parse =
+      app.add_subcommand("parse", "Parse a TEPL file and load imports");
   parse->add_option("file", filename, "TEPL input file")->required();
   auto* tree_option =
       parse->add_flag("--tree", print_tree, "Print the ANTLR parse tree");
   parse->add_flag("--ast", print_ast, "Print the TEPL AST")
       ->excludes(tree_option);
-  auto* host_template = app.add_subcommand(
-      "host-template", "Generate host function signatures from a TEPL file");
-  host_template->add_option("file", filename, "TEPL input file")->required();
-  host_template->add_flag("--impl", implementation,
-                          "Generate a user implementation template");
   auto* check = app.add_subcommand(
       "check", "Analyze a TEPL file and print its checked IR");
   check->add_option("file", filename, "TEPL input file")->required();
@@ -57,21 +51,6 @@ int main(int argc, char** argv) {
     result.diagnostics.insert(result.diagnostics.end(),
                               import_diagnostics.begin(),
                               import_diagnostics.end());
-    if (result.ok() && !*check) {
-      const auto check_types = [&](const tepl::ast::Rule& rule) {
-        for (const auto& diagnostic : tepl::validateTensorTypes(rule)) {
-          result.diagnostics.push_back({diagnostic.span.begin.line,
-                                        diagnostic.span.begin.column,
-                                        diagnostic.message, rule.source_name});
-        }
-      };
-      for (const auto& rule : result.program->rules) check_types(rule);
-      for (const auto& rule : result.program->imported_rules) check_types(rule);
-      auto dialect_diagnostics = tepl::validateDialectUses(*result.program);
-      result.diagnostics.insert(result.diagnostics.end(),
-                                dialect_diagnostics.begin(),
-                                dialect_diagnostics.end());
-    }
   }
   for (const auto& diagnostic : result.diagnostics) {
     std::cerr << (diagnostic.source_name.empty() ? filename
@@ -103,18 +82,6 @@ int main(int argc, char** argv) {
     }
     if (!analyzed.ok()) return 1;
     std::cout << tepl::core::formatProgram(*analyzed.program);
-    return 0;
-  }
-  if (*host_template) {
-    auto generated =
-        tepl::generateHostTemplate(*result.program, implementation);
-    for (const auto& diagnostic : generated.diagnostics) {
-      std::cerr << filename << ':' << diagnostic.span.begin.line << ':'
-                << diagnostic.span.begin.column << ": " << diagnostic.message
-                << '\n';
-    }
-    if (!generated.ok()) return 1;
-    std::cout << generated.source;
     return 0;
   }
   if (print_tree) {
