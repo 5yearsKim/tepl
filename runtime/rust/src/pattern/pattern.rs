@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use egg::{Symbol, Var};
 
-use crate::ir::{DType, NodeError, OpAttrs, OpKind, TensorLang};
+use crate::ir::{DType, Op, OpAttrs};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AttrVar(pub Symbol);
@@ -16,6 +16,7 @@ impl From<&str> for AttrVar {
 #[derive(Clone, Debug)]
 pub enum AttrPattern {
     Any,
+    Literal { value: String, dtype: Option<DType> },
     Exact(OpAttrs),
     Bind(AttrVar),
 }
@@ -29,7 +30,7 @@ pub enum TensorPattern {
         pattern: Box<TensorPattern>,
     },
     Op {
-        op: OpKind,
+        op: Op,
         attrs: AttrPattern,
         children: Vec<TensorPattern>,
     },
@@ -37,13 +38,15 @@ pub enum TensorPattern {
 
 impl TensorPattern {
     /// Match a numeric literal node with exactly this spelling and dtype.
-    pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
-        let node = TensorLang::literal(value, dtype)?;
-        Ok(Self::op(
-            node.op(),
-            AttrPattern::Exact(node.attrs().clone()),
+    pub fn literal(value: impl Into<String>, dtype: Option<DType>) -> Self {
+        Self::op(
+            Op::TeplLiteral,
+            AttrPattern::Literal {
+                value: value.into(),
+                dtype,
+            },
             vec![],
-        ))
+        )
     }
 
     pub fn bind(var: Var, pattern: Self) -> Self {
@@ -53,9 +56,9 @@ impl TensorPattern {
         }
     }
 
-    pub fn op(op: OpKind, attrs: AttrPattern, children: Vec<Self>) -> Self {
+    pub fn op(op: impl Into<Op>, attrs: AttrPattern, children: Vec<Self>) -> Self {
         Self::Op {
-            op,
+            op: op.into(),
             attrs,
             children,
         }
@@ -95,7 +98,7 @@ impl TensorPattern {
         }
     }
 
-    pub(super) fn root_op(&self) -> Option<OpKind> {
+    pub(super) fn root_op(&self) -> Option<Op> {
         match self {
             Self::Var(_) => None,
             Self::Bind { pattern, .. } => pattern.root_op(),
@@ -115,7 +118,7 @@ pub enum AttrExpr {
 pub enum TensorExpr {
     Var(Var),
     Op {
-        op: OpKind,
+        op: Op,
         attrs: AttrExpr,
         children: Vec<TensorExpr>,
     },
@@ -123,18 +126,20 @@ pub enum TensorExpr {
 
 impl TensorExpr {
     /// Construct a numeric literal on the RHS.
-    pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
-        let node = TensorLang::literal(value, dtype)?;
-        Ok(Self::op(
-            node.op(),
-            AttrExpr::Exact(node.attrs().clone()),
+    pub fn literal(value: impl Into<String>, dtype: Option<DType>) -> Self {
+        Self::op(
+            Op::TeplLiteral,
+            AttrExpr::Exact(OpAttrs::TeplLiteral {
+                value: value.into(),
+                dtype,
+            }),
             vec![],
-        ))
+        )
     }
 
-    pub fn op(op: OpKind, attrs: AttrExpr, children: Vec<Self>) -> Self {
+    pub fn op(op: impl Into<Op>, attrs: AttrExpr, children: Vec<Self>) -> Self {
         Self::Op {
-            op,
+            op: op.into(),
             attrs,
             children,
         }

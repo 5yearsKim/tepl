@@ -68,6 +68,8 @@ void registerDialect(AnalysisContext& context, DialectRegistry& dialects,
                    "duplicate dialect '" + dialect.name + "'");
     return;
   }
+  context.output.dialects.push_back(
+      {dialect.name, origin(dialect.source_name, dialect.span)});
   const auto schemas = checkAttributeSchemas(context, dialect);
   for (const auto& op : dialect.operations)
     registerOperation(context, tensor, dialect, op, schemas,

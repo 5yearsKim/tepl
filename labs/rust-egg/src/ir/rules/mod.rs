@@ -1,12 +1,8 @@
-//! Reference rules, re-exported from one module per TEPL source file.
-
+//! One public module per TEPL source file.
 pub mod basic;
-mod binders;
+pub mod binders;
 pub mod inherited;
-mod lora;
-mod simple;
-
-pub use basic::*;
-pub use binders::*;
-pub use lora::*;
-pub use simple::*;
+pub mod lora;
+pub mod lowering;
+pub mod scalar;
+pub mod simple;

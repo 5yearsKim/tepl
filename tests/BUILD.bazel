@@ -6,13 +6,13 @@ cc_test(
     size = "small",
     srcs = ["core_test.cc"],
     args = [
-        "$(rlocationpath //examples:lora.tepl)",
-        "$(rlocationpath //examples:inherited.tepl)",
+        "$(rlocationpath //examples:rules/lora.tepl)",
+        "$(rlocationpath //examples:rules/inherited.tepl)",
     ],
     data = [
-        "//examples:lora.tepl",
-        "//examples:inherited.tepl",
-        "//examples:abstract.tepl",
+        "//examples:rules/lora.tepl",
+        "//examples:rules/inherited.tepl",
+        "//examples:rules/abstract.tepl",
         "//examples:dialects/tensor.tepl",
     ],
     deps = [
@@ -31,15 +31,15 @@ sh_test(
     srcs = ["cli_test.sh"],
     args = [
         "$(rootpath //:tepl)",
-        "$(rootpath //examples:simple.tepl)",
+        "$(rootpath //examples:rules/simple.tepl)",
     ],
     data = [
         "//:tepl",
-        "//examples:simple.tepl",
+        "//examples:rules/simple.tepl",
         "//examples:dialects/tensor.tepl",
-        "//examples:abstract.tepl",
-        "//examples:inherited.tepl",
-        "//examples:basic.tepl",
+        "//examples:rules/abstract.tepl",
+        "//examples:rules/inherited.tepl",
+        "//examples:rules/basic.tepl",
     ],
 )
 
@@ -48,16 +48,16 @@ cc_test(
     size = "small",
     srcs = ["ast_test.cc"],
     args = [
-        "$(rlocationpath //examples:lora.tepl)",
+        "$(rlocationpath //examples:rules/lora.tepl)",
         "$(rlocationpath //examples:dialects/tensor.tepl)",
-        "$(rlocationpath //examples:abstract.tepl)",
-        "$(rlocationpath //examples:inherited.tepl)",
+        "$(rlocationpath //examples:rules/abstract.tepl)",
+        "$(rlocationpath //examples:rules/inherited.tepl)",
     ],
     data = [
-        "//examples:lora.tepl",
+        "//examples:rules/lora.tepl",
         "//examples:dialects/tensor.tepl",
-        "//examples:abstract.tepl",
-        "//examples:inherited.tepl",
+        "//examples:rules/abstract.tepl",
+        "//examples:rules/inherited.tepl",
     ],
     deps = [
         "//src/ast:ast",
@@ -85,4 +85,31 @@ cc_test(
         "//:frontend",
         "//src/ast:ast",
     ],
+)
+
+cc_test(
+    name = "codegen_test",
+    size = "small",
+    srcs = ["codegen_test.cc"],
+    deps = [
+        "//:frontend",
+        "//src/codegen:codegen",
+        "//src/core:analysis",
+    ],
+)
+
+# Requires the machine's Cargo/Rust toolchain and Cargo dependencies.
+# Explicitly run this target, or tools/test_codegen.sh, for runtime integration.
+sh_test(
+    name = "rust_codegen_test",
+    size = "large",
+    srcs = ["codegen_integration_test.sh"],
+    args = ["$(rootpath //:tepl)"],
+    data = [
+        "//:tepl",
+        "//:tools/test_codegen.sh",
+        "//examples:all",
+    ] + glob(["codegen/*.tepl", "codegen/*.rs"]),
+    tags = ["local", "manual"],
+    env_inherit = ["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME"],
 )

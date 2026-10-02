@@ -1,0 +1,4 @@
+dialect __ {
+    attrs __ { self: index; type: string[]; }
+    op _1() -> tensor { attrs: __; }
+}

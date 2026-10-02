@@ -179,6 +179,8 @@ struct Derivation {
 };
 
 struct Rule {
+  std::string
+      source_name;  // Owning instance module, including inherited rules.
   RuleId id;
   std::string name;
   SourceOrigin origin;
@@ -194,7 +196,13 @@ struct Rule {
 
 // IDs index these owning tables. Rule-local IDs index their rule's tables.
 // Types are concrete on successful analysis; tables may contain equal types.
+struct Dialect {
+  std::string name;
+  SourceOrigin origin;
+};
+
 struct Program {
+  std::vector<Dialect> dialects;
   std::vector<std::string> sources;
   std::vector<Type> types;
   std::vector<Operation> operations;

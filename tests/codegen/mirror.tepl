@@ -1,0 +1,1 @@
+dialect Mirror { op add(lhs: tensor, rhs: tensor) -> tensor; }

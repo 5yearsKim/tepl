@@ -3,3 +3,6 @@
 
 # ANTLR editor outputs
 .antlr/
+
+# Generated language output
+/generated/

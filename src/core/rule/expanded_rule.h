@@ -31,7 +31,9 @@ struct GraphMetadata {
 };
 
 struct ExpandedRule {
+  std::string source_name;
   std::string name;
+  std::unordered_map<const ast::Call*, HostFunctionId> bound_functions;
   SourceOrigin origin;
   ast::GraphExprPtr lhs;
   ast::GraphExprPtr rhs;

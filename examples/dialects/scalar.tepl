@@ -1,0 +1,5 @@
+// A second dialect deliberately reuses the operation name "add".
+dialect Scalar {
+    op add(lhs: tensor, rhs: tensor) -> tensor;
+    op negate(input: tensor) -> tensor;
+}

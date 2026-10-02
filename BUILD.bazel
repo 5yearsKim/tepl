@@ -2,9 +2,17 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
+exports_files(["tools/test_codegen.sh"], visibility = ["//tests:__pkg__"])
+
 sh_binary(
     name = "format",
     srcs = ["tools/format.sh"],
+)
+
+sh_binary(
+    name = "embed_runtime",
+    srcs = ["tools/embed_runtime.sh"],
+    visibility = ["//src/codegen:__pkg__"],
 )
 
 cc_library(
@@ -56,6 +64,7 @@ cc_binary(
         ":frontend",
         ":imports",
         "//src/ast:ast",
+        "//src/codegen:codegen",
         "//src/core:analysis",
         "//src/core:print",
         "@cli11//:cli11",

@@ -1,24 +1,25 @@
 //! Exercises the reusable LoRA rule against test tensor metadata and host functions.
 
+use rust_egg::ir::dialects::tensor_lang;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use egg::{EGraph, Id, Rewrite, Var};
-use rust_egg::ir::patterns::{AttrVar, TensorInfo, matches_at};
-use rust_egg::ir::rules::rule_lora;
-use rust_egg::ir::rules::rule_lora::Functions;
-use rust_egg::ir::{DType, OpAttrs, OpKind, TensorLang};
+use rust_egg::ir::pattern::{AttrVar, TensorInfo, matches_at};
+use rust_egg::ir::rules::lora::rule_lora;
+use rust_egg::ir::rules::lora::rule_lora::Functions;
+use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 #[path = "support/generated_host.rs"]
 mod generated_host;
 
 fn batched_dot_attrs() -> OpAttrs {
-    OpAttrs::DotGeneral {
+    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneral {
         lhs_contracting: vec![2],
         rhs_contracting: vec![1],
         lhs_batch: vec![0],
         rhs_batch: vec![0],
-    }
+    })
 }
 
 fn batched_dot_shape(lhs: &[usize], rhs: &[usize], attrs: &OpAttrs) -> Option<Vec<usize>> {
@@ -81,12 +82,17 @@ impl Functions for TestFunctions {
     }
 }
 
-fn dot(lhs: Id, rhs: Id) -> TensorLang {
-    TensorLang::new(OpKind::DotGeneral, vec![lhs, rhs], batched_dot_attrs()).unwrap()
+fn dot(lhs: Id, rhs: Id) -> OpNode {
+    OpNode::from_parts(
+        Op::TensorLang(tensor_lang::Op::DotGeneral),
+        vec![lhs, rhs],
+        batched_dot_attrs(),
+    )
+    .unwrap()
 }
 
 struct Fixture {
-    egraph: EGraph<TensorLang, ()>,
+    egraph: EGraph<OpNode, ()>,
     root: Id,
     inputs: [Id; 4],
     shapes: HashMap<String, Vec<usize>>,
@@ -100,10 +106,10 @@ fn fixture(b_output: usize) -> Fixture {
         (String::from("A"), vec![2, 4, 2]),
         (String::from("B"), vec![2, 2, b_output]),
     ]);
-    let mut egraph = EGraph::<TensorLang, ()>::default();
-    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| egraph.add(TensorLang::symbol(name)));
+    let mut egraph = EGraph::<OpNode, ()>::default();
+    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| egraph.add(OpNode::symbol(name)));
     let ab = egraph.add(dot(a, b));
-    let weights = egraph.add(TensorLang::binary(OpKind::Add, w, ab).unwrap());
+    let weights = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), w, ab).unwrap());
     let root = egraph.add(dot(x, weights));
     egraph.rebuild();
     Fixture {
@@ -114,12 +120,12 @@ fn fixture(b_output: usize) -> Fixture {
     }
 }
 
-fn test_rule(shapes: HashMap<String, Vec<usize>>) -> Rewrite<TensorLang, ()> {
-    let metadata = move |egraph: &EGraph<TensorLang, ()>, id: Id| {
+fn test_rule(shapes: HashMap<String, Vec<usize>>) -> Rewrite<OpNode, ()> {
+    let metadata = move |egraph: &EGraph<OpNode, ()>, id: Id| {
         egraph[egraph.find(id)]
             .nodes
             .iter()
-            .find_map(TensorLang::symbol_name)
+            .find_map(OpNode::symbol_name)
             .and_then(|name| shapes.get(name))
             .map(|shape| TensorInfo {
                 dtype: DType::F32,
@@ -157,7 +163,7 @@ fn lora_rule_matches_and_builds_rhs() {
     let xa = egraph.lookup(dot(x, a)).expect("X @ A was inserted");
     let out = egraph.lookup(dot(xa, b)).expect("(X @ A) @ B was inserted");
     let rhs = egraph
-        .lookup(TensorLang::binary(OpKind::Add, xw, out).unwrap())
+        .lookup(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), xw, out).unwrap())
         .expect("the RHS addition was inserted");
     assert_eq!(egraph.find(root), egraph.find(rhs));
 }
@@ -236,11 +242,11 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
         mut egraph, shapes, ..
     } = fixture(5);
     let calls = Arc::new(Mutex::new(Vec::new()));
-    let metadata = move |egraph: &EGraph<TensorLang, ()>, id: Id| {
+    let metadata = move |egraph: &EGraph<OpNode, ()>, id: Id| {
         egraph[egraph.find(id)]
             .nodes
             .iter()
-            .find_map(TensorLang::symbol_name)
+            .find_map(OpNode::symbol_name)
             .and_then(|name| shapes.get(name))
             .map(|shape| TensorInfo {
                 dtype: DType::F32,

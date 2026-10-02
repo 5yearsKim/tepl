@@ -1,6 +1,6 @@
 // Generated per-rule function modules. Keep implementations in a separate file.
 use rust_egg::ir::OpAttrs;
-use rust_egg::ir::patterns::TensorInfo;
+use rust_egg::ir::pattern::TensorInfo;
 
 pub mod lora {
     use super::*;

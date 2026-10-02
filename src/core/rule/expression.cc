@@ -86,9 +86,17 @@ TypedExprPtr ExpressionChecker::lower(const ast::BooleanLiteral& literal,
 TypedExprPtr ExpressionChecker::lower(const ast::Call& call,
                                       const SourceOrigin& origin,
                                       std::optional<TypeId> expected) {
-  const auto id = context_.host(call.callee, call.arguments.size(), origin);
+  const auto bound = input_.bound_functions.find(&call);
+  const auto id =
+      bound != input_.bound_functions.end()
+          ? bound->second
+          : context_.host(call.callee, call.arguments.size(), origin);
   // Nested calls can grow the host table, so retain a copy of the signature.
   const auto signature = context_.output.host_functions.at(id.value).signature;
+  if (bound != input_.bound_functions.end() &&
+      signature.arguments.size() != call.arguments.size())
+    context_.report(origin, "conflicting arity for bound host function '" +
+                                call.callee + "'");
   if (expected) context_.types.unify(signature.result, *expected, origin);
   HostCall result{id, {}};
   bool complete = true;

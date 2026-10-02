@@ -1,7 +1,7 @@
-exports_files(glob(["*.tepl", "dialects/*.tepl"]))
+exports_files(glob(["**/*.tepl"]))
 
 filegroup(
     name = "all",
-    srcs = glob(["*.tepl", "dialects/*.tepl"]),
+    srcs = glob(["**/*.tepl"]),
     visibility = ["//visibility:public"],
 )

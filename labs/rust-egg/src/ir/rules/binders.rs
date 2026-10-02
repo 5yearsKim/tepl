@@ -1,12 +1,13 @@
-//! Reference lowering of `examples/binders.tepl`.
+//! Reference lowering of `examples/rules/binders.tepl`.
 
+use crate::ir::dialects::tensor_lang;
 use egg::{Analysis, Rewrite, Var};
 
-use crate::ir::patterns::{
+use crate::ir::pattern::{
     AttrExpr, AttrPattern, AttrVar, MatchContext, TensorExpr, TensorInfo, TensorMetadata,
     TensorPattern, tensor_rewrite,
 };
-use crate::ir::{OpAttrs, OpKind, TensorLang};
+use crate::ir::{OpAttrs, OpNode};
 
 /// The `shared_expression` rule from `binders.tepl`.
 pub mod rule_shared_expression {
@@ -20,19 +21,19 @@ pub mod rule_shared_expression {
     pub fn pattern() -> TensorPattern {
         let [x, w, z, y] = ["?X", "?W", "?Z", "?Y"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrPattern::Exact(OpAttrs::None),
             vec![
                 TensorPattern::bind(
                     y,
                     TensorPattern::op(
-                        OpKind::DotGeneral,
+                        tensor_lang::Op::DotGeneral,
                         AttrPattern::Bind(AttrVar::from("d")),
                         vec![TensorPattern::Var(x), TensorPattern::Var(w)],
                     ),
                 ),
                 TensorPattern::op(
-                    OpKind::Multiply,
+                    tensor_lang::Op::Multiply,
                     AttrPattern::Exact(OpAttrs::None),
                     vec![TensorPattern::Var(y), TensorPattern::Var(z)],
                 ),
@@ -40,23 +41,20 @@ pub mod rule_shared_expression {
         )
     }
 
-    pub fn build_rewrite<N, M, F>(
-        metadata: M,
-        functions: F,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, F>(metadata: M, functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         F: Functions + 'static,
     {
         let [y, z] = ["?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         let d = AttrVar::from("d");
         let rhs = TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![
                 TensorExpr::op(
-                    OpKind::Multiply,
+                    tensor_lang::Op::Multiply,
                     AttrExpr::Exact(OpAttrs::None),
                     vec![TensorExpr::Var(y), TensorExpr::Var(z)],
                 ),
@@ -64,7 +62,7 @@ pub mod rule_shared_expression {
             ],
         );
         tensor_rewrite(
-            "shared_expression",
+            "binders::shared_expression",
             pattern(),
             rhs,
             move |egraph, matched| {
@@ -87,7 +85,7 @@ pub mod rule_root_binding {
         TensorPattern::bind(
             y,
             TensorPattern::op(
-                OpKind::Transpose,
+                tensor_lang::Op::Transpose,
                 AttrPattern::Bind(AttrVar::from("t")),
                 vec![TensorPattern::Var(x)],
             ),
@@ -95,13 +93,16 @@ pub mod rule_root_binding {
     }
 
     /// `let Y = (transpose[@t] X) => Y` is an identity rewrite.
-    pub fn build_rewrite<N>() -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N>() -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
     {
         let y = "?Y".parse::<Var>().unwrap();
-        tensor_rewrite("root_binding", pattern(), TensorExpr::Var(y), |_, _| {
-            Some(Default::default())
-        })
+        tensor_rewrite(
+            "binders::root_binding",
+            pattern(),
+            TensorExpr::Var(y),
+            |_, _| Some(Default::default()),
+        )
     }
 }

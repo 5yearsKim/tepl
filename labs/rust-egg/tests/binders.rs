@@ -1,16 +1,17 @@
 use egg::{EGraph, Id, Var};
-use rust_egg::ir::patterns::{AttrPattern, TensorInfo, TensorPattern, matches_at};
-use rust_egg::ir::rules::rule_shared_expression::Functions;
-use rust_egg::ir::rules::{rule_root_binding, rule_shared_expression};
-use rust_egg::ir::{DType, OpAttrs, OpKind, TensorLang};
+use rust_egg::ir::dialects::tensor_lang;
+use rust_egg::ir::pattern::{AttrPattern, TensorInfo, TensorPattern, matches_at};
+use rust_egg::ir::rules::binders::rule_shared_expression::Functions;
+use rust_egg::ir::rules::binders::{rule_root_binding, rule_shared_expression};
+use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 fn dot_attrs() -> OpAttrs {
-    OpAttrs::DotGeneral {
+    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneral {
         lhs_contracting: vec![1],
         rhs_contracting: vec![0],
         lhs_batch: vec![],
         rhs_batch: vec![],
-    }
+    })
 }
 
 struct TestFunctions {
@@ -23,7 +24,7 @@ impl Functions for TestFunctions {
     }
 }
 
-fn metadata_for(dot: Id) -> impl Fn(&EGraph<TensorLang, ()>, Id) -> Option<TensorInfo> {
+fn metadata_for(dot: Id) -> impl Fn(&EGraph<OpNode, ()>, Id) -> Option<TensorInfo> {
     move |egraph, id| {
         (egraph.find(id) == egraph.find(dot)).then_some(TensorInfo {
             dtype: DType::F32,
@@ -34,13 +35,22 @@ fn metadata_for(dot: Id) -> impl Fn(&EGraph<TensorLang, ()>, Id) -> Option<Tenso
 
 #[test]
 fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
-    let mut egraph = EGraph::<TensorLang, ()>::default();
-    let x = egraph.add(TensorLang::symbol("X"));
-    let w = egraph.add(TensorLang::symbol("W"));
-    let z = egraph.add(TensorLang::symbol("Z"));
-    let dot = egraph.add(TensorLang::new(OpKind::DotGeneral, vec![x, w], dot_attrs()).unwrap());
-    let product = egraph.add(TensorLang::binary(OpKind::Multiply, dot, z).unwrap());
-    let root = egraph.add(TensorLang::binary(OpKind::Add, dot, product).unwrap());
+    let mut egraph = EGraph::<OpNode, ()>::default();
+    let x = egraph.add(OpNode::symbol("X"));
+    let w = egraph.add(OpNode::symbol("W"));
+    let z = egraph.add(OpNode::symbol("Z"));
+    let dot = egraph.add(
+        OpNode::from_parts(
+            Op::TensorLang(tensor_lang::Op::DotGeneral),
+            vec![x, w],
+            dot_attrs(),
+        )
+        .unwrap(),
+    );
+    let product =
+        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), dot, z).unwrap());
+    let root =
+        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), dot, product).unwrap());
     egraph.rebuild();
 
     let matched = matches_at(&egraph, root, &rule_shared_expression::pattern());
@@ -63,22 +73,22 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
     egraph.rebuild();
 
     let reordered = egraph
-        .lookup(TensorLang::binary(OpKind::Add, product, dot).unwrap())
+        .lookup(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), product, dot).unwrap())
         .expect("RHS reuses the captured dot result");
     assert_eq!(egraph.find(root), egraph.find(reordered));
 }
 
 #[test]
 fn root_binder_is_visible_to_search_and_rhs() {
-    let mut egraph = EGraph::<TensorLang, ()>::default();
-    let x = egraph.add(TensorLang::symbol("X"));
+    let mut egraph = EGraph::<OpNode, ()>::default();
+    let x = egraph.add(OpNode::symbol("X"));
     let root = egraph.add(
-        TensorLang::new(
-            OpKind::Transpose,
+        OpNode::from_parts(
+            Op::TensorLang(tensor_lang::Op::Transpose),
             vec![x],
-            OpAttrs::Transpose {
+            OpAttrs::TensorLang(tensor_lang::OpAttrs::Transpose {
                 permutation: vec![1, 0],
-            },
+            }),
         )
         .unwrap(),
     );
@@ -90,9 +100,9 @@ fn root_binder_is_visible_to_search_and_rhs() {
     assert_eq!(matched[0].tensors[y], root);
     assert_eq!(
         matched[0].attrs[&"t".into()],
-        OpAttrs::Transpose {
+        OpAttrs::TensorLang(tensor_lang::OpAttrs::Transpose {
             permutation: vec![1, 0],
-        }
+        })
     );
 
     let rule = rule_root_binding::build_rewrite::<()>().unwrap();
@@ -104,26 +114,28 @@ fn root_binder_is_visible_to_search_and_rhs() {
 
 #[test]
 fn repeated_binder_uses_eclass_equality() {
-    let mut egraph = EGraph::<TensorLang, ()>::default();
-    let a = egraph.add(TensorLang::symbol("A"));
-    let b = egraph.add(TensorLang::symbol("B"));
-    let c = egraph.add(TensorLang::symbol("C"));
-    let ab = egraph.add(TensorLang::binary(OpKind::Add, a, b).unwrap());
-    let ba = egraph.add(TensorLang::binary(OpKind::Add, b, a).unwrap());
+    let mut egraph = EGraph::<OpNode, ()>::default();
+    let a = egraph.add(OpNode::symbol("A"));
+    let b = egraph.add(OpNode::symbol("B"));
+    let c = egraph.add(OpNode::symbol("C"));
+    let ab = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), a, b).unwrap());
+    let ba = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), b, a).unwrap());
     egraph.union(ab, ba); // Assume commutativity has already been established.
-    let equivalent = egraph.add(TensorLang::binary(OpKind::Multiply, ab, ba).unwrap());
-    let different = egraph.add(TensorLang::binary(OpKind::Multiply, ab, c).unwrap());
+    let equivalent =
+        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), ab, ba).unwrap());
+    let different =
+        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), ab, c).unwrap());
     egraph.rebuild();
 
     let [a_var, b_var, y_var] = ["?a", "?b", "?y"].map(|s| s.parse::<Var>().unwrap());
     let lhs = TensorPattern::op(
-        OpKind::Multiply,
+        Op::TensorLang(tensor_lang::Op::Multiply),
         AttrPattern::Exact(OpAttrs::None),
         vec![
             TensorPattern::bind(
                 y_var,
                 TensorPattern::op(
-                    OpKind::Add,
+                    Op::TensorLang(tensor_lang::Op::Add),
                     AttrPattern::Exact(OpAttrs::None),
                     vec![TensorPattern::Var(a_var), TensorPattern::Var(b_var)],
                 ),

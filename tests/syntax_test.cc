@@ -43,6 +43,8 @@ void testValidSyntax() {
       {"abstract empty parameters", "abstract rule r() { X => X }"},
       {"signature scalar type",
        "abstract rule r(F: op<(scalar) -> scalar>) { (F X) => X }"},
+      {"signature attrs type",
+       "abstract rule r(F: fn<(attrs) -> attrs>) { X => X }"},
       {"selected rule imports", "from \"abstract.tepl\" import {a, b};"},
       {"inherited rule", "rule r extends commute(F = t.add);"},
       {"inherited restrictions",

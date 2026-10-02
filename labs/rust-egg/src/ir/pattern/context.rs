@@ -1,6 +1,7 @@
+use crate::ir::dialects::tensor_lang;
 use egg::{Analysis, EGraph, Id, Var};
 
-use crate::ir::{DType, OpAttrs, OpKind, TensorLang};
+use crate::ir::{DType, Op, OpAttrs, OpNode};
 
 use super::matcher::TensorMatch;
 use super::pattern::AttrVar;
@@ -17,7 +18,7 @@ pub struct TensorInfo {
 pub trait OutputInference: Send + Sync {
     fn infer_output(
         &self,
-        op: crate::ir::OpKind,
+        op: crate::ir::Op,
         operands: &[TensorInfo],
         attrs: &OpAttrs,
     ) -> Option<TensorInfo>;
@@ -25,11 +26,11 @@ pub trait OutputInference: Send + Sync {
 
 impl<F> OutputInference for F
 where
-    F: Fn(crate::ir::OpKind, &[TensorInfo], &OpAttrs) -> Option<TensorInfo> + Send + Sync,
+    F: Fn(crate::ir::Op, &[TensorInfo], &OpAttrs) -> Option<TensorInfo> + Send + Sync,
 {
     fn infer_output(
         &self,
-        op: crate::ir::OpKind,
+        op: crate::ir::Op,
         operands: &[TensorInfo],
         attrs: &OpAttrs,
     ) -> Option<TensorInfo> {
@@ -39,33 +40,29 @@ where
 
 /// Supplies metadata valid for every alternative in an e-class. Return `None`
 /// when that cannot be established; choosing one arbitrary node is unsound.
-pub trait TensorMetadata<N: Analysis<TensorLang>>: Send + Sync {
-    fn info(&self, egraph: &EGraph<TensorLang, N>, eclass: Id) -> Option<TensorInfo>;
+pub trait TensorMetadata<N: Analysis<OpNode>>: Send + Sync {
+    fn info(&self, egraph: &EGraph<OpNode, N>, eclass: Id) -> Option<TensorInfo>;
 }
 
 impl<N, F> TensorMetadata<N> for F
 where
-    N: Analysis<TensorLang>,
-    F: Fn(&EGraph<TensorLang, N>, Id) -> Option<TensorInfo> + Send + Sync,
+    N: Analysis<OpNode>,
+    F: Fn(&EGraph<OpNode, N>, Id) -> Option<TensorInfo> + Send + Sync,
 {
-    fn info(&self, egraph: &EGraph<TensorLang, N>, eclass: Id) -> Option<TensorInfo> {
+    fn info(&self, egraph: &EGraph<OpNode, N>, eclass: Id) -> Option<TensorInfo> {
         self(egraph, eclass)
     }
 }
 
 /// Read-only access to one structural match for generated semantic code.
-pub struct MatchContext<'a, N: Analysis<TensorLang>, M: TensorMetadata<N>> {
-    egraph: &'a EGraph<TensorLang, N>,
+pub struct MatchContext<'a, N: Analysis<OpNode>, M: TensorMetadata<N>> {
+    egraph: &'a EGraph<OpNode, N>,
     matched: &'a TensorMatch,
     metadata: &'a M,
 }
 
-impl<'a, N: Analysis<TensorLang>, M: TensorMetadata<N>> MatchContext<'a, N, M> {
-    pub fn new(
-        egraph: &'a EGraph<TensorLang, N>,
-        matched: &'a TensorMatch,
-        metadata: &'a M,
-    ) -> Self {
+impl<'a, N: Analysis<OpNode>, M: TensorMetadata<N>> MatchContext<'a, N, M> {
+    pub fn new(egraph: &'a EGraph<OpNode, N>, matched: &'a TensorMatch, metadata: &'a M) -> Self {
         Self {
             egraph,
             matched,
@@ -93,7 +90,7 @@ impl<'a, N: Analysis<TensorLang>, M: TensorMetadata<N>> MatchContext<'a, N, M> {
 /// the graph; conflicting registrations never overwrite existing metadata.
 #[derive(Clone, Debug, Default)]
 pub struct TensorBindings {
-    entries: std::collections::HashMap<(OpKind, String), TensorInfo>,
+    entries: std::collections::HashMap<(Op, String), TensorInfo>,
 }
 
 impl TensorBindings {
@@ -102,7 +99,7 @@ impl TensorBindings {
         name: impl Into<String>,
         info: TensorInfo,
     ) -> Result<(), String> {
-        self.register(OpKind::Symbol, name.into(), info)
+        self.register(Op::TensorLang(tensor_lang::Op::Symbol), name.into(), info)
     }
 
     pub fn register_constant(
@@ -110,10 +107,10 @@ impl TensorBindings {
         name: impl Into<String>,
         info: TensorInfo,
     ) -> Result<(), String> {
-        self.register(OpKind::Constant, name.into(), info)
+        self.register(Op::TensorLang(tensor_lang::Op::Constant), name.into(), info)
     }
 
-    fn register(&mut self, op: OpKind, name: String, info: TensorInfo) -> Result<(), String> {
+    fn register(&mut self, op: Op, name: String, info: TensorInfo) -> Result<(), String> {
         let key = (op, name);
         if let Some(previous) = self.entries.get(&key) {
             if previous != &info {
@@ -129,9 +126,10 @@ impl TensorBindings {
         Ok(())
     }
 
-    pub fn info(&self, node: &TensorLang) -> Option<&TensorInfo> {
+    pub fn info(&self, node: &OpNode) -> Option<&TensorInfo> {
         let name = match node.attrs() {
-            OpAttrs::Symbol { name } | OpAttrs::Constant { name } => name,
+            OpAttrs::TensorLang(tensor_lang::OpAttrs::Symbol { name })
+            | OpAttrs::TensorLang(tensor_lang::OpAttrs::Constant { name }) => name,
             _ => return None,
         };
         self.entries.get(&(node.op(), name.clone()))

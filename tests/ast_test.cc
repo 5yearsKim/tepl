@@ -38,7 +38,7 @@ void testLora(const std::string& source, const std::string& path) {
   check(program.source_name == path && program.rules.size() == 1,
         "LoRA program name or rule count is wrong");
   check(program.imports.size() == 1 &&
-            program.imports[0].path == "dialects/tensor.tepl" &&
+            program.imports[0].path == "../dialects/tensor.tepl" &&
             program.imports[0].dialect == "TensorLang" &&
             program.imports[0].alias == "t" && program.uses.size() == 1 &&
             program.uses[0].alias == "t" &&

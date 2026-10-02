@@ -1,3 +1,4 @@
+use crate::ir::dialects::tensor_lang;
 use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
 
@@ -5,7 +6,7 @@ use egg::{
     Analysis, Applier, EGraph, Id, PatternAst, Rewrite, SearchMatches, Searcher, Subst, Symbol, Var,
 };
 
-use crate::ir::{OpAttrs, TensorLang};
+use crate::ir::{OpAttrs, OpNode};
 
 use super::context::{OutputInference, TensorInfo, TensorMetadata};
 use super::matcher::{TensorMatch, for_each_match_at};
@@ -23,10 +24,10 @@ pub fn tensor_rewrite<N, F>(
     lhs: TensorPattern,
     rhs: TensorExpr,
     check_and_derive: F,
-) -> Result<Rewrite<TensorLang, N>, String>
+) -> Result<Rewrite<OpNode, N>, String>
 where
-    N: Analysis<TensorLang>,
-    F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
+    N: Analysis<OpNode>,
+    F: Fn(&EGraph<OpNode, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
 {
     build_tensor_rewrite(name, lhs, rhs, move |graph, _, matched| {
         check_and_derive(graph, matched)
@@ -43,12 +44,12 @@ pub fn tensor_rewrite_checked<N, M, I, F>(
     metadata: M,
     inference: I,
     check_and_derive: F,
-) -> Result<Rewrite<TensorLang, N>, String>
+) -> Result<Rewrite<OpNode, N>, String>
 where
-    N: Analysis<TensorLang>,
+    N: Analysis<OpNode>,
     M: TensorMetadata<N> + 'static,
     I: OutputInference + 'static,
-    F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
+    F: Fn(&EGraph<OpNode, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
 {
     let expression = rhs.clone();
     build_tensor_rewrite(name, lhs, rhs, move |graph, root, matched| {
@@ -60,8 +61,8 @@ where
     })
 }
 
-fn infer_rhs<N: Analysis<TensorLang>, M: TensorMetadata<N>, I: OutputInference>(
-    graph: &EGraph<TensorLang, N>,
+fn infer_rhs<N: Analysis<OpNode>, M: TensorMetadata<N>, I: OutputInference>(
+    graph: &EGraph<OpNode, N>,
     expr: &TensorExpr,
     matched: &TensorMatch,
     derived: &DerivedAttrs,
@@ -83,7 +84,7 @@ fn infer_rhs<N: Analysis<TensorLang>, M: TensorMetadata<N>, I: OutputInference>(
             let output = inference.infer_output(*op, &operands, &attrs)?;
             // The host may reject unsupported literal formats or values, but
             // cannot reinterpret an explicitly typed rank-zero literal.
-            if let OpAttrs::Literal { dtype, .. } = &attrs {
+            if let OpAttrs::TensorLang(tensor_lang::OpAttrs::Literal { dtype, .. }) = &attrs {
                 if output.dtype != *dtype || !output.shape.is_empty() {
                     return None;
                 }
@@ -98,10 +99,10 @@ fn build_tensor_rewrite<N, F>(
     lhs: TensorPattern,
     rhs: TensorExpr,
     check_and_derive: F,
-) -> Result<Rewrite<TensorLang, N>, String>
+) -> Result<Rewrite<OpNode, N>, String>
 where
-    N: Analysis<TensorLang>,
-    F: Fn(&EGraph<TensorLang, N>, Id, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
+    N: Analysis<OpNode>,
+    F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
 {
     validate_rhs_definition(&rhs)?;
     let mut lhs_attrs = HashSet::new();
@@ -134,13 +135,13 @@ struct TensorSearcher {
     pattern: TensorPattern,
 }
 
-impl<N: Analysis<TensorLang>> Searcher<TensorLang, N> for TensorSearcher {
+impl<N: Analysis<OpNode>> Searcher<OpNode, N> for TensorSearcher {
     fn search_eclass_with_limit(
         &self,
-        egraph: &EGraph<TensorLang, N>,
+        egraph: &EGraph<OpNode, N>,
         eclass: Id,
         limit: usize,
-    ) -> Option<SearchMatches<'_, TensorLang>> {
+    ) -> Option<SearchMatches<'_, OpNode>> {
         if limit == 0 {
             return None;
         }
@@ -164,9 +165,9 @@ impl<N: Analysis<TensorLang>> Searcher<TensorLang, N> for TensorSearcher {
 
     fn search_with_limit(
         &self,
-        egraph: &EGraph<TensorLang, N>,
+        egraph: &EGraph<OpNode, N>,
         limit: usize,
-    ) -> Vec<SearchMatches<'_, TensorLang>> {
+    ) -> Vec<SearchMatches<'_, OpNode>> {
         match self.pattern.root_op() {
             Some(op) => egraph
                 .classes_for_op(&op)
@@ -183,12 +184,12 @@ impl<N: Analysis<TensorLang>> Searcher<TensorLang, N> for TensorSearcher {
     }
 }
 
-fn search_classes<'a, N: Analysis<TensorLang>>(
+fn search_classes<'a, N: Analysis<OpNode>>(
     searcher: &'a TensorSearcher,
-    egraph: &EGraph<TensorLang, N>,
+    egraph: &EGraph<OpNode, N>,
     classes: impl Iterator<Item = Id>,
     mut limit: usize,
-) -> Vec<SearchMatches<'a, TensorLang>> {
+) -> Vec<SearchMatches<'a, OpNode>> {
     let mut results = Vec::new();
     for eclass in classes {
         if limit == 0 {
@@ -210,15 +211,15 @@ struct TensorApplier<F> {
 }
 
 impl<F> TensorApplier<F> {
-    fn apply_candidates<N: Analysis<TensorLang>>(
+    fn apply_candidates<N: Analysis<OpNode>>(
         &self,
-        egraph: &mut EGraph<TensorLang, N>,
+        egraph: &mut EGraph<OpNode, N>,
         eclass: Id,
         candidates: &[TensorMatch],
         rule_name: Symbol,
     ) -> Vec<Id>
     where
-        F: Fn(&EGraph<TensorLang, N>, Id, &TensorMatch) -> Option<DerivedAttrs>,
+        F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<DerivedAttrs>,
     {
         // Finish all semantic checks before changing this e-class. A rejected
         // RHS must not leave any of its intermediate nodes in the graph.
@@ -242,15 +243,15 @@ impl<F> TensorApplier<F> {
     }
 }
 
-impl<N, F> Applier<TensorLang, N> for TensorApplier<F>
+impl<N, F> Applier<OpNode, N> for TensorApplier<F>
 where
-    N: Analysis<TensorLang>,
-    F: Fn(&EGraph<TensorLang, N>, Id, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync,
+    N: Analysis<OpNode>,
+    F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync,
 {
     fn apply_matches(
         &self,
-        egraph: &mut EGraph<TensorLang, N>,
-        matches: &[SearchMatches<TensorLang>],
+        egraph: &mut EGraph<OpNode, N>,
+        matches: &[SearchMatches<OpNode>],
         rule_name: Symbol,
     ) -> Vec<Id> {
         let mut changed = Vec::new();
@@ -289,10 +290,10 @@ where
 
     fn apply_one(
         &self,
-        egraph: &mut EGraph<TensorLang, N>,
+        egraph: &mut EGraph<OpNode, N>,
         eclass: Id,
         subst: &Subst,
-        _searcher_ast: Option<&PatternAst<TensorLang>>,
+        _searcher_ast: Option<&PatternAst<OpNode>>,
         rule_name: Symbol,
     ) -> Vec<Id> {
         let key = match subst_key(egraph, subst, &self.lhs_vars) {
@@ -316,8 +317,8 @@ where
     }
 }
 
-fn subst_key<N: Analysis<TensorLang>>(
-    egraph: &EGraph<TensorLang, N>,
+fn subst_key<N: Analysis<OpNode>>(
+    egraph: &EGraph<OpNode, N>,
     subst: &Subst,
     vars: &[Var],
 ) -> Option<Vec<Id>> {
@@ -338,7 +339,7 @@ fn validate_rhs_definition(expr: &TensorExpr) -> Result<(), String> {
             return Err(format!("invalid RHS arity for {}", op.name()));
         }
         if let AttrExpr::Exact(attrs) = attrs {
-            TensorLang::new(*op, vec![Id::from(0); children.len()], attrs.clone())
+            OpNode::from_parts(*op, vec![Id::from(0); children.len()], attrs.clone())
                 .map_err(|error| error.to_string())?;
         }
         for child in children {
@@ -372,7 +373,7 @@ fn validate_rhs(expr: &TensorExpr, matched: &TensorMatch, derived: &DerivedAttrs
             children,
         } => {
             let attrs = resolve_attrs(attrs, matched, derived)?;
-            TensorLang::new(*op, vec![Id::from(0); children.len()], attrs).ok()?;
+            OpNode::from_parts(*op, vec![Id::from(0); children.len()], attrs).ok()?;
             for child in children {
                 validate_rhs(child, matched, derived)?;
             }
@@ -381,8 +382,8 @@ fn validate_rhs(expr: &TensorExpr, matched: &TensorMatch, derived: &DerivedAttrs
     Some(())
 }
 
-fn insert_rhs<N: Analysis<TensorLang>>(
-    egraph: &mut EGraph<TensorLang, N>,
+fn insert_rhs<N: Analysis<OpNode>>(
+    egraph: &mut EGraph<OpNode, N>,
     expr: &TensorExpr,
     matched: &TensorMatch,
     derived: &DerivedAttrs,
@@ -400,8 +401,9 @@ fn insert_rhs<N: Analysis<TensorLang>>(
                 .iter()
                 .map(|child| insert_rhs(egraph, child, matched, derived))
                 .collect::<Vec<_>>();
-            egraph
-                .add(TensorLang::new(*op, children, attrs).expect("RHS construction was validated"))
+            egraph.add(
+                OpNode::from_parts(*op, children, attrs).expect("RHS construction was validated"),
+            )
         }
     }
 }

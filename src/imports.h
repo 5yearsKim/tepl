@@ -13,4 +13,6 @@ namespace tepl {
 // statement.
 std::vector<Diagnostic> resolveImports(ast::Program& program);
 
+// Load every .tepl file under dialects/ and rules/, preserving each file scope.
+ParseResult loadProject(const std::string& directory);
 }  // namespace tepl

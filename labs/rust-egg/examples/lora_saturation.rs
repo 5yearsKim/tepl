@@ -10,8 +10,8 @@ use std::time::Duration;
 
 use egg::{Extractor, Runner};
 
-use rust_egg::ir::TensorLang;
-use rust_egg::ir::rules::{rule_commute_add, rule_lora};
+use rust_egg::ir::OpNode;
+use rust_egg::ir::rules::{lora::rule_lora, simple::rule_commute_add};
 
 use support::{
     ArithmeticCost, DemoLoraFunctions, ShapeAnalysis, dot_attrs, evaluate, example_shapes,
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap(),
         rule_commute_add::build_rewrite().unwrap(),
     ];
-    let runner = Runner::<TensorLang, ShapeAnalysis>::new(ShapeAnalysis::default())
+    let runner = Runner::<OpNode, ShapeAnalysis>::new(ShapeAnalysis::default())
         .with_egraph(egraph)
         .with_iter_limit(12)
         .with_node_limit(1_000)

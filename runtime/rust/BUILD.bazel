@@ -1,0 +1,6 @@
+exports_files(glob(["src/**/*.rs"]), visibility = ["//visibility:public"])
+filegroup(
+    name = "templates",
+    srcs = glob(["src/**/*.rs"]),
+    visibility = ["//visibility:public"],
+)

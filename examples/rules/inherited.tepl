@@ -1,5 +1,5 @@
 from "abstract.tepl" import {commute, associate_right, distribute_left};
-from "dialects/tensor.tepl" import TensorLang as t;
+from "../dialects/tensor.tepl" import TensorLang as t;
 
 // These instances assume swapping operands is valid in the target semantics.
 rule commute_add extends commute(F = t.add);

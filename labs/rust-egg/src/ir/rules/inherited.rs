@@ -1,15 +1,16 @@
-//! Reference lowering of `examples/inherited.tepl` after compile-time expansion.
+//! Reference lowering of `examples/rules/inherited.tepl` after compile-time expansion.
 //!
-//! Abstract rules from `examples/abstract.tepl` are specialized here into
+//! Abstract rules from `examples/rules/abstract.tepl` are specialized here into
 //! concrete patterns and host calls. No abstract parameters remain at runtime.
 
+use crate::ir::dialects::tensor_lang;
 use egg::{Analysis, Rewrite, Var};
 
-use crate::ir::patterns::{
+use crate::ir::pattern::{
     AttrExpr, AttrPattern, MatchContext, TensorExpr, TensorInfo, TensorMetadata, TensorPattern,
     tensor_rewrite,
 };
-use crate::ir::{OpAttrs, OpKind, TensorLang};
+use crate::ir::{OpAttrs, OpNode};
 
 /// `commute(F = t.add)`.
 pub mod rule_commute_add {
@@ -18,23 +19,23 @@ pub mod rule_commute_add {
     pub fn pattern() -> TensorPattern {
         let [x, y] = ["?X", "?Y"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrPattern::Exact(OpAttrs::None),
             vec![TensorPattern::Var(x), TensorPattern::Var(y)],
         )
     }
 
-    pub fn build_rewrite<N>() -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N>() -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
     {
         let [x, y] = ["?X", "?Y"].map(|name| name.parse::<Var>().unwrap());
         let rhs = TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![TensorExpr::Var(y), TensorExpr::Var(x)],
         );
-        tensor_rewrite("commute_add", pattern(), rhs, |_, _| {
+        tensor_rewrite("inherited::commute_add", pattern(), rhs, |_, _| {
             Some(Default::default())
         })
     }
@@ -47,23 +48,23 @@ pub mod rule_commute_mul {
     pub fn pattern() -> TensorPattern {
         let [x, y] = ["?X", "?Y"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::Multiply,
+            tensor_lang::Op::Multiply,
             AttrPattern::Exact(OpAttrs::None),
             vec![TensorPattern::Var(x), TensorPattern::Var(y)],
         )
     }
 
-    pub fn build_rewrite<N>() -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N>() -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
     {
         let [x, y] = ["?X", "?Y"].map(|name| name.parse::<Var>().unwrap());
         let rhs = TensorExpr::op(
-            OpKind::Multiply,
+            tensor_lang::Op::Multiply,
             AttrExpr::Exact(OpAttrs::None),
             vec![TensorExpr::Var(y), TensorExpr::Var(x)],
         );
-        tensor_rewrite("commute_mul", pattern(), rhs, |_, _| {
+        tensor_rewrite("inherited::commute_mul", pattern(), rhs, |_, _| {
             Some(Default::default())
         })
     }
@@ -76,25 +77,25 @@ pub mod rule_commute_small_vectors {
     pub fn pattern() -> TensorPattern {
         let [x, y] = ["?X", "?Y"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrPattern::Exact(OpAttrs::None),
             vec![TensorPattern::Var(x), TensorPattern::Var(y)],
         )
     }
 
-    pub fn build_rewrite<N, M>(metadata: M) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M>(metadata: M) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
     {
         let [x, y] = ["?X", "?Y"].map(|name| name.parse::<Var>().unwrap());
         let rhs = TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![TensorExpr::Var(y), TensorExpr::Var(x)],
         );
         tensor_rewrite(
-            "commute_small_vectors",
+            "inherited::commute_small_vectors",
             pattern(),
             rhs,
             move |egraph, matched| {
@@ -128,11 +129,11 @@ pub mod rule_associate_add_right {
     pub fn pattern() -> TensorPattern {
         let [x, y, z] = ["?X", "?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrPattern::Exact(OpAttrs::None),
             vec![
                 TensorPattern::op(
-                    OpKind::Add,
+                    tensor_lang::Op::Add,
                     AttrPattern::Exact(OpAttrs::None),
                     vec![TensorPattern::Var(x), TensorPattern::Var(y)],
                 ),
@@ -141,30 +142,27 @@ pub mod rule_associate_add_right {
         )
     }
 
-    pub fn build_rewrite<N, M, F>(
-        metadata: M,
-        functions: F,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, F>(metadata: M, functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         F: Functions + 'static,
     {
         let [x, y, z] = ["?X", "?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         let rhs = TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![
                 TensorExpr::Var(x),
                 TensorExpr::op(
-                    OpKind::Add,
+                    tensor_lang::Op::Add,
                     AttrExpr::Exact(OpAttrs::None),
                     vec![TensorExpr::Var(y), TensorExpr::Var(z)],
                 ),
             ],
         );
         tensor_rewrite(
-            "associate_add_right",
+            "inherited::associate_add_right",
             pattern(),
             rhs,
             move |egraph, matched| {
@@ -193,11 +191,11 @@ pub mod rule_associate_mul_right {
     pub fn pattern() -> TensorPattern {
         let [x, y, z] = ["?X", "?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::Multiply,
+            tensor_lang::Op::Multiply,
             AttrPattern::Exact(OpAttrs::None),
             vec![
                 TensorPattern::op(
-                    OpKind::Multiply,
+                    tensor_lang::Op::Multiply,
                     AttrPattern::Exact(OpAttrs::None),
                     vec![TensorPattern::Var(x), TensorPattern::Var(y)],
                 ),
@@ -206,30 +204,27 @@ pub mod rule_associate_mul_right {
         )
     }
 
-    pub fn build_rewrite<N, M, F>(
-        metadata: M,
-        functions: F,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, F>(metadata: M, functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         F: Functions + 'static,
     {
         let [x, y, z] = ["?X", "?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         let rhs = TensorExpr::op(
-            OpKind::Multiply,
+            tensor_lang::Op::Multiply,
             AttrExpr::Exact(OpAttrs::None),
             vec![
                 TensorExpr::Var(x),
                 TensorExpr::op(
-                    OpKind::Multiply,
+                    tensor_lang::Op::Multiply,
                     AttrExpr::Exact(OpAttrs::None),
                     vec![TensorExpr::Var(y), TensorExpr::Var(z)],
                 ),
             ],
         );
         tensor_rewrite(
-            "associate_mul_right",
+            "inherited::associate_mul_right",
             pattern(),
             rhs,
             move |egraph, matched| {
@@ -258,11 +253,11 @@ pub mod rule_associate_small_vectors {
     pub fn pattern() -> TensorPattern {
         let [x, y, z] = ["?X", "?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrPattern::Exact(OpAttrs::None),
             vec![
                 TensorPattern::op(
-                    OpKind::Add,
+                    tensor_lang::Op::Add,
                     AttrPattern::Exact(OpAttrs::None),
                     vec![TensorPattern::Var(x), TensorPattern::Var(y)],
                 ),
@@ -271,30 +266,27 @@ pub mod rule_associate_small_vectors {
         )
     }
 
-    pub fn build_rewrite<N, M, F>(
-        metadata: M,
-        functions: F,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, F>(metadata: M, functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         F: Functions + 'static,
     {
         let [x, y, z] = ["?X", "?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         let rhs = TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![
                 TensorExpr::Var(x),
                 TensorExpr::op(
-                    OpKind::Add,
+                    tensor_lang::Op::Add,
                     AttrExpr::Exact(OpAttrs::None),
                     vec![TensorExpr::Var(y), TensorExpr::Var(z)],
                 ),
             ],
         );
         tensor_rewrite(
-            "associate_small_vectors",
+            "inherited::associate_small_vectors",
             pattern(),
             rhs,
             move |egraph, matched| {
@@ -331,12 +323,12 @@ pub mod rule_distribute_mul_over_add {
     pub fn pattern() -> TensorPattern {
         let [x, y, z] = ["?X", "?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::Multiply,
+            tensor_lang::Op::Multiply,
             AttrPattern::Exact(OpAttrs::None),
             vec![
                 TensorPattern::Var(x),
                 TensorPattern::op(
-                    OpKind::Add,
+                    tensor_lang::Op::Add,
                     AttrPattern::Exact(OpAttrs::None),
                     vec![TensorPattern::Var(y), TensorPattern::Var(z)],
                 ),
@@ -344,34 +336,31 @@ pub mod rule_distribute_mul_over_add {
         )
     }
 
-    pub fn build_rewrite<N, M, F>(
-        metadata: M,
-        functions: F,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, F>(metadata: M, functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         F: Functions + 'static,
     {
         let [x, y, z] = ["?X", "?Y", "?Z"].map(|name| name.parse::<Var>().unwrap());
         let rhs = TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![
                 TensorExpr::op(
-                    OpKind::Multiply,
+                    tensor_lang::Op::Multiply,
                     AttrExpr::Exact(OpAttrs::None),
                     vec![TensorExpr::Var(x), TensorExpr::Var(y)],
                 ),
                 TensorExpr::op(
-                    OpKind::Multiply,
+                    tensor_lang::Op::Multiply,
                     AttrExpr::Exact(OpAttrs::None),
                     vec![TensorExpr::Var(x), TensorExpr::Var(z)],
                 ),
             ],
         );
         tensor_rewrite(
-            "distribute_mul_over_add",
+            "inherited::distribute_mul_over_add",
             pattern(),
             rhs,
             move |egraph, matched| {

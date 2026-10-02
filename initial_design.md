@@ -10,10 +10,10 @@ numerical semantics belong in the host implementation.
 A concrete rule contains optional declarations, one `LHS => RHS` rewrite,
 then optional `where` and `derive` blocks, in that order. Declarations have no
 semicolon; statements inside those blocks require one. For example,
-[examples/lora.tepl](examples/lora.tepl):
+[examples/rules/lora.tepl](examples/rules/lora.tepl):
 
 ```tepl
-from "dialects/tensor.tepl" import TensorLang as t;
+from "../dialects/tensor.tepl" import TensorLang as t;
 use t::{add, dot};
 
 rule lora {
@@ -45,7 +45,7 @@ captures the matched operation's result e-class as `Y`; a root binding can omit
 parentheses. Repeated tensor names refer to the same e-class. RHS expressions
 are trees of operations, literals, and LHS capture references. They cannot
 introduce bindings; `let` is rejected on the RHS, including nested occurrences.
-See [examples/binders.tepl](examples/binders.tepl).
+See [examples/rules/binders.tepl](examples/rules/binders.tepl).
 
 Numeric operands and roots accept integers (`1`) and decimals (`1.0`), with
 an optional sign (`-0.5`). Decimals require digits on both sides of the point;
@@ -55,7 +55,7 @@ Bare literals remain available in the structural frontend; typed runtime
 construction requires a concrete dtype, with no implicit default. Structural
 matching preserves kind, spelling, and annotation, so `1:i32`, `1:f32`, and
 `1.0:f32` are distinct. Constraint numbers remain host values. See
-[examples/basic.tepl](examples/basic.tepl).
+[examples/rules/basic.tepl](examples/rules/basic.tepl).
 
 Tuple syntax is `(tuple X Y)` and `(get[0] T)`; projection has one operand and
 a nonnegative integer index. These forms are parsed but have no Rust tensor
@@ -176,7 +176,7 @@ expansion preserves the inherited graph and combines conditions; instances
 cannot provide a replacement graph or `derive` block. Parsing and importing
 preserve the source AST; the core analyzer expands concrete instances and
 validates bindings and signatures. See
-[abstract.tepl](examples/abstract.tepl) and [inherited.tepl](examples/inherited.tepl).
+[abstract.tepl](examples/rules/abstract.tepl) and [inherited.tepl](examples/rules/inherited.tepl).
 
 ## Implementation and execution
 
@@ -185,11 +185,13 @@ owning AST with source spans. The `parse` command checks syntax and resolves
 imports while preserving source rules and annotations. The `check` command
 performs semantic analysis through `src/core/`, validates operation names,
 arity, descriptors, and types, and expands concrete instances into the core IR.
-Code generation from the checked IR remains future work.
+`generate FILE --target rust --out DIR` emits a standalone crate from checked
+dialects and concrete rules through the shared `src/codegen/` backend interface.
 
 [labs/rust-egg](labs/rust-egg/README.md) implements the tensor IR, matching,
 binders, host callbacks, and e-graph rewrite application. Dialect and rule
-modules are manually maintained reference output for future code generation.
+modules remain manually maintained reference examples; generated crates use the
+shared templates under `runtime/rust/` and their own dialect definitions.
 Its execution model is:
 
 ```text
@@ -217,9 +219,9 @@ identity, so differently typed literals cannot be hash-consed into one node.
 
 The C++ core analyzer resolves operation and rule-local symbols, expands
 inherited rules, checks tensor/host types, and validates descriptor references.
-`check FILE` prints its checked IR; automatic dialect/rule code generation
-remains future work. Abstract bodies are checked on instantiation, and the
-initial analyzer explicitly rejects tuple/projection semantics.
+`check FILE` prints its checked IR; `generate` emits Rust dialect/rule code.
+C++ and Python backends remain future work. Abstract bodies are checked on
+instantiation, and the initial analyzer explicitly rejects tuple/projection semantics.
 Multiple-root patterns, variadic graph captures such as `Xs...`, arbitrary
 regions/control flow, and full symbolic shape algebra are outside current
 scope. Example files demonstrate syntax; their tensor equivalence depends on

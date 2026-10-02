@@ -1,7 +1,7 @@
 # Tensor IR and rules with egg
 
 The library contains a tensor IR and a reusable rewrite adapter. The
-`ir::patterns` module separates pattern data, matching, metadata lookup, and
+`ir::pattern` module separates pattern data, matching, metadata lookup, and
 application. LHS `TensorPattern::bind` captures the matched e-class while
 checking its nested operation pattern; later `TensorPattern::Var` and
 `TensorExpr::Var` references reuse that value.
@@ -9,24 +9,24 @@ checking its nested operation pattern; later `TensorPattern::Var` and
 `src/ir/rules/` contains one Rust module per TEPL source file:
 `lora.rs`, `simple.rs`, `basic.rs`, `binders.rs`, and `inherited.rs`.
 `basic.rs` contains the consolidated dtype and literal examples;
-`binders.rs` contains both rules declared in `examples/binders.tepl`. Each rule lives in a `rule_<name>` module
+`binders.rs` contains both rules declared in `examples/rules/binders.tepl`. Each rule lives in a `rule_<name>` module
 with a `build_rewrite` constructor and, when needed, a host `Functions` trait.
-`ir::rules` re-exports the basic, binder, LoRA, and simple rule modules directly.
-`ir::rules::basic` also exposes the consolidated basic rules; inherited rules
-use their own namespace to avoid name collisions. Callers supply host implementations and tensor metadata:
+Every rule file has a public module with no broad re-exports; runtime rewrite
+names include the file namespace. Callers supply host implementations and metadata:
 
 ```rust
-use rust_egg::ir::rules::{rule_commute_add, rule_shared_expression};
+use rust_egg::ir::rules::{simple::rule_commute_add, binders::rule_shared_expression};
 
 let rewrite = rule_commute_add::build_rewrite::<()>().unwrap();
 let pattern = rule_shared_expression::pattern();
 ```
 
 These rule modules are manually
-maintained reference output for future generation. Their fixtures and behavior
-checks live in `tests/lora.rs`, `tests/simple.rs`, and `tests/binders.rs`.
+maintained reference examples. The compiler now emits independent crates from
+checked core through `tepl generate`; see the root README for usage.
+Their fixtures and behavior checks live in `tests/lora.rs`, `tests/simple.rs`, and `tests/binders.rs`.
 
-`TensorLang::literal("1.0", DType::F32)` creates a zero-operand numeric node;
+`OpNode::literal("1.0", DType::F32)` creates a zero-operand numeric node;
 `TensorPattern::literal` and `TensorExpr::literal` match and construct those
 nodes. Accepted spellings are signed or unsigned integers and decimals with
 digits on both sides of the point. Dtype and exact spelling define identity:
@@ -36,11 +36,11 @@ signed zero are preserved; hosts define float rounding and representability.
 Graph literals denote rank-zero tensors with explicit dtype. Hosts supply
 operation semantics, metadata, and broadcasting rules.
 `tests/literals.rs` exercises the reference rules from
-[`examples/basic.tepl`](../../examples/basic.tepl), including matching,
+[`examples/rules/basic.tepl`](../../examples/rules/basic.tepl), including matching,
 RHS insertion, and rejection of invalid spellings.
 
 `src/ir/rules/inherited.rs` is the reference output for compile-time expansion
-of `examples/inherited.tepl` using the templates in `examples/abstract.tepl`.
+of `examples/rules/inherited.tepl` using the templates in `examples/rules/abstract.tepl`.
 Its seven concrete rules contain specialized operations and host function names;
 the vector instances retain both inherited checks and additional constraints.
 They are available under `ir::rules::inherited` to avoid colliding with the
@@ -54,31 +54,53 @@ let rewrite = rule_commute_mul::build_rewrite::<()>().unwrap();
 
 Behavior checks live in `tests/inherited.rs`. These files describe the expected
 expanded output. The C++ core analyzer supports template expansion into checked
-IR; Rust code generation remains future work.
+IR; Rust generation now emits standalone crates with generated dialects.
 
-The operation signatures and attribute schemas are now declared in
-[`examples/dialects/tensor.tepl`](../../examples/dialects/tensor.tepl), which
-the TEPL LoRA example imports. The Rust IR is still maintained manually.
-`src/ir/dialects/tensor_lang.rs` contains the TensorLang operation definitions,
-attributes, node type, and `egg::Language` implementation as one reference
-output for the future generator. `src/ir/mod.rs` re-exports the public API; its
-tests live in `tests/ir.rs`. TEPL `string` fields use Rust `String`, and
-`index` fields use `usize`.
+The source examples live under `examples/dialects/` and `examples/rules/`.
+The IR layout is:
 
-The TEPL compiler checks host signatures and rules through `core::Program`.
-Rust code generation remains future work. Inspect the checked LoRA IR and run
-the reference runtime tests with:
+```text
+src/ir/
+  dialects/{mod.rs, tensor_lang.rs, scalar.rs}
+  op_node.rs
+  types.rs
+  pattern/{mod.rs, pattern.rs, matcher.rs, rewrite.rs, context.rs}
+  rules/{mod.rs, basic.rs, binders.rs, inherited.rs, lora.rs, simple.rs,
+         scalar.rs, lowering.rs}
+```
+
+`dialects/tensor_lang.rs` retains the handwritten reference dialect.
+`dialects/scalar.rs` is generated from `examples/dialects/scalar.tepl`.
+`op_node.rs` owns `OpNode`, the combined `Op`/`OpAttrs` enums, validation, and
+`egg::Language`. Each dialect exposes short names under its own module:
+
+```rust
+use rust_egg::ir::{OpNode, dialects::{scalar, tensor_lang}};
+let node = OpNode::new(scalar::Op::Add, scalar::OpAttrs::None, vec![x, y])?;
+```
+
+`tests/multidialect.rs` checks distinct operation identities, checked lowering
+from TensorLang to Scalar, and rejection without partial insertion. It mirrors
+the compiler integration test for generated projects.
+
+Generate all examples as an independent crate and run the reference tests:
 
 ```sh
 bazel build //:tepl
-bazel-bin/tepl check examples/lora.tepl
+bazel-bin/tepl generate examples --out generated/examples
+cargo check --manifest-path generated/examples/Cargo.toml
 cargo test --manifest-path labs/rust-egg/Cargo.toml
 ```
+
+The lab keeps its existing handwritten rules and tensor helpers for the LoRA
+experiments. Generated projects have the same module architecture with the
+current generator runtime: `u64` dimensions and optional literal dtype requests.
+The lab still uses `usize` dimensions and concrete literal dtypes.
 
 `tests/support/generated_host.rs` preserves a standalone interface fixture from
 the retired AST-based generator, compiled by `tests/lora.rs`. The reference
 `rules/lora.rs` declares the same methods directly so its callers can implement
-`rules::rule_lora::Functions`. Each rule is exposed as a module containing its
+`rules::lora::rule_lora::Functions`. Each rule is exposed as a module containing its
 own `Functions` trait, `pattern`, and `build_rewrite` constructor, so rules can
 be used independently even when several share a source module.
 Functions called in `where` return `Option<bool>`. Functions called in
@@ -117,14 +139,14 @@ The legacy `tensor_rewrite` and `rule_lora::build_rewrite` paths rely on their
 callers to prove complete replacement validity and output compatibility.
 
 The integration tests use manually written rule modules and test host
-implementations. Lowering full TEPL rules into those Rust patterns and
-callbacks is a separate compiler stage. Core infers host argument and result
+implementations. The separate `src/codegen/` stage now lowers checked TEPL rules into independent
+Rust patterns and callbacks. Core infers host argument and result
 types from captures, declared dimensions, descriptors, literals, and expression
 contexts, including nested calls. Both `where` and `derive` use the LHS
 environment. `scalar` captures are rank-zero tensors passed as `&TensorInfo` in
 the reference runtime; numbers in host expressions remain scalar host values.
 
-[`examples/basic.tepl`](../../examples/basic.tepl) and `rules/basic.rs` cover
+[`examples/rules/basic.tepl`](../../examples/rules/basic.tepl) and `rules/basic.rs` cover
 f32 vector constraints, shape-only declarations with a `same_dtype` host
 predicate, typed scalar tensors, and integer/float literals. All five reference
 rules use `tensor_rewrite_checked`. The overlapping floating-literal examples
@@ -133,7 +155,8 @@ remain covered by tests without a separate example rule.
 `tests/dtypes.rs` compiles the preserved basic host-interface fixture in
 `tests/support/generated_basic_host.rs` and verifies acceptance, rejection,
 output compatibility, literal identity, and absence of partial RHS insertion.
-The fixture remains checked in until code generation from core is implemented.
+The fixture remains checked in for the legacy reference tests; generated code
+is compiled and exercised separately by `tools/test_codegen.sh`.
 
 ## Run the LoRA saturation example
 

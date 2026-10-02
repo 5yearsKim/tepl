@@ -1,10 +1,8 @@
-//! Tensor dialect operations, patterns, and rules for `egg`.
-
+//! Multiple dialects sharing one egg language and pattern runtime.
 pub mod dialects;
-pub mod patterns;
+pub mod op_node;
+pub mod pattern;
 pub mod rules;
 pub mod types;
-
+pub use op_node::{Arity, DialectOp, NodeError, Op, OpAttrs, OpNode};
 pub use types::DType;
-
-pub use dialects::tensor_lang::{Arity, NodeError, OpAttrs, OpKind, TensorLang};

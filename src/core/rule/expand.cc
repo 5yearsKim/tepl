@@ -16,6 +16,7 @@ class RuleExpander {
   RuleExpander(AnalysisContext& context, const ast::Rule& instance)
       : context_(context), instance_(instance), body_(&instance) {
     output_.name = instance.name;
+    output_.source_name = instance.source_name;
     output_.origin = origin(instance.source_name, instance.span);
   }
 
@@ -154,7 +155,7 @@ class RuleExpander {
         context_.types.concrete(resolveType(parameter.result_type.name).value(),
                                 at),
         at);
-    fn_bindings_.emplace(parameter.name, name);
+    fn_bindings_.emplace(parameter.name, id);
   }
 
   bool isParameter(const std::string& name) const {
@@ -210,8 +211,11 @@ class RuleExpander {
           context_.report(
               at, "operation parameter cannot be called as a host function");
         if (const auto found = fn_bindings_.find(call->callee);
-            found != fn_bindings_.end())
-          call->callee = found->second;
+            found != fn_bindings_.end()) {
+          call->callee =
+              context_.output.host_functions[found->second.value].name;
+          output_.bound_functions.emplace(call, found->second);
+        }
       }
       for (auto& argument : call->arguments)
         argument = cloneExpression(*argument, definition);
@@ -237,7 +241,7 @@ class RuleExpander {
   const ast::Rule* body_;
   ExpandedRule output_;
   std::map<std::string, OpId> op_bindings_;
-  std::map<std::string, std::string> fn_bindings_;
+  std::map<std::string, HostFunctionId> fn_bindings_;
 };
 
 }  // namespace

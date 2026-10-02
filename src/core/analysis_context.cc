@@ -14,7 +14,8 @@ void AnalysisContext::report(SourceOrigin at, std::string message,
 
 HostFunctionId AnalysisContext::host(const std::string& name, std::size_t arity,
                                      const SourceOrigin& at) {
-  if (const auto found = host_names.find(name); found != host_names.end()) {
+  const auto key = sourceKey(at.definition.source_name) + "\n" + name;
+  if (const auto found = host_names.find(key); found != host_names.end()) {
     const auto& fn = output.host_functions[found->second.value];
     if (fn.signature.arguments.size() != arity)
       report(at, "conflicting arity for host function '" + name + "'",
@@ -27,7 +28,7 @@ HostFunctionId AnalysisContext::host(const std::string& name, std::size_t arity,
     signature.arguments.push_back(types.variable(at));
   signature.result = types.variable(at);
   output.host_functions.push_back({id, name, std::move(signature), true, at});
-  host_names.emplace(name, id);
+  host_names.emplace(key, id);
   return id;
 }
 

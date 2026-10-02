@@ -1,30 +1,6 @@
-//! TensorLang dialect definitions and its `egg::Language` node implementation.
-//!
-//! Reference output for the future TEPL dialect generator. Mirrors
-//! `examples/dialects/tensor.tepl` and is maintained by hand until generation exists.
-
-use std::fmt;
-
-use crate::ir::DType;
-use egg::{Id, Language};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Arity {
-    Exact(usize),
-    AtLeast(usize),
-}
-
-impl Arity {
-    pub fn accepts(self, actual: usize) -> bool {
-        match self {
-            Self::Exact(expected) => actual == expected,
-            Self::AtLeast(minimum) => actual >= minimum,
-        }
-    }
-}
-
+use crate::ir::{Arity, DType};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum OpKind {
+pub enum Op {
     Add,
     Subtract,
     Multiply,
@@ -61,7 +37,7 @@ pub enum OpKind {
     Symbol,
 }
 
-impl OpKind {
+impl Op {
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name {
             "add" => Self::Add,
@@ -271,186 +247,23 @@ fn valid_literal(value: &str) -> bool {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NodeError {
-    Arity {
-        op: OpKind,
-        expected: Arity,
-        actual: usize,
-    },
-    Attributes {
-        op: OpKind,
-    },
+use crate::ir::op_node::{DialectOp, NodeError, Op as AnyOp, OpAttrs as AnyAttrs, OpNode};
+impl From<Op> for AnyOp {
+    fn from(op: Op) -> Self {
+        Self::TensorLang(op)
+    }
 }
-
-impl fmt::Display for NodeError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Arity {
-                op,
-                expected,
-                actual,
-            } => write!(
-                formatter,
-                "{} expects {expected:?} operands, got {actual}",
-                op.name()
-            ),
-            Self::Attributes { op } => {
-                write!(formatter, "invalid attributes for {}", op.name())
-            }
+impl From<OpAttrs> for AnyAttrs {
+    fn from(attrs: OpAttrs) -> Self {
+        match attrs {
+            OpAttrs::None => Self::None,
+            attrs => Self::TensorLang(attrs),
         }
     }
 }
-
-impl std::error::Error for NodeError {}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TensorLang {
-    op: OpKind,
-    children: Vec<Id>,
-    attrs: OpAttrs,
-}
-
-impl TensorLang {
-    pub fn new(
-        op: OpKind,
-        children: impl Into<Vec<Id>>,
-        attrs: OpAttrs,
-    ) -> Result<Self, NodeError> {
-        let children = children.into();
-        let expected = op.arity();
-        if !expected.accepts(children.len()) {
-            return Err(NodeError::Arity {
-                op,
-                expected,
-                actual: children.len(),
-            });
-        }
-        if !op.accepts_attrs(&attrs) {
-            return Err(NodeError::Attributes { op });
-        }
-        Ok(Self {
-            op,
-            children,
-            attrs,
-        })
-    }
-
-    pub fn unary(op: OpKind, child: Id) -> Result<Self, NodeError> {
-        Self::new(op, vec![child], OpAttrs::None)
-    }
-
-    pub fn binary(op: OpKind, left: Id, right: Id) -> Result<Self, NodeError> {
-        Self::new(op, vec![left, right], OpAttrs::None)
-    }
-
-    pub fn reduce(kind: impl Into<String>, value: Id, axes: Vec<usize>) -> Self {
-        Self::new(
-            OpKind::Reduce,
-            vec![value],
-            OpAttrs::Reduce {
-                kind: kind.into(),
-                axes,
-            },
-        )
-        .expect("a reduce node has valid arity and attributes")
-    }
-
-    pub fn symbol(name: impl Into<String>) -> Self {
-        Self::new(
-            OpKind::Symbol,
-            vec![],
-            OpAttrs::Symbol { name: name.into() },
-        )
-        .expect("a symbol node has valid arity and attributes")
-    }
-
-    pub fn constant(name: impl Into<String>) -> Self {
-        Self::new(
-            OpKind::Constant,
-            vec![],
-            OpAttrs::Constant { name: name.into() },
-        )
-        .expect("a constant node has valid arity and attributes")
-    }
-
-    /// A rank-zero numeric literal. Spelling is preserved, so `1` and `1.0`
-    /// remain distinct within each dtype. Broadcasting and float rounding are
-    /// host semantics; dtype is part of the node identity.
-    pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
-        Self::new(
-            OpKind::Literal,
-            vec![],
-            OpAttrs::Literal {
-                value: value.into(),
-                dtype,
-            },
-        )
-    }
-
-    pub fn op(&self) -> OpKind {
-        self.op
-    }
-
-    pub fn attrs(&self) -> &OpAttrs {
-        &self.attrs
-    }
-
-    pub fn symbol_name(&self) -> Option<&str> {
-        match &self.attrs {
-            OpAttrs::Symbol { name } if self.op == OpKind::Symbol => Some(name),
-            _ => None,
-        }
-    }
-
-    pub fn reduction(&self) -> Option<(&str, &[usize], Id)> {
-        match (&self.op, &self.attrs, self.children.as_slice()) {
-            (OpKind::Reduce, OpAttrs::Reduce { kind, axes }, [input]) => Some((kind, axes, *input)),
-            _ => None,
-        }
-    }
-}
-
-impl fmt::Display for TensorLang {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.attrs {
-            OpAttrs::None => write!(formatter, "{}", self.op.display_name()),
-            OpAttrs::Symbol { name } | OpAttrs::Constant { name } => {
-                write!(formatter, "{name}")
-            }
-            OpAttrs::Literal { value, dtype } => write!(formatter, "{value}:{dtype}"),
-            OpAttrs::DotGeneral {
-                lhs_contracting,
-                rhs_contracting,
-                lhs_batch,
-                rhs_batch,
-            } => write!(
-                formatter,
-                "dot(lc={lhs_contracting:?},rc={rhs_contracting:?},lb={lhs_batch:?},rb={rhs_batch:?})"
-            ),
-            attrs => write!(formatter, "{} {attrs:?}", self.op.display_name()),
-        }
-    }
-}
-
-impl Language for TensorLang {
-    type Discriminant = OpKind;
-
-    fn discriminant(&self) -> Self::Discriminant {
-        self.op
-    }
-
-    fn matches(&self, other: &Self) -> bool {
-        self.op == other.op
-            && self.attrs == other.attrs
-            && self.children.len() == other.children.len()
-    }
-
-    fn children(&self) -> &[Id] {
-        &self.children
-    }
-
-    fn children_mut(&mut self) -> &mut [Id] {
-        &mut self.children
+impl DialectOp for Op {
+    type Attrs = OpAttrs;
+    fn into_node(self, attrs: OpAttrs, children: Vec<egg::Id>) -> Result<OpNode, NodeError> {
+        OpNode::from_parts(self.into(), children, attrs.into())
     }
 }

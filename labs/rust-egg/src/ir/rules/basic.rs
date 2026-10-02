@@ -1,23 +1,24 @@
-//! Reference lowering of `examples/basic.tepl`; all rules verify RHS types.
+//! Reference lowering of `examples/rules/basic.tepl`; all rules verify RHS types.
 
+use crate::ir::dialects::tensor_lang;
 use std::sync::Arc;
 
 use egg::{Analysis, EGraph, Rewrite, Var};
 
-use crate::ir::patterns::{
+use crate::ir::pattern::{
     AttrExpr, AttrPattern, MatchContext, OutputInference, TensorExpr, TensorInfo, TensorMetadata,
     TensorPattern, tensor_rewrite_checked,
 };
-use crate::ir::{DType, OpAttrs, OpKind, TensorLang};
+use crate::ir::{DType, OpAttrs, OpNode};
 
 fn swap<N, M, I, F>(
     name: &str,
     metadata: M,
     inference: I,
     check: F,
-) -> Result<Rewrite<TensorLang, N>, String>
+) -> Result<Rewrite<OpNode, N>, String>
 where
-    N: Analysis<TensorLang>,
+    N: Analysis<OpNode>,
     M: TensorMetadata<N> + 'static,
     I: OutputInference + 'static,
     F: Fn(&TensorInfo, &TensorInfo) -> Option<bool> + Send + Sync + 'static,
@@ -28,16 +29,16 @@ where
     tensor_rewrite_checked(
         name,
         TensorPattern::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrPattern::Exact(OpAttrs::None),
             vec![TensorPattern::Var(x), TensorPattern::Var(y)],
         ),
         TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![TensorExpr::Var(y), TensorExpr::Var(x)],
         ),
-        move |graph: &EGraph<TensorLang, N>, id| metadata.info(graph, id),
+        move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
         inference,
         move |graph, matched| {
             let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
@@ -49,16 +50,13 @@ where
 pub mod rule_commute_f32 {
     use super::*;
 
-    pub fn build_rewrite<N, M, I>(
-        metadata: M,
-        inference: I,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, I>(metadata: M, inference: I) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         I: OutputInference + 'static,
     {
-        swap("commute_f32", metadata, inference, |x, y| {
+        swap("basic::commute_f32", metadata, inference, |x, y| {
             Some(
                 x.dtype == DType::F32
                     && y.dtype == DType::F32
@@ -80,35 +78,37 @@ pub mod rule_commute_same_dtype {
         metadata: M,
         inference: I,
         functions: F,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    ) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         I: OutputInference + 'static,
         F: Functions + 'static,
     {
-        swap("commute_same_dtype", metadata, inference, move |x, y| {
-            if x.shape.len() != 1 || x.shape != y.shape {
-                return None;
-            }
-            functions.same_dtype(x, y)
-        })
+        swap(
+            "basic::commute_same_dtype",
+            metadata,
+            inference,
+            move |x, y| {
+                if x.shape.len() != 1 || x.shape != y.shape {
+                    return None;
+                }
+                functions.same_dtype(x, y)
+            },
+        )
     }
 }
 
 pub mod rule_commute_scalar {
     use super::*;
 
-    pub fn build_rewrite<N, M, I>(
-        metadata: M,
-        inference: I,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, I>(metadata: M, inference: I) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         I: OutputInference + 'static,
     {
-        swap("commute_scalar", metadata, inference, |x, s| {
+        swap("basic::commute_scalar", metadata, inference, |x, s| {
             Some(x.dtype == DType::F32 && s.dtype == DType::F32 && s.shape.is_empty())
         })
     }
@@ -117,7 +117,7 @@ pub mod rule_commute_scalar {
 fn literal_pattern(value: &str, dtype: DType) -> TensorPattern {
     let x = "?X".parse::<Var>().unwrap();
     TensorPattern::op(
-        OpKind::Add,
+        tensor_lang::Op::Add,
         AttrPattern::Exact(OpAttrs::None),
         vec![
             TensorPattern::Var(x),
@@ -132,9 +132,9 @@ fn literal_rewrite<N, M, I>(
     dtype: DType,
     metadata: M,
     inference: I,
-) -> Result<Rewrite<TensorLang, N>, String>
+) -> Result<Rewrite<OpNode, N>, String>
 where
-    N: Analysis<TensorLang>,
+    N: Analysis<OpNode>,
     M: TensorMetadata<N> + 'static,
     I: OutputInference + 'static,
 {
@@ -145,14 +145,14 @@ where
         name,
         literal_pattern(value, dtype),
         TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![
                 TensorExpr::literal(value, dtype).map_err(|error| error.to_string())?,
                 TensorExpr::Var(x),
             ],
         ),
-        move |graph: &EGraph<TensorLang, N>, id| metadata.info(graph, id),
+        move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
         inference,
         move |graph, matched| {
             let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
@@ -168,17 +168,14 @@ pub mod rule_commute_integer_literal {
         literal_pattern("1", DType::I32)
     }
 
-    pub fn build_rewrite<N, M, I>(
-        metadata: M,
-        inference: I,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, I>(metadata: M, inference: I) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         I: OutputInference + 'static,
     {
         literal_rewrite(
-            "commute_integer_literal",
+            "basic::commute_integer_literal",
             "1",
             DType::I32,
             metadata,
@@ -194,17 +191,14 @@ pub mod rule_commute_float_literal {
         literal_pattern("1.0", DType::F32)
     }
 
-    pub fn build_rewrite<N, M, I>(
-        metadata: M,
-        inference: I,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, I>(metadata: M, inference: I) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         I: OutputInference + 'static,
     {
         literal_rewrite(
-            "commute_float_literal",
+            "basic::commute_float_literal",
             "1.0",
             DType::F32,
             metadata,

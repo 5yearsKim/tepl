@@ -1,0 +1,2 @@
+// A checked program with no concrete rules or operation declarations.
+abstract rule unused() { X => X }

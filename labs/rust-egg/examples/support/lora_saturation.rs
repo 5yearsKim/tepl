@@ -1,9 +1,10 @@
 //! Shared shape, cost, and evaluation support for the LoRA example and tests.
 
 use egg::{Analysis, CostFunction, DidMerge, EGraph, Id, Language, RecExpr, StopReason};
-use rust_egg::ir::patterns::{TensorBindings, TensorInfo};
-use rust_egg::ir::rules::rule_lora;
-use rust_egg::ir::{DType, OpAttrs, OpKind, TensorLang};
+use rust_egg::ir::dialects::tensor_lang;
+use rust_egg::ir::pattern::{TensorBindings, TensorInfo};
+use rust_egg::ir::rules::lora::rule_lora;
+use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 use std::collections::HashMap;
 
 pub type Shapes = HashMap<String, Vec<usize>>;
@@ -34,11 +35,7 @@ pub fn bindings_from_shapes(shapes: Shapes) -> TensorBindings {
 }
 
 /// Shared semantics for e-class analysis and pre-insertion RHS verification.
-pub fn infer_tensor_output(
-    op: OpKind,
-    operands: &[TensorInfo],
-    attrs: &OpAttrs,
-) -> Option<TensorInfo> {
+pub fn infer_tensor_output(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo> {
     let [lhs, rhs] = operands else {
         return None;
     };
@@ -46,8 +43,12 @@ pub fn infer_tensor_output(
         return None;
     }
     let shape = match (op, attrs) {
-        (OpKind::Add, OpAttrs::None) if lhs.shape == rhs.shape => lhs.shape.clone(),
-        (OpKind::DotGeneral, _) => batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?,
+        (Op::TensorLang(tensor_lang::Op::Add), OpAttrs::None) if lhs.shape == rhs.shape => {
+            lhs.shape.clone()
+        }
+        (Op::TensorLang(tensor_lang::Op::DotGeneral), _) => {
+            batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?
+        }
         _ => return None,
     };
     Some(TensorInfo {
@@ -57,12 +58,12 @@ pub fn infer_tensor_output(
 }
 
 pub fn dot_attrs() -> OpAttrs {
-    OpAttrs::DotGeneral {
+    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneral {
         lhs_contracting: vec![2],
         rhs_contracting: vec![1],
         lhs_batch: vec![0],
         rhs_batch: vec![0],
-    }
+    })
 }
 
 pub fn batched_dot_shape(lhs: &[usize], rhs: &[usize], attrs: &OpAttrs) -> Option<Vec<usize>> {
@@ -89,11 +90,14 @@ pub struct ShapeAnalysis {
     pub symbols: TensorBindings,
 }
 
-impl Analysis<TensorLang> for ShapeAnalysis {
+impl Analysis<OpNode> for ShapeAnalysis {
     type Data = Shape;
 
-    fn make(egraph: &mut EGraph<TensorLang, Self>, node: &TensorLang, _id: Id) -> Shape {
-        if matches!(node.op(), OpKind::Symbol | OpKind::Constant) {
+    fn make(egraph: &mut EGraph<OpNode, Self>, node: &OpNode, _id: Id) -> Shape {
+        if matches!(
+            node.op(),
+            Op::TensorLang(tensor_lang::Op::Symbol) | Op::TensorLang(tensor_lang::Op::Constant)
+        ) {
             return egraph
                 .analysis
                 .symbols
@@ -140,7 +144,7 @@ impl Analysis<TensorLang> for ShapeAnalysis {
     }
 }
 
-pub fn tensor_info(egraph: &EGraph<TensorLang, ShapeAnalysis>, id: Id) -> Option<TensorInfo> {
+pub fn tensor_info(egraph: &EGraph<OpNode, ShapeAnalysis>, id: Id) -> Option<TensorInfo> {
     match &egraph[egraph.find(id)].data {
         Shape::Known(info) => Some(info.clone()),
         _ => None,
@@ -197,27 +201,34 @@ impl rule_lora::Functions for DemoLoraFunctions {
     }
 }
 
-fn dot(expr: &mut RecExpr<TensorLang>, lhs: Id, rhs: Id, attrs: OpAttrs) -> Id {
-    expr.add(TensorLang::new(OpKind::DotGeneral, vec![lhs, rhs], attrs).unwrap())
+fn dot(expr: &mut RecExpr<OpNode>, lhs: Id, rhs: Id, attrs: OpAttrs) -> Id {
+    expr.add(
+        OpNode::from_parts(
+            Op::TensorLang(tensor_lang::Op::DotGeneral),
+            vec![lhs, rhs],
+            attrs,
+        )
+        .unwrap(),
+    )
 }
 
-pub fn original_expr(swapped_add: bool, inner_attrs: OpAttrs) -> RecExpr<TensorLang> {
+pub fn original_expr(swapped_add: bool, inner_attrs: OpAttrs) -> RecExpr<OpNode> {
     let mut expr = RecExpr::default();
-    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| expr.add(TensorLang::symbol(name)));
+    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| expr.add(OpNode::symbol(name)));
     let ab = dot(&mut expr, a, b, inner_attrs);
     let (left, right) = if swapped_add { (ab, w) } else { (w, ab) };
-    let sum = expr.add(TensorLang::binary(OpKind::Add, left, right).unwrap());
+    let sum = expr.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), left, right).unwrap());
     dot(&mut expr, x, sum, dot_attrs());
     expr
 }
 
-pub fn expected_expr() -> RecExpr<TensorLang> {
+pub fn expected_expr() -> RecExpr<OpNode> {
     let mut expr = RecExpr::default();
-    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| expr.add(TensorLang::symbol(name)));
+    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| expr.add(OpNode::symbol(name)));
     let xw = dot(&mut expr, x, w, dot_attrs());
     let xa = dot(&mut expr, x, a, dot_attrs());
     let xab = dot(&mut expr, xa, b, dot_attrs());
-    expr.add(TensorLang::binary(OpKind::Add, xw, xab).unwrap());
+    expr.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), xw, xab).unwrap());
     expr
 }
 
@@ -225,7 +236,7 @@ pub fn input_graph(
     shapes: Shapes,
     swapped_add: bool,
     inner_attrs: OpAttrs,
-) -> (EGraph<TensorLang, ShapeAnalysis>, Id, RecExpr<TensorLang>) {
+) -> (EGraph<OpNode, ShapeAnalysis>, Id, RecExpr<OpNode>) {
     let expr = original_expr(swapped_add, inner_attrs);
     let mut egraph = EGraph::new(ShapeAnalysis {
         symbols: bindings_from_shapes(shapes),
@@ -236,13 +247,13 @@ pub fn input_graph(
 }
 
 pub struct ArithmeticCost<'a> {
-    pub egraph: &'a EGraph<TensorLang, ShapeAnalysis>,
+    pub egraph: &'a EGraph<OpNode, ShapeAnalysis>,
 }
 
-impl CostFunction<TensorLang> for ArithmeticCost<'_> {
+impl CostFunction<OpNode> for ArithmeticCost<'_> {
     type Cost = u64;
 
-    fn cost<C>(&mut self, node: &TensorLang, mut costs: C) -> u64
+    fn cost<C>(&mut self, node: &OpNode, mut costs: C) -> u64
     where
         C: FnMut(Id) -> u64,
     {
@@ -251,26 +262,28 @@ impl CostFunction<TensorLang> for ArithmeticCost<'_> {
             _ => None,
         };
         let local = match (node.op(), node.children()) {
-            (OpKind::Symbol, []) => 0,
-            (OpKind::Add, [lhs, _]) => output(*lhs)
+            (Op::TensorLang(tensor_lang::Op::Symbol), []) => 0,
+            (Op::TensorLang(tensor_lang::Op::Add), [lhs, _]) => output(*lhs)
                 .map(|shape| {
                     shape
                         .iter()
                         .fold(1_u64, |size, &dim| size.saturating_mul(dim as u64))
                 })
                 .unwrap_or(u64::MAX / 4),
-            (OpKind::DotGeneral, [lhs, rhs]) => match (output(*lhs), output(*rhs)) {
-                (Some(lhs_shape @ [batch, m, k]), Some(rhs_shape @ [_, _, n]))
-                    if batched_dot_shape(lhs_shape, rhs_shape, node.attrs()).is_some() =>
-                {
-                    2_u64
-                        .saturating_mul(*batch as u64)
-                        .saturating_mul(*m as u64)
-                        .saturating_mul(*k as u64)
-                        .saturating_mul(*n as u64)
+            (Op::TensorLang(tensor_lang::Op::DotGeneral), [lhs, rhs]) => {
+                match (output(*lhs), output(*rhs)) {
+                    (Some(lhs_shape @ [batch, m, k]), Some(rhs_shape @ [_, _, n]))
+                        if batched_dot_shape(lhs_shape, rhs_shape, node.attrs()).is_some() =>
+                    {
+                        2_u64
+                            .saturating_mul(*batch as u64)
+                            .saturating_mul(*m as u64)
+                            .saturating_mul(*k as u64)
+                            .saturating_mul(*n as u64)
+                    }
+                    _ => u64::MAX / 4,
                 }
-                _ => u64::MAX / 4,
-            },
+            }
             _ => u64::MAX / 4,
         };
         node.children()
@@ -301,17 +314,17 @@ pub fn example_values(shapes: &Shapes) -> HashMap<String, TensorValue> {
 }
 
 pub fn evaluate(
-    expr: &RecExpr<TensorLang>,
+    expr: &RecExpr<OpNode>,
     inputs: &HashMap<String, TensorValue>,
 ) -> Result<TensorValue, String> {
     let mut values: Vec<TensorValue> = Vec::new();
     for node in expr.as_ref() {
         let value = match (node.op(), node.children()) {
-            (OpKind::Symbol, []) => inputs
+            (Op::TensorLang(tensor_lang::Op::Symbol), []) => inputs
                 .get(node.symbol_name().unwrap())
                 .cloned()
                 .ok_or_else(|| format!("missing tensor {}", node.symbol_name().unwrap()))?,
-            (OpKind::Add, [lhs, rhs]) => {
+            (Op::TensorLang(tensor_lang::Op::Add), [lhs, rhs]) => {
                 let lhs = &values[usize::from(*lhs)];
                 let rhs = &values[usize::from(*rhs)];
                 if lhs.shape != rhs.shape {
@@ -322,7 +335,7 @@ pub fn evaluate(
                     data: lhs.data.iter().zip(&rhs.data).map(|(a, b)| a + b).collect(),
                 }
             }
-            (OpKind::DotGeneral, [lhs, rhs]) => {
+            (Op::TensorLang(tensor_lang::Op::DotGeneral), [lhs, rhs]) => {
                 let lhs = &values[usize::from(*lhs)];
                 let rhs = &values[usize::from(*rhs)];
                 let shape = batched_dot_shape(&lhs.shape, &rhs.shape, node.attrs())
@@ -351,7 +364,7 @@ pub fn evaluate(
     values.pop().ok_or_else(|| "empty expression".into())
 }
 
-pub fn text_dump(egraph: &EGraph<TensorLang, ShapeAnalysis>) -> String {
+pub fn text_dump(egraph: &EGraph<OpNode, ShapeAnalysis>) -> String {
     let mut classes: Vec<_> = egraph.classes().collect();
     classes.sort_by_key(|class| usize::from(class.id));
     let mut result = String::new();

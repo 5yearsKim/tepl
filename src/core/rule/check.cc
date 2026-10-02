@@ -27,6 +27,7 @@ void checkConditions(RuleCheckContext& context,
 std::optional<Rule> check(AnalysisContext& analysis,
                           const ExpandedRule& input) {
   RuleCheckContext context(analysis, input);
+  context.rule.source_name = input.source_name;
   const auto diagnostics_before = analysis.diagnostics.size();
   collectCaptures(context, *input.lhs);
   checkDeclarations(context);

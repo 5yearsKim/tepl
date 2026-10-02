@@ -126,6 +126,7 @@ signatureTypes
 signatureType
     : ID
     | SCALAR
+    | ATTRS
     ;
 
 ruleBindings

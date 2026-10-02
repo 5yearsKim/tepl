@@ -1,14 +1,15 @@
-//! Reference lowering of `examples/lora.tepl`.
+//! Reference lowering of `examples/rules/lora.tepl`.
 
+use crate::ir::dialects::tensor_lang;
 use std::collections::HashMap;
 
 use egg::{Analysis, EGraph, Rewrite, Var};
 
-use crate::ir::patterns::{
+use crate::ir::pattern::{
     AttrExpr, AttrPattern, AttrVar, MatchContext, OutputInference, TensorExpr, TensorInfo,
     TensorMetadata, TensorPattern, tensor_rewrite, tensor_rewrite_checked,
 };
-use crate::ir::{OpAttrs, OpKind, TensorLang};
+use crate::ir::{OpAttrs, OpNode};
 
 pub mod rule_lora {
     use super::*;
@@ -39,17 +40,17 @@ pub mod rule_lora {
     pub fn pattern() -> TensorPattern {
         let [x, w, a, b] = ["?X", "?W", "?A", "?B"].map(|name| name.parse::<Var>().unwrap());
         TensorPattern::op(
-            OpKind::DotGeneral,
+            tensor_lang::Op::DotGeneral,
             AttrPattern::Bind(AttrVar::from("outer")),
             vec![
                 TensorPattern::Var(x),
                 TensorPattern::op(
-                    OpKind::Add,
+                    tensor_lang::Op::Add,
                     AttrPattern::Exact(OpAttrs::None),
                     vec![
                         TensorPattern::Var(w),
                         TensorPattern::op(
-                            OpKind::DotGeneral,
+                            tensor_lang::Op::DotGeneral,
                             AttrPattern::Bind(AttrVar::from("inner")),
                             vec![TensorPattern::Var(a), TensorPattern::Var(b)],
                         ),
@@ -59,12 +60,9 @@ pub mod rule_lora {
         )
     }
 
-    pub fn build_rewrite<N, M, F>(
-        metadata: M,
-        functions: F,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    pub fn build_rewrite<N, M, F>(metadata: M, functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         F: Functions + 'static,
     {
@@ -72,7 +70,7 @@ pub mod rule_lora {
         let [outer, inner, xw, xa, out] = ["outer", "inner", "xw", "xa", "out"].map(AttrVar::from);
 
         let rhs = expression();
-        tensor_rewrite("lora", pattern(), rhs, move |egraph, matched| {
+        tensor_rewrite("lora::lora", pattern(), rhs, move |egraph, matched| {
             let ctx = MatchContext::new(egraph, matched, &metadata);
             check_and_derive(&ctx, &functions, [x, w, a, b], [outer, inner, xw, xa, out])
         })
@@ -84,9 +82,9 @@ pub mod rule_lora {
         metadata: M,
         inference: I,
         functions: F,
-    ) -> Result<Rewrite<TensorLang, N>, String>
+    ) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N> + 'static,
         I: OutputInference + 'static,
         F: Functions + 'static,
@@ -96,10 +94,10 @@ pub mod rule_lora {
         let inputs = ["?X", "?W", "?A", "?B"].map(|name| name.parse::<Var>().unwrap());
         let attrs = ["outer", "inner", "xw", "xa", "out"].map(AttrVar::from);
         tensor_rewrite_checked(
-            "lora",
+            "lora::lora",
             pattern(),
             expression(),
-            move |graph: &EGraph<TensorLang, N>, id| metadata.info(graph, id),
+            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
             move |graph, matched| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
@@ -112,20 +110,20 @@ pub mod rule_lora {
         let [x, w, a, b] = ["?X", "?W", "?A", "?B"].map(|name| name.parse::<Var>().unwrap());
         let [xw, xa, out] = ["xw", "xa", "out"].map(AttrVar::from);
         TensorExpr::op(
-            OpKind::Add,
+            tensor_lang::Op::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![
                 TensorExpr::op(
-                    OpKind::DotGeneral,
+                    tensor_lang::Op::DotGeneral,
                     AttrExpr::Derived(xw),
                     vec![TensorExpr::Var(x), TensorExpr::Var(w)],
                 ),
                 TensorExpr::op(
-                    OpKind::DotGeneral,
+                    tensor_lang::Op::DotGeneral,
                     AttrExpr::Derived(out),
                     vec![
                         TensorExpr::op(
-                            OpKind::DotGeneral,
+                            tensor_lang::Op::DotGeneral,
                             AttrExpr::Derived(xa),
                             vec![TensorExpr::Var(x), TensorExpr::Var(a)],
                         ),
@@ -148,7 +146,7 @@ pub mod rule_lora {
         attrs: [AttrVar; 5],
     ) -> Option<HashMap<AttrVar, OpAttrs>>
     where
-        N: Analysis<TensorLang>,
+        N: Analysis<OpNode>,
         M: TensorMetadata<N>,
         F: Functions,
     {

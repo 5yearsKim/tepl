@@ -147,3 +147,74 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
 }
 
 }  // namespace tepl
+
+namespace tepl {
+ParseResult loadProject(const std::string& directory) {
+  namespace fs = std::filesystem;
+  ParseResult result;
+  result.program.emplace();
+  auto& project = *result.program;
+  const auto root = fs::absolute(directory).lexically_normal();
+  project.source_name = (root / "<project>").string();
+  std::vector<fs::path> files;
+  for (const auto* part : {"dialects", "rules"}) {
+    if (!fs::is_directory(root / part)) continue;
+    for (const auto& entry : fs::recursive_directory_iterator(root / part))
+      if (entry.is_regular_file() && entry.path().extension() == ".tepl")
+        files.push_back(entry.path());
+  }
+  std::sort(files.begin(), files.end());
+  if (files.empty()) {
+    result.diagnostics.push_back(
+        {1, 1, "no .tepl files found under dialects/ or rules/", directory});
+    return result;
+  }
+  std::unordered_set<std::string> dialects, scopes, instances, imported;
+  for (const auto& file : files) {
+    std::ifstream input(file, std::ios::binary);
+    if (!input) {
+      result.diagnostics.push_back(
+          {1, 1, "cannot read project file", file.string()});
+      continue;
+    }
+    std::string source{std::istreambuf_iterator<char>(input), {}};
+    if (input.bad()) {
+      result.diagnostics.push_back(
+          {1, 1, "cannot read project file", file.string()});
+      continue;
+    }
+    auto parsed = parse(source, file.string());
+    if (parsed.ok()) {
+      auto diagnostics = resolveImports(*parsed.program);
+      parsed.diagnostics.insert(parsed.diagnostics.end(), diagnostics.begin(),
+                                diagnostics.end());
+    }
+    result.diagnostics.insert(result.diagnostics.end(),
+                              parsed.diagnostics.begin(),
+                              parsed.diagnostics.end());
+    if (!parsed.ok()) continue;
+    auto& module = *parsed.program;
+    if (scopes.insert(module.source_name).second)
+      project.imported_scopes.push_back(
+          {module.source_name, module.imports, module.uses});
+    for (auto& scope : module.imported_scopes)
+      if (scopes.insert(scope.source_name).second)
+        project.imported_scopes.push_back(std::move(scope));
+    for (auto& dialect : module.dialects)
+      if (dialects.insert(dialect.source_name + "\n" + dialect.name).second)
+        project.dialects.push_back(std::move(dialect));
+    for (auto& rule : module.rules) {
+      instances.insert(rule.source_name + "\n" + rule.name);
+      project.rules.push_back(std::move(rule));
+    }
+    for (auto& rule : module.imported_rules)
+      if (imported.insert(rule.source_name + "\n" + rule.name).second)
+        project.imported_rules.push_back(std::move(rule));
+  }
+  std::erase_if(project.imported_rules, [&](const ast::Rule& rule) {
+    return instances.contains(rule.source_name + "\n" + rule.name);
+  });
+  result.rule_count = project.rules.size();
+  return result;
+}
+}  // namespace tepl

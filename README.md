@@ -14,12 +14,12 @@ is needed. Both ANTLR dependencies are pinned to 4.13.2 with SHA-256 checksums.
 bazel build //:tepl
 bazel test //...
 bazel run //:tepl -- --help
-bazel run //:tepl -- parse "$PWD/examples/lora.tepl"
-bazel run //:tepl -- parse "$PWD/examples/lora.tepl" --tree
-bazel run //:tepl -- parse "$PWD/examples/lora.tepl" --ast
+bazel run //:tepl -- parse "$PWD/examples/rules/lora.tepl"
+bazel run //:tepl -- parse "$PWD/examples/rules/lora.tepl" --tree
+bazel run //:tepl -- parse "$PWD/examples/rules/lora.tepl" --ast
 bazel run //:tepl -- parse "$PWD/examples/dialects/tensor.tepl" --ast
-bazel run //:tepl -- check "$PWD/examples/lora.tepl"
-bazel run //:tepl -- check "$PWD/examples/inherited.tepl"
+bazel run //:tepl -- check "$PWD/examples/rules/lora.tepl"
+bazel run //:tepl -- check "$PWD/examples/rules/inherited.tepl"
 ```
 
 Use an absolute input path with `bazel run`, which starts the executable from its
@@ -29,7 +29,7 @@ imports, preserving source annotations and unresolved operation names in the AST
 Use `check` for semantic validation through core. Successful parses return 0;
 syntax and import errors return 1 with `file:line:column` diagnostics; usage and
 input-file errors return 2. Lines and columns start at 1. CLI11 handles argument
-parsing and provides `-h`/`--help` for the program and both commands. `--tree` and
+parsing and provides `-h`/`--help` for the program and all commands. `--tree` and
 `--ast` may each appear before or after the input path, but cannot be used
 together. Help exits with 0.
 
@@ -58,11 +58,11 @@ wrapper does not pin or download it.
 ## Dialects and imports
 
 The [tensor dialect](examples/dialects/tensor.tepl) declares the operations in
-the experimental Rust IR. [lora.tepl](examples/lora.tepl) imports it and selects
+the experimental Rust IR. [lora.tepl](examples/rules/lora.tepl) imports it and selects
 the operations used by its rule:
 
 ```tepl
-from "dialects/tensor.tepl" import TensorLang as t;
+from "../dialects/tensor.tepl" import TensorLang as t;
 use t::{add, dot};
 ```
 
@@ -70,7 +70,7 @@ use t::{add, dot};
 Both forms also allow qualified calls such as `(t.dot[@d] X W)`. For a named
 import without a `use` statement, qualified calls still work, while bare names
 stay out of scope. `as t` is optional; without it, use the name `TensorLang`. The older
-`import "dialects/tensor.tepl";` syntax remains available and opens all
+`import "../dialects/tensor.tepl";` syntax remains available and opens all
 operations. Names imported from different dialects must be unambiguous.
 Paths are relative to the importing file; imports may be nested. The CLI
 rejects missing, invalid, or cyclic imports. `--ast` shows imported dialect
@@ -102,8 +102,8 @@ a dialect, `check` validates rule operation names, arity, and whether an attribu
 descriptor is required.
 
 The parser and AST carry this information, and `check` resolves declarations
-and checks descriptor schemas. Rust code generation remains future work. The
-tuple and binder examples remain syntax fixtures and include operators outside
+and checks descriptor schemas. Rust code generation supports checked
+dialects and rules. The tuple and binder examples remain syntax fixtures and include operators outside
 the Rust tensor IR.
 
 ## Current rule syntax
@@ -166,7 +166,7 @@ and the complete LoRA example from the design document.
 
 ## Abstract and inherited rules
 
-[abstract.tepl](examples/abstract.tepl) declares reusable graph patterns with
+[abstract.tepl](examples/rules/abstract.tepl) declares reusable graph patterns with
 operation (`op`) and host-function (`fn`) parameters:
 
 ```tepl
@@ -175,12 +175,12 @@ abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
 }
 ```
 
-[inherited.tepl](examples/inherited.tepl) imports templates and binds their
+[inherited.tepl](examples/rules/inherited.tepl) imports templates and binds their
 parameters by name:
 
 ```tepl
 from "abstract.tepl" import {commute};
-from "dialects/tensor.tepl" import TensorLang as t;
+from "../dialects/tensor.tepl" import TensorLang as t;
 rule commute_add extends commute(F = t.add);
 rule commute_small_vectors extends commute(F = t.add) {
     X: [N]
@@ -218,8 +218,8 @@ codes are 0 for success, 1 for syntax/import/semantic errors, and 2 for usage
 or input-file errors. Parsing with `parse --ast` still exposes the source AST.
 
 ```sh
-bazel run //:tepl -- check "$PWD/examples/lora.tepl"
-bazel run //:tepl -- check "$PWD/examples/inherited.tepl"
+bazel run //:tepl -- check "$PWD/examples/rules/lora.tepl"
+bazel run //:tepl -- check "$PWD/examples/rules/inherited.tepl"
 ```
 
 The API in `src/core/analyze.h` accepts an AST whose imports have already been
@@ -264,7 +264,7 @@ operation bindings resolve in the instance's scope. Private template imports
 and unselected rules do not become visible in the importing file. Expansion
 copies expression trees so instances cannot change their template or each other.
 
-Host functions have one inferred signature per name across the program; v1 has
+Host functions have one inferred signature per name within each source file; v1 has
 no overloads. Explicit `fn` parameter signatures support `tensor`, `bool`,
 `index`, `index_list`, `i64`, `f64`, and `attrs`. Successful host values are
 distinct from failure: host calls are fallible, and failure rejects a match.
@@ -341,6 +341,92 @@ Runtime shape checks, host numerical legality, descriptor contents, output
 metadata inference, and rewrite insertion remain runtime responsibilities.
 This stage does not generate executable code or prove tensor equivalence.
 
+## Generate Rust dialects and rules
+
+`generate` parses, loads imports, and checks the program before producing a
+standalone Rust crate. It generates new dialect enums from the declarations in
+that program; the output does not depend on the lab's fixed TensorLang.
+
+```sh
+bazel run //:tepl -- generate "$PWD/examples/rules/lora.tepl" \
+  --target rust --out "$PWD/generated/lora" --package-name lora_rules
+cargo check --manifest-path generated/lora/Cargo.toml
+cargo fmt --manifest-path generated/lora/Cargo.toml
+```
+
+Generate the entire example project, including both dialects and every rule file:
+
+```sh
+bazel-bin/tepl generate examples --target rust --out generated/examples
+cargo check --manifest-path generated/examples/Cargo.toml
+```
+
+The compiler scans `dialects/**/*.tepl` and `rules/**/*.tepl`, preserves each
+file's import scope, and deduplicates shared dialect imports. Output is:
+
+```text
+src/ir/
+  dialects/{mod.rs, tensor_lang.rs, scalar.rs}
+  op_node.rs
+  types.rs
+  pattern/{mod.rs, pattern.rs, matcher.rs, rewrite.rs, context.rs, shape.rs}
+  rules/{mod.rs, simple.rs, scalar.rs, lowering.rs, ...}
+```
+
+`tensor_lang::Op::Add` and `scalar::Op::Add` remain distinct in a shared
+`EGraph<OpNode, N>`. Construct nodes with
+`OpNode::new(scalar::Op::Add, scalar::OpAttrs::None, vec![x, y])`.
+The typed constructor ensures the operation and attributes belong to the same
+dialect; arity and operation-specific schemas are checked at runtime.
+Rule files retain their own modules and runtime names, so both `simple.tepl`
+and `scalar.tepl` can define `commute_add`.
+
+ Each concrete rule exposes `pattern()`,
+`expression()`, a host `Functions` trait, and
+`build_rewrite(metadata, inference, functions)`. Hosts supply tensor metadata,
+operation output inference, and implementations of rule legality/derivation
+functions. Rules without host calls accept `()` for `functions`. The generated
+rewrite checks the whole replacement before inserting nodes. Example invocation
+for the generated LoRA rule:
+
+```rust
+use lora_rules::ir::rules::lora::rule_lora;
+
+// Implement rule_lora::Functions in application code, then provide metadata
+// and output inference implementations from lora_rules::ir::pattern.
+let rewrite = rule_lora::build_rewrite(metadata, inference, functions)?;
+```
+
+An omitted graph-literal dtype means any dtype. LHS literals match exact spelling
+at any dtype; explicitly annotated literals also require the given dtype. RHS
+literals retain the unconstrained request until host inference resolves it.
+`OutputInference::infer_literal` defaults to the matched output's dtype and can
+be overridden by the host. Explicit annotations always apply. Unresolvable or
+invalid literals reject the match before insertion. Shape dimensions and index
+attributes use Rust `u64`; tensor shapes are `Vec<u64>`.
+
+Generation uses the public checked core IR through a shared `Generator`
+interface. Rust is implemented; C++ and Python targets use the same interface
+and currently report that generation is not implemented. See
+[src/codegen/README.md](src/codegen/README.md) for the architecture, generated API,
+naming, and host type mapping, and [runtime/rust/README.md](runtime/rust/README.md)
+for the runtime contract. The CLI overwrites generated files in the selected
+directory; keep handwritten host implementations outside those files. Semantic
+and generation errors return 1; usage and output-file errors return 2.
+
+Run the API/CLI tests and compile and execute generated Rust fixtures with:
+
+```sh
+bazel test //...
+./tools/test_codegen.sh
+# Or explicitly run the Cargo integration target:
+bazel test //tests:rust_codegen_test --test_output=errors
+```
+
+The integration script requires Cargo and Rust with edition 2024 support. It
+compiles all supported examples, runs custom-dialect and LoRA behavior tests,
+and verifies custom rules in both debug and release builds.
+
 ## Scope and next steps
 
 The parser also builds an owning AST with source spans for valid input.
@@ -360,7 +446,8 @@ visitor with separate rule and dialect source files. Parsing lives in
 `src/core/`. Bazel exposes parsing through `//:frontend` and import loading
 through `//:imports`.
 
-Code generation from the checked `core::Program` remains future work.
+Rust code generation from checked `core::Program` is implemented in
+`src/codegen/`; additional language backends are future work.
 See [the egg lab](labs/rust-egg/README.md) for the runtime, reference Rust output,
 and integration tests.
 
@@ -380,5 +467,5 @@ Supported tensor dtypes are `bool`, `i8/i16/i32/i64`, `u8/u16/u32/u64`, and
 Unknown dtype names, invalid integer literal ranges, duplicate local tensor
 declarations, and declarations for missing LHS captures produce diagnostics
 through `check`.
-See [basic examples](examples/basic.tepl) and the paired Rust behavior tests in
+See [basic examples](examples/rules/basic.tepl) and the paired Rust behavior tests in
 [labs/rust-egg/tests/dtypes.rs](labs/rust-egg/tests/dtypes.rs).
