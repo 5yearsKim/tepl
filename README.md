@@ -293,20 +293,45 @@ the dump formatter. The implementation has these responsibilities:
 | File | Responsibility |
 | --- | --- |
 | `analyze.cc` | Coordinate resolution, expansion, checking, and type finalization |
-| `analysis_context.cc` | Shared analysis state, symbol lookup, and diagnostics |
-| `resolve.cc` | Register declarations and build each file's import/use scope |
-| `expand.cc` | Select templates, validate bindings, and clone expressions with source origins |
-| `check.cc` | Check graph patterns, captures, constraints, and derivation order |
-| `check_expr.cc` | Lower conditions and derivations into typed expressions |
+| `analysis_context.{h,cc}` | Program-wide output, diagnostics, host signatures, type inference, and operation lookup |
+| `dialect/check.cc` | Validate operation declarations and register dialect symbols |
+| `dialect/attributes.cc` | Validate attribute fields and register shared/inline schemas |
+| `dialect/symbols.h` | Declared dialects, operation names, and aliases |
+| `resolution/resolve.cc` | Coordinate dialect/rule registration and file-scope construction |
+| `resolution/file_scope.{h,cc}` | Build visibility from imports and `use`; diagnose ambiguous names |
+| `resolution/source.{h,cc}` | Normalize source identities, resolve relative paths, and construct origins |
+| `rule/resolve.cc` | Register rule names and validate parameter declarations |
+| `rule/expand.cc` | Select templates, validate bindings, and clone expressions with source origins |
+| `rule/expanded_rule.h` | Own expanded expression trees and their source metadata |
+| `rule/check.cc` | Coordinate checking of one expanded rule |
+| `rule/check_context.h` | Hold mutable state for one rule check |
+| `rule/scope.h` | Resolve rule-local captures, dimensions, and descriptors |
+| `rule/declarations.cc` | Check tensor declarations, dimensions, and dtype/rank restrictions |
+| `rule/graph.cc` | Collect captures and lower LHS patterns and RHS construction |
+| `rule/descriptors.cc` | Register descriptors, constrain schemas, and check derivations in source order |
+| `rule/expression.cc` | Lower conditions and derivations into typed expressions |
 | `type_inference.cc` | Solve type equations, default literals, and validate type requirements |
 | `literal.cc` | Shared graph/host literal range validation |
 | `print.cc` | Format the checked program |
 
-Inference and rule-scope headers are private to the analysis target. Expression
-checking reads the rule's scope; graph checking introduces symbols and advances
-descriptor availability. Failed expressions and rules are excluded from the
-result, and unresolved types cannot be materialized into the public IR. Analysis
-reports unloaded imports instead of creating empty scopes for them.
+The `dialect/` directory owns declaration validity, `resolution/` owns file
+visibility, and `rule/` owns template expansion and concrete rule semantics.
+Declaration registries are built before file scopes; rule expansion reads those
+scopes without changing their visibility. Operation declarations are checked in
+`dialect/check.cc`, while operation uses and call arity are checked in
+`rule/graph.cc`.
+
+Inference and the domain headers are private to the analysis target. The shared
+analysis context holds program-wide state; expanded trees and mutable rule state
+have their own headers under `rule/`. Expression checking reads the rule and its
+scope. Graph checking introduces captures, declaration checking introduces
+dimensions, and descriptor checking owns descriptor registration and
+availability. RHS uses establish descriptor schemas before conditions and
+derivations are checked. Captured descriptors are available immediately; derived
+descriptors become available after each assignment. Failed expressions and rules
+are excluded from the result, and unresolved types cannot be materialized into
+the public IR. Analysis reports unloaded imports instead of creating empty
+scopes for them.
 
 Common source locations live in `src/source.h`; AST and core share language
 operator identities and spellings from `src/operators.h`. Bazel exposes

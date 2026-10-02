@@ -8,8 +8,8 @@
 
 namespace tepl::core::detail {
 
-// The rule checker introduces symbols. Expression checking only reads this
-// scope; descriptor availability advances after each derivation.
+// Graph and declaration checking introduce symbols. Expression checking only
+// reads this scope; descriptor availability advances after each derivation.
 struct RuleScope {
   std::map<std::string, CaptureId> captures;
   std::map<std::string, DimensionId> dimensions;

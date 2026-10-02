@@ -1,9 +1,12 @@
+#include "src/core/rule/expand.h"
+
 #include <algorithm>
 #include <map>
 #include <set>
 #include <utility>
 
 #include "src/core/analysis_context.h"
+#include "src/core/resolution/source.h"
 
 namespace tepl::core::detail {
 namespace {

@@ -3,6 +3,9 @@
 #include <utility>
 
 #include "src/core/analysis_context.h"
+#include "src/core/resolution/resolve.h"
+#include "src/core/rule/check.h"
+#include "src/core/rule/expand.h"
 
 namespace tepl::core {
 

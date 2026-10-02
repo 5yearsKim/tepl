@@ -1,22 +1,10 @@
 #include "src/core/analysis_context.h"
 
-#include <filesystem>
 #include <utility>
 
+#include "src/core/resolution/source.h"
+
 namespace tepl::core::detail {
-
-std::string sourceKey(const std::string& name) {
-  return std::filesystem::absolute(name).lexically_normal().string();
-}
-
-std::string importTarget(const std::string& source, const std::string& path) {
-  return sourceKey(
-      (std::filesystem::path(source).parent_path() / path).string());
-}
-
-SourceOrigin origin(const std::string& source, ast::SourceSpan span) {
-  return {{source, span}, {}};
-}
 
 void AnalysisContext::report(SourceOrigin at, std::string message,
                              std::vector<SourceLocation> related) {

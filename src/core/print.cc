@@ -25,8 +25,8 @@ class Printer {
       out_ << '\n';
     }
     for (const auto& schema : program_.attribute_schemas) {
-      out_ << "  schema #" << schema.id.value << ' ' << schema.dialect << '.'
-           << schema.name << " {";
+      out_ << "  attr_schema #" << schema.id.value << ' ' << schema.dialect
+           << '.' << schema.name << " {";
       for (const auto& field : schema.fields) {
         out_ << ' ' << field.name << ": "
              << (field.kind == AttributeField::Kind::kIndex ? "index"
@@ -38,7 +38,7 @@ class Printer {
       out_ << " }\n";
     }
     for (const auto& fn : program_.host_functions) {
-      out_ << "  host #" << fn.id.value << ' ' << fn.name << '(';
+      out_ << "  host_fn #" << fn.id.value << ' ' << fn.name << '(';
       for (std::size_t i = 0; i < fn.signature.arguments.size(); ++i) {
         if (i) out_ << ", ";
         out_ << type(fn.signature.arguments[i]);

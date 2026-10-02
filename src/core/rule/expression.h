@@ -4,7 +4,8 @@
 #include <utility>
 
 #include "src/core/analysis_context.h"
-#include "src/core/rule_scope.h"
+#include "src/core/rule/expanded_rule.h"
+#include "src/core/rule/scope.h"
 
 namespace tepl::core::detail {
 
