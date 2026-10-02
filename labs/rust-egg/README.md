@@ -24,6 +24,22 @@ These rule modules are manually
 maintained reference output for future generation. Their fixtures and behavior
 checks live in `tests/lora.rs`, `tests/simple.rs`, and `tests/binders.rs`.
 
+`src/ir/rules/inherited.rs` is the reference output for compile-time expansion
+of `examples/inherited.tepl` using the templates in `examples/abstract.tepl`.
+Its seven concrete rules contain specialized operations and host function names;
+the vector instances retain both inherited checks and additional constraints.
+They are available under `ir::rules::inherited` to avoid colliding with the
+`commute_add` rule from `simple.tepl`:
+
+```rust
+use rust_egg::ir::rules::inherited::rule_commute_mul;
+
+let rewrite = rule_commute_mul::build_rewrite::<()>().unwrap();
+```
+
+Behavior checks live in `tests/inherited.rs`. These files describe the expected
+expanded output; compiler support for the new syntax is future work.
+
 The operation signatures and attribute schemas are now declared in
 [`examples/dialects/tensor.tepl`](../../examples/dialects/tensor.tepl), which
 the TEPL LoRA example imports. The Rust IR is still maintained manually.
