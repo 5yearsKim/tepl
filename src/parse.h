@@ -30,9 +30,10 @@ struct ParseResult {
 ParseResult parse(std::string_view source,
                   std::string_view source_name = "<input>");
 
-// Load dialect declarations from imports relative to program.source_name.
-// Appends imported dialects to the AST and reports missing, invalid, or cyclic
-// imports at the corresponding import statement.
+// Load dialects and selected abstract rules relative to program.source_name.
+// Appends definitions to dialects/imported_rules, without expanding
+// inheritance. Reports missing, invalid, or cyclic imports at the import
+// statement.
 std::vector<Diagnostic> resolveImports(ast::Program& program);
 
 // Check rule operation names, arities, and descriptor use against the loaded

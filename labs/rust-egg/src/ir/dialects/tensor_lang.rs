@@ -56,6 +56,7 @@ pub enum OpKind {
     VocabCrossEntropy,
     OnlineAttention,
     Constant,
+    Literal,
     Symbol,
 }
 
@@ -94,6 +95,7 @@ impl OpKind {
             "vocab_cross_entropy" => Self::VocabCrossEntropy,
             "online_attention" => Self::OnlineAttention,
             "constant" => Self::Constant,
+            "literal" => Self::Literal,
             "symbol" => Self::Symbol,
             _ => return None,
         })
@@ -133,6 +135,7 @@ impl OpKind {
             Self::VocabCrossEntropy => "vocab_cross_entropy",
             Self::OnlineAttention => "online_attention",
             Self::Constant => "constant",
+            Self::Literal => "literal",
             Self::Symbol => "symbol",
         }
     }
@@ -182,7 +185,7 @@ impl OpKind {
             | Self::Alias
             | Self::Rmsnorm => Arity::Exact(1),
             Self::Concatenate => Arity::AtLeast(2),
-            Self::Constant | Self::Symbol => Arity::Exact(0),
+            Self::Constant | Self::Literal | Self::Symbol => Arity::Exact(0),
         }
     }
 
@@ -200,6 +203,9 @@ impl OpKind {
             Self::DotGeneral => matches!(attrs, OpAttrs::DotGeneral { .. }),
             Self::Symbol => matches!(attrs, OpAttrs::Symbol { .. }),
             Self::Constant => matches!(attrs, OpAttrs::Constant { .. }),
+            Self::Literal => {
+                matches!(attrs, OpAttrs::Literal { value } if valid_literal(value))
+            }
             _ => matches!(attrs, OpAttrs::None),
         }
     }
@@ -243,9 +249,24 @@ pub enum OpAttrs {
     Constant {
         name: String,
     },
+    Literal {
+        value: String,
+    },
     Symbol {
         name: String,
     },
+}
+
+// Same syntax as TEPL graph numbers: an optional sign, digits, and an optional
+// decimal fraction. Do not parse through f64: identity must not depend on
+// rounding, machine integer range, or an assumed tensor element type.
+fn valid_literal(value: &str) -> bool {
+    let unsigned = value.strip_prefix(['+', '-']).unwrap_or(value);
+    let digits = |part: &str| !part.is_empty() && part.bytes().all(|c| c.is_ascii_digit());
+    match unsigned.split_once('.') {
+        Some((integer, fraction)) => digits(integer) && digits(fraction),
+        None => digits(unsigned),
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -351,6 +372,18 @@ impl TensorLang {
         .expect("a constant node has valid arity and attributes")
     }
 
+    /// A rank-zero numeric literal. Spelling is preserved, so `1` and `1.0`
+    /// remain distinct. Element type and broadcasting are host semantics.
+    pub fn literal(value: impl Into<String>) -> Result<Self, NodeError> {
+        Self::new(
+            OpKind::Literal,
+            vec![],
+            OpAttrs::Literal {
+                value: value.into(),
+            },
+        )
+    }
+
     pub fn op(&self) -> OpKind {
         self.op
     }
@@ -381,6 +414,7 @@ impl fmt::Display for TensorLang {
             OpAttrs::Symbol { name } | OpAttrs::Constant { name } => {
                 write!(formatter, "{name}")
             }
+            OpAttrs::Literal { value } => write!(formatter, "{value}"),
             OpAttrs::DotGeneral {
                 lhs_contracting,
                 rhs_contracting,

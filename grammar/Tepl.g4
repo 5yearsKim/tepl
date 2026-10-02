@@ -1,7 +1,12 @@
 grammar Tepl;
 
+// -----------------------------------------------------------------------------
+// File structure: imports, operation visibility, and top-level declarations
+// -----------------------------------------------------------------------------
+
 // Whitespace, including newlines, is insignificant. A file contains imports,
-// dialects, and/or single-root rules. Bindings and typing are validated later.
+// dialects, and/or rules (concrete, abstract, or inherited).
+// Bindings, inheritance expansion, and typing are validated later.
 program
     : (importDecl | useDecl | dialectDecl | ruleDecl)+ EOF
     ;
@@ -9,11 +14,33 @@ program
 importDecl
     : IMPORT STRING ';'
     | FROM STRING IMPORT ID (AS ID)? ';'
+    | FROM STRING IMPORT '{' ruleImportNames '}' ';'
+    ;
+
+ruleImportNames
+    : ID (',' ID)*
     ;
 
 useDecl
     : USE ID ('::' '{' opName (',' opName)* '}')? ';'
     ;
+
+// -----------------------------------------------------------------------------
+// Shared operation names: used by imports, dialects, and rewrite rules
+// -----------------------------------------------------------------------------
+
+opName
+    : ID
+    | ALIAS
+    ;
+
+opRef
+    : opName ('.' opName)?
+    ;
+
+// -----------------------------------------------------------------------------
+// Dialect declarations: operations, operand signatures, and attribute schemas
+// -----------------------------------------------------------------------------
 
 dialectDecl
     : DIALECT ID '{' (attrsDecl | opDecl)* '}'
@@ -25,15 +52,6 @@ attrsDecl
 
 opDecl
     : OP opName '(' operandDecls? ')' '->' ID (';' | '{' opProperties? '}')
-    ;
-
-opName
-    : ID
-    | ALIAS
-    ;
-
-opRef
-    : opName ('.' opName)?
     ;
 
 operandDecls
@@ -75,9 +93,57 @@ attrDefault
     : '=' '[' ']'
     ;
 
+// -----------------------------------------------------------------------------
+// Rewrite rules: concrete and abstract definitions, parameters, and inheritance
+// -----------------------------------------------------------------------------
+
 ruleDecl
-    : RULE ID '{' shapeDecl* graphExpr ARROW graphExpr whereBlock? deriveBlock? '}'
+    : RULE ID rewriteBody
+    | ABSTRACT RULE ID '(' ruleParameters? ')' rewriteBody
+    | RULE ID inheritanceClause (';' | inheritedBody)
     ;
+
+rewriteBody
+    : '{' shapeDecl* graphExpr ARROW graphExpr whereBlock? deriveBlock? '}'
+    ;
+
+inheritanceClause
+    : EXTENDS ID '(' ruleBindings? ')'
+    ;
+
+ruleParameters
+    : ruleParameter (',' ruleParameter)*
+    ;
+
+ruleParameter
+    : ID ':' (OP | FN) '<' '(' signatureTypes? ')' '->' signatureType '>'
+    ;
+
+signatureTypes
+    : signatureType (',' signatureType)*
+    ;
+
+signatureType
+    : ID
+    | SCALAR
+    ;
+
+ruleBindings
+    : ruleBinding (',' ruleBinding)*
+    ;
+
+ruleBinding
+    : ID '=' opRef
+    ;
+
+// Instances add restrictions to the inherited pattern.
+inheritedBody
+    : '{' shapeDecl* whereBlock? '}'
+    ;
+
+// -----------------------------------------------------------------------------
+// Rule declarations: tensor shapes and scalars
+// -----------------------------------------------------------------------------
 
 shapeDecl
     : ID ':' '[' shapeElements? ']'           # TensorDecl
@@ -99,9 +165,14 @@ sequenceDim
     : ID? ELLIPSIS
     ;
 
+// -----------------------------------------------------------------------------
+// Rule graph expressions: variables, literals, bindings, and operator applications
+// -----------------------------------------------------------------------------
+
 graphExpr
     : binding                                # BareBindingGraph
     | ID                                     # VariableGraph
+    | ('+' | '-')? (INT | FLOAT)              # NumberGraph
     | '(' binding ')'                        # ParenthesizedBindingGraph
     | '(' GET '[' INT ']' graphExpr ')'       # GetGraph
     | '(' opRef attribute? graphExpr* ')'     # OperatorGraph
@@ -119,6 +190,10 @@ attrRef
     : '@' ID
     ;
 
+// -----------------------------------------------------------------------------
+// Rule semantics: legality conditions and derived metadata
+// -----------------------------------------------------------------------------
+
 whereBlock
     : WHERE '{' (constraintExpr ';')* '}'
     ;
@@ -126,6 +201,10 @@ whereBlock
 deriveBlock
     : DERIVE '{' (attrRef '=' constraintExpr ';')* '}'
     ;
+
+// -----------------------------------------------------------------------------
+// Constraint expressions: shared by where and derive
+// -----------------------------------------------------------------------------
 
 // Host calls and constraints use conventional infix syntax. Each level has its
 // own rule so precedence remains explicit and independent of graph expressions.
@@ -167,6 +246,7 @@ primary
     | ID                                     # NamePrimary
     | attrRef                                # AttributePrimary
     | INT                                    # IntegerPrimary
+    | FLOAT                                  # FloatPrimary
     | TRUE                                   # TruePrimary
     | FALSE                                  # FalsePrimary
     | '(' constraintExpr ')'                 # GroupPrimary
@@ -176,7 +256,14 @@ arguments
     : constraintExpr (',' constraintExpr)*
     ;
 
+// -----------------------------------------------------------------------------
+// Lexer: keywords, punctuation, identifiers, and literals
+// -----------------------------------------------------------------------------
+
 RULE: 'rule';
+ABSTRACT: 'abstract';
+EXTENDS: 'extends';
+FN: 'fn';
 LET: 'let';
 IMPORT: 'import';
 FROM: 'from';
@@ -196,8 +283,16 @@ ARROW: '=>';
 ELLIPSIS: '...';
 WILDCARD: '_';
 ID: [a-zA-Z_] [a-zA-Z_0-9]*;
+FLOAT: [0-9]+ '.' [0-9]+;
 INT: [0-9]+;
+// Keep unsupported numeric suffixes (including exponents) from becoming a
+// number followed by an extra graph variable.
+INVALID_NUMBER: [0-9]+ ('.' [0-9]*)? [a-zA-Z_] [a-zA-Z_0-9]*;
 STRING: '"' (~["\\\r\n] | '\\' ["\\])* '"';
+
+// -----------------------------------------------------------------------------
+// Lexer: comments and whitespace
+// -----------------------------------------------------------------------------
 
 LINE_COMMENT: '//' ~[\r\n]* -> skip;
 BLOCK_COMMENT: '/*' .*? '*/' -> skip;

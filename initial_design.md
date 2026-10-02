@@ -1,503 +1,174 @@
-Here’s the summarized architecture I’d use for your Tensor DSL.
+# TEPL design
 
-## 1. Core goal
+TEPL describes declarative tensor graph rewrites for an e-graph. Graph syntax
+captures structure; shapes constrain matches; operator descriptors carry
+attributes; host functions establish legality and infer metadata. Tensor and
+numerical semantics belong in the host implementation.
 
-The DSL is for **declarative tensor graph rewrites** over an e-graph.
+## Rules and graph expressions
 
-The design principle is:
+A concrete rule contains optional declarations, one `LHS => RHS` rewrite,
+then optional `where` and `derive` blocks, in that order. Declarations have no
+semicolon; statements inside those blocks require one. For example,
+[examples/lora.tepl](examples/lora.tepl):
 
-```text
-S-expression  -> graph structure
-shape section -> lightweight tensor constraints
-binder        -> shared/intermediate expressions
-tuple/get     -> multi-output values
-@attr         -> compact operator-semantic capture
-where         -> legality
-derive        -> RHS metadata synthesis
-host code     -> complicated tensor semantics
-e-graph       -> equivalence + search
-```
+```tepl
+from "dialects/tensor.tepl" import TensorLang as t;
+use t::{add, dot};
 
-The DSL should stay small. StableHLO-specific complexity belongs in C++/Rust.
-
----
-
-## 2. Core expression syntax
-
-All computation is structural and S-expression based:
-
-```lisp
-(op[@attr] arg1 arg2 ...)
-```
-
-Examples:
-
-```lisp
-(add X Y)
-
-(dot[@d] X W)
-
-(reduce[@r] X)
-
-(transpose[@t] X)
-```
-
-The S-expression should emphasize **topology**, not detailed operator attributes.
-
-So prefer:
-
-```lisp
-(dot[@d] X W)
-```
-
-over verbose inline attribute descriptions.
-
----
-
-## 3. Variable classes
-
-Use distinct concepts:
-
-```text
-X, W, A, B      tensor expression variables
-?XA             named expression binder
-@d              captured operator descriptor / attribute
-M, K, N         symbolic dimensions
-Batch...        named dimension sequence
-...             anonymous dimension sequence
-_               exactly one anonymous dimension
-Xs...           variadic expression sequence, if needed
-```
-
----
-
-## 4. Tensor shape notation
-
-Shape declarations are optional **pattern constraints**, not a complete type system.
-
-Examples:
-
-```javascript
-X: [Batch..., M, K]
-W: [K, N]
-B: [N]
-```
-
-Repeated names unify:
-
-```text
-K in X == K in W
-N in W == N in B
-```
-
-Supported notation:
-
-```text
-M            one symbolic dimension
-_            one arbitrary dimension
-...          zero or more anonymous dimensions
-Batch...     zero or more named dimensions
-```
-
-Allow the variadic part anywhere:
-
-```javascript
-X: [..., M, K]
-X: [M, Batch..., K]
-X: [M, K, Tail...]
-```
-
-Initially, allow at most one variadic segment per tensor pattern to avoid ambiguous matching.
-
-Shape arithmetic stays in `where`:
-
-```javascript
-where {
-    K % 128 == 0;
-}
-```
-
-not inside shape syntax.
-
----
-
-## 5. Generic tensor semantics underneath
-
-The shape notation is only sugar over a generic semantic representation:
-
-```cpp
-struct TensorDesc {
-    Shape shape;
-    ElementType dtype;
-    DimensionLineage dims;
-};
-```
-
-For simple matmul-like cases:
-
-```javascript
-X: [..., M, K]
-W: [K, N]
-```
-
-is useful.
-
-For fully generic `dot_general`, use generic tensors:
-
-```javascript
-A: [...]
-B: [...]
-C: [...]
-```
-
-and let captured attributes plus host logic handle batching, contracting, and free dimensions.
-
----
-
-## 6. Expression binders
-
-Use:
-
-```javascript
-?XA = (dot[@xa] X A)
-```
-
-This binds the matched or constructed expression result to `?XA`.
-
-Binders can be used on either side.
-
-Example:
-
-```javascript
-(add
-  (?Y = (dot X W))
-  (mul ?Y Z))
-```
-
-Repeated references mean the same e-class.
-
-So binder semantics are about **expression identity in the e-graph**, not textual duplication.
-
----
-
-## 7. Tuple support
-
-Support tuples minimally:
-
-```lisp
-(tuple A B C)
-
-(get[0] T)
-(get[1] T)
-```
-
-This handles multi-output operations while preserving the invariant that every e-node still produces one value.
-
-For example:
-
-```lisp
-(get[0] (topk X))
-(get[1] (topk X))
-```
-
-No stateful programming model is needed.
-
----
-
-## 8. `where` = legality only
-
-`where` answers:
-
-> Is this rewrite valid for this match?
-
-Examples:
-
-```javascript
-where {
-    broadcastable(Batch, WeightBatch);
-    reassociable(A, B, C, @inner, @outer);
-    rank(X) >= 2;
-    K % 128 == 0;
-}
-```
-
-It should be:
-
-- pure
-- side-effect free
-- boolean-valued
-
-Simple conditions can be built in:
-
-```javascript
-K == R
-rank(X) == 3
-```
-
-Complex logic goes to host code.
-
----
-
-## 9. `derive` = RHS metadata synthesis
-
-`derive` constructs metadata required by newly created RHS operators.
-
-Example:
-
-```javascript
-derive {
-    @xw  = infer_dot(X, W, @outer);
-    @xa  = infer_dot(X, A, @outer);
-    @out = infer_dot(?XA, B, @inner);
-}
-```
-
-Conceptually:
-
-```text
-where  -> bool
-derive -> typed values
-```
-
-Typical derived values:
-
-```text
-DotAttr
-ReduceAttr
-TransposeAttr
-TensorType
-Shape
-Dimension mapping
-```
-
----
-
-## 10. Operator attributes
-
-Keep S-expressions compact:
-
-```lisp
-(dot[@d] X W)
-```
-
-`@d` is the authoritative operator descriptor.
-
-For example:
-
-```cpp
-struct DotAttr {
-    std::vector<int> lhs_batch;
-    std::vector<int> rhs_batch;
-    std::vector<int> lhs_contract;
-    std::vector<int> rhs_contract;
-    PrecisionConfig precision;
-};
-```
-
-Detailed conditions belong in host predicates:
-
-```javascript
-where {
-    reassociable(A, B, C, @inner, @outer);
-}
-```
-
-not in the S-expression.
-
----
-
-## 11. Region-bearing operators
-
-Do not expose arbitrary lambdas or nested regions initially.
-
-Represent common StableHLO region semantics using semantic descriptors.
-
-For example:
-
-```lisp
-(reduce[@r] X)
-```
-
-with:
-
-```cpp
-struct ReduceAttr {
-    Dimensions dims;
-    ReductionKind kind;   // add, max, min, mul, ...
-};
-```
-
-Then:
-
-```javascript
-where {
-    additive(@r);
-}
-```
-
-This keeps TensorLang focused on tensor graphs instead of becoming a general region language.
-
----
-
-## 12. Host function registry
-
-Complex semantics live outside the DSL:
-
-```cpp
-registry.predicate("reassociable", reassociable);
-registry.predicate("broadcastable", broadcastable);
-
-registry.function("infer_dot", inferDot);
-registry.function("infer_reduce", inferReduce);
-```
-
-Execution model:
-
-```text
-DSL call
-  ↓
-registry lookup
-  ↓
-C++ / Rust implementation
-```
-
-This is where StableHLO-specific reasoning belongs.
-
----
-
-## 13. Multi-pattern support
-
-Allow multiple roots when needed:
-
-```javascript
-rule fuse_projection {
-    match {
-        ?Y1 = (dot[@d1] X W1)
-        ?Y2 = (dot[@d2] X W2)
-    }
-
-    where {
-        compatible(@d1, @d2);
-    }
-
-    rewrite {
-        ...
-    }
-}
-```
-
-All patterns share one substitution environment.
-
-Initially, require patterns to be connected through shared variables.
-
----
-
-## 14. Variadic operands
-
-For n-ary operators, optionally support expression sequences:
-
-```javascript
-(concat Xs...)
-```
-
-or:
-
-```javascript
-(concat A Xs... B)
-```
-
-This is useful for:
-
-```text
-concat
-tuple
-generic n-ary operators
-```
-
-but it can remain optional for the first implementation.
-
----
-
-## 15. Example: LoRA
-
-```javascript
 rule lora {
     X: [Batch..., M, K]
     W: [WeightBatch..., K, N]
     A: [WeightBatch..., K, R]
     B: [WeightBatch..., R, N]
 
-    (dot[@outer] X
-      (add W
-        (dot[@inner] A B)))
+    (dot[@outer] X (add W (dot[@inner] A B)))
     =>
-    (add
-      (dot[@xw] X W)
-      (dot[@out]
-        (?XA = (dot[@xa] X A))
-        B))
+    (add (dot[@xw] X W)
+         (dot[@out] (let XA = (dot[@xa] X A)) B))
 
     where {
         broadcastable(Batch, WeightBatch);
         reassociable(X, A, B, @outer, @inner);
     }
-
     derive {
-        @xw  = infer_dot(X, W, @outer);
-        @xa  = infer_dot(X, A, @outer);
-        @out = infer_dot(?XA, B, @inner);
+        @xw = infer_dot(X, W, @outer);
+        @xa = infer_dot(X, A, @outer);
+        @out = infer_dot(XA, B, @inner);
     }
 }
 ```
 
----
+Graph expressions are names, numeric literals, S-expression applications, or
+`let` bindings.
+`(let Y = (dot[@d] X W))` names an intermediate; a root binding can omit
+parentheses. In the e-graph runtime, repeated tensor names refer to the same
+e-class. LHS bindings capture matched values; RHS bindings name constructed
+intermediates. See [examples/binders.tepl](examples/binders.tepl).
 
-## 16. Internal compilation pipeline
+Numeric operands and roots accept integers (`1`) and decimals (`1.0`), with
+an optional sign (`-0.5`). Decimals require digits on both sides of the point;
+exponents and suffixes are unsupported. Graph literals denote rank-zero values;
+element types and broadcasting are host semantics. Structural matching preserves
+kind and spelling, so `1`, `1.0`, and `1.00` are distinct. See
+[examples/literals.tepl](examples/literals.tepl).
 
-```text
-DSL source
-   ↓
-Parser / AST
-   ↓
-Structural matcher
-   ↓
-Shape unification
-   ↓
-TensorDesc resolution
-   ↓
-where evaluation
-   ↓
-derive evaluation
-   ↓
-RHS type / semantic validation
-   ↓
-RHS construction
-   ↓
-E-graph insertion
-   ↓
-Extraction
+Tuple syntax is `(tuple X Y)` and `(get[0] T)`; projection has one operand and
+a nonnegative integer index. These forms are parsed but have no Rust tensor
+runtime implementation yet.
+
+## Shapes and host semantics
+
+Declarations are optional match constraints, rather than a complete type system:
+
+| Syntax | Meaning |
+| --- | --- |
+| `X: [M, K]` | Tensor with named dimensions; repeated names must agree |
+| `X: []` | Rank-zero tensor |
+| `_` | One arbitrary dimension |
+| `...` / `Batch...` | Anonymous / named sequence of zero or more dimensions |
+| `S: scalar` | Scalar declaration; concrete host type remains unresolved |
+| `@d` | Captured or derived operator descriptor |
+
+A shape has at most one sequence, anywhere in its dimension list. Arithmetic
+such as `K % 128 == 0` belongs in `where`.
+
+`where` contains boolean legality checks, intended to be pure. `derive` assigns
+metadata to RHS descriptors. Both support host calls, names, descriptor
+references, integers, decimals, booleans, and conventional arithmetic,
+comparison, and
+logical expressions. Host checks must establish shape and numerical validity,
+including any permission to reassociate floating-point operations.
+
+The Rust host interface uses `TensorInfo { shape }` for tensor metadata and
+`InferredTensor { attrs, output }` for derived attributes and output metadata.
+Predicates return `Option<bool>`; metadata inference returns
+`Option<InferredTensor>`. `None` rejects a match. An intermediate such as `XA`
+can supply its inferred shape to a later derivation before graph insertion.
+Metadata supplied for an e-class must hold for all its alternatives.
+
+## Dialects and imports
+
+Dialects declare named operands, result types, aliases, and inline or shared
+attribute schemas. The current validator supports tensor operands/results and
+`index`, `string`, and their list forms as attribute types. A final variadic
+operand permits additional inputs. For example:
+
+```tepl
+dialect TensorLang {
+    attrs CollectiveReduce { kind: string; }
+    op add(lhs: tensor, rhs: tensor) -> tensor;
+    op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul; }
+    op all_reduce(input: tensor) -> tensor { attrs: CollectiveReduce; }
+    op concatenate(first: tensor, second: tensor, rest: tensor...) -> tensor {
+        attrs { axis: index; }
+    }
+}
 ```
 
-That ordering is important: invalid RHS operators should be rejected before insertion.
+[examples/dialects/tensor.tepl](examples/dialects/tensor.tepl) defines the
+reference tensor dialect, including `dot` as an alias of `dot_general`.
+`from "path" import TensorLang as t;` allows qualified calls such as
+`(t.add X Y)`. `use t::{add, dot};` opens selected operations; `use t;` opens
+all. The legacy `import "path";` opens all imported dialect operations.
+Imports resolve relative to the importing file and may be nested; missing,
+invalid, cyclic, or ambiguous imports produce diagnostics.
 
----
+## Reusable rules
 
-## 17. Scope boundary
+Abstract rules parameterize operations (`op`) and host functions (`fn`) with
+signatures. Concrete instances bind parameters by name:
 
-I would explicitly define TensorLang as:
-
-> A declarative rewrite DSL for single-graph tensor expressions, with optional tuples, symbolic shape constraints, semantic operator descriptors, and host-defined legality and metadata inference.
-
-Initially out of scope:
-
-```text
-arbitrary control flow
-arbitrary nested regions/lambdas
-stateful algorithm descriptions
-full symbolic shape arithmetic
-general programming-language semantics
+```tepl
+abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
+    (F X Y) => (F Y X)
+}
+rule commute_add extends commute(F = t.add);
+rule commute_small_vectors extends commute(F = t.add) {
+    X: [N]
+    Y: [N]
+    where { N <= 1024; }
+}
 ```
 
-That boundary keeps the DSL compact while still being strong enough for LoRA, dot/reduce interchange, normalization-linear rewrites, projection rewrites, and many StableHLO-level graph transformations.
+Templates can be selected with `from "abstract.tepl" import {commute};`.
+Instances may add declarations and `where` restrictions. Their intended
+expansion preserves the inherited graph and combines conditions; instances
+cannot provide a replacement graph or `derive` block. Parsing and importing
+are implemented; expansion and signature validation are pending. See
+[abstract.tepl](examples/abstract.tepl) and [inherited.tepl](examples/inherited.tepl).
 
-The design is now coherent enough that the next step should be to freeze the surface syntax and define the AST/types formally.
+## Implementation and execution
+
+The C++ frontend uses an ANTLR4 grammar without embedded actions and builds an
+owning AST with source spans. The CLI resolves imports and validates dialect
+operation names, arity, and descriptor presence. It parses abstract/inherited
+rules without expanding them. `host-template` emits per-rule Rust host traits
+or implementation stubs; it does not lower full rules.
+
+The C++ `rewriteOnce` API supports root-only structural matching and RHS
+substitution for attribute-free operators, variables, and numeric literals.
+Repeated variables
+require structurally equal subtrees. Declarations, bindings, projections,
+conditions, derivations, and unexpanded templates are rejected.
+
+[labs/rust-egg](labs/rust-egg/README.md) implements the tensor IR, matching,
+binders, host callbacks, and e-graph rewrite application. Dialect and rule
+modules are manually maintained reference output for future code generation.
+Its execution model is:
+
+```text
+structural match -> metadata lookup and shape checks -> where checks
+-> derive metadata -> validate RHS plan -> insert and union with matched root
+-> saturation and cost-based extraction
+```
+
+RHS operation, attribute, and arity checks occur before insertion. The LoRA
+reference rule also checks inferred output shapes through host inference.
+
+Full symbol/type resolution, inheritance expansion, metadata dependency
+validation, and automatic dialect/rule lowering remain future compiler work.
+Multiple-root patterns, variadic graph captures such as `Xs...`, arbitrary
+regions/control flow, and full symbolic shape algebra are outside current
+scope. Example files demonstrate syntax; their tensor equivalence depends on
+host semantics and is exercised separately by the Rust lab.

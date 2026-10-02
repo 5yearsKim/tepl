@@ -125,24 +125,79 @@ rule NAME {
   `(dot[@d] X W)`, `let Y = (dot X W)`, and
   `(let Y = (dot X W))`. Later `Y` references the bound tensor value.
   Operators may have zero or more operands.
+- Graph operands and roots also accept integer and decimal literals:
+  `(add X 1)`, `(add X 1.0)`, and `(mul X -0.5)`. An optional `+` or `-`
+  sign is allowed; decimals require digits on both sides of the point.
+  Exponents, numeric suffixes, `.5`, and `1.` are currently unsupported.
+  Literals preserve their kind and spelling without numeric conversion:
+  `1`, `1.0`, and `1.00` are distinct for structural matching. Tensor
+  semantics treat graph literals as rank-zero values; element types and
+  broadcasting remain host responsibilities.
 - Tuples use the ordinary operator syntax `(tuple X Y)`; projection uses
   `(get[0] T)` with exactly one operand and a nonnegative integer index.
 - `where` precedes `derive` when both occur. Statements within either section
   require semicolons. Empty sections are allowed.
 - Constraint expressions support host calls, names, descriptor references,
-  integers, booleans, and parentheses. Precedence, highest first:
+  integers, decimals, booleans, and parentheses. Precedence, highest first:
   unary `! + -`, multiplicative `* / %`, additive `+ -`, comparison
   `< <= > >=`, equality `== !=`, logical `&&`, logical `||`.
   Arithmetic and logical operators associate to the left; comparisons and
   equality cannot be chained at their respective precedence levels.
 - Identifiers use ASCII letters, digits, and underscores, and cannot start with
-  a digit. `rule`, `from`, `import`, `as`, `use`, `dialect`, `op`, `attrs`,
+  a digit. `rule`, `abstract`, `extends`, `fn`, `from`, `import`, `as`, `use`,
+  `dialect`, `op`, `attrs`,
   `alias`, `let`, `where`, `derive`, `scalar`, `get`, `true`, `false`, and `_` are
   reserved. `alias`
   remains valid as an operation name.
 
-See [examples](examples/) for simple rules, shape patterns, binders, tuples,
+See [examples](examples/) for simple rules, shape patterns, binders, numeric literals, tuples,
 and the complete LoRA example from the design document.
+
+## Abstract and inherited rules
+
+[abstract.tepl](examples/abstract.tepl) declares reusable graph patterns with
+operation (`op`) and host-function (`fn`) parameters:
+
+```tepl
+abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
+    (F X Y) => (F Y X)
+}
+```
+
+[inherited.tepl](examples/inherited.tepl) imports templates and binds their
+parameters by name:
+
+```tepl
+from "abstract.tepl" import {commute};
+from "dialects/tensor.tepl" import TensorLang as t;
+rule commute_add extends commute(F = t.add);
+rule commute_small_vectors extends commute(F = t.add) {
+    X: [N]
+    Y: [N]
+    where { N <= 1024; }
+}
+```
+
+An inherited rule ends with `;` or a body containing shape declarations and
+an optional `where` section. It cannot supply a replacement graph or `derive`
+section. Abstract rules have the same rewrite body as ordinary rules.
+Parameter lists, signature operand lists, and instance binding lists may be
+empty; nonempty lists require commas and do not allow a trailing comma.
+Signature types preserve named types (including `scalar`) for later validation.
+Bindings are bare or dialect-qualified names.
+
+The AST preserves signatures, bindings, restrictions, and source spans.
+`resolveImports` loads selected abstract definitions into `Program::imported_rules`
+and keeps root rules in `Program::rules`. Existing dialect import forms still
+require files that contain only dialect declarations and imports. Both examples
+can be inspected with `parse --ast`.
+
+Inheritance remains unexpanded at this stage: inherited rules have null local
+`lhs` and `rhs` pointers. Base-rule resolution, parameter signature checking,
+substitution, and merging inherited conditions belong to a later semantic pass.
+Dialect graph validation defers abstract and inherited rules until that pass.
+Simple rewriting and host-template generation report that expansion is required
+when given these rules.
 
 ## Scope and next steps
 
@@ -151,7 +206,8 @@ A first structural rewriter is available through `validateSimpleRule` and
 `rewriteOnce` in `src/semantic.h` and `src/simple_rewrite.h`. It matches a rule
 only at the input root, captures LHS variables, and substitutes them into the
 RHS. Repeated variables must match structurally equal subtrees. This first
-version supports graph variables and operators without attributes. Validation
+version supports graph variables, numeric literals, and operators without
+attributes. Literal matching compares kind and exact spelling. Validation
 reports unsupported declarations, binders, projections, `where`, and `derive`
 instead of silently ignoring them. A mismatch returns `std::nullopt`; an
 invalid rule throws `std::invalid_argument` from `rewriteOnce`.
@@ -175,3 +231,8 @@ The `host-template` command emits a Rust host-function interface from calls in
 `where` and `derive`. Use `--impl` for a separate implementation template.
 See [the egg lab](labs/rust-egg/README.md) for the runtime and an integration
 test. Full rule lowering remains future work.
+
+The host template maps decimal arguments to Rust `f64`, unsigned integer
+arguments to `usize`, and negative integer arguments to `i64`. These are host
+interface types; graph literals retain their spelling and defer tensor element
+types to the host.

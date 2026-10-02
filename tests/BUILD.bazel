@@ -13,6 +13,9 @@ sh_test(
         "//:tepl",
         "//examples:simple.tepl",
         "//examples:dialects/tensor.tepl",
+        "//examples:abstract.tepl",
+        "//examples:inherited.tepl",
+        "//examples:literals.tepl",
     ],
 )
 
@@ -23,8 +26,15 @@ cc_test(
     args = [
         "$(rlocationpath //examples:lora.tepl)",
         "$(rlocationpath //examples:dialects/tensor.tepl)",
+        "$(rlocationpath //examples:abstract.tepl)",
+        "$(rlocationpath //examples:inherited.tepl)",
     ],
-    data = ["//examples:lora.tepl", "//examples:dialects/tensor.tepl"],
+    data = [
+        "//examples:lora.tepl",
+        "//examples:dialects/tensor.tepl",
+        "//examples:abstract.tepl",
+        "//examples:inherited.tepl",
+    ],
     deps = [
         "//src/ast:ast",
         "//:frontend",

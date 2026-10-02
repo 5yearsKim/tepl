@@ -7,7 +7,7 @@ checking its nested operation pattern; later `TensorPattern::Var` and
 `TensorExpr::Var` references reuse that value.
 
 `src/ir/rules/` contains one Rust module per TEPL source file:
-`lora.rs`, `simple.rs`, and `binders.rs`. The last module contains both rules
+`lora.rs`, `simple.rs`, `literals.rs`, and `binders.rs`. The last module contains both rules
 declared in `examples/binders.tepl`. Each rule lives in a `rule_<name>` module
 with a `build_rewrite` constructor and, when needed, a host `Functions` trait.
 `ir::rules` re-exports all rule modules directly; the source-file modules are
@@ -23,6 +23,17 @@ let pattern = rule_shared_expression::pattern();
 These rule modules are manually
 maintained reference output for future generation. Their fixtures and behavior
 checks live in `tests/lora.rs`, `tests/simple.rs`, and `tests/binders.rs`.
+
+`TensorLang::literal("1.0")` creates a zero-operand numeric node;
+`TensorPattern::literal` and `TensorExpr::literal` match and construct those
+nodes. Accepted spellings are signed or unsigned integers and decimals with
+digits on both sides of the point. Exact spelling defines identity: `1`,
+`1.0`, and `1.00` are distinct. No machine numeric conversion occurs, so
+precision and signed zero are preserved. Graph literals denote rank-zero
+values; hosts supply element types, metadata, and broadcasting semantics.
+`tests/literals.rs` exercises the reference rules from
+[`examples/literals.tepl`](../../examples/literals.tepl), including matching,
+RHS insertion, and rejection of invalid spellings.
 
 `src/ir/rules/inherited.rs` is the reference output for compile-time expansion
 of `examples/inherited.tepl` using the templates in `examples/abstract.tepl`.

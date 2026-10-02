@@ -86,6 +86,19 @@ std::string argumentType(const ast::ConstraintExpr& argument,
     return "&OpAttrs";
   } else if (std::holds_alternative<ast::IntegerLiteral>(argument.value)) {
     return "usize";
+  } else if (std::holds_alternative<ast::FloatLiteral>(argument.value)) {
+    return "f64";
+  } else if (const auto* unary = std::get_if<ast::UnaryExpr>(&argument.value);
+             unary && (unary->op == ast::UnaryOp::kPlus ||
+                       unary->op == ast::UnaryOp::kNegate)) {
+    if (std::holds_alternative<ast::FloatLiteral>(unary->operand->value)) {
+      return "f64";
+    }
+    if (std::holds_alternative<ast::IntegerLiteral>(unary->operand->value)) {
+      return unary->op == ast::UnaryOp::kNegate ? "i64" : "usize";
+    }
+    addDiagnostic(diagnostics, argument.span,
+                  "host template needs a numeric literal after a sign");
   } else if (std::holds_alternative<ast::BooleanLiteral>(argument.value)) {
     return "bool";
   } else {
@@ -103,6 +116,17 @@ bool containsCall(const ast::ConstraintExpr& expression) {
   }
   if (const auto* binary = std::get_if<ast::BinaryExpr>(&expression.value)) {
     return containsCall(*binary->lhs) || containsCall(*binary->rhs);
+  }
+  return false;
+}
+
+bool containsFloat(const ast::ConstraintExpr& expression) {
+  if (std::holds_alternative<ast::FloatLiteral>(expression.value)) return true;
+  if (const auto* unary = std::get_if<ast::UnaryExpr>(&expression.value)) {
+    return containsFloat(*unary->operand);
+  }
+  if (const auto* binary = std::get_if<ast::BinaryExpr>(&expression.value)) {
+    return containsFloat(*binary->lhs) || containsFloat(*binary->rhs);
   }
   return false;
 }
@@ -126,7 +150,7 @@ void collectCalls(const ast::ConstraintExpr& expression, const Types& types,
   } else if (const auto* unary =
                  std::get_if<ast::UnaryExpr>(&expression.value)) {
     collectCalls(*unary->operand, types,
-                 unary->op == ast::UnaryOp::kLogicalNot ? "bool" : "usize",
+                 unary->op == ast::UnaryOp::kLogicalNot ? "bool" : expected,
                  functions, diagnostics);
   } else if (const auto* binary =
                  std::get_if<ast::BinaryExpr>(&expression.value)) {
@@ -145,7 +169,8 @@ void collectCalls(const ast::ConstraintExpr& expression, const Types& types,
         }
         return;
       default:
-        operand_type = "usize";
+        operand_type =
+            containsFloat(expression) || expected == "f64" ? "f64" : "usize";
         break;
     }
     collectCalls(*binary->lhs, types, operand_type, functions, diagnostics);
@@ -163,7 +188,8 @@ void writeMethod(std::ostringstream& output, const std::string& name,
   }
   output << ") -> Option<" << signature.result << ">";
   if (implementation) {
-    output << " {\n" << indent << "    todo!(\"implement " << name << "\")\n"
+    output << " {\n"
+           << indent << "    todo!(\"implement " << name << "\")\n"
            << indent << "}\n";
   } else {
     output << ";\n";
@@ -177,6 +203,12 @@ HostTemplateResult generateHostTemplate(const ast::Program& program,
   HostTemplateResult result;
   RuleFunctions rules;
   for (const auto& rule : program.rules) {
+    if (rule.is_abstract || rule.inheritance) {
+      addDiagnostic(result.diagnostics, rule.span,
+                    "host templates require concrete rules after inheritance "
+                    "expansion");
+      continue;
+    }
     const Types types = declaredTypes(rule);
     Functions functions;
     for (const auto& condition : rule.conditions) {

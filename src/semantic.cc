@@ -22,6 +22,11 @@ void checkGraph(const ast::GraphExpr& expression, bool lhs, Names& captures,
     return;
   }
 
+  if (std::holds_alternative<ast::IntegerLiteral>(expression.value) ||
+      std::holds_alternative<ast::FloatLiteral>(expression.value)) {
+    return;
+  }
+
   if (const auto* op = std::get_if<ast::Operator>(&expression.value)) {
     if (op->attribute) {
       diagnostics.push_back(
@@ -43,6 +48,12 @@ void checkGraph(const ast::GraphExpr& expression, bool lhs, Names& captures,
 
 std::vector<SemanticDiagnostic> validateSimpleRule(const ast::Rule& rule) {
   std::vector<SemanticDiagnostic> diagnostics;
+  if (rule.is_abstract || rule.inheritance) {
+    diagnostics.push_back(
+        {rule.span,
+         "simple rules require concrete rules after inheritance expansion"});
+    return diagnostics;
+  }
   for (const auto& declaration : rule.declarations) {
     diagnostics.push_back(
         {declaration.span,

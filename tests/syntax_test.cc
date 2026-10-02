@@ -26,6 +26,29 @@ struct Case {
 void testValidSyntax() {
   const Case cases[] = {
       {"minimal", "rule r { X => X }"},
+      {"integer operand", "rule r { (add X 1) => (add 1 X) }"},
+      {"float operand", "rule r { (add X 1.0) => (add 1.0 X) }"},
+      {"signed numbers", "rule r { (add -12 +0.5) => -0.25 }"},
+      {"root literals", "rule r { 1 => 1.0 }"},
+      {"bound literal", "rule r { let Y = -1.0 => Y }"},
+      {"float constraints",
+       "rule r { X => X where { f(1.0, -0.5); 0.25 + 0.5 < 1.0; } "
+       "derive { @d = infer(2.0); } }"},
+      {"abstract operation",
+       "abstract rule commute(F: op<(tensor, tensor) -> tensor>) { "
+       "(F X Y) => (F Y X) }"},
+      {"abstract host function",
+       "abstract rule r(F: op<() -> tensor>, allowed: fn<(tensor) -> bool>) { "
+       "(F) => X where { allowed(X); } }"},
+      {"abstract empty parameters", "abstract rule r() { X => X }"},
+      {"signature scalar type",
+       "abstract rule r(F: op<(scalar) -> scalar>) { (F X) => X }"},
+      {"selected rule imports", "from \"abstract.tepl\" import {a, b};"},
+      {"inherited rule", "rule r extends commute(F = t.add);"},
+      {"inherited restrictions",
+       "rule r extends commute(F = t.add, allowed = check) { "
+       "X: [N] Y: [N] where { N <= 1024; } }"},
+      {"inherited empty body", "rule r extends base() {}"},
       {"rank-zero tensor", "rule r { X: [] X => X }"},
       {"scalar declaration", "rule r { S: scalar S => S }"},
       {"mixed declarations",
@@ -90,6 +113,36 @@ void testValidSyntax() {
 void testInvalidSyntax() {
   const Case cases[] = {
       {"empty program", ""},
+      {"missing fractional digits", "rule r { (add X 1.) => X }"},
+      {"missing integer digits", "rule r { (add X .5) => X }"},
+      {"malformed decimal", "rule r { (add X 1.2.3) => X }"},
+      {"unsupported exponent", "rule r { (add X 1e3) => X }"},
+      {"unsupported float suffix", "rule r { (add X 1.0f) => X }"},
+      {"missing number after sign", "rule r { (add X -) => X }"},
+      {"float tuple index", "rule r { (get[1.0] X) => X }"},
+      {"number in shape", "rule r { X: [1.0] X => X }"},
+      {"abstract missing parameters", "abstract rule r { X => X }"},
+      {"concrete parameters", "rule r(F: op<(tensor) -> tensor>) { X => X }"},
+      {"unknown parameter kind", "abstract rule r(F: tensor) { X => X }"},
+      {"signature missing arrow",
+       "abstract rule r(F: op<(tensor) tensor>) { X => X }"},
+      {"signature trailing comma",
+       "abstract rule r(F: op<(tensor,) -> tensor>) { X => X }"},
+      {"signature missing result",
+       "abstract rule r(F: fn<(tensor) ->>) { X => X }"},
+      {"parameter trailing comma",
+       "abstract rule r(F: op<() -> tensor>,) { X => X }"},
+      {"abstract inherited rule", "abstract rule r() extends base();"},
+      {"inherited missing terminator", "rule r extends base()"},
+      {"inherited positional binding", "rule r extends base(t.add);"},
+      {"inherited expression binding", "rule r extends base(F = check(X));"},
+      {"inherited trailing comma", "rule r extends base(F = t.add,);"},
+      {"inherited graph replacement", "rule r extends base() { X => X }"},
+      {"inherited derivation",
+       "rule r extends base() { derive { @d = f(); } }"},
+      {"empty selected rule imports", "from \"abstract.tepl\" import {};"},
+      {"selected rule import trailing comma",
+       "from \"abstract.tepl\" import {a,};"},
       {"missing name", "rule { X => X }"},
       {"missing arrow", "rule r { X X }"},
       {"wrong arrow", "rule r { X -> X }"},
@@ -192,6 +245,7 @@ void testPrecedence() {
   tepl_generated::TeplParser parser(&tokens);
   auto* expression = parser.program()
                          ->ruleDecl(0)
+                         ->rewriteBody()
                          ->whereBlock()
                          ->constraintExpr(0)
                          ->logicalOr();

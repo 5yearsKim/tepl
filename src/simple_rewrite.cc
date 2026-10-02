@@ -21,6 +21,12 @@ bool equalGraph(const ast::GraphExpr& lhs, const ast::GraphExpr& rhs) {
   if (const auto* name = std::get_if<ast::NameRef>(&lhs.value)) {
     return name->name == std::get<ast::NameRef>(rhs.value).name;
   }
+  if (const auto* integer = std::get_if<ast::IntegerLiteral>(&lhs.value)) {
+    return integer->digits == std::get<ast::IntegerLiteral>(rhs.value).digits;
+  }
+  if (const auto* number = std::get_if<ast::FloatLiteral>(&lhs.value)) {
+    return number->digits == std::get<ast::FloatLiteral>(rhs.value).digits;
+  }
   if (const auto* op = std::get_if<ast::Operator>(&lhs.value)) {
     const auto& other = std::get<ast::Operator>(rhs.value);
     if (op->name != other.name ||
@@ -55,6 +61,11 @@ bool match(const ast::GraphExpr& pattern, const ast::GraphExpr& input,
     return inserted || equalGraph(*it->second, input);
   }
 
+  if (std::holds_alternative<ast::IntegerLiteral>(pattern.value) ||
+      std::holds_alternative<ast::FloatLiteral>(pattern.value)) {
+    return equalGraph(pattern, input);
+  }
+
   const auto* op = std::get_if<ast::Operator>(&pattern.value);
   const auto* actual = std::get_if<ast::Operator>(&input.value);
   if (!op || !actual || op->name != actual->name ||
@@ -85,6 +96,10 @@ ast::GraphExprPtr substitute(const ast::GraphExpr& rhs,
                              const Captures& captures) {
   if (const auto* name = std::get_if<ast::NameRef>(&rhs.value)) {
     return clone(*captures.at(name->name));
+  }
+  if (std::holds_alternative<ast::IntegerLiteral>(rhs.value) ||
+      std::holds_alternative<ast::FloatLiteral>(rhs.value)) {
+    return clone(rhs);
   }
   const auto& op = std::get<ast::Operator>(rhs.value);
   ast::Operator replacement{op.name, std::nullopt, {}};

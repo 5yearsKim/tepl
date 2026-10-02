@@ -64,8 +64,14 @@ struct AttributeRef {
 };
 
 struct IntegerLiteral {
-  // Preserve unsigned decimal spelling until numeric range validation.
-  // Negative values are represented by UnaryExpr.
+  // Preserve decimal spelling until numeric range validation. Graph literals
+  // may include a sign; constraint signs are represented by UnaryExpr.
+  std::string digits;
+};
+
+struct FloatLiteral {
+  // Preserve spelling without rounding or choosing a tensor element type.
+  // Graph literals may include a sign, as with IntegerLiteral.
   std::string digits;
 };
 
@@ -77,8 +83,9 @@ struct GraphExpr;
 struct ConstraintExpr;
 
 // Copyable handles can be returned through ANTLR's std::any visitor interface.
-// Completed ASTs have non-null required children. Binders refer to names, so
-// repeated references do not create pointer cycles in the syntax tree.
+// Completed expressions have non-null required children. Binders refer to
+// names, so repeated references do not create pointer cycles in the syntax
+// tree.
 using GraphExprPtr = std::shared_ptr<GraphExpr>;
 using ConstraintExprPtr = std::shared_ptr<ConstraintExpr>;
 
@@ -101,7 +108,9 @@ struct Projection {
 struct GraphExpr {
   SourceSpan span;
   // Tuple construction uses Operator with name "tuple".
-  std::variant<NameRef, Operator, Binding, Projection> value;
+  std::variant<NameRef, IntegerLiteral, FloatLiteral, Operator, Binding,
+               Projection>
+      value;
 };
 
 // makeConstraint expressions used in `where` conditions and `derive` values.
@@ -149,8 +158,8 @@ struct BinaryExpr {
 
 struct ConstraintExpr {
   SourceSpan span;
-  std::variant<NameRef, AttributeRef, IntegerLiteral, BooleanLiteral, Call,
-               UnaryExpr, BinaryExpr>
+  std::variant<NameRef, AttributeRef, IntegerLiteral, FloatLiteral,
+               BooleanLiteral, Call, UnaryExpr, BinaryExpr>
       value;
 };
 
@@ -160,15 +169,49 @@ struct Derivation {
   ConstraintExprPtr value;
 };
 
+enum class RuleParameterKind { kOperation, kHostFunction };
+
+struct SignatureType {
+  SourceSpan span;
+  std::string name;
+};
+
+struct RuleParameter {
+  SourceSpan span;
+  std::string name;
+  RuleParameterKind kind = RuleParameterKind::kOperation;
+  std::vector<SignatureType> operand_types;
+  SignatureType result_type;
+};
+
+struct RuleBinding {
+  SourceSpan span;
+  std::string parameter;
+  // Unresolved operation or host-function name, optionally dialect-qualified.
+  std::string value;
+};
+
+struct RuleInheritance {
+  SourceSpan span;
+  std::string base;
+  std::vector<RuleBinding> bindings;
+};
+
 struct Rule {
   SourceSpan span;
   std::string name;
   std::vector<Declaration> declarations;
+  // Inherited rules have no local graph; both pointers are null until
+  // expansion.
   GraphExprPtr lhs;
   GraphExprPtr rhs;
   // Empty vectors represent absent or empty where/derive sections.
   std::vector<ConstraintExprPtr> conditions;
   std::vector<Derivation> derivations;
+  bool is_abstract = false;
+  std::vector<RuleParameter> parameters;
+  std::optional<RuleInheritance> inheritance;
+  std::string source_name;
 };
 
 struct Import {
@@ -177,6 +220,9 @@ struct Import {
   // Empty for the original `import "path";` form.
   std::optional<std::string> dialect;
   std::optional<std::string> alias;
+  // Nonempty for `from "path" import {rule, ...};`. This form selects rules,
+  // while dialect/alias describe the existing named dialect import form.
+  std::vector<NameRef> rules;
 };
 
 struct Use {
@@ -244,6 +290,9 @@ struct Program {
   std::vector<Import> imports;
   std::vector<Dialect> dialects;
   std::vector<Use> uses;
+  // Selected template definitions retain their source; root rules stay in
+  // rules.
+  std::vector<Rule> imported_rules;
 };
 
 }  // namespace tepl::ast

@@ -42,6 +42,12 @@ cp "$output" "${TEST_TMPDIR}/ast"
 check_exit 0 parse --ast "$example"
 cmp "$output" "${TEST_TMPDIR}/ast"
 
+literals="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/literals.tepl"
+check_exit 0 parse "$literals" --ast
+grep -Fq 'integer 1' "$output"
+grep -Fq 'float 1.0' "$output"
+grep -Fq 'float -0.5' "$output"
+
 check_exit 2
 check_exit 2 parse
 check_exit 2 unknown "$example"
@@ -141,5 +147,49 @@ cycle_a="${TEST_TMPDIR}/a.tepl"
 cycle_b="${TEST_TMPDIR}/b.tepl"
 printf 'import "b.tepl"; rule r { X => X }\n' >"$cycle_a"
 printf 'import "a.tepl";\n' >"$cycle_b"
+check_exit 1 parse "$cycle_a"
+grep -Fq 'cyclic import' "$output"
+
+abstract="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/abstract.tepl"
+inherited="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/inherited.tepl"
+check_exit 0 parse "$abstract"
+grep -Fxq 'Parsed 3 rule(s).' "$output"
+check_exit 0 parse "$inherited"
+grep -Fxq 'Parsed 7 rule(s).' "$output"
+check_exit 0 parse "$inherited" --ast
+grep -Fq 'parameter F: op<(tensor, tensor) -> tensor>' "$output"
+grep -Fq 'extends associate_right' "$output"
+check_exit 1 host-template "$inherited"
+grep -Fq 'inheritance expansion' "$output"
+
+printf 'from "%s" import {missing};\n' "$abstract" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq "rule 'missing'" "$output"
+
+printf 'from "%s" import {commute_add};\n' "$example" >"$bad_arity"
+check_exit 1 parse "$bad_arity"
+grep -Fq 'must be abstract' "$output"
+
+template="${TEST_TMPDIR}/template.tepl"
+printf 'abstract rule a() { X => X } abstract rule b() { Y => Y }\n' >"$template"
+printf 'from "template.tepl" import {a}; from "template.tepl" import {b};\n' >"$bad_arity"
+check_exit 0 parse "$bad_arity" --ast
+grep -Fq 'abstract rule a' "$output"
+grep -Fq 'abstract rule b' "$output"
+
+printf 'from "template.tepl" import {a};\n' >"$bad_arity"
+check_exit 0 parse "$bad_arity" --ast
+grep -Fq 'abstract rule a' "$output"
+if grep -Fq 'abstract rule b' "$output"; then
+  echo 'Unselected template leaked into the AST' >&2
+  exit 1
+fi
+
+printf 'abstract rule a() { X => X } abstract rule a() { Y => Y }\n' >"$template"
+check_exit 1 parse "$bad_arity"
+grep -Fq "duplicate rule 'a'" "$output"
+
+printf 'from "b.tepl" import {b}; abstract rule a() { X => X }\n' >"$cycle_a"
+printf 'from "a.tepl" import {a}; abstract rule b() { X => X }\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"

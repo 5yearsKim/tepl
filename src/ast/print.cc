@@ -38,6 +38,10 @@ void printGraph(std::ostream& out, const ast::GraphExpr& expression,
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, ast::NameRef>) {
           out << "variable " << value.name << '\n';
+        } else if constexpr (std::is_same_v<T, ast::IntegerLiteral>) {
+          out << "integer " << value.digits << '\n';
+        } else if constexpr (std::is_same_v<T, ast::FloatLiteral>) {
+          out << "float " << value.digits << '\n';
         } else if constexpr (std::is_same_v<T, ast::Operator>) {
           out << "operator " << value.name;
           if (value.attribute) out << " @" << value.attribute->name;
@@ -112,6 +116,8 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
           out << "attribute @" << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::IntegerLiteral>) {
           out << "integer " << value.digits << '\n';
+        } else if constexpr (std::is_same_v<T, ast::FloatLiteral>) {
+          out << "float " << value.digits << '\n';
         } else if constexpr (std::is_same_v<T, ast::BooleanLiteral>) {
           out << "boolean " << (value.value ? "true" : "false") << '\n';
         } else if constexpr (std::is_same_v<T, ast::Call>) {
@@ -149,13 +155,61 @@ void printDeclaration(std::ostream& out, const ast::Declaration& declaration) {
       declaration.value);
 }
 
+void printRule(std::ostream& out, const ast::Rule& rule) {
+  out << "  " << (rule.is_abstract ? "abstract rule " : "rule ") << rule.name
+      << '\n';
+  for (const auto& parameter : rule.parameters) {
+    out << "    parameter " << parameter.name << ": "
+        << (parameter.kind == ast::RuleParameterKind::kOperation ? "op" : "fn")
+        << "<(";
+    for (std::size_t index = 0; index < parameter.operand_types.size();
+         ++index) {
+      if (index != 0) out << ", ";
+      out << parameter.operand_types[index].name;
+    }
+    out << ") -> " << parameter.result_type.name << ">\n";
+  }
+  if (rule.inheritance) {
+    out << "    extends " << rule.inheritance->base << '\n';
+    for (const auto& binding : rule.inheritance->bindings) {
+      out << "      " << binding.parameter << " = " << binding.value << '\n';
+    }
+  }
+  for (const auto& declaration : rule.declarations) {
+    printDeclaration(out, declaration);
+  }
+  if (rule.lhs) {
+    out << "    lhs\n";
+    printGraph(out, *rule.lhs, 3);
+  }
+  if (rule.rhs) {
+    out << "    rhs\n";
+    printGraph(out, *rule.rhs, 3);
+  }
+  for (const auto& condition : rule.conditions) {
+    out << "    where\n";
+    printConstraint(out, *condition, 3);
+  }
+  for (const auto& derivation : rule.derivations) {
+    out << "    derive @" << derivation.target.name << '\n';
+    printConstraint(out, *derivation.value, 3);
+  }
+}
+
 }  // namespace
 
 std::string formatAst(const ast::Program& program) {
   std::ostringstream out;
   out << "program " << program.source_name << '\n';
   for (const auto& imported : program.imports) {
-    if (imported.dialect) {
+    if (!imported.rules.empty()) {
+      out << "  from \"" << imported.path << "\" import {";
+      for (std::size_t index = 0; index < imported.rules.size(); ++index) {
+        if (index != 0) out << ", ";
+        out << imported.rules[index].name;
+      }
+      out << "}\n";
+    } else if (imported.dialect) {
       out << "  from \"" << imported.path << "\" import " << *imported.dialect;
       if (imported.alias && imported.alias != imported.dialect) {
         out << " as " << *imported.alias;
@@ -218,22 +272,11 @@ std::string formatAst(const ast::Program& program) {
     }
   }
   for (const auto& rule : program.rules) {
-    out << "  rule " << rule.name << '\n';
-    for (const auto& declaration : rule.declarations) {
-      printDeclaration(out, declaration);
-    }
-    out << "    lhs\n";
-    printGraph(out, *rule.lhs, 3);
-    out << "    rhs\n";
-    printGraph(out, *rule.rhs, 3);
-    for (const auto& condition : rule.conditions) {
-      out << "    where\n";
-      printConstraint(out, *condition, 3);
-    }
-    for (const auto& derivation : rule.derivations) {
-      out << "    derive @" << derivation.target.name << '\n';
-      printConstraint(out, *derivation.value, 3);
-    }
+    printRule(out, rule);
+  }
+  for (const auto& rule : program.imported_rules) {
+    out << "  imported from " << rule.source_name << '\n';
+    printRule(out, rule);
   }
   return out.str();
 }

@@ -48,7 +48,7 @@ void testLora(const std::string& source, const std::string& path) {
         "LoRA dialect import is missing");
   check(program.dialects.size() == 1 &&
             program.dialects[0].name == "TensorLang" &&
-            program.dialects[0].operations.size() == 33,
+            program.dialects[0].operations.size() == 34,
         "Imported tensor operations are missing");
   const auto& operations = program.dialects[0].operations;
   const auto dot =
@@ -233,6 +233,61 @@ void testInvalidSource() {
         "Invalid syntax must not expose an AST");
 }
 
+void testNumericLiterals() {
+  auto parsed = tepl::parse(
+      "rule literals {\n"
+      "  (add 001 -1.2500) => (add +2 999999999999999999999999)\n"
+      "  where { check(1.00, -2.5); }\n"
+      "}");
+  check(parsed.ok() && parsed.program, "Numeric literals must parse");
+  const auto& rule = parsed.program->rules.front();
+  const auto& lhs = as<tepl::ast::Operator>(rule.lhs->value, "Expected add");
+  check(
+      as<tepl::ast::IntegerLiteral>(lhs.operands[0]->value, "Expected integer")
+                  .digits == "001" &&
+          as<tepl::ast::FloatLiteral>(lhs.operands[1]->value, "Expected float")
+                  .digits == "-1.2500",
+      "Graph literals must preserve kind, sign, and spelling");
+  check(lhs.operands[0]->span.begin.line == 2 &&
+            lhs.operands[0]->span.begin.column == 8 &&
+            lhs.operands[0]->span.end.column == 11 &&
+            lhs.operands[1]->span.begin.column == 12 &&
+            lhs.operands[1]->span.end.column == 19,
+        "Numeric literal spans must include the sign and full spelling");
+  const auto& rhs =
+      as<tepl::ast::Operator>(rule.rhs->value, "Expected RHS add");
+  check(as<tepl::ast::IntegerLiteral>(rhs.operands[0]->value,
+                                      "Expected signed integer")
+                    .digits == "+2" &&
+            as<tepl::ast::IntegerLiteral>(rhs.operands[1]->value,
+                                          "Expected large integer")
+                    .digits == "999999999999999999999999",
+        "Parsing literals must not impose machine numeric ranges");
+  const auto& call =
+      as<tepl::ast::Call>(rule.conditions[0]->value, "Expected host call");
+  check(as<tepl::ast::FloatLiteral>(call.arguments[0]->value,
+                                    "Expected host float")
+                .digits == "1.00",
+        "Host expressions must preserve decimal literals");
+  const auto& negative = as<tepl::ast::UnaryExpr>(call.arguments[1]->value,
+                                                  "Expected host unary minus");
+  check(negative.op == tepl::ast::UnaryOp::kNegate &&
+            as<tepl::ast::FloatLiteral>(negative.operand->value,
+                                        "Expected negative host float")
+                    .digits == "2.5",
+        "Constraint signs must retain unary expression semantics");
+  const auto printed = tepl::formatAst(*parsed.program);
+  check(printed.find("integer 001") != std::string::npos &&
+            printed.find("float -1.2500") != std::string::npos &&
+            printed.find("float 1.00") != std::string::npos,
+        "AST printing must include numeric literals");
+  auto dialect = tepl::parse(
+      "dialect t { op add(lhs: tensor, rhs: tensor) -> tensor; } "
+      "rule r { (add X 1.0) => (add 1.0 X) }");
+  check(dialect.ok() && tepl::validateDialectUses(*dialect.program).empty(),
+        "Numeric operands must work with dialect validation");
+}
+
 void testAttributeTypeAndDefault() {
   auto parsed = tepl::parse(
       "dialect t { op test(input: tensor) -> tensor { "
@@ -248,11 +303,99 @@ void testAttributeTypeAndDefault() {
         "Attribute list type must be independent of its default");
 }
 
+void testAbstractAndInherited(const std::string& abstract_path,
+                              const std::string& inherited_path) {
+  const auto read = [](const std::string& path) {
+    std::ifstream input(path);
+    check(static_cast<bool>(input), "Cannot read rule fixture");
+    return std::string(std::istreambuf_iterator<char>(input),
+                       std::istreambuf_iterator<char>());
+  };
+  auto templates = tepl::parse(read(abstract_path), abstract_path);
+  check(templates.ok() && templates.rule_count == 3,
+        "Abstract fixture must parse all three templates");
+  const auto& commute = templates.program->rules.front();
+  check(commute.is_abstract && !commute.inheritance && commute.lhs &&
+            commute.rhs && commute.parameters.size() == 1 &&
+            commute.source_name == abstract_path,
+        "Abstract rule structure is wrong");
+  const auto& parameter = commute.parameters.front();
+  check(parameter.name == "F" &&
+            parameter.kind == tepl::ast::RuleParameterKind::kOperation &&
+            parameter.operand_types.size() == 2 &&
+            parameter.operand_types[0].name == "tensor" &&
+            parameter.result_type.name == "tensor" &&
+            parameter.span.begin.line == 2 &&
+            parameter.span.begin.column == 5 && parameter.span.end.line == 2 &&
+            parameter.span.end.column == 38 &&
+            parameter.result_type.span.begin.column == 31,
+        "Operation parameter signature or spans are wrong");
+  const auto& associate = templates.program->rules[1];
+  check(associate.parameters.size() == 2 && associate.conditions.size() == 1 &&
+            associate.parameters[1].kind ==
+                tepl::ast::RuleParameterKind::kHostFunction &&
+            associate.parameters[1].operand_types.size() == 3 &&
+            associate.parameters[1].result_type.name == "bool" &&
+            as<tepl::ast::Call>(associate.conditions[0]->value,
+                                "Expected parameter host call")
+                    .callee == "allowed",
+        "Host function parameter or condition is wrong");
+
+  auto instances = tepl::parse(read(inherited_path), inherited_path);
+  check(instances.ok() && instances.rule_count == 7,
+        "Inherited fixture must parse all seven instances");
+  auto& program = *instances.program;
+  check(program.imports.size() == 2 && program.imports[0].rules.size() == 3 &&
+            program.imports[0].rules[0].name == "commute" &&
+            !program.imports[0].dialect && !program.imports[0].alias,
+        "Selected rule imports were not preserved");
+  const auto& instance = program.rules.front();
+  check(!instance.is_abstract && instance.parameters.empty() && !instance.lhs &&
+            !instance.rhs && instance.inheritance &&
+            instance.inheritance->base == "commute" &&
+            instance.inheritance->bindings.size() == 1 &&
+            instance.inheritance->bindings[0].parameter == "F" &&
+            instance.inheritance->bindings[0].value == "t.add" &&
+            instance.inheritance->span.begin.line == 5 &&
+            instance.inheritance->span.begin.column == 18 &&
+            instance.inheritance->span.end.column == 44 &&
+            instance.inheritance->bindings[0].span.begin.column == 34 &&
+            instance.inheritance->bindings[0].span.end.column == 43,
+        "Inheritance names, bindings, or spans are wrong");
+  const auto& restricted = program.rules[5];
+  check(
+      restricted.declarations.size() == 3 &&
+          restricted.conditions.size() == 1 &&
+          restricted.inheritance->bindings[1].value == "can_reassociate_add" &&
+          !restricted.lhs && !restricted.rhs,
+      "Child restrictions must be preserved without expanding the pattern");
+  check(tepl::resolveImports(program).empty() &&
+            program.imported_rules.size() == 3 &&
+            program.dialects.size() == 1 && program.rules.size() == 7,
+        "Rule and dialect imports must load without merging root rules");
+  check(tepl::resolveImports(program).empty() &&
+            program.imported_rules.size() == 3,
+        "Repeated import loading must not duplicate templates");
+  check(tepl::validateDialectUses(program).empty(),
+        "Unexpanded inherited rules must not cause dialect errors");
+  const auto printed = tepl::formatAst(program);
+  check(
+      printed.find("import {commute, associate_right, distribute_left}") !=
+              std::string::npos &&
+          printed.find("    extends commute\n      F = t.add\n") !=
+              std::string::npos &&
+          printed.find(
+              "parameter allowed: fn<(tensor, tensor, tensor) -> bool>") !=
+              std::string::npos,
+      "AST output must include imports, inheritance, and parameter signatures");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
   try {
-    check(argc == 3, "Expected paths to LoRA and dialect fixtures");
+    check(argc == 5,
+          "Expected paths to LoRA, dialect, abstract, and inherited fixtures");
     std::string error;
     std::unique_ptr<rules_cc::cc::runfiles::Runfiles> runfiles(
         rules_cc::cc::runfiles::Runfiles::CreateForTest(
@@ -265,8 +408,11 @@ int main(int argc, char** argv) {
                        std::istreambuf_iterator<char>()};
     testLora(source, path);
     testExpressionsAndSpans();
+    testNumericLiterals();
     testAttributeTypeAndDefault();
     testInvalidSource();
+    testAbstractAndInherited(runfiles->Rlocation(argv[3]),
+                             runfiles->Rlocation(argv[4]));
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;

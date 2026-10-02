@@ -13,7 +13,8 @@ struct SemanticDiagnostic {
 };
 
 // Checks the subset supported by the first structural rewriter: graph
-// variables and operators without attributes, declarations, or conditions.
+// variables, numeric literals, and operators without attributes, declarations,
+// or conditions.
 std::vector<SemanticDiagnostic> validateSimpleRule(const ast::Rule& rule);
 
 }  // namespace tepl

@@ -47,6 +47,8 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
       tepl_generated::TeplParser::BareBindingGraphContext*) override;
   std::any visitVariableGraph(
       tepl_generated::TeplParser::VariableGraphContext*) override;
+  std::any visitNumberGraph(
+      tepl_generated::TeplParser::NumberGraphContext*) override;
   std::any visitParenthesizedBindingGraph(
       tepl_generated::TeplParser::ParenthesizedBindingGraphContext*) override;
   std::any visitGetGraph(tepl_generated::TeplParser::GetGraphContext*) override;
@@ -75,6 +77,8 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
       tepl_generated::TeplParser::AttributePrimaryContext*) override;
   std::any visitIntegerPrimary(
       tepl_generated::TeplParser::IntegerPrimaryContext*) override;
+  std::any visitFloatPrimary(
+      tepl_generated::TeplParser::FloatPrimaryContext*) override;
   std::any visitTruePrimary(
       tepl_generated::TeplParser::TruePrimaryContext*) override;
   std::any visitFalsePrimary(

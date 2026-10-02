@@ -53,19 +53,61 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
   ast::Rule rule;
   rule.span = getSpan(context);
   rule.name = context->ID()->getText();
-  for (auto* declaration : context->shapeDecl()) {
+  rule.source_name = source_name_;
+  rule.is_abstract = context->ABSTRACT() != nullptr;
+  if (auto* parameters = context->ruleParameters()) {
+    for (auto* parameter : parameters->ruleParameter()) {
+      ast::RuleParameter value;
+      value.span = getSpan(parameter);
+      value.name = parameter->ID()->getText();
+      value.kind = parameter->OP() ? ast::RuleParameterKind::kOperation
+                                   : ast::RuleParameterKind::kHostFunction;
+      if (auto* types = parameter->signatureTypes()) {
+        for (auto* type : types->signatureType()) {
+          value.operand_types.push_back({getSpan(type), type->getText()});
+        }
+      }
+      auto* result = parameter->signatureType();
+      value.result_type = {getSpan(result), result->getText()};
+      rule.parameters.push_back(std::move(value));
+    }
+  }
+  if (auto* clause = context->inheritanceClause()) {
+    ast::RuleInheritance inheritance;
+    inheritance.span = getSpan(clause);
+    inheritance.base = clause->ID()->getText();
+    if (auto* bindings = clause->ruleBindings()) {
+      for (auto* binding : bindings->ruleBinding()) {
+        inheritance.bindings.push_back({getSpan(binding),
+                                        binding->ID()->getText(),
+                                        binding->opRef()->getText()});
+      }
+    }
+    rule.inheritance = std::move(inheritance);
+  }
+  auto* body = context->rewriteBody();
+  auto* inherited = context->inheritedBody();
+  const auto declarations = body ? body->shapeDecl()
+                            : inherited
+                                ? inherited->shapeDecl()
+                                : std::vector<Parser::ShapeDeclContext*>{};
+  for (auto* declaration : declarations) {
     rule.declarations.push_back(
         std::any_cast<ast::Declaration>(visit(declaration)));
   }
-  rule.lhs = std::any_cast<ast::GraphExprPtr>(visit(context->graphExpr(0)));
-  rule.rhs = std::any_cast<ast::GraphExprPtr>(visit(context->graphExpr(1)));
-  if (auto* where = context->whereBlock()) {
+  if (body) {
+    rule.lhs = std::any_cast<ast::GraphExprPtr>(visit(body->graphExpr(0)));
+    rule.rhs = std::any_cast<ast::GraphExprPtr>(visit(body->graphExpr(1)));
+  }
+  if (auto* where = body        ? body->whereBlock()
+                    : inherited ? inherited->whereBlock()
+                                : nullptr) {
     for (auto* expression : where->constraintExpr()) {
       rule.conditions.push_back(
           std::any_cast<ast::ConstraintExprPtr>(visit(expression)));
     }
   }
-  if (auto* derive = context->deriveBlock()) {
+  if (auto* derive = body ? body->deriveBlock() : nullptr) {
     const auto targets = derive->attrRef();
     const auto values = derive->constraintExpr();
     for (std::size_t index = 0; index < targets.size(); ++index) {
@@ -126,6 +168,13 @@ std::any AstBuilder::visitBareBindingGraph(
 
 std::any AstBuilder::visitVariableGraph(Parser::VariableGraphContext* context) {
   return makeGraph(context, ast::NameRef{context->ID()->getText()});
+}
+
+std::any AstBuilder::visitNumberGraph(Parser::NumberGraphContext* context) {
+  if (context->FLOAT()) {
+    return makeGraph(context, ast::FloatLiteral{context->getText()});
+  }
+  return makeGraph(context, ast::IntegerLiteral{context->getText()});
 }
 
 std::any AstBuilder::visitParenthesizedBindingGraph(
@@ -236,6 +285,11 @@ std::any AstBuilder::visitIntegerPrimary(
     Parser::IntegerPrimaryContext* context) {
   return makeConstraint(context,
                         ast::IntegerLiteral{context->INT()->getText()});
+}
+
+std::any AstBuilder::visitFloatPrimary(Parser::FloatPrimaryContext* context) {
+  return makeConstraint(context,
+                        ast::FloatLiteral{context->FLOAT()->getText()});
 }
 
 std::any AstBuilder::visitTruePrimary(Parser::TruePrimaryContext* context) {

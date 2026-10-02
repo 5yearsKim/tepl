@@ -41,7 +41,11 @@ std::any AstBuilder::visitImportDecl(Parser::ImportDeclContext* context) {
     path += spelling[index];
   }
   ast::Import imported{getSpan(context), std::move(path)};
-  if (context->FROM()) {
+  if (auto* names = context->ruleImportNames()) {
+    for (auto* name : names->ID()) {
+      imported.rules.push_back(ast::NameRef{name->getText()});
+    }
+  } else if (context->FROM()) {
     const auto names = context->ID();
     imported.dialect = names[0]->getText();
     imported.alias = names.size() == 2 ? names[1]->getText() : imported.dialect;

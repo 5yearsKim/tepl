@@ -61,11 +61,14 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
   std::unordered_set<std::string> active;
   std::unordered_set<std::string> loaded;
   std::unordered_set<std::string> dialect_keys;
+  std::unordered_set<std::string> rule_keys;
   const auto key = [](const ast::Dialect& dialect) {
     return dialect.source_name + "\n" + dialect.name;
   };
   for (const auto& dialect : program.dialects)
     dialect_keys.insert(key(dialect));
+  for (const auto& rule : program.imported_rules)
+    rule_keys.insert(rule.source_name + "\n" + rule.name);
   const auto root = fs::absolute(program.source_name).lexically_normal();
   active.insert(root.string());
   loaded.insert(root.string());
@@ -103,7 +106,7 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
             }
             continue;
           }
-          if (!parsed.program->rules.empty()) {
+          if (imported.rules.empty() && !parsed.program->rules.empty()) {
             report("import '" + imported.path +
                    "' contains rules; imports must define dialects only");
             continue;
@@ -130,11 +133,42 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
               continue;
             }
           }
+          std::vector<const ast::Rule*> selected_rules;
+          for (const auto& name : imported.rules) {
+            const ast::Rule* selected = nullptr;
+            bool duplicate = false;
+            for (const auto& rule : parsed.program->rules) {
+              if (rule.name != name.name) continue;
+              if (selected) {
+                report("duplicate rule '" + name.name + "' in import '" +
+                       imported.path + "'");
+                duplicate = true;
+                break;
+              }
+              selected = &rule;
+            }
+            if (duplicate) continue;
+            if (!selected) {
+              report("rule '" + name.name + "' is not defined in import '" +
+                     imported.path + "'");
+            } else if (!selected->is_abstract) {
+              report("imported rule '" + name.name + "' must be abstract");
+            } else {
+              selected_rules.push_back(selected);
+            }
+          }
           if (loaded.insert(target.string()).second) {
             active.insert(target.string());
             load(*parsed.program, target);
             active.erase(target.string());
           }
+          for (const auto* rule : selected_rules) {
+            if (rule_keys.insert(rule->source_name + "\n" + rule->name)
+                    .second) {
+              program.imported_rules.push_back(*rule);
+            }
+          }
+          if (!imported.rules.empty()) continue;
           for (auto& dialect : parsed.program->dialects) {
             if (imported.dialect && dialect.name != *imported.dialect) continue;
             if (dialect_keys.insert(key(dialect)).second) {
@@ -240,6 +274,7 @@ std::vector<Diagnostic> validateDialectUses(const ast::Program& program) {
     }
   }
   for (const auto& imported : program.imports) {
+    if (!imported.rules.empty()) continue;
     const auto target =
         std::filesystem::absolute(
             std::filesystem::path(program.source_name).parent_path() /
@@ -341,8 +376,10 @@ std::vector<Diagnostic> validateDialectUses(const ast::Program& program) {
     }
   };
   for (const auto& rule : program.rules) {
-    check(*rule.lhs);
-    check(*rule.rhs);
+    // Parameter operations and inherited patterns need rule resolution first.
+    if (rule.is_abstract || rule.inheritance) continue;
+    if (rule.lhs) check(*rule.lhs);
+    if (rule.rhs) check(*rule.rhs);
   }
   return diagnostics;
 }
