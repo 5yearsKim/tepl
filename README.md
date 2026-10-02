@@ -18,6 +18,8 @@ bazel run //:tepl -- parse "$PWD/examples/lora.tepl"
 bazel run //:tepl -- parse "$PWD/examples/lora.tepl" --tree
 bazel run //:tepl -- parse "$PWD/examples/lora.tepl" --ast
 bazel run //:tepl -- parse "$PWD/examples/dialects/tensor.tepl" --ast
+bazel run //:tepl -- check "$PWD/examples/lora.tepl"
+bazel run //:tepl -- check "$PWD/examples/inherited.tepl"
 ```
 
 Use an absolute input path with `bazel run`, which starts the executable from its
@@ -97,10 +99,10 @@ property. `alias` gives a second spelling to the same operation; for example,
 a dialect, the CLI checks rule operation names, arity, and whether an attribute
 descriptor is required.
 
-The parser and AST now carry this information, but Rust IR generation and
-full attribute type checking are future compiler stages. The tuple and binder
-examples remain syntax fixtures and include operators outside the Rust tensor
-IR.
+The parser and AST carry this information, and `check` resolves declarations
+and checks descriptor schemas. Rust code generation remains future work. The
+tuple and binder examples remain syntax fixtures and include operators outside
+the Rust tensor IR.
 
 ## Current rule syntax
 
@@ -199,12 +201,118 @@ and keeps root rules in `Program::rules`. Existing dialect import forms still
 require files that contain only dialect declarations and imports. Both examples
 can be inspected with `parse --ast`.
 
-Inheritance remains unexpanded at this stage: inherited rules have null local
-`lhs` and `rhs` pointers. Base-rule resolution, parameter signature checking,
-substitution, and merging inherited conditions belong to a later semantic pass.
+Inheritance remains unexpanded in the AST: inherited rules have null local
+`lhs` and `rhs` pointers. The `check` command resolves base rules, checks parameter
+signatures, substitutes bindings, and combines inherited restrictions in a
+separate checked representation.
 Dialect graph validation defers abstract and inherited rules until that pass.
-Simple rewriting and host-template generation report that expansion is required
+The existing simple rewriter and host-template generator report that expansion is required
 when given these rules.
+
+## Semantic analysis and checked IR
+
+`check FILE` parses and loads imports, then builds an owning `core::Program`.
+It prints the checked IR on success and source diagnostics on failure. Exit
+codes are 0 for success, 1 for syntax/import/semantic errors, and 2 for usage
+or input-file errors. Parsing with `parse --ast` still exposes the source AST.
+
+```sh
+bazel run //:tepl -- check "$PWD/examples/lora.tepl"
+bazel run //:tepl -- check "$PWD/examples/inherited.tepl"
+```
+
+The API in `src/core/analyze.h` accepts an AST whose imports have already been
+loaded by `resolveImports`. Analysis never mutates the AST or its shared nodes.
+`AnalysisResult::program` is present only when every stage succeeds; diagnostics
+include definition locations, instantiation locations, and related declarations.
+The checked program remains valid after the AST is destroyed.
+
+```cpp
+auto parsed = tepl::parse(source, filename);
+// Check parse errors before accessing program.
+auto imports = tepl::resolveImports(*parsed.program);
+// Check import errors before analysis.
+auto checked = tepl::core::analyze(*parsed.program);
+if (checked.ok()) {
+  std::cout << tepl::core::formatProgram(*checked.program);
+}
+```
+
+The initial analyzer supports declared tensor operations, fixed and trailing
+variadic operands, operation aliases, LHS captures and bindings, graph literals,
+shape/dtype restrictions, typed conditions, descriptor derivations, and
+concrete instances of abstract rules. Operations must have visible dialect
+declarations; syntax-only rules using undeclared operators remain parseable but
+cannot produce checked IR. Tuples and projections are explicitly unsupported.
+Abstract parameter declarations are checked immediately; template bodies are
+checked when instantiated. Abstract definitions do not become executable rules.
+
+The checked program contains operation and attribute-schema tables, inferred
+host signatures, concrete rules, and semantic types. IDs index these tables;
+capture, dimension, and descriptor IDs are local to a rule. Original names,
+literal spelling, and source origins are retained. LHS matching and RHS
+construction have separate node types. Repeated captures/dimensions use the
+same identity. Inherited shape restrictions are retained as additional runtime
+constraints; conflicting explicit dtypes and incompatible rank restrictions are
+diagnosed. A shape sequence can be empty, so `[N, ...]` requires rank at least
+one and conflicts with `scalar`, but is compatible with `[M]`.
+
+Imported template operations resolve in their definition's file scope. Instance
+operation bindings resolve in the instance's scope. Private template imports
+and unselected rules do not become visible in the importing file. Expansion
+copies expression trees so instances cannot change their template or each other.
+
+Host functions have one inferred signature per name across the program; v1 has
+no overloads. Explicit `fn` parameter signatures support `tensor`, `bool`,
+`index`, `index_list`, `i64`, `f64`, and `attrs`. Successful host values are
+distinct from failure: host calls are fallible, and failure rejects a match.
+Conditions must produce `Bool`. Numeric operators accept compatible numeric
+types; equality supports numbers and booleans. Tensor and dimension-sequence
+comparisons must use host functions. Ambiguous calls such as `f(X) == g(X)`
+need another typed use or an explicit function parameter signature.
+
+Host integer constants adopt their numeric context; otherwise unsigned constants
+default to `Index` and negative constants to `I64` after inference. Decimal
+constants use `F64`. Index/signed integer literal ranges are unsigned/signed
+64-bit; floating host literals must fit finite `F64`. Tensor captures and their
+element dtypes remain separate from these host value types. Graph literals keep
+their exact spelling and optional dtype without choosing an implicit tensor dtype.
+
+Captured descriptors are available to `where` and `derive`; derived descriptors
+become available after their assignment, in source order. Forward/self
+references, duplicate definitions, unknown references, and incompatible schema
+uses are rejected. A derived descriptor cannot be read in `where`. Derivations
+can read earlier descriptors but cannot reference constructed RHS values.
+
+The implementation lives in `src/core/`. Public IR definitions are in `ir.h`,
+`ids.h`, and `types.h`; `analyze.h` exposes the analysis API and `print.h` exposes
+the dump formatter. The implementation has these responsibilities:
+
+| File | Responsibility |
+| --- | --- |
+| `analyze.cc` | Coordinate resolution, expansion, checking, and type finalization |
+| `analysis_context.cc` | Shared analysis state, symbol lookup, and diagnostics |
+| `resolve.cc` | Register declarations and build each file's import/use scope |
+| `expand.cc` | Select templates, validate bindings, and clone expressions with source origins |
+| `check.cc` | Check graph patterns, captures, constraints, and derivation order |
+| `check_expr.cc` | Lower conditions and derivations into typed expressions |
+| `type_inference.cc` | Solve type equations, default literals, and validate type requirements |
+| `literal.cc` | Shared graph/host literal range validation |
+| `print.cc` | Format the checked program |
+
+Inference and rule-scope headers are private to the analysis target. Expression
+checking reads the rule's scope; graph checking introduces symbols and advances
+descriptor availability. Failed expressions and rules are excluded from the
+result, and unresolved types cannot be materialized into the public IR. Analysis
+reports unloaded imports instead of creating empty scopes for them.
+
+Common source locations live in `src/source.h`; AST and core share language
+operator identities and spellings from `src/operators.h`. Bazel exposes
+`//src/core:ir`, `//src/core:analysis`, and `//src/core:print`.
+
+Runtime shape checks, host numerical legality, descriptor contents, output
+metadata inference, and rewrite insertion remain runtime responsibilities.
+This stage does not generate executable code or prove tensor equivalence.
 
 ## Scope and next steps
 
@@ -219,16 +327,15 @@ reports unsupported declarations, binders, projections, `where`, and `derive`
 instead of silently ignoring them. A mismatch returns `std::nullopt`; an
 invalid rule throws `std::invalid_argument` from `rewriteOnce`.
 
-Full symbol resolution, operator operand types, general
-host-function type checking, legality, descriptor references, and
-e-graph behavior need later semantic passes.
+The core analyzer resolves symbols, checks declared tensor operation signatures,
+infers host-function types, and validates descriptor references. Runtime legality
+and e-graph behavior remain host responsibilities.
 The examples are parser fixtures, not claims of tensor equivalence.
 Multiple-root patterns and variadic expression operands are deferred.
 
 The grammar contains no C++ actions. Bazel generates lexer/parser and visitor
 sources under the build directory. `AstBuilder` converts their parse tree into
-the project AST. The next step is broader symbol and metadata dependency
-validation.
+the project AST. Semantic analysis lowers that AST into the checked core IR.
 
 AST types, printing, and construction live in `src/ast/`. The builder uses one
 visitor with separate rule and dialect source files. Parsing and semantic
@@ -237,7 +344,7 @@ validation remain in `src/`.
 The `host-template` command emits a Rust host-function interface from calls in
 `where` and `derive`. Use `--impl` for a separate implementation template.
 See [the egg lab](labs/rust-egg/README.md) for the runtime and an integration
-test. Full rule lowering remains future work.
+test. Full rule code generation remains future work.
 
 `derive` host functions return `Option<OpAttrs>` containing only operation
 descriptors. Both `where` and `derive` use matched LHS inputs; derivations are

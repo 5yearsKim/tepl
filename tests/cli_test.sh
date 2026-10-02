@@ -206,3 +206,21 @@ grep -Fq "unknown dtype 'float32'" "$output"
 printf 'rule r { X => 256:u8 }\n' >"$bad_dtype"
 check_exit 1 parse "$bad_dtype"
 grep -Fq "invalid for dtype 'u8'" "$output"
+
+# Semantic analysis emits the checked IR and rejects invalid rules.
+check_exit 0 check --help
+check_exit 2 check
+check_exit 2 check "${TEST_TMPDIR}/missing.tepl"
+check_exit 0 check "$example"
+grep -Fq 'CheckedProgram' "$output"
+grep -Fq 'MatchOp(TensorLang.add' "$output"
+grep -Fq 'BuildOp(TensorLang.add' "$output"
+check_exit 0 check "$inherited"
+grep -Fq 'commute_small_vectors' "$output"
+grep -Fq 'expanded at' "$output"
+check_exit 1 check "$bad_dtype"
+grep -Fq "invalid for dtype 'u8'" "$output"
+printf 'rule r { X => missing }\n' >"$invalid"
+check_exit 1 check "$invalid"
+grep -Fq "unknown RHS capture 'missing'" "$output"
+grep -Fq "${invalid}:1:" "$output"

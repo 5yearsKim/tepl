@@ -8,6 +8,8 @@
 #include <variant>
 #include <vector>
 
+#include "src/core/literal.h"
+
 namespace tepl {
 namespace {
 
@@ -50,17 +52,7 @@ void checkGraph(const ast::GraphExpr& expression, bool lhs, Names& captures,
 }  // namespace
 
 std::optional<DType> resolveDType(std::string_view name) {
-  static constexpr std::pair<std::string_view, DType> types[] = {
-      {"bool", DType::kBool}, {"i8", DType::kI8},     {"i16", DType::kI16},
-      {"i32", DType::kI32},   {"i64", DType::kI64},   {"u8", DType::kU8},
-      {"u16", DType::kU16},   {"u32", DType::kU32},   {"u64", DType::kU64},
-      {"f16", DType::kF16},   {"bf16", DType::kBF16}, {"f32", DType::kF32},
-      {"f64", DType::kF64},
-  };
-  for (auto [spelling, dtype] : types) {
-    if (name == spelling) return dtype;
-  }
-  return std::nullopt;
+  return core::resolveDType(name);
 }
 
 std::vector<SemanticDiagnostic> validateTensorTypes(const ast::Rule& rule) {
@@ -77,52 +69,7 @@ std::vector<SemanticDiagnostic> validateTensorTypes(const ast::Rule& rule) {
     if (!value.dtype) return;
     auto dtype = annotation(*value.dtype);
     if (!dtype) return;
-    const bool floating = *dtype == DType::kF16 || *dtype == DType::kBF16 ||
-                          *dtype == DType::kF32 || *dtype == DType::kF64;
-    if (floating) return;
-    auto digits = std::string_view(value.digits);
-    const bool negative = digits.starts_with('-');
-    if (digits.starts_with('-') || digits.starts_with('+'))
-      digits.remove_prefix(1);
-    std::string_view limit;
-    switch (*dtype) {
-      case DType::kBool:
-        limit = "1";
-        break;
-      case DType::kI8:
-        limit = negative ? "128" : "127";
-        break;
-      case DType::kI16:
-        limit = negative ? "32768" : "32767";
-        break;
-      case DType::kI32:
-        limit = negative ? "2147483648" : "2147483647";
-        break;
-      case DType::kI64:
-        limit = negative ? "9223372036854775808" : "9223372036854775807";
-        break;
-      case DType::kU8:
-        limit = "255";
-        break;
-      case DType::kU16:
-        limit = "65535";
-        break;
-      case DType::kU32:
-        limit = "4294967295";
-        break;
-      case DType::kU64:
-        limit = "18446744073709551615";
-        break;
-      default:
-        break;
-    }
-    while (digits.size() > 1 && digits.front() == '0') digits.remove_prefix(1);
-    const bool unsigned_type = *dtype == DType::kBool || *dtype == DType::kU8 ||
-                               *dtype == DType::kU16 || *dtype == DType::kU32 ||
-                               *dtype == DType::kU64;
-    if (digits.find('.') != std::string_view::npos ||
-        (unsigned_type && negative) || digits.size() > limit.size() ||
-        (digits.size() == limit.size() && digits > limit)) {
+    if (!core::validGraphLiteral(value.digits, *dtype)) {
       diagnostics.push_back({value.dtype->span, "literal '" + value.digits +
                                                     "' is invalid for dtype '" +
                                                     value.dtype->name + "'"});

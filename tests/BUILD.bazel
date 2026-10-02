@@ -1,6 +1,29 @@
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
+cc_test(
+    name = "core_test",
+    size = "small",
+    srcs = ["core_test.cc"],
+    args = [
+        "$(rlocationpath //examples:lora.tepl)",
+        "$(rlocationpath //examples:inherited.tepl)",
+    ],
+    data = [
+        "//examples:lora.tepl",
+        "//examples:inherited.tepl",
+        "//examples:abstract.tepl",
+        "//examples:dialects/tensor.tepl",
+    ],
+    deps = [
+        "//:frontend",
+        "//src/ast:ast",
+        "//src/core:analysis",
+        "//src/core:print",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
 sh_test(
     name = "cli_test",
     size = "small",

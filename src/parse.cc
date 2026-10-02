@@ -62,6 +62,7 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
   std::unordered_set<std::string> loaded;
   std::unordered_set<std::string> dialect_keys;
   std::unordered_set<std::string> rule_keys;
+  std::unordered_set<std::string> scope_keys;
   const auto key = [](const ast::Dialect& dialect) {
     return dialect.source_name + "\n" + dialect.name;
   };
@@ -69,6 +70,8 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
     dialect_keys.insert(key(dialect));
   for (const auto& rule : program.imported_rules)
     rule_keys.insert(rule.source_name + "\n" + rule.name);
+  for (const auto& scope : program.imported_scopes)
+    scope_keys.insert(scope.source_name);
   const auto root = fs::absolute(program.source_name).lexically_normal();
   active.insert(root.string());
   loaded.insert(root.string());
@@ -158,6 +161,10 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
             }
           }
           if (loaded.insert(target.string()).second) {
+            if (scope_keys.insert(parsed.program->source_name).second)
+              program.imported_scopes.push_back({parsed.program->source_name,
+                                                 parsed.program->imports,
+                                                 parsed.program->uses});
             active.insert(target.string());
             load(*parsed.program, target);
             active.erase(target.string());
@@ -168,7 +175,6 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
               program.imported_rules.push_back(*rule);
             }
           }
-          if (!imported.rules.empty()) continue;
           for (auto& dialect : parsed.program->dialects) {
             if (imported.dialect && dialect.name != *imported.dialect) continue;
             if (dialect_keys.insert(key(dialect)).second) {

@@ -5,6 +5,7 @@ cc_library(
     srcs = ["print.cc"],
     hdrs = ["ast.h", "print.h"],
     visibility = ["//visibility:public"],
+    deps = ["//:operators", "//:source"],
 )
 
 cc_library(

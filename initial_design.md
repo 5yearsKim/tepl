@@ -171,18 +171,20 @@ rule commute_small_vectors extends commute(F = t.add) {
 ```
 
 Templates can be selected with `from "abstract.tepl" import {commute};`.
-Instances may add declarations and `where` restrictions. Their intended
+Instances may add declarations and `where` restrictions. Their
 expansion preserves the inherited graph and combines conditions; instances
 cannot provide a replacement graph or `derive` block. Parsing and importing
-are implemented; expansion and signature validation are pending. See
+preserve the source AST; the core analyzer expands concrete instances and
+validates bindings and signatures. See
 [abstract.tepl](examples/abstract.tepl) and [inherited.tepl](examples/inherited.tepl).
 
 ## Implementation and execution
 
 The C++ frontend uses an ANTLR4 grammar without embedded actions and builds an
-owning AST with source spans. The CLI resolves imports and validates dialect
-operation names, arity, and descriptor presence. It parses abstract/inherited
-rules without expanding them. `host-template` emits per-rule Rust host traits
+owning AST with source spans. The `parse` command resolves imports and validates
+dialect operation names, arity, and descriptor presence while preserving
+abstract/inherited source rules. The `check` command performs semantic analysis
+and expands concrete instances into the core IR. `host-template` emits per-rule Rust host traits
 or implementation stubs; it does not lower full rules.
 
 The C++ `rewriteOnce` API supports root-only structural matching and RHS
@@ -219,8 +221,11 @@ E-class metadata must describe every alternative, including dtype; hosts must
 return `None` when this cannot be established. Dtype is part of literal node
 identity, so differently typed literals cannot be hash-consed into one node.
 
-Full symbol/type resolution, inheritance expansion, descriptor reference
-validation, and automatic dialect/rule lowering remain future compiler work.
+The C++ core analyzer resolves operation and rule-local symbols, expands
+inherited rules, checks tensor/host types, and validates descriptor references.
+`check FILE` prints its checked IR; automatic dialect/rule code generation
+remains future work. Abstract bodies are checked on instantiation, and the
+initial analyzer explicitly rejects tuple/projection semantics.
 Multiple-root patterns, variadic graph captures such as `Xs...`, arbitrary
 regions/control flow, and full symbolic shape algebra are outside current
 scope. Example files demonstrate syntax; their tensor equivalence depends on

@@ -7,6 +7,18 @@ sh_binary(
     srcs = ["tools/format.sh"],
 )
 
+cc_library(
+    name = "source",
+    hdrs = ["src/source.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "operators",
+    hdrs = ["src/operators.h"],
+    visibility = ["//visibility:public"],
+)
+
 sh_binary(
     name = "format_check",
     srcs = ["tools/format.sh"],
@@ -30,7 +42,10 @@ cc_library(
     srcs = ["src/semantic.cc"],
     hdrs = ["src/semantic.h"],
     visibility = ["//visibility:public"],
-    deps = ["//src/ast:ast"],
+    deps = [
+        "//src/ast:ast",
+        "//src/core:ir",
+    ],
 )
 
 cc_library(
@@ -58,6 +73,8 @@ cc_binary(
         ":host_codegen",
         ":semantic",
         "//src/ast:ast",
+        "//src/core:analysis",
+        "//src/core:print",
         "@cli11//:cli11",
     ],
 )

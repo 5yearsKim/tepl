@@ -7,19 +7,13 @@
 #include <variant>
 #include <vector>
 
+#include "src/operators.h"
+#include "src/source.h"
+
 namespace tepl::ast {
 
-// One-based lines and Unicode code-point columns, as in parser diagnostics.
-struct SourcePosition {
-  std::size_t line = 1;
-  std::size_t column = 1;
-};
-
-// Half-open range: begin is included, end is excluded.
-struct SourceSpan {
-  SourcePosition begin;
-  SourcePosition end;
-};
+using ::tepl::SourcePosition;
+using ::tepl::SourceSpan;
 
 struct NamedDimension {
   std::string name;
@@ -128,27 +122,8 @@ struct GraphExpr {
 //   !broadcastable(A, B), K % 128 == 0, infer_dot(X, W, @outer).
 // Tree nesting preserves operator precedence. Semantic validation determines
 // result types and requires each complete `where` condition to be boolean.
-enum class UnaryOp {
-  kPlus,
-  kNegate,
-  kLogicalNot,
-};
-
-enum class BinaryOp {
-  kAdd,
-  kSubtract,
-  kMultiply,
-  kDivide,
-  kRemainder,
-  kLess,
-  kLessEqual,
-  kGreater,
-  kGreaterEqual,
-  kEqual,
-  kNotEqual,
-  kLogicalAnd,
-  kLogicalOr,
-};
+using ::tepl::BinaryOp;
+using ::tepl::UnaryOp;
 
 struct Call {
   std::string callee;
@@ -303,6 +278,13 @@ struct Program {
   // Selected template definitions retain their source; root rules stay in
   // rules.
   std::vector<Rule> imported_rules;
+  // Visibility information retained for semantic analysis of imported rules.
+  struct ImportedScope {
+    std::string source_name;
+    std::vector<Import> imports;
+    std::vector<Use> uses;
+  };
+  std::vector<ImportedScope> imported_scopes;
 };
 
 }  // namespace tepl::ast

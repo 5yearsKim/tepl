@@ -6,24 +6,11 @@
 #include <vector>
 
 #include "src/ast/ast.h"
+#include "src/core/types.h"
 
 namespace tepl {
 
-enum class DType {
-  kBool,
-  kI8,
-  kI16,
-  kI32,
-  kI64,
-  kU8,
-  kU16,
-  kU32,
-  kU64,
-  kF16,
-  kBF16,
-  kF32,
-  kF64,
-};
+using DType = core::DType;
 
 std::optional<DType> resolveDType(std::string_view name);
 

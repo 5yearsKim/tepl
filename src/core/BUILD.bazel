@@ -1,0 +1,55 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "ir",
+    srcs = [
+        "literal.cc",
+        "types.cc",
+    ],
+    hdrs = [
+        "ids.h",
+        "ir.h",
+        "literal.h",
+        "types.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:operators",
+        "//:source",
+    ],
+)
+
+cc_library(
+    name = "analysis",
+    srcs = [
+        "analysis_context.cc",
+        "analysis_context.h",
+        "analyze.cc",
+        "check.cc",
+        "check_expr.cc",
+        "check_expr.h",
+        "expand.cc",
+        "resolve.cc",
+        "rule_scope.h",
+        "type_inference.cc",
+        "type_inference.h",
+    ],
+    hdrs = [
+        "analyze.h",
+        "diagnostic.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":ir",
+        "//:source",
+        "//src/ast:ast",
+    ],
+)
+
+cc_library(
+    name = "print",
+    srcs = ["print.cc"],
+    hdrs = ["print.h"],
+    visibility = ["//visibility:public"],
+    deps = [":ir"],
+)
