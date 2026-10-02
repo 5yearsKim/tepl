@@ -10,7 +10,7 @@ use crate::ir::patterns::{
 };
 use crate::ir::{OpAttrs, OpKind, TensorLang};
 
-pub mod lora {
+pub mod rule_lora {
     use super::*;
 
     /// Functions required to construct and validate this rewrite.

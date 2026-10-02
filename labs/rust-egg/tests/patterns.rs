@@ -2,7 +2,7 @@ use egg::{EGraph, Var};
 use rust_egg::ir::patterns::{
     AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, matches_at, tensor_rewrite,
 };
-use rust_egg::ir::rules::simple;
+use rust_egg::ir::rules::rule_commute_add;
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
 
 #[test]
@@ -20,7 +20,7 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
     }
     egraph.rebuild();
 
-    let rule = simple::commute_add::build_rewrite::<()>().unwrap();
+    let rule = rule_commute_add::build_rewrite::<()>().unwrap();
     let limited = rule.search_with_limit(&egraph, 1);
     assert_eq!(limited.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     let found = rule.search(&egraph);

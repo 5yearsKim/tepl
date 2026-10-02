@@ -6,7 +6,7 @@ use crate::ir::patterns::{AttrExpr, AttrPattern, TensorExpr, TensorPattern, tens
 use crate::ir::{OpAttrs, OpKind, TensorLang};
 
 /// The `commute_add` rule from `simple.tepl`.
-pub mod commute_add {
+pub mod rule_commute_add {
     use super::*;
 
     pub fn pattern() -> TensorPattern {

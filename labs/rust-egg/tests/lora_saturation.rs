@@ -6,7 +6,7 @@ mod support;
 use std::time::Duration;
 
 use egg::{EGraph, Extractor, Runner, StopReason};
-use rust_egg::ir::rules::{lora, simple};
+use rust_egg::ir::rules::{rule_commute_add, rule_lora};
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
 
 use support::{
@@ -19,14 +19,14 @@ fn run_rules(
     allow_reassociation: bool,
 ) -> Runner<TensorLang, ShapeAnalysis> {
     let rules = [
-        lora::lora::build_rewrite(
+        rule_lora::build_rewrite(
             tensor_info,
             DemoLoraFunctions {
                 allow_reassociation,
             },
         )
         .unwrap(),
-        simple::commute_add::build_rewrite().unwrap(),
+        rule_commute_add::build_rewrite().unwrap(),
     ];
     Runner::<TensorLang, ShapeAnalysis>::new(ShapeAnalysis::default())
         .with_egraph(egraph)

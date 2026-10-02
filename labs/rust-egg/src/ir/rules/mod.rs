@@ -1,5 +1,9 @@
-//! Reference rule modules, one per TEPL source file.
+//! Reference rules, re-exported from one module per TEPL source file.
 
-pub mod binders;
-pub mod lora;
-pub mod simple;
+mod binders;
+mod lora;
+mod simple;
+
+pub use binders::*;
+pub use lora::*;
+pub use simple::*;

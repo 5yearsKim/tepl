@@ -8,9 +8,18 @@ checking its nested operation pattern; later `TensorPattern::Var` and
 
 `src/ir/rules/` contains one Rust module per TEPL source file:
 `lora.rs`, `simple.rs`, and `binders.rs`. The last module contains both rules
-declared in `examples/binders.tepl`. Each module constructs the corresponding
-rewrite through a `rule_<name>` function and, when needed, declares the host
-functions it calls. Callers supply host implementations and tensor metadata.
+declared in `examples/binders.tepl`. Each rule lives in a `rule_<name>` module
+with a `build_rewrite` constructor and, when needed, a host `Functions` trait.
+`ir::rules` re-exports all rule modules directly; the source-file modules are
+private. Callers supply host implementations and tensor metadata:
+
+```rust
+use rust_egg::ir::rules::{rule_commute_add, rule_shared_expression};
+
+let rewrite = rule_commute_add::build_rewrite::<()>().unwrap();
+let pattern = rule_shared_expression::pattern();
+```
+
 These rule modules are manually
 maintained reference output for future generation. Their fixtures and behavior
 checks live in `tests/lora.rs`, `tests/simple.rs`, and `tests/binders.rs`.
@@ -36,7 +45,7 @@ cargo test --manifest-path labs/rust-egg/Cargo.toml
 
 `tests/support/generated_host.rs` records an example of that standalone
 interface. The reference `rules/lora.rs` declares the same methods directly
-so its callers can implement `rules::lora::lora::Functions`. Each rule is
+so its callers can implement `rules::rule_lora::Functions`. Each rule is
 exposed as a module containing its own `Functions` trait, `pattern`, and
 `build_rewrite` constructor, so rules can be used independently even when
 several share a source module.

@@ -2,7 +2,7 @@
 
 use egg::{Analysis, CostFunction, DidMerge, EGraph, Id, Language, RecExpr, StopReason};
 use rust_egg::ir::patterns::{InferredTensor, TensorInfo};
-use rust_egg::ir::rules::lora;
+use rust_egg::ir::rules::rule_lora;
 use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
 use std::collections::HashMap;
 
@@ -118,7 +118,7 @@ pub struct DemoLoraFunctions {
     pub allow_reassociation: bool,
 }
 
-impl lora::lora::Functions for DemoLoraFunctions {
+impl rule_lora::Functions for DemoLoraFunctions {
     fn broadcastable(&self, batch: &[usize], weight_batch: &[usize]) -> Option<bool> {
         Some(batch == weight_batch)
     }

@@ -9,7 +9,7 @@ use crate::ir::patterns::{
 use crate::ir::{OpAttrs, OpKind, TensorLang};
 
 /// The `shared_expression` rule from `binders.tepl`.
-pub mod shared_expression {
+pub mod rule_shared_expression {
     use super::*;
 
     /// Functions required to validate this rewrite.
@@ -78,7 +78,7 @@ pub mod shared_expression {
 }
 
 /// The `root_binding` rule from `binders.tepl`.
-pub mod root_binding {
+pub mod rule_root_binding {
     use super::*;
 
     pub fn pattern() -> TensorPattern {
