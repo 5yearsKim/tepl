@@ -7,11 +7,13 @@ checking its nested operation pattern; later `TensorPattern::Var` and
 `TensorExpr::Var` references reuse that value.
 
 `src/ir/rules/` contains one Rust module per TEPL source file:
-`lora.rs`, `simple.rs`, `literals.rs`, and `binders.rs`. The last module contains both rules
-declared in `examples/binders.tepl`. Each rule lives in a `rule_<name>` module
+`lora.rs`, `simple.rs`, `basic.rs`, `binders.rs`, and `inherited.rs`.
+`basic.rs` contains the consolidated dtype and literal examples;
+`binders.rs` contains both rules declared in `examples/binders.tepl`. Each rule lives in a `rule_<name>` module
 with a `build_rewrite` constructor and, when needed, a host `Functions` trait.
-`ir::rules` re-exports all rule modules directly; the source-file modules are
-private. Callers supply host implementations and tensor metadata:
+`ir::rules` re-exports the basic, binder, LoRA, and simple rule modules directly.
+`ir::rules::basic` also exposes the consolidated basic rules; inherited rules
+use their own namespace to avoid name collisions. Callers supply host implementations and tensor metadata:
 
 ```rust
 use rust_egg::ir::rules::{rule_commute_add, rule_shared_expression};
@@ -24,15 +26,17 @@ These rule modules are manually
 maintained reference output for future generation. Their fixtures and behavior
 checks live in `tests/lora.rs`, `tests/simple.rs`, and `tests/binders.rs`.
 
-`TensorLang::literal("1.0")` creates a zero-operand numeric node;
+`TensorLang::literal("1.0", DType::F32)` creates a zero-operand numeric node;
 `TensorPattern::literal` and `TensorExpr::literal` match and construct those
 nodes. Accepted spellings are signed or unsigned integers and decimals with
-digits on both sides of the point. Exact spelling defines identity: `1`,
-`1.0`, and `1.00` are distinct. No machine numeric conversion occurs, so
-precision and signed zero are preserved. Graph literals denote rank-zero
-values; hosts supply element types, metadata, and broadcasting semantics.
+digits on both sides of the point. Dtype and exact spelling define identity:
+`1:i32`, `1:f32`, `1.0:f32`, and `1.00:f32` are distinct. Integer and boolean
+ranges are checked without machine floating conversion. Floating spelling and
+signed zero are preserved; hosts define float rounding and representability.
+Graph literals denote rank-zero tensors with explicit dtype. Hosts supply
+operation semantics, metadata, and broadcasting rules.
 `tests/literals.rs` exercises the reference rules from
-[`examples/literals.tepl`](../../examples/literals.tepl), including matching,
+[`examples/basic.tepl`](../../examples/basic.tepl), including matching,
 RHS insertion, and rejection of invalid spellings.
 
 `src/ir/rules/inherited.rs` is the reference output for compile-time expansion
@@ -71,7 +75,7 @@ cargo test --manifest-path labs/rust-egg/Cargo.toml
 ```
 
 `tests/support/generated_host.rs` records an example of that standalone
-interface. The reference `rules/lora.rs` declares the same methods directly
+interface, compiled by `tests/lora.rs`. The reference `rules/lora.rs` declares the same methods directly
 so its callers can implement `rules::rule_lora::Functions`. Each rule is
 exposed as a module containing its own `Functions` trait, `pattern`, and
 `build_rewrite` constructor, so rules can be used independently even when
@@ -85,8 +89,9 @@ used to construct the operation. `None` rejects the match.
 RHS `TensorExpr` is a tree of operations, literals, and references to LHS
 captures. Bindings are supported only in LHS `TensorPattern`; RHS `let` is
 rejected by the TEPL grammar. Both `where` and `derive` use the LHS environment.
-The runtime has no RHS binding environment, dependency scheduler, or intermediate
-output-inference interface.
+Descriptor derivation has no RHS binding environment or dependency scheduler.
+`OutputInference` separately verifies intermediate output shape and dtype before
+insertion, using resolved descriptors and child metadata.
 
 LoRA constructs its descriptors in source order with `infer_dot(X, W, outer)`,
 `infer_dot(X, A, outer)`, and `infer_lora_out(X, A, B, outer, inner)`. The last
@@ -94,15 +99,23 @@ host function chooses the final dot descriptor directly from matched inputs.
 Its result contains attributes only. Construct the reference rule with:
 
 ```rust
-let rewrite = rule_lora::build_rewrite(metadata, functions)?;
+let rewrite = rule_lora::build_checked_rewrite(metadata, inference, functions)?;
 ```
 
-The host's e-class analysis infers output metadata after insertion. All host
-checks and descriptor derivations complete first; the runtime then validates the
-whole RHS tree and recursively inserts it. Missing or invalid descriptors reject
-the match without leaving partial RHS nodes. Static RHS arity and exact-attribute
-errors are diagnosed when constructing the rewrite. Additional LoRA output
-compatibility checks are deferred to future general validation.
+All host checks and descriptor derivations complete first. The checked runtime
+validates the RHS structure, infers every output, and requires final shape/dtype
+equality with the matched root before recursively inserting nodes. Missing
+metadata, unsupported dtype combinations, and invalid descriptors reject the
+match without leaving partial RHS nodes. Static RHS arity and exact-attribute
+errors are diagnosed when constructing the rewrite. E-class analysis should
+share the same operation semantics. The saturation example demonstrates this.
+
+`TensorInfo` contains `shape: Vec<usize>` and `dtype: DType`, with no unknown or
+default dtype. Metadata lookup returns `None` unless all e-class alternatives
+have compatible tensor descriptions. `TensorBindings` rejects conflicting
+symbol/constant registrations while keeping existing types unchanged.
+The legacy `tensor_rewrite` and `rule_lora::build_rewrite` paths rely on their
+callers to prove complete replacement validity and output compatibility.
 
 The integration tests use manually written rule modules and test host
 implementations. Lowering full TEPL rules into those Rust patterns and
@@ -110,7 +123,22 @@ callbacks is a separate compiler stage. The current template generator infers
 arguments from ordinary LHS tensor captures, declared dimensions, descriptors,
 LHS binders, and literals. Both `where` and `derive` use the LHS environment.
 It diagnoses calls whose argument types cannot yet be inferred, including
-untyped scalar declarations and nested function arguments.
+nested function arguments. `scalar` captures are rank-zero tensors passed as
+`&TensorInfo`; numbers in host expressions remain Rust scalar values.
+
+[`examples/basic.tepl`](../../examples/basic.tepl) and `rules/basic.rs` cover
+f32 vector constraints, shape-only declarations with a `same_dtype` host
+predicate, typed scalar tensors, and integer/float literals. All five reference
+rules use `tensor_rewrite_checked`. The overlapping floating-literal examples
+are represented by one `commute_float_literal` rule. Signed-literal spellings
+remain covered by tests without a separate example rule.
+`tests/dtypes.rs` compiles the generated basic host
+trait and verifies acceptance, rejection, output compatibility, literal identity,
+and absence of partial RHS insertion. Regenerate that fixture with:
+
+```sh
+bazel-bin/tepl host-template examples/basic.tepl > labs/rust-egg/tests/support/generated_basic_host.rs
+```
 
 ## Run the LoRA saturation example
 

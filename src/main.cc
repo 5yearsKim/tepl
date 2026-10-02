@@ -7,6 +7,7 @@
 #include "src/ast/print.h"
 #include "src/host_codegen.h"
 #include "src/parse.h"
+#include "src/semantic.h"
 
 int main(int argc, char** argv) {
   CLI::App app{"Parse TEPL tensor rewrite rules"};
@@ -52,6 +53,15 @@ int main(int argc, char** argv) {
                               import_diagnostics.begin(),
                               import_diagnostics.end());
     if (result.ok()) {
+      const auto check_types = [&](const tepl::ast::Rule& rule) {
+        for (const auto& diagnostic : tepl::validateTensorTypes(rule)) {
+          result.diagnostics.push_back({diagnostic.span.begin.line,
+                                        diagnostic.span.begin.column,
+                                        diagnostic.message, rule.source_name});
+        }
+      };
+      for (const auto& rule : result.program->rules) check_types(rule);
+      for (const auto& rule : result.program->imported_rules) check_types(rule);
       auto dialect_diagnostics = tepl::validateDialectUses(*result.program);
       result.diagnostics.insert(result.diagnostics.end(),
                                 dialect_diagnostics.begin(),

@@ -39,9 +39,13 @@ void printGraph(std::ostream& out, const ast::GraphExpr& expression,
         if constexpr (std::is_same_v<T, ast::NameRef>) {
           out << "variable " << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::IntegerLiteral>) {
-          out << "integer " << value.digits << '\n';
+          out << "integer " << value.digits;
+          if (value.dtype) out << ":" << value.dtype->name;
+          out << '\n';
         } else if constexpr (std::is_same_v<T, ast::FloatLiteral>) {
-          out << "float " << value.digits << '\n';
+          out << "float " << value.digits;
+          if (value.dtype) out << ":" << value.dtype->name;
+          out << '\n';
         } else if constexpr (std::is_same_v<T, ast::Operator>) {
           out << "operator " << value.name;
           if (value.attribute) out << " @" << value.attribute->name;
@@ -115,9 +119,13 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
         } else if constexpr (std::is_same_v<T, ast::AttributeRef>) {
           out << "attribute @" << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::IntegerLiteral>) {
-          out << "integer " << value.digits << '\n';
+          out << "integer " << value.digits;
+          if (value.dtype) out << ":" << value.dtype->name;
+          out << '\n';
         } else if constexpr (std::is_same_v<T, ast::FloatLiteral>) {
-          out << "float " << value.digits << '\n';
+          out << "float " << value.digits;
+          if (value.dtype) out << ":" << value.dtype->name;
+          out << '\n';
         } else if constexpr (std::is_same_v<T, ast::BooleanLiteral>) {
           out << "boolean " << (value.value ? "true" : "false") << '\n';
         } else if constexpr (std::is_same_v<T, ast::Call>) {
@@ -144,7 +152,9 @@ void printDeclaration(std::ostream& out, const ast::Declaration& declaration) {
         if constexpr (std::is_same_v<T, ast::ScalarDecl>) {
           out << "    scalar " << value.name << '\n';
         } else {
-          out << "    tensor " << value.name << " [";
+          out << "    tensor " << value.name << " ";
+          if (value.dtype) out << value.dtype->name;
+          out << "[";
           for (std::size_t index = 0; index < value.shape.size(); ++index) {
             if (index != 0) out << ", ";
             out << formatDimension(value.shape[index]);

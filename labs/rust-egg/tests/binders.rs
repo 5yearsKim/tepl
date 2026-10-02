@@ -2,7 +2,7 @@ use egg::{EGraph, Id, Var};
 use rust_egg::ir::patterns::{AttrPattern, TensorInfo, TensorPattern, matches_at};
 use rust_egg::ir::rules::rule_shared_expression::Functions;
 use rust_egg::ir::rules::{rule_root_binding, rule_shared_expression};
-use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
+use rust_egg::ir::{DType, OpAttrs, OpKind, TensorLang};
 
 fn dot_attrs() -> OpAttrs {
     OpAttrs::DotGeneral {
@@ -25,7 +25,10 @@ impl Functions for TestFunctions {
 
 fn metadata_for(dot: Id) -> impl Fn(&EGraph<TensorLang, ()>, Id) -> Option<TensorInfo> {
     move |egraph, id| {
-        (egraph.find(id) == egraph.find(dot)).then_some(TensorInfo { shape: vec![2, 2] })
+        (egraph.find(id) == egraph.find(dot)).then_some(TensorInfo {
+            dtype: DType::F32,
+            shape: vec![2, 2],
+        })
     }
 }
 

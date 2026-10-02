@@ -7,7 +7,10 @@ use egg::{EGraph, Id, Rewrite, Var};
 use rust_egg::ir::patterns::{AttrVar, TensorInfo, matches_at};
 use rust_egg::ir::rules::rule_lora;
 use rust_egg::ir::rules::rule_lora::Functions;
-use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
+use rust_egg::ir::{DType, OpAttrs, OpKind, TensorLang};
+
+#[path = "support/generated_host.rs"]
+mod generated_host;
 
 fn batched_dot_attrs() -> OpAttrs {
     OpAttrs::DotGeneral {
@@ -119,6 +122,7 @@ fn test_rule(shapes: HashMap<String, Vec<usize>>) -> Rewrite<TensorLang, ()> {
             .find_map(TensorLang::symbol_name)
             .and_then(|name| shapes.get(name))
             .map(|shape| TensorInfo {
+                dtype: DType::F32,
                 shape: shape.clone(),
             })
     };
@@ -239,6 +243,7 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
             .find_map(TensorLang::symbol_name)
             .and_then(|name| shapes.get(name))
             .map(|shape| TensorInfo {
+                dtype: DType::F32,
                 shape: shape.clone(),
             })
     };
@@ -252,4 +257,67 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
     let found = rule.search(&egraph);
     assert_eq!(rule.apply(&mut egraph, &found).len(), 1);
     assert_eq!(*calls.lock().unwrap(), ["xw", "xa", "out"]);
+}
+
+// Compile the generated interface against the same implementation used by the
+// handwritten reference rules, catching frontend/runtime signature drift.
+impl generated_host::lora::Functions for TestFunctions {
+    fn broadcastable(&self, batch: &[usize], weight_batch: &[usize]) -> Option<bool> {
+        Functions::broadcastable(self, batch, weight_batch)
+    }
+    fn reassociable(
+        &self,
+        x: &TensorInfo,
+        a: &TensorInfo,
+        b: &TensorInfo,
+        outer: &OpAttrs,
+        inner: &OpAttrs,
+    ) -> Option<bool> {
+        Functions::reassociable(self, x, a, b, outer, inner)
+    }
+    fn infer_dot(&self, lhs: &TensorInfo, rhs: &TensorInfo, attrs: &OpAttrs) -> Option<OpAttrs> {
+        Functions::infer_dot(self, lhs, rhs, attrs)
+    }
+    fn infer_lora_out(
+        &self,
+        x: &TensorInfo,
+        a: &TensorInfo,
+        b: &TensorInfo,
+        outer: &OpAttrs,
+        inner: &OpAttrs,
+    ) -> Option<OpAttrs> {
+        Functions::infer_lora_out(self, x, a, b, outer, inner)
+    }
+}
+
+#[test]
+fn generated_host_interface_accepts_dtype_metadata() {
+    let tensor = TensorInfo {
+        shape: vec![2, 3, 4],
+        dtype: DType::BF16,
+    };
+    let a = TensorInfo {
+        shape: vec![2, 4, 2],
+        dtype: DType::BF16,
+    };
+    let b = TensorInfo {
+        shape: vec![2, 2, 5],
+        dtype: DType::BF16,
+    };
+    let functions: &dyn generated_host::lora::Functions = &TestFunctions;
+    assert_eq!(functions.broadcastable(&[2], &[2]), Some(true));
+    assert!(
+        functions
+            .infer_dot(&tensor, &a, &batched_dot_attrs())
+            .is_some()
+    );
+    assert!(
+        functions
+            .infer_lora_out(&tensor, &a, &b, &batched_dot_attrs(), &batched_dot_attrs())
+            .is_some()
+    );
+    assert_eq!(
+        functions.reassociable(&tensor, &a, &b, &batched_dot_attrs(), &batched_dot_attrs()),
+        Some(true)
+    );
 }

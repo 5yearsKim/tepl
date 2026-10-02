@@ -42,12 +42,6 @@ cp "$output" "${TEST_TMPDIR}/ast"
 check_exit 0 parse --ast "$example"
 cmp "$output" "${TEST_TMPDIR}/ast"
 
-literals="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/literals.tepl"
-check_exit 0 parse "$literals" --ast
-grep -Fq 'integer 1' "$output"
-grep -Fq 'float 1.0' "$output"
-grep -Fq 'float -0.5' "$output"
-
 check_exit 2
 check_exit 2 parse
 check_exit 2 unknown "$example"
@@ -193,3 +187,22 @@ printf 'from "b.tepl" import {b}; abstract rule a() { X => X }\n' >"$cycle_a"
 printf 'from "a.tepl" import {a}; abstract rule b() { X => X }\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
+
+# Dtype validation runs for both parsing and host generation.
+basic="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/basic.tepl"
+check_exit 0 parse "$basic" --ast
+grep -Fq 'tensor X f32[N]' "$output"
+grep -Fq 'float 1.0:f32' "$output"
+grep -Fq 'integer 1:i32' "$output"
+check_exit 0 host-template "$basic"
+grep -Fq 'fn same_dtype(&self, arg0: &TensorInfo, arg1: &TensorInfo)' "$output"
+
+bad_dtype="${TEST_TMPDIR}/bad_dtype.tepl"
+printf 'rule r { X: float32[N] X => X }\n' >"$bad_dtype"
+check_exit 1 parse "$bad_dtype"
+grep -Fq "${bad_dtype}:1:13: unknown dtype 'float32'" "$output"
+check_exit 1 host-template "$bad_dtype"
+grep -Fq "unknown dtype 'float32'" "$output"
+printf 'rule r { X => 256:u8 }\n' >"$bad_dtype"
+check_exit 1 parse "$bad_dtype"
+grep -Fq "invalid for dtype 'u8'" "$output"

@@ -1,6 +1,6 @@
 use egg::{Analysis, EGraph, Id, Var};
 
-use crate::ir::{OpAttrs, TensorLang};
+use crate::ir::{DType, OpAttrs, OpKind, TensorLang};
 
 use super::matcher::TensorMatch;
 use super::pattern::AttrVar;
@@ -9,6 +9,32 @@ use super::pattern::AttrVar;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TensorInfo {
     pub shape: Vec<usize>,
+    pub dtype: DType,
+}
+
+/// Infer a constructed operation's output separately from descriptor derivation.
+/// Implementations can share the same operation semantics with e-class analysis.
+pub trait OutputInference: Send + Sync {
+    fn infer_output(
+        &self,
+        op: crate::ir::OpKind,
+        operands: &[TensorInfo],
+        attrs: &OpAttrs,
+    ) -> Option<TensorInfo>;
+}
+
+impl<F> OutputInference for F
+where
+    F: Fn(crate::ir::OpKind, &[TensorInfo], &OpAttrs) -> Option<TensorInfo> + Send + Sync,
+{
+    fn infer_output(
+        &self,
+        op: crate::ir::OpKind,
+        operands: &[TensorInfo],
+        attrs: &OpAttrs,
+    ) -> Option<TensorInfo> {
+        self(op, operands, attrs)
+    }
 }
 
 /// Supplies metadata valid for every alternative in an e-class. Return `None`
@@ -60,5 +86,54 @@ impl<'a, N: Analysis<TensorLang>, M: TensorMetadata<N>> MatchContext<'a, N, M> {
 
     pub fn attrs(&self, var: AttrVar) -> Option<&OpAttrs> {
         self.matched.attrs.get(&var)
+    }
+}
+
+/// Host input identities with immutable types. Register inputs before building
+/// the graph; conflicting registrations never overwrite existing metadata.
+#[derive(Clone, Debug, Default)]
+pub struct TensorBindings {
+    entries: std::collections::HashMap<(OpKind, String), TensorInfo>,
+}
+
+impl TensorBindings {
+    pub fn register_symbol(
+        &mut self,
+        name: impl Into<String>,
+        info: TensorInfo,
+    ) -> Result<(), String> {
+        self.register(OpKind::Symbol, name.into(), info)
+    }
+
+    pub fn register_constant(
+        &mut self,
+        name: impl Into<String>,
+        info: TensorInfo,
+    ) -> Result<(), String> {
+        self.register(OpKind::Constant, name.into(), info)
+    }
+
+    fn register(&mut self, op: OpKind, name: String, info: TensorInfo) -> Result<(), String> {
+        let key = (op, name);
+        if let Some(previous) = self.entries.get(&key) {
+            if previous != &info {
+                return Err(format!(
+                    "conflicting tensor type for {} '{}'",
+                    op.name(),
+                    key.1
+                ));
+            }
+            return Ok(());
+        }
+        self.entries.insert(key, info);
+        Ok(())
+    }
+
+    pub fn info(&self, node: &TensorLang) -> Option<&TensorInfo> {
+        let name = match node.attrs() {
+            OpAttrs::Symbol { name } | OpAttrs::Constant { name } => name,
+            _ => return None,
+        };
+        self.entries.get(&(node.op(), name.clone()))
     }
 }

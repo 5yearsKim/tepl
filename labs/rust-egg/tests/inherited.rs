@@ -6,7 +6,7 @@ use rust_egg::ir::rules::inherited::{
     rule_associate_add_right, rule_associate_mul_right, rule_associate_small_vectors,
     rule_commute_add, rule_commute_mul, rule_commute_small_vectors, rule_distribute_mul_over_add,
 };
-use rust_egg::ir::{OpKind, TensorLang};
+use rust_egg::ir::{DType, OpKind, TensorLang};
 
 fn inputs() -> (EGraph<TensorLang, ()>, [Id; 3]) {
     let mut egraph = EGraph::default();
@@ -27,6 +27,7 @@ fn metadata(shapes: [Option<Vec<usize>>; 3]) -> impl TensorMetadata<()> {
                 _ => return None,
             };
             let info = TensorInfo {
+                dtype: DType::F32,
                 shape: shapes[index].clone()?,
             };
             if result.as_ref().is_some_and(|previous| previous != &info) {

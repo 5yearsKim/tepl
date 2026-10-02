@@ -146,8 +146,12 @@ inheritedBody
 // -----------------------------------------------------------------------------
 
 shapeDecl
-    : ID ':' '[' shapeElements? ']'           # TensorDecl
+    : ID ':' dtypeName? '[' shapeElements? ']'           # TensorDecl
     | ID ':' SCALAR                           # ScalarDecl
+    ;
+
+dtypeName
+    : ID
     ;
 
 // A sequence may appear anywhere, but each shape has at most one sequence.
@@ -173,7 +177,7 @@ sequenceDim
 graphExpr
     : binding                                # BareBindingGraph
     | ID                                     # VariableGraph
-    | ('+' | '-')? (INT | FLOAT)              # NumberGraph
+    | ('+' | '-')? (INT | FLOAT) (':' dtypeName)? # NumberGraph
     | '(' binding ')'                        # ParenthesizedBindingGraph
     | '(' GET '[' INT ']' graphExpr ')'       # GetGraph
     | '(' opRef attribute? graphExpr* ')'     # OperatorGraph
@@ -182,7 +186,7 @@ graphExpr
 // RHS expressions construct operations from LHS captures; they introduce no bindings.
 rhsGraphExpr
     : ID                                     # RhsVariableGraph
-    | ('+' | '-')? (INT | FLOAT)              # RhsNumberGraph
+    | ('+' | '-')? (INT | FLOAT) (':' dtypeName)? # RhsNumberGraph
     | '(' GET '[' INT ']' rhsGraphExpr ')'    # RhsGetGraph
     | '(' opRef attribute? rhsGraphExpr* ')'  # RhsOperatorGraph
     ;

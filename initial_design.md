@@ -49,10 +49,13 @@ See [examples/binders.tepl](examples/binders.tepl).
 
 Numeric operands and roots accept integers (`1`) and decimals (`1.0`), with
 an optional sign (`-0.5`). Decimals require digits on both sides of the point;
-exponents and suffixes are unsupported. Graph literals denote rank-zero values;
-element types and broadcasting are host semantics. Structural matching preserves
-kind and spelling, so `1`, `1.0`, and `1.00` are distinct. See
-[examples/literals.tepl](examples/literals.tepl).
+exponents and attached numeric suffixes are unsupported. Graph literals may carry
+an explicit dtype (`1:i32`, `1.0:f32`, `-0.5:bf16`) and denote rank-zero tensors.
+Bare literals remain available in the structural frontend; typed runtime
+construction requires a concrete dtype, with no implicit default. Structural
+matching preserves kind, spelling, and annotation, so `1:i32`, `1:f32`, and
+`1.0:f32` are distinct. Constraint numbers remain host values. See
+[examples/basic.tepl](examples/basic.tepl).
 
 Tuple syntax is `(tuple X Y)` and `(get[0] T)`; projection has one operand and
 a nonnegative integer index. These forms are parsed but have no Rust tensor
@@ -64,12 +67,31 @@ Declarations are optional match constraints, rather than a complete type system:
 
 | Syntax | Meaning |
 | --- | --- |
-| `X: [M, K]` | Tensor with named dimensions; repeated names must agree |
+| `X: [M, K]` | Tensor with named dimensions and unrestricted dtype; repeated names must agree |
+| `X: bf16[M, K]` | Same shape constraint, restricted to bf16 |
+| `X: f32[...]` | Any shape, restricted to f32 |
 | `X: []` | Rank-zero tensor |
 | `_` | One arbitrary dimension |
 | `...` / `Batch...` | Anonymous / named sequence of zero or more dimensions |
-| `S: scalar` | Scalar declaration; concrete host type remains unresolved |
+| `S: scalar` / `S: []` | Rank-zero tensor with unrestricted dtype |
+| `S: f32[]` | Rank-zero f32 tensor |
 | `@d` | Captured or derived operator descriptor |
+
+Supported dtype names are `bool`, `i8`, `i16`, `i32`, `i64`, `u8`, `u16`,
+`u32`, `u64`, `f16`, `bf16`, `f32`, and `f64`. Dtype names remain ordinary
+identifiers outside annotation positions. An annotation constrains matching and
+never inserts a cast; omission has no default. Unknown names, duplicate local
+tensor declarations, and declarations that do not refer to LHS captures are
+semantic errors. Inherited declarations validate annotations immediately and
+defer capture checks until expansion. Expansion must combine restrictions:
+unconstrained dtype may be narrowed, while conflicting explicit dtypes are errors.
+
+Integer graph literals must fit their annotated dtype. Boolean numeric literals
+use `0:bool` and `1:bool`; negative or fractional boolean spellings are rejected.
+Floating literals preserve decimal spelling without machine conversion; the
+host defines format rounding and representability. Complex, FP8, quantized
+types, dtype variables, and implicit promotion are outside v1. Supporting a
+dtype in the IR does not require every operation to support it.
 
 A shape has at most one sequence, anywhere in its dimension list. Arithmetic
 such as `K % 128 == 0` belongs in `where`.
@@ -81,7 +103,7 @@ comparison, and
 logical expressions. Host checks must establish shape and numerical validity,
 including any permission to reassociate floating-point operations.
 
-The Rust host interface uses `TensorInfo { shape }` for tensor metadata.
+The Rust host interface uses `TensorInfo { shape, dtype }` for tensor metadata.
 Predicates return `Option<bool>`; descriptor derivations such as `infer_dot`
 return `Option<OpAttrs>`. A descriptor contains only the attributes needed to
 construct an operation. `None` rejects a match.
@@ -91,10 +113,14 @@ shape variables. Descriptor derivations are evaluated in source order; they do
 not read newly constructed RHS values. LoRA derives its final dot descriptor
 through `infer_lora_out(X, A, B, @outer, @inner)`, allowing the host to choose
 attributes using only existing inputs. There is no runtime dependency scheduler
-or intermediate output-metadata inference.
+for descriptor derivation. Output validation is separate: `OutputInference`
+checks the resolved RHS from its leaves upward without inserting nodes.
 
-The host's e-class analysis infers output metadata from inserted operations,
-their operands, and their resolved attributes. Derived descriptors contain no
+The host's e-class analysis and pre-insertion `OutputInference` should share
+operation semantics. Unsupported operand dtypes or invalid descriptor contents
+return `None`; there is no implicit promotion. An operation with a selectable
+result dtype must encode that choice in its attributes. Storage dtype,
+accumulation dtype, and numerical legality are separate contracts. Derived descriptors contain no
 output metadata. Metadata supplied for a matched e-class must hold for all its
 alternatives. The runtime finishes host checks and descriptor derivations, then
 validates the whole RHS tree before adding any nodes. A rejected match leaves no
@@ -171,16 +197,27 @@ modules are manually maintained reference output for future code generation.
 Its execution model is:
 
 ```text
-structural match -> metadata lookup and shape checks -> where checks
+structural match -> metadata lookup and shape/dtype checks -> where checks
 -> derive descriptors from LHS inputs
--> validate RHS tree -> insert and union with matched root
+-> validate RHS structure and infer every RHS output
+-> require root shape/dtype compatibility -> insert and union with matched root
 -> saturation and cost-based extraction
 ```
 
 RHS operation, attribute, and arity checks occur before insertion. LoRA applies
 its declared shape constraints and explicit `where` predicates, then derives
-three descriptors from LHS inputs. Additional output compatibility checks are
-left for a future general validation pass using e-class analysis.
+three descriptors from LHS inputs. The checked rewrite path verifies every RHS operation through `OutputInference`
+and requires root shape/dtype equality with matched-root metadata before any
+insertion or union. Unknown metadata rejects the match. Numerical equivalence
+still requires host legality predicates. The structural `tensor_rewrite` API
+retains an explicit caller obligation to prove the entire replacement valid.
+The LoRA saturation example uses the checked path.
+
+`TensorBindings` registers immutable symbol and named-constant types; conflicting
+registrations are rejected. An identity must have one tensor type per graph.
+E-class metadata must describe every alternative, including dtype; hosts must
+return `None` when this cannot be established. Dtype is part of literal node
+identity, so differently typed literals cannot be hash-consed into one node.
 
 Full symbol/type resolution, inheritance expansion, descriptor reference
 validation, and automatic dialect/rule lowering remain future compiler work.

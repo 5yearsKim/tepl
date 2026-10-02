@@ -15,7 +15,7 @@ sh_test(
         "//examples:dialects/tensor.tepl",
         "//examples:abstract.tepl",
         "//examples:inherited.tepl",
-        "//examples:literals.tepl",
+        "//examples:basic.tepl",
     ],
 )
 
@@ -70,5 +70,18 @@ cc_test(
     deps = [
         "//:frontend",
         "//:host_codegen",
+    ],
+)
+
+cc_test(
+    name = "dtype_test",
+    size = "small",
+    srcs = ["dtype_test.cc"],
+    deps = [
+        "//:frontend",
+        "//:host_codegen",
+        "//:semantic",
+        "//:simple_rewrite",
+        "//src/ast:ast",
     ],
 )

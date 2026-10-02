@@ -22,10 +22,16 @@ bool equalGraph(const ast::GraphExpr& lhs, const ast::GraphExpr& rhs) {
     return name->name == std::get<ast::NameRef>(rhs.value).name;
   }
   if (const auto* integer = std::get_if<ast::IntegerLiteral>(&lhs.value)) {
-    return integer->digits == std::get<ast::IntegerLiteral>(rhs.value).digits;
+    const auto& other = std::get<ast::IntegerLiteral>(rhs.value);
+    return integer->digits == other.digits &&
+           integer->dtype.has_value() == other.dtype.has_value() &&
+           (!integer->dtype || integer->dtype->name == other.dtype->name);
   }
   if (const auto* number = std::get_if<ast::FloatLiteral>(&lhs.value)) {
-    return number->digits == std::get<ast::FloatLiteral>(rhs.value).digits;
+    const auto& other = std::get<ast::FloatLiteral>(rhs.value);
+    return number->digits == other.digits &&
+           number->dtype.has_value() == other.dtype.has_value() &&
+           (!number->dtype || number->dtype->name == other.dtype->name);
   }
   if (const auto* op = std::get_if<ast::Operator>(&lhs.value)) {
     const auto& other = std::get<ast::Operator>(rhs.value);

@@ -15,7 +15,8 @@ use rust_egg::ir::rules::{rule_commute_add, rule_lora};
 
 use support::{
     ArithmeticCost, DemoLoraFunctions, ShapeAnalysis, dot_attrs, evaluate, example_shapes,
-    example_values, expected_expr, input_graph, stopped_by_saturation, tensor_info, text_dump,
+    example_values, expected_expr, infer_tensor_output, input_graph, stopped_by_saturation,
+    tensor_info, text_dump,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -29,8 +30,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Before saturation:\n{}", text_dump(&egraph));
 
     let rules = [
-        rule_lora::build_rewrite(
+        rule_lora::build_checked_rewrite(
             tensor_info,
+            infer_tensor_output,
             DemoLoraFunctions {
                 allow_reassociation: true,
             },

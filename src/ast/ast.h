@@ -37,10 +37,16 @@ struct ShapeDimension {
   std::variant<NamedDimension, WildcardDimension, SequenceDimension> value;
 };
 
+struct DTypeAnnotation {
+  SourceSpan span;
+  std::string name;
+};
+
 struct TensorDecl {
   std::string name;
   // An empty shape represents a rank-zero tensor.
   std::vector<ShapeDimension> shape;
+  std::optional<DTypeAnnotation> dtype;
 };
 
 struct ScalarDecl {
@@ -67,12 +73,16 @@ struct IntegerLiteral {
   // Preserve decimal spelling until numeric range validation. Graph literals
   // may include a sign; constraint signs are represented by UnaryExpr.
   std::string digits;
+  // Set only for graph literals; constraint numbers are host values.
+  std::optional<DTypeAnnotation> dtype;
 };
 
 struct FloatLiteral {
   // Preserve spelling without rounding or choosing a tensor element type.
   // Graph literals may include a sign, as with IntegerLiteral.
   std::string digits;
+  // Set only for graph literals; constraint numbers are host values.
+  std::optional<DTypeAnnotation> dtype;
 };
 
 struct BooleanLiteral {

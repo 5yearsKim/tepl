@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use egg::{Symbol, Var};
 
-use crate::ir::{NodeError, OpAttrs, OpKind, TensorLang};
+use crate::ir::{DType, NodeError, OpAttrs, OpKind, TensorLang};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AttrVar(pub Symbol);
@@ -36,9 +36,9 @@ pub enum TensorPattern {
 }
 
 impl TensorPattern {
-    /// Match a numeric literal node with exactly this spelling.
-    pub fn literal(value: impl Into<String>) -> Result<Self, NodeError> {
-        let node = TensorLang::literal(value)?;
+    /// Match a numeric literal node with exactly this spelling and dtype.
+    pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
+        let node = TensorLang::literal(value, dtype)?;
         Ok(Self::op(
             node.op(),
             AttrPattern::Exact(node.attrs().clone()),
@@ -123,8 +123,8 @@ pub enum TensorExpr {
 
 impl TensorExpr {
     /// Construct a numeric literal on the RHS.
-    pub fn literal(value: impl Into<String>) -> Result<Self, NodeError> {
-        let node = TensorLang::literal(value)?;
+    pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
+        let node = TensorLang::literal(value, dtype)?;
         Ok(Self::op(
             node.op(),
             AttrExpr::Exact(node.attrs().clone()),

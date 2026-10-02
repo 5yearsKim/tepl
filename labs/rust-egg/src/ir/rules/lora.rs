@@ -2,11 +2,11 @@
 
 use std::collections::HashMap;
 
-use egg::{Analysis, Rewrite, Var};
+use egg::{Analysis, EGraph, Rewrite, Var};
 
 use crate::ir::patterns::{
-    AttrExpr, AttrPattern, AttrVar, MatchContext, TensorExpr, TensorInfo, TensorMetadata,
-    TensorPattern, tensor_rewrite,
+    AttrExpr, AttrPattern, AttrVar, MatchContext, OutputInference, TensorExpr, TensorInfo,
+    TensorMetadata, TensorPattern, tensor_rewrite, tensor_rewrite_checked,
 };
 use crate::ir::{OpAttrs, OpKind, TensorLang};
 
@@ -71,7 +71,47 @@ pub mod rule_lora {
         let [x, w, a, b] = ["?X", "?W", "?A", "?B"].map(|name| name.parse::<Var>().unwrap());
         let [outer, inner, xw, xa, out] = ["outer", "inner", "xw", "xa", "out"].map(AttrVar::from);
 
-        let rhs = TensorExpr::op(
+        let rhs = expression();
+        tensor_rewrite("lora", pattern(), rhs, move |egraph, matched| {
+            let ctx = MatchContext::new(egraph, matched, &metadata);
+            check_and_derive(&ctx, &functions, [x, w, a, b], [outer, inner, xw, xa, out])
+        })
+    }
+
+    /// Checked lowering: verifies every constructed operation and the output
+    /// type before insertion, in addition to the rule's legality predicates.
+    pub fn build_checked_rewrite<N, M, I, F>(
+        metadata: M,
+        inference: I,
+        functions: F,
+    ) -> Result<Rewrite<TensorLang, N>, String>
+    where
+        N: Analysis<TensorLang>,
+        M: TensorMetadata<N> + 'static,
+        I: OutputInference + 'static,
+        F: Functions + 'static,
+    {
+        let metadata = std::sync::Arc::new(metadata);
+        let checker_metadata = metadata.clone();
+        let inputs = ["?X", "?W", "?A", "?B"].map(|name| name.parse::<Var>().unwrap());
+        let attrs = ["outer", "inner", "xw", "xa", "out"].map(AttrVar::from);
+        tensor_rewrite_checked(
+            "lora",
+            pattern(),
+            expression(),
+            move |graph: &EGraph<TensorLang, N>, id| metadata.info(graph, id),
+            inference,
+            move |graph, matched| {
+                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                check_and_derive(&ctx, &functions, inputs, attrs)
+            },
+        )
+    }
+
+    fn expression() -> TensorExpr {
+        let [x, w, a, b] = ["?X", "?W", "?A", "?B"].map(|name| name.parse::<Var>().unwrap());
+        let [xw, xa, out] = ["xw", "xa", "out"].map(AttrVar::from);
+        TensorExpr::op(
             OpKind::Add,
             AttrExpr::Exact(OpAttrs::None),
             vec![
@@ -93,11 +133,7 @@ pub mod rule_lora {
                     ],
                 ),
             ],
-        );
-        tensor_rewrite("lora", pattern(), rhs, move |egraph, matched| {
-            let ctx = MatchContext::new(egraph, matched, &metadata);
-            check_and_derive(&ctx, &functions, [x, w, a, b], [outer, inner, xw, xa, out])
-        })
+        )
     }
 
     fn matrix_shape(shape: &[usize]) -> Option<(&[usize], usize, usize)> {

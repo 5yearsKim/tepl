@@ -8,6 +8,8 @@
 #include <variant>
 #include <vector>
 
+#include "src/semantic.h"
+
 namespace tepl {
 namespace {
 
@@ -60,9 +62,8 @@ Types declaredTypes(const ast::Rule& rule) {
       }
     } else if (const auto* scalar =
                    std::get_if<ast::ScalarDecl>(&declaration.value)) {
-      // `scalar` has no element type yet, so a Rust signature cannot be
-      // inferred from the declaration alone.
-      types[scalar->name] = "";
+      // `scalar` is a rank-zero tensor; dtype is available through metadata.
+      types[scalar->name] = "&TensorInfo";
     }
   }
   collectCaptures(*rule.lhs, types);
@@ -206,6 +207,11 @@ HostTemplateResult generateHostTemplate(const ast::Program& program,
   HostTemplateResult result;
   RuleFunctions rules;
   for (const auto& rule : program.rules) {
+    const auto type_diagnostics = validateTensorTypes(rule);
+    for (const auto& diagnostic : type_diagnostics) {
+      addDiagnostic(result.diagnostics, diagnostic.span, diagnostic.message);
+    }
+    if (!type_diagnostics.empty()) continue;
     if (rule.is_abstract || rule.inheritance) {
       addDiagnostic(result.diagnostics, rule.span,
                     "host templates require concrete rules after inheritance "

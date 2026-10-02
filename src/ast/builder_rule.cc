@@ -122,6 +122,9 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
 
 std::any AstBuilder::visitTensorDecl(Parser::TensorDeclContext* context) {
   ast::TensorDecl tensor{context->ID()->getText(), {}};
+  if (auto* dtype = context->dtypeName()) {
+    tensor.dtype = ast::DTypeAnnotation{getSpan(dtype), dtype->getText()};
+  }
   if (auto* elements = context->shapeElements()) {
     tensor.shape =
         std::any_cast<std::vector<ast::ShapeDimension>>(visit(elements));
@@ -171,10 +174,16 @@ std::any AstBuilder::visitVariableGraph(Parser::VariableGraphContext* context) {
 }
 
 std::any AstBuilder::visitNumberGraph(Parser::NumberGraphContext* context) {
-  if (context->FLOAT()) {
-    return makeGraph(context, ast::FloatLiteral{context->getText()});
+  std::optional<ast::DTypeAnnotation> dtype;
+  auto spelling = context->getText();
+  if (auto* annotation = context->dtypeName()) {
+    dtype = ast::DTypeAnnotation{getSpan(annotation), annotation->getText()};
+    spelling.resize(spelling.find(':'));
   }
-  return makeGraph(context, ast::IntegerLiteral{context->getText()});
+  if (context->FLOAT()) {
+    return makeGraph(context, ast::FloatLiteral{spelling, dtype});
+  }
+  return makeGraph(context, ast::IntegerLiteral{spelling, dtype});
 }
 
 std::any AstBuilder::visitParenthesizedBindingGraph(
@@ -215,10 +224,16 @@ std::any AstBuilder::visitRhsVariableGraph(
 
 std::any AstBuilder::visitRhsNumberGraph(
     Parser::RhsNumberGraphContext* context) {
-  if (context->FLOAT()) {
-    return makeGraph(context, ast::FloatLiteral{context->getText()});
+  std::optional<ast::DTypeAnnotation> dtype;
+  auto spelling = context->getText();
+  if (auto* annotation = context->dtypeName()) {
+    dtype = ast::DTypeAnnotation{getSpan(annotation), annotation->getText()};
+    spelling.resize(spelling.find(':'));
   }
-  return makeGraph(context, ast::IntegerLiteral{context->getText()});
+  if (context->FLOAT()) {
+    return makeGraph(context, ast::FloatLiteral{spelling, dtype});
+  }
+  return makeGraph(context, ast::IntegerLiteral{spelling, dtype});
 }
 
 std::any AstBuilder::visitRhsGetGraph(Parser::RhsGetGraphContext* context) {

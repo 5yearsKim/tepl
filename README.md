@@ -117,7 +117,9 @@ rule NAME {
   and newlines are insignificant.
 - `//` line comments and `/* ... */` block comments are supported.
 - Declarations precede the rewrite and have no semicolon. Tensor declarations
-  use brackets (`X: [Batch..., M, K]`); scalar declarations use `S: scalar`.
+  use brackets with an optional dtype prefix (`X: bf16[Batch..., M, K]`).
+  Without a prefix, dtype is unrestricted. `S: scalar` means a rank-zero tensor
+  equivalent to `S: []`; `S: f32[]` also constrains its dtype.
   A tensor shape may be empty (`[]`), contain named dimensions or `_`, and have
   at most one named or anonymous `...` segment anywhere in the list. Shape
   arithmetic belongs in `where`.
@@ -134,8 +136,10 @@ rule NAME {
   Exponents, numeric suffixes, `.5`, and `1.` are currently unsupported.
   Literals preserve their kind and spelling without numeric conversion:
   `1`, `1.0`, and `1.00` are distinct for structural matching. Tensor
-  semantics treat graph literals as rank-zero values; element types and
-  broadcasting remain host responsibilities.
+  semantics treat graph literals as rank-zero tensors. Explicit typed forms
+  include `1:i32` and `1.0:f32`; annotation also participates in matching.
+  Rust tensor literal construction requires a concrete dtype. Broadcasting and
+  floating format interpretation remain host responsibilities.
 - Tuples use the ordinary operator syntax `(tuple X Y)`; projection uses
   `(get[0] T)` with exactly one operand and a nonnegative integer index.
 - `where` precedes `derive` when both occur. Statements within either section
@@ -239,11 +243,20 @@ test. Full rule lowering remains future work.
 descriptors. Both `where` and `derive` use matched LHS inputs; derivations are
 evaluated in source order. LoRA uses `infer_lora_out(X, A, B, @outer, @inner)`
 for its final descriptor, avoiding any dependency on a constructed RHS value.
-The runtime validates the entire RHS tree before insertion. Output metadata is
-inferred separately by the host's e-class analysis after insertion. Ordinary
+The checked Rust rewrite path validates the entire RHS tree and infers every
+operation's shape and dtype before insertion. It requires output compatibility
+with the matched root before union. Host legality predicates still establish
+numerical equivalence. Ordinary
 LHS graph variables are valid tensor host arguments without shape declarations.
 
 The host template maps decimal arguments to Rust `f64`, unsigned integer
 arguments to `usize`, and negative integer arguments to `i64`. These are host
-interface types; graph literals retain their spelling and defer tensor element
-types to the host.
+interface types; graph literals retain their spelling and use explicit tensor
+dtypes in the runtime. Scalar captures are passed as `&TensorInfo`.
+
+Supported tensor dtypes are `bool`, `i8/i16/i32/i64`, `u8/u16/u32/u64`, and
+`f16/bf16/f32/f64`. An annotation never inserts a cast or implicit promotion.
+Unknown dtype names, invalid integer literal ranges, duplicate local tensor
+declarations, and declarations for missing LHS captures produce diagnostics.
+See [basic examples](examples/basic.tepl) and the paired Rust behavior tests in
+[labs/rust-egg/tests/dtypes.rs](labs/rust-egg/tests/dtypes.rs).

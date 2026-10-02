@@ -128,8 +128,8 @@ rule example {
 )");
   assert(scalar.ok());
   const auto untyped = tepl::generateHostTemplate(*scalar.program, false);
-  assert(!untyped.ok());
-  assert(untyped.diagnostics[0].message.find("explicit type") !=
+  assert(untyped.ok());
+  assert(untyped.source.find("fn check(&self, arg0: &TensorInfo)") !=
          std::string::npos);
 
   const auto numbers = tepl::parse(R"(

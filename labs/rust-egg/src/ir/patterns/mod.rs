@@ -6,7 +6,7 @@ mod matcher;
 mod pattern;
 mod rewrite;
 
-pub use context::{MatchContext, TensorInfo, TensorMetadata};
+pub use context::{MatchContext, OutputInference, TensorBindings, TensorInfo, TensorMetadata};
 pub use matcher::{TensorMatch, matches_at};
 pub use pattern::{AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern};
-pub use rewrite::{DerivedAttrs, tensor_rewrite};
+pub use rewrite::{DerivedAttrs, tensor_rewrite, tensor_rewrite_checked};

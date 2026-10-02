@@ -1,9 +1,9 @@
 //! Shared shape, cost, and evaluation support for the LoRA example and tests.
 
 use egg::{Analysis, CostFunction, DidMerge, EGraph, Id, Language, RecExpr, StopReason};
-use rust_egg::ir::patterns::TensorInfo;
+use rust_egg::ir::patterns::{TensorBindings, TensorInfo};
 use rust_egg::ir::rules::rule_lora;
-use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
+use rust_egg::ir::{DType, OpAttrs, OpKind, TensorLang};
 use std::collections::HashMap;
 
 pub type Shapes = HashMap<String, Vec<usize>>;
@@ -15,6 +15,45 @@ pub fn example_shapes() -> Shapes {
         ("A".into(), vec![2, 64, 4]),
         ("B".into(), vec![2, 4, 32]),
     ])
+}
+
+pub fn bindings_from_shapes(shapes: Shapes) -> TensorBindings {
+    let mut bindings = TensorBindings::default();
+    for (name, shape) in shapes {
+        bindings
+            .register_symbol(
+                name,
+                TensorInfo {
+                    shape,
+                    dtype: DType::I64,
+                },
+            )
+            .unwrap();
+    }
+    bindings
+}
+
+/// Shared semantics for e-class analysis and pre-insertion RHS verification.
+pub fn infer_tensor_output(
+    op: OpKind,
+    operands: &[TensorInfo],
+    attrs: &OpAttrs,
+) -> Option<TensorInfo> {
+    let [lhs, rhs] = operands else {
+        return None;
+    };
+    if lhs.dtype != rhs.dtype || lhs.dtype == DType::Bool {
+        return None;
+    }
+    let shape = match (op, attrs) {
+        (OpKind::Add, OpAttrs::None) if lhs.shape == rhs.shape => lhs.shape.clone(),
+        (OpKind::DotGeneral, _) => batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?,
+        _ => return None,
+    };
+    Some(TensorInfo {
+        shape,
+        dtype: lhs.dtype,
+    })
 }
 
 pub fn dot_attrs() -> OpAttrs {
@@ -41,24 +80,24 @@ pub fn batched_dot_shape(lhs: &[usize], rhs: &[usize], attrs: &OpAttrs) -> Optio
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Shape {
     Unknown,
-    Known(Vec<usize>),
+    Known(TensorInfo),
     Invalid,
 }
 
 #[derive(Default)]
 pub struct ShapeAnalysis {
-    pub symbols: Shapes,
+    pub symbols: TensorBindings,
 }
 
 impl Analysis<TensorLang> for ShapeAnalysis {
     type Data = Shape;
 
     fn make(egraph: &mut EGraph<TensorLang, Self>, node: &TensorLang, _id: Id) -> Shape {
-        if let Some(name) = node.symbol_name() {
+        if matches!(node.op(), OpKind::Symbol | OpKind::Constant) {
             return egraph
                 .analysis
                 .symbols
-                .get(name)
+                .info(node)
                 .cloned()
                 .map(Shape::Known)
                 .unwrap_or(Shape::Unknown);
@@ -75,18 +114,14 @@ impl Analysis<TensorLang> for ShapeAnalysis {
         if children.iter().any(|shape| **shape == Shape::Unknown) {
             return Shape::Unknown;
         }
-        let known: Vec<&[usize]> = children
+        let known: Vec<TensorInfo> = children
             .iter()
             .map(|shape| match shape {
-                Shape::Known(dims) => dims.as_slice(),
+                Shape::Known(info) => info.clone(),
                 _ => unreachable!(),
             })
             .collect();
-        let result = match (node.op(), known.as_slice()) {
-            (OpKind::Add, [lhs, rhs]) if lhs == rhs => Some(lhs.to_vec()),
-            (OpKind::DotGeneral, [lhs, rhs]) => batched_dot_shape(lhs, rhs, node.attrs()),
-            _ => None,
-        };
+        let result = infer_tensor_output(node.op(), &known, node.attrs());
         result.map(Shape::Known).unwrap_or(Shape::Invalid)
     }
 
@@ -107,9 +142,7 @@ impl Analysis<TensorLang> for ShapeAnalysis {
 
 pub fn tensor_info(egraph: &EGraph<TensorLang, ShapeAnalysis>, id: Id) -> Option<TensorInfo> {
     match &egraph[egraph.find(id)].data {
-        Shape::Known(shape) => Some(TensorInfo {
-            shape: shape.clone(),
-        }),
+        Shape::Known(info) => Some(info.clone()),
         _ => None,
     }
 }
@@ -194,7 +227,9 @@ pub fn input_graph(
     inner_attrs: OpAttrs,
 ) -> (EGraph<TensorLang, ShapeAnalysis>, Id, RecExpr<TensorLang>) {
     let expr = original_expr(swapped_add, inner_attrs);
-    let mut egraph = EGraph::new(ShapeAnalysis { symbols: shapes });
+    let mut egraph = EGraph::new(ShapeAnalysis {
+        symbols: bindings_from_shapes(shapes),
+    });
     let root = egraph.add_expr(&expr);
     egraph.rebuild();
     (egraph, root, expr)
@@ -212,7 +247,7 @@ impl CostFunction<TensorLang> for ArithmeticCost<'_> {
         C: FnMut(Id) -> u64,
     {
         let output = |id: Id| match &self.egraph[self.egraph.find(id)].data {
-            Shape::Known(shape) => Some(shape.as_slice()),
+            Shape::Known(info) => Some(info.shape.as_slice()),
             _ => None,
         };
         let local = match (node.op(), node.children()) {

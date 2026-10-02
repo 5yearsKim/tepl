@@ -5,6 +5,7 @@
 
 use std::fmt;
 
+use crate::ir::DType;
 use egg::{Id, Language};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -204,7 +205,7 @@ impl OpKind {
             Self::Symbol => matches!(attrs, OpAttrs::Symbol { .. }),
             Self::Constant => matches!(attrs, OpAttrs::Constant { .. }),
             Self::Literal => {
-                matches!(attrs, OpAttrs::Literal { value } if valid_literal(value))
+                matches!(attrs, OpAttrs::Literal { value, dtype } if valid_literal(value) && dtype.accepts_literal(value))
             }
             _ => matches!(attrs, OpAttrs::None),
         }
@@ -251,6 +252,7 @@ pub enum OpAttrs {
     },
     Literal {
         value: String,
+        dtype: DType,
     },
     Symbol {
         name: String,
@@ -373,13 +375,15 @@ impl TensorLang {
     }
 
     /// A rank-zero numeric literal. Spelling is preserved, so `1` and `1.0`
-    /// remain distinct. Element type and broadcasting are host semantics.
-    pub fn literal(value: impl Into<String>) -> Result<Self, NodeError> {
+    /// remain distinct within each dtype. Broadcasting and float rounding are
+    /// host semantics; dtype is part of the node identity.
+    pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
         Self::new(
             OpKind::Literal,
             vec![],
             OpAttrs::Literal {
                 value: value.into(),
+                dtype,
             },
         )
     }
@@ -414,7 +418,7 @@ impl fmt::Display for TensorLang {
             OpAttrs::Symbol { name } | OpAttrs::Constant { name } => {
                 write!(formatter, "{name}")
             }
-            OpAttrs::Literal { value } => write!(formatter, "{value}"),
+            OpAttrs::Literal { value, dtype } => write!(formatter, "{value}:{dtype}"),
             OpAttrs::DotGeneral {
                 lhs_contracting,
                 rhs_contracting,

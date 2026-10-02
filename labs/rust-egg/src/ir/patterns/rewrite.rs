@@ -7,6 +7,7 @@ use egg::{
 
 use crate::ir::{OpAttrs, TensorLang};
 
+use super::context::{OutputInference, TensorInfo, TensorMetadata};
 use super::matcher::{TensorMatch, for_each_match_at};
 use super::pattern::{AttrExpr, AttrVar, TensorExpr, TensorPattern};
 
@@ -14,7 +15,9 @@ pub type DerivedAttrs = std::collections::HashMap<AttrVar, OpAttrs>;
 
 /// Build a reusable egg rewrite from a structural pattern, a RHS expression,
 /// and a host function that checks semantics and derives RHS attributes.
-/// Return `None` from the host function when a match is not proven legal.
+/// The caller must prove semantic validity and output compatibility for the
+/// entire RHS. Return `None` when that cannot be established. Prefer
+/// `tensor_rewrite_checked` when metadata and operation inference are available.
 pub fn tensor_rewrite<N, F>(
     name: impl Into<Symbol>,
     lhs: TensorPattern,
@@ -24,6 +27,81 @@ pub fn tensor_rewrite<N, F>(
 where
     N: Analysis<TensorLang>,
     F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
+{
+    build_tensor_rewrite(name, lhs, rhs, move |graph, _, matched| {
+        check_and_derive(graph, matched)
+    })
+}
+
+/// Validate every RHS operation and require shape/dtype equality with the
+/// matched root before inserting any nodes. Numerical legality remains the
+/// responsibility of `check_and_derive` and the host's operation semantics.
+pub fn tensor_rewrite_checked<N, M, I, F>(
+    name: impl Into<Symbol>,
+    lhs: TensorPattern,
+    rhs: TensorExpr,
+    metadata: M,
+    inference: I,
+    check_and_derive: F,
+) -> Result<Rewrite<TensorLang, N>, String>
+where
+    N: Analysis<TensorLang>,
+    M: TensorMetadata<N> + 'static,
+    I: OutputInference + 'static,
+    F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
+{
+    let expression = rhs.clone();
+    build_tensor_rewrite(name, lhs, rhs, move |graph, root, matched| {
+        let derived = check_and_derive(graph, matched)?;
+        validate_rhs(&expression, matched, &derived)?;
+        let expected = metadata.info(graph, graph.find(root))?;
+        let actual = infer_rhs(graph, &expression, matched, &derived, &metadata, &inference)?;
+        (actual == expected).then_some(derived)
+    })
+}
+
+fn infer_rhs<N: Analysis<TensorLang>, M: TensorMetadata<N>, I: OutputInference>(
+    graph: &EGraph<TensorLang, N>,
+    expr: &TensorExpr,
+    matched: &TensorMatch,
+    derived: &DerivedAttrs,
+    metadata: &M,
+    inference: &I,
+) -> Option<TensorInfo> {
+    match expr {
+        TensorExpr::Var(var) => metadata.info(graph, graph.find(*matched.tensors.get(*var)?)),
+        TensorExpr::Op {
+            op,
+            attrs,
+            children,
+        } => {
+            let attrs = resolve_attrs(attrs, matched, derived)?;
+            let operands = children
+                .iter()
+                .map(|child| infer_rhs(graph, child, matched, derived, metadata, inference))
+                .collect::<Option<Vec<_>>>()?;
+            let output = inference.infer_output(*op, &operands, &attrs)?;
+            // The host may reject unsupported literal formats or values, but
+            // cannot reinterpret an explicitly typed rank-zero literal.
+            if let OpAttrs::Literal { dtype, .. } = &attrs {
+                if output.dtype != *dtype || !output.shape.is_empty() {
+                    return None;
+                }
+            }
+            Some(output)
+        }
+    }
+}
+
+fn build_tensor_rewrite<N, F>(
+    name: impl Into<Symbol>,
+    lhs: TensorPattern,
+    rhs: TensorExpr,
+    check_and_derive: F,
+) -> Result<Rewrite<TensorLang, N>, String>
+where
+    N: Analysis<TensorLang>,
+    F: Fn(&EGraph<TensorLang, N>, Id, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
 {
     validate_rhs_definition(&rhs)?;
     let mut lhs_attrs = HashSet::new();
@@ -140,14 +218,14 @@ impl<F> TensorApplier<F> {
         rule_name: Symbol,
     ) -> Vec<Id>
     where
-        F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs>,
+        F: Fn(&EGraph<TensorLang, N>, Id, &TensorMatch) -> Option<DerivedAttrs>,
     {
         // Finish all semantic checks before changing this e-class. A rejected
         // RHS must not leave any of its intermediate nodes in the graph.
         let valid: Vec<_> = candidates
             .iter()
             .filter_map(|candidate| {
-                let derived = (self.check_and_derive)(egraph, candidate)?;
+                let derived = (self.check_and_derive)(egraph, eclass, candidate)?;
                 validate_rhs(&self.rhs, candidate, &derived)?;
                 Some((candidate, derived))
             })
@@ -167,7 +245,7 @@ impl<F> TensorApplier<F> {
 impl<N, F> Applier<TensorLang, N> for TensorApplier<F>
 where
     N: Analysis<TensorLang>,
-    F: Fn(&EGraph<TensorLang, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync,
+    F: Fn(&EGraph<TensorLang, N>, Id, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync,
 {
     fn apply_matches(
         &self,

@@ -6,12 +6,14 @@ mod support;
 use std::time::Duration;
 
 use egg::{EGraph, Extractor, Runner, StopReason};
+use rust_egg::ir::patterns::TensorInfo;
 use rust_egg::ir::rules::{rule_commute_add, rule_lora};
-use rust_egg::ir::{OpAttrs, OpKind, TensorLang};
+use rust_egg::ir::{DType, OpAttrs, OpKind, TensorLang};
 
 use support::{
     ArithmeticCost, DemoLoraFunctions, Shape, ShapeAnalysis, dot_attrs, evaluate, example_shapes,
-    example_values, expected_expr, input_graph, stopped_by_saturation, tensor_info, text_dump,
+    example_values, expected_expr, infer_tensor_output, input_graph, stopped_by_saturation,
+    tensor_info, text_dump,
 };
 
 fn run_rules(
@@ -19,8 +21,9 @@ fn run_rules(
     allow_reassociation: bool,
 ) -> Runner<TensorLang, ShapeAnalysis> {
     let rules = [
-        rule_lora::build_rewrite(
+        rule_lora::build_checked_rewrite(
             tensor_info,
+            infer_tensor_output,
             DemoLoraFunctions {
                 allow_reassociation,
             },
@@ -49,7 +52,10 @@ fn lora_saturates_extracts_cheaper_expression_and_preserves_values() {
     assert_eq!(runner.egraph.find(root), runner.egraph.find(alternative));
     assert_eq!(
         runner.egraph[runner.egraph.find(root)].data,
-        Shape::Known(vec![2, 4, 32])
+        Shape::Known(TensorInfo {
+            shape: vec![2, 4, 32],
+            dtype: DType::I64
+        })
     );
 
     let (cost, best) = Extractor::new(
@@ -150,12 +156,42 @@ fn shape_analysis_marks_conflicting_eclasses_invalid() {
 #[test]
 fn shape_analysis_does_not_infer_a_missing_symbols_shape_from_an_equivalent_node() {
     let mut egraph = EGraph::new(ShapeAnalysis {
-        symbols: example_shapes(),
+        symbols: support::bindings_from_shapes(example_shapes()),
     });
     let x = egraph.add(TensorLang::symbol("X"));
     let missing = egraph.add(TensorLang::symbol("missing"));
     egraph.union(x, missing);
     egraph.rebuild();
     assert_eq!(egraph[egraph.find(x)].data, Shape::Unknown);
+    assert!(tensor_info(&egraph, x).is_none());
+}
+
+#[test]
+fn analysis_marks_same_shape_different_dtype_eclasses_invalid() {
+    let mut symbols = rust_egg::ir::patterns::TensorBindings::default();
+    symbols
+        .register_symbol(
+            "X",
+            TensorInfo {
+                shape: vec![4],
+                dtype: DType::F32,
+            },
+        )
+        .unwrap();
+    symbols
+        .register_symbol(
+            "Y",
+            TensorInfo {
+                shape: vec![4],
+                dtype: DType::BF16,
+            },
+        )
+        .unwrap();
+    let mut egraph = EGraph::new(ShapeAnalysis { symbols });
+    let x = egraph.add(TensorLang::symbol("X"));
+    let y = egraph.add(TensorLang::symbol("Y"));
+    egraph.union(x, y);
+    egraph.rebuild();
+    assert_eq!(egraph[egraph.find(x)].data, Shape::Invalid);
     assert!(tensor_info(&egraph, x).is_none());
 }
