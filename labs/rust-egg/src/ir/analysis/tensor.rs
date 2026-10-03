@@ -1,12 +1,12 @@
 //! Infer one operation, without accessing an e-graph.
-use crate::ir::analysis::{Inference, infer_dtype, infer_shape};
-use crate::ir::dialects::tensor_lang;
-use crate::ir::pattern::TensorInfo;
-use crate::ir::{Op, OpAttrs};
+use super::super::dialects::tensor_lang;
+use super::super::pattern::TensorInfo;
+use super::super::{Op, OpAttrs};
+use super::{Inference, infer_dtype, infer_shape};
 
-/// Used by ShapeAnalysis: preserve Known, Unknown, and Invalid results.
+/// Used by TensorAnalysis: preserve Known, Unknown, and Invalid results.
 pub fn infer_tensor(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Inference<TensorInfo> {
-    // Constants carry host-interpreted metadata in their payload.
+    // This reference dialect stores shape and dtype in constant payloads.
     if let (
         Op::TensorLang(tensor_lang::Op::Constant),
         [],

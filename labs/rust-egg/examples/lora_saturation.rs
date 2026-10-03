@@ -11,12 +11,12 @@ use std::time::Duration;
 use egg::{Extractor, Runner};
 
 use rust_egg::ir::OpNode;
+use rust_egg::ir::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
 use rust_egg::ir::rules::{lora::rule_lora, simple::rule_commute_add};
 
 use support::{
-    ArithmeticCost, DemoLoraFunctions, ShapeAnalysis, dot_attrs, evaluate, example_shapes,
-    example_values, expected_expr, infer_tensor_output, input_graph, stopped_by_saturation,
-    tensor_info, text_dump,
+    ArithmeticCost, DemoLoraFunctions, dot_attrs, evaluate, example_shapes, example_values,
+    expected_expr, input_graph, stopped_by_saturation, text_dump,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap(),
         rule_commute_add::build_rewrite(tensor_info, infer_tensor_output, ()).unwrap(),
     ];
-    let runner = Runner::<OpNode, ShapeAnalysis>::new(ShapeAnalysis::default())
+    let runner = Runner::<OpNode, TensorAnalysis>::new(TensorAnalysis::default())
         .with_egraph(egraph)
         .with_iter_limit(12)
         .with_node_limit(1_000)

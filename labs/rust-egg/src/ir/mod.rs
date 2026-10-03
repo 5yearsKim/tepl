@@ -1,4 +1,5 @@
-// Shared inference sample; the compiler currently emits only shape_builtins.
+// Shared inference and e-class analysis reference; the compiler currently emits
+// only shape_builtins from this module.
 pub mod analysis;
 pub mod dialects;
 pub mod op_node;

@@ -212,7 +212,7 @@ insertion or union. Unknown metadata rejects the match. Numerical equivalence
 still requires host legality predicates. All generated rewrites use the checked
 path, including the LoRA saturation example.
 
-`TensorBindings` registers immutable symbol and named-constant types; conflicting
+`TensorBindingTable` registers immutable symbol and named-constant types; conflicting
 registrations are rejected. An identity must have one tensor type per graph.
 E-class metadata must describe every alternative, including dtype; hosts must
 return `None` when this cannot be established. Dtype is part of literal node

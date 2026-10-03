@@ -1,7 +1,7 @@
 use egg::DidMerge;
 
-use crate::ir::analysis::Inference;
-use crate::ir::pattern::TensorInfo;
+use super::super::pattern::TensorInfo;
+use super::Inference;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Observed {
@@ -15,7 +15,7 @@ enum Observed {
 /// Evidence only accumulates: supplying missing host metadata later requires a
 /// fresh graph. This deliberately conservative sample does not retract facts.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TensorFacts {
+pub struct TensorAnalysisData {
     // Remember known metadata even when another alternative is unknown.
     // This lets a later disagreement still be detected.
     observed: Observed,
@@ -25,7 +25,7 @@ pub struct TensorFacts {
     has_invalid: bool,
 }
 
-impl TensorFacts {
+impl TensorAnalysisData {
     pub fn from_inference(result: Inference<TensorInfo>) -> Self {
         match result {
             Inference::Known(info) => Self {

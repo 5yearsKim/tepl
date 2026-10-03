@@ -2,10 +2,8 @@
 
 use egg::{CostFunction, EGraph, Id, Language, RecExpr, StopReason};
 use rust_egg::host::nodes::*;
-pub use rust_egg::host::{
-    DemoLoraFunctions, ShapeAnalysis, TensorBindings, batched_dot_shape, dot_attrs,
-    infer_tensor_output, tensor_info,
-};
+pub use rust_egg::host::{DemoLoraFunctions, batched_dot_shape, dot_attrs};
+use rust_egg::ir::analysis::{TensorAnalysis, TensorBindingTable};
 use rust_egg::ir::dialects::tensor_lang;
 use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
@@ -22,8 +20,8 @@ pub fn example_shapes() -> Shapes {
     ])
 }
 
-pub fn bindings_from_shapes(shapes: Shapes) -> TensorBindings {
-    let mut bindings = TensorBindings::default();
+pub fn bindings_from_shapes(shapes: Shapes) -> TensorBindingTable {
+    let mut bindings = TensorBindingTable::default();
     for (name, shape) in shapes {
         bindings
             .register_symbol(
@@ -73,16 +71,16 @@ pub fn input_graph(
     shapes: Shapes,
     swapped_add: bool,
     inner_attrs: OpAttrs,
-) -> (EGraph<OpNode, ShapeAnalysis>, Id, RecExpr<OpNode>) {
+) -> (EGraph<OpNode, TensorAnalysis>, Id, RecExpr<OpNode>) {
     let expr = original_expr(swapped_add, inner_attrs);
-    let mut egraph = EGraph::new(ShapeAnalysis::new(bindings_from_shapes(shapes)));
+    let mut egraph = EGraph::new(TensorAnalysis::new(bindings_from_shapes(shapes)));
     let root = egraph.add_expr(&expr);
     egraph.rebuild();
     (egraph, root, expr)
 }
 
 pub struct ArithmeticCost<'a> {
-    pub egraph: &'a EGraph<OpNode, ShapeAnalysis>,
+    pub egraph: &'a EGraph<OpNode, TensorAnalysis>,
 }
 
 impl CostFunction<OpNode> for ArithmeticCost<'_> {
@@ -216,7 +214,7 @@ pub fn evaluate(
     values.pop().ok_or_else(|| "empty expression".into())
 }
 
-pub fn text_dump(egraph: &EGraph<OpNode, ShapeAnalysis>) -> String {
+pub fn text_dump(egraph: &EGraph<OpNode, TensorAnalysis>) -> String {
     let mut classes: Vec<_> = egraph.classes().collect();
     classes.sort_by_key(|class| usize::from(class.id));
     let mut result = String::new();

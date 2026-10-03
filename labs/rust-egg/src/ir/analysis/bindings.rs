@@ -1,15 +1,14 @@
-use super::nodes::symbol_name;
-use crate::ir::OpNode;
-use crate::ir::pattern::TensorInfo;
+use super::super::pattern::TensorInfo;
+use super::super::{Op, OpAttrs, OpNode};
 
-/// Host input identities with immutable types. Constants carry their own typed
+/// Input identities with immutable types. Constants carry their own typed
 /// payload and are not registered as named inputs.
 #[derive(Clone, Debug, Default)]
-pub struct TensorBindings {
+pub struct TensorBindingTable {
     entries: std::collections::HashMap<String, TensorInfo>,
 }
 
-impl TensorBindings {
+impl TensorBindingTable {
     pub fn register_symbol(
         &mut self,
         name: impl Into<String>,
@@ -27,6 +26,9 @@ impl TensorBindings {
     }
 
     pub fn info(&self, node: &OpNode) -> Option<&TensorInfo> {
-        self.entries.get(symbol_name(node)?)
+        match (node.op(), node.attrs()) {
+            (Op::Input, OpAttrs::Input { name }) => self.entries.get(name),
+            _ => None,
+        }
     }
 }

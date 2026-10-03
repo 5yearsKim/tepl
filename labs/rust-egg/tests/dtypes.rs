@@ -1,6 +1,6 @@
 use egg::{EGraph, Id, Rewrite, Var};
-use rust_egg::host::TensorBindings;
 use rust_egg::host::nodes::*;
+use rust_egg::ir::analysis::TensorBindingTable;
 use rust_egg::ir::dialects::tensor_lang;
 use rust_egg::ir::pattern::{
     AttrExpr, TensorExpr, TensorInfo, TensorMetadata, TensorPattern, matches_at,
@@ -246,7 +246,7 @@ fn integer_and_boolean_literal_ranges_are_validated_without_rounding() {
 
 #[test]
 fn input_registration_is_immutable_and_conflicting_eclass_metadata_is_unavailable() {
-    let mut bindings = TensorBindings::default();
+    let mut bindings = TensorBindingTable::default();
     let f32 = info(&[4], DType::F32);
     let bf16 = info(&[4], DType::BF16);
     bindings.register_symbol("X", f32.clone()).unwrap();

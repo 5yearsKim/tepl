@@ -1,6 +1,5 @@
 //! End-to-end checks for LoRA equality saturation, extraction, and evaluation.
 
-use rust_egg::host::nodes::*;
 use rust_egg::ir::dialects::tensor_lang;
 #[path = "../examples/support/lora_saturation.rs"]
 mod support;
@@ -8,20 +7,20 @@ mod support;
 use std::time::Duration;
 
 use egg::{EGraph, Extractor, Runner, StopReason};
+use rust_egg::ir::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
 use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::rules::{lora::rule_lora, simple::rule_commute_add};
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 use support::{
-    ArithmeticCost, DemoLoraFunctions, ShapeAnalysis, dot_attrs, evaluate, example_shapes,
-    example_values, expected_expr, infer_tensor_output, input_graph, stopped_by_saturation,
-    tensor_info, text_dump,
+    ArithmeticCost, DemoLoraFunctions, dot_attrs, evaluate, example_shapes, example_values,
+    expected_expr, input_graph, stopped_by_saturation, text_dump,
 };
 
 fn run_rules(
-    egraph: EGraph<OpNode, ShapeAnalysis>,
+    egraph: EGraph<OpNode, TensorAnalysis>,
     allow_reassociation: bool,
-) -> Runner<OpNode, ShapeAnalysis> {
+) -> Runner<OpNode, TensorAnalysis> {
     let rules = [
         rule_lora::build_rewrite(
             tensor_info,
@@ -33,7 +32,7 @@ fn run_rules(
         .unwrap(),
         rule_commute_add::build_rewrite(tensor_info, infer_tensor_output, ()).unwrap(),
     ];
-    Runner::<OpNode, ShapeAnalysis>::new(ShapeAnalysis::default())
+    Runner::<OpNode, TensorAnalysis>::new(TensorAnalysis::default())
         .with_egraph(egraph)
         .with_iter_limit(12)
         .with_node_limit(1_000)
@@ -116,7 +115,7 @@ fn commutation_exposes_lora_match_in_a_later_iteration() {
     }));
 }
 
-fn dot_count(egraph: &EGraph<OpNode, ShapeAnalysis>) -> usize {
+fn dot_count(egraph: &EGraph<OpNode, TensorAnalysis>) -> usize {
     egraph
         .classes()
         .flat_map(|class| &class.nodes)
@@ -148,57 +147,4 @@ fn invalid_shape_unsupported_axes_and_reassociation_rejection_do_not_expand_lora
         assert!(runner.egraph.lookup_expr(&expected_expr()).is_none());
         assert_eq!(dot_count(&runner.egraph), before);
     }
-}
-
-#[test]
-fn shape_analysis_marks_conflicting_eclasses_invalid() {
-    let (mut egraph, _, _) = input_graph(example_shapes(), false, dot_attrs());
-    let x = egraph.lookup(symbol("X")).unwrap();
-    let w = egraph.lookup(symbol("W")).unwrap();
-    egraph.union(x, w);
-    egraph.rebuild();
-    assert!(egraph[egraph.find(x)].data.is_invalid());
-}
-
-#[test]
-fn shape_analysis_does_not_infer_a_missing_symbols_shape_from_an_equivalent_node() {
-    let mut egraph = EGraph::new(ShapeAnalysis::new(support::bindings_from_shapes(
-        example_shapes(),
-    )));
-    let x = egraph.add(symbol("X"));
-    let missing = egraph.add(symbol("missing"));
-    egraph.union(x, missing);
-    egraph.rebuild();
-    assert!(egraph[egraph.find(x)].data.is_unknown());
-    assert!(tensor_info(&egraph, x).is_none());
-}
-
-#[test]
-fn analysis_marks_same_shape_different_dtype_eclasses_invalid() {
-    let mut symbols = rust_egg::host::TensorBindings::default();
-    symbols
-        .register_symbol(
-            "X",
-            TensorInfo {
-                shape: vec![4],
-                dtype: DType::F32,
-            },
-        )
-        .unwrap();
-    symbols
-        .register_symbol(
-            "Y",
-            TensorInfo {
-                shape: vec![4],
-                dtype: DType::BF16,
-            },
-        )
-        .unwrap();
-    let mut egraph = EGraph::new(ShapeAnalysis::new(symbols));
-    let x = egraph.add(symbol("X"));
-    let y = egraph.add(symbol("Y"));
-    egraph.union(x, y);
-    egraph.rebuild();
-    assert!(egraph[egraph.find(x)].data.is_invalid());
-    assert!(tensor_info(&egraph, x).is_none());
 }

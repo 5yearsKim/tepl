@@ -1,9 +1,9 @@
 use egg::{EGraph, Runner};
 use rust_egg::host::nodes::{binary, symbol, unary};
-use rust_egg::host::{
-    ShapeAnalysis, TensorBindings, TensorFacts, infer_tensor, infer_tensor_output, tensor_info,
+use rust_egg::ir::analysis::{
+    Inference, TensorAnalysis, TensorAnalysisData, TensorBindingTable, infer_dtype, infer_shape,
+    infer_tensor, infer_tensor_output, tensor_info,
 };
-use rust_egg::ir::analysis::{Inference, infer_dtype, infer_shape};
 use rust_egg::ir::dialects::tensor_lang as t;
 use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::rules::simple::rule_commute_add;
@@ -16,25 +16,25 @@ fn info(shape: &[u64]) -> TensorInfo {
     }
 }
 
-fn bindings() -> TensorBindings {
-    let mut host = TensorBindings::default();
+fn bindings() -> TensorBindingTable {
+    let mut host = TensorBindingTable::default();
     for name in ["X", "Y", "Z"] {
         host.register_symbol(name, info(&[4])).unwrap();
     }
     host
 }
 
-fn join(mut a: TensorFacts, b: TensorFacts) -> TensorFacts {
+fn join(mut a: TensorAnalysisData, b: TensorAnalysisData) -> TensorAnalysisData {
     a.merge(b);
     a
 }
 
 #[test]
 fn tensor_join_is_associative_commutative_and_idempotent() {
-    let a = TensorFacts::from_inference(Inference::Known(info(&[4])));
-    let b = TensorFacts::from_inference(Inference::Known(info(&[8])));
-    let unknown = TensorFacts::from_inference(Inference::Unknown);
-    let invalid = TensorFacts::from_inference(Inference::Invalid("invalid shape"));
+    let a = TensorAnalysisData::from_inference(Inference::Known(info(&[4])));
+    let b = TensorAnalysisData::from_inference(Inference::Known(info(&[8])));
+    let unknown = TensorAnalysisData::from_inference(Inference::Unknown);
+    let invalid = TensorAnalysisData::from_inference(Inference::Invalid("invalid shape"));
     let mut states = vec![a, b, unknown, invalid];
     // Include combinations such as known evidence plus an unknown alternative.
     loop {
@@ -72,9 +72,9 @@ fn tensor_join_is_associative_commutative_and_idempotent() {
 
 #[test]
 fn unknown_alternatives_block_metadata_without_hiding_conflicts() {
-    let a = TensorFacts::from_inference(Inference::Known(info(&[4])));
-    let b = TensorFacts::from_inference(Inference::Known(info(&[8])));
-    let unknown = TensorFacts::from_inference(Inference::Unknown);
+    let a = TensorAnalysisData::from_inference(Inference::Known(info(&[4])));
+    let b = TensorAnalysisData::from_inference(Inference::Known(info(&[8])));
+    let unknown = TensorAnalysisData::from_inference(Inference::Unknown);
     let incomplete = join(a.clone(), unknown.clone());
     assert!(incomplete.is_unknown());
     assert!(incomplete.info().is_none());
@@ -83,9 +83,9 @@ fn unknown_alternatives_block_metadata_without_hiding_conflicts() {
 }
 
 #[test]
-fn direct_shape_analysis_works_with_generated_rewrites() {
+fn direct_tensor_analysis_works_with_generated_rewrites() {
     let host = bindings();
-    let analysis = ShapeAnalysis::new(host);
+    let analysis = TensorAnalysis::new(host);
     let mut graph = EGraph::new(analysis);
     let x = graph.add(symbol("X"));
     let y = graph.add(symbol("Y"));
@@ -93,7 +93,7 @@ fn direct_shape_analysis_works_with_generated_rewrites() {
     graph.rebuild();
 
     let rewrite = rule_commute_add::build_rewrite(tensor_info, infer_tensor_output, ()).unwrap();
-    let runner = Runner::<OpNode, ShapeAnalysis>::new(ShapeAnalysis::default())
+    let runner = Runner::<OpNode, TensorAnalysis>::new(TensorAnalysis::default())
         .with_egraph(graph)
         .with_iter_limit(4)
         .run(&[rewrite]);
@@ -105,7 +105,7 @@ fn direct_shape_analysis_works_with_generated_rewrites() {
 
 #[test]
 fn missing_input_metadata_propagates_to_parents() {
-    let mut graph = EGraph::new(ShapeAnalysis::new(bindings()));
+    let mut graph = EGraph::new(TensorAnalysis::new(bindings()));
     let missing = graph.add(symbol("missing"));
     let negated = graph.add(unary(t::Op::Negate, missing).unwrap());
     graph.rebuild();
@@ -118,7 +118,7 @@ fn missing_input_metadata_propagates_to_parents() {
 fn merged_operand_conflicts_propagate_to_existing_parents() {
     let mut host = bindings();
     host.register_symbol("wide", info(&[8])).unwrap();
-    let mut graph = EGraph::new(ShapeAnalysis::new(host));
+    let mut graph = EGraph::new(TensorAnalysis::new(host));
     let x = graph.add(symbol("X"));
     let y = graph.add(symbol("Y"));
     let wide = graph.add(symbol("wide"));
@@ -139,7 +139,7 @@ fn merged_operand_conflicts_propagate_to_existing_parents() {
 fn unsupported_inference_is_unknown_and_invalid_operands_propagate() {
     let mut host = bindings();
     host.register_symbol("wide", info(&[8])).unwrap();
-    let mut graph = EGraph::new(ShapeAnalysis::new(host));
+    let mut graph = EGraph::new(TensorAnalysis::new(host));
     let x = graph.add(symbol("X"));
     let wide = graph.add(symbol("wide"));
     let unsupported = graph.add(unary(t::Op::Exponential, x).unwrap());
@@ -172,7 +172,7 @@ fn constant_metadata_agrees_between_analysis_and_rewrite_inference() {
             None
         };
         assert_eq!(infer_tensor_output(node.op(), &[], node.attrs()), expected);
-        let mut graph = EGraph::new(ShapeAnalysis::default());
+        let mut graph = EGraph::new(TensorAnalysis::default());
         let id = graph.add(node);
         graph.rebuild();
         assert_eq!(tensor_info(&graph, id), expected);
@@ -181,7 +181,7 @@ fn constant_metadata_agrees_between_analysis_and_rewrite_inference() {
 }
 
 #[test]
-fn host_inference_preserves_unknown_and_invalid_results() {
+fn tensor_inference_preserves_unknown_and_invalid_results() {
     assert_eq!(
         infer_tensor(
             Op::TensorLang(t::Op::Exponential),
@@ -328,7 +328,7 @@ fn unsupported_dot_dtype_remains_unknown() {
 #[test]
 fn rhs_validation_and_eclass_analysis_share_shape_and_dtype_inference() {
     let host = bindings();
-    let mut graph = EGraph::new(ShapeAnalysis::new(host));
+    let mut graph = EGraph::new(TensorAnalysis::new(host));
     let x = graph.add(symbol("X"));
     let attrs = OpAttrs::TensorLang(t::OpAttrs::ReshapeAttrs { shape: vec![2, 2] });
     let node = OpNode::from_parts(Op::TensorLang(t::Op::Reshape), vec![x], attrs.clone()).unwrap();

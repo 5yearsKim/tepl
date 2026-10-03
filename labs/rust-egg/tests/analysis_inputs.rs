@@ -1,13 +1,14 @@
 //! Concrete input graphs with expected metadata computed by hand.
 use egg::{EGraph, Id};
+use rust_egg::host::dot_attrs;
 use rust_egg::host::nodes::{binary, symbol, unary};
-use rust_egg::host::{ShapeAnalysis, TensorBindings, dot_attrs, tensor_info};
+use rust_egg::ir::analysis::{TensorAnalysis, TensorBindingTable, tensor_info};
 use rust_egg::ir::dialects::tensor_lang as t;
 use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::{DType, OpNode};
 
-fn graph(inputs: &[(&str, &[u64], DType)]) -> EGraph<OpNode, ShapeAnalysis> {
-    let mut bindings = TensorBindings::default();
+fn graph(inputs: &[(&str, &[u64], DType)]) -> EGraph<OpNode, TensorAnalysis> {
+    let mut bindings = TensorBindingTable::default();
     for &(name, shape, dtype) in inputs {
         bindings
             .register_symbol(
@@ -19,10 +20,10 @@ fn graph(inputs: &[(&str, &[u64], DType)]) -> EGraph<OpNode, ShapeAnalysis> {
             )
             .unwrap();
     }
-    EGraph::new(ShapeAnalysis::new(bindings))
+    EGraph::new(TensorAnalysis::new(bindings))
 }
 
-fn assert_known(graph: &EGraph<OpNode, ShapeAnalysis>, id: Id, shape: &[u64], dtype: DType) {
+fn assert_known(graph: &EGraph<OpNode, TensorAnalysis>, id: Id, shape: &[u64], dtype: DType) {
     assert_eq!(
         tensor_info(graph, id),
         Some(TensorInfo {
@@ -173,4 +174,15 @@ fn equivalent_reshape_cycle_rebuilds_with_stable_metadata() {
     let before = graph[graph.find(a)].data.clone();
     graph.rebuild();
     assert_eq!(graph[graph.find(a)].data, before);
+}
+
+#[test]
+fn same_shape_different_dtype_eclasses_are_invalid() {
+    let mut graph = graph(&[("A", &[4], DType::F32), ("B", &[4], DType::BF16)]);
+    let a = graph.add(symbol("A"));
+    let b = graph.add(symbol("B"));
+    graph.union(a, b);
+    graph.rebuild();
+    assert!(graph[graph.find(a)].data.is_invalid());
+    assert!(tensor_info(&graph, a).is_none());
 }

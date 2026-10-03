@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use egg::{EGraph, Id};
 use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};

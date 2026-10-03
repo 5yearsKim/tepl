@@ -285,7 +285,7 @@ fn constant_payload_type_shape_and_bytes_participate_in_identity() {
         assert!(!node.matches(&constant(other)));
     }
     assert_eq!(
-        rust_egg::host::infer_tensor_output(node.op(), &[], node.attrs()),
+        rust_egg::ir::analysis::infer_tensor_output(node.op(), &[], node.attrs()),
         Some(rust_egg::ir::pattern::TensorInfo {
             shape: vec![],
             dtype: rust_egg::ir::DType::I32

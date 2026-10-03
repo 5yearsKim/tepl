@@ -187,5 +187,5 @@ fn literal_output(op: Op, inputs: &[TensorInfo], attrs: &OpAttrs) -> Option<Tens
             dtype: *dtype,
         });
     }
-    rust_egg::host::infer_tensor_output(op, inputs, attrs)
+    rust_egg::ir::analysis::infer_tensor_output(op, inputs, attrs)
 }
