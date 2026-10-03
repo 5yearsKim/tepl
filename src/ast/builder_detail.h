@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdexcept>
+#include <string_view>
+#include <utility>
+
 #include "antlr4-runtime.h"
 #include "src/ast/ast.h"
 
@@ -21,6 +25,29 @@ inline ast::SourceSpan getSpan(const antlr4::Token* start,
 
 inline ast::SourceSpan getSpan(const antlr4::ParserRuleContext* context) {
   return getSpan(context->getStart(), context->getStop());
+}
+
+inline ast::BinaryOp binaryOperator(std::string_view spelling) {
+  static constexpr std::pair<std::string_view, ast::BinaryOp> operators[] = {
+      {"+", ast::BinaryOp::kAdd},           {"-", ast::BinaryOp::kSubtract},
+      {"*", ast::BinaryOp::kMultiply},      {"/", ast::BinaryOp::kDivide},
+      {"%", ast::BinaryOp::kRemainder},     {"<", ast::BinaryOp::kLess},
+      {"<=", ast::BinaryOp::kLessEqual},    {">", ast::BinaryOp::kGreater},
+      {">=", ast::BinaryOp::kGreaterEqual}, {"==", ast::BinaryOp::kEqual},
+      {"!=", ast::BinaryOp::kNotEqual},     {"&&", ast::BinaryOp::kLogicalAnd},
+      {"||", ast::BinaryOp::kLogicalOr},
+  };
+  for (auto [text, op] : operators) {
+    if (spelling == text) return op;
+  }
+  throw std::logic_error("unsupported binary operator in parse tree");
+}
+
+inline ast::UnaryOp unaryOperator(std::string_view spelling) {
+  if (spelling == "+") return ast::UnaryOp::kPlus;
+  if (spelling == "-") return ast::UnaryOp::kNegate;
+  if (spelling == "!") return ast::UnaryOp::kLogicalNot;
+  throw std::logic_error("unsupported unary operator in parse tree");
 }
 
 }  // namespace tepl::detail

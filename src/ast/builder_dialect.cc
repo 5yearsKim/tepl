@@ -46,9 +46,7 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
   }
   if (auto* properties = context->opProperties()) {
     if (auto* shape = properties->shapeProperty()) {
-      op.shape_definition = shape->getStart()->getInputStream()->getText(
-          antlr4::misc::Interval(shape->getStart()->getStartIndex(),
-                                 shape->getStop()->getStopIndex()));
+      op.shape_definition = std::any_cast<ast::ShapeDefinition>(visit(shape));
     }
     if (auto* alias = properties->aliasProperty()) {
       op.alias = alias->ID()->getText();

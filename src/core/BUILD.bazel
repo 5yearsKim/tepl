@@ -4,12 +4,17 @@ cc_library(
     name = "ir",
     srcs = [
         "literal.cc",
+        "shape/builtins.cc",
+        "shape/types.cc",
         "types.cc",
     ],
     hdrs = [
         "ids.h",
         "ir.h",
         "literal.h",
+        "shape/builtins.h",
+        "shape/ir.h",
+        "shape/types.h",
         "types.h",
     ],
     visibility = ["//visibility:public"],
@@ -53,6 +58,13 @@ cc_library(
         "rule/resolve.cc",
         "rule/resolve.h",
         "rule/scope.h",
+        "shape/check.cc",
+        "shape/check.h",
+        "shape/check_context.h",
+        "shape/expression.cc",
+        "shape/expression.h",
+        "shape/type_inference.cc",
+        "shape/type_inference.h",
         "type_inference.cc",
         "type_inference.h",
     ],
@@ -70,8 +82,8 @@ cc_library(
 
 cc_library(
     name = "print",
-    srcs = ["print.cc"],
-    hdrs = ["print.h"],
+    srcs = ["print.cc", "shape/print.cc"],
+    hdrs = ["print.h", "shape/print.h"],
     visibility = ["//visibility:public"],
     deps = [":ir"],
 )

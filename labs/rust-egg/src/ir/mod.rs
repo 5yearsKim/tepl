@@ -1,3 +1,5 @@
+// Shared inference sample; the compiler currently emits only shape_builtins.
+pub mod analysis;
 pub mod dialects;
 pub mod op_node;
 pub mod pattern;

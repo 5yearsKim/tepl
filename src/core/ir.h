@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/core/ids.h"
+#include "src/core/shape/ir.h"
 #include "src/core/types.h"
 #include "src/operators.h"
 #include "src/source.h"
@@ -46,6 +47,7 @@ struct Operation {
   TypeId result;
   std::optional<AttributeSchemaId> attributes;
   SourceOrigin origin;
+  std::optional<shape::Program> shape;
 };
 
 struct HostFunction {

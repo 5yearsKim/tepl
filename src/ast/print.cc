@@ -146,6 +146,92 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
       expression.value);
 }
 
+void printShapeExpr(std::ostream& out, const ast::ShapeExpr& expression,
+                    int depth) {
+  indent(out, depth);
+  std::visit(
+      [&](const auto& value) {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, ast::NameRef>) {
+          out << "name " << value.name << '\n';
+        } else if constexpr (std::is_same_v<T, ast::IntegerLiteral>) {
+          out << "integer " << value.digits << '\n';
+        } else if constexpr (std::is_same_v<T, ast::BooleanLiteral>) {
+          out << "boolean " << (value.value ? "true" : "false") << '\n';
+        } else if constexpr (std::is_same_v<T, ast::ShapeAttrs>) {
+          out << "attrs\n";
+        } else if constexpr (std::is_same_v<T, ast::ShapeCall>) {
+          out << "call " << value.callee << '\n';
+          for (const auto& argument : value.arguments)
+            printShapeExpr(out, *argument, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ShapeUnary>) {
+          out << "unary " << unarySymbol(value.op) << '\n';
+          printShapeExpr(out, *value.operand, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ShapeBinary>) {
+          out << "binary " << binarySymbol(value.op) << '\n';
+          printShapeExpr(out, *value.lhs, depth + 1);
+          printShapeExpr(out, *value.rhs, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ShapeList>) {
+          out << "list\n";
+          for (const auto& element : value.elements)
+            printShapeExpr(out, *element, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ShapeIndex>) {
+          out << "index\n";
+          printShapeExpr(out, *value.value, depth + 1);
+          printShapeExpr(out, *value.index, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ShapeField>) {
+          out << "field " << value.field << '\n';
+          printShapeExpr(out, *value.value, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ShapeConditional>) {
+          out << "if\n";
+          printShapeExpr(out, *value.condition, depth + 1);
+          indent(out, depth);
+          out << "then\n";
+          printShapeExpr(out, *value.then_value, depth + 1);
+          indent(out, depth);
+          out << "else\n";
+          printShapeExpr(out, *value.else_value, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ShapeComprehension>) {
+          out << "comprehension " << value.variable << '\n';
+          indent(out, depth + 1);
+          out << "element\n";
+          printShapeExpr(out, *value.element, depth + 2);
+          indent(out, depth + 1);
+          out << "in\n";
+          printShapeExpr(out, *value.iterable, depth + 2);
+        }
+      },
+      expression.value);
+}
+
+void printShapeDefinition(std::ostream& out,
+                          const ast::ShapeDefinition& definition) {
+  out << "      shape(";
+  for (std::size_t i = 0; i < definition.parameters.size(); ++i) {
+    if (i != 0) out << ", ";
+    const auto& parameter = definition.parameters[i];
+    out << parameter.name;
+    if (parameter.variadic) out << "...";
+  }
+  out << ")\n";
+  for (const auto& statement : definition.statements) {
+    std::visit(
+        [&](const auto& value) {
+          using T = std::decay_t<decltype(value)>;
+          if constexpr (std::is_same_v<T, ast::ShapeLet>) {
+            out << "        let " << value.name << '\n';
+            printShapeExpr(out, *value.value, 5);
+          } else {
+            out << "        assert\n";
+            printShapeExpr(out, *value.condition, 5);
+          }
+        },
+        statement.value);
+  }
+  out << "        yield\n";
+  printShapeExpr(out, *definition.result.value, 5);
+}
+
 void printDeclaration(std::ostream& out, const ast::Declaration& declaration) {
   out << "    tensor " << declaration.name << " ";
   if (declaration.dtype) out << declaration.dtype->name;
@@ -274,6 +360,7 @@ std::string formatAst(const ast::Program& program) {
           }
         }
       }
+      if (op.shape_definition) printShapeDefinition(out, *op.shape_definition);
     }
   }
   for (const auto& rule : program.rules) {

@@ -149,7 +149,7 @@ void testLora(const std::string& source, const std::string& path) {
         "Formatted AST is missing LoRA structure");
 }
 
-void testExtendedAttributesAndOpaqueShapes() {
+void testExtendedAttributesAndParsedShapes() {
   auto parsed = tepl::parse(R"(
 dialect D {
   op custom(x: tensor) -> tensor {
@@ -165,9 +165,17 @@ dialect D {
             fields[1].optional && fields[1].type == "dot_algorithm" &&
             fields[2].list_depth == 1 && fields[3].type == "region",
         "Nested, optional and opaque attribute types must be preserved");
-  check(
-      op.shape_definition == "shape(s) { assert not_implemented(s); yield s; }",
-      "Shape source must be retained without interpreting it");
+  check(op.shape_definition.has_value(), "Shape definition must be parsed");
+  const auto& shape = *op.shape_definition;
+  check(shape.parameters.size() == 1 && shape.parameters[0].name == "s" &&
+            !shape.parameters[0].variadic && shape.statements.size() == 1,
+        "Shape parameters and statements must be retained");
+  const auto& assertion =
+      std::get<tepl::ast::ShapeAssert>(shape.statements[0].value);
+  const auto& call = std::get<tepl::ast::ShapeCall>(assertion.condition->value);
+  check(call.callee == "not_implemented" && call.arguments.size() == 1 &&
+            std::get<tepl::ast::NameRef>(shape.result.value->value).name == "s",
+        "Shape calls remain unresolved syntax until core checking");
   const auto printed = tepl::formatAst(*parsed.program);
   check(printed.find("padding: i64[][]") != std::string::npos &&
             printed.find("algorithm: dot_algorithm?") != std::string::npos,
@@ -460,7 +468,7 @@ int main(int argc, char** argv) {
     testLora(source, path);
     testCallKinds();
     testExpressionsAndSpans();
-    testExtendedAttributesAndOpaqueShapes();
+    testExtendedAttributesAndParsedShapes();
     testNumericLiterals();
     testAttributeTypeAndDefault();
     testInvalidSource();

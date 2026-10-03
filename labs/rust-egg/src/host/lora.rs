@@ -1,7 +1,9 @@
-use super::{batched_dot_shape, dot_attrs};
-use crate::ir::OpAttrs;
+//! LoRA-specific rewrite conditions and rank-three dot helpers.
+use crate::ir::analysis::infer_shape;
+use crate::ir::dialects::tensor_lang;
 use crate::ir::pattern::TensorInfo;
 use crate::ir::rules::lora::rule_lora;
+use crate::ir::{Op, OpAttrs};
 pub struct DemoLoraFunctions {
     pub allow_reassociation: bool,
 }
@@ -50,4 +52,28 @@ impl rule_lora::Functions for DemoLoraFunctions {
         }
         Some(inner.clone())
     }
+}
+
+pub fn dot_attrs() -> OpAttrs {
+    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
+        lhs_contracting_dimensions: vec![2],
+        rhs_contracting_dimensions: vec![1],
+        lhs_batching_dimensions: vec![0],
+        rhs_batching_dimensions: vec![0],
+        precision_config: vec![crate::ir::types::Precision::Default; 2],
+        algorithm: None,
+    })
+}
+
+pub fn batched_dot_shape(lhs: &[u64], rhs: &[u64], attrs: &OpAttrs) -> Option<Vec<u64>> {
+    // The LoRA example specializes the more general generated shape definition.
+    if lhs.len() != 3 || rhs.len() != 3 || *attrs != dot_attrs() {
+        return None;
+    }
+    infer_shape(
+        Op::TensorLang(tensor_lang::Op::DotGeneral),
+        &[lhs, rhs],
+        attrs,
+    )
+    .into_option()
 }

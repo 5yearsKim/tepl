@@ -29,15 +29,17 @@ Builtin calls are unprefixed, such as `len(s)` or `gather(s, axes)`. Host-functi
 calls use `$`, such as `$is_same_dtype(X, Y)` or `$infer_dot(X, W, @outer)`.
 Descriptors retain their `@` prefix. Abstract-rule examples parameterize only
 operations; host calls appear directly in concrete rules. See
-[the shape guide](shape_guide.md) for the proposed resolution rules and grammar.
+[the shape guide](shape_guide.md) for shape syntax and resolution rules.
 
 The compiler requires `$` for direct host calls and accepts the extended attribute
 types used here. Unknown unprefixed calls in rules are errors.
-Operation shape blocks are retained as opaque source: their expressions and
-assertions are not checked or executed, and they generate no shape inference.
+Operation shape blocks now have structured parser/AST support, including builtin
+calls, lists, indexing, conditionals, and comprehensions. Core checks parameter
+signatures, names, builtin types, attribute fields, assertions, and yield types.
+Shape programs are not executed, and they generate no shape inference yet.
 The lab IR is regenerated from these operation signatures and attribute schemas;
-output metadata still comes from the host. Builtin shape-function resolution is
-part of the future shape-analysis implementation.
+output metadata still comes from the host. Rule-level builtin resolution and
+operation evaluator generation remain future work.
 
 The operation set follows the [StableHLO specification](https://openxla.org/stablehlo/spec).
 `relu`, `scale`, `square`, `alias`, `rmsnorm`, `vocab_cross_entropy`,

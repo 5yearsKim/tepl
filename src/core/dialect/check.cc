@@ -6,6 +6,7 @@
 #include "src/core/analysis_context.h"
 #include "src/core/dialect/attributes.h"
 #include "src/core/resolution/source.h"
+#include "src/core/shape/check.h"
 
 namespace tepl::core::detail {
 
@@ -49,6 +50,9 @@ void registerOperation(AnalysisContext& context, TypeId tensor,
                                               op.name + "::attrs", fields, at);
     }
   }
+  if (op.shape_definition)
+    value.shape =
+        shape::check(context, value, *op.shape_definition, dialect.source_name);
   context.output.operations.push_back(std::move(value));
   const auto addName = [&](const std::string& name) {
     if (!names.emplace(name, id).second)

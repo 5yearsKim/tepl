@@ -108,12 +108,23 @@ property. `alias` gives a second spelling to the same operation; for example,
 a dialect, `check` validates rule operation names, arity, and whether an attribute
 descriptor is required.
 
-An optional trailing `shape(...) { ... }` block is retained as opaque AST
-source. Its expressions are not validated or executed, and it does not generate
-shape inference or enforce assertions. Hosts still supply output metadata.
+An optional trailing `shape(...) { ... }` block is parsed into a structured AST.
+It supports fixed and trailing variadic parameters, `let`, `assert`, a final
+`yield`, builtin calls, lists, indexing, attribute fields, conditionals, and
+comprehensions. `parse --ast` displays that structure with source spans retained
+in the AST. `check` resolves shape names, attribute fields, and builtin calls,
+checks their types, and stores the checked program on its operation. Shape
+evaluator generation and execution remain deferred; hosts still supply output
+metadata.
 `$name(...)` explicitly calls a host function. Unprefixed calls are reserved for
 native functions and bound `fn` parameters; unknown native functions are errors.
-Builtin shape-function resolution is deferred.
+Builtin names remain ordinary identifiers. The shape parser records their calls;
+core resolves their names and checks signatures within operation shape blocks.
+Builtin calls in rule conditions/derivations and shape evaluator generation
+remain deferred.
+Shape blocks exclude `$` calls, descriptor references, and floating literals.
+`assert`, `yield`, `if`, `then`, `else`, `for`, and `in` are reserved keywords;
+`shape` remains contextual so `attrs.shape` is valid.
 
 The parser and AST carry this information, and `check` resolves declarations
 and checks descriptor schemas. Rust code generation supports checked
@@ -260,7 +271,8 @@ if (checked.ok()) {
 
 The initial analyzer supports declared tensor operations, fixed and trailing
 variadic operands, operation aliases, LHS captures and bindings, graph literals,
-shape/dtype restrictions, typed conditions, descriptor derivations, and
+shape/dtype restrictions, checked operation shape programs, typed conditions,
+descriptor derivations, and
 concrete instances of abstract rules. Operations must have visible dialect
 declarations; syntax-only rules using undeclared operators remain parseable but
 cannot produce checked IR. Tuples and projections are explicitly unsupported.

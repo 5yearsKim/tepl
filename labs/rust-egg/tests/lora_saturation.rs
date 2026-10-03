@@ -13,7 +13,7 @@ use rust_egg::ir::rules::{lora::rule_lora, simple::rule_commute_add};
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 use support::{
-    ArithmeticCost, DemoLoraFunctions, Shape, ShapeAnalysis, dot_attrs, evaluate, example_shapes,
+    ArithmeticCost, DemoLoraFunctions, ShapeAnalysis, dot_attrs, evaluate, example_shapes,
     example_values, expected_expr, infer_tensor_output, input_graph, stopped_by_saturation,
     tensor_info, text_dump,
 };
@@ -53,8 +53,8 @@ fn lora_saturates_extracts_cheaper_expression_and_preserves_values() {
     let alternative = runner.egraph.lookup_expr(&expected_expr()).unwrap();
     assert_eq!(runner.egraph.find(root), runner.egraph.find(alternative));
     assert_eq!(
-        runner.egraph[runner.egraph.find(root)].data,
-        Shape::Known(TensorInfo {
+        tensor_info(&runner.egraph, root),
+        Some(TensorInfo {
             shape: vec![2, 4, 32],
             dtype: DType::I64
         })
@@ -157,19 +157,19 @@ fn shape_analysis_marks_conflicting_eclasses_invalid() {
     let w = egraph.lookup(symbol("W")).unwrap();
     egraph.union(x, w);
     egraph.rebuild();
-    assert_eq!(egraph[egraph.find(x)].data, Shape::Invalid);
+    assert!(egraph[egraph.find(x)].data.is_invalid());
 }
 
 #[test]
 fn shape_analysis_does_not_infer_a_missing_symbols_shape_from_an_equivalent_node() {
-    let mut egraph = EGraph::new(ShapeAnalysis {
-        symbols: support::bindings_from_shapes(example_shapes()),
-    });
+    let mut egraph = EGraph::new(ShapeAnalysis::new(support::bindings_from_shapes(
+        example_shapes(),
+    )));
     let x = egraph.add(symbol("X"));
     let missing = egraph.add(symbol("missing"));
     egraph.union(x, missing);
     egraph.rebuild();
-    assert_eq!(egraph[egraph.find(x)].data, Shape::Unknown);
+    assert!(egraph[egraph.find(x)].data.is_unknown());
     assert!(tensor_info(&egraph, x).is_none());
 }
 
@@ -194,11 +194,11 @@ fn analysis_marks_same_shape_different_dtype_eclasses_invalid() {
             },
         )
         .unwrap();
-    let mut egraph = EGraph::new(ShapeAnalysis { symbols });
+    let mut egraph = EGraph::new(ShapeAnalysis::new(symbols));
     let x = egraph.add(symbol("X"));
     let y = egraph.add(symbol("Y"));
     egraph.union(x, y);
     egraph.rebuild();
-    assert_eq!(egraph[egraph.find(x)].data, Shape::Invalid);
+    assert!(egraph[egraph.find(x)].data.is_invalid());
     assert!(tensor_info(&egraph, x).is_none());
 }

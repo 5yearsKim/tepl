@@ -3,6 +3,8 @@
 #include <sstream>
 #include <type_traits>
 
+#include "src/core/shape/print.h"
+
 namespace tepl::core {
 namespace {
 
@@ -23,6 +25,7 @@ class Printer {
       out_ << ") -> " << type(op.result);
       if (op.attributes) out_ << " attrs=#" << op.attributes->value;
       out_ << '\n';
+      if (op.shape) shape::print(out_, *op.shape, program_);
     }
     for (const auto& schema : program_.attribute_schemas) {
       out_ << "  attr_schema #" << schema.id.value << ' ' << schema.dialect

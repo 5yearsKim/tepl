@@ -24,28 +24,8 @@ ast::ConstraintExprPtr makeConstraint(const antlr4::ParserRuleContext* context,
       ast::ConstraintExpr{getSpan(context), std::move(value)});
 }
 
-ast::BinaryOp binaryOperator(std::string_view spelling) {
-  static constexpr std::pair<std::string_view, ast::BinaryOp> operators[] = {
-      {"+", ast::BinaryOp::kAdd},           {"-", ast::BinaryOp::kSubtract},
-      {"*", ast::BinaryOp::kMultiply},      {"/", ast::BinaryOp::kDivide},
-      {"%", ast::BinaryOp::kRemainder},     {"<", ast::BinaryOp::kLess},
-      {"<=", ast::BinaryOp::kLessEqual},    {">", ast::BinaryOp::kGreater},
-      {">=", ast::BinaryOp::kGreaterEqual}, {"==", ast::BinaryOp::kEqual},
-      {"!=", ast::BinaryOp::kNotEqual},     {"&&", ast::BinaryOp::kLogicalAnd},
-      {"||", ast::BinaryOp::kLogicalOr},
-  };
-  for (auto [text, op] : operators) {
-    if (spelling == text) return op;
-  }
-  throw std::logic_error("unsupported binary operator in parse tree");
-}
-
-ast::UnaryOp unaryOperator(std::string_view spelling) {
-  if (spelling == "+") return ast::UnaryOp::kPlus;
-  if (spelling == "-") return ast::UnaryOp::kNegate;
-  if (spelling == "!") return ast::UnaryOp::kLogicalNot;
-  throw std::logic_error("unsupported unary operator in parse tree");
-}
+using detail::binaryOperator;
+using detail::unaryOperator;
 
 }  // namespace
 

@@ -92,6 +92,57 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
   std::any visitGroupPrimary(
       tepl_generated::TeplParser::GroupPrimaryContext*) override;
 
+  std::any visitShapeProperty(
+      tepl_generated::TeplParser::ShapePropertyContext*) override;
+  std::any visitShapeLetStatement(
+      tepl_generated::TeplParser::ShapeLetStatementContext*) override;
+  std::any visitShapeAssertStatement(
+      tepl_generated::TeplParser::ShapeAssertStatementContext*) override;
+  std::any visitShapeConditionalExpr(
+      tepl_generated::TeplParser::ShapeConditionalExprContext*) override;
+  std::any visitShapeSimpleExpr(
+      tepl_generated::TeplParser::ShapeSimpleExprContext*) override;
+  std::any visitShapeLogicalOr(
+      tepl_generated::TeplParser::ShapeLogicalOrContext*) override;
+  std::any visitShapeLogicalAnd(
+      tepl_generated::TeplParser::ShapeLogicalAndContext*) override;
+  std::any visitShapeEquality(
+      tepl_generated::TeplParser::ShapeEqualityContext*) override;
+  std::any visitShapeComparison(
+      tepl_generated::TeplParser::ShapeComparisonContext*) override;
+  std::any visitShapeAdditive(
+      tepl_generated::TeplParser::ShapeAdditiveContext*) override;
+  std::any visitShapeMultiplicative(
+      tepl_generated::TeplParser::ShapeMultiplicativeContext*) override;
+  std::any visitShapeUnary(
+      tepl_generated::TeplParser::ShapeUnaryContext*) override;
+  std::any visitShapePostfix(
+      tepl_generated::TeplParser::ShapePostfixContext*) override;
+  std::any visitShapeCallPrimary(
+      tepl_generated::TeplParser::ShapeCallPrimaryContext*) override;
+  std::any visitShapeNamePrimary(
+      tepl_generated::TeplParser::ShapeNamePrimaryContext*) override;
+  std::any visitShapeAttrsPrimary(
+      tepl_generated::TeplParser::ShapeAttrsPrimaryContext*) override;
+  std::any visitShapeIntegerPrimary(
+      tepl_generated::TeplParser::ShapeIntegerPrimaryContext*) override;
+  std::any visitShapeTruePrimary(
+      tepl_generated::TeplParser::ShapeTruePrimaryContext*) override;
+  std::any visitShapeFalsePrimary(
+      tepl_generated::TeplParser::ShapeFalsePrimaryContext*) override;
+  std::any visitShapeGroupPrimary(
+      tepl_generated::TeplParser::ShapeGroupPrimaryContext*) override;
+  std::any visitShapeEmptyListPrimary(
+      tepl_generated::TeplParser::ShapeEmptyListPrimaryContext*) override;
+  std::any visitShapeListPrimary(
+      tepl_generated::TeplParser::ShapeListPrimaryContext*) override;
+  std::any visitShapeComprehensionPrimary(
+      tepl_generated::TeplParser::ShapeComprehensionPrimaryContext*) override;
+
+  template <typename Context>
+  ast::ShapeExprPtr foldShapeBinary(antlr4::ParserRuleContext* parent,
+                                    const std::vector<Context*>& operands);
+
   template <typename Context>
   ast::ConstraintExprPtr foldBinary(antlr4::ParserRuleContext* parent,
                                     const std::vector<Context*>& operands);

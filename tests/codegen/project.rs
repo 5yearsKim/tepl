@@ -79,3 +79,48 @@ fn rejected_cross_dialect_inference_is_atomic() {
     assert!(rule.apply(&mut graph, &matches).is_empty());
     assert_eq!(graph.total_size(), before);
 }
+#[test]
+fn shape_builtins_compose_in_generated_modules() {
+    use tepl_generated::ir::analysis::shape_builtins::{self as shape, ShapeError, ShapeResult};
+
+    fn transpose(input: &[u64], permutation: &[u64]) -> ShapeResult<Vec<u64>> {
+        shape::ensure(
+            shape::is_valid_axis_list(permutation, input.len()) && permutation.len() == input.len(),
+            "invalid permutation",
+        )?;
+        shape::gather(input, permutation)
+    }
+
+    assert_eq!(transpose(&[2, 3, 4], &[2, 0, 1]), Ok(vec![4, 2, 3]));
+    assert_eq!(
+        transpose(&[2, 3], &[0, 0]),
+        Err(ShapeError::Assertion("invalid permutation")),
+    );
+    assert_eq!(shape::gather(&[2, 3], &[1, 1]), Ok(vec![3, 3]));
+    assert_eq!(shape::product(&[u64::MAX, 2]), Err(ShapeError::Overflow));
+}
+
+#[test]
+fn full_shape_builtins_support_reduction_and_concatenation() {
+    use tepl_generated::ir::analysis::shape_builtins as shape;
+
+    // Reduction removes axis values, then gathers the remaining dimensions.
+    let input = [2_u64, 3, 4, 5];
+    let axes = shape::range(shape::len(&input)).unwrap();
+    let remaining = shape::exclude(&axes, &[1, 3]);
+    assert_eq!(shape::gather(&input, &remaining).unwrap(), vec![2, 4]);
+
+    // Concatenation checks the other axes, sums the joining dimension, and
+    // replaces that dimension in the first shape.
+    let inputs = shape::concat(&[&[vec![2_u64, 3]], &[vec![2, 5], vec![2, 1]]]).unwrap();
+    let same_outer: Vec<_> = inputs.iter().map(|input| input[0] == 2).collect();
+    assert!(shape::all(&same_outer));
+    let sizes: Vec<_> = inputs.iter().map(|input| input[1]).collect();
+    assert_eq!(
+        shape::replace(&inputs[0], 1, shape::sum(&sizes).unwrap()).unwrap(),
+        vec![2, 9],
+    );
+    assert_eq!(shape::floor_div(-7_i64, 3), Ok(-3));
+    assert_eq!(shape::ceil_div(-7_i64, 3), Ok(-2));
+    assert_eq!(shape::broadcast_shape(&[0, 4], &[1, 4]), Ok(vec![0, 4]));
+}

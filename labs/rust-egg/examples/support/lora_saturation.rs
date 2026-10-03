@@ -3,7 +3,7 @@
 use egg::{CostFunction, EGraph, Id, Language, RecExpr, StopReason};
 use rust_egg::host::nodes::*;
 pub use rust_egg::host::{
-    DemoLoraFunctions, Shape, ShapeAnalysis, TensorBindings, batched_dot_shape, dot_attrs,
+    DemoLoraFunctions, ShapeAnalysis, TensorBindings, batched_dot_shape, dot_attrs,
     infer_tensor_output, tensor_info,
 };
 use rust_egg::ir::dialects::tensor_lang;
@@ -75,9 +75,7 @@ pub fn input_graph(
     inner_attrs: OpAttrs,
 ) -> (EGraph<OpNode, ShapeAnalysis>, Id, RecExpr<OpNode>) {
     let expr = original_expr(swapped_add, inner_attrs);
-    let mut egraph = EGraph::new(ShapeAnalysis {
-        symbols: bindings_from_shapes(shapes),
-    });
+    let mut egraph = EGraph::new(ShapeAnalysis::new(bindings_from_shapes(shapes)));
     let root = egraph.add_expr(&expr);
     egraph.rebuild();
     (egraph, root, expr)
@@ -94,9 +92,11 @@ impl CostFunction<OpNode> for ArithmeticCost<'_> {
     where
         C: FnMut(Id) -> u64,
     {
-        let output = |id: Id| match &self.egraph[self.egraph.find(id)].data {
-            Shape::Known(info) => Some(info.shape.as_slice()),
-            _ => None,
+        let output = |id: Id| {
+            self.egraph[self.egraph.find(id)]
+                .data
+                .info()
+                .map(|info| info.shape.as_slice())
         };
         let local = match (node.op(), node.children()) {
             (Op::Input, []) => 0,

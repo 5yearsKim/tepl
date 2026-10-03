@@ -10,8 +10,47 @@ particular dialect.
 constructor. Generation inserts project-specific `Op` and `OpAttrs` sum types
 at the marker below the imports, before the node implementation, and writes
 `op_node.rs`. `src/types.rs` is copied as `types.rs`.
-The repository directory is called `runtime/` because it stores boilerplate;
-the generated public submodule is `pattern`.
+`src/analysis/shape_builtins.rs` is copied as `analysis/shape_builtins.rs`.
+The generator exposes it through an inline `analysis` module. It implements
+every builtin in `examples/shape_guide.md`, including those not yet used by the
+sample evaluators, with no dependency on dialects, host semantics, or egg:
+
+| Helpers | Runtime behavior |
+| --- | --- |
+| `len`, `range` | List length and eager zero-based axes; range bounds must be nonnegative and fit `usize` |
+| `concat` | Concatenate two or more lists, preserving nested list boundaries |
+| `gather`, `exclude` | Select checked positions (duplicates allowed) or remove matching values |
+| `slice`, `replace` | Copy a checked slice or replace one checked entry; bounds never clamp |
+| `sum`, `product` | Checked integer reductions; empty identities are zero and one |
+| `all`, `any` | Reduce already evaluated Boolean lists; empty identities are true and false |
+| `contains`, `is_disjoint` | Membership and absence of shared values |
+| `is_valid_axis_list` | Unique, nonnegative axes within the supplied rank |
+| `broadcast_shape` | Right-aligned broadcasting; broadcasting zero with one produces zero |
+| `min`, `max` | Integer extrema |
+| `floor_div`, `ceil_div` | Rounded integer division, including negative numerators; divisors must be positive |
+
+The additional `ensure` helper returns assertion errors in both debug and
+release builds. `product` returns zero when any entry is zero, even if a
+preceding prefix would overflow. Incompatible broadcasting, arithmetic overflow,
+and invalid indices produce errors. `range` and `concat` also report capacity
+failures rather than panicking on unrepresentable list sizes.
+
+List helpers are generic over their element type, including nested lists.
+Rust calls pass slices; a TEPL call `concat(a, b, c)` becomes
+`concat(&[&a, &b, &c])`, and `contains(xs, x)` becomes `contains(&xs, &x)`.
+`len` returns `usize`; `range` produces `u64` axes. Index helpers accept integer
+types with checked conversion to `usize`, rejecting negative indices.
+`sum`, `product`, `min`, `max`, `floor_div`, and `ceil_div` support primitive
+signed and unsigned integers through `ShapeInteger`. The evaluator selects the
+integer representation; a future generator must explicitly convert mixed
+signed/unsigned operands and check that final dimensions fit `u64`.
+
+Fallible helpers return `ShapeResult<T>` (`Result<T, ShapeError>`). Operation
+evaluators compose them with `?`; their dispatcher converts errors to invalid
+inference. Missing operation definitions are handled separately as unknown
+inference.
+The lab's handwritten operation evaluators demonstrate this interface; the
+compiler does not yet generate evaluators from TEPL shape blocks.
 
 Generation emits files directly into the selected module directory of an
 existing crate. Internal imports use `super`, so the enclosing module can have

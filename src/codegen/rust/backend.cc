@@ -31,8 +31,10 @@ GenerationResult Backend::generate(const core::Program& program,
     }
     result.files.push_back(
         {"mod.rs",
-         "pub mod dialects;\npub mod op_node;\npub mod types;\npub mod "
-         "pattern;\npub mod rules;\npub use op_node::{Op, OpAttrs, OpNode, "
+         "pub mod analysis { pub mod shape_builtins; }\n"
+         "pub mod dialects;\npub mod op_node;\npub mod types;\n"
+         "pub mod pattern;\npub mod rules;\n"
+         "pub use op_node::{Op, OpAttrs, OpNode, "
          "NodeError, Arity, DialectOp};\npub use types::DType;\n"});
     std::string dialect_index;
     for (const auto& dialect : names.dialects) {

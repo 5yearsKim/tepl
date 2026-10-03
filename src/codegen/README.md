@@ -47,7 +47,9 @@ language-backend interface.
 
 ## Generated Rust API
 
-The emitted module exposes `{dialects, op_node, types, pattern, rules}`.
+The emitted module exposes `{analysis, dialects, op_node, types, pattern, rules}`.
+`analysis::shape_builtins` contains the copied, checked shape primitives; operation
+shape programs are checked in core, but evaluator generation remains future work.
 Its enclosing name and location are chosen by the consuming application; the
 examples below use `generated`.
 Each dialect has its own module and short `Op` and `OpAttrs` enums, such as

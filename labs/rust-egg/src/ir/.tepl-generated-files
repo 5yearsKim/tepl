@@ -1,4 +1,5 @@
 # TEPL generated files v1
+analysis/shape_builtins.rs
 dialects/mod.rs
 dialects/scalar.rs
 dialects/tensor_lang.rs

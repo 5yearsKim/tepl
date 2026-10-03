@@ -73,17 +73,95 @@ opProperties
     | shapeProperty
     ;
 
-// Shape definitions are retained but not interpreted or checked yet.
+// Shape programs are parsed here; names, signatures, and types are checked later.
+// Keep "shape" contextual so fields such as attrs.shape remain ordinary names.
 shapeProperty
-    : {getCurrentToken()->getText() == "shape"}? ID '(' shapeInputs? ')' opaqueBlock
+    : {getCurrentToken()->getText() == "shape"}? ID '(' shapeInputs? ')'
+      '{' shapeStatement* shapeYield '}'
     ;
 
 shapeInputs
-    : ID ELLIPSIS? (',' ID ELLIPSIS?)*
+    : shapeInput (',' shapeInput)* (',' shapeVariadicInput)?
+    | shapeVariadicInput
     ;
 
-opaqueBlock
-    : '{' (opaqueBlock | ~('{' | '}'))* '}'
+shapeInput
+    : ID
+    ;
+
+shapeVariadicInput
+    : ID ELLIPSIS
+    ;
+
+shapeStatement
+    : LET ID '=' shapeExpr ';'     # ShapeLetStatement
+    | ASSERT shapeExpr ';'         # ShapeAssertStatement
+    ;
+
+shapeYield
+    : YIELD shapeExpr ';'
+    ;
+
+// Shape expressions contain metadata only; host calls and graph captures are
+// deliberately absent. Builtin names use ID, not dedicated lexer tokens.
+shapeExpr
+    : IF shapeExpr THEN shapeExpr ELSE shapeExpr # ShapeConditionalExpr
+    | shapeLogicalOr                            # ShapeSimpleExpr
+    ;
+
+shapeLogicalOr
+    : shapeLogicalAnd ('||' shapeLogicalAnd)*
+    ;
+
+shapeLogicalAnd
+    : shapeEquality ('&&' shapeEquality)*
+    ;
+
+shapeEquality
+    : shapeComparison (('==' | '!=') shapeComparison)?
+    ;
+
+shapeComparison
+    : shapeAdditive (('<' | '<=' | '>' | '>=') shapeAdditive)?
+    ;
+
+shapeAdditive
+    : shapeMultiplicative (('+' | '-') shapeMultiplicative)*
+    ;
+
+shapeMultiplicative
+    : shapeUnary (('*' | '/' | '%') shapeUnary)*
+    ;
+
+shapeUnary
+    : ('!' | '+' | '-') shapeUnary
+    | shapePostfix
+    ;
+
+shapePostfix
+    : shapePrimary shapeSuffix*
+    ;
+
+shapeSuffix
+    : '.' ID                 # ShapeFieldSuffix
+    | '[' shapeExpr ']'      # ShapeIndexSuffix
+    ;
+
+shapePrimary
+    : ID '(' shapeArguments? ')'                      # ShapeCallPrimary
+    | ID                                              # ShapeNamePrimary
+    | ATTRS                                           # ShapeAttrsPrimary
+    | INT                                             # ShapeIntegerPrimary
+    | TRUE                                            # ShapeTruePrimary
+    | FALSE                                           # ShapeFalsePrimary
+    | '(' shapeExpr ')'                               # ShapeGroupPrimary
+    | '[' ']'                                         # ShapeEmptyListPrimary
+    | '[' shapeExpr (',' shapeExpr)* ']'               # ShapeListPrimary
+    | '[' shapeExpr FOR ID IN shapeExpr ']'            # ShapeComprehensionPrimary
+    ;
+
+shapeArguments
+    : shapeExpr (',' shapeExpr)*
     ;
 
 aliasProperty
@@ -295,6 +373,13 @@ ABSTRACT: 'abstract';
 EXTENDS: 'extends';
 FN: 'fn';
 LET: 'let';
+ASSERT: 'assert';
+YIELD: 'yield';
+IF: 'if';
+THEN: 'then';
+ELSE: 'else';
+FOR: 'for';
+IN: 'in';
 IMPORT: 'import';
 FROM: 'from';
 AS: 'as';

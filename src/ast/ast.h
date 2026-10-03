@@ -144,6 +144,83 @@ struct ConstraintExpr {
       value;
 };
 
+// Shape programs have their own expression tree. Unlike rule constraints,
+// they cannot contain tensor captures, descriptor references, or host calls.
+struct ShapeExpr;
+using ShapeExprPtr = std::shared_ptr<ShapeExpr>;
+
+struct ShapeAttrs {};
+struct ShapeCall {
+  // Unresolved builtin name; the parser does not validate names or signatures.
+  std::string callee;
+  std::vector<ShapeExprPtr> arguments;
+};
+struct ShapeUnary {
+  UnaryOp op;
+  ShapeExprPtr operand;
+};
+struct ShapeBinary {
+  BinaryOp op;
+  ShapeExprPtr lhs;
+  ShapeExprPtr rhs;
+};
+struct ShapeList {
+  std::vector<ShapeExprPtr> elements;
+};
+struct ShapeIndex {
+  ShapeExprPtr value;
+  ShapeExprPtr index;
+};
+struct ShapeField {
+  ShapeExprPtr value;
+  std::string field;
+};
+struct ShapeConditional {
+  ShapeExprPtr condition;
+  ShapeExprPtr then_value;
+  ShapeExprPtr else_value;
+};
+struct ShapeComprehension {
+  ShapeExprPtr element;
+  std::string variable;
+  SourceSpan variable_span;
+  ShapeExprPtr iterable;
+};
+struct ShapeExpr {
+  SourceSpan span;
+  std::variant<NameRef, IntegerLiteral, BooleanLiteral, ShapeAttrs, ShapeCall,
+               ShapeUnary, ShapeBinary, ShapeList, ShapeIndex, ShapeField,
+               ShapeConditional, ShapeComprehension>
+      value;
+};
+struct ShapeParameter {
+  SourceSpan span;
+  std::string name;
+  bool variadic = false;
+};
+struct ShapeLet {
+  std::string name;
+  SourceSpan name_span;
+  ShapeExprPtr value;
+};
+struct ShapeAssert {
+  ShapeExprPtr condition;
+};
+struct ShapeStatement {
+  SourceSpan span;
+  std::variant<ShapeLet, ShapeAssert> value;
+};
+struct ShapeYield {
+  SourceSpan span;
+  ShapeExprPtr value;
+};
+struct ShapeDefinition {
+  SourceSpan span;
+  std::vector<ShapeParameter> parameters;
+  std::vector<ShapeStatement> statements;
+  ShapeYield result;
+};
+
 struct Derivation {
   SourceSpan span;
   AttributeRef target;
@@ -254,8 +331,9 @@ struct OpDecl {
   std::string result_type;
   std::optional<std::string> alias;
   std::optional<OpAttrs> attrs;
-  // Opaque source only; shape analysis is not implemented.
-  std::optional<std::string> shape_definition;
+  // Parsed syntax only; semantic checking and evaluator generation are
+  // separate.
+  std::optional<ShapeDefinition> shape_definition;
 };
 
 struct Dialect {

@@ -1,73 +1,65 @@
-use super::{TensorBindings, infer_tensor_output};
+//! The lab's direct egg analysis: one configuration per graph, TensorFacts per e-class.
+
+use egg::{Analysis, DidMerge, EGraph, Id, Language};
+
+use super::{TensorBindings, TensorFacts, infer_tensor};
+use crate::ir::analysis::Inference;
 use crate::ir::pattern::TensorInfo;
 use crate::ir::{Op, OpNode};
-use egg::{Analysis, DidMerge, EGraph, Id, Language};
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Shape {
-    Unknown,
-    Known(TensorInfo),
-    Invalid,
-}
 
-#[derive(Default)]
+/// Input shapes and dtypes, registered before building the graph.
+#[derive(Clone, Debug, Default)]
 pub struct ShapeAnalysis {
     pub symbols: TensorBindings,
 }
 
-impl Analysis<OpNode> for ShapeAnalysis {
-    type Data = Shape;
-
-    fn make(egraph: &mut EGraph<OpNode, Self>, node: &OpNode, _id: Id) -> Shape {
-        if matches!(node.op(), Op::Input) {
-            return egraph
-                .analysis
-                .symbols
-                .info(node)
-                .cloned()
-                .map(Shape::Known)
-                .unwrap_or(Shape::Unknown);
-        }
-
-        let children: Vec<_> = node
-            .children()
-            .iter()
-            .map(|id| &egraph[egraph.find(*id)].data)
-            .collect();
-        if children.iter().any(|shape| **shape == Shape::Invalid) {
-            return Shape::Invalid;
-        }
-        if children.iter().any(|shape| **shape == Shape::Unknown) {
-            return Shape::Unknown;
-        }
-        let known: Vec<TensorInfo> = children
-            .iter()
-            .map(|shape| match shape {
-                Shape::Known(info) => info.clone(),
-                _ => unreachable!(),
-            })
-            .collect();
-        let result = infer_tensor_output(node.op(), &known, node.attrs());
-        result.map(Shape::Known).unwrap_or(Shape::Invalid)
-    }
-
-    fn merge(&mut self, target: &mut Shape, incoming: Shape) -> DidMerge {
-        let merged = match (&*target, &incoming) {
-            (Shape::Invalid, _) | (_, Shape::Invalid) => Shape::Invalid,
-            // A known alternative cannot establish the shape of an unknown one.
-            (Shape::Unknown, _) | (_, Shape::Unknown) => Shape::Unknown,
-            (Shape::Known(a), Shape::Known(b)) if a == b => Shape::Known(a.clone()),
-            (Shape::Known(_), Shape::Known(_)) => Shape::Invalid,
-        };
-        let changed_target = *target != merged;
-        let changed_incoming = incoming != merged;
-        *target = merged;
-        DidMerge(changed_target, changed_incoming)
+impl ShapeAnalysis {
+    pub fn new(symbols: TensorBindings) -> Self {
+        Self { symbols }
     }
 }
 
-pub fn tensor_info(egraph: &EGraph<OpNode, ShapeAnalysis>, id: Id) -> Option<TensorInfo> {
-    match &egraph[egraph.find(id)].data {
-        Shape::Known(info) => Some(info.clone()),
-        _ => None,
+impl Analysis<OpNode> for ShapeAnalysis {
+    type Data = TensorFacts;
+
+    fn make(egraph: &mut EGraph<OpNode, Self>, node: &OpNode, _id: Id) -> TensorFacts {
+        // Inputs get their metadata from the bindings supplied by the application.
+        if node.op() == Op::Input {
+            let inferred = match egraph.analysis.symbols.info(node) {
+                Some(info) => Inference::Known(info.clone()),
+                None => Inference::Unknown,
+            };
+            return TensorFacts::from_inference(inferred);
+        }
+
+        // Gather the metadata already stored on the operand e-classes.
+        let mut operands = Vec::new();
+        let mut has_unknown = false;
+        for child in node.children() {
+            let facts = &egraph[egraph.find(*child)].data;
+            if facts.is_invalid() {
+                return TensorFacts::from_inference(Inference::Invalid("invalid operand metadata"));
+            }
+            match facts.info() {
+                Some(info) => operands.push(info.clone()),
+                // Keep checking: a later invalid operand must take priority.
+                None => has_unknown = true,
+            }
+        }
+        if has_unknown {
+            return TensorFacts::from_inference(Inference::Unknown);
+        }
+
+        // Infer this operation, then store the result on its e-class.
+        TensorFacts::from_inference(infer_tensor(node.op(), &operands, node.attrs()))
     }
+
+    fn merge(&mut self, target: &mut TensorFacts, incoming: TensorFacts) -> DidMerge {
+        target.merge(incoming)
+    }
+}
+
+/// Read an e-class's agreed shape and dtype; also accepted by rewrite builders.
+pub fn tensor_info(egraph: &EGraph<OpNode, ShapeAnalysis>, id: Id) -> Option<TensorInfo> {
+    egraph[egraph.find(id)].data.info().cloned()
 }

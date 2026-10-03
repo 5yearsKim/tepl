@@ -1,4 +1,4 @@
-// Shape blocks are retained as opaque source; shape analysis is deferred.
+// Shape blocks are parsed and checked; evaluator generation remains deferred.
 // StableHLO subset: https://openxla.org/stablehlo/spec
 // See ../shape_guide.md for variadics and the StableHLO metadata mapping.
 // Missing shape blocks provide no generated inference: use host metadata or

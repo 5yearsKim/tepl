@@ -1,8 +1,10 @@
-# Proposed shape definitions
+# Shape definitions
 
-> Design proposal: shape expressions and builtins below are not yet checked or
-> executed. The compiler retains `shape` blocks as opaque source and supports
-> the nested/opaque attribute types and `$` host-call syntax used here.
+> Implementation status: shape blocks, expressions, and builtin call syntax are
+> parsed into a structured AST and checked by core. Parameters, local names,
+> attribute fields, builtin signatures, and expression types are resolved. Shape
+> programs are not executed or emitted as operation evaluators yet. The compiler
+> also supports the nested/opaque attribute types and `$` host-call syntax here.
 > Existing rule-level shape declarations remain match-time constraints.
 
 An operation's shape definition computes its output shape from operand shapes
@@ -206,7 +208,7 @@ Shape helpers manipulate metadata, not tensor elements. For example, the
 `gather` helper selects entries from a shape list; it does not construct a tensor
 gather operation.
 
-The proposed expression language supports:
+The shape parser supports:
 
 - Shape parameters: `shape(s)`, `shape(l, r)`, or `shape(inputs...)`.
 - Immutable local bindings: `let axes = range(len(s));`.
@@ -222,6 +224,13 @@ There are no implicit elementwise arithmetic operations on lists. Use a
 comprehension to calculate each element. `&&`, `||`, and conditional expressions
 evaluate only the branches needed. A comprehension evaluates its iterable once,
 binds a local variable for each element, and preserves iteration order.
+
+Shape expressions use a signed 128-bit integer domain for dimensions, indices,
+and intermediate arithmetic. It represents every unsigned 64-bit input dimension
+and signed 64-bit attribute without narrowing. Integer literals must fit this
+domain. Future evaluators must use checked 128-bit arithmetic and convert yielded
+dimensions to unsigned 64-bit values, rejecting negative or out-of-range results.
+Rule expressions retain their separate `Index`/`I64` types.
 
 Scalar arithmetic permits signed intermediate values, such as padding offsets;
 final dimensions must be nonnegative. Indexing requires a nonnegative, in-range
@@ -462,12 +471,18 @@ rhs free sizes:           [11]
 result:                  [2, 5, 11]
 ```
 
-## Proposed grammar extension
+## Grammar and parser support
 
-This EBNF sketches the extension, not the current ANTLR grammar. `aliasProperty`
-and the outer structure of `attrsProperty` retain their existing definitions;
-attribute types gain the extensions below. An operation may have at
-most one of each property. A shape block has exactly one final `yield`.
+The EBNF below summarizes the shape syntax implemented in `grammar/Tepl.g4`.
+An operation may have at most one alias, attribute schema, and shape block.
+Alias and attribute properties may appear in either order; the shape block is
+last. A shape block has exactly one final `yield`.
+
+`assert`, `yield`, `if`, `then`, `else`, `for`, and `in` are reserved keywords.
+`shape` is contextual, allowing fields such as `attrs.shape`. Builtin names
+remain ordinary identifiers and are stored as unresolved AST calls. The parser
+checks syntax only; names, types, operand/parameter correspondence, and builtin
+signatures are checked by core after parsing.
 
 Host calls extend rule expressions separately. The existing `constraintExpr`
 production supplies their argument expressions; all other existing expression
@@ -488,8 +503,9 @@ Abstract-rule operation bindings continue to use the existing grammar.
 Shape blocks use the expression grammar below, which excludes `$` calls:
 
 ```ebnf
-opProperties = opProperty, { opProperty } ;
-opProperty   = aliasProperty | attrsProperty | shapeBlock ;
+opProperties = aliasProperty, [ attrsProperty ], [ shapeBlock ]
+             | attrsProperty, [ aliasProperty ], [ shapeBlock ]
+             | shapeBlock ;
 
 shapeBlock   = "shape", "(", [ shapeParameters ], ")",
                "{", { shapeStatement }, "yield", expr, ";", "}" ;
@@ -529,6 +545,41 @@ corresponding elements. `assert` expects a Boolean; `yield` expects a shape.
 This proposal does not introduce user-defined functions, lambdas, unrestricted
 loops, or recursion. These can be considered later if builtins and bounded
 comprehensions prove insufficient.
+
+## Core checking
+
+Each operation's checked IR holds an optional shape program. Fixed parameters
+have type `List<Integer>`; a variadic parameter has type `List<List<Integer>>`.
+Parameters match the operation's fixed/variadic operand structure in declaration
+order, independently of their names. All operation shape blocks are checked,
+including those unused by any rule. An absent shape program remains absent.
+
+Earlier `let` bindings are visible to later statements. Parameters and `let`
+bindings cannot duplicate a name. A comprehension may shadow an outer binding;
+its variable is visible only in the element expression, and its iterable is
+checked in the outer scope. Calls resolve only to the 19 documented builtins.
+`attrs.field` resolves a non-optional `index`, `i64`, or `bool` field, including
+nested lists. Strings, enum values, optional fields, and opaque payloads cannot
+be inspected in shape expressions.
+
+Lists are homogeneous. Generic list helpers preserve the element type,
+including Boolean and nested lists. `assert` requires `Bool`; `yield` requires
+`List<Integer>`; a conditional requires `Bool` and matching branch types. List
+indexing requires an integer, and comparisons/arithmetic follow the operator
+rules above. Unknown names, wrong builtin arity/types, and mismatched shape
+signatures produce source diagnostics.
+
+Empty list element types are inferred from use: `yield []` is an integer list,
+`all([])` is a Boolean list, and `concat([s], [])` is a list of shapes. A later
+use can establish a local binding's type. An ambiguous empty list, such as an
+unused `let xs = [];` or `len([])`, is rejected; no default element type is chosen.
+
+Core preserves statements, assertions, and short-circuit branches without
+executing them. Value-dependent failures such as negative dimensions, bad axis
+values, out-of-range indexing, and arithmetic overflow remain runtime checks.
+Successful checking does not prove shape equality or numerical rewrite legality.
+`check` output includes resolved builtin IDs, local bindings, and expression
+types. Shape IR owns its data and remains valid after the AST is destroyed.
 
 ## Evaluation and analysis boundary
 

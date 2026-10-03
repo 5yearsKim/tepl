@@ -79,6 +79,37 @@ cc_test(
 )
 
 cc_test(
+    name = "shape_parser_test",
+    size = "small",
+    srcs = ["shape_parser_test.cc"],
+    deps = [
+        "//:frontend",
+        "//src/ast:ast",
+    ],
+)
+
+cc_test(
+    name = "shape_core_test",
+    size = "small",
+    srcs = ["shape_core_test.cc"],
+    args = [
+        "$(rlocationpath //examples:dialects/tensor.tepl)",
+        "$(rlocationpath //examples:dialects/scalar.tepl)",
+    ],
+    data = [
+        "//examples:dialects/tensor.tepl",
+        "//examples:dialects/scalar.tepl",
+    ],
+    deps = [
+        "//:frontend",
+        "//src/ast:ast",
+        "//src/core:analysis",
+        "//src/core:print",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
+cc_test(
     name = "dtype_test",
     size = "small",
     srcs = ["dtype_test.cc"],
