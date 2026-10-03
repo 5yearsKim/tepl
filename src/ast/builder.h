@@ -32,10 +32,8 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
   std::any visitAttrField(
       tepl_generated::TeplParser::AttrFieldContext*) override;
   std::any visitRuleDecl(tepl_generated::TeplParser::RuleDeclContext*) override;
-  std::any visitTensorDecl(
-      tepl_generated::TeplParser::TensorDeclContext*) override;
-  std::any visitScalarDecl(
-      tepl_generated::TeplParser::ScalarDeclContext*) override;
+  std::any visitShapeDecl(
+      tepl_generated::TeplParser::ShapeDeclContext*) override;
   std::any visitShapeElements(
       tepl_generated::TeplParser::ShapeElementsContext*) override;
   std::any visitScalarDim(

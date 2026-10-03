@@ -36,20 +36,12 @@ struct DTypeAnnotation {
   std::string name;
 };
 
-struct TensorDecl {
+struct Declaration {
+  SourceSpan span;
   std::string name;
   // An empty shape represents a rank-zero tensor.
   std::vector<ShapeDimension> shape;
   std::optional<DTypeAnnotation> dtype;
-};
-
-struct ScalarDecl {
-  std::string name;
-};
-
-struct Declaration {
-  SourceSpan span;
-  std::variant<TensorDecl, ScalarDecl> value;
 };
 
 // References own their names. Attribute sigils ('@') are omitted from names.
@@ -119,15 +111,19 @@ struct GraphExpr {
 
 // makeConstraint expressions used in `where` conditions and `derive` values.
 // They combine references, literals, host calls, and unary/binary operations:
-//   !broadcastable(A, B), K % 128 == 0, infer_dot(X, W, @outer).
+//   !$is_broadcastable(A, B), K % 128 == 0, $infer_dot(X, W, @outer).
 // Tree nesting preserves operator precedence. Semantic validation determines
 // result types and requires each complete `where` condition to be boolean.
 using ::tepl::BinaryOp;
 using ::tepl::UnaryOp;
 
+enum class CallKind { kNative, kHost };
+
 struct Call {
+  // The source sigil is represented by kind, never included in the name.
   std::string callee;
   std::vector<ConstraintExprPtr> arguments;
+  CallKind kind = CallKind::kNative;
 };
 
 struct UnaryExpr {
@@ -172,8 +168,9 @@ struct RuleParameter {
 struct RuleBinding {
   SourceSpan span;
   std::string parameter;
-  // Unresolved operation or host-function name, optionally dialect-qualified.
+  // Unresolved name, without the host sigil. Operations may be qualified.
   std::string value;
+  bool host = false;
 };
 
 struct RuleInheritance {
@@ -221,7 +218,8 @@ struct AttrField {
   SourceSpan span;
   std::string name;
   std::string type;
-  bool list = false;
+  std::size_t list_depth = 0;
+  bool optional = false;
   bool empty_default = false;
 };
 
@@ -256,6 +254,8 @@ struct OpDecl {
   std::string result_type;
   std::optional<std::string> alias;
   std::optional<OpAttrs> attrs;
+  // Opaque source only; shape analysis is not implemented.
+  std::optional<std::string> shape_definition;
 };
 
 struct Dialect {

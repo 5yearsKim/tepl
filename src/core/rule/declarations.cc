@@ -11,7 +11,7 @@ namespace tepl::core::detail {
 namespace {
 
 // A sequence contributes zero or more dimensions. Without a sequence the
-// minimum is also the exact rank, including rank zero for scalar declarations.
+// minimum is also the exact rank, including rank zero for empty shapes.
 struct RankRestriction {
   std::size_t minimum;
   bool fixed;
@@ -63,8 +63,7 @@ void checkDeclarations(RuleCheckContext& context) {
   for (const auto& located : context.input.declarations) {
     const auto& declaration = located.value;
     const auto& at = located.origin;
-    const auto name = std::visit([](const auto& value) { return value.name; },
-                                 declaration.value);
+    const auto& name = declaration.name;
     if (!declared.emplace(located.layer, name).second)
       context.analysis.report(at,
                               "duplicate tensor declaration '" + name + "'");
@@ -77,38 +76,35 @@ void checkDeclarations(RuleCheckContext& context) {
     CaptureConstraint constraint{found->second, std::nullopt, {}, at};
     bool sequence = false;
     std::size_t minimum_rank = 0;
-    if (const auto* tensor = std::get_if<ast::TensorDecl>(&declaration.value)) {
-      if (tensor->dtype) {
-        constraint.dtype = resolveDType(tensor->dtype->name);
-        if (!constraint.dtype)
-          context.analysis.report(
-              at, "unknown dtype '" + tensor->dtype->name + "'");
-      }
-      for (const auto& shape : tensor->shape) {
-        auto location = at;
-        location.definition.span = shape.span;
-        if (const auto* named =
-                std::get_if<ast::NamedDimension>(&shape.value)) {
-          ++minimum_rank;
-          constraint.shape.push_back(
-              {ShapeElement::Kind::kDimension,
-               dimension(context, named->name, false, location), location});
-        } else if (const auto* rest =
-                       std::get_if<ast::SequenceDimension>(&shape.value)) {
-          if (sequence)
-            context.analysis.report(location,
-                                    "a shape can contain at most one sequence");
-          sequence = true;
-          constraint.shape.push_back(
-              {ShapeElement::Kind::kSequence,
-               rest->name ? dimension(context, *rest->name, true, location)
-                          : std::nullopt,
-               location});
-        } else {
-          ++minimum_rank;
-          constraint.shape.push_back(
-              {ShapeElement::Kind::kWildcard, std::nullopt, location});
-        }
+    if (declaration.dtype) {
+      constraint.dtype = resolveDType(declaration.dtype->name);
+      if (!constraint.dtype)
+        context.analysis.report(
+            at, "unknown dtype '" + declaration.dtype->name + "'");
+    }
+    for (const auto& shape : declaration.shape) {
+      auto location = at;
+      location.definition.span = shape.span;
+      if (const auto* named = std::get_if<ast::NamedDimension>(&shape.value)) {
+        ++minimum_rank;
+        constraint.shape.push_back(
+            {ShapeElement::Kind::kDimension,
+             dimension(context, named->name, false, location), location});
+      } else if (const auto* rest =
+                     std::get_if<ast::SequenceDimension>(&shape.value)) {
+        if (sequence)
+          context.analysis.report(location,
+                                  "a shape can contain at most one sequence");
+        sequence = true;
+        constraint.shape.push_back(
+            {ShapeElement::Kind::kSequence,
+             rest->name ? dimension(context, *rest->name, true, location)
+                        : std::nullopt,
+             location});
+      } else {
+        ++minimum_rank;
+        constraint.shape.push_back(
+            {ShapeElement::Kind::kWildcard, std::nullopt, location});
       }
     }
     if (constraint.dtype) {

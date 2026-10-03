@@ -45,3 +45,11 @@ rewrite equivalence is established by the host's legality functions.
 Run compiler-to-runtime integration tests with `./tools/test_codegen.sh` from
 the repository root. Rust runtime files and integration fixtures are formatted
 with `rustfmt --edition 2024`.
+
+Runtime input leaves use `OpNode::input(name)` and `Op::Input`, independently of
+any dialect. `types.rs` also defines `Precision`, `DotAlgorithm`, `ReplicaGroups`,
+`Region`, and `Elements` for generated attributes. Region and mesh payloads are
+canonical opaque bytes supplied by the host. Elements preserve a canonical type
+encoding, shape, and payload bytes; algorithm type encodings can represent formats
+outside the built-in `DType` set. All metadata participates in equality and
+hashing. The host validates payloads and operation-specific attribute semantics.

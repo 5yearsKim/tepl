@@ -1,5 +1,7 @@
 #include "src/codegen/rust/dialect_emitter.h"
 
+#include <map>
+
 #include "src/codegen/rust/code_writer.h"
 
 namespace tepl::codegen::rust {
@@ -66,9 +68,20 @@ std::string emitDialect(const core::Program& program, const Names& names,
     const auto& schema = program.attribute_schemas[id.value];
     out.open(names.schema(id));
     for (const auto& field : schema.fields) {
-      std::string type =
-          field.kind == core::AttributeField::Kind::kIndex ? "u64" : "String";
-      if (field.list) type = "Vec<" + type + ">";
+      static const std::map<std::string, std::string> types = {
+          {"index", "u64"},
+          {"string", "String"},
+          {"i64", "i64"},
+          {"bool", "bool"},
+          {"precision", "super::super::types::Precision"},
+          {"dot_algorithm", "super::super::types::DotAlgorithm"},
+          {"replica_groups", "super::super::types::ReplicaGroups"},
+          {"region", "super::super::types::Region"},
+          {"elements", "super::super::types::Elements"}};
+      std::string type = types.at(field.type);
+      for (std::size_t i = 0; i < field.list_depth; ++i)
+        type = "Vec<" + type + ">";
+      if (field.optional) type = "Option<" + type + ">";
       if (field.empty_default) out.line("// TEPL default: empty list.");
       out.line(identifier(field.name) + ": " + type + ",");
     }
@@ -117,6 +130,7 @@ std::string emitOpUnion(const Names& names) {
       "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]");
   out.open("pub enum Op");
   out.line("Literal,");
+  out.line("Input,");
   for (const auto& d : names.dialects)
     out.line(d.variant + "(" + d.module + "::Op),");
   out.close();
@@ -124,6 +138,7 @@ std::string emitOpUnion(const Names& names) {
   out.open("pub enum OpAttrs");
   out.line("None,");
   out.line("Literal { value: String, dtype: Option<DType> },");
+  out.line("Input { name: String },");
   for (const auto& d : names.dialects)
     out.line(d.variant + "(" + d.module + "::OpAttrs),");
   out.close();
@@ -131,12 +146,14 @@ std::string emitOpUnion(const Names& names) {
   out.open("pub fn name(self) -> &'static str");
   out.open("match self");
   out.line("Self::Literal => \"<literal>\",");
+  out.line("Self::Input => \"<input>\",");
   for (const auto& d : names.dialects)
     out.line("Self::" + d.variant + "(op) => op.name(),");
   out.close();
   out.close();
   out.open("pub fn from_name(name: &str) -> Option<Self>");
   out.line("if name == \"<literal>\" { return Some(Self::Literal); }");
+  out.line("if name == \"<input>\" { return Some(Self::Input); }");
   out.line("let (dialect, _op) = name.split_once('.')?;");
   out.open("match dialect");
   for (const auto& d : names.dialects)
@@ -147,13 +164,14 @@ std::string emitOpUnion(const Names& names) {
   out.close();
   out.open("pub fn arity(self) -> Arity");
   out.open("match self");
-  out.line("Self::Literal => Arity::Exact(0),");
+  out.line("Self::Literal | Self::Input => Arity::Exact(0),");
   for (const auto& d : names.dialects)
     out.line("Self::" + d.variant + "(op) => op.arity(),");
   out.close();
   out.close();
   out.open("pub fn accepts_attrs(self, attrs: &OpAttrs) -> bool");
   out.open("match (self, attrs)");
+  out.line("(Self::Input, OpAttrs::Input { .. }) => true,");
   out.line(
       "(Self::Literal, OpAttrs::Literal { value, dtype }) => "
       "valid_literal(value) && dtype.is_none_or(|d| "
@@ -172,7 +190,7 @@ std::string emitOpUnion(const Names& names) {
   out.open("impl OpAttrs");
   out.open("pub fn schema_id(&self) -> Option<usize>");
   out.open("match self");
-  out.line("Self::None | Self::Literal { .. } => None,");
+  out.line("Self::None | Self::Literal { .. } | Self::Input { .. } => None,");
   for (const auto& d : names.dialects)
     out.line("Self::" + d.variant + "(attrs) => attrs.schema_id(),");
   out.close();

@@ -1,5 +1,4 @@
 use super::{TensorBindings, infer_tensor_output};
-use crate::ir::dialects::tensor_lang;
 use crate::ir::pattern::TensorInfo;
 use crate::ir::{Op, OpNode};
 use egg::{Analysis, DidMerge, EGraph, Id, Language};
@@ -19,10 +18,7 @@ impl Analysis<OpNode> for ShapeAnalysis {
     type Data = Shape;
 
     fn make(egraph: &mut EGraph<OpNode, Self>, node: &OpNode, _id: Id) -> Shape {
-        if matches!(
-            node.op(),
-            Op::TensorLang(tensor_lang::Op::Symbol) | Op::TensorLang(tensor_lang::Op::Constant)
-        ) {
+        if matches!(node.op(), Op::Input) {
             return egraph
                 .analysis
                 .symbols

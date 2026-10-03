@@ -129,7 +129,8 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
         } else if constexpr (std::is_same_v<T, ast::BooleanLiteral>) {
           out << "boolean " << (value.value ? "true" : "false") << '\n';
         } else if constexpr (std::is_same_v<T, ast::Call>) {
-          out << "call " << value.callee << '\n';
+          out << "call " << (value.kind == ast::CallKind::kHost ? "$" : "")
+              << value.callee << '\n';
           for (const auto& argument : value.arguments) {
             printConstraint(out, *argument, depth + 1);
           }
@@ -146,23 +147,14 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
 }
 
 void printDeclaration(std::ostream& out, const ast::Declaration& declaration) {
-  std::visit(
-      [&](const auto& value) {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, ast::ScalarDecl>) {
-          out << "    scalar " << value.name << '\n';
-        } else {
-          out << "    tensor " << value.name << " ";
-          if (value.dtype) out << value.dtype->name;
-          out << "[";
-          for (std::size_t index = 0; index < value.shape.size(); ++index) {
-            if (index != 0) out << ", ";
-            out << formatDimension(value.shape[index]);
-          }
-          out << "]\n";
-        }
-      },
-      declaration.value);
+  out << "    tensor " << declaration.name << " ";
+  if (declaration.dtype) out << declaration.dtype->name;
+  out << "[";
+  for (std::size_t index = 0; index < declaration.shape.size(); ++index) {
+    if (index != 0) out << ", ";
+    out << formatDimension(declaration.shape[index]);
+  }
+  out << "]\n";
 }
 
 void printRule(std::ostream& out, const ast::Rule& rule) {
@@ -182,7 +174,8 @@ void printRule(std::ostream& out, const ast::Rule& rule) {
   if (rule.inheritance) {
     out << "    extends " << rule.inheritance->base << '\n';
     for (const auto& binding : rule.inheritance->bindings) {
-      out << "      " << binding.parameter << " = " << binding.value << '\n';
+      out << "      " << binding.parameter << " = " << (binding.host ? "$" : "")
+          << binding.value << '\n';
     }
   }
   for (const auto& declaration : rule.declarations) {
@@ -247,7 +240,8 @@ std::string formatAst(const ast::Program& program) {
       out << "    attrs " << schema.name << '\n';
       for (const auto& field : schema.fields) {
         out << "      " << field.name << ": " << field.type;
-        if (field.list) out << "[]";
+        for (std::size_t i = 0; i < field.list_depth; ++i) out << "[]";
+        if (field.optional) out << "?";
         if (field.empty_default) out << " = []";
         out << '\n';
       }
@@ -273,7 +267,8 @@ std::string formatAst(const ast::Program& program) {
                 std::get_if<ast::InlineAttrs>(&*op.attrs)) {
           for (const auto& field : inline_attrs->fields) {
             out << "      " << field.name << ": " << field.type;
-            if (field.list) out << "[]";
+            for (std::size_t i = 0; i < field.list_depth; ++i) out << "[]";
+            if (field.optional) out << "?";
             if (field.empty_default) out << " = []";
             out << '\n';
           }

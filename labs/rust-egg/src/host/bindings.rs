@@ -1,11 +1,12 @@
-use crate::ir::dialects::tensor_lang;
+use super::nodes::symbol_name;
+use crate::ir::OpNode;
 use crate::ir::pattern::TensorInfo;
-use crate::ir::{Op, OpAttrs, OpNode};
-/// Host input identities with immutable types. Register inputs before building
-/// the graph; conflicting registrations never overwrite existing metadata.
+
+/// Host input identities with immutable types. Constants carry their own typed
+/// payload and are not registered as named inputs.
 #[derive(Clone, Debug, Default)]
 pub struct TensorBindings {
-    entries: std::collections::HashMap<(Op, String), TensorInfo>,
+    entries: std::collections::HashMap<String, TensorInfo>,
 }
 
 impl TensorBindings {
@@ -14,39 +15,18 @@ impl TensorBindings {
         name: impl Into<String>,
         info: TensorInfo,
     ) -> Result<(), String> {
-        self.register(Op::TensorLang(tensor_lang::Op::Symbol), name.into(), info)
-    }
-
-    pub fn register_constant(
-        &mut self,
-        name: impl Into<String>,
-        info: TensorInfo,
-    ) -> Result<(), String> {
-        self.register(Op::TensorLang(tensor_lang::Op::Constant), name.into(), info)
-    }
-
-    fn register(&mut self, op: Op, name: String, info: TensorInfo) -> Result<(), String> {
-        let key = (op, name);
-        if let Some(previous) = self.entries.get(&key) {
+        let name = name.into();
+        if let Some(previous) = self.entries.get(&name) {
             if previous != &info {
-                return Err(format!(
-                    "conflicting tensor type for {} '{}'",
-                    op.name(),
-                    key.1
-                ));
+                return Err(format!("conflicting tensor type for input '{name}'"));
             }
             return Ok(());
         }
-        self.entries.insert(key, info);
+        self.entries.insert(name, info);
         Ok(())
     }
 
     pub fn info(&self, node: &OpNode) -> Option<&TensorInfo> {
-        let name = match node.attrs() {
-            OpAttrs::TensorLang(tensor_lang::OpAttrs::SymbolAttrs { name })
-            | OpAttrs::TensorLang(tensor_lang::OpAttrs::ConstantAttrs { name }) => name,
-            _ => return None,
-        };
-        self.entries.get(&(node.op(), name.clone()))
+        self.entries.get(symbol_name(node)?)
     }
 }

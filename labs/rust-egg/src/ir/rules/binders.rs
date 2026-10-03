@@ -9,7 +9,8 @@ use std::{collections::HashMap, sync::Arc};
 pub mod rule_shared_expression {
     use super::*;
     pub trait Functions: Send + Sync {
-        fn reusable(&self, arg0: &TensorInfo, arg1: &OpAttrs) -> Option<bool>;
+        /// Host implementation of TEPL `$is_reusable(...)`.
+        fn is_reusable(&self, arg0: &TensorInfo, arg1: &OpAttrs) -> Option<bool>;
     }
     pub fn pattern() -> TensorPattern {
         TensorPattern::op(
@@ -79,7 +80,7 @@ pub mod rule_shared_expression {
                 let descriptor_0 = ctx.attrs(AttrVar::from("d0"))?.clone();
                 let descriptor_0 = descriptor_0.checked_schema(7)?;
                 let mut dimensions = ShapeBindings::default();
-                if !(functions.reusable(
+                if !(functions.is_reusable(
                     &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
                     &((descriptor_0.clone()).checked_schema(7)?),
                 )?) {

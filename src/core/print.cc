@@ -28,10 +28,9 @@ class Printer {
       out_ << "  attr_schema #" << schema.id.value << ' ' << schema.dialect
            << '.' << schema.name << " {";
       for (const auto& field : schema.fields) {
-        out_ << ' ' << field.name << ": "
-             << (field.kind == AttributeField::Kind::kIndex ? "index"
-                                                            : "string");
-        if (field.list) out_ << "[]";
+        out_ << ' ' << field.name << ": " << field.type;
+        for (std::size_t i = 0; i < field.list_depth; ++i) out_ << "[]";
+        if (field.optional) out_ << "?";
         if (field.empty_default) out_ << " = []";
         out_ << ';';
       }
@@ -132,7 +131,7 @@ class Printer {
           else if constexpr (std::is_same_v<T, bool>)
             out_ << (value ? "true" : "false");
           else if constexpr (std::is_same_v<T, HostCall>) {
-            out_ << program_.host_functions.at(value.function.value).name
+            out_ << '$' << program_.host_functions.at(value.function.value).name
                  << " #" << value.function.value << '(';
             for (std::size_t i = 0; i < value.arguments.size(); ++i) {
               if (i) out_ << ", ";

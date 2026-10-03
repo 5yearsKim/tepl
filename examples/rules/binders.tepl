@@ -10,7 +10,7 @@ rule shared_expression {
     (add (mul Y Z) Y)
 
     where {
-        reusable(Y, @d);
+        $is_reusable(Y, @d);
     }
 }
 

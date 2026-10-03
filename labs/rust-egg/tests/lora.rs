@@ -13,10 +13,12 @@ use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 fn batched_dot_attrs() -> OpAttrs {
     OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-        lhs_contracting: vec![2],
-        rhs_contracting: vec![1],
-        lhs_batch: vec![0],
-        rhs_batch: vec![0],
+        lhs_contracting_dimensions: vec![2],
+        rhs_contracting_dimensions: vec![1],
+        lhs_batching_dimensions: vec![0],
+        rhs_batching_dimensions: vec![0],
+        precision_config: vec![rust_egg::ir::types::Precision::Default; 2],
+        algorithm: None,
     })
 }
 
@@ -35,11 +37,11 @@ fn batched_dot_shape(lhs: &[u64], rhs: &[u64], attrs: &OpAttrs) -> Option<Vec<u6
 struct TestFunctions;
 
 impl Functions for TestFunctions {
-    fn broadcastable(&self, batch: &[u64], weight_batch: &[u64]) -> Option<bool> {
+    fn is_broadcastable(&self, batch: &[u64], weight_batch: &[u64]) -> Option<bool> {
         Some(batch == weight_batch)
     }
 
-    fn reassociable(
+    fn is_reassociable(
         &self,
         _x: &TensorInfo,
         _a: &TensorInfo,
@@ -183,10 +185,10 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
         calls: Arc<Mutex<Vec<&'static str>>>,
     }
     impl Functions for TracingFunctions {
-        fn broadcastable(&self, _: &[u64], _: &[u64]) -> Option<bool> {
+        fn is_broadcastable(&self, _: &[u64], _: &[u64]) -> Option<bool> {
             Some(true)
         }
-        fn reassociable(
+        fn is_reassociable(
             &self,
             _: &TensorInfo,
             _: &TensorInfo,
@@ -273,7 +275,7 @@ fn generated_host_interface_accepts_dtype_metadata() {
         dtype: DType::BF16,
     };
     let functions: &dyn Functions = &TestFunctions;
-    assert_eq!(functions.broadcastable(&[2], &[2]), Some(true));
+    assert_eq!(functions.is_broadcastable(&[2], &[2]), Some(true));
     assert!(
         functions
             .infer_dot(&tensor, &a, &batched_dot_attrs())
@@ -285,7 +287,7 @@ fn generated_host_interface_accepts_dtype_metadata() {
             .is_some()
     );
     assert_eq!(
-        functions.reassociable(&tensor, &a, &b, &batched_dot_attrs(), &batched_dot_attrs()),
+        functions.is_reassociable(&tensor, &a, &b, &batched_dot_attrs(), &batched_dot_attrs()),
         Some(true)
     );
 }

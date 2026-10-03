@@ -1,11 +1,57 @@
 # Example project
 
-- `dialects/tensor.tepl`: tensor operations and attribute schemas.
+- `dialects/tensor.tepl`: a StableHLO subset with proposed shape definitions and
+  attribute schemas; see the guide for adapter metadata and coverage limits.
 - `dialects/scalar.tepl`: a minimal second dialect with `add` and `negate`.
 - `rules/`: all concrete rules and reusable abstract templates.
 - `rules/lowering.tepl`: checked rank-zero TensorLang → Scalar lowering.
+- `shape_guide.md`: proposed shape definitions, builtins, and host-call syntax.
 
-From the repository root:
+## Rank-zero shapes
+
+Use `[]` for a scalar (rank-zero tensor), and add a dtype prefix when needed:
+
+```tepl
+rule commute_scalars {
+    X: []
+    Y: []
+    (t.add X Y) => (t.add Y X)
+}
+```
+
+Here `t` is the imported TensorLang dialect. Both captures allow any dtype;
+`X: f32[]` additionally restricts the element type to `f32`. Scalars use the
+same shape declarations and rank checks as tensors with dimensions.
+
+## Function names
+
+Builtin calls are unprefixed, such as `len(s)` or `gather(s, axes)`. Host-function
+calls use `$`, such as `$is_same_dtype(X, Y)` or `$infer_dot(X, W, @outer)`.
+Descriptors retain their `@` prefix. Abstract-rule examples parameterize only
+operations; host calls appear directly in concrete rules. See
+[the shape guide](shape_guide.md) for the proposed resolution rules and grammar.
+
+The compiler requires `$` for direct host calls and accepts the extended attribute
+types used here. Unknown unprefixed calls in rules are errors.
+Operation shape blocks are retained as opaque source: their expressions and
+assertions are not checked or executed, and they generate no shape inference.
+The lab IR is regenerated from these operation signatures and attribute schemas;
+output metadata still comes from the host. Builtin shape-function resolution is
+part of the future shape-analysis implementation.
+
+The operation set follows the [StableHLO specification](https://openxla.org/stablehlo/spec).
+`relu`, `scale`, `square`, `alias`, `rmsnorm`, `vocab_cross_entropy`,
+`online_attention`, and `symbol` were removed because they are not StableHLO
+operations. `exp` is now an alias for `exponential`; explicit broadcasting uses
+`broadcast_in_dim`. Elementwise arithmetic requires equal shapes.
+
+Rule-level shape declarations are shorthand for match-time `where` conditions.
+An absent operation shape definition means no generated inference: the host may
+supply metadata, otherwise the shape is unknown rather than invalid.
+
+## Checking and generation
+
+Run from the repository root:
 
 ```sh
 bazel build //:tepl

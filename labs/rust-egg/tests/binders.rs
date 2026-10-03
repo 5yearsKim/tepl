@@ -9,10 +9,12 @@ use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 fn dot_attrs() -> OpAttrs {
     OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-        lhs_contracting: vec![1],
-        rhs_contracting: vec![0],
-        lhs_batch: vec![],
-        rhs_batch: vec![],
+        lhs_contracting_dimensions: vec![1],
+        rhs_contracting_dimensions: vec![0],
+        lhs_batching_dimensions: vec![],
+        rhs_batching_dimensions: vec![],
+        precision_config: vec![rust_egg::ir::types::Precision::Default; 2],
+        algorithm: None,
     })
 }
 
@@ -21,7 +23,7 @@ struct TestFunctions {
 }
 
 impl Functions for TestFunctions {
-    fn reusable(&self, tensor: &TensorInfo, attrs: &OpAttrs) -> Option<bool> {
+    fn is_reusable(&self, tensor: &TensorInfo, attrs: &OpAttrs) -> Option<bool> {
         Some(self.allow && tensor.shape.as_slice() == [2, 2] && *attrs == dot_attrs())
     }
 }

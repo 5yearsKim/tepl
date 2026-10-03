@@ -47,7 +47,7 @@ void testLora(const std::string& source, const std::string& path) {
         "LoRA dialect import is missing");
   check(program.dialects.size() == 1 &&
             program.dialects[0].name == "TensorLang" &&
-            program.dialects[0].operations.size() == 33,
+            program.dialects[0].operations.size() == 25,
         "Imported tensor operations are missing");
   const auto& operations = program.dialects[0].operations;
   const auto dot =
@@ -62,24 +62,24 @@ void testLora(const std::string& source, const std::string& path) {
           : nullptr;
   check(dot != operations.end() && dot->alias == "dot" &&
             short_name == operations.end() && dot->operands.size() == 2 &&
-            dot_attrs && dot_attrs->fields.size() == 4 &&
-            dot_attrs->fields[0].type == "index" && dot_attrs->fields[0].list,
+            dot_attrs && dot_attrs->fields.size() == 6 &&
+            dot_attrs->fields[0].type == "index" &&
+            dot_attrs->fields[0].list_depth,
         "Dot signature or attributes were not preserved");
   const auto concat =
       std::find_if(operations.begin(), operations.end(),
                    [](const auto& op) { return op.name == "concatenate"; });
-  check(concat != operations.end() && concat->operands.size() == 3 &&
+  check(concat != operations.end() && concat->operands.size() == 1 &&
             concat->operands.back().variadic,
         "Variadic concatenation operand was not preserved");
   check(program.dialects[0].schemas.size() == 1 &&
-            program.dialects[0].schemas[0].fields[0].type == "string",
-        "Shared string attributes were not preserved");
+            program.dialects[0].schemas[0].fields[0].type == "replica_groups",
+        "Shared collective attributes were not preserved");
 
   const auto& rule = program.rules.front();
   check(rule.name == "lora" && rule.declarations.size() == 4,
         "LoRA declarations are missing");
-  const auto& x = as<tepl::ast::TensorDecl>(rule.declarations[0].value,
-                                            "X should be a tensor");
+  const auto& x = rule.declarations[0];
   check(x.name == "X" && x.shape.size() == 3, "X shape is wrong");
   const auto& batch = as<tepl::ast::SequenceDimension>(
       x.shape[0].value, "X should begin with a dimension sequence");
@@ -119,7 +119,9 @@ void testLora(const std::string& source, const std::string& path) {
         "LoRA where/derive counts are wrong");
   const auto& predicate = as<tepl::ast::Call>(rule.conditions[0]->value,
                                               "Expected broadcastable call");
-  check(predicate.callee == "broadcastable" && predicate.arguments.size() == 2,
+  check(predicate.kind == tepl::ast::CallKind::kHost &&
+            predicate.callee == "is_broadcastable" &&
+            predicate.arguments.size() == 2,
         "Broadcast predicate arguments are wrong");
   check(rule.derivations[2].target.name == "out", "Missing @out derivation");
   const auto& infer = as<tepl::ast::Call>(rule.derivations[2].value->value,
@@ -147,14 +149,67 @@ void testLora(const std::string& source, const std::string& path) {
         "Formatted AST is missing LoRA structure");
 }
 
+void testExtendedAttributesAndOpaqueShapes() {
+  auto parsed = tepl::parse(R"(
+dialect D {
+  op custom(x: tensor) -> tensor {
+    attrs { padding: i64[][]; algorithm: dot_algorithm?; flags: bool[]; body: region; }
+    shape(s) { assert not_implemented(s); yield s; }
+  }
+}
+)");
+  check(parsed.ok(), "Extended dialect metadata must parse");
+  const auto& op = parsed.program->dialects[0].operations[0];
+  const auto& fields = std::get<tepl::ast::InlineAttrs>(*op.attrs).fields;
+  check(fields[0].type == "i64" && fields[0].list_depth == 2 &&
+            fields[1].optional && fields[1].type == "dot_algorithm" &&
+            fields[2].list_depth == 1 && fields[3].type == "region",
+        "Nested, optional and opaque attribute types must be preserved");
+  check(
+      op.shape_definition == "shape(s) { assert not_implemented(s); yield s; }",
+      "Shape source must be retained without interpreting it");
+  const auto printed = tepl::formatAst(*parsed.program);
+  check(printed.find("padding: i64[][]") != std::string::npos &&
+            printed.find("algorithm: dot_algorithm?") != std::string::npos,
+        "Attribute type modifiers must print without loss");
+}
+
+void testCallKinds() {
+  auto parsed = tepl::parse(
+      "rule r { X => X where { $f(g(X), $g(X)); } }\n"
+      "rule s extends template(F = t.add, predicate = $legal);");
+  check(parsed.ok() && parsed.program, "Call kinds must parse");
+  const auto& expression = parsed.program->rules[0].conditions[0];
+  const auto& host =
+      as<tepl::ast::Call>(expression->value, "Expected host call");
+  check(host.kind == tepl::ast::CallKind::kHost && host.callee == "f" &&
+            expression->span.begin.column == 25,
+        "Host sigil must be preserved in kind and source span");
+  check(as<tepl::ast::Call>(host.arguments[0]->value, "Expected native call")
+                    .kind == tepl::ast::CallKind::kNative &&
+            as<tepl::ast::Call>(host.arguments[1]->value, "Expected host call")
+                    .kind == tepl::ast::CallKind::kHost,
+        "Nested native and host calls must remain distinct");
+  const auto& bindings = parsed.program->rules[1].inheritance->bindings;
+  check(!bindings[0].host && bindings[0].value == "t.add" && bindings[1].host &&
+            bindings[1].value == "legal",
+        "Host bindings must preserve the sigil separately from their name");
+  const auto printed = tepl::formatAst(*parsed.program);
+  check(printed.find("call $f") != std::string::npos &&
+            printed.find("call g") != std::string::npos &&
+            printed.find("call $g") != std::string::npos &&
+            printed.find("predicate = $legal") != std::string::npos,
+        "AST printing must preserve host sigils");
+}
+
 void testExpressionsAndSpans() {
   auto parsed = tepl::parse(
       "rule r {\n"
       "  X: [M, Tail..., _]\n"
-      "  S: scalar\n"
+      "  S: []\n"
       "  (get[000] (tuple (let Y = (dot[@d] X S)) Y)) => Y\n"
       "  where { K + 2 * N >= 128 && !false || true;\n"
-      "          -(M + N) < 0; f(X, @d, Y, 999999999999999999999999); }\n"
+      "          -(M + N) < 0; $f(X, @d, Y, 999999999999999999999999); }\n"
       "}\n",
       "math.tepl");
   check(parsed.ok() && parsed.program.has_value(), "Expression fixture failed");
@@ -163,13 +218,13 @@ void testExpressionsAndSpans() {
             rule.declarations[1].span.begin.line == 3 &&
             rule.lhs->span.begin.line == 4 && rule.rhs->span.begin.line == 4,
         "Rule or expression source spans are wrong");
-  check(as<tepl::ast::ScalarDecl>(rule.declarations[1].value,
-                                  "S should be scalar")
-                .name == "S",
-        "Scalar declaration is wrong");
-  const auto& shape = as<tepl::ast::TensorDecl>(rule.declarations[0].value,
-                                                "X should be tensor")
-                          .shape;
+  const auto& scalar = rule.declarations[1];
+  check(scalar.name == "S" && scalar.shape.empty() && !scalar.dtype,
+        "Rank-zero tensor declaration is wrong");
+  check(
+      tepl::formatAst(*parsed.program).find("tensor S []") != std::string::npos,
+      "Rank-zero tensor must print an empty shape");
+  const auto& shape = rule.declarations[0].shape;
   check(
       shape.size() == 3 &&
           as<tepl::ast::SequenceDimension>(shape[1].value,
@@ -244,7 +299,7 @@ void testNumericLiterals() {
   auto parsed = tepl::parse(
       "rule literals {\n"
       "  (add 001 -1.2500) => (add +2 999999999999999999999999)\n"
-      "  where { check(1.00, -2.5); }\n"
+      "  where { $check(1.00, -2.5); }\n"
       "}");
   check(parsed.ok() && parsed.program, "Numeric literals must parse");
   const auto& rule = parsed.program->rules.front();
@@ -304,8 +359,8 @@ void testAttributeTypeAndDefault() {
         "Attribute fixture must build an AST");
   const auto& op = parsed.program->dialects.front().operations.front();
   const auto* attrs = std::get_if<tepl::ast::InlineAttrs>(&*op.attrs);
-  check(attrs && attrs->fields.size() == 2 && !attrs->fields[0].list &&
-            attrs->fields[0].empty_default && attrs->fields[1].list &&
+  check(attrs && attrs->fields.size() == 2 && !attrs->fields[0].list_depth &&
+            attrs->fields[0].empty_default && attrs->fields[1].list_depth &&
             attrs->fields[1].empty_default,
         "Attribute list type must be independent of its default");
 }
@@ -338,15 +393,8 @@ void testAbstractAndInherited(const std::string& abstract_path,
             parameter.result_type.span.begin.column == 31,
         "Operation parameter signature or spans are wrong");
   const auto& associate = templates.program->rules[1];
-  check(associate.parameters.size() == 2 && associate.conditions.size() == 1 &&
-            associate.parameters[1].kind ==
-                tepl::ast::RuleParameterKind::kHostFunction &&
-            associate.parameters[1].operand_types.size() == 3 &&
-            associate.parameters[1].result_type.name == "bool" &&
-            as<tepl::ast::Call>(associate.conditions[0]->value,
-                                "Expected parameter host call")
-                    .callee == "allowed",
-        "Host function parameter or condition is wrong");
+  check(associate.parameters.size() == 1 && associate.conditions.empty(),
+        "Association template must preserve its operation parameter");
 
   auto instances = tepl::parse(read(inherited_path), inherited_path);
   check(instances.ok() && instances.rule_count == 7,
@@ -370,12 +418,11 @@ void testAbstractAndInherited(const std::string& abstract_path,
             instance.inheritance->bindings[0].span.end.column == 43,
         "Inheritance names, bindings, or spans are wrong");
   const auto& restricted = program.rules[5];
-  check(
-      restricted.declarations.size() == 3 &&
-          restricted.conditions.size() == 1 &&
-          restricted.inheritance->bindings[1].value == "can_reassociate_add" &&
-          !restricted.lhs && !restricted.rhs,
-      "Child restrictions must be preserved without expanding the pattern");
+  check(restricted.declarations.size() == 3 &&
+            restricted.conditions.size() == 1 &&
+            restricted.inheritance->bindings.size() == 1 && !restricted.lhs &&
+            !restricted.rhs,
+        "Child restrictions must be preserved without expanding the pattern");
   check(tepl::resolveImports(program).empty() &&
             program.imported_rules.size() == 3 &&
             program.dialects.size() == 1 && program.rules.size() == 7,
@@ -389,8 +436,7 @@ void testAbstractAndInherited(const std::string& abstract_path,
               std::string::npos &&
           printed.find("    extends commute\n      F = t.add\n") !=
               std::string::npos &&
-          printed.find(
-              "parameter allowed: fn<(tensor, tensor, tensor) -> bool>") !=
+          printed.find("parameter F: op<(tensor, tensor) -> tensor>") !=
               std::string::npos,
       "AST output must include imports, inheritance, and parameter signatures");
 }
@@ -412,7 +458,9 @@ int main(int argc, char** argv) {
     std::string source{std::istreambuf_iterator<char>(input),
                        std::istreambuf_iterator<char>()};
     testLora(source, path);
+    testCallKinds();
     testExpressionsAndSpans();
+    testExtendedAttributesAndOpaqueShapes();
     testNumericLiterals();
     testAttributeTypeAndDefault();
     testInvalidSource();

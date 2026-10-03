@@ -27,16 +27,16 @@ rule literal_typed { (Custom.add X 1:i32) => (Custom.add 1:i32 X) }
 rule construct_literal { (Custom.negate X) => (Custom.add X 2) }
 rule derive_chain {
     (Custom.transform[@d] X) => (Custom.transform[@last] X)
-    where { enabled(X, @d); }
+    where { $enabled(X, @d); }
     derive {
-        @first = update(@d);
-        @last = update(@first);
+        @first = $update(@d);
+        @last = $update(@first);
     }
 }
 rule reuse_attrs { (Custom.transform[@d] X) => (Custom.transform[@d] X) }
 rule short_circuit {
     (Custom.negate X) => X
-    where { true || fails(X); false && fails(X) || true; }
+    where { true || $fails(X); false && $fails(X) || true; }
 }
 rule overflow {
     X: [N]
@@ -51,15 +51,15 @@ rule divide_zero {
 rule nested_calls {
     X: [N]
     (Custom.negate X) => X
-    where { greater(twice(N) + 0, 1); }
+    where { $greater($twice(N) + 0, 1); }
 }
 rule signed_float {
     (Custom.negate X) => X
-    where { signed(X) + -1 > -3; floating(X) * 2.0 < 100.0; }
+    where { $signed(X) + -1 > -3; $floating(X) * 2.0 < 100.0; }
 }
 rule reserved_names {
     (Custom.negate X) => X
-    where { match(X); }
+    where { $match(X); }
 }
 rule variadic { (Custom.concat X Y Z) => (Custom.concat X) }
 
@@ -81,8 +81,8 @@ abstract rule pipeline(
     (Custom.transform[@d] X) => (Custom.negate X)
     where { check(copy(X), copy_dims(Batch), !false, -1, +1.0, @d); }
 }
-rule typed_pipeline extends pipeline(copy = host_tensor, copy_dims = host_dims, check = host_check);
+rule typed_pipeline extends pipeline(copy = $host_tensor, copy_dims = $host_dims, check = $host_check);
 rule short_literal {
     (Custom.negate X) => 1
-    where { true || fails(X); }
+    where { true || $fails(X); }
 }

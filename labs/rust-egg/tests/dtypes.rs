@@ -55,14 +55,8 @@ fn metadata(inputs: [TensorInfo; 2]) -> impl TensorMetadata<()> {
         let mut result = None;
         for node in &graph[graph.find(id)].nodes {
             let value = match (node.op(), node.attrs()) {
-                (
-                    Op::TensorLang(tensor_lang::Op::Symbol),
-                    OpAttrs::TensorLang(tensor_lang::OpAttrs::SymbolAttrs { name: name }),
-                ) if name == "X" => inputs[0].clone(),
-                (
-                    Op::TensorLang(tensor_lang::Op::Symbol),
-                    OpAttrs::TensorLang(tensor_lang::OpAttrs::SymbolAttrs { name: name }),
-                ) if name == "Y" => inputs[1].clone(),
+                (Op::Input, OpAttrs::Input { name }) if name == "X" => inputs[0].clone(),
+                (Op::Input, OpAttrs::Input { name }) if name == "Y" => inputs[1].clone(),
                 (
                     Op::Literal,
                     OpAttrs::Literal {
@@ -87,7 +81,7 @@ fn metadata(inputs: [TensorInfo; 2]) -> impl TensorMetadata<()> {
 
 struct Host;
 impl rule_commute_same_dtype::Functions for Host {
-    fn same_dtype(&self, x: &TensorInfo, y: &TensorInfo) -> Option<bool> {
+    fn is_same_dtype(&self, x: &TensorInfo, y: &TensorInfo) -> Option<bool> {
         Some(x.dtype == y.dtype)
     }
 }
@@ -139,7 +133,7 @@ fn shape_only_declarations_and_generated_host_trait_use_concrete_dtype() {
         apply(&mut graph, &rule, true);
     }
     assert_eq!(
-        rule_commute_same_dtype::Functions::same_dtype(
+        rule_commute_same_dtype::Functions::is_same_dtype(
             &Host,
             &info(&[4], DType::F32),
             &info(&[4], DType::BF16)
@@ -165,7 +159,7 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
     ] {
         let (mut graph, _) = graph();
         let rule = rule_commute_scalar::build_rewrite(
-            metadata([info(&[2, 4], DType::F32), info(&shape, dtype)]),
+            metadata([info(&[], DType::F32), info(&shape, dtype)]),
             add_output,
             (),
         )
@@ -179,7 +173,7 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
         graph.add(binary(tensor_lang::Op::Add, x, value).unwrap());
         graph.rebuild();
         let rule = rule_commute_float_literal::build_rewrite(
-            metadata([info(&[4], DType::F32), info(&[], dtype)]),
+            metadata([info(&[], DType::F32), info(&[], dtype)]),
             add_output,
             (),
         )
@@ -264,9 +258,6 @@ fn input_registration_is_immutable_and_conflicting_eclass_metadata_is_unavailabl
             .is_err()
     );
     assert_eq!(bindings.info(&symbol("X")), Some(&f32));
-    bindings.register_constant("X", bf16.clone()).unwrap();
-    assert_eq!(bindings.info(&constant("X")), Some(&bf16));
-    assert!(bindings.register_constant("X", f32.clone()).is_err());
 
     let (mut graph, [x, y, _]) = graph();
     graph.union(x, y);
@@ -341,9 +332,7 @@ fn invalid_derived_descriptor_is_rejected_before_any_intermediate_insertion() {
                 (Op::TensorLang(tensor_lang::Op::Negate), OpAttrs::None) => Some(input.clone()),
                 (
                     Op::TensorLang(tensor_lang::Op::Transpose),
-                    OpAttrs::TensorLang(tensor_lang::OpAttrs::TransposeAttrs {
-                        permutation: permutation,
-                    }),
+                    OpAttrs::TensorLang(tensor_lang::OpAttrs::TransposeAttrs { permutation }),
                 ) => {
                     let mut sorted = permutation.clone();
                     sorted.sort_unstable();
@@ -411,7 +400,7 @@ fn unsupported_intermediate_is_rejected_even_when_the_final_operation_is_support
         AttrExpr::Exact(OpAttrs::None),
         vec![
             TensorExpr::op(
-                Op::TensorLang(tensor_lang::Op::Exp),
+                Op::TensorLang(tensor_lang::Op::Exponential),
                 AttrExpr::Exact(OpAttrs::None),
                 vec![TensorExpr::Var(var)],
             ),

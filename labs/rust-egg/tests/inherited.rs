@@ -34,47 +34,6 @@ fn metadata(shapes: [Option<Vec<u64>>; 3]) -> impl TensorMetadata<()> {
     }
 }
 
-struct Host {
-    allowed: Option<bool>,
-    expected: [Vec<u64>; 3],
-}
-
-impl Host {
-    fn check(&self, x: &TensorInfo, y: &TensorInfo, z: &TensorInfo) -> Option<bool> {
-        assert_eq!([&x.shape, &y.shape, &z.shape], self.expected.each_ref());
-        self.allowed
-    }
-}
-
-impl rule_associate_add_right::Functions for Host {
-    fn can_reassociate_add(&self, x: &TensorInfo, y: &TensorInfo, z: &TensorInfo) -> Option<bool> {
-        self.check(x, y, z)
-    }
-}
-
-impl rule_associate_mul_right::Functions for Host {
-    fn can_reassociate_mul(&self, x: &TensorInfo, y: &TensorInfo, z: &TensorInfo) -> Option<bool> {
-        self.check(x, y, z)
-    }
-}
-
-impl rule_associate_small_vectors::Functions for Host {
-    fn can_reassociate_add(&self, x: &TensorInfo, y: &TensorInfo, z: &TensorInfo) -> Option<bool> {
-        self.check(x, y, z)
-    }
-}
-
-impl rule_distribute_mul_over_add::Functions for Host {
-    fn can_distribute_mul_over_add(
-        &self,
-        x: &TensorInfo,
-        y: &TensorInfo,
-        z: &TensorInfo,
-    ) -> Option<bool> {
-        self.check(x, y, z)
-    }
-}
-
 fn apply(egraph: &mut EGraph<OpNode, ()>, rule: &Rewrite<OpNode, ()>, accepted: bool) {
     egraph.rebuild();
     let before = egraph.total_size();
@@ -157,50 +116,47 @@ fn vector_commutativity_enforces_rank_shared_dimension_and_limit() {
 }
 
 #[test]
-fn association_instances_require_their_bound_host_function() {
+fn association_instances_require_compatible_metadata() {
     for op in [tensor_lang::Op::Add, tensor_lang::Op::Multiply] {
-        for allowed in [Some(true), Some(false), None] {
-            for missing_metadata in [false, true] {
-                let (mut egraph, [x, y, z]) = inputs();
-                let xy = egraph.add(binary(op, x, y).unwrap());
-                let root = egraph.add(binary(op, xy, z).unwrap());
-                let expected = [vec![2, 3], vec![3], vec![]];
-                let mut shapes = expected.clone().map(Some);
-                if missing_metadata {
-                    shapes[2] = None;
-                }
-                let host = Host { allowed, expected };
-                let rule = if op == tensor_lang::Op::Add {
-                    rule_associate_add_right::build_rewrite(
-                        metadata(shapes),
-                        rust_egg::host::infer_tensor_output,
-                        host,
-                    )
-                    .unwrap()
-                } else {
-                    rule_associate_mul_right::build_rewrite(
-                        metadata(shapes),
-                        rust_egg::host::infer_tensor_output,
-                        host,
-                    )
-                    .unwrap()
-                };
-                let accepted = allowed == Some(true) && !missing_metadata;
-                apply(&mut egraph, &rule, accepted);
-                let yz = egraph.lookup(binary(op, y, z).unwrap());
-                if accepted {
-                    let rhs = egraph.lookup(binary(op, x, yz.unwrap()).unwrap()).unwrap();
-                    assert_eq!(egraph.find(root), egraph.find(rhs));
-                } else {
-                    assert!(yz.is_none());
-                }
+        for missing_metadata in [false, true] {
+            let (mut egraph, [x, y, z]) = inputs();
+            let xy = egraph.add(binary(op, x, y).unwrap());
+            let root = egraph.add(binary(op, xy, z).unwrap());
+            let expected = [vec![2, 3], vec![2, 3], vec![2, 3]];
+            let mut shapes = expected.clone().map(Some);
+            if missing_metadata {
+                shapes[2] = None;
+            }
+            let rule = if op == tensor_lang::Op::Add {
+                rule_associate_add_right::build_rewrite(
+                    metadata(shapes),
+                    rust_egg::host::infer_tensor_output,
+                    (),
+                )
+                .unwrap()
+            } else {
+                rule_associate_mul_right::build_rewrite(
+                    metadata(shapes),
+                    rust_egg::host::infer_tensor_output,
+                    (),
+                )
+                .unwrap()
+            };
+            let accepted = !missing_metadata;
+            apply(&mut egraph, &rule, accepted);
+            let yz = egraph.lookup(binary(op, y, z).unwrap());
+            if accepted {
+                let rhs = egraph.lookup(binary(op, x, yz.unwrap()).unwrap()).unwrap();
+                assert_eq!(egraph.find(root), egraph.find(rhs));
+            } else {
+                assert!(yz.is_none());
             }
         }
     }
 }
 
 #[test]
-fn vector_association_keeps_both_inherited_and_child_checks() {
+fn vector_association_enforces_child_restrictions() {
     for expected in [
         [vec![0], vec![0], vec![0]],
         [vec![1024], vec![1024], vec![1024]],
@@ -210,76 +166,68 @@ fn vector_association_keeps_both_inherited_and_child_checks() {
         [vec![], vec![], vec![]],
         [vec![2, 4], vec![2, 4], vec![2, 4]],
     ] {
-        for allowed in [Some(true), Some(false), None] {
-            for missing_metadata in [false, true] {
-                let (mut egraph, [x, y, z]) = inputs();
-                let xy = egraph.add(binary(tensor_lang::Op::Add, x, y).unwrap());
-                let root = egraph.add(binary(tensor_lang::Op::Add, xy, z).unwrap());
-                let mut shapes = expected.clone().map(Some);
-                if missing_metadata {
-                    shapes[2] = None;
-                }
-                let accepted = allowed == Some(true)
-                    && !missing_metadata
-                    && expected[0].len() == 1
-                    && expected[0] == expected[1]
-                    && expected[0] == expected[2]
-                    && expected[0][0] <= 1024;
-                let rule = rule_associate_small_vectors::build_rewrite(
-                    metadata(shapes),
-                    rust_egg::host::infer_tensor_output,
-                    Host {
-                        allowed,
-                        expected: expected.clone(),
-                    },
-                )
-                .unwrap();
-                apply(&mut egraph, &rule, accepted);
-                let yz = egraph.lookup(binary(tensor_lang::Op::Add, y, z).unwrap());
-                if accepted {
-                    let rhs = egraph
-                        .lookup(binary(tensor_lang::Op::Add, x, yz.unwrap()).unwrap())
-                        .unwrap();
-                    assert_eq!(egraph.find(root), egraph.find(rhs));
-                } else {
-                    assert!(yz.is_none());
-                }
+        for missing_metadata in [false, true] {
+            let (mut egraph, [x, y, z]) = inputs();
+            let xy = egraph.add(binary(tensor_lang::Op::Add, x, y).unwrap());
+            let root = egraph.add(binary(tensor_lang::Op::Add, xy, z).unwrap());
+            let mut shapes = expected.clone().map(Some);
+            if missing_metadata {
+                shapes[2] = None;
+            }
+            let accepted = !missing_metadata
+                && expected[0].len() == 1
+                && expected[0] == expected[1]
+                && expected[0] == expected[2]
+                && expected[0][0] <= 1024;
+            let rule = rule_associate_small_vectors::build_rewrite(
+                metadata(shapes),
+                rust_egg::host::infer_tensor_output,
+                (),
+            )
+            .unwrap();
+            apply(&mut egraph, &rule, accepted);
+            let yz = egraph.lookup(binary(tensor_lang::Op::Add, y, z).unwrap());
+            if accepted {
+                let rhs = egraph
+                    .lookup(binary(tensor_lang::Op::Add, x, yz.unwrap()).unwrap())
+                    .unwrap();
+                assert_eq!(egraph.find(root), egraph.find(rhs));
+            } else {
+                assert!(yz.is_none());
             }
         }
     }
 }
 
 #[test]
-fn distribution_reuses_x_and_requires_the_bound_host_function() {
-    for allowed in [Some(true), Some(false), None] {
-        for missing_metadata in [false, true] {
-            let (mut egraph, [x, y, z]) = inputs();
-            let yz = egraph.add(binary(tensor_lang::Op::Add, y, z).unwrap());
-            let root = egraph.add(binary(tensor_lang::Op::Multiply, x, yz).unwrap());
-            let expected = [vec![2, 3], vec![3], vec![]];
-            let mut shapes = expected.clone().map(Some);
-            if missing_metadata {
-                shapes[2] = None;
-            }
-            let rule = rule_distribute_mul_over_add::build_rewrite(
-                metadata(shapes),
-                rust_egg::host::infer_tensor_output,
-                Host { allowed, expected },
-            )
-            .unwrap();
-            let accepted = allowed == Some(true) && !missing_metadata;
-            apply(&mut egraph, &rule, accepted);
-            let xy = egraph.lookup(binary(tensor_lang::Op::Multiply, x, y).unwrap());
-            let xz = egraph.lookup(binary(tensor_lang::Op::Multiply, x, z).unwrap());
-            if accepted {
-                let rhs = egraph
-                    .lookup(binary(tensor_lang::Op::Add, xy.unwrap(), xz.unwrap()).unwrap())
-                    .unwrap();
-                assert_eq!(egraph.find(root), egraph.find(rhs));
-            } else {
-                assert!(xy.is_none());
-                assert!(xz.is_none());
-            }
+fn distribution_reuses_x_with_compatible_metadata() {
+    for missing_metadata in [false, true] {
+        let (mut egraph, [x, y, z]) = inputs();
+        let yz = egraph.add(binary(tensor_lang::Op::Add, y, z).unwrap());
+        let root = egraph.add(binary(tensor_lang::Op::Multiply, x, yz).unwrap());
+        let expected = [vec![2, 3], vec![2, 3], vec![2, 3]];
+        let mut shapes = expected.clone().map(Some);
+        if missing_metadata {
+            shapes[2] = None;
+        }
+        let rule = rule_distribute_mul_over_add::build_rewrite(
+            metadata(shapes),
+            rust_egg::host::infer_tensor_output,
+            (),
+        )
+        .unwrap();
+        let accepted = !missing_metadata;
+        apply(&mut egraph, &rule, accepted);
+        let xy = egraph.lookup(binary(tensor_lang::Op::Multiply, x, y).unwrap());
+        let xz = egraph.lookup(binary(tensor_lang::Op::Multiply, x, z).unwrap());
+        if accepted {
+            let rhs = egraph
+                .lookup(binary(tensor_lang::Op::Add, xy.unwrap(), xz.unwrap()).unwrap())
+                .unwrap();
+            assert_eq!(egraph.find(root), egraph.find(rhs));
+        } else {
+            assert!(xy.is_none());
+            assert!(xz.is_none());
         }
     }
 }

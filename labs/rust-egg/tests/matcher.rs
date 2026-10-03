@@ -77,16 +77,20 @@ fn repeated_attribute_binding_preserves_each_witness() {
     let x = egraph.add(symbol("x"));
     let y = egraph.add(symbol("y"));
     let first = OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-        lhs_contracting: vec![0],
-        rhs_contracting: vec![0],
-        lhs_batch: vec![],
-        rhs_batch: vec![],
+        lhs_contracting_dimensions: vec![0],
+        rhs_contracting_dimensions: vec![0],
+        lhs_batching_dimensions: vec![],
+        rhs_batching_dimensions: vec![],
+        precision_config: vec![rust_egg::ir::types::Precision::Default; 2],
+        algorithm: None,
     });
     let second = OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-        lhs_contracting: vec![1],
-        rhs_contracting: vec![1],
-        lhs_batch: vec![],
-        rhs_batch: vec![],
+        lhs_contracting_dimensions: vec![1],
+        rhs_contracting_dimensions: vec![1],
+        lhs_batching_dimensions: vec![],
+        rhs_batching_dimensions: vec![],
+        precision_config: vec![rust_egg::ir::types::Precision::Default; 2],
+        algorithm: None,
     });
     let first_id = egraph.add(
         OpNode::from_parts(

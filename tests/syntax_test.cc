@@ -41,20 +41,21 @@ void testValidSyntax() {
        "abstract rule r(F: op<() -> tensor>, allowed: fn<(tensor) -> bool>) { "
        "(F) => X where { allowed(X); } }"},
       {"abstract empty parameters", "abstract rule r() { X => X }"},
-      {"signature scalar type",
-       "abstract rule r(F: op<(scalar) -> scalar>) { (F X) => X }"},
+      {"signature named type",
+       "abstract rule r(F: op<(custom) -> custom>) { (F X) => X }"},
       {"signature attrs type",
        "abstract rule r(F: fn<(attrs) -> attrs>) { X => X }"},
       {"selected rule imports", "from \"abstract.tepl\" import {a, b};"},
       {"inherited rule", "rule r extends commute(F = t.add);"},
       {"inherited restrictions",
-       "rule r extends commute(F = t.add, allowed = check) { "
+       "rule r extends commute(F = t.add, allowed = $check) { "
        "X: [N] Y: [N] where { N <= 1024; } }"},
       {"inherited empty body", "rule r extends base() {}"},
       {"rank-zero tensor", "rule r { X: [] X => X }"},
-      {"scalar declaration", "rule r { S: scalar S => S }"},
       {"mixed declarations",
-       "rule r { X: [M, K] S: scalar (mul X S) => (mul S X) }"},
+       "rule r { X: [M, K] S: [] (mul X S) => (mul S X) }"},
+      {"scalar is an identifier",
+       "rule scalar { scalar: [] scalar => scalar }"},
       {"fixed dimensions", "rule r { X: [M, _, N] X => X }"},
       {"anonymous sequence", "rule r { X: [...] X => X }"},
       {"named sequence", "rule r { X: [Batch...] X => X }"},
@@ -70,10 +71,11 @@ void testValidSyntax() {
       {"empty sections", "rule r { X => X where {} derive {} }"},
       {"derive only", "rule r { X => (copy[@t] X) derive { @t = infer(X); } }"},
       {"host expressions",
-       "rule r { X => X where { f(g(X, @d), Y, 4); "
+       "rule r { X => X where { $f($g(X, @d), Y, 4); "
        "K % 128 == 0; -K + +N / 2 != 0; M - 1 < N; "
-       "rank(X) >= 2 && !(N <= 0) || true; M > N; } "
-       "derive { @out = infer(Y, @d); } }"},
+       "$rank(X) >= 2 && !(N <= 0) || true; M > N; } "
+       "derive { @out = $infer(Y, @d); } }"},
+      {"native and host calls", "rule r { X => X where { f($f(X), g(X)); } }"},
       {"comments", "// rule\nrule r { /* graph */ X => X } // end\n"},
       {"multiple rules", "rule a { X => X } rule b { Y => Y }"},
       {"dialect and import",
@@ -171,7 +173,7 @@ void testInvalidSyntax() {
       {"shape in wrong location", "rule r { X => X X: [M] }"},
       {"unknown scalar marker", "rule r { S: scalr S => S }"},
       {"quoted scalar marker", "rule r { S: \"scalar\" S => S }"},
-      {"scalar with dimensions", "rule r { S: scalar[M] S => S }"},
+      {"removed scalar declaration", "rule r { S: scalar S => S }"},
       {"missing guard terminator", "rule r { X => X where { rank(X) == 2 } }"},
       {"incomplete comparison", "rule r { X => X where { K >=; } }"},
       {"chained comparison", "rule r { X => X where { M < N < K; } }"},
@@ -211,7 +213,16 @@ void testInvalidSyntax() {
       {"named import missing dialect", "from \"tensor.tepl\" import;"},
       {"empty selected use", "use t::{}; rule r { X => X }"},
       {"selected use missing brace", "use t::{add; rule r { X => X }"},
-      {"lexical error", "rule r { X => X $ }"},
+      {"unknown operation property",
+       "dialect D { op x() -> tensor { typo() {} } }"},
+      {"unclosed shape block",
+       "dialect D { op x() -> tensor { shape() { yield []; } }"},
+      {"lexical error", "rule r { X => X # }"},
+      {"missing host name", "rule r { X => X where { $(X); } }"},
+      {"duplicate host sigil", "rule r { X => X where { $$f(X); } }"},
+      {"host reference without call", "rule r { X => X where { $f; } }"},
+      {"qualified host name", "rule r { X => X where { $t.f(X); } }"},
+      {"host graph operator", "rule r { ($f X) => X }"},
       {"unterminated comment", "rule r { X => X } /* unfinished"},
   };
   for (const auto& test : cases) {
@@ -224,12 +235,12 @@ void testInvalidSyntax() {
 }
 
 void testDiagnostics() {
-  auto lexical = tepl::parse("rule r {\n X => X $\n}");
+  auto lexical = tepl::parse("rule r {\n X => X #\n}");
   check(lexical.diagnostics.size() == 1, "Expected one lexical diagnostic");
   if (lexical.diagnostics.size() == 1) {
     check(
         lexical.diagnostics[0].line == 2 && lexical.diagnostics[0].column == 9,
-        "Lexer coordinates must be one-based and point to '$'");
+        "Lexer coordinates must be one-based and point to '#'");
   }
   auto syntax = tepl::parse("rule r {\n X =>\n}");
   check(syntax.diagnostics.size() == 1, "Expected one parser diagnostic");

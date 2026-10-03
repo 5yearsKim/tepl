@@ -99,7 +99,7 @@ impl CostFunction<OpNode> for ArithmeticCost<'_> {
             _ => None,
         };
         let local = match (node.op(), node.children()) {
-            (Op::TensorLang(tensor_lang::Op::Symbol), []) => 0,
+            (Op::Input, []) => 0,
             (Op::TensorLang(tensor_lang::Op::Add), [lhs, _]) => output(*lhs)
                 .map(|shape| {
                     shape
@@ -162,7 +162,7 @@ pub fn evaluate(
     let mut values: Vec<TensorValue> = Vec::new();
     for node in expr.as_ref() {
         let value = match (node.op(), node.children()) {
-            (Op::TensorLang(tensor_lang::Op::Symbol), []) => inputs
+            (Op::Input, []) => inputs
                 .get(symbol_name(&node).unwrap())
                 .cloned()
                 .ok_or_else(|| format!("missing tensor {}", symbol_name(&node).unwrap()))?,

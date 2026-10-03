@@ -171,14 +171,8 @@ pub mod rule_commute_small_vectors {
 
 pub mod rule_associate_add_right {
     use super::*;
-    pub trait Functions: Send + Sync {
-        fn can_reassociate_add(
-            &self,
-            arg0: &TensorInfo,
-            arg1: &TensorInfo,
-            arg2: &TensorInfo,
-        ) -> Option<bool>;
-    }
+    pub trait Functions: Send + Sync {}
+    impl Functions for () {}
     pub fn pattern() -> TensorPattern {
         TensorPattern::op(
             tensor_lang::Op::Add,
@@ -235,13 +229,6 @@ pub mod rule_associate_add_right {
             move |graph, matched| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
                 let mut dimensions = ShapeBindings::default();
-                if !(functions.can_reassociate_add(
-                    &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
-                )?) {
-                    return None;
-                }
                 Some(Default::default())
             },
         )
@@ -250,14 +237,8 @@ pub mod rule_associate_add_right {
 
 pub mod rule_associate_mul_right {
     use super::*;
-    pub trait Functions: Send + Sync {
-        fn can_reassociate_mul(
-            &self,
-            arg0: &TensorInfo,
-            arg1: &TensorInfo,
-            arg2: &TensorInfo,
-        ) -> Option<bool>;
-    }
+    pub trait Functions: Send + Sync {}
+    impl Functions for () {}
     pub fn pattern() -> TensorPattern {
         TensorPattern::op(
             tensor_lang::Op::Multiply,
@@ -314,13 +295,6 @@ pub mod rule_associate_mul_right {
             move |graph, matched| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
                 let mut dimensions = ShapeBindings::default();
-                if !(functions.can_reassociate_mul(
-                    &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
-                )?) {
-                    return None;
-                }
                 Some(Default::default())
             },
         )
@@ -329,14 +303,8 @@ pub mod rule_associate_mul_right {
 
 pub mod rule_associate_small_vectors {
     use super::*;
-    pub trait Functions: Send + Sync {
-        fn can_reassociate_add(
-            &self,
-            arg0: &TensorInfo,
-            arg1: &TensorInfo,
-            arg2: &TensorInfo,
-        ) -> Option<bool>;
-    }
+    pub trait Functions: Send + Sync {}
+    impl Functions for () {}
     pub fn pattern() -> TensorPattern {
         TensorPattern::op(
             tensor_lang::Op::Add,
@@ -399,13 +367,6 @@ pub mod rule_associate_small_vectors {
                 dimensions.check(&capture_0.shape, &[ShapePart::Dimension(0)])?;
                 dimensions.check(&capture_1.shape, &[ShapePart::Dimension(0)])?;
                 dimensions.check(&capture_2.shape, &[ShapePart::Dimension(0)])?;
-                if !(functions.can_reassociate_add(
-                    &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
-                )?) {
-                    return None;
-                }
                 if !((dimensions.dimension(0)?) <= ("1024".parse::<u64>().ok()?)) {
                     return None;
                 }
@@ -417,14 +378,8 @@ pub mod rule_associate_small_vectors {
 
 pub mod rule_distribute_mul_over_add {
     use super::*;
-    pub trait Functions: Send + Sync {
-        fn can_distribute_mul_over_add(
-            &self,
-            arg0: &TensorInfo,
-            arg1: &TensorInfo,
-            arg2: &TensorInfo,
-        ) -> Option<bool>;
-    }
+    pub trait Functions: Send + Sync {}
+    impl Functions for () {}
     pub fn pattern() -> TensorPattern {
         TensorPattern::op(
             tensor_lang::Op::Multiply,
@@ -488,13 +443,6 @@ pub mod rule_distribute_mul_over_add {
             move |graph, matched| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
                 let mut dimensions = ShapeBindings::default();
-                if !(functions.can_distribute_mul_over_add(
-                    &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
-                )?) {
-                    return None;
-                }
                 Some(Default::default())
             },
         )

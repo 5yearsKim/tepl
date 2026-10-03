@@ -130,7 +130,7 @@ std::string descriptor(std::size_t id) {
 Names::Names(const core::Program& program, const ProjectPlan& project) {
   operations_.resize(program.operations.size());
   schemas_.resize(program.attribute_schemas.size());
-  std::set<std::string> modules, variants{"None", "Literal"};
+  std::set<std::string> modules, variants{"None", "Literal", "Input"};
   for (const auto& declaration : project.dialects) {
     DialectNames dialect{declaration.name,
                          moduleName(declaration.name),

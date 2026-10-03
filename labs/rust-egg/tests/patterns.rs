@@ -158,16 +158,20 @@ fn batch_application_keeps_distinct_attribute_witnesses() {
     let y = egraph.add(symbol("y"));
     let attrs = [
         OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-            lhs_contracting: vec![0],
-            rhs_contracting: vec![0],
-            lhs_batch: vec![],
-            rhs_batch: vec![],
+            lhs_contracting_dimensions: vec![0],
+            rhs_contracting_dimensions: vec![0],
+            lhs_batching_dimensions: vec![],
+            rhs_batching_dimensions: vec![],
+            precision_config: vec![rust_egg::ir::types::Precision::Default; 2],
+            algorithm: None,
         }),
         OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-            lhs_contracting: vec![1],
-            rhs_contracting: vec![1],
-            lhs_batch: vec![],
-            rhs_batch: vec![],
+            lhs_contracting_dimensions: vec![1],
+            rhs_contracting_dimensions: vec![1],
+            lhs_batching_dimensions: vec![],
+            rhs_batching_dimensions: vec![],
+            precision_config: vec![rust_egg::ir::types::Precision::Default; 2],
+            algorithm: None,
         }),
     ];
     let first = egraph.add(
@@ -380,7 +384,7 @@ fn matching_after_union_falls_back_until_the_graph_is_rebuilt() {
     let neg_y = egraph.add(unary(tensor_lang::Op::Negate, y).unwrap());
     let root = egraph.add(binary(tensor_lang::Op::Add, x, neg_y).unwrap());
     // Give x more parents so it becomes the representative of the union.
-    egraph.add(unary(tensor_lang::Op::Exp, x).unwrap());
+    egraph.add(unary(tensor_lang::Op::Exponential, x).unwrap());
     egraph.rebuild();
     egraph.union(x, y);
     assert!(!egraph.clean);

@@ -60,6 +60,40 @@ void expectError(std::string_view text, std::string_view message,
   assert(false);
 }
 
+void hostCallResolution() {
+  expectError("rule r { X => X where { legal(X); } }",
+              "use '$legal(...)' to call a host function");
+  expectError("rule r { X => X where { $legal(len(X)); } }",
+              "unknown native function 'len'");
+  expectError(
+      "abstract rule a(f: fn<(tensor) -> bool>) { X => X where { f(X); } } "
+      "rule r extends a(f = legal);",
+      "requires '$' before 'legal'");
+  expectError(
+      "abstract rule a(F: op<(tensor) -> tensor>) { (F X) => X } "
+      "rule r extends a(F = $negate);",
+      "host function cannot bind operation parameter 'F'");
+  // Explicit host calls bypass both operation and function parameters.
+  const auto result = analyzeText(R"(
+abstract rule a(F: op<(tensor) -> tensor>, p: fn<(tensor) -> bool>) {
+  (F X) => X where { p(X); $p(X); $F(X); $len(X); }
+}
+rule r extends a(F = negate, p = $legal);
+)");
+  assert(result.ok());
+  const auto& program = *result.program;
+  const auto& conditions = program.rules[0].conditions;
+  const char* names[] = {"legal", "p", "F", "len"};
+  assert(conditions.size() == 4);
+  for (std::size_t i = 0; i < conditions.size(); ++i) {
+    const auto& call = std::get<HostCall>(conditions[i]->value);
+    assert(program.host_functions[call.function.value].name == names[i]);
+  }
+  const auto printed = formatProgram(program);
+  assert(printed.find("$legal #") != std::string::npos);
+  assert(printed.find("$p #") != std::string::npos);
+}
+
 void concreteRules() {
   const auto result = analyzeText(R"(
 rule commute_small {
@@ -69,9 +103,9 @@ rule commute_small {
   where { N <= 1024; }
 }
 rule repeated { (mul X X) => (multiply X X) }
-rule bound { let Y = (negate X) => Y where { allowed(Y); } }
+rule bound { let Y = (negate X) => Y where { $allowed(Y); } }
 rule variadic { (concat X Y Z) => (concat X) }
-rule scalar_capture { S: scalar S => S }
+rule scalar_capture { S: [] S => S }
 rule unrestricted { X => X }
 )");
   assert(result.ok());
@@ -126,10 +160,10 @@ rule r {
   X: [Batch..., M, K]
   Y: [Batch..., K, N]
   (dot[@d] X Y) => (dot[@out] X Y)
-  where { allowed(X, @d); M % 8 == 0 && N >= 1; }
+  where { $allowed(X, @d); M % 8 == 0 && N >= 1; }
   derive {
-    @first = infer(X, Y, @d);
-    @out = update(@first);
+    @first = $infer(X, Y, @d);
+    @out = $update(@first);
   }
 }
 )");
@@ -158,10 +192,10 @@ rule r {
 rule r {
   X => X
   where {
-    outer(inner(X));
-    inner(X) < 10;
-    float_value(X) > -1.5;
-    check(-9223372036854775808, 18446744073709551615, +1.0);
+    $outer($inner(X));
+    $inner(X) < 10;
+    $float_value(X) > -1.5;
+    $check(-9223372036854775808, 18446744073709551615, +1.0);
   }
 }
 )");
@@ -181,7 +215,7 @@ rule r {
 
   // Literal defaulting happens after all calls contribute their constraints.
   for (const auto* conditions :
-       {"score(X) == 1; score(X) > -1;", "score(X) > -1; score(X) == 1;"}) {
+       {"$score(X) == 1; $score(X) > -1;", "$score(X) > -1; $score(X) == 1;"}) {
     const auto signed_result = analyzeText(
         std::string("rule r { X => X where { ") + conditions + " } }");
     assert(signed_result.ok());
@@ -191,7 +225,7 @@ rule r {
         TypeKind::kI64);
   }
   for (const auto* conditions :
-       {"check(1); check(1.0);", "check(1.0); check(1);"}) {
+       {"$check(1); $check(1.0);", "$check(1.0); $check(1);"}) {
     const auto floating = analyzeText(std::string("rule r { X => X where { ") +
                                       conditions + " } }");
     assert(floating.ok());
@@ -204,9 +238,9 @@ rule r {
 void inferenceAcrossRules() {
   // Later rules constrain earlier nested host calls and equality expressions.
   const auto result = analyzeText(R"(
-rule first { X => X where { accept(measure(X)); } }
-rule second { Y => Y where { measure(Y) == other(Y); } }
-rule third { Z => Z where { other(Z) > 1.0; } }
+rule first { X => X where { $accept($measure(X)); } }
+rule second { Y => Y where { $measure(Y) == $other(Y); } }
+rule third { Z => Z where { $other(Z) > 1.0; } }
 )");
   assert(result.ok());
   const auto& program = *result.program;
@@ -219,8 +253,8 @@ rule third { Z => Z where { other(Z) > 1.0; } }
 
   // Large sets of equations must not rely on recursive union-find traversal.
   std::string many_calls = "rule r { X => X where { ";
-  for (int i = 0; i < 4096; ++i) many_calls += "accept(1); ";
-  many_calls += "accept(1.0); } }";
+  for (int i = 0; i < 4096; ++i) many_calls += "$accept(1); ";
+  many_calls += "$accept(1.0); } }";
   const auto large = analyzeText(many_calls);
   assert(large.ok());
   assert(large.program->rules[0].conditions.size() == 4097);
@@ -238,8 +272,8 @@ abstract rule commute(F: op<(tensor, tensor) -> tensor>,
   (F X Y) => (F Y X)
   where { allowed(X, Y); }
 }
-rule a extends commute(F = add, allowed = legal) { X: f32[N] }
-rule b extends commute(F = mul, allowed = legal) { where { N < 32; } }
+rule a extends commute(F = add, allowed = $legal) { X: f32[N] }
+rule b extends commute(F = mul, allowed = $legal) { where { N < 32; } }
 )",
                             "test.tepl");
   assert(parsed.ok());
@@ -267,7 +301,7 @@ rule b extends commute(F = mul, allowed = legal) { where { N < 32; } }
 abstract rule guarded(f: fn<(tensor) -> i64>) {
   X => X where { f(X) >= -1; }
 }
-rule r extends guarded(f = score);
+rule r extends guarded(f = $score);
 )");
   assert(signature.ok());
   assert(
@@ -282,8 +316,8 @@ abstract rule guarded(F: op<(tensor) -> tensor>,
                       predicate: fn<(tensor) -> bool>) {
   (F X) => X where { !predicate(X) || predicate(X); }
 }
-rule r extends guarded(F = negate, predicate = F) {
-  where { predicate(X); }
+rule r extends guarded(F = negate, predicate = $F) {
+  where { $predicate(X); }
 }
 )");
   assert(functions.ok());
@@ -308,8 +342,11 @@ void inheritedRanks() {
            std::pair{"[N, ...]", "[M]"},
            {"[N]", "[M, ...]"},
            {"[N, ..., M]", "[A, B]"},
-           {"[...]", "scalar"},
-           {"scalar", "[...]"},
+           {"[]", "[]"},
+           {"f32[]", "[]"},
+           {"[]", "f32[]"},
+           {"[...]", "[]"},
+           {"[]", "[...]"},
            {"[N, ...]", "[A, B, ...]"},
            {"[A, B, ...]", "[N, ...]"},
        }) {
@@ -320,11 +357,13 @@ void inheritedRanks() {
     assert(result.program->rules[0].constraints.size() == 2);
   }
   for (const auto& [base, derived] : {
-           std::pair{"[N, ...]", "scalar"},
-           {"scalar", "[N, ...]"},
+           std::pair{"[N, ...]", "[]"},
+           {"[]", "[N, ...]"},
            {"[N, ..., M]", "[A]"},
            {"[A]", "[N, ..., M]"},
-           {"[_, ...]", "scalar"},
+           {"[_, ...]", "[]"},
+           {"[]", "[_]"},
+           {"[_]", "[]"},
        }) {
     const auto result =
         analyzeText(std::string("abstract rule a() { X: ") + base +
@@ -348,7 +387,7 @@ void tensorDTypes() {
     assert(dtype && dtypeName(*dtype) == name);
     const auto result =
         analyzeText("rule r { X: " + std::string(name) +
-                    "[Batch..., M, _] X => X where { check(X); } }");
+                    "[Batch..., M, _] X => X where { $check(X); } }");
     assert(result.ok());
     const auto& rule = result.program->rules.front();
     assert(rule.constraints.front().dtype == dtype);
@@ -360,8 +399,7 @@ void tensorDTypes() {
            TypeKind::kBool);
   }
 
-  for (const auto* type :
-       {"f32[]", "[]", "scalar", "bf16[...]", "f16[_, S..., N]"}) {
+  for (const auto* type : {"f32[]", "[]", "bf16[...]", "f16[_, S..., N]"}) {
     assert(analyzeText("rule r { X: " + std::string(type) + " X => X }").ok());
   }
   for (const auto* source :
@@ -382,7 +420,7 @@ void tensorDTypes() {
 
   // Graph dtypes do not alter scalar host argument types.
   const auto result = analyzeText(
-      "rule r { S: f32[] S => 1.0:f32 where { check(S, 1, 1.0); } }");
+      "rule r { S: f32[] S => 1.0:f32 where { $check(S, 1, 1.0); } }");
   assert(result.ok());
   const auto& host = result.program->host_functions.front();
   assert(result.program->types[host.signature.arguments[0].value].kind ==
@@ -415,14 +453,15 @@ void invalidRules() {
             "operator does not support Tensor"},
            {"rule r { X => X where { true < false; } }",
             "operator does not support Bool"},
-           {"rule r { X => X where { f(X) == g(X); } }", "cannot infer"},
-           {"rule r { X => X where { f(X); f(1); } }", "type mismatch"},
-           {"rule r { X => X where { f(X); f(X, X); } }", "conflicting arity"},
+           {"rule r { X => X where { $f(X) == $g(X); } }", "cannot infer"},
+           {"rule r { X => X where { $f(X); $f(1); } }", "type mismatch"},
+           {"rule r { X => X where { $f(X); $f(X, X); } }",
+            "conflicting arity"},
            {"rule r { X => X where { 1.5 % 1.0 == 0; } }",
             "operator does not support F64"},
-           {"rule r { X => X where { f(-9223372036854775809); } }",
+           {"rule r { X => X where { $f(-9223372036854775809); } }",
             "invalid for I64"},
-           {"rule r { X => X where { f(18446744073709551616); } }",
+           {"rule r { X => X where { $f(18446744073709551616); } }",
             "invalid for Index"},
            {"rule r { 128:i8 => 0:i8 }", "invalid for dtype"},
            {"rule r { -129:i8 => 0:i8 }", "invalid for dtype"},
@@ -437,17 +476,17 @@ void invalidRules() {
            {"rule r { (dot[@d] X Y) => (dot[@missing] X Y) }",
             "unknown RHS descriptor"},
            {"rule r { (dot[@d] X Y) => (reshape[@d] X) }", "type mismatch"},
-           {"rule r { X => X where { check(@missing); } }",
+           {"rule r { X => X where { $check(@missing); } }",
             "not available here"},
-           {"rule r { X => X derive { @d = make(@d); } }",
+           {"rule r { X => X derive { @d = $make(@d); } }",
             "not available here"},
-           {"rule r { X => X derive { @a = make(@b); @b = make(X); } }",
+           {"rule r { X => X derive { @a = $make(@b); @b = $make(X); } }",
             "not available here"},
-           {"rule r { X => X where { check(@d); } derive { @d = make(X); } }",
+           {"rule r { X => X where { $check(@d); } derive { @d = $make(X); } }",
             "not available here"},
-           {"rule r { (dot[@d] X Y) => X derive { @d = make(X); } }",
+           {"rule r { (dot[@d] X Y) => X derive { @d = $make(X); } }",
             "duplicate descriptor definition"},
-           {"rule r { X => X derive { @d = make(X); @d = make(X); } }",
+           {"rule r { X => X derive { @d = $make(X); @d = $make(X); } }",
             "duplicate descriptor definition"},
            {"rule r { X => X derive { @d = true; } }", "type mismatch"},
            {"rule r { (tuple X Y) => X }", "tuple semantics"},
@@ -496,8 +535,8 @@ void invalidRules() {
   expectError("rule r { X: [N] X => X where { -N > -1; } }",
               "operator does not support Index");
   expectError(
-      "rule a { X => (dot[@d] X X) derive { @d = create(X); } } "
-      "rule b { Y => (reshape[@d] Y) derive { @d = create(Y); } }",
+      "rule a { X => (dot[@d] X X) derive { @d = $create(X); } } "
+      "rule b { Y => (reshape[@d] Y) derive { @d = $create(Y); } }",
       "type mismatch");
   expectError("dialect D { op bad(x: unknown) -> tensor; }",
               "unsupported operation operand", false);
@@ -607,6 +646,7 @@ void examples(const char* executable, const char* lora, const char* inherited) {
 
 int main(int argc, char** argv) {
   assert(argc == 3);
+  hostCallResolution();
   concreteRules();
   descriptorsAndTypes();
   inferenceAcrossRules();

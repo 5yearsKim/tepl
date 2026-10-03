@@ -7,6 +7,7 @@ use super::dialects::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Op {
     Literal,
+    Input,
     Scalar(scalar::Op),
     TensorLang(tensor_lang::Op),
 }
@@ -14,6 +15,7 @@ pub enum Op {
 pub enum OpAttrs {
     None,
     Literal { value: String, dtype: Option<DType> },
+    Input { name: String },
     Scalar(scalar::OpAttrs),
     TensorLang(tensor_lang::OpAttrs),
 }
@@ -21,6 +23,7 @@ impl Op {
     pub fn name(self) -> &'static str {
         match self {
             Self::Literal => "<literal>",
+            Self::Input => "<input>",
             Self::Scalar(op) => op.name(),
             Self::TensorLang(op) => op.name(),
         }
@@ -28,6 +31,9 @@ impl Op {
     pub fn from_name(name: &str) -> Option<Self> {
         if name == "<literal>" {
             return Some(Self::Literal);
+        }
+        if name == "<input>" {
+            return Some(Self::Input);
         }
         let (dialect, _op) = name.split_once('.')?;
         match dialect {
@@ -38,13 +44,14 @@ impl Op {
     }
     pub fn arity(self) -> Arity {
         match self {
-            Self::Literal => Arity::Exact(0),
+            Self::Literal | Self::Input => Arity::Exact(0),
             Self::Scalar(op) => op.arity(),
             Self::TensorLang(op) => op.arity(),
         }
     }
     pub fn accepts_attrs(self, attrs: &OpAttrs) -> bool {
         match (self, attrs) {
+            (Self::Input, OpAttrs::Input { .. }) => true,
             (Self::Literal, OpAttrs::Literal { value, dtype }) => {
                 valid_literal(value) && dtype.is_none_or(|d| d.accepts_literal(value))
             }
@@ -59,7 +66,7 @@ impl Op {
 impl OpAttrs {
     pub fn schema_id(&self) -> Option<usize> {
         match self {
-            Self::None | Self::Literal { .. } => None,
+            Self::None | Self::Literal { .. } | Self::Input { .. } => None,
             Self::Scalar(attrs) => attrs.schema_id(),
             Self::TensorLang(attrs) => attrs.schema_id(),
         }
@@ -132,6 +139,13 @@ impl OpNode {
             children,
             attrs,
         })
+    }
+    pub fn input(name: impl Into<String>) -> Self {
+        Self {
+            op: Op::Input,
+            children: vec![],
+            attrs: OpAttrs::Input { name: name.into() },
+        }
     }
     pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
         Self::from_parts(

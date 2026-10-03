@@ -68,8 +68,22 @@ variadicOperand
     ;
 
 opProperties
-    : aliasProperty attrsProperty?
-    | attrsProperty aliasProperty?
+    : aliasProperty attrsProperty? shapeProperty?
+    | attrsProperty aliasProperty? shapeProperty?
+    | shapeProperty
+    ;
+
+// Shape definitions are retained but not interpreted or checked yet.
+shapeProperty
+    : {getCurrentToken()->getText() == "shape"}? ID '(' shapeInputs? ')' opaqueBlock
+    ;
+
+shapeInputs
+    : ID ELLIPSIS? (',' ID ELLIPSIS?)*
+    ;
+
+opaqueBlock
+    : '{' (opaqueBlock | ~('{' | '}'))* '}'
     ;
 
 aliasProperty
@@ -86,7 +100,7 @@ attrField
     ;
 
 attrType
-    : ID ('[' ']')?
+    : ID ('[' ']')* '?'?
     ;
 
 attrDefault
@@ -125,7 +139,6 @@ signatureTypes
 
 signatureType
     : ID
-    | SCALAR
     | ATTRS
     ;
 
@@ -134,7 +147,11 @@ ruleBindings
     ;
 
 ruleBinding
-    : ID '=' opRef
+    : ID '=' (opRef | hostFunctionRef)
+    ;
+
+hostFunctionRef
+    : '$' ID
     ;
 
 // Instances add restrictions to the inherited pattern.
@@ -143,12 +160,11 @@ inheritedBody
     ;
 
 // -----------------------------------------------------------------------------
-// Rule declarations: tensor shapes and scalars
+// Rule declarations: tensor shapes (including rank-zero tensors)
 // -----------------------------------------------------------------------------
 
 shapeDecl
-    : ID ':' dtypeName? '[' shapeElements? ']'           # TensorDecl
-    | ID ':' SCALAR                           # ScalarDecl
+    : ID ':' dtypeName? '[' shapeElements? ']'
     ;
 
 dtypeName
@@ -256,7 +272,7 @@ unary
     ;
 
 primary
-    : ID '(' arguments? ')'                  # CallPrimary
+    : (ID | hostFunctionRef) '(' arguments? ')' # CallPrimary
     | ID                                     # NamePrimary
     | attrRef                                # AttributePrimary
     | INT                                    # IntegerPrimary
@@ -289,7 +305,6 @@ ATTRS: 'attrs';
 ALIAS: 'alias';
 WHERE: 'where';
 DERIVE: 'derive';
-SCALAR: 'scalar';
 GET: 'get';
 TRUE: 'true';
 FALSE: 'false';

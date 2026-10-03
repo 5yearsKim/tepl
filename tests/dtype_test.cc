@@ -9,12 +9,11 @@ int main() {
   for (const auto* name : {"bool", "i8", "i16", "i32", "i64", "u8", "u16",
                            "u32", "u64", "f16", "bf16", "f32", "f64"}) {
     const auto source = "rule r { X: " + std::string(name) +
-                        "[Batch..., M, _] X => X where { check(X); } }";
+                        "[Batch..., M, _] X => X where { $check(X); } }";
     const auto parsed = tepl::parse(source);
     assert(parsed.ok());
     const auto& rule = parsed.program->rules.front();
-    const auto& tensor =
-        std::get<tepl::ast::TensorDecl>(rule.declarations[0].value);
+    const auto& tensor = rule.declarations[0];
     assert(tensor.dtype && tensor.dtype->name == name);
     assert(tensor.dtype->span.begin.column == 13);
     assert(tepl::formatAst(*parsed.program)
@@ -22,8 +21,7 @@ int main() {
            std::string::npos);
   }
 
-  for (const auto* type :
-       {"f32[]", "[]", "scalar", "bf16[...]", "f16[_, S..., N]"}) {
+  for (const auto* type : {"f32[]", "[]", "bf16[...]", "f16[_, S..., N]"}) {
     const auto parsed =
         tepl::parse("rule r { X: " + std::string(type) + " X => X }");
     assert(parsed.ok());

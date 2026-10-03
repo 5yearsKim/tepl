@@ -90,6 +90,7 @@ void emitRule(CodeWriter& out, const core::Program& program,
     if (!function_names.insert(fn.name).second)
       throw std::invalid_argument("host function name collision within rule " +
                                   module + "::" + rule.name);
+    out.line("/// Host implementation of TEPL `$" + fn.name + "(...)`.");
     std::string signature = "fn " + identifier(fn.name) + "(&self";
     for (std::size_t i = 0; i < fn.signature.arguments.size(); ++i)
       signature +=

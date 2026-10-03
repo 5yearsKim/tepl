@@ -1,5 +1,16 @@
 // A second dialect deliberately reuses the operation name "add".
+// These examples restrict the StableHLO operations to rank-zero tensors.
 dialect Scalar {
-    op add(lhs: tensor, rhs: tensor) -> tensor;
-    op negate(input: tensor) -> tensor;
+    op add(lhs: tensor, rhs: tensor) -> tensor {
+        shape(l, r) {
+            assert l == [] && r == [];
+            yield [];
+        }
+    }
+    op negate(input: tensor) -> tensor {
+        shape(s) {
+            assert s == [];
+            yield [];
+        }
+    }
 }

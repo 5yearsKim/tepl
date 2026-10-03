@@ -78,14 +78,19 @@ declarations as well as rules.
 
 ```text
 dialect TensorLang {
-    attrs CollectiveReduce { kind: string; }
+    attrs CollectiveReduce {
+        replica_groups: replica_groups;
+        channel_id: i64;
+        use_global_device_ids: bool;
+        computation: region;
+    }
     op add(lhs: tensor, rhs: tensor) -> tensor;
     op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul; }
     op all_reduce(input: tensor) -> tensor {
         attrs: CollectiveReduce;
     }
-    op concatenate(first: tensor, second: tensor, rest: tensor...) -> tensor {
-        attrs { axis: index; }
+    op concatenate(inputs: tensor...) -> tensor {
+        attrs { dimension: index; }
     }
 }
 ```
@@ -93,13 +98,22 @@ dialect TensorLang {
 Operands are named. Fixed operands determine exact arity; a final `...`
 operand permits zero or more additional operands. An `attrs` block defines
 operation attributes, and `attrs: Name;` reuses a schema. Attribute fields
-currently support `index`, `string`, and list syntax such as `index[]`.
+support `index`, `string`, `i64`, `bool`, `precision`, `dot_algorithm`,
+`replica_groups`, `region`, and `elements`. Nested lists (`i64[][]`) and
+optional values (`dot_algorithm?`) are preserved in the generated Rust types.
 An operation can declare at most one `alias` and one `attrs` property, in
 either order. Inline and shared attributes are alternative forms of the same
 property. `alias` gives a second spelling to the same operation; for example,
 `dot_general` remains the declared name and `dot` refers to it. In files with
 a dialect, `check` validates rule operation names, arity, and whether an attribute
 descriptor is required.
+
+An optional trailing `shape(...) { ... }` block is retained as opaque AST
+source. Its expressions are not validated or executed, and it does not generate
+shape inference or enforce assertions. Hosts still supply output metadata.
+`$name(...)` explicitly calls a host function. Unprefixed calls are reserved for
+native functions and bound `fn` parameters; unknown native functions are errors.
+Builtin shape-function resolution is deferred.
 
 The parser and AST carry this information, and `check` resolves declarations
 and checks descriptor schemas. Rust code generation supports checked
@@ -110,7 +124,7 @@ the Rust tensor IR.
 
 ```text
 rule NAME {
-    zero or more tensor or scalar declarations
+    zero or more tensor shape declarations
     LHS => RHS
     optional where { CONDITION; ... }
     optional derive { @NAME = EXPRESSION; ... }
@@ -122,8 +136,8 @@ rule NAME {
 - `//` line comments and `/* ... */` block comments are supported.
 - Declarations precede the rewrite and have no semicolon. Tensor declarations
   use brackets with an optional dtype prefix (`X: bf16[Batch..., M, K]`).
-  Without a prefix, dtype is unrestricted. `S: scalar` means a rank-zero tensor
-  equivalent to `S: []`; `S: f32[]` also constrains its dtype.
+  Without a prefix, dtype is unrestricted. `S: []` means a rank-zero tensor
+  (a scalar); `S: f32[]` also constrains its dtype.
   A tensor shape may be empty (`[]`), contain named dimensions or `_`, and have
   at most one named or anonymous `...` segment anywhere in the list. Shape
   arithmetic belongs in `where`.
@@ -148,7 +162,7 @@ rule NAME {
   `(get[0] T)` with exactly one operand and a nonnegative integer index.
 - `where` precedes `derive` when both occur. Statements within either section
   require semicolons. Empty sections are allowed.
-- Constraint expressions support host calls, names, descriptor references,
+- Constraint expressions support host calls (`$name(...)`), names, descriptor references,
   integers, decimals, booleans, and parentheses. Precedence, highest first:
   unary `! + -`, multiplicative `* / %`, additive `+ -`, comparison
   `< <= > >=`, equality `== !=`, logical `&&`, logical `||`.
@@ -157,7 +171,7 @@ rule NAME {
 - Identifiers use ASCII letters, digits, and underscores, and cannot start with
   a digit. `rule`, `abstract`, `extends`, `fn`, `from`, `import`, `as`, `use`,
   `dialect`, `op`, `attrs`,
-  `alias`, `let`, `where`, `derive`, `scalar`, `get`, `true`, `false`, and `_` are
+  `alias`, `let`, `where`, `derive`, `get`, `true`, `false`, and `_` are
   reserved. `alias`
   remains valid as an operation name.
 
@@ -167,7 +181,7 @@ and the complete LoRA example from the design document.
 ## Abstract and inherited rules
 
 [abstract.tepl](examples/rules/abstract.tepl) declares reusable graph patterns with
-operation (`op`) and host-function (`fn`) parameters:
+operation (`op`) parameters:
 
 ```tepl
 abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
@@ -194,8 +208,12 @@ an optional `where` section. It cannot supply a replacement graph or `derive`
 section. Abstract rules have the same rewrite body as ordinary rules.
 Parameter lists, signature operand lists, and instance binding lists may be
 empty; nonempty lists require commas and do not allow a trailing comma.
-Signature types preserve named types (including `scalar`) for later validation.
-Bindings are bare or dialect-qualified names.
+Signature types preserve named types for later validation.
+Operation bindings are bare or dialect-qualified names. The compiler also
+supports host-function (`fn`) parameters: declare `p: fn<(tensor) -> bool>`,
+call the bound parameter as `p(X)`, and bind it with `p = $is_legal`.
+An explicit `$p(X)` always names a host function directly, even when a template
+parameter is also named `p`.
 
 The AST preserves signatures, bindings, restrictions, and source spans.
 `resolveImports` loads selected abstract definitions into `Program::imported_rules`
@@ -257,7 +275,7 @@ construction have separate node types. Repeated captures/dimensions use the
 same identity. Inherited shape restrictions are retained as additional runtime
 constraints; conflicting explicit dtypes and incompatible rank restrictions are
 diagnosed. A shape sequence can be empty, so `[N, ...]` requires rank at least
-one and conflicts with `scalar`, but is compatible with `[M]`.
+one and conflicts with `[]`, but is compatible with `[M]`.
 
 Imported template operations resolve in their definition's file scope. Instance
 operation bindings resolve in the instance's scope. Private template imports
@@ -270,7 +288,7 @@ no overloads. Explicit `fn` parameter signatures support `tensor`, `bool`,
 distinct from failure: host calls are fallible, and failure rejects a match.
 Conditions must produce `Bool`. Numeric operators accept compatible numeric
 types; equality supports numbers and booleans. Tensor and dimension-sequence
-comparisons must use host functions. Ambiguous calls such as `f(X) == g(X)`
+comparisons must use host functions. Ambiguous calls such as `$f(X) == $g(X)`
 need another typed use or an explicit function parameter signature.
 
 Host integer constants adopt their numeric context; otherwise unsigned constants
@@ -474,7 +492,7 @@ and integration tests.
 In the reference Rust runtime, `derive` host functions return `Option<OpAttrs>`
 containing only operation descriptors. Both `where` and `derive` use matched LHS
 inputs; derivations are evaluated in source order. LoRA uses
-`infer_lora_out(X, A, B, @outer, @inner)`
+`$infer_lora_out(X, A, B, @outer, @inner)`
 for its final descriptor, avoiding any dependency on a constructed RHS value.
 The checked Rust rewrite path validates the entire RHS tree and infers every
 operation's shape and dtype before insertion. It requires output compatibility

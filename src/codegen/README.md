@@ -80,6 +80,10 @@ origins that can point into a template file.
 
 Attribute schemas become `OpAttrs` variants, shared by every operation using
 that schema. Attribute fields and host trait methods preserve their TEPL names.
+The `$` host-call sigil is syntax only: `$infer_dot(...)` generates the trait
+method `infer_dot` and calls `functions.infer_dot(...)`. Checking resolves host
+calls (including bound `fn` parameters) to `HostCall` before code generation;
+unknown unprefixed calls never implicitly create host methods.
 Rust keywords use raw identifiers, such as `r#type` and `r#match`. Names Rust
 cannot escape (`self`, `Self`, `super`, and `crate`) produce a generation
 diagnostic; rename them in TEPL. No prefixes or suffixes are added.

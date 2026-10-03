@@ -16,24 +16,18 @@ rule commute_small_vectors extends commute(F = t.add) {
     }
 }
 
-// The host checks must account for shapes and numerical semantics, including
-// whether floating-point reassociation is permitted. They are placeholders
-// for host implementations, not built-in functions.
+// These instances assume reassociation is valid in the target semantics.
 rule associate_add_right extends associate_right(
-    F = t.add,
-    allowed = can_reassociate_add
+    F = t.add
 );
 
 rule associate_mul_right extends associate_right(
-    F = t.multiply,
-    allowed = can_reassociate_mul
+    F = t.multiply
 );
 
-// Added conditions are combined with the inherited allowed(X, Y, Z) check.
-// The child cannot remove that check or replace the inherited graph pattern.
+// A concrete instance can restrict the shapes of the inherited pattern.
 rule associate_small_vectors extends associate_right(
-    F = t.add,
-    allowed = can_reassociate_add
+    F = t.add
 ) {
     X: [N]
     Y: [N]
@@ -44,10 +38,8 @@ rule associate_small_vectors extends associate_right(
     }
 }
 
-// This host check must establish that distribution preserves the required
-// shape and numerical semantics for the matched inputs.
+// This instance assumes distribution is valid in the target semantics.
 rule distribute_mul_over_add extends distribute_left(
     product = t.multiply,
-    sum = t.add,
-    allowed = can_distribute_mul_over_add
+    sum = t.add
 );

@@ -4,29 +4,19 @@ abstract rule commute(
     (F X Y) => (F Y X)
 }
 
-// A host-function parameter lets each instance supply its own legality check.
+// Instantiate with operations whose semantics permit reassociation.
 abstract rule associate_right(
-    F: op<(tensor, tensor) -> tensor>,
-    allowed: fn<(tensor, tensor, tensor) -> bool>
+    F: op<(tensor, tensor) -> tensor>
 ) {
     (F (F X Y) Z) => (F X (F Y Z))
-
-    where {
-        allowed(X, Y, Z);
-    }
 }
 
 // Relationships between multiple operations use multiple op parameters.
 abstract rule distribute_left(
     product: op<(tensor, tensor) -> tensor>,
-    sum: op<(tensor, tensor) -> tensor>,
-    allowed: fn<(tensor, tensor, tensor) -> bool>
+    sum: op<(tensor, tensor) -> tensor>
 ) {
     (product X (sum Y Z))
     =>
     (sum (product X Y) (product X Z))
-
-    where {
-        allowed(X, Y, Z);
-    }
 }

@@ -9,8 +9,10 @@ use std::{collections::HashMap, sync::Arc};
 pub mod rule_lora {
     use super::*;
     pub trait Functions: Send + Sync {
-        fn broadcastable(&self, arg0: &[u64], arg1: &[u64]) -> Option<bool>;
-        fn reassociable(
+        /// Host implementation of TEPL `$is_broadcastable(...)`.
+        fn is_broadcastable(&self, arg0: &[u64], arg1: &[u64]) -> Option<bool>;
+        /// Host implementation of TEPL `$is_reassociable(...)`.
+        fn is_reassociable(
             &self,
             arg0: &TensorInfo,
             arg1: &TensorInfo,
@@ -18,12 +20,14 @@ pub mod rule_lora {
             arg3: &OpAttrs,
             arg4: &OpAttrs,
         ) -> Option<bool>;
+        /// Host implementation of TEPL `$infer_dot(...)`.
         fn infer_dot(
             &self,
             arg0: &TensorInfo,
             arg1: &TensorInfo,
             arg2: &OpAttrs,
         ) -> Option<OpAttrs>;
+        /// Host implementation of TEPL `$infer_lora_out(...)`.
         fn infer_lora_out(
             &self,
             arg0: &TensorInfo,
@@ -158,13 +162,13 @@ pub mod rule_lora {
                         ShapePart::Dimension(4),
                     ],
                 )?;
-                if !(functions.broadcastable(
+                if !(functions.is_broadcastable(
                     &(dimensions.sequence(0)?.to_vec()),
                     &(dimensions.sequence(3)?.to_vec()),
                 )?) {
                     return None;
                 }
-                if !(functions.reassociable(
+                if !(functions.is_reassociable(
                     &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c3".parse::<Var>().expect("generated capture ID"))?),

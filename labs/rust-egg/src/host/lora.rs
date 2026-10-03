@@ -7,11 +7,11 @@ pub struct DemoLoraFunctions {
 }
 
 impl rule_lora::Functions for DemoLoraFunctions {
-    fn broadcastable(&self, batch: &[u64], weight_batch: &[u64]) -> Option<bool> {
+    fn is_broadcastable(&self, batch: &[u64], weight_batch: &[u64]) -> Option<bool> {
         Some(batch == weight_batch)
     }
 
-    fn reassociable(
+    fn is_reassociable(
         &self,
         _x: &TensorInfo,
         _a: &TensorInfo,

@@ -74,7 +74,7 @@ fn literal_metadata(graph: &EGraph<OpNode, ()>, id: Id, input_dtype: DType) -> O
     for node in &graph[graph.find(id)].nodes {
         let info = if symbol_name(&node) == Some("X") {
             TensorInfo {
-                shape: vec![4],
+                shape: vec![],
                 dtype: input_dtype,
             }
         } else {
@@ -122,8 +122,12 @@ fn reference_rules_match_only_their_literal_and_construct_the_rhs() {
                 expected = Some((root, literal));
             }
         }
-        // A named constant with numeric-looking text is still a different node.
-        let named = egraph.add(constant(value));
+        // A typed constant payload is distinct from a graph literal.
+        let named = egraph.add(constant(rust_egg::ir::types::Elements {
+            element_type: "i32".into(),
+            shape: vec![],
+            data: 1i32.to_le_bytes().to_vec(),
+        }));
         egraph.add(binary(tensor_lang::Op::Add, x, named).unwrap());
         egraph.rebuild();
         let found = rule.search(&egraph);

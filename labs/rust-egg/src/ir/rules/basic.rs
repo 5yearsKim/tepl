@@ -71,7 +71,8 @@ pub mod rule_commute_f32 {
 pub mod rule_commute_same_dtype {
     use super::*;
     pub trait Functions: Send + Sync {
-        fn same_dtype(&self, arg0: &TensorInfo, arg1: &TensorInfo) -> Option<bool>;
+        /// Host implementation of TEPL `$is_same_dtype(...)`.
+        fn is_same_dtype(&self, arg0: &TensorInfo, arg1: &TensorInfo) -> Option<bool>;
     }
     pub fn pattern() -> TensorPattern {
         TensorPattern::op(
@@ -119,7 +120,7 @@ pub mod rule_commute_same_dtype {
                 let mut dimensions = ShapeBindings::default();
                 dimensions.check(&capture_0.shape, &[ShapePart::Dimension(0)])?;
                 dimensions.check(&capture_1.shape, &[ShapePart::Dimension(0)])?;
-                if !(functions.same_dtype(
+                if !(functions.is_same_dtype(
                     &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?),
                 )?) {
@@ -182,7 +183,7 @@ pub mod rule_commute_scalar {
                 if capture_0.dtype != DType::F32 {
                     return None;
                 }
-                dimensions.check(&capture_0.shape, &[ShapePart::Sequence(None)])?;
+                dimensions.check(&capture_0.shape, &[])?;
                 if capture_1.dtype != DType::F32 {
                     return None;
                 }
@@ -243,7 +244,7 @@ pub mod rule_commute_integer_literal {
                 if capture_0.dtype != DType::I32 {
                     return None;
                 }
-                dimensions.check(&capture_0.shape, &[ShapePart::Sequence(None)])?;
+                dimensions.check(&capture_0.shape, &[])?;
                 Some(Default::default())
             },
         )
@@ -300,7 +301,7 @@ pub mod rule_commute_float_literal {
                 if capture_0.dtype != DType::F32 {
                     return None;
                 }
-                dimensions.check(&capture_0.shape, &[ShapePart::Sequence(None)])?;
+                dimensions.check(&capture_0.shape, &[])?;
                 Some(Default::default())
             },
         )

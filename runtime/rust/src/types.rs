@@ -104,3 +104,44 @@ impl FromStr for DType {
             .ok_or_else(|| format!("unknown dtype '{name}'"))
     }
 }
+
+/// Metadata is preserved structurally; the host adapter validates its semantics.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Precision {
+    Default,
+    High,
+    Highest,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct DotAlgorithm {
+    /// Canonical host type encodings, including formats outside TEPL's DType set.
+    pub lhs_precision_type: String,
+    pub rhs_precision_type: String,
+    pub accumulation_type: String,
+    pub lhs_component_count: i64,
+    pub rhs_component_count: i64,
+    pub num_primitive_operations: i64,
+    pub allow_imprecise_accumulation: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ReplicaGroups {
+    Explicit(Vec<Vec<i64>>),
+    /// Canonical host encoding of a mesh-axis group specification.
+    MeshAxes(Vec<u8>),
+}
+
+/// Canonical serialized region including its computation and captured identity.
+/// A reduction name alone is not a region. Execution is the host's responsibility.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Region(pub Vec<u8>);
+
+/// Typed constant payload. The host owns encoding, validation and interpretation
+/// of the bytes (including floating formats and quantization).
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Elements {
+    pub element_type: String,
+    pub shape: Vec<u64>,
+    pub data: Vec<u8>,
+}

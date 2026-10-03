@@ -13,23 +13,24 @@ rule commute_same_dtype {
     X: [N]
     Y: [N]
     (add X Y) => (add Y X)
-    where { same_dtype(X, Y); }
+    where { $is_same_dtype(X, Y); }
 }
 
 // A typed scalar is a rank-zero tensor; f32[] constrains its element type.
+// StableHLO add requires equal shapes, so both operands must be scalars here.
 rule commute_scalar {
-    X: f32[...]
+    X: f32[]
     S: f32[]
     (add X S) => (add S X)
 }
 
 // Literal patterns require exact spelling and dtype.
 rule commute_integer_literal {
-    X: i32[...]
+    X: i32[]
     (add X 1:i32) => (add 1:i32 X)
 }
 
 rule commute_float_literal {
-    X: f32[...]
+    X: f32[]
     (add X 1.0:f32) => (add 1.0:f32 X)
 }

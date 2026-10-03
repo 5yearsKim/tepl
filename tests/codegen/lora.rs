@@ -7,10 +7,12 @@ use tepl_generated::ir::{DType, Op, OpAttrs, OpNode};
 
 fn attrs() -> OpAttrs {
     OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-        lhs_contracting: vec![2],
-        rhs_contracting: vec![1],
-        lhs_batch: vec![0],
-        rhs_batch: vec![0],
+        lhs_contracting_dimensions: vec![2],
+        rhs_contracting_dimensions: vec![1],
+        lhs_batching_dimensions: vec![0],
+        rhs_batching_dimensions: vec![0],
+        precision_config: vec![tepl_generated::ir::types::Precision::Default; 2],
+        algorithm: None,
     })
 }
 fn dot_shape(lhs: &[u64], rhs: &[u64], attributes: &OpAttrs) -> Option<Vec<u64>> {
@@ -28,10 +30,10 @@ struct Host {
     allowed: bool,
 }
 impl rule_lora::Functions for Host {
-    fn broadcastable(&self, batch: &[u64], weight: &[u64]) -> Option<bool> {
+    fn is_broadcastable(&self, batch: &[u64], weight: &[u64]) -> Option<bool> {
         Some(batch == weight)
     }
-    fn reassociable(
+    fn is_reassociable(
         &self,
         _: &TensorInfo,
         _: &TensorInfo,
@@ -116,12 +118,8 @@ fn generated_lora_checks_shapes_host_legality_and_every_intermediate_before_inse
         let mut graph = EGraph::<OpNode, ()>::default();
         let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| {
             graph.add(
-                OpNode::from_parts(
-                    Op::TensorLang(tensor_lang::Op::Symbol),
-                    vec![],
-                    OpAttrs::TensorLang(tensor_lang::OpAttrs::SymbolAttrs { name: name.into() }),
-                )
-                .unwrap(),
+                OpNode::from_parts(Op::Input, vec![], OpAttrs::Input { name: name.into() })
+                    .unwrap(),
             )
         });
         let ab = dot(&mut graph, a, b);

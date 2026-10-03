@@ -16,6 +16,17 @@ pub fn infer_tensor_output(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> 
             dtype: *dtype,
         });
     }
+    if let (
+        Op::TensorLang(tensor_lang::Op::Constant),
+        [],
+        OpAttrs::TensorLang(tensor_lang::OpAttrs::ConstantAttrs { value }),
+    ) = (op, operands, attrs)
+    {
+        return Some(TensorInfo {
+            shape: value.shape.clone(),
+            dtype: value.element_type.parse().ok()?,
+        });
+    }
     let [lhs, rhs] = operands else {
         return None;
     };
@@ -24,22 +35,10 @@ pub fn infer_tensor_output(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> 
     }
     let shape = match (op, attrs) {
         (Op::TensorLang(tensor_lang::Op::Add | tensor_lang::Op::Multiply), OpAttrs::None) => {
-            let rank = lhs.shape.len().max(rhs.shape.len());
-            let mut shape = vec![1; rank];
-            for (axis, dim) in shape.iter_mut().rev().enumerate() {
-                let a = lhs.shape.iter().rev().nth(axis).copied().unwrap_or(1);
-                let b = rhs.shape.iter().rev().nth(axis).copied().unwrap_or(1);
-                *dim = if a == b {
-                    a
-                } else if a == 1 {
-                    b
-                } else if b == 1 {
-                    a
-                } else {
-                    return None;
-                };
+            if lhs.shape != rhs.shape {
+                return None;
             }
-            shape
+            lhs.shape.clone()
         }
         (Op::TensorLang(tensor_lang::Op::DotGeneral), _) => {
             batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?
@@ -54,10 +53,12 @@ pub fn infer_tensor_output(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> 
 
 pub fn dot_attrs() -> OpAttrs {
     OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-        lhs_contracting: vec![2],
-        rhs_contracting: vec![1],
-        lhs_batch: vec![0],
-        rhs_batch: vec![0],
+        lhs_contracting_dimensions: vec![2],
+        rhs_contracting_dimensions: vec![1],
+        lhs_batching_dimensions: vec![0],
+        rhs_batching_dimensions: vec![0],
+        precision_config: vec![crate::ir::types::Precision::Default; 2],
+        algorithm: None,
     })
 }
 

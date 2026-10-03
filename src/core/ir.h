@@ -15,8 +15,9 @@ namespace tepl::core {
 
 struct AttributeField {
   std::string name;
-  enum class Kind { kIndex, kString } kind;
-  bool list = false;
+  std::string type;
+  std::size_t list_depth = 0;
+  bool optional = false;
   bool empty_default = false;
   SourceOrigin origin;
 };

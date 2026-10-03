@@ -15,7 +15,7 @@ dialect Custom { op negate(input: tensor) -> tensor; }
 rule test {
   X: [N]
   (negate X) => X
-  where { outer(inner(N) + 1, X); }
+  where { $outer($inner(N) + 1, X); }
 }
 )");
   assert(parsed.ok());
@@ -54,6 +54,18 @@ int main() {
          program.rules.front().captures.front().id);
   const auto generated = tepl::codegen::generate(program);
   assert(generated.ok() && !generated.files.empty());
+  bool found_host_methods = false;
+  for (const auto& file : generated.files) {
+    assert(file.contents.find("fn $") == std::string::npos);
+    assert(file.contents.find("functions.$") == std::string::npos);
+    if (file.contents.find("fn outer(") == std::string::npos) continue;
+    found_host_methods = true;
+    assert(file.contents.find("fn inner(") != std::string::npos);
+    assert(file.contents.find("functions.outer(") != std::string::npos);
+    assert(file.contents.find("functions.inner(") != std::string::npos);
+    assert(file.contents.find("TEPL `$outer(...)`") != std::string::npos);
+  }
+  assert(found_host_methods);
   const auto repeated = tepl::codegen::generate(program);
   assert(repeated.ok() && repeated.files.size() == generated.files.size());
   for (std::size_t i = 0; i < generated.files.size(); ++i) {
@@ -109,7 +121,8 @@ int main() {
   for (const auto* source :
        {"dialect Collision { op foo_bar(x: tensor) -> tensor; op fooBar(x: "
         "tensor) -> tensor; }",
-        "dialect None { op add(x: tensor, y: tensor) -> tensor; }"}) {
+        "dialect None { op add(x: tensor, y: tensor) -> tensor; }",
+        "dialect Input { op add(x: tensor, y: tensor) -> tensor; }"}) {
     auto parsed_collision = tepl::parse(source);
     assert(parsed_collision.ok());
     auto checked_collision = tepl::core::analyze(*parsed_collision.program);
@@ -126,7 +139,7 @@ int main() {
         ": index; } op node() -> tensor { attrs: A; } }";
     const std::string host_source =
         "dialect D { op negate(x: tensor) -> tensor; } "
-        "rule r { (negate X) => X where { " +
+        "rule r { (negate X) => X where { $" +
         std::string(name) + "(X); } }";
     for (const auto& source : {field_source, host_source}) {
       auto parsed = tepl::parse(source);

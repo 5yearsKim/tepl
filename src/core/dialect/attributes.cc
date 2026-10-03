@@ -18,14 +18,15 @@ std::vector<AttributeField> checkFields(
     const auto at = origin(source, field.span);
     if (!names.insert(field.name).second)
       context.report(at, "duplicate attribute field '" + field.name + "'");
-    if (field.type != "index" && field.type != "string")
+    static const std::set<std::string> supported = {
+        "index",         "string",         "i64",    "bool",    "precision",
+        "dot_algorithm", "replica_groups", "region", "elements"};
+    if (!supported.contains(field.type))
       context.report(at, "unknown attribute type '" + field.type + "'");
-    if (field.empty_default && !field.list)
+    if (field.empty_default && !field.list_depth)
       context.report(at, "empty list default requires a list type");
-    result.push_back({field.name,
-                      field.type == "index" ? AttributeField::Kind::kIndex
-                                            : AttributeField::Kind::kString,
-                      field.list, field.empty_default, at});
+    result.push_back({field.name, field.type, field.list_depth, field.optional,
+                      field.empty_default, at});
   }
   return result;
 }

@@ -109,6 +109,11 @@ class RuleExpander {
   void bindOperation(const ast::RuleParameter& parameter,
                      const ast::RuleBinding& binding) {
     const auto at = location(instance_, binding.span);
+    if (binding.host) {
+      context_.report(at, "host function cannot bind operation parameter '" +
+                              parameter.name + "'");
+      return;
+    }
     const auto id =
         context_.operation(binding.value, instance_.source_name, at);
     if (!id) return;
@@ -134,6 +139,11 @@ class RuleExpander {
                     const ast::RuleBinding& binding) {
     const auto at = location(instance_, binding.span);
     const auto& name = binding.value;
+    if (!binding.host) {
+      context_.report(at, "host-function binding for '" + parameter.name +
+                              "' requires '$' before '" + name + "'");
+      return;
+    }
     if (name.find('.') != std::string::npos) {
       context_.report(
           at, "qualified host-function bindings are not supported in v1");
@@ -206,7 +216,7 @@ class RuleExpander {
     const auto at = location(definition, input.span);
     output_.expr_origins.emplace(result.get(), at);
     if (auto* call = std::get_if<ast::Call>(&result->value)) {
-      if (&definition == body_) {
+      if (&definition == body_ && call->kind == ast::CallKind::kNative) {
         if (op_bindings_.contains(call->callee))
           context_.report(
               at, "operation parameter cannot be called as a host function");
@@ -214,6 +224,7 @@ class RuleExpander {
             found != fn_bindings_.end()) {
           call->callee =
               context_.output.host_functions[found->second.value].name;
+          call->kind = ast::CallKind::kHost;
           output_.bound_functions.emplace(call, found->second);
         }
       }

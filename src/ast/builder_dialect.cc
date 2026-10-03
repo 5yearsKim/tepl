@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "src/ast/builder.h"
 #include "src/ast/builder_detail.h"
 
@@ -43,6 +45,11 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
     }
   }
   if (auto* properties = context->opProperties()) {
+    if (auto* shape = properties->shapeProperty()) {
+      op.shape_definition = shape->getStart()->getInputStream()->getText(
+          antlr4::misc::Interval(shape->getStart()->getStartIndex(),
+                                 shape->getStop()->getStopIndex()));
+    }
     if (auto* alias = properties->aliasProperty()) {
       op.alias = alias->ID()->getText();
     }
@@ -79,9 +86,14 @@ std::any AstBuilder::visitVariadicOperand(
 
 std::any AstBuilder::visitAttrField(Parser::AttrFieldContext* context) {
   auto* type = context->attrType();
-  return ast::AttrField{getSpan(context), context->ID()->getText(),
-                        type->ID()->getText(), type->getText().ends_with("[]"),
-                        context->attrDefault() != nullptr};
+  const auto text = type->getText();
+  return ast::AttrField{
+      getSpan(context),
+      context->ID()->getText(),
+      type->ID()->getText(),
+      static_cast<std::size_t>(std::count(text.begin(), text.end(), '[')),
+      text.ends_with("?"),
+      context->attrDefault() != nullptr};
 }
 
 }  // namespace tepl

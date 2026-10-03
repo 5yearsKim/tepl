@@ -3,7 +3,9 @@
 TEPL describes declarative tensor graph rewrites for an e-graph. Graph syntax
 captures structure; shapes constrain matches; operator descriptors carry
 attributes; host functions establish legality and infer metadata. Tensor and
-numerical semantics belong in the host implementation.
+numerical semantics belong in the host implementation. Direct host calls use
+`$name(...)`; native calls use unprefixed names. The sigil is not part of the
+generated host method name.
 
 ## Rules and graph expressions
 
@@ -28,13 +30,13 @@ rule lora {
          (dot[@out] (dot[@xa] X A) B))
 
     where {
-        broadcastable(Batch, WeightBatch);
-        reassociable(X, A, B, @outer, @inner);
+        $is_broadcastable(Batch, WeightBatch);
+        $is_reassociable(X, A, B, @outer, @inner);
     }
     derive {
-        @xw = infer_dot(X, W, @outer);
-        @xa = infer_dot(X, A, @outer);
-        @out = infer_lora_out(X, A, B, @outer, @inner);
+        @xw = $infer_dot(X, W, @outer);
+        @xa = $infer_dot(X, A, @outer);
+        @out = $infer_lora_out(X, A, B, @outer, @inner);
     }
 }
 ```
@@ -70,10 +72,9 @@ Declarations are optional match constraints, rather than a complete type system:
 | `X: [M, K]` | Tensor with named dimensions and unrestricted dtype; repeated names must agree |
 | `X: bf16[M, K]` | Same shape constraint, restricted to bf16 |
 | `X: f32[...]` | Any shape, restricted to f32 |
-| `X: []` | Rank-zero tensor |
+| `X: []` | Rank-zero tensor with unrestricted dtype |
 | `_` | One arbitrary dimension |
 | `...` / `Batch...` | Anonymous / named sequence of zero or more dimensions |
-| `S: scalar` / `S: []` | Rank-zero tensor with unrestricted dtype |
 | `S: f32[]` | Rank-zero f32 tensor |
 | `@d` | Captured or derived operator descriptor |
 
@@ -111,7 +112,7 @@ construct an operation. `None` rejects a match.
 `where` and `derive` read LHS tensor captures, captured descriptors, and
 shape variables. Descriptor derivations are evaluated in source order; they do
 not read newly constructed RHS values. LoRA derives its final dot descriptor
-through `infer_lora_out(X, A, B, @outer, @inner)`, allowing the host to choose
+through `$infer_lora_out(X, A, B, @outer, @inner)`, allowing the host to choose
 attributes using only existing inputs. There is no runtime dependency scheduler
 for descriptor derivation. Output validation is separate: `OutputInference`
 checks the resolved RHS from its leaves upward without inserting nodes.

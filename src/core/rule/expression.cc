@@ -87,6 +87,13 @@ TypedExprPtr ExpressionChecker::lower(const ast::Call& call,
                                       const SourceOrigin& origin,
                                       std::optional<TypeId> expected) {
   const auto bound = input_.bound_functions.find(&call);
+  if (call.kind == ast::CallKind::kNative &&
+      bound == input_.bound_functions.end()) {
+    context_.report(origin, "unknown native function '" + call.callee +
+                                "'; use '$" + call.callee +
+                                "(...)' to call a host function");
+    return nullptr;
+  }
   const auto id =
       bound != input_.bound_functions.end()
           ? bound->second

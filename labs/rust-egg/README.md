@@ -81,6 +81,21 @@ Explicit dtype annotations are preserved. See
 [the runtime contract](../../runtime/rust/README.md) and
 [the generator architecture](../../src/codegen/README.md) for details.
 
+Dialect operations and attributes follow `examples/dialects/`, including
+`exponential` (`exp` alias), `broadcast_in_dim`, two-operand `reduce`, and full
+dot, convolution, collective, and constant descriptors. Shape blocks are opaque
+source and do not generate inference or enforce their assertions. In particular,
+variadic operand declarations describe structural arity; shape assertions such as
+nonempty concatenation remain deferred to the host.
+
+`OpNode::input(name)` creates a runtime input leaf outside TensorLang. The lab's
+`symbol` helper wraps it. Constants take `types::Elements` (element type, shape,
+and canonical payload bytes), and reductions take a `types::Region` plus explicit
+input and initialization operands. Regions and mesh group specifications are
+opaque canonical host encodings; hosts validate their contents. Precision values,
+optional dot algorithms, signed padding, and collective metadata are preserved
+in node identity and matching. No obsolete TensorLang operation aliases remain.
+
 The tests exercise the generated modules directly: structural matching,
 attribute witnesses, binders, literals, dtype and shape restrictions, abstract
 instances, cross-dialect lowering, checked replacement, and LoRA saturation.

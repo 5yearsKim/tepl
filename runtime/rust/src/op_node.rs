@@ -68,6 +68,13 @@ impl OpNode {
             attrs,
         })
     }
+    pub fn input(name: impl Into<String>) -> Self {
+        Self {
+            op: Op::Input,
+            children: vec![],
+            attrs: OpAttrs::Input { name: name.into() },
+        }
+    }
     pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
         Self::from_parts(
             Op::Literal,

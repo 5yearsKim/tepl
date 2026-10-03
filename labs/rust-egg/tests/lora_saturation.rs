@@ -129,10 +129,12 @@ fn invalid_shape_unsupported_axes_and_reassociation_rejection_do_not_expand_lora
     let mut wrong_shape = example_shapes();
     wrong_shape.insert("B".into(), vec![2, 4, 31]);
     let wrong_axes = OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-        lhs_contracting: vec![1],
-        rhs_contracting: vec![2],
-        lhs_batch: vec![0],
-        rhs_batch: vec![0],
+        lhs_contracting_dimensions: vec![1],
+        rhs_contracting_dimensions: vec![2],
+        lhs_batching_dimensions: vec![0],
+        rhs_batching_dimensions: vec![0],
+        precision_config: vec![rust_egg::ir::types::Precision::Default; 2],
+        algorithm: None,
     });
     for (shapes, inner_attrs, allow_reassociation) in [
         (wrong_shape, dot_attrs(), true),

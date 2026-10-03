@@ -78,9 +78,11 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
     inheritance.base = clause->ID()->getText();
     if (auto* bindings = clause->ruleBindings()) {
       for (auto* binding : bindings->ruleBinding()) {
-        inheritance.bindings.push_back({getSpan(binding),
-                                        binding->ID()->getText(),
-                                        binding->opRef()->getText()});
+        auto* host = binding->hostFunctionRef();
+        inheritance.bindings.push_back(
+            {getSpan(binding), binding->ID()->getText(),
+             host ? host->ID()->getText() : binding->opRef()->getText(),
+             host != nullptr});
       }
     }
     rule.inheritance = std::move(inheritance);
@@ -120,8 +122,8 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
   return rule;
 }
 
-std::any AstBuilder::visitTensorDecl(Parser::TensorDeclContext* context) {
-  ast::TensorDecl tensor{context->ID()->getText(), {}};
+std::any AstBuilder::visitShapeDecl(Parser::ShapeDeclContext* context) {
+  ast::Declaration tensor{getSpan(context), context->ID()->getText(), {}};
   if (auto* dtype = context->dtypeName()) {
     tensor.dtype = ast::DTypeAnnotation{getSpan(dtype), dtype->getText()};
   }
@@ -129,12 +131,7 @@ std::any AstBuilder::visitTensorDecl(Parser::TensorDeclContext* context) {
     tensor.shape =
         std::any_cast<std::vector<ast::ShapeDimension>>(visit(elements));
   }
-  return ast::Declaration{getSpan(context), std::move(tensor)};
-}
-
-std::any AstBuilder::visitScalarDecl(Parser::ScalarDeclContext* context) {
-  return ast::Declaration{getSpan(context),
-                          ast::ScalarDecl{context->ID()->getText()}};
+  return tensor;
 }
 
 std::any AstBuilder::visitShapeElements(Parser::ShapeElementsContext* context) {
@@ -308,7 +305,10 @@ std::any AstBuilder::visitUnary(Parser::UnaryContext* context) {
 }
 
 std::any AstBuilder::visitCallPrimary(Parser::CallPrimaryContext* context) {
-  ast::Call call{context->ID()->getText(), {}};
+  auto* host = context->hostFunctionRef();
+  ast::Call call{host ? host->ID()->getText() : context->ID()->getText(),
+                 {},
+                 host ? ast::CallKind::kHost : ast::CallKind::kNative};
   if (auto* arguments = context->arguments()) {
     for (auto* argument : arguments->constraintExpr()) {
       call.arguments.push_back(
