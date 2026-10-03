@@ -110,7 +110,7 @@ fn apply(graph: &mut EGraph<OpNode, ()>, rule: &Rewrite<OpNode, ()>, accepted: b
 fn typed_declarations_reject_same_shaped_tensors_of_other_dtypes() {
     for dtype in DType::ALL {
         let (mut graph, _) = graph();
-        let rule = rule_commute_f32::build_rewrite(
+        let rule = rule_commute_f32::build_rewrite_with(
             metadata([info(&[4], dtype), info(&[4], dtype)]),
             add_output,
             (),
@@ -124,7 +124,7 @@ fn typed_declarations_reject_same_shaped_tensors_of_other_dtypes() {
 fn shape_only_declarations_and_generated_host_trait_use_concrete_dtype() {
     for dtype in [DType::BF16, DType::F32, DType::I64] {
         let (mut graph, _) = graph();
-        let rule = rule_commute_same_dtype::build_rewrite(
+        let rule = rule_commute_same_dtype::build_rewrite_with(
             metadata([info(&[0], dtype), info(&[0], dtype)]),
             add_output,
             Host,
@@ -141,7 +141,7 @@ fn shape_only_declarations_and_generated_host_trait_use_concrete_dtype() {
         Some(false)
     );
     let (mut graph, _) = graph();
-    let rule = rule_commute_same_dtype::build_rewrite(
+    let rule = rule_commute_same_dtype::build_rewrite_with(
         metadata([info(&[4], DType::F32), info(&[4], DType::BF16)]),
         add_output,
         Host,
@@ -158,7 +158,7 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
         (vec![], DType::BF16, false),
     ] {
         let (mut graph, _) = graph();
-        let rule = rule_commute_scalar::build_rewrite(
+        let rule = rule_commute_scalar::build_rewrite_with(
             metadata([info(&[], DType::F32), info(&shape, dtype)]),
             add_output,
             (),
@@ -172,7 +172,7 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
         let value = graph.add(OpNode::literal("1.0", dtype).unwrap());
         graph.add(binary(tensor_lang::Op::Add, x, value).unwrap());
         graph.rebuild();
-        let rule = rule_commute_float_literal::build_rewrite(
+        let rule = rule_commute_float_literal::build_rewrite_with(
             metadata([info(&[], DType::F32), info(&[], dtype)]),
             add_output,
             (),
@@ -299,7 +299,7 @@ fn output_dtype_shape_and_missing_metadata_rejections_leave_no_partial_rhs() {
     }
     let (mut graph, _) = graph();
     let rule =
-        rule_commute_f32::build_rewrite(|_: &EGraph<OpNode, ()>, _: Id| None, add_output, ())
+        rule_commute_f32::build_rewrite_with(|_: &EGraph<OpNode, ()>, _: Id| None, add_output, ())
             .unwrap();
     apply(&mut graph, &rule, false);
 }

@@ -98,9 +98,9 @@ fn reference_rules_match_only_their_literal_and_construct_the_rhs() {
     for (value, dtype) in [("1", DType::I32), ("1.0", DType::F32)] {
         let metadata = move |graph: &EGraph<OpNode, ()>, id: Id| literal_metadata(graph, id, dtype);
         let rule = if dtype == DType::I32 {
-            rule_commute_integer_literal::build_rewrite(metadata, literal_output, ()).unwrap()
+            rule_commute_integer_literal::build_rewrite_with(metadata, literal_output, ()).unwrap()
         } else {
-            rule_commute_float_literal::build_rewrite(metadata, literal_output, ()).unwrap()
+            rule_commute_float_literal::build_rewrite_with(metadata, literal_output, ()).unwrap()
         };
         let mut egraph = EGraph::<OpNode, ()>::default();
         let x = egraph.add(symbol("X"));

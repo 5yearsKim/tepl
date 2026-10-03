@@ -1,28 +1,20 @@
 //! Infer one operation, without accessing an e-graph.
-use super::super::dialects::tensor_lang;
 use super::super::pattern::TensorInfo;
 use super::super::{Op, OpAttrs};
 use super::{Inference, infer_dtype, infer_shape};
 
 /// Used by TensorAnalysis: preserve Known, Unknown, and Invalid results.
 pub fn infer_tensor(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Inference<TensorInfo> {
-    // This reference dialect stores shape and dtype in constant payloads.
-    if let (
-        Op::TensorLang(tensor_lang::Op::Constant),
-        [],
-        OpAttrs::TensorLang(tensor_lang::OpAttrs::ConstantAttrs { value }),
-    ) = (op, operands, attrs)
-    {
-        return match value.element_type.parse() {
-            Ok(dtype) => Inference::Known(TensorInfo {
-                shape: value.shape.clone(),
-                dtype,
-            }),
-            Err(_) => Inference::Unknown,
-        };
+    if !op.arity().accepts(operands.len()) || !op.accepts_attrs(attrs) {
+        return Inference::Invalid(
+            "operand count or attributes do not match the operation signature",
+        );
+    }
+    if let Some(result) = super::payload::infer_payload(op, attrs) {
+        return result;
     }
 
-    // Every other operation uses the generated shape and dtype rules.
+    // Reusable combination of pure shape inference and the Rust dtype policy.
     let shapes: Vec<_> = operands.iter().map(|info| info.shape.as_slice()).collect();
     let dtypes: Vec<_> = operands.iter().map(|info| info.dtype).collect();
     match (

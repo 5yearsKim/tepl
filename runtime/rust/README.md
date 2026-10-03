@@ -41,9 +41,13 @@ Rust calls pass slices; a TEPL call `concat(a, b, c)` becomes
 `len` returns `usize`; `range` produces `u64` axes. Index helpers accept integer
 types with checked conversion to `usize`, rejecting negative indices.
 `sum`, `product`, `min`, `max`, `floor_div`, and `ceil_div` support primitive
-signed and unsigned integers through `ShapeInteger`. The evaluator selects the
-integer representation; a future generator must explicitly convert mixed
-signed/unsigned operands and check that final dimensions fit `u64`.
+signed and unsigned integers through `ShapeInteger`. The reference evaluators
+use `integers` to widen dimensions to `i128`, and `dimensions` validates yielded
+values before converting to `u64`. `index` checks list accesses, and
+`add`, `sub`, `mul`, `div`, and `rem` implement checked scalar `i128` arithmetic.
+These support primitives supplement the 19 language builtins; they are not
+additional TEPL-callable functions. A future emitter must retain this integer
+contract. Signed attribute values widen directly from `i64`.
 
 Fallible helpers return `ShapeResult<T>` (`Result<T, ShapeError>`). Operation
 evaluators compose them with `?`; their dispatcher converts errors to invalid
@@ -54,9 +58,11 @@ compiler does not yet generate evaluators from TEPL shape blocks.
 
 Generation emits files directly into the selected module directory of an
 existing crate. Internal imports use `super`, so the enclosing module can have
-any name and location. The lab's `src/ir/` uses this output, regenerated
-by `tools/regenerate_lab.sh`; its host semantics are maintained in `src/host/`.
-Changes to these templates reach the lab through regeneration.
+any name and location. The lab's `src/ir/` also contains handwritten reference
+analysis and simplified default builders which current generation does not yet
+reproduce. See its [ownership document](../../labs/rust-egg/src/ir/README.md)
+before regenerating in place. Keep copied runtime files synchronized with their
+maintained sources.
 
 Hosts supply `TensorMetadata`, `OutputInference`, and the generated per-rule
 `Functions` traits. Shapes and index values use `u64` consistently with core's

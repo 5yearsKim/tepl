@@ -1,10 +1,12 @@
 //! Ready-to-use tensor analysis: input bindings, inference, and e-class facts.
-//! This is a handwritten reference for future generation; shape_builtins is
-//! copied from the maintained Rust runtime. Pure evaluators remain independent
+//! Shape evaluators are reference output for TEPL; dtype policies are maintained
+//! in Rust. Shared support is a reference for copied runtime code, and
+//! shape_builtins is synchronized with its maintained source. Pure inference is independent
 //! of egg, while tensor_analysis.rs connects them to the graph.
 mod bindings;
 mod dtype;
 mod inference;
+mod payload;
 mod shape;
 mod tensor;
 mod tensor_analysis;

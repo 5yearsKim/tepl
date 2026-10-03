@@ -1,282 +1,166 @@
-# Generated tensor IR and rules with egg
+# Tensor IR reference and rules with egg
 
-`src/ir/` contains generated code from the TEPL project under `examples/`, plus
-the handwritten `analysis/` reference for shape/dtype inference and direct egg
-analysis. Import `TensorAnalysis`, `TensorBindingTable`, and `TensorInfo` from
-`rust_egg::ir::analysis`; applications supply input metadata and construct the
-graph. `src/host/` contains only application-specific node helpers and LoRA host
-functions. Change dialects and rules in their TEPL source, then regenerate.
+`src/ir/` is an executable reference for intended compiler output. It provides
+`TensorAnalysis`, input bindings, shape and dtype inference, and checked rules.
+`src/host/` contains application-specific node helpers and LoRA legality functions.
+See [IR file ownership and contracts](src/ir/README.md) for copied versus emitted
+code, supported policies, and the remaining compiler-generation gaps.
 
-The compiler emits the shared `analysis/shape_builtins.rs` runtime, but does not
-emit the operation shape or dtype evaluators yet. Regeneration
-replaces the sample's `pub mod analysis;` registration in `src/ir/mod.rs` with an
-inline module exposing only `shape_builtins`; restore the external module
-registration to use the sample. Until generator support is added, `--check`
-reports this intentional difference. The handwritten analysis sample files
-remain outside the generated-file manifest and are preserved.
+## Run and validate
 
 From the repository root:
 
 ```sh
-./tools/regenerate_lab.sh
-./tools/regenerate_lab.sh --check
-cargo test --manifest-path labs/rust-egg/Cargo.toml
+cargo test --manifest-path labs/rust-egg/Cargo.toml --all-targets
+cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
 ```
 
-The script builds the compiler, generates module contents with
-`--out labs/rust-egg/src/ir`, and leaves Cargo configuration and host code
-in place. `.tepl-generated-files` tracks generated paths so deleting or renaming
-sources also removes obsolete output. `--check` compares without writing and
-fails if output is stale. An existing compiler can be supplied through
-`TEPL_COMPILER=/path/to/tepl`.
-Rust output is formatted by default; the script requires rustfmt on `PATH`.
+The compiler currently generates builtins, dialects, node types, and callback-only
+rules. The lab additionally contains handwritten analysis and default rewrite
+builders. Generating in place replaces the analysis module registration and rule
+wrappers; `tools/regenerate_lab.sh --check` reports these intentional differences.
+To inspect current compiler output without changing the reference:
 
-`ir` is this lab's chosen module name. Generated code uses relative imports;
-other applications can choose `generated`, `any_name`, or a nested module path.
-The compiler emits no Cargo configuration or `src/` wrapper.
-
-The generated structure is:
-
-```text
-src/ir/
-  analysis/shape_builtins.rs                       # copied runtime helpers
-  analysis/mod.rs                                # public analysis API
-  analysis/{shape.rs, dtype.rs, tensor.rs}         # operation inference reference
-  analysis/{tensor_analysis.rs, tensor_analysis_data.rs, bindings.rs}      # direct egg analysis reference
-  analysis/inference.rs                          # inference result type
-  dialects/{mod.rs, tensor_lang.rs, scalar.rs}
-  op_node.rs
-  types.rs
-  pattern/{mod.rs, pattern.rs, matcher.rs, rewrite.rs, context.rs, shape.rs}
-  rules/{mod.rs, basic.rs, binders.rs, inherited.rs, lora.rs, simple.rs,
-         scalar.rs, lowering.rs}
+```sh
+bazel build //:tepl
+bazel-bin/tepl generate examples --target rust --out /tmp/tepl-generated-reference
 ```
 
-Each dialect owns short `Op` and `OpAttrs` enums. `op_node.rs` combines them
-into one node language for egg, keeping identically named operations distinct:
+The output is a module directory for an existing Rust edition 2024 crate with
+egg 0.11. It can use any enclosing module name, including a nested path. The
+compiler creates no Cargo configuration. `.tepl-generated-files` tracks the
+files owned by current generation, and rustfmt formats output by default.
 
-```rust
-use rust_egg::ir::{OpNode, dialects::{scalar, tensor_lang}};
-let node = OpNode::new(scalar::Op::Add, scalar::OpAttrs::None, vec![x, y])?;
-```
+## Using the provided analysis
 
-The typed constructor pairs operations with attributes from their own dialect.
-Arity and operation-specific schemas are checked at runtime. Rule files retain
-separate modules and qualified rewrite names. Imported abstract templates expand
-in core; their concrete instances belong to the instance file's module.
-
-Each rule exposes `pattern()`, `expression()`, a `Functions` trait, and
-`build_rewrite(metadata, inference, functions)`. For example:
-
-```rust
-use rust_egg::ir::rules::lora::rule_lora;
-let rewrite = rule_lora::build_rewrite(metadata, inference, functions)?;
-```
-
-Hosts supply `TensorMetadata`, `OutputInference`, and implementations of the
-rule's referenced host functions. Pass `()` for functions when a rule has no
-host calls. Generated attribute fields and host trait methods preserve their
-TEPL names, escaping Rust keywords with `r#`, such as `r#type`. Names that Rust
-cannot escape are diagnosed during generation. Shapes and index attributes use
-`u64`; Rust collection positions use
-`usize`. `TensorInfo` has a concrete shape and dtype, and unavailable or
-incompatible e-class metadata returns `None`.
-
-The runtime matches structure and attribute witnesses, checks declared types,
-runs `where` checks, and derives descriptors in source order from LHS values.
-It validates and infers every RHS output, requiring final shape and dtype to
-match the root before inserting any nodes. Missing metadata, failed host calls,
-invalid descriptors, and incompatible outputs reject the rewrite. Host legality
-functions remain responsible for numerical equivalence.
-
-Bare graph literals use the shared `Literal` operation. An omitted dtype
-matches any dtype; RHS inference resolves the concrete dtype before insertion.
-Literal spelling is exact, including decimal formatting and signed zero.
-Explicit dtype annotations are preserved. See
-[the runtime contract](../../runtime/rust/README.md) and
-[the generator architecture](../../src/codegen/README.md) for details.
-
-Dialect operations and attributes follow `examples/dialects/`, including
-`exponential` (`exp` alias), `broadcast_in_dim`, two-operand `reduce`, and full
-dot, convolution, collective, and constant descriptors. The compiler parses
-shape blocks into a structured AST and checks them in core; evaluator generation
-remains deferred. The sample in `ir/analysis/shape.rs`
-manually demonstrates evaluators for add, multiply, negate, reshape, transpose,
-scalar operations, and general dot contraction. Other operations return Unknown
-and may be resolved by the host. Variadic shape assertions such as nonempty
-concatenation remain deferred.
-
-`OpNode::input(name)` creates a runtime input leaf outside TensorLang. The lab's
-`symbol` helper wraps it. Constants take `types::Elements` (element type, shape,
-and canonical payload bytes), and reductions take a `types::Region` plus explicit
-input and initialization operands. Regions and mesh group specifications are
-opaque canonical host encodings; hosts validate their contents. Precision values,
-optional dot algorithms, signed padding, and collective metadata are preserved
-in node identity and matching. No obsolete TensorLang operation aliases remain.
-
-The tests exercise the generated modules directly: structural matching,
-attribute witnesses, binders, literals, dtype and shape restrictions, abstract
-instances, cross-dialect lowering, checked replacement, and LoRA saturation.
-Structural-only fixtures provide explicit metadata and inference; semantic
-fixtures use the same `ir::analysis` implementation as the example.
-
-## Direct tensor analysis
-
-The ownership boundary is explicit:
-
-- `ir/analysis/shape.rs`: operation shape evaluators with no host or egg dependency.
-- `ir/analysis/dtype.rs`: operation dtype evaluators with no host or egg dependency.
-- `ir/analysis/shape_builtins.rs`: internal checked primitives maintained in
-  `runtime/rust/src/analysis/shape_builtins.rs` and copied by generation.
-- `ir/analysis/inference.rs`: the small `Inference<T>` result type.
-- `ir/analysis/mod.rs`: the public API for inference and ready-to-use analysis.
-- `ir/analysis/bindings.rs`: the input name-to-metadata table; reads runtime input
-  nodes directly without depending on host helpers.
-- `ir/analysis/tensor_analysis_data.rs`: conservative `TensorAnalysisData` and their e-class merge policy.
-- `ir/analysis/tensor.rs`: `infer_tensor` combines shape and dtype results and
-  reads typed constant payloads. `infer_tensor_output` returns the same result as
-  an `Option` for rewrite builders.
-- `ir/analysis/tensor_analysis.rs`: the concrete `TensorAnalysis` implementation of
-  `egg::Analysis<OpNode>` and the ready-made `tensor_info` metadata callback.
-- `host/lora.rs`: application-specific LoRA conditions and specialized dot helpers.
-- `host/nodes.rs`: convenience constructors and accessors used by the examples.
-
-All files under `ir/analysis` depend only on other IR modules and egg, never on
-`host/`. Applications do not implement analysis, fact merging, or metadata
-adapters. The existing rewrite builder still takes the provided `tensor_info`
-and `infer_tensor_output` functions; this relocation does not change its API.
-
-The pure API takes an operation, operand shapes or dtypes, and attributes:
-
-```rust
-use rust_egg::ir::analysis::{infer_shape, infer_dtype, Inference};
-
-// infer_shape(op, &[&[u64]], attrs) -> Inference<Vec<u64>>
-// infer_dtype(op, &[DType], attrs)  -> Inference<DType>
-```
-
-Neither function accesses an e-graph or host configuration. `TensorAnalysis`
-reads operand metadata and calls `infer_tensor`, which combines both results into
-`TensorInfo`. The analysis stores this information in `TensorAnalysisData`.
-
-The handwritten dtype reference makes the sample contract explicit: add,
-multiply, negate, and default-precision dot preserve matching non-bool operand
-types; reshape and transpose preserve any operand type; literals use their
-explicit dtype. Dot with non-default precision or an algorithm override returns
-`Unknown`, as do operations without a dtype evaluator. Malformed calls to known
-evaluators return `Invalid`. These dtype rules are not yet encoded in TEPL or
-emitted by the compiler; defining and generating them remains future work.
-
-Shape evaluators return `ShapeResult<Vec<u64>>` and use `?` to propagate helper
-errors. `infer_shape` dispatches operations and converts these results to
-`Known` or `Invalid`, reserving `Unknown` for missing definitions. All 19 builtins
-listed in `examples/shape_guide.md` are available, plus `ensure`, including list
-operations, Boolean and integer reductions, broadcasting, and signed rounded
-division. Gathering allows repeated indices; operations such as transpose
-separately assert axis uniqueness. The helpers check overflow and indexing in
-both debug and release builds. See [the runtime builtin contract](../../runtime/rust/README.md)
-for calling conventions and integer types. Compiling TEPL shape blocks into
-evaluators remains future work.
-
-`TensorAnalysis` holds the input bindings directly. There is
-one analysis object per graph, while every e-class stores `TensorAnalysisData` directly:
-
-```rust
-pub struct TensorAnalysis {
-    pub symbols: TensorBindingTable,
-}
-
-impl egg::Analysis<OpNode> for TensorAnalysis {
-    type Data = TensorAnalysisData;
-    // make reads child facts and calls shared tensor inference.
-    // merge combines facts and tells egg whether they changed.
-}
-```
-
-Register input metadata before constructing the graph:
+Register input types before building the graph:
 
 ```rust
 use egg::EGraph;
 use rust_egg::ir::analysis::{TensorAnalysis, TensorBindingTable, TensorInfo};
 use rust_egg::ir::{DType, OpNode};
-
-let mut symbols = TensorBindingTable::default();
-symbols.register_symbol("X", TensorInfo {
-    shape: vec![4],
-    dtype: DType::F32,
-}).unwrap();
-let mut graph = EGraph::new(TensorAnalysis::new(symbols));
-let x = graph.add(OpNode::input("X"));
-assert_eq!(graph[graph.find(x)].data.info().unwrap().shape, vec![4]);
-```
-
-`make` gets input facts from the host or computes an operation's output from its
-children. Invalid operands take precedence over unknown operands. `merge`
-delegates to `TensorAnalysisData::merge`, allowing egg to propagate changes to parents
-during rebuilding. `ir/analysis` owns the facts, inference, and egg integration;
-the application supplies input metadata and selects its rewrites.
-
-Generated rewrites read metadata through the ordinary `tensor_info` callback.
-The ordinary `infer_tensor_output` function checks a proposed RHS before
-insertion, using the same inference as the analysis:
-
-```rust
-use rust_egg::ir::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+use rust_egg::ir::dialects::tensor_lang;
 use rust_egg::ir::rules::simple::rule_commute_add;
 
-let rewrite = rule_commute_add::build_rewrite(
-    tensor_info,
-    infer_tensor_output,
-    (),
-).unwrap();
+let mut inputs = TensorBindingTable::default();
+for name in ["X", "Y"] {
+    inputs.register_symbol(name, TensorInfo {
+        shape: vec![32, 64],
+        dtype: DType::F32,
+    }).unwrap();
+}
+let mut graph = EGraph::new(TensorAnalysis::new(inputs));
+let x = graph.add(OpNode::input("X"));
+let y = graph.add(OpNode::input("Y"));
+let sum = graph.add(OpNode::new(
+    tensor_lang::Op::Add, tensor_lang::OpAttrs::None, vec![x, y],
+).unwrap());
+assert_eq!(graph[graph.find(sum)].data.info().unwrap().shape, vec![32, 64]);
+
+let rewrite = rule_commute_add::build_rewrite(()).unwrap();
 let runner = egg::Runner::<_, TensorAnalysis>::new(TensorAnalysis::default())
     .with_egraph(graph)
     .run(&[rewrite]);
 ```
 
-There is no semantics trait, configurable fallback, or inference adapter object.
-To read the main flow, start with `ir/analysis/tensor_analysis.rs`, then `tensor.rs`, then
-`tensor_analysis_data.rs`: read input/child metadata, infer one operation, and store or merge
-its facts. Constants are handled explicitly in `tensor.rs`; unsupported operation
-inference remains `Unknown`. Generated invalid results remain `Invalid`.
-Both Unknown and Invalid reject RHS validation. The sample fact store records
-invalid evidence but does not retain diagnostic messages per e-class.
+One `TensorAnalysis` holds the input table for each graph. Its `make` reads input
+or operand metadata and calls shared tensor inference; its `merge` combines
+`TensorAnalysisData` and reports changes to egg. The application supplies input
+metadata, constructs nodes, and selects rewrites. It writes no metadata adapter
+or analysis implementation.
 
-Tensor facts expose metadata only when all alternatives are known and agree on
-shape and dtype. Unknown alternatives block metadata without erasing known
-evidence, so later conflicts are detected regardless of merge order. Facts only
-accumulate: registering missing input types later requires a fresh graph. This
-sample does not recompute or retract unknown facts.
+Facts expose shape and dtype only when every alternative is known and agrees.
+Unknown alternatives preserve known evidence but block metadata access; later
+conflicts are still detected. Invalid operands take precedence over unknown
+ones. Facts accumulate rather than retract, so supplying missing input types
+later requires a fresh graph. Invalid facts do not retain error messages.
 
-`tests/analysis.rs` exercises the direct analysis with a generated rewrite,
-propagation of missing and conflicting operand metadata, conservative merge
-laws, unknown/invalid inference, pure dtype rules, checked shape evaluation,
-and agreement between analysis and RHS inference.
+## Operation inference
 
-## Run the LoRA saturation example
+All 24 TEPL shape definitions in the example dialects have reference evaluators,
+including variadic concatenate, reduce, general dot, convolution, and all-to-all.
+Rust statements follow their TEPL blocks and use `shape_builtins`. Shapes stay
+`Vec<u64>` at the interface; computations widen to checked `i128` and validate
+final dimensions against `u64`. Missing blocks return `Unknown`; failed
+assertions, bad signatures, invalid indices, and arithmetic errors return
+`Invalid` in both debug and release builds.
 
-```sh
-cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
-cargo test --manifest-path labs/rust-egg/Cargo.toml --test lora_saturation
+```rust
+use rust_egg::ir::analysis::{Inference, infer_shape, infer_dtype, infer_tensor};
+
+// infer_shape(op, &[&[u64]], attrs) -> Inference<Vec<u64>>
+// infer_dtype(op, &[DType], attrs)  -> Inference<DType>
+// infer_tensor(op, &[TensorInfo], attrs) -> Inference<TensorInfo>
 ```
 
-The example starts from `X @ (W + A @ B)` with shapes `X=[2,4,64]`,
-`W=[2,64,32]`, `A=[2,64,4]`, and `B=[2,4,32]`. It runs LoRA and add
-commutativity until saturation, then extracts the expression with the lowest
-estimated arithmetic cost. The expected form is `X @ W + (X @ A) @ B`.
-With these shapes, the estimate falls from 69,632 to 39,168 operations.
-The example evaluates both expressions with deterministic integer tensors and
-checks equal results. Floating-point reassociation requires its own numerical
-policy.
+Dtype policies are defined in Rust, outside TEPL. Supported arithmetic requires
+matching non-bool operands; transcendental operations require floating-point
+operands. Data movement and reference reductions/collectives preserve compatible
+dtypes. Precision or algorithm overrides with unspecified output semantics
+return `Unknown`. Constants and literals read explicit dtypes.
 
-The command prints e-classes and per-iteration rule applications and writes
-`target/lora/before.dot` and `target/lora/after.dot` relative to this crate.
-With Graphviz installed:
+`payload.rs` contains the explicit constant metadata policy. Constants have no
+TEPL shape block, so pure shape inference returns `Unknown`, but combined tensor
+inference reads their typed payload. All-gather and reduce-scatter have no shape
+block and remain unknown without process-grid metadata. Opaque regions, mesh
+groups, and constant byte encodings remain application responsibilities.
+
+## Checked rewrites
+
+Each rule exposes `pattern()`, `expression()`, a `Functions` trait, and the
+default builder:
+
+```rust
+use rust_egg::host::DemoLoraFunctions;
+use rust_egg::ir::rules::lora::rule_lora;
+
+let rewrite = rule_lora::build_rewrite(DemoLoraFunctions {
+    allow_reassociation: true,
+}).unwrap();
+```
+
+The default builder reads metadata from `TensorAnalysis` and validates RHS
+operations with the same inference. Users pass only implementations of the
+rule's explicit custom functions, or `()` when there are none.
+`build_rewrite_with(metadata, inference, functions)` provides explicit hooks
+for custom analyses and tests that inject missing or incompatible metadata.
+
+The matching runtime finds structural and attribute witnesses, checks tensor
+restrictions and `where` conditions, and derives descriptors in source order.
+It infers every RHS operation and requires final shape/dtype equality with the
+matched root before inserting nodes. Missing facts, failed host functions, bad
+descriptors, and incompatible outputs reject application without partial RHS
+insertion. Early shape pruning during structural search remains future work.
+Host legality functions remain responsible for numerical equivalence.
+
+Each dialect owns short `Op`/`OpAttrs` enums; `op_node.rs` combines them into one
+egg language. Typed constructors pair operations with the proper attributes,
+while dynamic constructors validate arity and schemas. Rule modules retain
+source ownership, and inherited templates expand to concrete rules in core.
+
+Bare literals use the shared `Literal` operation. Unannotated LHS literals match
+any dtype; RHS inference resolves dtype before insertion. Spelling and explicit
+dtype annotations are preserved. Input nodes use `OpNode::input(name)`. See
+[the runtime contract](../../runtime/rust/README.md) for literal and matching
+behavior. The compiler's current API is documented separately in
+[the generator architecture](../../src/codegen/README.md).
+
+## LoRA saturation example
+
+The example begins with `X @ (W + A @ B)` and input shapes `X=[2,4,64]`,
+`W=[2,64,32]`, `A=[2,64,4]`, and `B=[2,4,32]`. LoRA and add commutativity reach
+saturation, then extraction selects `X @ W + (X @ A) @ B`. Estimated arithmetic
+cost falls from 69,632 to 39,168 operations. Deterministic integer evaluation
+checks equal values; floating-point reassociation needs its own host policy.
+
+The example prints e-classes and rule applications, and writes
+`target/lora/before.dot` and `target/lora/after.dot` inside this crate. Graphviz
+can render them:
 
 ```sh
 dot -Tsvg labs/rust-egg/target/lora/after.dot -o labs/rust-egg/target/lora/after.svg
 ```
 
-The saturation tests also cover reversed addition, invalid shapes or contraction
-axes, and rejected reassociation. Arithmetic cost here is an experiment rather
-than a runtime benchmark; caching merged weights changes the relative cost.
+Tests cover reversed addition, rejected reassociation, incompatible shapes,
+unsupported axes, shape/dtype inference, fact merge laws, inherited rules,
+binders, attribute witnesses, literal handling, and atomic RHS rejection.

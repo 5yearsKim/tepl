@@ -60,7 +60,7 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
     assert_eq!(matched[0].tensors["?c2".parse::<Var>().unwrap()], dot);
     assert_eq!(matched[0].attrs[&"d0".into()], dot_attrs());
 
-    let rejected = rule_shared_expression::build_rewrite(
+    let rejected = rule_shared_expression::build_rewrite_with(
         metadata_for(),
         binder_inference,
         TestFunctions { allow: false },
@@ -69,7 +69,7 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
     let found = rejected.search(&egraph);
     assert!(rejected.apply(&mut egraph, &found).is_empty());
 
-    let rule = rule_shared_expression::build_rewrite(
+    let rule = rule_shared_expression::build_rewrite_with(
         metadata_for(),
         binder_inference,
         TestFunctions { allow: true },
@@ -113,9 +113,12 @@ fn root_binder_is_visible_to_search_and_rhs() {
         })
     );
 
-    let rule =
-        rule_root_binding::build_rewrite(support::fixture_metadata, support::fixture_inference, ())
-            .unwrap();
+    let rule = rule_root_binding::build_rewrite_with(
+        support::fixture_metadata,
+        support::fixture_inference,
+        (),
+    )
+    .unwrap();
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     assert_eq!(found[0].substs[0][y], root);

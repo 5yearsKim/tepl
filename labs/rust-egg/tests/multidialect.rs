@@ -51,9 +51,9 @@ fn cross_dialect_lowering_and_scalar_rule_share_one_graph() {
     let y = graph.add(OpNode::literal("2", DType::I32).unwrap());
     let root = graph.add(OpNode::new(t::Op::Add, t::OpAttrs::None, vec![x, y]).unwrap());
     graph.rebuild();
-    let scalar_rule = rule_commute_add::build_rewrite(metadata, Inference(true), ()).unwrap();
+    let scalar_rule = rule_commute_add::build_rewrite_with(metadata, Inference(true), ()).unwrap();
     assert!(scalar_rule.search(&graph).is_empty());
-    let lowering = rule_scalar_add::build_rewrite(metadata, Inference(true), ()).unwrap();
+    let lowering = rule_scalar_add::build_rewrite_with(metadata, Inference(true), ()).unwrap();
     let matches = lowering.search(&graph);
     assert!(!lowering.apply(&mut graph, &matches).is_empty());
     graph.rebuild();
@@ -74,7 +74,7 @@ fn rejected_cross_dialect_inference_is_atomic() {
     graph.add(OpNode::new(t::Op::Add, t::OpAttrs::None, vec![x, x]).unwrap());
     graph.rebuild();
     let before = graph.total_size();
-    let rule = rule_scalar_add::build_rewrite(metadata, Inference(false), ()).unwrap();
+    let rule = rule_scalar_add::build_rewrite_with(metadata, Inference(false), ()).unwrap();
     let matches = rule.search(&graph);
     assert!(rule.apply(&mut graph, &matches).is_empty());
     assert_eq!(graph.total_size(), before);

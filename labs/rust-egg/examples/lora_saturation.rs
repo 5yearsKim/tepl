@@ -11,7 +11,7 @@ use std::time::Duration;
 use egg::{Extractor, Runner};
 
 use rust_egg::ir::OpNode;
-use rust_egg::ir::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+use rust_egg::ir::analysis::TensorAnalysis;
 use rust_egg::ir::rules::{lora::rule_lora, simple::rule_commute_add};
 
 use support::{
@@ -30,15 +30,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Before saturation:\n{}", text_dump(&egraph));
 
     let rules = [
-        rule_lora::build_rewrite(
-            tensor_info,
-            infer_tensor_output,
-            DemoLoraFunctions {
-                allow_reassociation: true,
-            },
-        )
+        rule_lora::build_rewrite(DemoLoraFunctions {
+            allow_reassociation: true,
+        })
         .unwrap(),
-        rule_commute_add::build_rewrite(tensor_info, infer_tensor_output, ()).unwrap(),
+        rule_commute_add::build_rewrite(()).unwrap(),
     ];
     let runner = Runner::<OpNode, TensorAnalysis>::new(TensorAnalysis::default())
         .with_egraph(egraph)

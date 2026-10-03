@@ -18,6 +18,8 @@ pub enum ShapeError {
     NonPositiveDivisor,
     IncompatibleBroadcast,
     CapacityExceeded,
+    DivisionByZero,
+    InvalidDimension,
 }
 
 impl ShapeError {
@@ -30,6 +32,8 @@ impl ShapeError {
             Self::NonPositiveDivisor => "shape division requires a positive divisor",
             Self::IncompatibleBroadcast => "incompatible broadcast dimensions",
             Self::CapacityExceeded => "shape list capacity exceeded",
+            Self::DivisionByZero => "shape division by zero",
+            Self::InvalidDimension => "output dimension must be nonnegative and fit u64",
         }
     }
 }
@@ -51,6 +55,54 @@ pub fn ensure(condition: bool, message: &'static str) -> ShapeResult<()> {
     } else {
         Err(ShapeError::Assertion(message))
     }
+}
+
+/// Widen external dimensions/indices to the shape language's integer domain.
+pub fn integers(values: &[u64]) -> Vec<i128> {
+    values.iter().copied().map(i128::from).collect()
+}
+
+/// Validate a yielded shape before publishing it as tensor metadata.
+pub fn dimensions(values: &[i128]) -> ShapeResult<Vec<u64>> {
+    values
+        .iter()
+        .map(|&value| u64::try_from(value).map_err(|_| ShapeError::InvalidDimension))
+        .collect()
+}
+
+/// Fallible indexing preserves TEPL errors rather than panicking.
+pub fn index<T>(values: &[T], position: impl TryInto<usize>) -> ShapeResult<&T> {
+    let position = position
+        .try_into()
+        .map_err(|_| ShapeError::IndexOutOfBounds)?;
+    values.get(position).ok_or(ShapeError::IndexOutOfBounds)
+}
+
+pub fn add(lhs: i128, rhs: i128) -> ShapeResult<i128> {
+    lhs.checked_add(rhs).ok_or(ShapeError::Overflow)
+}
+
+pub fn sub(lhs: i128, rhs: i128) -> ShapeResult<i128> {
+    lhs.checked_sub(rhs).ok_or(ShapeError::Overflow)
+}
+
+pub fn mul(lhs: i128, rhs: i128) -> ShapeResult<i128> {
+    lhs.checked_mul(rhs).ok_or(ShapeError::Overflow)
+}
+
+/// TEPL's / truncates toward zero; rounded division uses floor_div/ceil_div.
+pub fn div(lhs: i128, rhs: i128) -> ShapeResult<i128> {
+    if rhs == 0 {
+        return Err(ShapeError::DivisionByZero);
+    }
+    lhs.checked_div(rhs).ok_or(ShapeError::Overflow)
+}
+
+pub fn rem(lhs: i128, rhs: i128) -> ShapeResult<i128> {
+    if rhs == 0 {
+        return Err(ShapeError::DivisionByZero);
+    }
+    lhs.checked_rem(rhs).ok_or(ShapeError::Overflow)
 }
 
 /// Integer operations used by the checked arithmetic builtins.
@@ -273,6 +325,38 @@ pub fn ceil_div<T: ShapeInteger>(lhs: T, rhs: T) -> ShapeResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dimension_boundaries_and_indices_are_checked() {
+        assert_eq!(integers(&[0, u64::MAX]), vec![0, i128::from(u64::MAX)]);
+        assert_eq!(
+            dimensions(&[0, i128::from(u64::MAX)]),
+            Ok(vec![0, u64::MAX])
+        );
+        assert_eq!(dimensions(&[-1]), Err(ShapeError::InvalidDimension));
+        assert_eq!(
+            dimensions(&[i128::from(u64::MAX) + 1]),
+            Err(ShapeError::InvalidDimension)
+        );
+        assert_eq!(index(&[7], 0_i128), Ok(&7));
+        assert_eq!(index(&[7], -1_i128), Err(ShapeError::IndexOutOfBounds));
+        assert_eq!(index(&[7], i128::MAX), Err(ShapeError::IndexOutOfBounds));
+        assert_eq!(index(&[7], 1_i128), Err(ShapeError::IndexOutOfBounds));
+    }
+
+    #[test]
+    fn scalar_shape_arithmetic_checks_overflow_and_zero_divisors() {
+        assert_eq!(add(i128::from(u64::MAX), -2), Ok(i128::from(u64::MAX) - 2));
+        assert_eq!(add(i128::MAX, 1), Err(ShapeError::Overflow));
+        assert_eq!(sub(i128::MIN, 1), Err(ShapeError::Overflow));
+        assert_eq!(mul(i128::MAX, 2), Err(ShapeError::Overflow));
+        assert_eq!(div(-7, 3), Ok(-2));
+        assert_eq!(rem(-7, 3), Ok(-1));
+        assert_eq!(div(1, 0), Err(ShapeError::DivisionByZero));
+        assert_eq!(rem(1, 0), Err(ShapeError::DivisionByZero));
+        assert_eq!(div(i128::MIN, -1), Err(ShapeError::Overflow));
+        assert_eq!(rem(i128::MIN, -1), Err(ShapeError::Overflow));
+    }
 
     #[test]
     fn products_preserve_scalar_and_zero_sized_shapes() {

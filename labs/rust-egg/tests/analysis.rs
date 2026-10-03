@@ -92,7 +92,7 @@ fn direct_tensor_analysis_works_with_generated_rewrites() {
     let root = graph.add(binary(t::Op::Add, x, y).unwrap());
     graph.rebuild();
 
-    let rewrite = rule_commute_add::build_rewrite(tensor_info, infer_tensor_output, ()).unwrap();
+    let rewrite = rule_commute_add::build_rewrite(()).unwrap();
     let runner = Runner::<OpNode, TensorAnalysis>::new(TensorAnalysis::default())
         .with_egraph(graph)
         .with_iter_limit(4)
@@ -142,7 +142,19 @@ fn unsupported_inference_is_unknown_and_invalid_operands_propagate() {
     let mut graph = EGraph::new(TensorAnalysis::new(host));
     let x = graph.add(symbol("X"));
     let wide = graph.add(symbol("wide"));
-    let unsupported = graph.add(unary(t::Op::Exponential, x).unwrap());
+    let unsupported = graph.add(
+        OpNode::new(
+            t::Op::AllGather,
+            t::OpAttrs::AllGatherAttrs {
+                all_gather_dim: 0,
+                replica_groups: rust_egg::ir::types::ReplicaGroups::Explicit(vec![]),
+                channel_id: 0,
+                use_global_device_ids: false,
+            },
+            vec![x],
+        )
+        .unwrap(),
+    );
     let bad_add = graph.add(binary(t::Op::Add, x, wide).unwrap());
     let parent = graph.add(unary(t::Op::Negate, bad_add).unwrap());
     let unknown_first = graph.add(binary(t::Op::Add, unsupported, bad_add).unwrap());
@@ -188,7 +200,11 @@ fn tensor_inference_preserves_unknown_and_invalid_results() {
             &[info(&[4])],
             &OpAttrs::None,
         ),
-        Inference::Unknown,
+        Inference::Known(info(&[4])),
+    );
+    assert_eq!(
+        infer_tensor(Op::Input, &[], symbol("X").attrs()),
+        Inference::Unknown
     );
     assert!(matches!(
         infer_tensor(
@@ -284,7 +300,7 @@ fn dtype_rules_preserve_types_and_reject_invalid_arithmetic() {
             &[DType::F32],
             &OpAttrs::None
         ),
-        Inference::Unknown
+        Inference::Known(DType::F32)
     );
     assert_eq!(
         infer_dtype(Op::Input, &[], symbol("X").attrs()),

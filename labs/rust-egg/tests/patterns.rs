@@ -133,9 +133,12 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
     }
     egraph.rebuild();
 
-    let rule =
-        rule_commute_add::build_rewrite(support::fixture_metadata, support::fixture_inference, ())
-            .unwrap();
+    let rule = rule_commute_add::build_rewrite_with(
+        support::fixture_metadata,
+        support::fixture_inference,
+        (),
+    )
+    .unwrap();
     let limited = rule.search_with_limit(&egraph, 1);
     assert_eq!(limited.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     let found = rule.search(&egraph);
