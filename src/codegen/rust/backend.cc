@@ -14,24 +14,12 @@ namespace tepl::codegen::rust {
 GenerationResult Backend::generate(const core::Program& program,
                                    const Options& options) const {
   GenerationResult result;
-  const auto& package = options.package_name;
-  if (package.empty() ||
-      !((package[0] >= 'a' && package[0] <= 'z') ||
-        (package[0] >= 'A' && package[0] <= 'Z')) ||
-      package.find_first_not_of(
-          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") !=
-          std::string::npos) {
-    result.diagnostics.push_back(
-        {{},
-         "package name must start with an ASCII letter and contain only "
-         "letters, digits, '_' or '-'"});
-    return result;
-  }
   try {
-    Names names(program);
+    const auto project = planProject(program, options.rules_root);
+    Names names(program, project);
     for (auto file : runtimeFiles()) {
-      file.path.insert(4, "ir/");
-      if (file.path == "src/ir/op_node.rs") {
+      file.path.erase(0, std::string("src/").size());
+      if (file.path == "op_node.rs") {
         const std::string marker = "// @tepl:op-types";
         const auto position = file.contents.find(marker);
         if (position == std::string::npos)
@@ -42,47 +30,31 @@ GenerationResult Backend::generate(const core::Program& program,
       result.files.push_back(std::move(file));
     }
     result.files.push_back(
-        {"Cargo.toml", "[package]\nname = " + quote(package) +
-                           "\nversion = \"0.1.0\"\nedition = "
-                           "\"2024\"\n\n[dependencies]\negg = \"0.11.0\"\n"});
-    result.files.push_back({"src/lib.rs",
-                            "//! Generated TEPL dialects and checked egg "
-                            "rewrites.\npub mod ir;\n"});
-    result.files.push_back(
-        {"src/ir/mod.rs",
+        {"mod.rs",
          "pub mod dialects;\npub mod op_node;\npub mod types;\npub mod "
          "pattern;\npub mod rules;\npub use op_node::{Op, OpAttrs, OpNode, "
          "NodeError, Arity, DialectOp};\npub use types::DType;\n"});
     std::string dialect_index;
     for (const auto& dialect : names.dialects) {
       dialect_index += "pub mod " + dialect.module + ";\n";
-      result.files.push_back({"src/ir/dialects/" + dialect.module + ".rs",
+      result.files.push_back({"dialects/" + dialect.module + ".rs",
                               emitDialect(program, names, dialect)});
     }
-    result.files.push_back({"src/ir/dialects/mod.rs", dialect_index});
+    result.files.push_back({"dialects/mod.rs", dialect_index});
     std::map<std::string, std::vector<const core::Rule*>> groups;
     std::map<std::string, std::string> owners;
-    for (const auto& rule : program.rules) {
-      std::filesystem::path source(rule.source_name);
-      auto path = options.rules_root.empty()
-                      ? source.filename()
-                      : std::filesystem::absolute(source)
-                            .lexically_normal()
-                            .lexically_relative(
-                                std::filesystem::absolute(options.rules_root)
-                                    .lexically_normal());
-      if (rule.source_name == "<input>") path = "input.tepl";
-      path.replace_extension();
+    for (const auto& source : project.modules) {
       std::string module;
-      for (const auto& part : path) {
+      for (const auto& part : source.path) {
         if (!module.empty()) module += '/';
-        module += moduleName(part.string());
+        module += moduleName(part);
       }
-      auto [entry, inserted] = owners.emplace(module, rule.source_name);
-      if (!inserted && entry->second != rule.source_name)
+      auto [entry, inserted] = owners.emplace(module, source.source);
+      if (!inserted && entry->second != source.source)
         throw std::invalid_argument("rule module name collision for '" +
                                     module + "'");
-      groups[module].push_back(&rule);
+      for (auto id : source.rules)
+        groups[module].push_back(&program.rules.at(id.value));
     }
     std::map<std::string, std::set<std::string>> indexes;
     indexes[""];
@@ -102,16 +74,24 @@ GenerationResult Backend::generate(const core::Program& program,
             "rule file/directory module collision for '" + directory + "'");
       std::string contents;
       for (const auto& child : children) contents += "pub mod " + child + ";\n";
-      result.files.push_back({"src/ir/rules/" +
-                                  (directory.empty() ? "" : directory + "/") +
-                                  "mod.rs",
-                              contents});
+      result.files.push_back(
+          {"rules/" + (directory.empty() ? "" : directory + "/") + "mod.rs",
+           contents});
     }
     for (const auto& [module, rules] : groups) {
       std::string qualified;
-      for (char c : module) qualified += c == '/' ? "::" : std::string(1, c);
-      result.files.push_back({"src/ir/rules/" + module + ".rs",
-                              emitRules(program, names, rules, qualified)});
+      std::string root_path = "super::super";
+      for (char c : module) {
+        if (c == '/') {
+          qualified += "::";
+          root_path += "::super";
+        } else {
+          qualified += c;
+        }
+      }
+      result.files.push_back(
+          {"rules/" + module + ".rs",
+           emitRules(program, names, rules, qualified, root_path)});
     }
   } catch (const std::invalid_argument& error) {
     result.files.clear();

@@ -1,0 +1,21 @@
+# TEPL generated files v1
+dialects/mod.rs
+dialects/scalar.rs
+dialects/tensor_lang.rs
+mod.rs
+op_node.rs
+pattern/context.rs
+pattern/matcher.rs
+pattern/mod.rs
+pattern/pattern.rs
+pattern/rewrite.rs
+pattern/shape.rs
+rules/basic.rs
+rules/binders.rs
+rules/inherited.rs
+rules/lora.rs
+rules/lowering.rs
+rules/mod.rs
+rules/scalar.rs
+rules/simple.rs
+types.rs

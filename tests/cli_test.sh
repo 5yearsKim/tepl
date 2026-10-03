@@ -241,14 +241,32 @@ check_exit 1 generate "$example" --target python --out "${TEST_TMPDIR}/unimpleme
 grep -Fq 'python code generation is not implemented' "$output"
 check_exit 1 generate "$invalid" --out "${TEST_TMPDIR}/invalid_program"
 test ! -e "${TEST_TMPDIR}/invalid_program"
-check_exit 1 generate "$example" --out "${TEST_TMPDIR}/bad_package" --package-name 'bad/name'
-test ! -e "${TEST_TMPDIR}/bad_package"
-check_exit 0 generate "$example" --target rust --out "${TEST_TMPDIR}/generated" --package-name example_rules
-test -f "${TEST_TMPDIR}/generated/Cargo.toml"
-test -f "${TEST_TMPDIR}/generated/src/ir/dialects/tensor_lang.rs"
-test -f "${TEST_TMPDIR}/generated/src/ir/rules/simple.rs"
-grep -Fq 'name = "example_rules"' "${TEST_TMPDIR}/generated/Cargo.toml"
-grep -Fq 'pub mod rule_commute_add' "${TEST_TMPDIR}/generated/src/ir/rules/simple.rs"
+# Removed crate-generation options are usage errors.
+check_exit 2 generate "$example" --out "${TEST_TMPDIR}/bad_package" --package-name example_rules
+check_exit 2 generate "$example" --out "${TEST_TMPDIR}/old_layout" --layout standalone
+check_exit 0 generate "$example" --target rust --out "${TEST_TMPDIR}/generated"
+test -f "${TEST_TMPDIR}/generated/mod.rs"
+test -f "${TEST_TMPDIR}/generated/dialects/tensor_lang.rs"
+test -f "${TEST_TMPDIR}/generated/rules/simple.rs"
+test ! -e "${TEST_TMPDIR}/generated/Cargo.toml"
+test ! -e "${TEST_TMPDIR}/generated/src"
+grep -Fq 'pub mod rule_commute_add' "${TEST_TMPDIR}/generated/rules/simple.rs"
+# Formatting defaults to on, can be disabled, and uses the same policy in check mode.
+raw_out="${TEST_TMPDIR}/raw_output"
+check_exit 0 generate "$example" --no-format --out "$raw_out"
+if cmp -s "${TEST_TMPDIR}/generated/mod.rs" "$raw_out/mod.rs"; then
+  echo 'Default output unexpectedly matches unformatted output' >&2
+  exit 1
+fi
+check_exit 0 generate "$example" --no-format --out "$raw_out" --check
+check_exit 1 generate "$example" --out "$raw_out" --check
+check_exit 0 generate "$example" --format --out "$raw_out"
+cmp "${TEST_TMPDIR}/generated/mod.rs" "$raw_out/mod.rs"
+# Missing rustfmt fails before output writes; opting out needs no formatter.
+PATH="${TEST_TMPDIR}/no_tools" check_exit 2 generate "$example" --out "${TEST_TMPDIR}/missing_formatter"
+grep -Fq 'rustfmt failed' "$output"
+test ! -e "${TEST_TMPDIR}/missing_formatter"
+PATH="${TEST_TMPDIR}/no_tools" check_exit 0 generate "$example" --no-format --out "${TEST_TMPDIR}/without_formatter"
 printf 'not a directory\n' > "${TEST_TMPDIR}/blocked_output"
 check_exit 2 generate "$example" --out "${TEST_TMPDIR}/blocked_output"
 
@@ -259,15 +277,35 @@ printf 'dialect Test { op add(x: tensor, y: tensor) -> tensor; }\n' > "$project/
 printf 'from "../dialects/test.tepl" import Test as t; rule same { (t.add X Y) => (t.add Y X) where { allowed(X); } }\n' > "$project/rules/one.tepl"
 printf 'from "../../dialects/test.tepl" import Test as t; rule same { X: [N] (t.add X Y) => (t.add Y X) where { allowed(N, N); } }\n' > "$project/rules/nested/two.tepl"
 check_exit 0 generate "$project" --out "${TEST_TMPDIR}/project_out"
-test -f "${TEST_TMPDIR}/project_out/src/ir/dialects/test.rs"
-test -f "${TEST_TMPDIR}/project_out/src/ir/rules/nested/two.rs"
-grep -Fq '"one::same"' "${TEST_TMPDIR}/project_out/src/ir/rules/one.rs"
-grep -Fq '"nested::two::same"' "${TEST_TMPDIR}/project_out/src/ir/rules/nested/two.rs"
+test -f "${TEST_TMPDIR}/project_out/dialects/test.rs"
+test -f "${TEST_TMPDIR}/project_out/rules/nested/two.rs"
+grep -Fq '"one::same"' "${TEST_TMPDIR}/project_out/rules/one.rs"
+grep -Fq '"nested::two::same"' "${TEST_TMPDIR}/project_out/rules/nested/two.rs"
 check_exit 0 generate "$inherited" --out "${TEST_TMPDIR}/inherited_out"
-grep -Fq 'pub mod rule_commute_small_vectors' "${TEST_TMPDIR}/inherited_out/src/ir/rules/inherited.rs"
-test ! -f "${TEST_TMPDIR}/inherited_out/src/ir/rules/abstract.rs"
+grep -Fq 'pub mod rule_commute_small_vectors' "${TEST_TMPDIR}/inherited_out/rules/inherited.rs"
+test ! -f "${TEST_TMPDIR}/inherited_out/rules/abstract.rs"
 # Rust normalization collisions produce a diagnostic, never numeric suffixes.
 printf 'dialect Test { op subtract(x: tensor, y: tensor) -> tensor; }\n' > "$project/dialects/duplicate.tepl"
 check_exit 1 generate "$project" --out "${TEST_TMPDIR}/collision_out"
 grep -Fq 'dialect module name collision' "$output"
 test ! -e "${TEST_TMPDIR}/collision_out"
+
+# Module output is suitable for an existing crate; check mode never repairs drift.
+module_out="${TEST_TMPDIR}/any_name"
+check_exit 0 generate "$example" --out "$module_out"
+test -f "$module_out/op_node.rs"
+test -f "$module_out/.tepl-generated-files"
+test ! -e "$module_out/Cargo.toml"
+check_exit 0 generate "$example" --out "$module_out" --check
+printf '// handwritten host\n' > "$module_out/host.rs"
+printf '// edited generated file\n' > "$module_out/op_node.rs"
+cp "$module_out/op_node.rs" "${TEST_TMPDIR}/edited_node"
+check_exit 1 generate "$example" --out "$module_out" --check
+cmp "$module_out/op_node.rs" "${TEST_TMPDIR}/edited_node"
+check_exit 0 generate "$example" --out "$module_out"
+# Switching the source removes stale generated rule files but keeps the host file.
+check_exit 0 generate "$inherited" --out "$module_out"
+test ! -f "$module_out/rules/simple.rs"
+test -f "$module_out/rules/inherited.rs"
+test -f "$module_out/host.rs"
+check_exit 0 generate "$inherited" --out "$module_out" --check

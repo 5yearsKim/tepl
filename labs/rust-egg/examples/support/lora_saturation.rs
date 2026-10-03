@@ -1,13 +1,17 @@
 //! Shared shape, cost, and evaluation support for the LoRA example and tests.
 
-use egg::{Analysis, CostFunction, DidMerge, EGraph, Id, Language, RecExpr, StopReason};
+use egg::{CostFunction, EGraph, Id, Language, RecExpr, StopReason};
+use rust_egg::host::nodes::*;
+pub use rust_egg::host::{
+    DemoLoraFunctions, Shape, ShapeAnalysis, TensorBindings, batched_dot_shape, dot_attrs,
+    infer_tensor_output, tensor_info,
+};
 use rust_egg::ir::dialects::tensor_lang;
-use rust_egg::ir::pattern::{TensorBindings, TensorInfo};
-use rust_egg::ir::rules::lora::rule_lora;
+use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 use std::collections::HashMap;
 
-pub type Shapes = HashMap<String, Vec<usize>>;
+pub type Shapes = HashMap<String, Vec<u64>>;
 
 pub fn example_shapes() -> Shapes {
     HashMap::from([
@@ -34,173 +38,6 @@ pub fn bindings_from_shapes(shapes: Shapes) -> TensorBindings {
     bindings
 }
 
-/// Shared semantics for e-class analysis and pre-insertion RHS verification.
-pub fn infer_tensor_output(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo> {
-    let [lhs, rhs] = operands else {
-        return None;
-    };
-    if lhs.dtype != rhs.dtype || lhs.dtype == DType::Bool {
-        return None;
-    }
-    let shape = match (op, attrs) {
-        (Op::TensorLang(tensor_lang::Op::Add), OpAttrs::None) if lhs.shape == rhs.shape => {
-            lhs.shape.clone()
-        }
-        (Op::TensorLang(tensor_lang::Op::DotGeneral), _) => {
-            batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?
-        }
-        _ => return None,
-    };
-    Some(TensorInfo {
-        shape,
-        dtype: lhs.dtype,
-    })
-}
-
-pub fn dot_attrs() -> OpAttrs {
-    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneral {
-        lhs_contracting: vec![2],
-        rhs_contracting: vec![1],
-        lhs_batch: vec![0],
-        rhs_batch: vec![0],
-    })
-}
-
-pub fn batched_dot_shape(lhs: &[usize], rhs: &[usize], attrs: &OpAttrs) -> Option<Vec<usize>> {
-    if lhs.len() != 3
-        || rhs.len() != 3
-        || *attrs != dot_attrs()
-        || lhs[0] != rhs[0]
-        || lhs[2] != rhs[1]
-    {
-        return None;
-    }
-    Some(vec![lhs[0], lhs[1], rhs[2]])
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Shape {
-    Unknown,
-    Known(TensorInfo),
-    Invalid,
-}
-
-#[derive(Default)]
-pub struct ShapeAnalysis {
-    pub symbols: TensorBindings,
-}
-
-impl Analysis<OpNode> for ShapeAnalysis {
-    type Data = Shape;
-
-    fn make(egraph: &mut EGraph<OpNode, Self>, node: &OpNode, _id: Id) -> Shape {
-        if matches!(
-            node.op(),
-            Op::TensorLang(tensor_lang::Op::Symbol) | Op::TensorLang(tensor_lang::Op::Constant)
-        ) {
-            return egraph
-                .analysis
-                .symbols
-                .info(node)
-                .cloned()
-                .map(Shape::Known)
-                .unwrap_or(Shape::Unknown);
-        }
-
-        let children: Vec<_> = node
-            .children()
-            .iter()
-            .map(|id| &egraph[egraph.find(*id)].data)
-            .collect();
-        if children.iter().any(|shape| **shape == Shape::Invalid) {
-            return Shape::Invalid;
-        }
-        if children.iter().any(|shape| **shape == Shape::Unknown) {
-            return Shape::Unknown;
-        }
-        let known: Vec<TensorInfo> = children
-            .iter()
-            .map(|shape| match shape {
-                Shape::Known(info) => info.clone(),
-                _ => unreachable!(),
-            })
-            .collect();
-        let result = infer_tensor_output(node.op(), &known, node.attrs());
-        result.map(Shape::Known).unwrap_or(Shape::Invalid)
-    }
-
-    fn merge(&mut self, target: &mut Shape, incoming: Shape) -> DidMerge {
-        let merged = match (&*target, &incoming) {
-            (Shape::Invalid, _) | (_, Shape::Invalid) => Shape::Invalid,
-            // A known alternative cannot establish the shape of an unknown one.
-            (Shape::Unknown, _) | (_, Shape::Unknown) => Shape::Unknown,
-            (Shape::Known(a), Shape::Known(b)) if a == b => Shape::Known(a.clone()),
-            (Shape::Known(_), Shape::Known(_)) => Shape::Invalid,
-        };
-        let changed_target = *target != merged;
-        let changed_incoming = incoming != merged;
-        *target = merged;
-        DidMerge(changed_target, changed_incoming)
-    }
-}
-
-pub fn tensor_info(egraph: &EGraph<OpNode, ShapeAnalysis>, id: Id) -> Option<TensorInfo> {
-    match &egraph[egraph.find(id)].data {
-        Shape::Known(info) => Some(info.clone()),
-        _ => None,
-    }
-}
-
-pub struct DemoLoraFunctions {
-    pub allow_reassociation: bool,
-}
-
-impl rule_lora::Functions for DemoLoraFunctions {
-    fn broadcastable(&self, batch: &[usize], weight_batch: &[usize]) -> Option<bool> {
-        Some(batch == weight_batch)
-    }
-
-    fn reassociable(
-        &self,
-        _x: &TensorInfo,
-        _a: &TensorInfo,
-        _b: &TensorInfo,
-        outer: &OpAttrs,
-        inner: &OpAttrs,
-    ) -> Option<bool> {
-        Some(self.allow_reassociation && *outer == dot_attrs() && *inner == dot_attrs())
-    }
-
-    fn infer_dot(&self, lhs: &TensorInfo, rhs: &TensorInfo, attrs: &OpAttrs) -> Option<OpAttrs> {
-        batched_dot_shape(&lhs.shape, &rhs.shape, attrs)?;
-        Some(attrs.clone())
-    }
-    fn infer_lora_out(
-        &self,
-        x: &TensorInfo,
-        a: &TensorInfo,
-        b: &TensorInfo,
-        outer: &OpAttrs,
-        inner: &OpAttrs,
-    ) -> Option<OpAttrs> {
-        // This demo supports equal rank-three batches and fixed matrix axes.
-        // The final dot has the inner dot's axes under those conventions.
-        if x.shape.len() != 3
-            || a.shape.len() != 3
-            || b.shape.len() != 3
-            || *outer != dot_attrs()
-            || *inner != dot_attrs()
-            || x.shape[0] != a.shape[0]
-            || a.shape[0] != b.shape[0]
-            || x.shape[2] != a.shape[1]
-            || a.shape[2] != b.shape[1]
-        {
-            return None;
-        }
-        Some(inner.clone())
-    }
-}
-
 fn dot(expr: &mut RecExpr<OpNode>, lhs: Id, rhs: Id, attrs: OpAttrs) -> Id {
     expr.add(
         OpNode::from_parts(
@@ -214,21 +51,21 @@ fn dot(expr: &mut RecExpr<OpNode>, lhs: Id, rhs: Id, attrs: OpAttrs) -> Id {
 
 pub fn original_expr(swapped_add: bool, inner_attrs: OpAttrs) -> RecExpr<OpNode> {
     let mut expr = RecExpr::default();
-    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| expr.add(OpNode::symbol(name)));
+    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| expr.add(symbol(name)));
     let ab = dot(&mut expr, a, b, inner_attrs);
     let (left, right) = if swapped_add { (ab, w) } else { (w, ab) };
-    let sum = expr.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), left, right).unwrap());
+    let sum = expr.add(binary(tensor_lang::Op::Add, left, right).unwrap());
     dot(&mut expr, x, sum, dot_attrs());
     expr
 }
 
 pub fn expected_expr() -> RecExpr<OpNode> {
     let mut expr = RecExpr::default();
-    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| expr.add(OpNode::symbol(name)));
+    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| expr.add(symbol(name)));
     let xw = dot(&mut expr, x, w, dot_attrs());
     let xa = dot(&mut expr, x, a, dot_attrs());
     let xab = dot(&mut expr, xa, b, dot_attrs());
-    expr.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), xw, xab).unwrap());
+    expr.add(binary(tensor_lang::Op::Add, xw, xab).unwrap());
     expr
 }
 
@@ -267,7 +104,7 @@ impl CostFunction<OpNode> for ArithmeticCost<'_> {
                 .map(|shape| {
                     shape
                         .iter()
-                        .fold(1_u64, |size, &dim| size.saturating_mul(dim as u64))
+                        .fold(1_u64, |size, &dim| size.saturating_mul(dim))
                 })
                 .unwrap_or(u64::MAX / 4),
             (Op::TensorLang(tensor_lang::Op::DotGeneral), [lhs, rhs]) => {
@@ -276,10 +113,10 @@ impl CostFunction<OpNode> for ArithmeticCost<'_> {
                         if batched_dot_shape(lhs_shape, rhs_shape, node.attrs()).is_some() =>
                     {
                         2_u64
-                            .saturating_mul(*batch as u64)
-                            .saturating_mul(*m as u64)
-                            .saturating_mul(*k as u64)
-                            .saturating_mul(*n as u64)
+                            .saturating_mul(*batch)
+                            .saturating_mul(*m)
+                            .saturating_mul(*k)
+                            .saturating_mul(*n)
                     }
                     _ => u64::MAX / 4,
                 }
@@ -294,7 +131,7 @@ impl CostFunction<OpNode> for ArithmeticCost<'_> {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TensorValue {
-    pub shape: Vec<usize>,
+    pub shape: Vec<u64>,
     pub data: Vec<i64>,
 }
 
@@ -304,7 +141,12 @@ pub fn example_values(shapes: &Shapes) -> HashMap<String, TensorValue> {
         .enumerate()
         .map(|(seed, name)| {
             let shape = shapes[name].clone();
-            let size: usize = shape.iter().product();
+            let size = shape
+                .iter()
+                .try_fold(1_usize, |size, &dim| {
+                    size.checked_mul(usize::try_from(dim).ok()?)
+                })
+                .expect("demo tensor fits memory indexing");
             let data = (0..size)
                 .map(|index| ((index * 17 + seed * 11) % 7) as i64 - 3)
                 .collect();
@@ -321,9 +163,9 @@ pub fn evaluate(
     for node in expr.as_ref() {
         let value = match (node.op(), node.children()) {
             (Op::TensorLang(tensor_lang::Op::Symbol), []) => inputs
-                .get(node.symbol_name().unwrap())
+                .get(symbol_name(&node).unwrap())
                 .cloned()
-                .ok_or_else(|| format!("missing tensor {}", node.symbol_name().unwrap()))?,
+                .ok_or_else(|| format!("missing tensor {}", symbol_name(&node).unwrap()))?,
             (Op::TensorLang(tensor_lang::Op::Add), [lhs, rhs]) => {
                 let lhs = &values[usize::from(*lhs)];
                 let rhs = &values[usize::from(*rhs)];
@@ -343,11 +185,21 @@ pub fn evaluate(
                 let [batch, m, n] = shape.as_slice() else {
                     unreachable!()
                 };
-                let k = lhs.shape[2];
-                let mut data = vec![0; batch * m * n];
-                for b in 0..*batch {
-                    for i in 0..*m {
-                        for j in 0..*n {
+                let [batch, m, n, k] = [*batch, *m, *n, lhs.shape[2]].map(usize::try_from);
+                let (batch, m, n, k) = (
+                    batch.map_err(|_| "batch overflow")?,
+                    m.map_err(|_| "dimension overflow")?,
+                    n.map_err(|_| "dimension overflow")?,
+                    k.map_err(|_| "dimension overflow")?,
+                );
+                let size = batch
+                    .checked_mul(m)
+                    .and_then(|x| x.checked_mul(n))
+                    .ok_or("tensor size overflow")?;
+                let mut data = vec![0; size];
+                for b in 0..batch {
+                    for i in 0..m {
+                        for j in 0..n {
                             for p in 0..k {
                                 data[(b * m + i) * n + j] +=
                                     lhs.data[(b * m + i) * k + p] * rhs.data[(b * k + p) * n + j];

@@ -7,6 +7,7 @@
 #include "CLI/CLI.hpp"
 #include "src/ast/print.h"
 #include "src/codegen/generate.h"
+#include "src/codegen/write.h"
 #include "src/core/analyze.h"
 #include "src/core/print.h"
 #include "src/imports.h"
@@ -36,6 +37,7 @@ int main(int argc, char** argv) {
       ->required();
   std::string target = "rust";
   std::string output_directory;
+  tepl::codegen::WriteOptions write_options;
   tepl::codegen::Options generation_options;
   auto* generate = app.add_subcommand(
       "generate", "Generate code from checked TEPL rules and dialects");
@@ -45,10 +47,13 @@ int main(int argc, char** argv) {
       ->required();
   generate->add_option("--target", target, "Output language")
       ->check(CLI::IsMember({"rust", "cpp", "python"}));
-  generate->add_option("-o,--out", output_directory, "Output directory")
+  generate
+      ->add_option("-o,--out", output_directory, "Generated module directory")
       ->required();
-  generate->add_option("--package-name", generation_options.package_name,
-                       "Generated package name");
+  generate->add_flag("--check", write_options.check,
+                     "Check generated output without changing files");
+  generate->add_flag("--format,!--no-format", write_options.format,
+                     "Format Rust output with rustfmt (default: on)");
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& error) {
@@ -121,6 +126,7 @@ int main(int argc, char** argv) {
                                 : target == "cpp"
                                     ? tepl::codegen::Target::kCpp
                                     : tepl::codegen::Target::kPython;
+    write_options.target = generation_options.target;
     const auto generated =
         tepl::codegen::generate(*analyzed.program, generation_options);
     for (const auto& diagnostic : generated.diagnostics) {
@@ -133,19 +139,17 @@ int main(int argc, char** argv) {
     }
     if (!generated.ok()) return 1;
     try {
-      const std::filesystem::path directory(output_directory);
-      for (const auto& file : generated.files) {
-        const auto path = directory / file.path;
-        std::filesystem::create_directories(path.parent_path());
-        std::ofstream output(path, std::ios::binary | std::ios::trunc);
-        output << file.contents;
-        output.close();
-        if (!output) {
-          std::cerr << path << ": cannot write generated file\n";
-          return 2;
-        }
+      const auto written = tepl::codegen::synchronize(
+          generated.files, output_directory, write_options);
+      if (write_options.check) {
+        for (const auto& path : written.differences)
+          std::cerr << "generated output differs: " << path << '\n';
+        if (!written.current()) return 1;
+        std::cout << "Generated output is current in " << output_directory
+                  << ".\n";
+        return 0;
       }
-    } catch (const std::filesystem::filesystem_error& error) {
+    } catch (const std::exception& error) {
       std::cerr << error.what() << '\n';
       return 2;
     }

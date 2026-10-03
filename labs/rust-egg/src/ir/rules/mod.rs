@@ -1,4 +1,3 @@
-//! One public module per TEPL source file.
 pub mod basic;
 pub mod binders;
 pub mod inherited;

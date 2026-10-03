@@ -1,7 +1,9 @@
+mod support;
 use egg::{EGraph, Var};
+use rust_egg::host::nodes::*;
 use rust_egg::ir::dialects::tensor_lang;
 use rust_egg::ir::pattern::{
-    AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, matches_at, tensor_rewrite,
+    AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, matches_at, tensor_rewrite_checked,
 };
 use rust_egg::ir::rules::simple::rule_commute_add;
 use rust_egg::ir::{Op, OpAttrs, OpNode};
@@ -38,9 +40,14 @@ fn invalid_rhs_definitions_are_rejected_when_building_the_rule() {
         ),
     ];
     for (rhs, message) in cases {
-        let error = tensor_rewrite::<(), _>("invalid", TensorPattern::Var(x), rhs, |_, _| {
-            Some(Default::default())
-        })
+        let error = tensor_rewrite_checked(
+            "invalid",
+            TensorPattern::Var(x),
+            rhs,
+            support::fixture_metadata,
+            support::fixture_inference,
+            |_, _| Some(Default::default()),
+        )
         .err()
         .expect("invalid RHS definition should be rejected");
         assert!(error.contains(message), "{error}");
@@ -53,7 +60,7 @@ fn failed_host_or_missing_invalid_descriptors_leave_no_partial_rhs() {
     let descriptor = AttrVar::from("transpose");
     for mode in 0..4 {
         let mut egraph = EGraph::<OpNode, ()>::default();
-        let input = egraph.add(OpNode::symbol("X"));
+        let input = egraph.add(symbol("X"));
         egraph.rebuild();
         let before = egraph.total_number_of_nodes();
         let rhs = TensorExpr::op(
@@ -72,10 +79,12 @@ fn failed_host_or_missing_invalid_descriptors_leave_no_partial_rhs() {
                 ),
             ],
         );
-        let rule = tensor_rewrite(
+        let rule = tensor_rewrite_checked(
             "construct",
             TensorPattern::Var(x),
             rhs,
+            support::fixture_metadata,
+            support::fixture_inference,
             move |_, _| match mode {
                 0 => None,
                 1 => Some(Default::default()),
@@ -83,7 +92,7 @@ fn failed_host_or_missing_invalid_descriptors_leave_no_partial_rhs() {
                 _ => Some(
                     [(
                         descriptor,
-                        OpAttrs::TensorLang(tensor_lang::OpAttrs::Transpose {
+                        OpAttrs::TensorLang(tensor_lang::OpAttrs::TransposeAttrs {
                             permutation: vec![0],
                         }),
                     )]
@@ -99,7 +108,7 @@ fn failed_host_or_missing_invalid_descriptors_leave_no_partial_rhs() {
             assert_eq!(egraph.total_number_of_nodes(), before);
             assert!(
                 egraph
-                    .lookup(OpNode::unary(Op::TensorLang(tensor_lang::Op::Negate), input).unwrap())
+                    .lookup(unary(tensor_lang::Op::Negate, input).unwrap())
                     .is_none()
             );
         } else {
@@ -114,9 +123,9 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
     let mut egraph = EGraph::<OpNode, ()>::default();
     let mut additions = Vec::new();
     for index in 0..12 {
-        let x = egraph.add(OpNode::symbol(format!("x{index}")));
-        let y = egraph.add(OpNode::symbol(format!("y{index}")));
-        let add = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), x, y).unwrap());
+        let x = egraph.add(symbol(format!("x{index}")));
+        let y = egraph.add(symbol(format!("y{index}")));
+        let add = egraph.add(binary(tensor_lang::Op::Add, x, y).unwrap());
         if let Some(&(root, _, _)) = additions.first() {
             egraph.union(root, add);
         }
@@ -124,7 +133,9 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
     }
     egraph.rebuild();
 
-    let rule = rule_commute_add::build_rewrite::<()>().unwrap();
+    let rule =
+        rule_commute_add::build_rewrite(support::fixture_metadata, support::fixture_inference, ())
+            .unwrap();
     let limited = rule.search_with_limit(&egraph, 1);
     assert_eq!(limited.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     let found = rule.search(&egraph);
@@ -134,7 +145,7 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
 
     for (_, x, y) in additions {
         let swapped = egraph
-            .lookup(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), y, x).unwrap())
+            .lookup(binary(tensor_lang::Op::Add, y, x).unwrap())
             .expect("every substitution should be applied");
         assert_eq!(egraph.find(swapped), egraph.find(found[0].eclass));
     }
@@ -143,16 +154,16 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
 #[test]
 fn batch_application_keeps_distinct_attribute_witnesses() {
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let x = egraph.add(OpNode::symbol("x"));
-    let y = egraph.add(OpNode::symbol("y"));
+    let x = egraph.add(symbol("x"));
+    let y = egraph.add(symbol("y"));
     let attrs = [
-        OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneral {
+        OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
             lhs_contracting: vec![0],
             rhs_contracting: vec![0],
             lhs_batch: vec![],
             rhs_batch: vec![],
         }),
-        OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneral {
+        OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
             lhs_contracting: vec![1],
             rhs_contracting: vec![1],
             lhs_batch: vec![],
@@ -190,8 +201,15 @@ fn batch_application_keeps_distinct_attribute_witnesses() {
         AttrExpr::Captured(attr_var),
         vec![TensorExpr::Var(y_var), TensorExpr::Var(x_var)],
     );
-    let rule =
-        tensor_rewrite("swap_dot_inputs", lhs, rhs, |_, _| Some(Default::default())).unwrap();
+    let rule = tensor_rewrite_checked(
+        "swap_dot_inputs",
+        lhs,
+        rhs,
+        support::fixture_metadata,
+        support::fixture_inference,
+        |_, _| Some(Default::default()),
+    )
+    .unwrap();
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     assert_eq!(rule.apply(&mut egraph, &found).len(), 2);
@@ -215,15 +233,14 @@ fn batch_application_keeps_distinct_attribute_witnesses() {
 #[test]
 fn grounded_lookup_rejects_missing_nodes_and_nodes_in_another_eclass() {
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let [x, y, z] = ["x", "y", "z"].map(|name| egraph.add(OpNode::symbol(name)));
-    let xy = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), x, y).unwrap());
-    let zy = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), z, y).unwrap());
-    let nx = egraph.add(OpNode::unary(Op::TensorLang(tensor_lang::Op::Negate), x).unwrap());
-    let ny = egraph.add(OpNode::unary(Op::TensorLang(tensor_lang::Op::Negate), y).unwrap());
-    let valid = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), xy, nx).unwrap());
-    let wrong_class =
-        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), xy, ny).unwrap());
-    let missing = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), zy, ny).unwrap());
+    let [x, y, z] = ["x", "y", "z"].map(|name| egraph.add(symbol(name)));
+    let xy = egraph.add(binary(tensor_lang::Op::Multiply, x, y).unwrap());
+    let zy = egraph.add(binary(tensor_lang::Op::Multiply, z, y).unwrap());
+    let nx = egraph.add(unary(tensor_lang::Op::Negate, x).unwrap());
+    let ny = egraph.add(unary(tensor_lang::Op::Negate, y).unwrap());
+    let valid = egraph.add(binary(tensor_lang::Op::Add, xy, nx).unwrap());
+    let wrong_class = egraph.add(binary(tensor_lang::Op::Add, xy, ny).unwrap());
+    let missing = egraph.add(binary(tensor_lang::Op::Add, zy, ny).unwrap());
     egraph.rebuild();
 
     let [x_var, y_var] = ["?x", "?y"].map(|name| name.parse::<Var>().unwrap());
@@ -251,11 +268,11 @@ fn grounded_lookup_rejects_missing_nodes_and_nodes_in_another_eclass() {
 #[test]
 fn grounded_nested_subtrees_preserve_new_and_repeated_binders() {
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let x = egraph.add(OpNode::symbol("x"));
-    let y = egraph.add(OpNode::symbol("y"));
-    let xy = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), x, y).unwrap());
-    let neg = egraph.add(OpNode::unary(Op::TensorLang(tensor_lang::Op::Negate), xy).unwrap());
-    let root = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), xy, neg).unwrap());
+    let x = egraph.add(symbol("x"));
+    let y = egraph.add(symbol("y"));
+    let xy = egraph.add(binary(tensor_lang::Op::Multiply, x, y).unwrap());
+    let neg = egraph.add(unary(tensor_lang::Op::Negate, xy).unwrap());
+    let root = egraph.add(binary(tensor_lang::Op::Add, xy, neg).unwrap());
     egraph.rebuild();
 
     let [x_var, y_var, z_var] = ["?x", "?y", "?z"].map(|name| name.parse::<Var>().unwrap());
@@ -303,12 +320,12 @@ fn grounded_nested_subtrees_preserve_new_and_repeated_binders() {
 #[test]
 fn known_operands_do_not_hide_unbound_or_wildcard_attribute_witnesses() {
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let x = egraph.add(OpNode::symbol("x"));
+    let x = egraph.add(symbol("x"));
     let first = egraph.add(
         OpNode::from_parts(
             Op::TensorLang(tensor_lang::Op::Transpose),
             vec![x],
-            OpAttrs::TensorLang(tensor_lang::OpAttrs::Transpose {
+            OpAttrs::TensorLang(tensor_lang::OpAttrs::TransposeAttrs {
                 permutation: vec![0, 1],
             }),
         )
@@ -318,15 +335,14 @@ fn known_operands_do_not_hide_unbound_or_wildcard_attribute_witnesses() {
         OpNode::from_parts(
             Op::TensorLang(tensor_lang::Op::Transpose),
             vec![x],
-            OpAttrs::TensorLang(tensor_lang::OpAttrs::Transpose {
+            OpAttrs::TensorLang(tensor_lang::OpAttrs::TransposeAttrs {
                 permutation: vec![1, 0],
             }),
         )
         .unwrap(),
     );
     egraph.union(first, second);
-    let root =
-        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), first, first).unwrap());
+    let root = egraph.add(binary(tensor_lang::Op::Add, first, first).unwrap());
     egraph.rebuild();
 
     let x_var = "?x".parse::<Var>().unwrap();
@@ -359,19 +375,19 @@ fn known_operands_do_not_hide_unbound_or_wildcard_attribute_witnesses() {
 #[test]
 fn matching_after_union_falls_back_until_the_graph_is_rebuilt() {
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let x = egraph.add(OpNode::symbol("x"));
-    let y = egraph.add(OpNode::symbol("y"));
-    let neg_y = egraph.add(OpNode::unary(Op::TensorLang(tensor_lang::Op::Negate), y).unwrap());
-    let root = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), x, neg_y).unwrap());
+    let x = egraph.add(symbol("x"));
+    let y = egraph.add(symbol("y"));
+    let neg_y = egraph.add(unary(tensor_lang::Op::Negate, y).unwrap());
+    let root = egraph.add(binary(tensor_lang::Op::Add, x, neg_y).unwrap());
     // Give x more parents so it becomes the representative of the union.
-    egraph.add(OpNode::unary(Op::TensorLang(tensor_lang::Op::Exp), x).unwrap());
+    egraph.add(unary(tensor_lang::Op::Exp, x).unwrap());
     egraph.rebuild();
     egraph.union(x, y);
     assert!(!egraph.clean);
     assert_eq!(egraph.find(y), x);
     assert!(
         egraph
-            .lookup(OpNode::unary(Op::TensorLang(tensor_lang::Op::Negate), x).unwrap())
+            .lookup(unary(tensor_lang::Op::Negate, x).unwrap())
             .is_none()
     );
 

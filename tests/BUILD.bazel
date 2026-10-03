@@ -41,6 +41,7 @@ sh_test(
         "//examples:rules/inherited.tepl",
         "//examples:rules/basic.tepl",
     ],
+    env_inherit = ["PATH", "HOME", "RUSTUP_HOME"],
 )
 
 cc_test(
@@ -96,6 +97,13 @@ cc_test(
         "//src/codegen:codegen",
         "//src/core:analysis",
     ],
+)
+
+cc_test(
+    name = "codegen_write_test",
+    size = "small",
+    srcs = ["codegen_write_test.cc"],
+    deps = ["//src/codegen:codegen"],
 )
 
 # Requires the machine's Cargo/Rust toolchain and Cargo dependencies.

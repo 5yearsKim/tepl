@@ -1,4 +1,6 @@
+mod support;
 use egg::{EGraph, Id, Var};
+use rust_egg::host::nodes::*;
 use rust_egg::ir::dialects::tensor_lang;
 use rust_egg::ir::pattern::{AttrPattern, TensorInfo, TensorPattern, matches_at};
 use rust_egg::ir::rules::binders::rule_shared_expression::Functions;
@@ -6,7 +8,7 @@ use rust_egg::ir::rules::binders::{rule_root_binding, rule_shared_expression};
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 fn dot_attrs() -> OpAttrs {
-    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneral {
+    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
         lhs_contracting: vec![1],
         rhs_contracting: vec![0],
         lhs_batch: vec![],
@@ -24,9 +26,9 @@ impl Functions for TestFunctions {
     }
 }
 
-fn metadata_for(dot: Id) -> impl Fn(&EGraph<OpNode, ()>, Id) -> Option<TensorInfo> {
-    move |egraph, id| {
-        (egraph.find(id) == egraph.find(dot)).then_some(TensorInfo {
+fn metadata_for() -> impl Fn(&EGraph<OpNode, ()>, Id) -> Option<TensorInfo> {
+    move |_, _| {
+        Some(TensorInfo {
             dtype: DType::F32,
             shape: vec![2, 2],
         })
@@ -36,9 +38,9 @@ fn metadata_for(dot: Id) -> impl Fn(&EGraph<OpNode, ()>, Id) -> Option<TensorInf
 #[test]
 fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let x = egraph.add(OpNode::symbol("X"));
-    let w = egraph.add(OpNode::symbol("W"));
-    let z = egraph.add(OpNode::symbol("Z"));
+    let x = egraph.add(symbol("X"));
+    let w = egraph.add(symbol("W"));
+    let z = egraph.add(symbol("Z"));
     let dot = egraph.add(
         OpNode::from_parts(
             Op::TensorLang(tensor_lang::Op::DotGeneral),
@@ -47,33 +49,37 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
         )
         .unwrap(),
     );
-    let product =
-        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), dot, z).unwrap());
-    let root =
-        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), dot, product).unwrap());
+    let product = egraph.add(binary(tensor_lang::Op::Multiply, dot, z).unwrap());
+    let root = egraph.add(binary(tensor_lang::Op::Add, dot, product).unwrap());
     egraph.rebuild();
 
     let matched = matches_at(&egraph, root, &rule_shared_expression::pattern());
     assert_eq!(matched.len(), 1);
-    assert_eq!(matched[0].tensors["?Y".parse::<Var>().unwrap()], dot);
-    assert_eq!(matched[0].attrs[&"d".into()], dot_attrs());
+    assert_eq!(matched[0].tensors["?c2".parse::<Var>().unwrap()], dot);
+    assert_eq!(matched[0].attrs[&"d0".into()], dot_attrs());
 
-    let rejected =
-        rule_shared_expression::build_rewrite(metadata_for(dot), TestFunctions { allow: false })
-            .unwrap();
+    let rejected = rule_shared_expression::build_rewrite(
+        metadata_for(),
+        binder_inference,
+        TestFunctions { allow: false },
+    )
+    .unwrap();
     let found = rejected.search(&egraph);
     assert!(rejected.apply(&mut egraph, &found).is_empty());
 
-    let rule =
-        rule_shared_expression::build_rewrite(metadata_for(dot), TestFunctions { allow: true })
-            .unwrap();
+    let rule = rule_shared_expression::build_rewrite(
+        metadata_for(),
+        binder_inference,
+        TestFunctions { allow: true },
+    )
+    .unwrap();
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     assert_eq!(rule.apply(&mut egraph, &found).len(), 1);
     egraph.rebuild();
 
     let reordered = egraph
-        .lookup(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), product, dot).unwrap())
+        .lookup(binary(tensor_lang::Op::Add, product, dot).unwrap())
         .expect("RHS reuses the captured dot result");
     assert_eq!(egraph.find(root), egraph.find(reordered));
 }
@@ -81,12 +87,12 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
 #[test]
 fn root_binder_is_visible_to_search_and_rhs() {
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let x = egraph.add(OpNode::symbol("X"));
+    let x = egraph.add(symbol("X"));
     let root = egraph.add(
         OpNode::from_parts(
             Op::TensorLang(tensor_lang::Op::Transpose),
             vec![x],
-            OpAttrs::TensorLang(tensor_lang::OpAttrs::Transpose {
+            OpAttrs::TensorLang(tensor_lang::OpAttrs::TransposeAttrs {
                 permutation: vec![1, 0],
             }),
         )
@@ -94,18 +100,20 @@ fn root_binder_is_visible_to_search_and_rhs() {
     );
     egraph.rebuild();
 
-    let y = "?Y".parse::<Var>().unwrap();
+    let y = "?c1".parse::<Var>().unwrap();
     let matched = matches_at(&egraph, root, &rule_root_binding::pattern());
     assert_eq!(matched.len(), 1);
     assert_eq!(matched[0].tensors[y], root);
     assert_eq!(
-        matched[0].attrs[&"t".into()],
-        OpAttrs::TensorLang(tensor_lang::OpAttrs::Transpose {
+        matched[0].attrs[&"d0".into()],
+        OpAttrs::TensorLang(tensor_lang::OpAttrs::TransposeAttrs {
             permutation: vec![1, 0],
         })
     );
 
-    let rule = rule_root_binding::build_rewrite::<()>().unwrap();
+    let rule =
+        rule_root_binding::build_rewrite(support::fixture_metadata, support::fixture_inference, ())
+            .unwrap();
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
     assert_eq!(found[0].substs[0][y], root);
@@ -115,16 +123,14 @@ fn root_binder_is_visible_to_search_and_rhs() {
 #[test]
 fn repeated_binder_uses_eclass_equality() {
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let a = egraph.add(OpNode::symbol("A"));
-    let b = egraph.add(OpNode::symbol("B"));
-    let c = egraph.add(OpNode::symbol("C"));
-    let ab = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), a, b).unwrap());
-    let ba = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), b, a).unwrap());
+    let a = egraph.add(symbol("A"));
+    let b = egraph.add(symbol("B"));
+    let c = egraph.add(symbol("C"));
+    let ab = egraph.add(binary(tensor_lang::Op::Add, a, b).unwrap());
+    let ba = egraph.add(binary(tensor_lang::Op::Add, b, a).unwrap());
     egraph.union(ab, ba); // Assume commutativity has already been established.
-    let equivalent =
-        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), ab, ba).unwrap());
-    let different =
-        egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Multiply), ab, c).unwrap());
+    let equivalent = egraph.add(binary(tensor_lang::Op::Multiply, ab, ba).unwrap());
+    let different = egraph.add(binary(tensor_lang::Op::Multiply, ab, c).unwrap());
     egraph.rebuild();
 
     let [a_var, b_var, y_var] = ["?a", "?b", "?y"].map(|s| s.parse::<Var>().unwrap());
@@ -151,4 +157,11 @@ fn repeated_binder_uses_eclass_equality() {
             .all(|matched| egraph.find(matched.tensors[y_var]) == egraph.find(ab))
     );
     assert!(matches_at(&egraph, different, &lhs).is_empty());
+}
+
+fn binder_inference(_: Op, _: &[TensorInfo], _: &OpAttrs) -> Option<TensorInfo> {
+    Some(TensorInfo {
+        shape: vec![2, 2],
+        dtype: DType::F32,
+    })
 }

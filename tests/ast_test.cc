@@ -47,7 +47,7 @@ void testLora(const std::string& source, const std::string& path) {
         "LoRA dialect import is missing");
   check(program.dialects.size() == 1 &&
             program.dialects[0].name == "TensorLang" &&
-            program.dialects[0].operations.size() == 34,
+            program.dialects[0].operations.size() == 33,
         "Imported tensor operations are missing");
   const auto& operations = program.dialects[0].operations;
   const auto dot =

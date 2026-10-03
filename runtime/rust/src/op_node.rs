@@ -70,9 +70,9 @@ impl OpNode {
     }
     pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
         Self::from_parts(
-            Op::TeplLiteral,
+            Op::Literal,
             vec![],
-            OpAttrs::TeplLiteral {
+            OpAttrs::Literal {
                 value: value.into(),
                 dtype: Some(dtype),
             },

@@ -5,7 +5,7 @@ use egg::{
     Analysis, Applier, EGraph, Id, PatternAst, Rewrite, SearchMatches, Searcher, Subst, Symbol, Var,
 };
 
-use crate::ir::{OpAttrs, OpNode};
+use super::super::{OpAttrs, OpNode};
 
 use super::context::{OutputInference, TensorInfo, TensorMetadata};
 use super::matcher::{TensorMatch, for_each_match_at};
@@ -77,7 +77,7 @@ fn infer_rhs<N: Analysis<OpNode>, M: TensorMetadata<N>, I: OutputInference>(
                 resolved.push(expression);
                 operands.push(info);
             }
-            let output = if let OpAttrs::TeplLiteral { value, dtype } = &mut attrs {
+            let output = if let OpAttrs::Literal { value, dtype } = &mut attrs {
                 let concrete = inference.infer_literal(value, *dtype, expected)?;
                 if dtype.is_some_and(|annotation| annotation != concrete) {
                     return None;

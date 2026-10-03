@@ -344,28 +344,43 @@ This stage does not generate executable code or prove tensor equivalence.
 ## Generate Rust dialects and rules
 
 `generate` parses, loads imports, and checks the program before producing a
-standalone Rust crate. It generates new dialect enums from the declarations in
-that program; the output does not depend on the lab's fixed TensorLang.
+Rust module. It generates dialect enums from the declarations in that program,
+including multiple dialects sharing one e-graph. Choose any output directory;
+its name and position in your application's module tree are unrestricted.
 
 ```sh
 bazel run //:tepl -- generate "$PWD/examples/rules/lora.tepl" \
-  --target rust --out "$PWD/generated/lora" --package-name lora_rules
-cargo check --manifest-path generated/lora/Cargo.toml
-cargo fmt --manifest-path generated/lora/Cargo.toml
+  --target rust --out "$PWD/my_app/src/generated"
 ```
 
 Generate the entire example project, including both dialects and every rule file:
 
 ```sh
-bazel-bin/tepl generate examples --target rust --out generated/examples
-cargo check --manifest-path generated/examples/Cargo.toml
+bazel-bin/tepl generate examples --target rust --out my_app/src/generated
 ```
+
+Add `pub mod generated;` to your application's `src/lib.rs` or `src/main.rs`.
+Your application owns its Cargo configuration and must include egg 0.11 as a
+dependency. TEPL emits `mod.rs` and its submodules directly into `--out`, without
+creating `Cargo.toml` or a `src/` wrapper. Generated internal imports are relative,
+so you can rename or move the module without changing its contents.
+
+The lab chooses `ir` as its module name and checks in the generated output:
+
+```sh
+./tools/regenerate_lab.sh
+./tools/regenerate_lab.sh --check
+cargo test --manifest-path labs/rust-egg/Cargo.toml
+```
+
+The script generates `labs/rust-egg/src/ir` from `examples/` and formats it with
+`rustfmt`. Handwritten host semantics live in `labs/rust-egg/src/host`.
 
 The compiler scans `dialects/**/*.tepl` and `rules/**/*.tepl`, preserves each
 file's import scope, and deduplicates shared dialect imports. Output is:
 
 ```text
-src/ir/
+generated/
   dialects/{mod.rs, tensor_lang.rs, scalar.rs}
   op_node.rs
   types.rs
@@ -381,7 +396,7 @@ dialect; arity and operation-specific schemas are checked at runtime.
 Rule files retain their own modules and runtime names, so both `simple.tepl`
 and `scalar.tepl` can define `commute_add`.
 
- Each concrete rule exposes `pattern()`,
+Each concrete rule exposes `pattern()`,
 `expression()`, a host `Functions` trait, and
 `build_rewrite(metadata, inference, functions)`. Hosts supply tensor metadata,
 operation output inference, and implementations of rule legality/derivation
@@ -390,10 +405,10 @@ rewrite checks the whole replacement before inserting nodes. Example invocation
 for the generated LoRA rule:
 
 ```rust
-use lora_rules::ir::rules::lora::rule_lora;
+use crate::generated::rules::lora::rule_lora;
 
 // Implement rule_lora::Functions in application code, then provide metadata
-// and output inference implementations from lora_rules::ir::pattern.
+// and output inference implementations from generated::pattern.
 let rewrite = rule_lora::build_rewrite(metadata, inference, functions)?;
 ```
 
@@ -410,9 +425,13 @@ interface. Rust is implemented; C++ and Python targets use the same interface
 and currently report that generation is not implemented. See
 [src/codegen/README.md](src/codegen/README.md) for the architecture, generated API,
 naming, and host type mapping, and [runtime/rust/README.md](runtime/rust/README.md)
-for the runtime contract. The CLI overwrites generated files in the selected
-directory; keep handwritten host implementations outside those files. Semantic
-and generation errors return 1; usage and output-file errors return 2.
+for the runtime contract. The CLI maintains `.tepl-generated-files` in the
+output directory and removes obsolete paths from that manifest on regeneration.
+Unlisted files are preserved; keep host implementations outside generated paths.
+Rust output is formatted by default before writing or comparing; `--no-format`
+disables formatting. This requires `rustfmt` on `PATH`. `--check` reports stale output
+without changing files. Semantic errors, generation errors, and stale output
+return 1; usage, formatting, and output-file errors return 2.
 
 Run the API/CLI tests and compile and execute generated Rust fixtures with:
 
@@ -425,7 +444,8 @@ bazel test //tests:rust_codegen_test --test_output=errors
 
 The integration script requires Cargo and Rust with edition 2024 support. It
 compiles all supported examples, runs custom-dialect and LoRA behavior tests,
-and verifies custom rules in both debug and release builds.
+verifies custom rules in both debug and release builds, and executes deeply
+nested rules after renaming and relocating their enclosing module.
 
 ## Scope and next steps
 

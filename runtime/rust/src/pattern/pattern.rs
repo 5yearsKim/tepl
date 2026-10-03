@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use egg::{Symbol, Var};
 
-use crate::ir::{DType, Op, OpAttrs};
+use super::super::{DType, Op, OpAttrs};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AttrVar(pub Symbol);
@@ -40,7 +40,7 @@ impl TensorPattern {
     /// Match a numeric literal node with exactly this spelling and dtype.
     pub fn literal(value: impl Into<String>, dtype: Option<DType>) -> Self {
         Self::op(
-            Op::TeplLiteral,
+            Op::Literal,
             AttrPattern::Literal {
                 value: value.into(),
                 dtype,
@@ -128,8 +128,8 @@ impl TensorExpr {
     /// Construct a numeric literal on the RHS.
     pub fn literal(value: impl Into<String>, dtype: Option<DType>) -> Self {
         Self::op(
-            Op::TeplLiteral,
-            AttrExpr::Exact(OpAttrs::TeplLiteral {
+            Op::Literal,
+            AttrExpr::Exact(OpAttrs::Literal {
                 value: value.into(),
                 dtype,
             }),

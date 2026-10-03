@@ -1,6 +1,8 @@
 #include <cassert>
+#include <stdexcept>
 #include <string>
 
+#include "src/codegen/common/project_plan.h"
 #include "src/codegen/common/rule_plan.h"
 #include "src/codegen/generate.h"
 #include "src/core/analyze.h"
@@ -34,7 +36,10 @@ class PythonBackend final : public tepl::codegen::Generator {
     tepl::codegen::GenerationResult result;
     result.files.push_back(
         {"rules.py",
-         "rule_count = " + std::to_string(program.rules.size()) + "\n"});
+         "module_count = " +
+             std::to_string(
+                 tepl::codegen::planProject(program).modules.size()) +
+             "\n"});
     return result;
   }
 };
@@ -55,6 +60,43 @@ int main() {
     assert(generated.files[i].path == repeated.files[i].path);
     assert(generated.files[i].contents == repeated.files[i].contents);
   }
+  for (const auto& file : generated.files) {
+    assert(file.path != "Cargo.toml" && file.path != "lib.rs");
+    assert(!file.path.starts_with("src/"));
+    assert(file.contents.find("crate::ir") == std::string::npos);
+  }
+  auto project = program;
+  project.rules[0].source_name = "project/rules/one.tepl";
+  auto second = project.rules[0];
+  second.id = tepl::core::RuleId{1};
+  second.source_name = "project/rules/nested/two.tepl";
+  project.rules.push_back(second);
+  auto project_plan = tepl::codegen::planProject(project, "project/rules");
+  assert(project_plan.modules.size() == 2);
+  assert(project_plan.dialects.size() == 1);
+  assert(project_plan.dialects[0].operations.size() == 1);
+  assert(project_plan.modules[0].path ==
+         std::vector<std::string>({"nested", "two"}));
+  assert(project_plan.modules[0].rules[0] == second.id);
+  tepl::codegen::Options project_options;
+  project_options.rules_root = "project/rules";
+  const auto project_files = tepl::codegen::generate(project, project_options);
+  assert(project_files.ok());
+  bool found_nested = false;
+  for (const auto& file : project_files.files) {
+    if (file.path != "rules/nested/two.rs") continue;
+    found_nested = true;
+    assert(file.contents.find("use super::super::super::pattern::*;") !=
+           std::string::npos);
+  }
+  assert(found_nested);
+  bool rejected_source = false;
+  try {
+    tepl::codegen::planProject(project, "another/rules");
+  } catch (const std::invalid_argument&) {
+    rejected_source = true;
+  }
+  assert(rejected_source);
   for (const auto target :
        {tepl::codegen::Target::kCpp, tepl::codegen::Target::kPython}) {
     tepl::codegen::Options options;
@@ -64,10 +106,6 @@ int main() {
     assert(unavailable.diagnostics.front().message.find("not implemented") !=
            std::string::npos);
   }
-  tepl::codegen::Options options;
-  options.package_name = "bad\"\n[dependencies]";
-  const auto invalid = tepl::codegen::generate(program, options);
-  assert(!invalid.ok() && invalid.files.empty());
   for (const auto* source :
        {"dialect Collision { op foo_bar(x: tensor) -> tensor; op fooBar(x: "
         "tensor) -> tensor; }",
@@ -80,6 +118,26 @@ int main() {
     assert(!collision.ok() && collision.files.empty());
     assert(collision.diagnostics.front().message.find("collision") !=
            std::string::npos);
+  }
+  // These source names are valid TEPL but have no Rust raw-identifier spelling.
+  for (const auto* name : {"self", "Self", "super", "crate"}) {
+    const std::string field_source =
+        "dialect D { attrs A { " + std::string(name) +
+        ": index; } op node() -> tensor { attrs: A; } }";
+    const std::string host_source =
+        "dialect D { op negate(x: tensor) -> tensor; } "
+        "rule r { (negate X) => X where { " +
+        std::string(name) + "(X); } }";
+    for (const auto& source : {field_source, host_source}) {
+      auto parsed = tepl::parse(source);
+      assert(parsed.ok());
+      auto checked = tepl::core::analyze(*parsed.program);
+      assert(checked.ok());
+      const auto rejected = tepl::codegen::generate(*checked.program);
+      assert(!rejected.ok() && rejected.files.empty());
+      assert(rejected.diagnostics.front().message.find(
+                 "does not allow r#" + std::string(name)) != std::string::npos);
+    }
   }
   const PythonBackend python;
   assert(python.generate(program, {}).files.front().path == "rules.py");

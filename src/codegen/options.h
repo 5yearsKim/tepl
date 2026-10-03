@@ -12,7 +12,6 @@ struct Options {
   Target target = Target::kRust;
   // Rule source paths are made relative to this directory, when provided.
   std::string rules_root;
-  std::string package_name = "tepl_generated";
 };
 
 }  // namespace tepl::codegen

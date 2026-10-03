@@ -4,6 +4,21 @@
 #include <stdexcept>
 
 namespace tepl::codegen::rust {
+namespace {
+const std::set<std::string_view>& rustKeywords() {
+  static const std::set<std::string_view> keywords = {
+      "self",     "Self",  "super",    "crate",  "mod",    "type",
+      "fn",       "pub",   "use",      "enum",   "struct", "match",
+      "impl",     "trait", "where",    "const",  "static", "move",
+      "ref",      "as",    "async",    "await",  "loop",   "for",
+      "in",       "let",   "mut",      "dyn",    "return", "break",
+      "continue", "if",    "else",     "true",   "false",  "extern",
+      "unsafe",   "while", "abstract", "become", "box",    "do",
+      "final",    "macro", "override", "priv",   "typeof", "unsized",
+      "virtual",  "yield", "try",      "gen"};
+  return keywords;
+}
+}  // namespace
 std::string pascal(std::string_view name) {
   std::string result;
   bool upper = true;
@@ -32,17 +47,7 @@ std::string moduleName(std::string_view name) {
     }
     result += c;
   }
-  static const std::set<std::string> reserved = {
-      "self",  "super",    "crate",  "mod",    "type",    "fn",
-      "pub",   "use",      "enum",   "struct", "match",   "impl",
-      "trait", "where",    "const",  "static", "move",    "ref",
-      "as",    "async",    "await",  "loop",   "for",     "in",
-      "let",   "mut",      "dyn",    "return", "break",   "continue",
-      "if",    "else",     "true",   "false",  "extern",  "unsafe",
-      "while", "abstract", "become", "box",    "do",      "final",
-      "macro", "override", "priv",   "typeof", "unsized", "virtual",
-      "yield", "try",      "gen"};
-  if (result.empty() || result == "_" || reserved.contains(result) ||
+  if (result.empty() || result == "_" || rustKeywords().contains(result) ||
       (result[0] >= '0' && result[0] <= '9') ||
       result.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_") !=
           std::string::npos)
@@ -86,10 +91,13 @@ std::string quote(std::string_view text) {
 }
 
 std::string identifier(std::string_view name) {
-  // Prefixing every host method and field avoids keywords and collisions
-  // between an escaped keyword and an ordinary TEPL identifier (including
-  // self/Self).
-  return "tepl_" + std::string(name);
+  if (name == "self" || name == "Self" || name == "super" || name == "crate" ||
+      name == "_")
+    throw std::invalid_argument("cannot use '" + std::string(name) +
+                                "' as a Rust field or method name; Rust does "
+                                "not allow r#" +
+                                std::string(name) + "; rename it in TEPL");
+  return (rustKeywords().contains(name) ? "r#" : "") + std::string(name);
 }
 std::string dtype(core::DType value) {
   if (value == core::DType::kBF16) return "DType::BF16";
@@ -119,15 +127,15 @@ std::string descriptor(std::size_t id) {
   return "descriptor_" + std::to_string(id);
 }
 
-Names::Names(const core::Program& program) {
+Names::Names(const core::Program& program, const ProjectPlan& project) {
   operations_.resize(program.operations.size());
   schemas_.resize(program.attribute_schemas.size());
-  std::set<std::string> modules, variants{"None", "TeplLiteral"};
-  for (const auto& declaration : program.dialects) {
+  std::set<std::string> modules, variants{"None", "Literal"};
+  for (const auto& declaration : project.dialects) {
     DialectNames dialect{declaration.name,
                          moduleName(declaration.name),
                          pascal(declaration.name),
-                         declaration.origin.definition.source_name,
+                         declaration.source,
                          {},
                          {}};
     if (!modules.insert(dialect.module).second ||
@@ -136,10 +144,8 @@ Names::Names(const core::Program& program) {
                                   declaration.name +
                                   "'; use distinct dialect names");
     std::set<std::string> ops, schemas{"None"};
-    for (const auto& op : program.operations) {
-      if (op.dialect != dialect.name ||
-          op.origin.definition.source_name != dialect.source)
-        continue;
+    for (auto id : declaration.operations) {
+      const auto& op = program.operations.at(id.value);
       auto variant = pascal(op.name);
       if (variant == "Self" || !ops.insert(variant).second)
         throw std::invalid_argument("operation variant collision in dialect '" +
@@ -147,10 +153,8 @@ Names::Names(const core::Program& program) {
       dialect.operations.push_back(op.id);
       operations_[op.id.value] = dialect.module + "::Op::" + variant;
     }
-    for (const auto& schema : program.attribute_schemas) {
-      if (schema.dialect != dialect.name ||
-          schema.origin.definition.source_name != dialect.source)
-        continue;
+    for (auto id : declaration.schemas) {
+      const auto& schema = program.attribute_schemas.at(id.value);
       auto variant = pascal(schema.name);
       if (variant == "Self" || !schemas.insert(variant).second)
         throw std::invalid_argument("attribute variant collision in dialect '" +

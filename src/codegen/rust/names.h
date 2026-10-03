@@ -4,6 +4,7 @@
 #include <string_view>
 #include <vector>
 
+#include "src/codegen/common/project_plan.h"
 #include "src/core/ir.h"
 
 namespace tepl::codegen::rust {
@@ -24,7 +25,7 @@ struct DialectNames {
 
 class Names {
  public:
-  explicit Names(const core::Program& program);
+  Names(const core::Program& program, const ProjectPlan& project);
   std::string operation(core::OpId id) const;
   std::string schema(core::AttributeSchemaId id) const;
   std::vector<DialectNames> dialects;

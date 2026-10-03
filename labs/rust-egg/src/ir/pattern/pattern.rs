@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use egg::{Symbol, Var};
 
-use crate::ir::{DType, NodeError, Op, OpAttrs, OpNode};
+use super::super::{DType, Op, OpAttrs};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AttrVar(pub Symbol);
@@ -16,6 +16,7 @@ impl From<&str> for AttrVar {
 #[derive(Clone, Debug)]
 pub enum AttrPattern {
     Any,
+    Literal { value: String, dtype: Option<DType> },
     Exact(OpAttrs),
     Bind(AttrVar),
 }
@@ -37,13 +38,15 @@ pub enum TensorPattern {
 
 impl TensorPattern {
     /// Match a numeric literal node with exactly this spelling and dtype.
-    pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
-        let node = OpNode::literal(value, dtype)?;
-        Ok(Self::op(
-            node.op(),
-            AttrPattern::Exact(node.attrs().clone()),
+    pub fn literal(value: impl Into<String>, dtype: Option<DType>) -> Self {
+        Self::op(
+            Op::Literal,
+            AttrPattern::Literal {
+                value: value.into(),
+                dtype,
+            },
             vec![],
-        ))
+        )
     }
 
     pub fn bind(var: Var, pattern: Self) -> Self {
@@ -123,13 +126,15 @@ pub enum TensorExpr {
 
 impl TensorExpr {
     /// Construct a numeric literal on the RHS.
-    pub fn literal(value: impl Into<String>, dtype: DType) -> Result<Self, NodeError> {
-        let node = OpNode::literal(value, dtype)?;
-        Ok(Self::op(
-            node.op(),
-            AttrExpr::Exact(node.attrs().clone()),
+    pub fn literal(value: impl Into<String>, dtype: Option<DType>) -> Self {
+        Self::op(
+            Op::Literal,
+            AttrExpr::Exact(OpAttrs::Literal {
+                value: value.into(),
+                dtype,
+            }),
             vec![],
-        ))
+        )
     }
 
     pub fn op(op: impl Into<Op>, attrs: AttrExpr, children: Vec<Self>) -> Self {

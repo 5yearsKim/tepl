@@ -1,4 +1,4 @@
 dialect __ {
-    attrs __ { self: index; type: string[]; }
+    attrs __ { self_: index; type: string[]; type_: index; match: index; gen: index; }
     op _1() -> tensor { attrs: __; }
 }

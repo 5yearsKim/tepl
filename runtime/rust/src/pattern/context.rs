@@ -1,6 +1,6 @@
 use egg::{Analysis, EGraph, Id, Var};
 
-use crate::ir::{DType, OpAttrs, OpNode};
+use super::super::{DType, Op, OpAttrs, OpNode};
 
 use super::matcher::TensorMatch;
 use super::pattern::AttrVar;
@@ -26,24 +26,14 @@ pub trait OutputInference: Send + Sync {
         dtype.or(Some(expected.dtype))
     }
 
-    fn infer_output(
-        &self,
-        op: crate::ir::Op,
-        operands: &[TensorInfo],
-        attrs: &OpAttrs,
-    ) -> Option<TensorInfo>;
+    fn infer_output(&self, op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo>;
 }
 
 impl<F> OutputInference for F
 where
-    F: Fn(crate::ir::Op, &[TensorInfo], &OpAttrs) -> Option<TensorInfo> + Send + Sync,
+    F: Fn(Op, &[TensorInfo], &OpAttrs) -> Option<TensorInfo> + Send + Sync,
 {
-    fn infer_output(
-        &self,
-        op: crate::ir::Op,
-        operands: &[TensorInfo],
-        attrs: &OpAttrs,
-    ) -> Option<TensorInfo> {
+    fn infer_output(&self, op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo> {
         self(op, operands, attrs)
     }
 }

@@ -59,7 +59,7 @@ rule signed_float {
 }
 rule reserved_names {
     (Custom.negate X) => X
-    where { self(X); }
+    where { match(X); }
 }
 rule variadic { (Custom.concat X Y Z) => (Custom.concat X) }
 

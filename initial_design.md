@@ -185,13 +185,14 @@ owning AST with source spans. The `parse` command checks syntax and resolves
 imports while preserving source rules and annotations. The `check` command
 performs semantic analysis through `src/core/`, validates operation names,
 arity, descriptors, and types, and expands concrete instances into the core IR.
-`generate FILE --target rust --out DIR` emits a standalone crate from checked
+`generate FILE --target rust --out DIR` emits a Rust module from checked
 dialects and concrete rules through the shared `src/codegen/` backend interface.
 
-[labs/rust-egg](labs/rust-egg/README.md) implements the tensor IR, matching,
-binders, host callbacks, and e-graph rewrite application. Dialect and rule
-modules remain manually maintained reference examples; generated crates use the
-shared templates under `runtime/rust/` and their own dialect definitions.
+[labs/rust-egg](labs/rust-egg/README.md) exercises generated tensor IR, matching,
+binders, host callbacks, and e-graph rewrite application. Its `src/ir/` is
+generated from `examples/`, including the shared
+templates under `runtime/rust/`. Handwritten semantics live in `src/host/`.
+`tools/regenerate_lab.sh --check` verifies that its checked-in IR is current.
 Its execution model is:
 
 ```text
@@ -207,9 +208,8 @@ its declared shape constraints and explicit `where` predicates, then derives
 three descriptors from LHS inputs. The checked rewrite path verifies every RHS operation through `OutputInference`
 and requires root shape/dtype equality with matched-root metadata before any
 insertion or union. Unknown metadata rejects the match. Numerical equivalence
-still requires host legality predicates. The structural `tensor_rewrite` API
-retains an explicit caller obligation to prove the entire replacement valid.
-The LoRA saturation example uses the checked path.
+still requires host legality predicates. All generated rewrites use the checked
+path, including the LoRA saturation example.
 
 `TensorBindings` registers immutable symbol and named-constant types; conflicting
 registrations are rejected. An identity must have one tensor type per graph.

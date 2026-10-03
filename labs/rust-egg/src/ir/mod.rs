@@ -1,4 +1,3 @@
-//! Multiple dialects sharing one egg language and pattern runtime.
 pub mod dialects;
 pub mod op_node;
 pub mod pattern;

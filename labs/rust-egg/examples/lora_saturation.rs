@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Before saturation:\n{}", text_dump(&egraph));
 
     let rules = [
-        rule_lora::build_checked_rewrite(
+        rule_lora::build_rewrite(
             tensor_info,
             infer_tensor_output,
             DemoLoraFunctions {
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             },
         )
         .unwrap(),
-        rule_commute_add::build_rewrite().unwrap(),
+        rule_commute_add::build_rewrite(tensor_info, infer_tensor_output, ()).unwrap(),
     ];
     let runner = Runner::<OpNode, ShapeAnalysis>::new(ShapeAnalysis::default())
         .with_egraph(egraph)

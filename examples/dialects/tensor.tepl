@@ -86,12 +86,6 @@ dialect TensorLang {
             name: string;
         }
     }
-    // Bare graph numbers lower to literal nodes; preserve their spelling.
-    op literal() -> tensor {
-        attrs {
-            value: string;
-        }
-    }
     op symbol() -> tensor {
         attrs {
             name: string;

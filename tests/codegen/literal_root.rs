@@ -7,7 +7,7 @@ use tepl_generated::ir::{DType, Op, OpAttrs, OpNode};
 struct LiteralInference;
 impl OutputInference for LiteralInference {
     fn infer_output(&self, _: Op, _: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo> {
-        let OpAttrs::TeplLiteral {
+        let OpAttrs::Literal {
             dtype: Some(dtype), ..
         } = attrs
         else {
@@ -21,7 +21,7 @@ impl OutputInference for LiteralInference {
 }
 fn metadata(graph: &EGraph<OpNode, ()>, id: Id) -> Option<TensorInfo> {
     let attrs = graph[graph.find(id)].nodes.first()?.attrs();
-    LiteralInference.infer_output(Op::TeplLiteral, &[], attrs)
+    LiteralInference.infer_output(Op::Literal, &[], attrs)
 }
 #[test]
 fn untyped_literal_roots_match_and_construct_each_concrete_dtype() {

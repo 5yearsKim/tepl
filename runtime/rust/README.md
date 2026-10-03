@@ -1,16 +1,23 @@
 # Rust runtime templates
 
-These files are the maintained runtime portion of each generated Rust crate.
+These files are the maintained runtime portion of each generated Rust module.
 Bazel embeds them into the compiler. `src/pattern/` is copied into the output's
-`src/ir/pattern/`; it contains matching, attribute witnesses, shape checks,
+`pattern/`; it contains matching, attribute witnesses, shape checks,
 metadata access, and checked rewrite application. It has no dependency on a
 particular dialect.
 
 `src/op_node.rs` supplies the shared node implementation and typed `DialectOp`
 constructor. Generation inserts project-specific `Op` and `OpAttrs` sum types
-at the marker below the imports, before the node implementation, and writes `src/ir/op_node.rs`. `src/types.rs` is copied as `src/ir/types.rs`.
+at the marker below the imports, before the node implementation, and writes
+`op_node.rs`. `src/types.rs` is copied as `types.rs`.
 The repository directory is called `runtime/` because it stores boilerplate;
-the generated public module is `ir::pattern`.
+the generated public submodule is `pattern`.
+
+Generation emits files directly into the selected module directory of an
+existing crate. Internal imports use `super`, so the enclosing module can have
+any name and location. The lab's `src/ir/` uses this output, regenerated
+by `tools/regenerate_lab.sh`; its host semantics are maintained in `src/host/`.
+Changes to these templates reach the lab through regeneration.
 
 Hosts supply `TensorMetadata`, `OutputInference`, and the generated per-rule
 `Functions` traits. Shapes and index values use `u64` consistently with core's

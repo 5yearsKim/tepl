@@ -1,4 +1,3 @@
-use crate::ir::dialects::tensor_lang;
 use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
 
@@ -6,33 +5,13 @@ use egg::{
     Analysis, Applier, EGraph, Id, PatternAst, Rewrite, SearchMatches, Searcher, Subst, Symbol, Var,
 };
 
-use crate::ir::{OpAttrs, OpNode};
+use super::super::{OpAttrs, OpNode};
 
 use super::context::{OutputInference, TensorInfo, TensorMetadata};
 use super::matcher::{TensorMatch, for_each_match_at};
 use super::pattern::{AttrExpr, AttrVar, TensorExpr, TensorPattern};
 
 pub type DerivedAttrs = std::collections::HashMap<AttrVar, OpAttrs>;
-
-/// Build a reusable egg rewrite from a structural pattern, a RHS expression,
-/// and a host function that checks semantics and derives RHS attributes.
-/// The caller must prove semantic validity and output compatibility for the
-/// entire RHS. Return `None` when that cannot be established. Prefer
-/// `tensor_rewrite_checked` when metadata and operation inference are available.
-pub fn tensor_rewrite<N, F>(
-    name: impl Into<Symbol>,
-    lhs: TensorPattern,
-    rhs: TensorExpr,
-    check_and_derive: F,
-) -> Result<Rewrite<OpNode, N>, String>
-where
-    N: Analysis<OpNode>,
-    F: Fn(&EGraph<OpNode, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
-{
-    build_tensor_rewrite(name, lhs, rhs, move |graph, _, matched| {
-        check_and_derive(graph, matched)
-    })
-}
 
 /// Validate every RHS operation and require shape/dtype equality with the
 /// matched root before inserting any nodes. Numerical legality remains the
@@ -56,8 +35,16 @@ where
         let derived = check_and_derive(graph, matched)?;
         validate_rhs(&expression, matched, &derived)?;
         let expected = metadata.info(graph, graph.find(root))?;
-        let actual = infer_rhs(graph, &expression, matched, &derived, &metadata, &inference)?;
-        (actual == expected).then_some(derived)
+        let (resolved, actual) = infer_rhs(
+            graph,
+            &expression,
+            matched,
+            &derived,
+            &metadata,
+            &inference,
+            &expected,
+        )?;
+        (actual == expected).then_some((derived, resolved))
     })
 }
 
@@ -68,28 +55,47 @@ fn infer_rhs<N: Analysis<OpNode>, M: TensorMetadata<N>, I: OutputInference>(
     derived: &DerivedAttrs,
     metadata: &M,
     inference: &I,
-) -> Option<TensorInfo> {
+    expected: &TensorInfo,
+) -> Option<(TensorExpr, TensorInfo)> {
     match expr {
-        TensorExpr::Var(var) => metadata.info(graph, graph.find(*matched.tensors.get(*var)?)),
+        TensorExpr::Var(var) => Some((
+            expr.clone(),
+            metadata.info(graph, graph.find(*matched.tensors.get(*var)?))?,
+        )),
         TensorExpr::Op {
             op,
             attrs,
             children,
         } => {
-            let attrs = resolve_attrs(attrs, matched, derived)?;
-            let operands = children
-                .iter()
-                .map(|child| infer_rhs(graph, child, matched, derived, metadata, inference))
-                .collect::<Option<Vec<_>>>()?;
-            let output = inference.infer_output(*op, &operands, &attrs)?;
-            // The host may reject unsupported literal formats or values, but
-            // cannot reinterpret an explicitly typed rank-zero literal.
-            if let OpAttrs::TensorLang(tensor_lang::OpAttrs::Literal { dtype, .. }) = &attrs {
-                if output.dtype != *dtype || !output.shape.is_empty() {
+            let mut attrs = resolve_attrs(attrs, matched, derived)?;
+            let mut resolved = Vec::new();
+            let mut operands = Vec::new();
+            for child in children {
+                let (expression, info) = infer_rhs(
+                    graph, child, matched, derived, metadata, inference, expected,
+                )?;
+                resolved.push(expression);
+                operands.push(info);
+            }
+            let output = if let OpAttrs::Literal { value, dtype } = &mut attrs {
+                let concrete = inference.infer_literal(value, *dtype, expected)?;
+                if dtype.is_some_and(|annotation| annotation != concrete) {
                     return None;
                 }
-            }
-            Some(output)
+                *dtype = Some(concrete);
+                let output = inference.infer_output(*op, &operands, &attrs)?;
+                if output.dtype != concrete || !output.shape.is_empty() {
+                    return None;
+                }
+                output
+            } else {
+                inference.infer_output(*op, &operands, &attrs)?
+            };
+            OpNode::from_parts(*op, vec![Id::from(0); resolved.len()], attrs.clone()).ok()?;
+            Some((
+                TensorExpr::op(*op, AttrExpr::Exact(attrs), resolved),
+                output,
+            ))
         }
     }
 }
@@ -102,7 +108,10 @@ fn build_tensor_rewrite<N, F>(
 ) -> Result<Rewrite<OpNode, N>, String>
 where
     N: Analysis<OpNode>,
-    F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
+    F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<(DerivedAttrs, TensorExpr)>
+        + Send
+        + Sync
+        + 'static,
 {
     validate_rhs_definition(&rhs)?;
     let mut lhs_attrs = HashSet::new();
@@ -219,22 +228,22 @@ impl<F> TensorApplier<F> {
         rule_name: Symbol,
     ) -> Vec<Id>
     where
-        F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<DerivedAttrs>,
+        F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<(DerivedAttrs, TensorExpr)>,
     {
         // Finish all semantic checks before changing this e-class. A rejected
         // RHS must not leave any of its intermediate nodes in the graph.
         let valid: Vec<_> = candidates
             .iter()
             .filter_map(|candidate| {
-                let derived = (self.check_and_derive)(egraph, eclass, candidate)?;
-                validate_rhs(&self.rhs, candidate, &derived)?;
-                Some((candidate, derived))
+                let (derived, resolved) = (self.check_and_derive)(egraph, eclass, candidate)?;
+                validate_rhs(&resolved, candidate, &derived)?;
+                Some((candidate, derived, resolved))
             })
             .collect();
 
         let mut changed = Vec::new();
-        for (matched, derived) in valid {
-            let result = insert_rhs(egraph, &self.rhs, matched, &derived);
+        for (matched, derived, resolved) in valid {
+            let result = insert_rhs(egraph, &resolved, matched, &derived);
             if egraph.union_trusted(eclass, result, rule_name) {
                 changed.push(result);
             }
@@ -246,7 +255,7 @@ impl<F> TensorApplier<F> {
 impl<N, F> Applier<OpNode, N> for TensorApplier<F>
 where
     N: Analysis<OpNode>,
-    F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync,
+    F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<(DerivedAttrs, TensorExpr)> + Send + Sync,
 {
     fn apply_matches(
         &self,

@@ -21,9 +21,7 @@ fn input(graph: &mut EGraph<OpNode, ()>, name: &str) -> Id {
         OpNode::from_parts(
             Op::Custom(custom::Op::Input),
             vec![],
-            OpAttrs::Custom(custom::OpAttrs::InputAttrs {
-                tepl_name: name.into(),
-            }),
+            OpAttrs::Custom(custom::OpAttrs::InputAttrs { name: name.into() }),
         )
         .unwrap(),
     )
@@ -44,7 +42,7 @@ fn metadata(entries: Vec<(Id, TensorInfo)>) -> impl TensorMetadata<()> {
 struct Inference;
 impl OutputInference for Inference {
     fn infer_output(&self, op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo> {
-        if let OpAttrs::TeplLiteral {
+        if let OpAttrs::Literal {
             dtype: Some(dtype), ..
         } = attrs
         {
@@ -109,7 +107,7 @@ fn generated_dialects_have_distinct_operations_shared_schemas_and_variadic_arity
         OpNode::from_parts(
             Op::Custom(custom::Op::Transform),
             vec![Id::from(0)],
-            OpAttrs::Custom(custom::OpAttrs::AnotherAttrs { tepl_size: 1 })
+            OpAttrs::Custom(custom::OpAttrs::AnotherAttrs { size: 1 })
         )
         .is_err()
     );
@@ -191,7 +189,7 @@ fn untyped_literal_patterns_match_any_dtype_and_rhs_uses_context() {
             !graph
                 .classes()
                 .flat_map(|class| &class.nodes)
-                .any(|node| matches!(node.attrs(), OpAttrs::TeplLiteral { dtype: None, .. }))
+                .any(|node| matches!(node.attrs(), OpAttrs::Literal { dtype: None, .. }))
         );
     }
 }
@@ -255,26 +253,20 @@ struct Chain {
     wrong: bool,
 }
 impl rule_derive_chain::Functions for Chain {
-    fn tepl_enabled(&self, _: &TensorInfo, _: &OpAttrs) -> Option<bool> {
+    fn enabled(&self, _: &TensorInfo, _: &OpAttrs) -> Option<bool> {
         Some(true)
     }
-    fn tepl_update(&self, attrs: &OpAttrs) -> Option<OpAttrs> {
+    fn update(&self, attrs: &OpAttrs) -> Option<OpAttrs> {
         self.calls.fetch_add(1, Ordering::SeqCst);
         if self.wrong {
-            return Some(OpAttrs::Custom(custom::OpAttrs::AnotherAttrs {
-                tepl_size: 1,
-            }));
+            return Some(OpAttrs::Custom(custom::OpAttrs::AnotherAttrs { size: 1 }));
         }
-        let OpAttrs::Custom(custom::OpAttrs::Axes {
-            tepl_axis,
-            tepl_tags,
-        }) = attrs
-        else {
+        let OpAttrs::Custom(custom::OpAttrs::Axes { axis, tags }) = attrs else {
             return None;
         };
         Some(OpAttrs::Custom(custom::OpAttrs::Axes {
-            tepl_axis: tepl_axis + 1,
-            tepl_tags: tepl_tags.clone(),
+            axis: axis + 1,
+            tags: tags.clone(),
         }))
     }
 }
@@ -288,8 +280,8 @@ fn derivations_run_in_order_and_wrong_schemas_reject_without_insertion() {
                 Op::Custom(custom::Op::Transform),
                 vec![x],
                 OpAttrs::Custom(custom::OpAttrs::Axes {
-                    tepl_axis: 0,
-                    tepl_tags: vec![],
+                    axis: 0,
+                    tags: vec![],
                 }),
             )
             .unwrap(),
@@ -321,8 +313,8 @@ fn derivations_run_in_order_and_wrong_schemas_reject_without_insertion() {
                             Op::Custom(custom::Op::Transform),
                             vec![x],
                             OpAttrs::Custom(custom::OpAttrs::Axes {
-                                tepl_axis: 2,
-                                tepl_tags: vec![]
+                                axis: 2,
+                                tags: vec![]
                             })
                         )
                         .unwrap()
@@ -335,7 +327,7 @@ fn derivations_run_in_order_and_wrong_schemas_reject_without_insertion() {
 
 struct NoCalls;
 impl rule_short_circuit::Functions for NoCalls {
-    fn tepl_fails(&self, _: &TensorInfo) -> Option<bool> {
+    fn fails(&self, _: &TensorInfo) -> Option<bool> {
         panic!("short circuit must skip this call")
     }
 }
@@ -374,18 +366,18 @@ fn overflow_and_division_by_zero_reject_in_debug_and_release() {
 }
 struct Numeric;
 impl rule_nested_calls::Functions for Numeric {
-    fn tepl_twice(&self, value: u64) -> Option<u64> {
+    fn twice(&self, value: u64) -> Option<u64> {
         value.checked_mul(2)
     }
-    fn tepl_greater(&self, left: u64, right: u64) -> Option<bool> {
+    fn greater(&self, left: u64, right: u64) -> Option<bool> {
         Some(left > right)
     }
 }
 impl rule_signed_float::Functions for Numeric {
-    fn tepl_signed(&self, _: &TensorInfo) -> Option<i64> {
+    fn signed(&self, _: &TensorInfo) -> Option<i64> {
         Some(-1)
     }
-    fn tepl_floating(&self, _: &TensorInfo) -> Option<f64> {
+    fn floating(&self, _: &TensorInfo) -> Option<f64> {
         Some(1.5)
     }
 }
@@ -438,13 +430,13 @@ fn incompatible_output_metadata_rejects_without_partial_rhs() {
 
 struct TypedHost;
 impl rule_typed_pipeline::Functions for TypedHost {
-    fn tepl_host_tensor(&self, tensor: &TensorInfo) -> Option<TensorInfo> {
+    fn host_tensor(&self, tensor: &TensorInfo) -> Option<TensorInfo> {
         Some(tensor.clone())
     }
-    fn tepl_host_dims(&self, dimensions: &[u64]) -> Option<Vec<u64>> {
+    fn host_dims(&self, dimensions: &[u64]) -> Option<Vec<u64>> {
         Some(dimensions.to_vec())
     }
-    fn tepl_host_check(
+    fn host_check(
         &self,
         tensor: &TensorInfo,
         dimensions: &[u64],
@@ -462,6 +454,27 @@ impl rule_typed_pipeline::Functions for TypedHost {
         )
     }
 }
+
+struct KeywordHost;
+impl rule_reserved_names::Functions for KeywordHost {
+    fn r#match(&self, tensor: &TensorInfo) -> Option<bool> {
+        Some(tensor.dtype == DType::F32)
+    }
+}
+
+#[test]
+fn keyword_host_method_uses_raw_identifier_in_declaration_and_call() {
+    let mut graph = EGraph::default();
+    let x = input(&mut graph, "x");
+    let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
+    let meta = metadata(vec![
+        (x, info(&[2], DType::F32)),
+        (root, info(&[2], DType::F32)),
+    ]);
+    let rule = rule_reserved_names::build_rewrite(meta, Inference, KeywordHost).unwrap();
+    assert!(!apply(&mut graph, rule).is_empty());
+    assert_eq!(graph.find(root), graph.find(x));
+}
 #[test]
 fn nested_owned_tensor_and_sequence_results_borrow_correctly_in_host_calls() {
     let mut graph = EGraph::default();
@@ -471,8 +484,8 @@ fn nested_owned_tensor_and_sequence_results_borrow_correctly_in_host_calls() {
             Op::Custom(custom::Op::Transform),
             vec![x],
             OpAttrs::Custom(custom::OpAttrs::Axes {
-                tepl_axis: 0,
-                tepl_tags: vec![],
+                axis: 0,
+                tags: vec![],
             }),
         )
         .unwrap(),
@@ -493,7 +506,7 @@ fn nested_owned_tensor_and_sequence_results_borrow_correctly_in_host_calls() {
 }
 
 impl rule_short_literal::Functions for NoCalls {
-    fn tepl_fails(&self, _: &TensorInfo) -> Option<bool> {
+    fn fails(&self, _: &TensorInfo) -> Option<bool> {
         panic!("skipped branch must not require input metadata")
     }
 }

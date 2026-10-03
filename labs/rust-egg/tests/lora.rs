@@ -1,5 +1,6 @@
 //! Exercises the reusable LoRA rule against test tensor metadata and host functions.
 
+use rust_egg::host::nodes::*;
 use rust_egg::ir::dialects::tensor_lang;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -10,11 +11,8 @@ use rust_egg::ir::rules::lora::rule_lora;
 use rust_egg::ir::rules::lora::rule_lora::Functions;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
-#[path = "support/generated_host.rs"]
-mod generated_host;
-
 fn batched_dot_attrs() -> OpAttrs {
-    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneral {
+    OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
         lhs_contracting: vec![2],
         rhs_contracting: vec![1],
         lhs_batch: vec![0],
@@ -22,7 +20,7 @@ fn batched_dot_attrs() -> OpAttrs {
     })
 }
 
-fn batched_dot_shape(lhs: &[usize], rhs: &[usize], attrs: &OpAttrs) -> Option<Vec<usize>> {
+fn batched_dot_shape(lhs: &[u64], rhs: &[u64], attrs: &OpAttrs) -> Option<Vec<u64>> {
     if lhs.len() != 3
         || rhs.len() != 3
         || *attrs != batched_dot_attrs()
@@ -37,7 +35,7 @@ fn batched_dot_shape(lhs: &[usize], rhs: &[usize], attrs: &OpAttrs) -> Option<Ve
 struct TestFunctions;
 
 impl Functions for TestFunctions {
-    fn broadcastable(&self, batch: &[usize], weight_batch: &[usize]) -> Option<bool> {
+    fn broadcastable(&self, batch: &[u64], weight_batch: &[u64]) -> Option<bool> {
         Some(batch == weight_batch)
     }
 
@@ -95,10 +93,10 @@ struct Fixture {
     egraph: EGraph<OpNode, ()>,
     root: Id,
     inputs: [Id; 4],
-    shapes: HashMap<String, Vec<usize>>,
+    shapes: HashMap<String, Vec<u64>>,
 }
 
-fn fixture(b_output: usize) -> Fixture {
+fn fixture(b_output: u64) -> Fixture {
     // X: [2, 3, 4], W: [2, 4, 5], A: [2, 4, 2], B: [2, 2, b_output].
     let shapes = HashMap::from([
         (String::from("X"), vec![2, 3, 4]),
@@ -107,9 +105,9 @@ fn fixture(b_output: usize) -> Fixture {
         (String::from("B"), vec![2, 2, b_output]),
     ]);
     let mut egraph = EGraph::<OpNode, ()>::default();
-    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| egraph.add(OpNode::symbol(name)));
+    let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| egraph.add(symbol(name)));
     let ab = egraph.add(dot(a, b));
-    let weights = egraph.add(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), w, ab).unwrap());
+    let weights = egraph.add(binary(tensor_lang::Op::Add, w, ab).unwrap());
     let root = egraph.add(dot(x, weights));
     egraph.rebuild();
     Fixture {
@@ -120,19 +118,16 @@ fn fixture(b_output: usize) -> Fixture {
     }
 }
 
-fn test_rule(shapes: HashMap<String, Vec<usize>>) -> Rewrite<OpNode, ()> {
-    let metadata = move |egraph: &EGraph<OpNode, ()>, id: Id| {
-        egraph[egraph.find(id)]
-            .nodes
-            .iter()
-            .find_map(OpNode::symbol_name)
-            .and_then(|name| shapes.get(name))
-            .map(|shape| TensorInfo {
+fn test_rule(shapes: HashMap<String, Vec<u64>>) -> Rewrite<OpNode, ()> {
+    let metadata = move |graph: &EGraph<OpNode, ()>, id: Id| {
+        rust_egg::host::infer_eclass(graph, id, &|node| {
+            Some(TensorInfo {
                 dtype: DType::F32,
-                shape: shape.clone(),
+                shape: shapes.get(symbol_name(node)?)?.clone(),
             })
+        })
     };
-    rule_lora::build_rewrite(metadata, TestFunctions).unwrap()
+    rule_lora::build_rewrite(metadata, rust_egg::host::infer_tensor_output, TestFunctions).unwrap()
 }
 
 #[test]
@@ -148,11 +143,8 @@ fn lora_rule_matches_and_builds_rhs() {
 
     let captures = matches_at(&egraph, root, &lhs);
     assert_eq!(captures.len(), 1);
-    assert_eq!(
-        captures[0].attrs[&AttrVar::from("outer")],
-        batched_dot_attrs()
-    );
-    assert_eq!(captures[0].tensors["?X".parse::<Var>().unwrap()], x);
+    assert_eq!(captures[0].attrs[&AttrVar::from("d0")], batched_dot_attrs());
+    assert_eq!(captures[0].tensors["?c0".parse::<Var>().unwrap()], x);
 
     let found = rule.search(&egraph);
     assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
@@ -163,7 +155,7 @@ fn lora_rule_matches_and_builds_rhs() {
     let xa = egraph.lookup(dot(x, a)).expect("X @ A was inserted");
     let out = egraph.lookup(dot(xa, b)).expect("(X @ A) @ B was inserted");
     let rhs = egraph
-        .lookup(OpNode::binary(Op::TensorLang(tensor_lang::Op::Add), xw, out).unwrap())
+        .lookup(binary(tensor_lang::Op::Add, xw, out).unwrap())
         .expect("the RHS addition was inserted");
     assert_eq!(egraph.find(root), egraph.find(rhs));
 }
@@ -191,7 +183,7 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
         calls: Arc<Mutex<Vec<&'static str>>>,
     }
     impl Functions for TracingFunctions {
-        fn broadcastable(&self, _: &[usize], _: &[usize]) -> Option<bool> {
+        fn broadcastable(&self, _: &[u64], _: &[u64]) -> Option<bool> {
             Some(true)
         }
         fn reassociable(
@@ -242,19 +234,17 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
         mut egraph, shapes, ..
     } = fixture(5);
     let calls = Arc::new(Mutex::new(Vec::new()));
-    let metadata = move |egraph: &EGraph<OpNode, ()>, id: Id| {
-        egraph[egraph.find(id)]
-            .nodes
-            .iter()
-            .find_map(OpNode::symbol_name)
-            .and_then(|name| shapes.get(name))
-            .map(|shape| TensorInfo {
+    let metadata = move |graph: &EGraph<OpNode, ()>, id: Id| {
+        rust_egg::host::infer_eclass(graph, id, &|node| {
+            Some(TensorInfo {
                 dtype: DType::F32,
-                shape: shape.clone(),
+                shape: shapes.get(symbol_name(node)?)?.clone(),
             })
+        })
     };
     let rule = rule_lora::build_rewrite(
         metadata,
+        rust_egg::host::infer_tensor_output,
         TracingFunctions {
             calls: calls.clone(),
         },
@@ -267,34 +257,6 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
 
 // Compile the generated interface against the same implementation used by the
 // handwritten reference rules, catching frontend/runtime signature drift.
-impl generated_host::lora::Functions for TestFunctions {
-    fn broadcastable(&self, batch: &[usize], weight_batch: &[usize]) -> Option<bool> {
-        Functions::broadcastable(self, batch, weight_batch)
-    }
-    fn reassociable(
-        &self,
-        x: &TensorInfo,
-        a: &TensorInfo,
-        b: &TensorInfo,
-        outer: &OpAttrs,
-        inner: &OpAttrs,
-    ) -> Option<bool> {
-        Functions::reassociable(self, x, a, b, outer, inner)
-    }
-    fn infer_dot(&self, lhs: &TensorInfo, rhs: &TensorInfo, attrs: &OpAttrs) -> Option<OpAttrs> {
-        Functions::infer_dot(self, lhs, rhs, attrs)
-    }
-    fn infer_lora_out(
-        &self,
-        x: &TensorInfo,
-        a: &TensorInfo,
-        b: &TensorInfo,
-        outer: &OpAttrs,
-        inner: &OpAttrs,
-    ) -> Option<OpAttrs> {
-        Functions::infer_lora_out(self, x, a, b, outer, inner)
-    }
-}
 
 #[test]
 fn generated_host_interface_accepts_dtype_metadata() {
@@ -310,7 +272,7 @@ fn generated_host_interface_accepts_dtype_metadata() {
         shape: vec![2, 2, 5],
         dtype: DType::BF16,
     };
-    let functions: &dyn generated_host::lora::Functions = &TestFunctions;
+    let functions: &dyn Functions = &TestFunctions;
     assert_eq!(functions.broadcastable(&[2], &[2]), Some(true));
     assert!(
         functions

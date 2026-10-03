@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 
 use egg::{Analysis, EGraph, Id, Language, Subst, Var};
 
-use crate::ir::{OpAttrs, OpNode};
+use super::super::{OpAttrs, OpNode};
 
 use super::pattern::{AttrPattern, AttrVar, TensorPattern};
 
@@ -140,7 +140,7 @@ fn attrs_match(pattern: &AttrPattern, attrs: &OpAttrs, matched: &TensorMatch) ->
     match pattern {
         AttrPattern::Any => true,
         AttrPattern::Literal { value, dtype } => match attrs {
-            OpAttrs::TeplLiteral {
+            OpAttrs::Literal {
                 value: actual,
                 dtype: actual_dtype,
             } => value == actual && dtype.is_none_or(|expected| Some(expected) == *actual_dtype),

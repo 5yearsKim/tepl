@@ -7,10 +7,10 @@ use tepl_generated::ir::{DType, Op, OpAttrs, OpNode};
 
 fn attrs() -> OpAttrs {
     OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
-        tepl_lhs_contracting: vec![2],
-        tepl_rhs_contracting: vec![1],
-        tepl_lhs_batch: vec![0],
-        tepl_rhs_batch: vec![0],
+        lhs_contracting: vec![2],
+        rhs_contracting: vec![1],
+        lhs_batch: vec![0],
+        rhs_batch: vec![0],
     })
 }
 fn dot_shape(lhs: &[u64], rhs: &[u64], attributes: &OpAttrs) -> Option<Vec<u64>> {
@@ -28,10 +28,10 @@ struct Host {
     allowed: bool,
 }
 impl rule_lora::Functions for Host {
-    fn tepl_broadcastable(&self, batch: &[u64], weight: &[u64]) -> Option<bool> {
+    fn broadcastable(&self, batch: &[u64], weight: &[u64]) -> Option<bool> {
         Some(batch == weight)
     }
-    fn tepl_reassociable(
+    fn reassociable(
         &self,
         _: &TensorInfo,
         _: &TensorInfo,
@@ -41,7 +41,7 @@ impl rule_lora::Functions for Host {
     ) -> Option<bool> {
         Some(self.allowed && *outer == attrs() && *inner == attrs())
     }
-    fn tepl_infer_dot(
+    fn infer_dot(
         &self,
         lhs: &TensorInfo,
         rhs: &TensorInfo,
@@ -50,7 +50,7 @@ impl rule_lora::Functions for Host {
         dot_shape(&lhs.shape, &rhs.shape, attributes)?;
         Some(attributes.clone())
     }
-    fn tepl_infer_lora_out(
+    fn infer_lora_out(
         &self,
         x: &TensorInfo,
         a: &TensorInfo,
@@ -119,9 +119,7 @@ fn generated_lora_checks_shapes_host_legality_and_every_intermediate_before_inse
                 OpNode::from_parts(
                     Op::TensorLang(tensor_lang::Op::Symbol),
                     vec![],
-                    OpAttrs::TensorLang(tensor_lang::OpAttrs::SymbolAttrs {
-                        tepl_name: name.into(),
-                    }),
+                    OpAttrs::TensorLang(tensor_lang::OpAttrs::SymbolAttrs { name: name.into() }),
                 )
                 .unwrap(),
             )
