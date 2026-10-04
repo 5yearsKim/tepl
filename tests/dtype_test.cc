@@ -27,7 +27,6 @@ int main() {
     assert(parsed.ok());
   }
 
-  // The frontend preserves annotations and literal spelling for core to check.
   for (const auto* dtype : {"i32", "f32", "u32", "unknown"}) {
     const auto parsed =
         tepl::parse("rule r { 001:" + std::string(dtype) + " => -1.2500:f32 }");

@@ -65,7 +65,6 @@ mkdir -p "$crate/tests"
 cp "$project_root/tests/codegen/project.rs" "$crate/tests/generated.rs"
 cargo test --manifest-path "$crate/Cargo.toml"
 
-# Repeated generation uses the same filenames and contents.
 cp -R "$crate/src" "$work_directory/first_src"
 "$compiler" generate "$project_root/examples" --target rust --out "$crate/src/ir"
 diff -r "$work_directory/first_src" "$crate/src"
@@ -80,8 +79,7 @@ if "$compiler" generate "$project_root/examples" --out "$module_out" --check; th
     exit 1
 fi
 
-# A renamed module works under another application module, including deeply
-# nested source rules. Relocate the same output to another name without editing it.
+# Check relocation under a nested application module.
 relocated="$work_directory/relocated"
 prepare_application "$relocated"
 printf 'pub mod components;\n' > "$relocated/src/lib.rs"

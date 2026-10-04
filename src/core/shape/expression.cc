@@ -103,7 +103,6 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeCall& call,
                         std::to_string(count) + " arguments");
     return nullptr;
   }
-  // Instantiate the single generic element type only for signatures using T.
   std::optional<TypeId> element;
   std::optional<TypeId> list;
   const auto type = [&](builtins::SignatureType pattern) -> TypeId {
@@ -213,8 +212,7 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeConditional& conditional,
 ExprPtr ExpressionChecker::lower(const ast::ShapeComprehension& comprehension,
                                  const SourceOrigin& origin) {
   const auto element_type = context_.types.variable(origin);
-  // Evaluate/check the iterable in the outer scope before introducing the
-  // binder.
+  // The iterable is checked in the outer scope.
   auto iterable =
       check(*comprehension.iterable, context_.types.list(element_type, origin));
   if (!iterable) return nullptr;

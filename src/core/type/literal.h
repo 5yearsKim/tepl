@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-#include "src/core/types.h"
+#include "src/core/type/types.h"
 
 namespace tepl::core {
 

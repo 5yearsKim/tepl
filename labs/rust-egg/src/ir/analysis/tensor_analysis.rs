@@ -23,7 +23,6 @@ impl Analysis<OpNode> for TensorAnalysis {
     type Data = TensorAnalysisData;
 
     fn make(egraph: &mut EGraph<OpNode, Self>, node: &OpNode, _id: Id) -> TensorAnalysisData {
-        // Inputs get their metadata from the bindings supplied by the application.
         if node.op() == Op::Input {
             let inferred = match egraph.analysis.symbols.info(node) {
                 Some(info) => Inference::Known(info.clone()),
@@ -32,7 +31,6 @@ impl Analysis<OpNode> for TensorAnalysis {
             return TensorAnalysisData::from_inference(inferred);
         }
 
-        // Gather the metadata already stored on the operand e-classes.
         let mut operands = Vec::new();
         let mut has_unknown = false;
         for child in node.children() {
@@ -52,7 +50,6 @@ impl Analysis<OpNode> for TensorAnalysis {
             return TensorAnalysisData::from_inference(Inference::Unknown);
         }
 
-        // Infer this operation, then store the result on its e-class.
         TensorAnalysisData::from_inference(infer_tensor(node.op(), &operands, node.attrs()))
     }
 

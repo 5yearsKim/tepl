@@ -6,8 +6,6 @@
 
 namespace tepl::core::detail {
 
-// Lives for one rule check. ExpressionChecker receives read-only rule/scope
-// views.
 struct RuleCheckContext {
   RuleCheckContext(AnalysisContext& analysis, const ExpandedRule& input)
       : analysis(analysis),

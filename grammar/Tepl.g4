@@ -1,8 +1,6 @@
 grammar Tepl;
 
-// -----------------------------------------------------------------------------
 // File structure: imports, operation visibility, and top-level declarations
-// -----------------------------------------------------------------------------
 
 // Whitespace, including newlines, is insignificant. A file contains imports,
 // dialects, and/or rules (concrete, abstract, or inherited).
@@ -25,9 +23,7 @@ useDecl
     : USE ID ('::' '{' opName (',' opName)* '}')? ';'
     ;
 
-// -----------------------------------------------------------------------------
 // Shared operation names: used by imports, dialects, and rewrite rules
-// -----------------------------------------------------------------------------
 
 opName
     : ID
@@ -38,9 +34,7 @@ opRef
     : opName ('.' opName)?
     ;
 
-// -----------------------------------------------------------------------------
 // Dialect declarations: operations, operand signatures, and attribute schemas
-// -----------------------------------------------------------------------------
 
 dialectDecl
     : DIALECT ID '{' (attrsDecl | opDecl)* '}'
@@ -76,13 +70,13 @@ opProperties
     ;
 
 // Metadata properties may appear in any order, at most once each; shape is last.
-// Keep "dtype" contextual, just like "shape". Core validates the policy name.
+// "dtype" is contextual; core validates the policy name.
 dtypeProperty
     : {getCurrentToken()->getText() == "dtype"}? ID ':' dtypeName ';'
     ;
 
 // Shape programs are parsed here; names, signatures, and types are checked later.
-// Keep "shape" contextual so fields such as attrs.shape remain ordinary names.
+// "shape" is contextual so attrs.shape remains a valid field name.
 shapeProperty
     : {getCurrentToken()->getText() == "shape"}? ID '(' shapeInputs? ')'
       '{' shapeStatement* shapeYield '}'
@@ -193,9 +187,7 @@ attrDefault
     : '=' '[' ']'
     ;
 
-// -----------------------------------------------------------------------------
 // Rewrite rules: concrete and abstract definitions, parameters, and inheritance
-// -----------------------------------------------------------------------------
 
 ruleDecl
     : RULE ID rewriteBody
@@ -245,9 +237,7 @@ inheritedBody
     : '{' shapeDecl* whereBlock? '}'
     ;
 
-// -----------------------------------------------------------------------------
 // Rule declarations: tensor shapes (including rank-zero tensors)
-// -----------------------------------------------------------------------------
 
 shapeDecl
     : ID ':' dtypeName? '[' shapeElements? ']'
@@ -272,9 +262,7 @@ sequenceDim
     : ID? ELLIPSIS
     ;
 
-// -----------------------------------------------------------------------------
 // Rule graph expressions: variables, literals, bindings, and operator applications
-// -----------------------------------------------------------------------------
 
 // LHS patterns may bind matched values.
 graphExpr
@@ -306,9 +294,7 @@ attrRef
     : '@' ID
     ;
 
-// -----------------------------------------------------------------------------
 // Rule semantics: legality conditions and derived metadata
-// -----------------------------------------------------------------------------
 
 whereBlock
     : WHERE '{' (constraintExpr ';')* '}'
@@ -318,9 +304,7 @@ deriveBlock
     : DERIVE '{' (attrRef '=' constraintExpr ';')* '}'
     ;
 
-// -----------------------------------------------------------------------------
 // Constraint expressions: shared by where and derive
-// -----------------------------------------------------------------------------
 
 // Host calls and constraints use conventional infix syntax. Each level has its
 // own rule so precedence remains explicit and independent of graph expressions.
@@ -372,9 +356,7 @@ arguments
     : constraintExpr (',' constraintExpr)*
     ;
 
-// -----------------------------------------------------------------------------
 // Lexer: keywords, punctuation, identifiers, and literals
-// -----------------------------------------------------------------------------
 
 RULE: 'rule';
 ABSTRACT: 'abstract';
@@ -407,14 +389,11 @@ WILDCARD: '_';
 ID: [a-zA-Z_] [a-zA-Z_0-9]*;
 FLOAT: [0-9]+ '.' [0-9]+;
 INT: [0-9]+;
-// Keep unsupported numeric suffixes (including exponents) from becoming a
-// number followed by an extra graph variable.
+// Unsupported numeric suffixes are one token, preventing an extra graph operand.
 INVALID_NUMBER: [0-9]+ ('.' [0-9]*)? [a-zA-Z_] [a-zA-Z_0-9]*;
 STRING: '"' (~["\\\r\n] | '\\' ["\\])* '"';
 
-// -----------------------------------------------------------------------------
 // Lexer: comments and whitespace
-// -----------------------------------------------------------------------------
 
 LINE_COMMENT: '//' ~[\r\n]* -> skip;
 BLOCK_COMMENT: '/*' .*? '*/' -> skip;

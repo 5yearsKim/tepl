@@ -113,7 +113,7 @@ fn shape_2(
     let symbol_1: Vec<i128> = super::super::builtins::shape::integers(operands[1]);
     super::super::builtins::common::ensure(
         (symbol_0.clone() == symbol_1.clone()),
-        "TensorLang.add shape assertion at 19:13",
+        "TensorLang.add shape assertion at 17:13",
     )?;
     super::super::builtins::shape::dimensions(&(symbol_0.clone()))
 }
@@ -126,7 +126,7 @@ fn shape_3(
     let symbol_1: Vec<i128> = super::super::builtins::shape::integers(operands[1]);
     super::super::builtins::common::ensure(
         (symbol_0.clone() == symbol_1.clone()),
-        "TensorLang.subtract shape assertion at 26:13",
+        "TensorLang.subtract shape assertion at 24:13",
     )?;
     super::super::builtins::shape::dimensions(&(symbol_0.clone()))
 }
@@ -139,7 +139,7 @@ fn shape_4(
     let symbol_1: Vec<i128> = super::super::builtins::shape::integers(operands[1]);
     super::super::builtins::common::ensure(
         (symbol_0.clone() == symbol_1.clone()),
-        "TensorLang.multiply shape assertion at 34:13",
+        "TensorLang.multiply shape assertion at 32:13",
     )?;
     super::super::builtins::shape::dimensions(&(symbol_0.clone()))
 }
@@ -152,7 +152,7 @@ fn shape_5(
     let symbol_1: Vec<i128> = super::super::builtins::shape::integers(operands[1]);
     super::super::builtins::common::ensure(
         (symbol_0.clone() == symbol_1.clone()),
-        "TensorLang.divide shape assertion at 41:13",
+        "TensorLang.divide shape assertion at 39:13",
     )?;
     super::super::builtins::shape::dimensions(&(symbol_0.clone()))
 }
@@ -165,7 +165,7 @@ fn shape_6(
     let symbol_1: Vec<i128> = super::super::builtins::shape::integers(operands[1]);
     super::super::builtins::common::ensure(
         (symbol_0.clone() == symbol_1.clone()),
-        "TensorLang.maximum shape assertion at 48:13",
+        "TensorLang.maximum shape assertion at 46:13",
     )?;
     super::super::builtins::shape::dimensions(&(symbol_0.clone()))
 }
@@ -178,7 +178,7 @@ fn shape_7(
     let symbol_1: Vec<i128> = super::super::builtins::shape::integers(operands[1]);
     super::super::builtins::common::ensure(
         (symbol_0.clone() == symbol_1.clone()),
-        "TensorLang.minimum shape assertion at 55:13",
+        "TensorLang.minimum shape assertion at 53:13",
     )?;
     super::super::builtins::shape::dimensions(&(symbol_0.clone()))
 }
@@ -252,7 +252,7 @@ fn shape_14(
     super::super::builtins::common::ensure(
         (super::super::builtins::common::product(&(symbol_0.clone()))?
             == super::super::builtins::common::product(&(attribute_0.clone()))?),
-        "TensorLang.reshape shape assertion at 105:13",
+        "TensorLang.reshape shape assertion at 103:13",
     )?;
     super::super::builtins::shape::dimensions(&(attribute_0.clone()))
 }
@@ -280,12 +280,12 @@ fn shape_15(
             &(attribute_0.clone()),
             (super::super::builtins::common::len(&(symbol_0.clone())) as i128),
         ),
-        "TensorLang.transpose shape assertion at 115:13",
+        "TensorLang.transpose shape assertion at 113:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_0.clone())) as i128)
             == (super::super::builtins::common::len(&(symbol_0.clone())) as i128)),
-        "TensorLang.transpose shape assertion at 116:13",
+        "TensorLang.transpose shape assertion at 114:13",
     )?;
     super::super::builtins::shape::dimensions(
         &(super::super::builtins::common::gather(&(symbol_0.clone()), &(attribute_0.clone()))?),
@@ -318,14 +318,14 @@ fn shape_16(
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_0.clone())) as i128)
             == (super::super::builtins::common::len(&(symbol_0.clone())) as i128)),
-        "TensorLang.broadcast_in_dim shape assertion at 128:13",
+        "TensorLang.broadcast_in_dim shape assertion at 126:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
             &(attribute_0.clone()),
             (super::super::builtins::common::len(&(attribute_1.clone())) as i128),
         ),
-        "TensorLang.broadcast_in_dim shape assertion at 129:13",
+        "TensorLang.broadcast_in_dim shape assertion at 127:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::common::all(
@@ -353,7 +353,7 @@ fn shape_16(
             })
             .collect::<super::super::builtins::BuiltinResult<Vec<bool>>>()?),
         ),
-        "TensorLang.broadcast_in_dim shape assertion at 130:13",
+        "TensorLang.broadcast_in_dim shape assertion at 128:13",
     )?;
     super::super::builtins::shape::dimensions(&(attribute_1.clone()))
 }
@@ -389,17 +389,17 @@ fn shape_17(
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_0.clone())) as i128)
             == (super::super::builtins::common::len(&(symbol_0.clone())) as i128)),
-        "TensorLang.slice shape assertion at 143:13",
+        "TensorLang.slice shape assertion at 141:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_1.clone())) as i128)
             == (super::super::builtins::common::len(&(symbol_0.clone())) as i128)),
-        "TensorLang.slice shape assertion at 144:13",
+        "TensorLang.slice shape assertion at 142:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_2.clone())) as i128)
             == (super::super::builtins::common::len(&(symbol_0.clone())) as i128)),
-        "TensorLang.slice shape assertion at 145:13",
+        "TensorLang.slice shape assertion at 143:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::common::all(
@@ -436,7 +436,7 @@ fn shape_17(
             })
             .collect::<super::super::builtins::BuiltinResult<Vec<bool>>>()?),
         ),
-        "TensorLang.slice shape assertion at 146:13",
+        "TensorLang.slice shape assertion at 144:13",
     )?;
     super::super::builtins::shape::dimensions(
         &((super::super::builtins::shape::integers(&super::super::builtins::common::range(
@@ -478,7 +478,7 @@ fn shape_18(
     let attribute_0: i128 = i128::from(*field_0);
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(symbol_0.clone())) as i128) > 0_i128),
-        "TensorLang.concatenate shape assertion at 161:13",
+        "TensorLang.concatenate shape assertion at 159:13",
     )?;
     let symbol_1: Vec<i128> =
         super::super::builtins::common::index(&(symbol_0.clone()), 0_i128)?.clone();
@@ -488,7 +488,7 @@ fn shape_18(
             &(Vec::<i128>::from([symbol_2])),
             (super::super::builtins::common::len(&(symbol_1.clone())) as i128),
         ),
-        "TensorLang.concatenate shape assertion at 164:13",
+        "TensorLang.concatenate shape assertion at 162:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::common::all(
@@ -502,7 +502,7 @@ fn shape_18(
                 })
                 .collect::<super::super::builtins::BuiltinResult<Vec<bool>>>()?),
         ),
-        "TensorLang.concatenate shape assertion at 165:13",
+        "TensorLang.concatenate shape assertion at 163:13",
     )?;
     let symbol_4: Vec<i128> = super::super::builtins::common::exclude(
         &(super::super::builtins::shape::integers(&super::super::builtins::common::range(
@@ -525,7 +525,7 @@ fn shape_18(
                 })
                 .collect::<super::super::builtins::BuiltinResult<Vec<bool>>>()?),
         ),
-        "TensorLang.concatenate shape assertion at 167:13",
+        "TensorLang.concatenate shape assertion at 165:13",
     )?;
     super::super::builtins::shape::dimensions(
         &(super::super::builtins::common::replace(
@@ -567,14 +567,14 @@ fn shape_19(
         .collect::<Vec<_>>();
     super::super::builtins::common::ensure(
         (symbol_1.clone() == Vec::<i128>::from([])),
-        "TensorLang.reduce shape assertion at 181:13",
+        "TensorLang.reduce shape assertion at 179:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
             &(attribute_0.clone()),
             (super::super::builtins::common::len(&(symbol_0.clone())) as i128),
         ),
-        "TensorLang.reduce shape assertion at 182:13",
+        "TensorLang.reduce shape assertion at 180:13",
     )?;
     super::super::builtins::shape::dimensions(
         &(super::super::builtins::common::gather(
@@ -632,56 +632,56 @@ fn shape_20(
             &(symbol_2.clone()),
             (super::super::builtins::common::len(&(symbol_0.clone())) as i128),
         ),
-        "TensorLang.dot_general shape assertion at 203:13",
+        "TensorLang.dot_general shape assertion at 201:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
             &(symbol_3.clone()),
             (super::super::builtins::common::len(&(symbol_1.clone())) as i128),
         ),
-        "TensorLang.dot_general shape assertion at 204:13",
+        "TensorLang.dot_general shape assertion at 202:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
             &(symbol_4.clone()),
             (super::super::builtins::common::len(&(symbol_0.clone())) as i128),
         ),
-        "TensorLang.dot_general shape assertion at 205:13",
+        "TensorLang.dot_general shape assertion at 203:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
             &(symbol_5.clone()),
             (super::super::builtins::common::len(&(symbol_1.clone())) as i128),
         ),
-        "TensorLang.dot_general shape assertion at 206:13",
+        "TensorLang.dot_general shape assertion at 204:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::common::is_disjoint(&(symbol_4.clone()), &(symbol_2.clone())),
-        "TensorLang.dot_general shape assertion at 207:13",
+        "TensorLang.dot_general shape assertion at 205:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::common::is_disjoint(&(symbol_5.clone()), &(symbol_3.clone())),
-        "TensorLang.dot_general shape assertion at 208:13",
+        "TensorLang.dot_general shape assertion at 206:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(symbol_4.clone())) as i128)
             == (super::super::builtins::common::len(&(symbol_5.clone())) as i128)),
-        "TensorLang.dot_general shape assertion at 209:13",
+        "TensorLang.dot_general shape assertion at 207:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(symbol_2.clone())) as i128)
             == (super::super::builtins::common::len(&(symbol_3.clone())) as i128)),
-        "TensorLang.dot_general shape assertion at 210:13",
+        "TensorLang.dot_general shape assertion at 208:13",
     )?;
     super::super::builtins::common::ensure(
         (super::super::builtins::common::gather(&(symbol_0.clone()), &(symbol_4.clone()))?
             == super::super::builtins::common::gather(&(symbol_1.clone()), &(symbol_5.clone()))?),
-        "TensorLang.dot_general shape assertion at 211:13",
+        "TensorLang.dot_general shape assertion at 209:13",
     )?;
     super::super::builtins::common::ensure(
         (super::super::builtins::common::gather(&(symbol_0.clone()), &(symbol_2.clone()))?
             == super::super::builtins::common::gather(&(symbol_1.clone()), &(symbol_3.clone()))?),
-        "TensorLang.dot_general shape assertion at 212:13",
+        "TensorLang.dot_general shape assertion at 210:13",
     )?;
     let symbol_6: Vec<i128> = super::super::builtins::common::exclude(
         &(super::super::builtins::shape::integers(&super::super::builtins::common::range(
@@ -780,7 +780,7 @@ fn shape_21(
     super::super::builtins::common::ensure(
         ((symbol_2 >= 2_i128)
             && ((super::super::builtins::common::len(&(symbol_1.clone())) as i128) == symbol_2)),
-        "TensorLang.convolution shape assertion at 241:13",
+        "TensorLang.convolution shape assertion at 239:13",
     )?;
     let symbol_3: i128 = super::super::builtins::common::sub(symbol_2, 2_i128)?;
     let symbol_4: Vec<i128> =
@@ -790,15 +790,15 @@ fn shape_21(
     let symbol_7: Vec<i128> = attribute_13.clone();
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(symbol_5.clone())) as i128) == symbol_3),
-        "TensorLang.convolution shape assertion at 247:13",
+        "TensorLang.convolution shape assertion at 245:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(symbol_6.clone())) as i128) == symbol_3),
-        "TensorLang.convolution shape assertion at 248:13",
+        "TensorLang.convolution shape assertion at 246:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(symbol_7.clone())) as i128) == symbol_3),
-        "TensorLang.convolution shape assertion at 249:13",
+        "TensorLang.convolution shape assertion at 247:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
@@ -809,7 +809,7 @@ fn shape_21(
             ])?),
             symbol_2,
         ),
-        "TensorLang.convolution shape assertion at 250:13",
+        "TensorLang.convolution shape assertion at 248:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
@@ -820,7 +820,7 @@ fn shape_21(
             ])?),
             symbol_2,
         ),
-        "TensorLang.convolution shape assertion at 252:13",
+        "TensorLang.convolution shape assertion at 250:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
@@ -831,15 +831,15 @@ fn shape_21(
             ])?),
             symbol_2,
         ),
-        "TensorLang.convolution shape assertion at 254:13",
+        "TensorLang.convolution shape assertion at 252:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_0.clone())) as i128) == symbol_3),
-        "TensorLang.convolution shape assertion at 256:13",
+        "TensorLang.convolution shape assertion at 254:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_1.clone())) as i128) == symbol_3),
-        "TensorLang.convolution shape assertion at 257:13",
+        "TensorLang.convolution shape assertion at 255:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::common::all(
@@ -853,19 +853,19 @@ fn shape_21(
                 })
                 .collect::<super::super::builtins::BuiltinResult<Vec<bool>>>()?),
         ),
-        "TensorLang.convolution shape assertion at 258:13",
+        "TensorLang.convolution shape assertion at 256:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_2.clone())) as i128) == symbol_3),
-        "TensorLang.convolution shape assertion at 259:13",
+        "TensorLang.convolution shape assertion at 257:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_3.clone())) as i128) == symbol_3),
-        "TensorLang.convolution shape assertion at 260:13",
+        "TensorLang.convolution shape assertion at 258:13",
     )?;
     super::super::builtins::common::ensure(
         ((super::super::builtins::common::len(&(attribute_4.clone())) as i128) == symbol_3),
-        "TensorLang.convolution shape assertion at 261:13",
+        "TensorLang.convolution shape assertion at 259:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::common::all(
@@ -893,31 +893,31 @@ fn shape_21(
                 })
                 .collect::<super::super::builtins::BuiltinResult<Vec<bool>>>()?),
         ),
-        "TensorLang.convolution shape assertion at 262:13",
+        "TensorLang.convolution shape assertion at 260:13",
     )?;
     let symbol_10: i128 = attribute_14;
     let symbol_11: i128 = attribute_15;
     super::super::builtins::common::ensure(
         ((symbol_10 > 0_i128) && (symbol_11 > 0_i128)),
-        "TensorLang.convolution shape assertion at 267:13",
+        "TensorLang.convolution shape assertion at 265:13",
     )?;
     super::super::builtins::common::ensure(
         ((symbol_10 == 1_i128) || (symbol_11 == 1_i128)),
-        "TensorLang.convolution shape assertion at 268:13",
+        "TensorLang.convolution shape assertion at 266:13",
     )?;
     super::super::builtins::common::ensure(
         (super::super::builtins::common::rem(
             super::super::builtins::common::index(&(symbol_0.clone()), attribute_5)?.clone(),
             symbol_11,
         )? == 0_i128),
-        "TensorLang.convolution shape assertion at 269:13",
+        "TensorLang.convolution shape assertion at 267:13",
     )?;
     super::super::builtins::common::ensure(
         (super::super::builtins::common::rem(
             super::super::builtins::common::index(&(symbol_0.clone()), attribute_6)?.clone(),
             symbol_10,
         )? == 0_i128),
-        "TensorLang.convolution shape assertion at 270:13",
+        "TensorLang.convolution shape assertion at 268:13",
     )?;
     super::super::builtins::common::ensure(
         (super::super::builtins::common::index(&(symbol_1.clone()), attribute_8)?.clone()
@@ -925,21 +925,21 @@ fn shape_21(
                 super::super::builtins::common::index(&(symbol_0.clone()), attribute_6)?.clone(),
                 symbol_10,
             )?),
-        "TensorLang.convolution shape assertion at 271:13",
+        "TensorLang.convolution shape assertion at 269:13",
     )?;
     super::super::builtins::common::ensure(
         (super::super::builtins::common::rem(
             super::super::builtins::common::index(&(symbol_1.clone()), attribute_9)?.clone(),
             symbol_11,
         )? == 0_i128),
-        "TensorLang.convolution shape assertion at 273:13",
+        "TensorLang.convolution shape assertion at 271:13",
     )?;
     super::super::builtins::common::ensure(
         (super::super::builtins::common::rem(
             super::super::builtins::common::index(&(symbol_1.clone()), attribute_9)?.clone(),
             symbol_10,
         )? == 0_i128),
-        "TensorLang.convolution shape assertion at 274:13",
+        "TensorLang.convolution shape assertion at 272:13",
     )?;
     let symbol_13: Vec<i128> = (symbol_4.clone())
         .into_iter()
@@ -1168,25 +1168,25 @@ fn shape_25(
             &(Vec::<i128>::from([symbol_1])),
             (super::super::builtins::common::len(&(symbol_0.clone())) as i128),
         ),
-        "TensorLang.all_to_all shape assertion at 341:13",
+        "TensorLang.all_to_all shape assertion at 336:13",
     )?;
     super::super::builtins::common::ensure(
         super::super::builtins::shape::is_valid_axis_list(
             &(Vec::<i128>::from([symbol_2])),
             (super::super::builtins::common::len(&(symbol_0.clone())) as i128),
         ),
-        "TensorLang.all_to_all shape assertion at 342:13",
+        "TensorLang.all_to_all shape assertion at 337:13",
     )?;
     super::super::builtins::common::ensure(
         (symbol_3 > 0_i128),
-        "TensorLang.all_to_all shape assertion at 343:13",
+        "TensorLang.all_to_all shape assertion at 338:13",
     )?;
     super::super::builtins::common::ensure(
         (super::super::builtins::common::rem(
             super::super::builtins::common::index(&(symbol_0.clone()), symbol_1)?.clone(),
             symbol_3,
         )? == 0_i128),
-        "TensorLang.all_to_all shape assertion at 344:13",
+        "TensorLang.all_to_all shape assertion at 339:13",
     )?;
     let symbol_4: Vec<i128> = super::super::builtins::common::replace(
         &(symbol_0.clone()),

@@ -109,11 +109,6 @@ struct GraphExpr {
       value;
 };
 
-// makeConstraint expressions used in `where` conditions and `derive` values.
-// They combine references, literals, host calls, and unary/binary operations:
-//   !$is_broadcastable(A, B), K % 128 == 0, $infer_dot(X, W, @outer).
-// Tree nesting preserves operator precedence. Semantic validation determines
-// result types and requires each complete `where` condition to be boolean.
 using ::tepl::BinaryOp;
 using ::tepl::UnaryOp;
 
@@ -336,8 +331,6 @@ struct OpDecl {
   std::string result_type;
   std::optional<std::string> alias;
   std::optional<OpAttrs> attrs;
-  // Parsed syntax only; semantic checking and evaluator generation are
-  // separate.
   std::optional<ShapeDefinition> shape_definition;
   std::optional<DTypePolicy> dtype_policy;
 };

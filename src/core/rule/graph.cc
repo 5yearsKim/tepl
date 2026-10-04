@@ -2,9 +2,9 @@
 
 #include <utility>
 
-#include "src/core/literal.h"
 #include "src/core/rule/check_context.h"
 #include "src/core/rule/descriptors.h"
+#include "src/core/type/literal.h"
 
 namespace tepl::core::detail {
 

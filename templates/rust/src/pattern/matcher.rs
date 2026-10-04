@@ -143,7 +143,6 @@ fn search<N: Analysis<OpNode>>(
                 }
             }
             TensorPattern::Bind { var, pattern } => {
-                // Capture this e-class, then check the inner pattern.
                 if !bind_tensor(egraph, &mut state, *var, eclass, checks, metadata) {
                     return ControlFlow::Continue(());
                 }
@@ -173,7 +172,6 @@ fn search<N: Analysis<OpNode>>(
                         continue;
                     }
 
-                    // Keep each candidate's bindings independent.
                     let mut branch = state.clone();
                     if let AttrPattern::Bind(var) = attrs {
                         branch
@@ -183,7 +181,7 @@ fn search<N: Analysis<OpNode>>(
                             .or_insert_with(|| node.attrs().clone());
                     }
                     let mut remaining = pending.clone();
-                    // Reverse puts the left child first; recurse with this stack.
+                    // The stack visits the left child first.
                     remaining.extend(node.children().iter().copied().zip(children).rev());
                     search(egraph, remaining, branch, checks, metadata, visit)?;
                 }
@@ -305,7 +303,6 @@ fn lookup_bound_pattern<N: Analysis<OpNode>>(
             let Ok(node) = OpNode::from_parts(*op, operands, attrs.clone()) else {
                 return BoundLookup::Missing;
             };
-            // Lookup returns E3 without changing bindings or the stack.
             match egraph.lookup(node) {
                 Some(id) => BoundLookup::Found(id),
                 None => BoundLookup::Missing,

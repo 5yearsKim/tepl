@@ -52,7 +52,7 @@ TypedExprPtr ExpressionChecker::number(std::string spelling, bool decimal,
   if (decimal) {
     type = types.concrete({TypeKind::kF64}, origin);
   } else if (known && !isNumeric(known->kind)) {
-    // Keep the diagnostic a type mismatch for a literal used as (e.g.) Bool.
+    // A nonnumeric expected type still produces a type-mismatch diagnostic.
     type = types.concrete(
         {spelling.starts_with('-') ? TypeKind::kI64 : TypeKind::kIndex},
         origin);
@@ -231,8 +231,7 @@ TypedExprPtr ExpressionChecker::lower(const ast::BinaryExpr& binary,
                                             : TypeRequirement::kNumeric;
     types.require(operand_type, requirement, origin);
   }
-  // Both operands contribute equations to the same type variable. No separate
-  // AST "hint" traversal or speculative type choices are needed.
+  // Both operands constrain the same type variable.
   auto lhs = check(*binary.lhs, operand_type);
   auto rhs = check(*binary.rhs, operand_type);
   if (!lhs || !rhs) return nullptr;

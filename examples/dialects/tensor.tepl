@@ -1,8 +1,6 @@
-// Shape blocks generate checked Rust evaluators for analysis and RHS validation.
 // StableHLO subset: https://openxla.org/stablehlo/spec
 // See ../shape_guide.md for variadics and the StableHLO metadata mapping.
-// Missing shape blocks provide no generated inference: use host metadata or
-// return Unknown, never assume that the operation is invalid.
+// Operations without shape blocks need host metadata for shape inference.
 dialect TensorLang {
     // Single-operand specialization of StableHLO all_reduce.
     // computation preserves the reducer region, not merely a reduction name.
@@ -284,8 +282,6 @@ dialect TensorLang {
                            then 0
                            else floor_div(padded_input[i] - window[i], attrs.window_strides[i]) + 1
                            for i in axes];
-            // Validated output axes form a permutation. Select each spatial
-            // size into its output position without assuming a fixed layout.
             yield [if axis == attrs.output_batch_dimension
                    then l[attrs.input_batch_dimension] / bg
                    else if axis == attrs.output_feature_dimension
@@ -304,8 +300,7 @@ dialect TensorLang {
             channel_id: i64;
             use_global_device_ids: bool;
         }
-        // No shape block: process-group size may depend on the process grid,
-        // including partition count or mesh metadata. Obtain shape from host.
+        // Shape depends on host process-grid and mesh metadata.
     }
     op all_reduce(input: tensor) -> tensor {
         dtype: same;
@@ -323,7 +318,7 @@ dialect TensorLang {
             use_global_device_ids: bool;
             computation: region;
         }
-        // No shape block: the host must resolve the actual process-group size.
+        // Shape depends on the host process-group size.
     }
     op all_to_all(input: tensor) -> tensor {
         dtype: same;

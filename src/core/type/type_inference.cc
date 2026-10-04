@@ -1,9 +1,9 @@
-#include "src/core/type_inference.h"
+#include "src/core/type/type_inference.h"
 
 #include <map>
 #include <utility>
 
-#include "src/core/literal.h"
+#include "src/core/type/literal.h"
 
 namespace tepl::core::detail {
 

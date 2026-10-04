@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "src/core/diagnostic.h"
-#include "src/core/types.h"
+#include "src/core/type/types.h"
 
 namespace tepl::core::detail {
 

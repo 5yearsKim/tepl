@@ -12,16 +12,12 @@ enum Observed {
 
 /// Facts about every alternative in an e-class, including shape and dtype.
 /// Unknown alternatives block metadata access without erasing known evidence.
-/// Evidence only accumulates: supplying missing host metadata later requires a
-/// fresh graph. This deliberately conservative sample does not retract facts.
+/// Evidence accumulates; new host metadata requires a fresh graph.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TensorAnalysisData {
-    // Remember known metadata even when another alternative is unknown.
-    // This lets a later disagreement still be detected.
+    // Retained across unknown alternatives to detect later conflicts.
     observed: Observed,
-    // At least one alternative could not be inferred.
     has_unknown: bool,
-    // At least one alternative failed inference.
     has_invalid: bool,
 }
 
@@ -66,7 +62,6 @@ impl TensorAnalysisData {
 
     /// Associative, commutative, idempotent join; also reusable by custom analyses.
     pub fn merge(&mut self, incoming: Self) -> DidMerge {
-        // Combine known evidence: equal metadata agrees, different metadata conflicts.
         let observed = match (&self.observed, &incoming.observed) {
             (Observed::Conflict, _) | (_, Observed::Conflict) => Observed::Conflict,
             (Observed::None, other) | (other, Observed::None) => other.clone(),

@@ -57,7 +57,6 @@ int main(int argc, char** argv) {
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& error) {
-    // Keep the CLI's existing exit code for usage errors.
     return app.exit(error) == 0 ? 0 : 2;
   }
 

@@ -1,4 +1,4 @@
-#include "src/core/dtype_policy.h"
+#include "src/core/type/dtype_policy.h"
 
 namespace tepl::core {
 

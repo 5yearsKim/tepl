@@ -6,10 +6,10 @@
 #include <variant>
 #include <vector>
 
-#include "src/core/dtype_policy.h"
 #include "src/core/ids.h"
 #include "src/core/shape/ir.h"
-#include "src/core/types.h"
+#include "src/core/type/dtype_policy.h"
+#include "src/core/type/types.h"
 #include "src/operators.h"
 #include "src/source.h"
 

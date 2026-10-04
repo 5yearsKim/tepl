@@ -63,7 +63,6 @@ void expectError(std::string_view body, std::string_view message,
 }
 
 void builtinSignatures() {
-  // Each builtin is tested with correct types, wrong arity, and wrong types.
   struct Case {
     std::string_view name, valid, invalid;
     bool boolean;

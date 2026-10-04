@@ -10,7 +10,6 @@ pub fn infer_tensor(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Inferen
             "operand count or attributes do not match the operation signature",
         );
     }
-    // Reusable combination of pure shape inference and declared dtype inference.
     let shapes: Vec<_> = operands.iter().map(|info| info.shape.as_slice()).collect();
     let dtypes: Vec<_> = operands.iter().map(|info| info.dtype).collect();
     match (

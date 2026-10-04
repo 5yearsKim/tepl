@@ -43,7 +43,6 @@ struct RuleModuleNames {
   std::vector<core::RuleId> rules;
 };
 
-// Construct the complete naming plan before any emitter runs.
 class Names {
  public:
   Names(const core::Program& program, const ProjectPlan& project);

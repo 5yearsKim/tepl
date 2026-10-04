@@ -10,7 +10,7 @@
 #include "src/core/diagnostic.h"
 #include "src/core/ir.h"
 #include "src/core/resolution/file_scope.h"
-#include "src/core/type_inference.h"
+#include "src/core/type/type_inference.h"
 
 namespace tepl::core::detail {
 
