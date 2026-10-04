@@ -1,4 +1,4 @@
-use egg::{Analysis, EGraph, Id, Var};
+use ::egg::{Analysis, EGraph, Id, Var};
 
 use super::super::{DType, Op, OpAttrs, OpNode};
 

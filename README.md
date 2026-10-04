@@ -430,7 +430,11 @@ Add `pub mod generated;` to your application's `src/lib.rs` or `src/main.rs`.
 Your application owns its Cargo configuration and must include egg 0.11 as a
 dependency. TEPL emits `mod.rs` and its submodules directly into `--out`, without
 creating `Cargo.toml` or a `src/` wrapper. Generated internal imports are relative,
-so you can rename or move the module without changing its contents.
+so you can rename or move the module without changing its contents. Rust names
+are validated before emission. Keywords use raw identifiers (`r#type`) while
+filenames keep their ordinary spelling (`type.rs`). Qualified dialect paths and
+absolute external crate paths prevent names such as `Std` and `Egg` from
+shadowing dependencies. See [Rust naming rules](src/codegen/README.md).
 
 The lab chooses `ir` as its module name and checks in the generated output:
 
@@ -452,7 +456,7 @@ generated/
   dialects/{mod.rs, tensor_lang.rs, scalar.rs}
   op_node.rs
   types.rs
-  pattern/{mod.rs, pattern.rs, matcher.rs, rewrite.rs, context.rs, constraints.rs, shape.rs}
+  pattern/{mod.rs, pattern.rs, matcher.rs, rewrite.rs, context.rs, checks.rs, constraints.rs, shape.rs}
   rules/{mod.rs, simple.rs, scalar.rs, lowering.rs, ...}
 ```
 
@@ -464,7 +468,8 @@ dialect; arity and operation-specific schemas are checked at runtime.
 Rule files retain their own modules and runtime names, so both `simple.tepl`
 and `scalar.tepl` can define `commute_add`.
 
-Each concrete rule exposes `pattern()`, `expression()`, `constraints()`, a host `Functions`
+Each concrete rule exposes `pattern()`, `expression()`, `constraints()`,
+`match_checks(metadata)`, a host `Functions`
 trait, and `build_rewrite(functions)`. The default builder uses generated
 `TensorAnalysis` for metadata and the same inference for output validation.
 Applications register input types and implement explicit rule functions; rules
@@ -485,11 +490,20 @@ dtype policy; the example TEPL dialect leaves that policy unspecified.
 
 Declared shapes and dtypes are checked when each tensor capture is first bound,
 so incompatible candidates stop before the matcher visits remaining operands.
-Dimension bindings are independent for each search branch. Application-time
-rematching also prunes, then rechecks declarations before evaluating `where`
-and `derive`. Missing required metadata rejects a candidate for that traversal.
-`matches_at` enumerates structural witnesses; `matches_at_with_constraints`
-also enforces a rule's constraint plan. Search limits count surviving substitutions.
+Dimension bindings are independent for each search branch. The ordered prefix
+of `where` conditions containing only builtins and operators also runs during
+matching, as soon as each condition's bindings exist. One cursor preserves source
+order; a missing binding waits, while false or a builtin failure rejects the
+branch. The first condition containing a host call ends this prefix, including
+nested or short-circuited host calls. That condition and every subsequent one
+remain application-time checks, preserving host-call order and count.
+Application-time rematching also prunes, then rechecks declarations and early
+conditions against current metadata before the remaining `where` conditions,
+`derive`, and RHS validation. Missing required metadata rejects a candidate for
+that traversal. `matches_at` enumerates structural witnesses;
+`matches_at_with_constraints` enforces tensor declarations, and
+`matches_at_with_checks` also runs ordered pure conditions. Search limits count
+surviving substitutions.
 
 An omitted graph-literal dtype means any dtype. LHS literals match exact spelling
 at any dtype; explicitly annotated literals also require the given dtype. RHS

@@ -1,0 +1,51 @@
+// Dialects that previously collided with external crates and emitter aliases.
+dialect Std {
+    op std_copy(x: tensor) -> tensor {
+        dtype: same;
+        shape(s) { yield s; }
+    }
+}
+dialect Egg {
+    op egg_copy(x: tensor) -> tensor {
+        dtype: same;
+        shape(s) { yield s; }
+    }
+}
+dialect B {
+    op b_copy(x: tensor) -> tensor {
+        dtype: same;
+        shape(s) { yield s; }
+    }
+}
+// A raw module token still corresponds to an ordinary filesystem name.
+dialect Type {
+    attrs Match { type: index; type_: index; match: bool; gen: index; }
+    op type(x: tensor) -> tensor {
+        attrs: Match;
+        dtype: same;
+        shape(s) {
+            assert attrs.match;
+            assert attrs.type == attrs.gen;
+            assert attrs.type_ > 0;
+            yield s;
+        }
+    }
+}
+dialect Op { op copy_op(x: tensor) -> tensor; }
+dialect OpAttrs { op copy_opattrs(x: tensor) -> tensor; }
+dialect DType { op copy_dtype(x: tensor) -> tensor; }
+dialect TensorPattern { op copy_tensorpattern(x: tensor) -> tensor; }
+dialect Inference { op copy_inference(x: tensor) -> tensor; }
+dialect Arc { op copy_arc(x: tensor) -> tensor; }
+dialect HashMap { op copy_hashmap(x: tensor) -> tensor; }
+dialect Match { op copy_match(x: tensor) -> tensor; }
+dialect Gen { op copy_gen(x: tensor) -> tensor; }
+
+rule match {
+    X: f32[Dims...]
+    (Std.std_copy (Egg.egg_copy (B.b_copy X))) => X
+    where { $type(X); $match(X); $gen(X); len(Dims) > 0; }
+}
+rule type {
+    (Type.type[@d] X) => (Type.type[@d] X)
+}

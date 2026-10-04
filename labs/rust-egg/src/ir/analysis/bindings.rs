@@ -4,7 +4,7 @@ use super::super::{Op, OpAttrs, OpNode};
 /// Input identities with immutable tensor metadata.
 #[derive(Clone, Debug, Default)]
 pub struct TensorBindingTable {
-    entries: std::collections::HashMap<String, TensorInfo>,
+    entries: ::std::collections::HashMap<String, TensorInfo>,
 }
 
 impl TensorBindingTable {

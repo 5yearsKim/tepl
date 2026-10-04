@@ -200,13 +200,20 @@ templates under `templates/rust/`. Handwritten semantics live in `src/host/`.
 Its execution model is:
 
 ```text
-structural search with shape/dtype checks at tensor binding
--> application-time rematch and final declaration checks -> where checks
+structural search: bind tensor shapes/dtypes, then advance ready pure where checks
+-> application-time rematch and final shape/pure-condition rechecks
+-> remaining where checks (starting at the first host-containing condition)
 -> derive descriptors from LHS inputs
 -> validate RHS structure and infer every RHS output
 -> require root shape/dtype compatibility -> insert and union with matched root
 -> saturation and cost-based extraction
 ```
+
+Early `where` checks use an ordered builtin/operator prefix and one cursor per
+search branch. Missing bindings wait; false or evaluation failure rejects.
+Nested or short-circuited host calls end the prefix, so host conditions and
+subsequent conditions retain their application-time behavior. Conditions use
+ordinary generated Rust expressions and the shared builtin runtime.
 
 RHS operation, attribute, and arity checks occur before insertion. LoRA applies
 its declared shape constraints and explicit `where` predicates, then derives

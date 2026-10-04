@@ -1,6 +1,6 @@
 //! Tensor element formats. Storage type does not determine numerical policy.
 
-use std::{fmt, str::FromStr};
+use ::std::{fmt, str::FromStr};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum DType {

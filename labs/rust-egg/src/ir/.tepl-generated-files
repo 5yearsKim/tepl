@@ -17,6 +17,7 @@ dialects/scalar.rs
 dialects/tensor_lang.rs
 mod.rs
 op_node.rs
+pattern/checks.rs
 pattern/constraints.rs
 pattern/context.rs
 pattern/matcher.rs

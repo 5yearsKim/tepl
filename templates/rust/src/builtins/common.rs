@@ -216,11 +216,11 @@ pub fn gather<T: Clone, I: Copy + TryInto<usize>>(
 }
 
 pub fn min<T: Integer>(lhs: T, rhs: T) -> T {
-    std::cmp::min(lhs, rhs)
+    ::std::cmp::min(lhs, rhs)
 }
 
 pub fn max<T: Integer>(lhs: T, rhs: T) -> T {
-    std::cmp::max(lhs, rhs)
+    ::std::cmp::max(lhs, rhs)
 }
 
 /// Integer division rounded down. The divisor must be strictly positive.

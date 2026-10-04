@@ -150,7 +150,9 @@ fn failures_reject_candidates_before_any_insertion_or_following_host_call() {
     for (shape, rule) in cases {
         let (mut graph, x, root) = graph(&shape);
         let before = graph.total_number_of_nodes();
-        assert!(!apply(&mut graph, rule));
+        let matches = rule.search(&graph);
+        assert!(matches.is_empty());
+        assert!(rule.apply(&mut graph, &matches).is_empty());
         assert_eq!(graph.total_number_of_nodes(), before);
         assert_ne!(graph.find(x), graph.find(root));
     }

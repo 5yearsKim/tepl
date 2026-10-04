@@ -13,14 +13,16 @@ reports an explicit diagnostic and emits no files.
 The layout separates shared semantics from target syntax:
 
 - `common/rule_plan.*` computes host and tensor-metadata dependencies, including
-  nested expressions. Unconditional shape-check dependencies are tracked
+  nested expressions. It also plans binding dependencies for the builtin-only
+  prefix of `where`, stopping at the first condition containing a host call.
+  Unconditional shape-check dependencies are tracked
   separately so expression metadata reads remain inside short-circuit control
   flow. Conditions and derivations retain core's source order.
 - `common/project_plan.*` groups dialect operations and schemas by declaration
   source, and rules by their owning source module. It preserves raw relative
   module paths so every target can apply its own identifier rules.
-- `rust/backend.*` assembles module contents for an existing crate and computes
-  relative import paths for nested rule modules.
+- `rust/backend.*` assembles module contents for an existing crate from the
+  validated naming plan.
 - `rust/dialect_emitter.*` emits the combined operation enum and attribute enum
   from all checked dialect declarations, with arity, aliases, and schema checks.
 - `rust/rule_emitter.*` recursively emits patterns, RHS expressions, shape
@@ -33,7 +35,11 @@ The layout separates shared semantics from target syntax:
   shared checked arithmetic and short-circuit boolean evaluation.
 - `rust/builtin_emitter.*` emits builtin calls for both rule and shape contexts,
   including borrowing, variadics, numeric adapters, and error propagation.
-- `rust/names.*` owns Rust names, string escaping, and type representations.
+- `rust/names.*` constructs the complete validated Rust naming plan before
+  emission: dialects, operations, schemas, fields, host methods, rules, source
+  modules, and output indexes. It also owns string escaping and type representations.
+- `rust/paths.h` constructs relative generated paths and absolute external crate
+  paths. Emitters use qualified dialect references and explicit runtime imports.
 - `rust/code_writer.h` handles indentation and blocks.
 - `templates/rust/` holds reusable Rust templates, embedded by Bazel and copied
   into the generated module. Runtime algorithms are maintained separately from emitters.
@@ -81,10 +87,24 @@ compile time. Arity and operation-specific schemas are validated at runtime.
 validates their pairing. Local `Op::from_name` accepts local names and aliases;
 combined `Op::from_name` requires a qualified name such as `Scalar.add`.
 
-Module names use snake_case; local enum variants use PascalCase. The compiler
-diagnoses normalized name collisions, reserved names, and rule file/directory
-collisions rather than adding numeric suffixes. Rename the conflicting source
-file or declaration. Repeated imports of one dialect produce one output file.
+Module names use snake_case; local enum variants use PascalCase. Each identifier
+has a semantic key and a Rust token: dialect `Type` generates `pub mod r#type;`
+and the file `dialects/type.rs`. Keyword source filenames and directories use the
+same policy. Filesystem paths and rewrite names never contain the `r#` escape.
+The compiler validates names after normalization, so dialect, operation, or
+schema `self_` fails with a TEPL source diagnostic for generated variant `Self`.
+Names Rust cannot escape must be renamed. Collisions are checked in each actual
+Rust declaration scope, including normalized parent directories and rule
+file/directory conflicts. `mod.rs`, runtime union variants (`None`, `Literal`,
+`Input`), and schema variant `None` are reserved in their respective scopes.
+Generation reports the conflicting declarations before formatting or writing
+output; it never adds numeric suffixes. Repeated imports of one dialect produce
+one output file.
+
+Generated code uses explicit runtime imports and qualified dialect paths.
+Dialects named `Std`, `Egg`, `Op`, or `DType` therefore cannot shadow runtime types
+or external crates. External references start with `::std::` and `::egg::`;
+generated references remain relative so the output can be relocated.
 
 Project input scans `dialects/**/*.tepl` and `rules/**/*.tepl` in sorted order,
 resolves imports per file, and deduplicates declarations by source and name.
@@ -115,6 +135,8 @@ Each concrete rule becomes `generated::rules::FILE::rule_NAME` with:
 - `Functions`: only host functions actually referenced by that rule.
 - `pattern()` and `expression()`: structural match and replacement trees.
 - `constraints()`: shape/dtype restrictions indexed by capture, including inheritance.
+- `match_checks(metadata)`: declarations and ordered pure condition evaluators;
+  metadata is shared through `Arc`.
 - `build_rewrite(functions)`: a checked rewrite using generated `TensorAnalysis`.
 - `build_rewrite_with(metadata, inference, functions)`: explicit callbacks for a
   custom analysis or inference policy.
@@ -130,11 +152,30 @@ use `Result` and become invalid inference. Both conditions and derivations
 read matched LHS metadata;
 derivations may also read earlier derived descriptors.
 
-Generated builders use `tensor_rewrite_checked_with_constraints`. Declarations
-are emitted once as a reusable constraint plan; the runtime checks it during
-tensor binding in both search and application-time rematching. It also rechecks
-current metadata before passing dimension bindings to the generated semantic
-callback. Conditions and derivations keep their application-time source order.
+Generated builders use `tensor_rewrite_checked_with_checks`. `MatchChecks`
+combines the existing tensor declarations with ordered condition dependencies
+and generated Rust evaluators. Shapes bind dimensions; conditions consume those
+bindings. Each branch holds one `next_condition` cursor alongside tensor,
+attribute, and shape bindings. At traversal start and after new bindings, the
+matcher advances through ready conditions in source order. Missing bindings wait;
+false or evaluation failure rejects the branch. Readiness never eagerly fetches
+metadata or evaluates a skipped expression branch. A later condition waits for
+an earlier condition even when its own bindings are ready.
+
+Only the builtin/operator prefix before the first host-containing condition is
+eligible. Nested host calls and calls in short-circuited branches still end that
+prefix. Host conditions, subsequent conditions, and derivations execute only
+during application, retaining their source order and host-call behavior.
+Application rematches with the same plan, then rechecks shapes and the early
+prefix against current metadata before executing the remaining callback and
+validating the RHS. The same generated evaluators serve search and final checks;
+there is no runtime expression interpreter. Search limits count only surviving
+substitutions, and attribute witnesses are filtered before substitution deduplication.
+Rewrite builders require an owned (`'static`) analysis type and callbacks.
+Handwritten callers can use `matches_at_with_checks` or
+`tensor_rewrite_checked_with_checks`; custom early evaluators must be pure and
+stable during traversal. The tensor-only APIs remain wrappers with an empty
+condition plan.
 
 Host argument/result types are:
 
@@ -191,7 +232,7 @@ any module directory in your application, declare that module in its parent,
 and add egg 0.11 to your application's dependencies. There is no module-name
 option: relative internal imports make output independent of the enclosing
 name and depth. Nested rules use the appropriate number of `super::` segments;
-imports of external crates such as egg and std retain their normal paths.
+external crate imports use absolute paths such as `::egg::` and `::std::`.
 
 ```sh
 bazel-bin/tepl generate examples --out my_app/src/generated

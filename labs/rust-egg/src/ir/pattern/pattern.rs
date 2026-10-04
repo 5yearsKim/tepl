@@ -1,6 +1,6 @@
-use std::collections::HashSet;
+use ::std::collections::HashSet;
 
-use egg::{Symbol, Var};
+use ::egg::{Symbol, Var};
 
 use super::super::{DType, Op, OpAttrs};
 

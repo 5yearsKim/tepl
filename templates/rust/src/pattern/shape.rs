@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use ::std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ShapePart {

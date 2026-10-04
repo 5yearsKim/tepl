@@ -19,7 +19,7 @@ whether a file is copied or emitted.
 | `pattern/*`, `types.rs` | Copy maintained runtime |
 | `op_node.rs` | Copy node template and insert operation sum types |
 | `dialects/*` | Emit from checked dialect declarations |
-| `rules/*.rs` | Emit patterns, conditions, derivations, and default/explicit builders |
+| `rules/*.rs` | Emit patterns, ordered early condition plans, derivations, and builders |
 | Root, dialect, and rule module declarations | Emit module wiring |
 
 The compiler uses `templates/rust/src/` as its template input. Project-specific
@@ -76,6 +76,15 @@ used for e-class analysis and RHS validation before insertion.
 `build_rewrite_with(metadata, inference, functions)` supports custom analyses.
 The LoRA demo uses this explicit path with `host::LoraAnalysis`, whose dot dtype
 policy is application-specific rather than inferred from an operation name.
+
+Tensor declarations and the builtin/operator prefix of `where` share a
+`MatchChecks` plan. Shapes bind dimensions; one cursor per search branch runs
+conditions in source order as their bindings appear. Missing bindings wait;
+false or checked builtin failure prunes immediately. The first host-containing
+condition ends the early prefix, including nested and short-circuited calls.
+Host conditions and all later conditions retain application-time order.
+Rematching and final validation recheck the early prefix before host calls,
+derivations, or insertion. See the [runtime description](../../../../templates/rust/README.md).
 
 ## Validation
 

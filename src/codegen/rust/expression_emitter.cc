@@ -7,7 +7,7 @@
 
 namespace tepl::codegen::rust {
 namespace {
-std::string emit(const core::Program& program,
+std::string emit(const core::Program& program, const Names& names,
                  const core::TypedExpr& expression,
                  const std::string& builtins_path) {
   const auto& result_type = program.types.at(expression.type.value);
@@ -35,10 +35,11 @@ std::string emit(const core::Program& program,
           return value ? "true" : "false";
         else if constexpr (std::is_same_v<T, core::HostCall>) {
           const auto& host = program.host_functions.at(value.function.value);
-          std::string call = "functions." + identifier(host.name) + "(";
+          std::string call = "functions." + names.host(host.id) + "(";
           for (std::size_t i = 0; i < value.arguments.size(); ++i) {
             if (i) call += ", ";
-            auto argument = emit(program, *value.arguments[i], builtins_path);
+            auto argument =
+                emit(program, names, *value.arguments[i], builtins_path);
             const auto kind =
                 program.types.at(host.signature.arguments.at(i).value).kind;
             if (kind == core::TypeKind::kTensor ||
@@ -51,19 +52,21 @@ std::string emit(const core::Program& program,
         } else if constexpr (std::is_same_v<T, core::BuiltinCall>) {
           std::vector<std::string> arguments;
           for (const auto& argument : value.arguments)
-            arguments.push_back(emit(program, *argument, builtins_path));
+            arguments.push_back(emit(program, names, *argument, builtins_path));
           return emitBuiltin(value.builtin, arguments, builtins_path, false);
         } else if constexpr (std::is_same_v<T, core::UnaryExpr>) {
           const auto operand =
-              "(" + emit(program, *value.operand, builtins_path) + ")";
+              "(" + emit(program, names, *value.operand, builtins_path) + ")";
           if (value.op == core::UnaryOp::kPlus) return operand;
           if (value.op == core::UnaryOp::kLogicalNot) return "!" + operand;
           return result_type.kind == core::TypeKind::kF64
                      ? "-" + operand
                      : builtins_path + "::common::neg(" + operand + ").ok()?";
         } else {
-          const auto lhs = "(" + emit(program, *value.lhs, builtins_path) + ")";
-          const auto rhs = "(" + emit(program, *value.rhs, builtins_path) + ")";
+          const auto lhs =
+              "(" + emit(program, names, *value.lhs, builtins_path) + ")";
+          const auto rhs =
+              "(" + emit(program, names, *value.rhs, builtins_path) + ")";
           if (category(value.op) == BinaryCategory::kArithmetic &&
               result_type.kind != core::TypeKind::kF64) {
             std::string method;
@@ -104,9 +107,9 @@ std::string emit(const core::Program& program,
   return result;
 }
 }  // namespace
-std::string emitExpression(const core::Program& program,
+std::string emitExpression(const core::Program& program, const Names& names,
                            const core::TypedExpr& expression,
                            const std::string& builtins_path) {
-  return emit(program, expression, builtins_path);
+  return emit(program, names, expression, builtins_path);
 }
 }  // namespace tepl::codegen::rust

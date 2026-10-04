@@ -290,6 +290,17 @@ check_exit 1 generate "$project" --out "${TEST_TMPDIR}/collision_out"
 grep -Fq 'dialect module name collision' "$output"
 test ! -e "${TEST_TMPDIR}/collision_out"
 
+# Invalid target names report the TEPL location before invoking the formatter.
+invalid_name="${TEST_TMPDIR}/invalid_name.tepl"
+printf 'dialect self_ { op copy(x: tensor) -> tensor; }\n' > "$invalid_name"
+check_exit 1 generate "$invalid_name" --out "${TEST_TMPDIR}/invalid_name_out"
+grep -Fq "${invalid_name}:1:" "$output"
+grep -Fq "cannot generate Rust identifier 'Self'" "$output"
+test ! -e "${TEST_TMPDIR}/invalid_name_out"
+PATH="${TEST_TMPDIR}/no_tools" check_exit 1 generate "$invalid_name" --out "${TEST_TMPDIR}/invalid_name_out"
+grep -Fq "does not allow r#Self" "$output"
+test ! -e "${TEST_TMPDIR}/invalid_name_out"
+
 # Module output is suitable for an existing crate; check mode never repairs drift.
 module_out="${TEST_TMPDIR}/any_name"
 check_exit 0 generate "$example" --out "$module_out"

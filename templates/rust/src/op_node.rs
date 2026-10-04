@@ -1,6 +1,6 @@
 use super::DType;
-use egg::{Id, Language};
-use std::fmt;
+use ::egg::{Id, Language};
+use ::std::fmt;
 
 // @tepl:op-types
 
@@ -25,7 +25,7 @@ impl fmt::Display for NodeError {
         f.write_str(&self.0)
     }
 }
-impl std::error::Error for NodeError {}
+impl ::std::error::Error for NodeError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct OpNode {

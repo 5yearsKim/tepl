@@ -5,3 +5,6 @@ extern crate rust_egg as tepl_generated;
 mod shape_builtins;
 #[path = "../../../tests/codegen/shape_patterns.rs"]
 mod shape_patterns;
+
+#[path = "../../../tests/codegen/match_checks.rs"]
+mod match_checks;

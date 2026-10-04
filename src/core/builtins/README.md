@@ -72,8 +72,12 @@ Shape and rule emitters share builtin-call lowering. Integer operators also
 call the checked runtime helpers. Shape errors become invalid inference; rule
 errors reject a candidate before insertion or subsequent host calls. Boolean
 operators retain short-circuit evaluation, and arguments execute once in order.
-`where`/`derive` evaluate during rewrite application; declaration-based early
-shape/dtype pruning is unchanged.
+The builtin/operator prefix of `where` also runs during matching, in source
+order as its bindings become available, and is rechecked before application.
+False or a builtin error prunes the branch. The first host-containing condition
+ends this prefix, including nested and short-circuited host calls. That condition
+and all subsequent conditions, plus `derive`, run during application. Tensor
+shape/dtype declarations bind dimensions through the same match-checking plan.
 
 Overflow, invalid indices/ranges, nonpositive rounded divisors, and incompatible
 broadcasting are failures. `/` truncates toward zero; rounded division requires

@@ -59,6 +59,9 @@ int main() {
     assert(file.contents.find("#[test]") == std::string::npos);
     assert(file.contents.find("#[cfg(test)]") == std::string::npos);
     assert(file.contents.find("SEARCH_VISITS") == std::string::npos);
+    assert(file.contents.find("use super::*") == std::string::npos);
+    assert(file.contents.find("::dialects::*") == std::string::npos);
+    assert(file.contents.find("::pattern::*") == std::string::npos);
     assert(file.contents.find("fn $") == std::string::npos);
     assert(file.contents.find("functions.$") == std::string::npos);
     if (file.contents.find("fn outer(") == std::string::npos) continue;
@@ -104,7 +107,7 @@ int main() {
   for (const auto& file : project_files.files) {
     if (file.path != "rules/nested/two.rs") continue;
     found_nested = true;
-    assert(file.contents.find("use super::super::super::pattern::*;") !=
+    assert(file.contents.find("use super::super::super::super::pattern::{") !=
            std::string::npos);
   }
   assert(found_nested);
@@ -154,10 +157,104 @@ int main() {
       assert(checked.ok());
       const auto rejected = tepl::codegen::generate(*checked.program);
       assert(!rejected.ok() && rejected.files.empty());
+      assert(
+          !rejected.diagnostics.front().origin.definition.source_name.empty());
       assert(rejected.diagnostics.front().message.find(
                  "does not allow r#" + std::string(name)) != std::string::npos);
     }
   }
+  // Validation runs after target normalization, before creating output.
+  for (const auto* source :
+       {"dialect self_ { op copy(x: tensor) -> tensor; }",
+        "dialect D { op self_(x: tensor) -> tensor; }",
+        "dialect D { attrs self_ { size: index; } op copy(x: tensor) -> "
+        "tensor; }",
+        "dialect Mod { op copy(x: tensor) -> tensor; }",
+        "dialect FooBar { op copy(x: tensor) -> tensor; } dialect foo_bar { op "
+        "other(x: tensor) -> tensor; }",
+        "dialect D { attrs None { size: index; } op copy(x: tensor) -> tensor; "
+        "}"}) {
+    auto parsed = tepl::parse(source);
+    assert(parsed.ok());
+    auto checked = tepl::core::analyze(*parsed.program);
+    assert(checked.ok());
+    const auto rejected = tepl::codegen::generate(*checked.program);
+    assert(!rejected.ok() && rejected.files.empty());
+    assert(!rejected.diagnostics.front().origin.definition.source_name.empty());
+  }
+  for (const auto* source :
+       {"project/rules/self.tepl", "project/rules/mod.tepl"}) {
+    auto invalid = program;
+    invalid.rules[0].source_name = source;
+    const auto rejected = tepl::codegen::generate(invalid, project_options);
+    assert(!rejected.ok() && rejected.files.empty());
+  }
+  for (const auto* second_source :
+       {"project/rules/foo_bar.tepl", "project/rules/FooBar/child.tepl"}) {
+    auto invalid = project;
+    invalid.rules[0].source_name = "project/rules/FooBar.tepl";
+    invalid.rules[1].source_name = second_source;
+    const auto rejected = tepl::codegen::generate(invalid, project_options);
+    assert(!rejected.ok() && rejected.files.empty());
+    assert(rejected.diagnostics.front().message.find("collision") !=
+           std::string::npos);
+  }
+  // Parent directory normalization is checked even when child filenames differ.
+  auto directory_collision = project;
+  directory_collision.rules[0].source_name = "project/rules/FooBar/one.tepl";
+  directory_collision.rules[1].source_name = "project/rules/foo_bar/two.tepl";
+  assert(!tepl::codegen::generate(directory_collision, project_options).ok());
+  auto keywords = program;
+  keywords.rules[0].source_name = "project/rules/type/match.tepl";
+  const auto keyword_output =
+      tepl::codegen::generate(keywords, project_options);
+  assert(keyword_output.ok());
+  bool keyword_index = false, keyword_file = false;
+  for (const auto& file : keyword_output.files) {
+    if (file.path == "rules/type/mod.rs") {
+      keyword_index =
+          file.contents.find("pub mod r#match;") != std::string::npos;
+    }
+    if (file.path == "rules/type/match.rs") keyword_file = true;
+    assert(file.path.find("r#") == std::string::npos);
+  }
+  assert(keyword_index && keyword_file);
+  auto where_parsed = tepl::parse(R"(
+    dialect D { op copy(x: tensor) -> tensor; }
+    rule early {
+      X: [Batch..., N]
+      (copy X) => X
+      where { len(Batch) < 4; N > 0; true || $allowed(X); N < 128; }
+    }
+  )");
+  assert(where_parsed.ok());
+  auto where_checked = tepl::core::analyze(*where_parsed.program);
+  assert(where_checked.ok());
+  const auto where_plan =
+      tepl::codegen::planRule(where_checked.program->rules[0]);
+  assert(where_plan.early_conditions.size() == 2);
+  assert(where_plan.early_conditions[0].dimensions.size() == 1);
+  assert(where_checked.program->rules[0]
+             .dimensions[where_plan.early_conditions[0].dimensions[0].value]
+             .sequence);
+  assert(!where_checked.program->rules[0]
+              .dimensions[where_plan.early_conditions[1].dimensions[0].value]
+              .sequence);
+  assert(where_plan.host_functions.size() == 1);
+  const auto where_output = tepl::codegen::generate(*where_checked.program);
+  assert(where_output.ok());
+  bool where_emitted = false;
+  for (const auto& file : where_output.files) {
+    if (file.path != "rules/input.rs") continue;
+    where_emitted = true;
+    assert(file.contents.find("fn condition_0") != std::string::npos);
+    assert(file.contents.find("fn condition_1") != std::string::npos);
+    assert(file.contents.find("fn condition_2") == std::string::npos);
+    assert(file.contents.find("functions.allowed(") != std::string::npos);
+    assert(file.contents.find("MatchBinding::Sequence(") != std::string::npos);
+    assert(file.contents.find("MatchBinding::Dimension(") != std::string::npos);
+  }
+  assert(where_emitted);
   const PythonBackend python;
   assert(python.generate(program, {}).files.front().path == "rules.py");
 }

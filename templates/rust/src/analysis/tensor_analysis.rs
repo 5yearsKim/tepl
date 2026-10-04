@@ -1,6 +1,6 @@
 //! Direct egg analysis: one configuration per graph, TensorAnalysisData per e-class.
 
-use egg::{Analysis, DidMerge, EGraph, Id, Language};
+use ::egg::{Analysis, DidMerge, EGraph, Id, Language};
 
 use super::super::pattern::TensorInfo;
 use super::super::{Op, OpNode};

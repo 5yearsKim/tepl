@@ -70,7 +70,11 @@ common policies with no operands are unknown.
 
 Generation emits files directly into the selected module directory of an
 existing crate. Internal imports use `super`, so the enclosing module can have
-any name and location. The lab's `src/ir/` is reproducible generated output; see
+any name and location. External crate references use `::egg::` and `::std::`.
+Emitters use qualified dialect paths and explicit runtime imports so user names
+cannot shadow those dependencies. The Rust naming plan validates identifiers
+before emission and separates raw tokens such as `r#type` from filenames such as
+`type.rs`. The lab's `src/ir/` is reproducible generated output; see
 its [ownership document](../../labs/rust-egg/src/ir/README.md). Edit the templates here and regenerate to update their copied output.
 
 Copied analysis support includes `TensorAnalysis`, `TensorAnalysisData`,
@@ -106,7 +110,8 @@ same tensor substitution. Tensor metadata must describe all alternatives in an
 e-class; missing or incompatible metadata rejects the match. Numerical
 rewrite equivalence is established by the host's legality functions.
 
-Generated rules expose `constraints()` alongside `pattern()` and `expression()`.
+Generated rules expose `constraints()` and `match_checks(metadata)` alongside
+`pattern()` and `expression()`.
 The immutable `TensorConstraints` plan retains every shape/dtype declaration,
 including inherited restrictions. The matcher checks a constrained tensor when
 it is first bound and stops that search branch immediately on a mismatch or
@@ -116,16 +121,33 @@ appear anywhere, but each shape has at most one sequence. Repeated tensor captur
 use canonical e-class equality, and unconstrained captures do not read metadata.
 Metadata providers must return stable answers during a read-only traversal.
 
-`matches_at` remains structural. `matches_at_with_constraints` validates a plan
-and enumerates witnesses that satisfy its declarations. Handwritten rewrites can
-use `tensor_rewrite_checked_with_constraints`; its semantic callback receives
-`(graph, matched, dimensions)`. The original `tensor_rewrite_checked` remains an
-empty-plan wrapper with its existing two-argument callback. Search limits count
-surviving, distinct tensor substitutions. Application-time rematching also prunes,
-then final declaration checking recovers fresh dimensions before the callback.
-`where`, `derive`, and complete RHS inference still execute during application,
-before any insertion. The same constraint checker implements early and final
-checks. `ShapeBindings::check` and `TensorConstraints::check_capture` may partially
+`checks.rs` coordinates declarations and ordered pure conditions through
+`MatchChecks`. A condition lists `MatchBinding` dependencies (tensor, attribute,
+dimension, or sequence). Each branch adds one condition cursor. At traversal
+start and after new bindings, ready conditions run in source order until the
+next dependency is unbound. False or `None` rejects; unbound dependencies wait.
+Readiness tests binding presence only, preserving lazy metadata reads and
+short-circuit expressions. Conditions run once in their branch, with passed
+cursors inherited by child branches. Later conditions wait for earlier ones.
+
+Generated early conditions are the builtin/operator prefix before the first
+host-containing condition. Nested and skipped host calls still end that prefix.
+Host conditions and every subsequent condition run only during application.
+`derive` and complete RHS inference also run during application before insertion.
+The runtime rechecks declarations and the early prefix before that callback.
+
+`matches_at` remains structural. `matches_at_with_constraints` validates tensor
+declarations; `matches_at_with_checks` also evaluates ordered pure conditions.
+Generated and handwritten rewrites use `tensor_rewrite_checked_with_checks`,
+whose callback receives `(graph, matched, dimensions)`. Handwritten early
+evaluators must be pure and stable during traversal. The tensor-only
+`tensor_rewrite_checked_with_constraints` remains an empty-condition wrapper;
+`tensor_rewrite_checked` also preserves its two-argument callback. Builders
+require `'static` analysis types and callbacks. Search limits count surviving,
+distinct substitutions after checking their individual attribute witnesses.
+Application-time rematching prunes with the same plan, and final checks recover
+current dimensions before the callback. The same shape and condition evaluators
+implement early and final checks. `ShapeBindings::check` and `TensorConstraints::check_capture` may partially
 update their binding environment on failure; callers must discard that environment.
 
 Run compiler-to-runtime integration tests with `./tools/test_codegen.sh` from

@@ -34,7 +34,7 @@ pub fn broadcast_shape<T: Integer>(lhs: &[T], rhs: &[T]) -> BuiltinResult<Vec<T>
     if lhs.iter().chain(rhs).any(|&dimension| dimension < T::ZERO) {
         return Err(BuiltinError::InvalidDimension);
     }
-    let rank = std::cmp::max(lhs.len(), rhs.len());
+    let rank = ::std::cmp::max(lhs.len(), rhs.len());
     let mut output = Vec::with_capacity(rank);
     for offset in 0..rank {
         let left = lhs.iter().rev().nth(offset).copied().unwrap_or(T::ONE);

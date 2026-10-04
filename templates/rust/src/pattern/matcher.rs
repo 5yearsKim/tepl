@@ -1,10 +1,11 @@
-use std::collections::HashMap;
-use std::ops::ControlFlow;
+use ::std::collections::HashMap;
+use ::std::ops::ControlFlow;
 
-use egg::{Analysis, EGraph, Id, Language, Subst, Var};
+use ::egg::{Analysis, EGraph, Id, Language, Subst, Var};
 
 use super::super::{OpAttrs, OpNode};
 
+use super::checks::MatchChecks;
 use super::constraints::TensorConstraints;
 use super::context::TensorMetadata;
 use super::pattern::{AttrPattern, AttrVar, TensorPattern};
@@ -31,7 +32,7 @@ pub fn matches_at<N: Analysis<OpNode>>(
         egraph,
         eclass,
         pattern,
-        &TensorConstraints::default(),
+        &MatchChecks::tensors(TensorConstraints::default()),
         &|_: &EGraph<OpNode, N>, _: Id| None,
         |matched| {
             matches.push(matched);
@@ -49,9 +50,26 @@ pub fn matches_at_with_constraints<N: Analysis<OpNode>>(
     constraints: &TensorConstraints,
     metadata: &dyn TensorMetadata<N>,
 ) -> Result<Vec<TensorMatch>, String> {
-    constraints.validate(pattern)?;
+    matches_at_with_checks(
+        egraph,
+        eclass,
+        pattern,
+        &MatchChecks::tensors(constraints.clone()),
+        metadata,
+    )
+}
+
+/// Match with shape declarations and an ordered plan of pure conditions.
+pub fn matches_at_with_checks<N: Analysis<OpNode>>(
+    egraph: &EGraph<OpNode, N>,
+    eclass: Id,
+    pattern: &TensorPattern,
+    checks: &MatchChecks<N>,
+    metadata: &dyn TensorMetadata<N>,
+) -> Result<Vec<TensorMatch>, String> {
+    checks.validate(pattern)?;
     let mut matches = Vec::new();
-    for_each_match_at(egraph, eclass, pattern, constraints, metadata, |matched| {
+    for_each_match_at(egraph, eclass, pattern, checks, metadata, |matched| {
         matches.push(matched);
         ControlFlow::Continue(())
     });
@@ -62,6 +80,7 @@ pub fn matches_at_with_constraints<N: Analysis<OpNode>>(
 struct SearchState {
     matched: TensorMatch,
     shapes: ShapeBindings,
+    next_condition: usize,
 }
 
 /// Visit witnesses as they are found. Returning `Break` stops traversal.
@@ -70,7 +89,7 @@ pub(super) fn for_each_match_at<N: Analysis<OpNode>>(
     egraph: &EGraph<OpNode, N>,
     eclass: Id,
     pattern: &TensorPattern,
-    constraints: &TensorConstraints,
+    checks: &MatchChecks<N>,
     metadata: &dyn TensorMetadata<N>,
     mut visit: impl FnMut(TensorMatch) -> ControlFlow<()>,
 ) {
@@ -85,8 +104,9 @@ pub(super) fn for_each_match_at<N: Analysis<OpNode>>(
                 attrs: HashMap::new(),
             },
             shapes: ShapeBindings::default(),
+            next_condition: 0,
         },
-        constraints,
+        checks,
         metadata,
         &mut visit,
     );
@@ -99,21 +119,32 @@ fn search<N: Analysis<OpNode>>(
     egraph: &EGraph<OpNode, N>,
     mut pending: Vec<(Id, &TensorPattern)>,
     mut state: SearchState,
-    constraints: &TensorConstraints,
+    checks: &MatchChecks<N>,
     metadata: &dyn TensorMetadata<N>,
     visit: &mut dyn FnMut(TensorMatch) -> ControlFlow<()>,
 ) -> ControlFlow<()> {
+    if checks
+        .advance(
+            egraph,
+            &state.matched,
+            &state.shapes,
+            &mut state.next_condition,
+        )
+        .is_none()
+    {
+        return ControlFlow::Continue(());
+    }
     while let Some((eclass, pattern)) = pending.pop() {
         let eclass = egraph.find(eclass);
         match pattern {
             TensorPattern::Var(var) => {
-                if !bind_tensor(egraph, &mut state, *var, eclass, constraints, metadata) {
+                if !bind_tensor(egraph, &mut state, *var, eclass, checks, metadata) {
                     return ControlFlow::Continue(());
                 }
             }
             TensorPattern::Bind { var, pattern } => {
                 // Capture this e-class, then check the inner pattern.
-                if !bind_tensor(egraph, &mut state, *var, eclass, constraints, metadata) {
+                if !bind_tensor(egraph, &mut state, *var, eclass, checks, metadata) {
                     return ControlFlow::Continue(());
                 }
                 pending.push((eclass, pattern));
@@ -154,14 +185,18 @@ fn search<N: Analysis<OpNode>>(
                     let mut remaining = pending.clone();
                     // Reverse puts the left child first; recurse with this stack.
                     remaining.extend(node.children().iter().copied().zip(children).rev());
-                    search(egraph, remaining, branch, constraints, metadata, visit)?;
+                    search(egraph, remaining, branch, checks, metadata, visit)?;
                 }
                 // Recursion already checked the remaining siblings.
                 return ControlFlow::Continue(());
             }
         }
     }
-    visit(state.matched)
+    if checks.complete(state.next_condition) {
+        visit(state.matched)
+    } else {
+        ControlFlow::Continue(())
+    }
 }
 
 /// Capture a tensor variable on first use; require e-class equality thereafter.
@@ -170,13 +205,14 @@ fn bind_tensor<N: Analysis<OpNode>>(
     state: &mut SearchState,
     var: Var,
     eclass: Id,
-    constraints: &TensorConstraints,
+    checks: &MatchChecks<N>,
     metadata: &dyn TensorMetadata<N>,
 ) -> bool {
     if let Some(bound) = state.matched.tensors.get(var) {
         // Existing bindings already passed all restrictions in this branch.
         return egraph.find(*bound) == eclass;
     }
+    let constraints = checks.tensor_constraints();
     if constraints.contains(var) {
         let Some(info) = metadata.info(egraph, eclass) else {
             return false;
@@ -190,7 +226,14 @@ fn bind_tensor<N: Analysis<OpNode>>(
         }
     }
     state.matched.tensors.insert(var, eclass);
-    true
+    checks
+        .advance(
+            egraph,
+            &state.matched,
+            &state.shapes,
+            &mut state.next_condition,
+        )
+        .is_some()
 }
 
 fn attrs_match(pattern: &AttrPattern, attrs: &OpAttrs, matched: &TensorMatch) -> bool {

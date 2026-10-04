@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use ::std::collections::{HashMap, HashSet};
 
-use egg::{Analysis, EGraph, Var};
+use ::egg::{Analysis, EGraph, Var};
 
 use super::super::{DType, OpNode};
 use super::context::{TensorInfo, TensorMetadata};
@@ -69,6 +69,17 @@ impl TensorConstraints {
             }
         }
         Ok(())
+    }
+
+    pub(super) fn shape_symbols(&self) -> impl Iterator<Item = (usize, bool)> + '_ {
+        self.declarations
+            .iter()
+            .flat_map(|(_, constraint)| constraint.shape.iter())
+            .filter_map(|part| match part {
+                ShapePart::Dimension(id) => Some((*id, false)),
+                ShapePart::Sequence(Some(id)) => Some((*id, true)),
+                _ => None,
+            })
     }
 
     pub fn contains(&self, var: Var) -> bool {

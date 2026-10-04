@@ -14,15 +14,15 @@ std::string emitDialect(const core::Program& program, const Names& names,
   out.line(
       "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]");
   out.open("pub enum Op");
-  for (auto id : dialect.operations)
-    out.line(pascal(program.operations[id.value].name) + ",");
+  for (auto id : dialect.operations) out.line(names.operationVariant(id) + ",");
   out.close();
   out.open("impl Op");
   out.open("pub fn name(self) -> &'static str");
   out.open("match self");
   for (auto id : dialect.operations) {
     const auto& op = program.operations[id.value];
-    out.line("Self::" + pascal(op.name) + " => " + quote(op.name) + ",");
+    out.line("Self::" + names.operationVariant(op.id) + " => " +
+             quote(op.name) + ",");
   }
   out.close();
   out.close();
@@ -33,7 +33,7 @@ std::string emitDialect(const core::Program& program, const Names& names,
     out.line(
         quote(op.name) +
         (op.alias && *op.alias != op.name ? " | " + quote(*op.alias) : "") +
-        " => Some(Self::" + pascal(op.name) + "),");
+        " => Some(Self::" + names.operationVariant(op.id) + "),");
   }
   out.line("_ => None,");
   out.close();
@@ -43,7 +43,7 @@ std::string emitDialect(const core::Program& program, const Names& names,
   for (auto id : dialect.operations) {
     const auto& op = program.operations[id.value];
     bool variadic = !op.operands.empty() && op.operands.back().variadic;
-    out.line("Self::" + pascal(op.name) +
+    out.line("Self::" + names.operationVariant(op.id) +
              " => Arity::" + (variadic ? "AtLeast(" : "Exact(") +
              std::to_string(op.operands.size() - (variadic ? 1 : 0)) + "),");
   }
@@ -54,7 +54,8 @@ std::string emitDialect(const core::Program& program, const Names& names,
   for (auto id : dialect.operations) {
     const auto& op = program.operations[id.value];
     out.line(
-        "Self::" + pascal(op.name) + " => matches!(attrs, OpAttrs::" +
+        "Self::" + names.operationVariant(op.id) +
+        " => matches!(attrs, OpAttrs::" +
         (op.attributes ? names.schema(*op.attributes) + " { .. }" : "None") +
         "),");
   }
@@ -67,7 +68,8 @@ std::string emitDialect(const core::Program& program, const Names& names,
   for (auto id : dialect.schemas) {
     const auto& schema = program.attribute_schemas[id.value];
     out.open(names.schema(id));
-    for (const auto& field : schema.fields) {
+    for (std::size_t i = 0; i < schema.fields.size(); ++i) {
+      const auto& field = schema.fields[i];
       static const std::map<std::string, std::string> types = {
           {"index", "u64"},
           {"string", "String"},
@@ -83,7 +85,7 @@ std::string emitDialect(const core::Program& program, const Names& names,
         type = "Vec<" + type + ">";
       if (field.optional) type = "Option<" + type + ">";
       if (field.empty_default) out.line("// TEPL default: empty list.");
-      out.line(identifier(field.name) + ": " + type + ",");
+      out.line(names.field(id, i) + ": " + type + ",");
     }
     out.close(",");
   }
@@ -114,7 +116,7 @@ std::string emitDialect(const core::Program& program, const Names& names,
   out.open("impl DialectOp for Op");
   out.line("type Attrs = OpAttrs;");
   out.open(
-      "fn into_node(self, attrs: OpAttrs, children: Vec<egg::Id>) -> "
+      "fn into_node(self, attrs: OpAttrs, children: Vec<::egg::Id>) -> "
       "Result<OpNode, NodeError>");
   out.line("OpNode::from_parts(self.into(), children, attrs.into())");
   out.close();
@@ -125,14 +127,13 @@ std::string emitOpUnion(const Names& names) {
   CodeWriter out;
   out.line(
       "// Generated sum types: one egg language, distinct dialect identities.");
-  if (!names.dialects.empty()) out.line("use super::dialects::*;");
   out.line(
       "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]");
   out.open("pub enum Op");
   out.line("Literal,");
   out.line("Input,");
   for (const auto& d : names.dialects)
-    out.line(d.variant + "(" + d.module + "::Op),");
+    out.line(d.variant + "(super::dialects::" + d.module + "::Op),");
   out.close();
   out.line("#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]");
   out.open("pub enum OpAttrs");
@@ -140,7 +141,7 @@ std::string emitOpUnion(const Names& names) {
   out.line("Literal { value: String, dtype: Option<DType> },");
   out.line("Input { name: String },");
   for (const auto& d : names.dialects)
-    out.line(d.variant + "(" + d.module + "::OpAttrs),");
+    out.line(d.variant + "(super::dialects::" + d.module + "::OpAttrs),");
   out.close();
   out.open("impl Op");
   out.open("pub fn name(self) -> &'static str");
@@ -157,7 +158,7 @@ std::string emitOpUnion(const Names& names) {
   out.line("let (dialect, _op) = name.split_once('.')?;");
   out.open("match dialect");
   for (const auto& d : names.dialects)
-    out.line(quote(d.name) + " => " + d.module +
+    out.line(quote(d.name) + " => super::dialects::" + d.module +
              "::Op::from_name(_op).map(Self::" + d.variant + "),");
   out.line("_ => None,");
   out.close();
@@ -180,8 +181,8 @@ std::string emitOpUnion(const Names& names) {
     out.line("(Self::" + d.variant + "(op), OpAttrs::" + d.variant +
              "(attrs)) => op.accepts_attrs(attrs),");
     out.line("(Self::" + d.variant +
-             "(op), OpAttrs::None) => op.accepts_attrs(&" + d.module +
-             "::OpAttrs::None),");
+             "(op), OpAttrs::None) => op.accepts_attrs(&super::dialects::" +
+             d.module + "::OpAttrs::None),");
   }
   out.line("_ => false,");
   out.close();

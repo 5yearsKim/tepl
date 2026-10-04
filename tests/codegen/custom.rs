@@ -526,7 +526,7 @@ fn skipped_host_branch_does_not_eagerly_read_missing_capture_metadata() {
 }
 
 #[test]
-fn generated_mixed_shapes_prune_before_where_and_preserve_inherited_bindings() {
+fn generated_mixed_shapes_and_where_prune_with_inherited_bindings() {
     for (shape, dtype, searched, applied) in [
         (vec![3, 7, 8, 9, 3], DType::F32, true, true),
         (vec![3, 9, 3], DType::F32, true, true),
@@ -534,7 +534,7 @@ fn generated_mixed_shapes_prune_before_where_and_preserve_inherited_bindings() {
         (vec![3, 3], DType::F32, false, false),
         (vec![3, 7, 8, 9, 4], DType::F32, false, false),
         (vec![3, 9, 3], DType::I32, false, false),
-        (vec![5, 9, 5], DType::F32, true, false),
+        (vec![5, 9, 5], DType::F32, false, false),
     ] {
         let mut graph = EGraph::default();
         let x = input(&mut graph, "x");

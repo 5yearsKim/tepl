@@ -33,9 +33,10 @@ copy_runtime_tests() {
     mkdir -p "$application/tests"
     cp "$project_root/tests/codegen/shape_builtins.rs" "$application/tests/shape_builtins.rs"
     cp "$project_root/tests/codegen/shape_patterns.rs" "$application/tests/shape_patterns.rs"
+    cp "$project_root/tests/codegen/match_checks.rs" "$application/tests/match_checks.rs"
 }
 
-for source in builtins analysis custom empty dialect_only literal_root lora basic binders inherited simple; do
+for source in early_where names builtins analysis custom empty dialect_only literal_root lora basic binders inherited simple; do
     if [[ -f "$project_root/tests/codegen/$source.tepl" ]]; then
         input="$project_root/tests/codegen/$source.tepl"
     else
@@ -50,7 +51,7 @@ for source in builtins analysis custom empty dialect_only literal_root lora basi
         cp "$project_root/tests/codegen/$source.rs" "$crate/tests/generated.rs"
     fi
     cargo test --manifest-path "$crate/Cargo.toml"
-    if [[ "$source" == custom || "$source" == analysis || "$source" == builtins ]]; then
+    if [[ "$source" == early_where || "$source" == custom || "$source" == analysis || "$source" == builtins ]]; then
         cargo test --manifest-path "$crate/Cargo.toml" --release
     fi
 done
@@ -87,7 +88,8 @@ printf 'pub mod components;\n' > "$relocated/src/lib.rs"
 mkdir -p "$relocated/src/components" "$work_directory/nested_project"
 printf 'pub mod any_name;\n' > "$relocated/src/components/mod.rs"
 cp -R "$project_root/examples/dialects" "$project_root/examples/rules" "$work_directory/nested_project/"
-mkdir -p "$work_directory/nested_project/rules/nested/deeper"
+mkdir -p "$work_directory/nested_project/rules/nested/deeper" "$work_directory/nested_project/rules/type"
+cp "$project_root/tests/codegen/names.tepl" "$work_directory/nested_project/rules/type/match.tepl"
 cat > "$work_directory/nested_project/rules/nested/deeper/commute.tepl" <<'TEPL'
 from "../../../dialects/scalar.tepl" import Scalar as s;
 rule commute_add { (s.add X Y) => (s.add Y X) }
@@ -98,6 +100,10 @@ test ! -e "$relocated/src/components/any_name/Cargo.toml"
 mkdir -p "$relocated/tests"
 sed 's/tepl_generated::ir/tepl_generated::components::any_name/g' \
     "$project_root/tests/codegen/project.rs" > "$relocated/tests/generated.rs"
+sed -e 's/tepl_generated::ir/tepl_generated::components::any_name/g' \
+    -e 's/rules::names/rules::r#type::r#match/g' \
+    -e 's/"names::match"/"type::match::match"/g' \
+    "$project_root/tests/codegen/names.rs" > "$relocated/tests/names.rs"
 cat >> "$relocated/tests/generated.rs" <<'RS'
 
 #[test]
@@ -120,7 +126,7 @@ RS
 cargo test --manifest-path "$relocated/Cargo.toml"
 mv "$relocated/src/components/any_name" "$relocated/src/components/generated"
 printf 'pub mod generated;\n' > "$relocated/src/components/mod.rs"
-sed -i 's/components::any_name/components::generated/g' "$relocated/tests/generated.rs"
+sed -i 's/components::any_name/components::generated/g' "$relocated/tests/generated.rs" "$relocated/tests/names.rs"
 cargo test --manifest-path "$relocated/Cargo.toml"
 
 # The public typed constructor rejects attributes from another dialect.

@@ -58,7 +58,7 @@ impl From<OpAttrs> for AnyAttrs {
 }
 impl DialectOp for Op {
     type Attrs = OpAttrs;
-    fn into_node(self, attrs: OpAttrs, children: Vec<egg::Id>) -> Result<OpNode, NodeError> {
+    fn into_node(self, attrs: OpAttrs, children: Vec<::egg::Id>) -> Result<OpNode, NodeError> {
         OpNode::from_parts(self.into(), children, attrs.into())
     }
 }

@@ -7,8 +7,10 @@
 > also supports the nested/opaque attribute types and `$` host-call syntax here.
 > Rule `where` and `derive` also resolve builtins through the shared catalog;
 > `all` and `any` are currently shape-only because rules have no Boolean lists.
-> Rule-level shape declarations are checked during search and rechecked before
-> application; other rule expressions execute during application.
+> Rule-level shape declarations and the builtin/operator prefix of `where`
+> are checked during search and rechecked before application. Conditions wait
+> for their bindings in source order. The first host-containing condition ends
+> that prefix; it and subsequent conditions, plus `derive`, run during application.
 
 An operation's shape definition computes its output shape from operand shapes
 and attributes. TEPL compiles that definition into a shared evaluator used

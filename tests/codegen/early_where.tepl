@@ -1,0 +1,24 @@
+dialect Guard {
+    op pair(x: tensor, y: tensor) -> tensor;
+    op copy(x: tensor) -> tensor;
+}
+rule early {
+    X: [Batch..., N]
+    Y: [Batch..., M]
+    (pair X Y) => X
+    where { len(Batch) < 3; N <= 4; M <= 4; $allowed(X); }
+}
+rule host_boundary {
+    X: [N]
+    (copy X) => X
+    where { N > 0; $allowed(X); N <= 4; }
+}
+rule nested_host_boundary {
+    X: [N]
+    (copy X) => X
+    where { N > 0; true || $allowed(X); N <= 4; }
+}
+rule skipped_builtin {
+    (copy X) => 1:i32
+    where { true || len(range(18446744073709551615)) == 0; }
+}

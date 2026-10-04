@@ -1,20 +1,21 @@
-use std::collections::{HashMap, HashSet};
-use std::ops::ControlFlow;
-use std::sync::Arc;
+use ::std::collections::{HashMap, HashSet};
+use ::std::ops::ControlFlow;
+use ::std::sync::Arc;
 
-use egg::{
+use ::egg::{
     Analysis, Applier, EGraph, Id, PatternAst, Rewrite, SearchMatches, Searcher, Subst, Symbol, Var,
 };
 
 use super::super::{OpAttrs, OpNode};
 
+use super::checks::MatchChecks;
 use super::constraints::TensorConstraints;
 use super::context::{OutputInference, TensorInfo, TensorMetadata};
 use super::matcher::{TensorMatch, for_each_match_at};
 use super::pattern::{AttrExpr, AttrVar, TensorExpr, TensorPattern};
 use super::shape::ShapeBindings;
 
-pub type DerivedAttrs = std::collections::HashMap<AttrVar, OpAttrs>;
+pub type DerivedAttrs = ::std::collections::HashMap<AttrVar, OpAttrs>;
 
 /// Validate every RHS operation and require shape/dtype equality with the
 /// matched root before inserting any nodes. Numerical legality remains the
@@ -28,7 +29,7 @@ pub fn tensor_rewrite_checked<N, M, I, F>(
     check_and_derive: F,
 ) -> Result<Rewrite<OpNode, N>, String>
 where
-    N: Analysis<OpNode>,
+    N: Analysis<OpNode> + 'static,
     M: TensorMetadata<N> + 'static,
     I: OutputInference + 'static,
     F: Fn(&EGraph<OpNode, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
@@ -56,7 +57,7 @@ pub fn tensor_rewrite_checked_with_constraints<N, M, I, F>(
     check_and_derive: F,
 ) -> Result<Rewrite<OpNode, N>, String>
 where
-    N: Analysis<OpNode>,
+    N: Analysis<OpNode> + 'static,
     M: TensorMetadata<N> + 'static,
     I: OutputInference + 'static,
     F: Fn(&EGraph<OpNode, N>, &TensorMatch, &ShapeBindings) -> Option<DerivedAttrs>
@@ -64,21 +65,52 @@ where
         + Sync
         + 'static,
 {
-    constraints.validate(&lhs)?;
-    let constraints = Arc::new(constraints);
+    tensor_rewrite_checked_with_checks(
+        name,
+        lhs,
+        rhs,
+        MatchChecks::tensors(constraints),
+        metadata,
+        inference,
+        check_and_derive,
+    )
+}
+
+/// Shape declarations and ordered pure conditions prune search branches and are
+/// rechecked before the application-time callback. Host calls belong in that callback.
+pub fn tensor_rewrite_checked_with_checks<N, M, I, F>(
+    name: impl Into<Symbol>,
+    lhs: TensorPattern,
+    rhs: TensorExpr,
+    checks: MatchChecks<N>,
+    metadata: M,
+    inference: I,
+    check_and_derive: F,
+) -> Result<Rewrite<OpNode, N>, String>
+where
+    N: Analysis<OpNode> + 'static,
+    M: TensorMetadata<N> + 'static,
+    I: OutputInference + 'static,
+    F: Fn(&EGraph<OpNode, N>, &TensorMatch, &ShapeBindings) -> Option<DerivedAttrs>
+        + Send
+        + Sync
+        + 'static,
+{
+    checks.validate(&lhs)?;
+    let checks = Arc::new(checks);
     let metadata = Arc::new(metadata);
-    let checker_constraints = constraints.clone();
+    let checker_checks = checks.clone();
     let checker_metadata = metadata.clone();
     let expression = rhs.clone();
     build_tensor_rewrite(
         name,
         lhs,
         rhs,
-        constraints,
+        checks,
         metadata,
         move |graph, root, matched| {
             let dimensions =
-                checker_constraints.check_match(graph, matched, checker_metadata.as_ref())?;
+                checker_checks.check_match(graph, matched, checker_metadata.as_ref())?;
             let derived = check_and_derive(graph, matched, &dimensions)?;
             validate_rhs(&expression, matched, &derived)?;
             let expected = checker_metadata.info(graph, graph.find(root))?;
@@ -152,12 +184,12 @@ fn build_tensor_rewrite<N, M, F>(
     name: impl Into<Symbol>,
     lhs: TensorPattern,
     rhs: TensorExpr,
-    constraints: Arc<TensorConstraints>,
+    checks: Arc<MatchChecks<N>>,
     metadata: Arc<M>,
     check_and_derive: F,
 ) -> Result<Rewrite<OpNode, N>, String>
 where
-    N: Analysis<OpNode>,
+    N: Analysis<OpNode> + 'static,
     M: TensorMetadata<N> + 'static,
     F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<(DerivedAttrs, TensorExpr)>
         + Send
@@ -181,27 +213,27 @@ where
         name,
         TensorSearcher {
             pattern: lhs.clone(),
-            constraints: constraints.clone(),
+            checks: checks.clone(),
             metadata: metadata.clone(),
         },
         TensorApplier {
             lhs,
             lhs_vars,
             rhs,
-            constraints,
+            checks,
             metadata,
             check_and_derive,
         },
     )
 }
 
-struct TensorSearcher<M> {
+struct TensorSearcher<N: Analysis<OpNode>, M> {
     pattern: TensorPattern,
-    constraints: Arc<TensorConstraints>,
+    checks: Arc<MatchChecks<N>>,
     metadata: Arc<M>,
 }
 
-impl<N: Analysis<OpNode>, M: TensorMetadata<N>> Searcher<OpNode, N> for TensorSearcher<M> {
+impl<N: Analysis<OpNode>, M: TensorMetadata<N>> Searcher<OpNode, N> for TensorSearcher<N, M> {
     fn search_eclass_with_limit(
         &self,
         egraph: &EGraph<OpNode, N>,
@@ -217,7 +249,7 @@ impl<N: Analysis<OpNode>, M: TensorMetadata<N>> Searcher<OpNode, N> for TensorSe
             egraph,
             eclass,
             &self.pattern,
-            &self.constraints,
+            &self.checks,
             self.metadata.as_ref(),
             |matched| {
                 if seen.insert(matched.tensors.clone()) {
@@ -258,7 +290,7 @@ impl<N: Analysis<OpNode>, M: TensorMetadata<N>> Searcher<OpNode, N> for TensorSe
 }
 
 fn search_classes<'a, N: Analysis<OpNode>, M: TensorMetadata<N>>(
-    searcher: &'a TensorSearcher<M>,
+    searcher: &'a TensorSearcher<N, M>,
     egraph: &EGraph<OpNode, N>,
     classes: impl Iterator<Item = Id>,
     mut limit: usize,
@@ -276,17 +308,17 @@ fn search_classes<'a, N: Analysis<OpNode>, M: TensorMetadata<N>>(
     results
 }
 
-struct TensorApplier<M, F> {
+struct TensorApplier<N: Analysis<OpNode>, M, F> {
     lhs: TensorPattern,
     lhs_vars: Vec<Var>,
     rhs: TensorExpr,
-    constraints: Arc<TensorConstraints>,
+    checks: Arc<MatchChecks<N>>,
     metadata: Arc<M>,
     check_and_derive: F,
 }
 
-impl<M, F> TensorApplier<M, F> {
-    fn apply_candidates<N: Analysis<OpNode>>(
+impl<N: Analysis<OpNode>, M, F> TensorApplier<N, M, F> {
+    fn apply_candidates(
         &self,
         egraph: &mut EGraph<OpNode, N>,
         eclass: Id,
@@ -319,9 +351,9 @@ impl<M, F> TensorApplier<M, F> {
     }
 }
 
-impl<N, M, F> Applier<OpNode, N> for TensorApplier<M, F>
+impl<N, M, F> Applier<OpNode, N> for TensorApplier<N, M, F>
 where
-    N: Analysis<OpNode>,
+    N: Analysis<OpNode> + 'static,
     M: TensorMetadata<N>,
     F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<(DerivedAttrs, TensorExpr)> + Send + Sync,
 {
@@ -351,7 +383,7 @@ where
                 egraph,
                 mat.eclass,
                 &self.lhs,
-                &self.constraints,
+                &self.checks,
                 self.metadata.as_ref(),
                 |candidate| {
                     if let Some(key) = subst_key(egraph, &candidate.tensors, &self.lhs_vars) {
@@ -389,7 +421,7 @@ where
             egraph,
             eclass,
             &self.lhs,
-            &self.constraints,
+            &self.checks,
             self.metadata.as_ref(),
             |candidate| {
                 if subst_key(egraph, &candidate.tensors, &self.lhs_vars).as_ref() == Some(&key) {

@@ -1,12 +1,11 @@
 #include "src/codegen/rust/rule_emitter.h"
 
-#include <set>
-#include <stdexcept>
 #include <type_traits>
 
 #include "src/codegen/common/rule_plan.h"
 #include "src/codegen/rust/code_writer.h"
 #include "src/codegen/rust/expression_emitter.h"
+#include "src/codegen/rust/paths.h"
 
 namespace tepl::codegen::rust {
 namespace {
@@ -21,7 +20,8 @@ std::string literalDtype(const core::GraphLiteral& value) {
   return value.dtype ? "Some(" + dtype(*value.dtype) + ")" : "None";
 }
 
-std::string pattern(const core::Pattern& node, const Names& names) {
+std::string pattern(const core::Pattern& node, const Names& names,
+                    const std::string& root) {
   return std::visit(
       [&](const auto& value) -> std::string {
         using T = std::decay_t<decltype(value)>;
@@ -32,23 +32,24 @@ std::string pattern(const core::Pattern& node, const Names& names) {
                  literalDtype(value) + ")";
         else if constexpr (std::is_same_v<T, core::BindPattern>)
           return "TensorPattern::bind(" + var(value.capture.value) + ", " +
-                 pattern(*value.expression, names) + ")";
+                 pattern(*value.expression, names, root) + ")";
         else {
           std::string result =
-              "TensorPattern::op(" + names.operation(value.operation) + ", " +
+              "TensorPattern::op(" + names.operation(value.operation, root) +
+              ", " +
               (value.descriptor ? "AttrPattern::Bind(" +
                                       attrVar(value.descriptor->value) + ")"
                                 : "AttrPattern::Exact(OpAttrs::None)") +
               ", vec![";
           for (const auto& operand : value.operands)
-            result += pattern(*operand, names) + ", ";
+            result += pattern(*operand, names, root) + ", ";
           return result + "])";
         }
       },
       node.value);
 }
 std::string build(const core::BuildExpr& node, const core::Rule& rule,
-                  const Names& names) {
+                  const Names& names, const std::string& root) {
   return std::visit(
       [&](const auto& value) -> std::string {
         using T = std::decay_t<decltype(value)>;
@@ -67,10 +68,10 @@ std::string build(const core::BuildExpr& node, const core::Rule& rule,
                     attrVar(desc.id.value) + ")";
           }
           std::string result = "TensorExpr::op(" +
-                               names.operation(value.operation) + ", " + attrs +
-                               ", vec![";
+                               names.operation(value.operation, root) + ", " +
+                               attrs + ", vec![";
           for (const auto& operand : value.operands)
-            result += build(*operand, rule, names) + ", ";
+            result += build(*operand, rule, names, root) + ", ";
           return result + "])";
         }
       },
@@ -79,19 +80,34 @@ std::string build(const core::BuildExpr& node, const core::Rule& rule,
 
 void emitRule(CodeWriter& out, const core::Program& program,
               const core::Rule& rule, const Names& names,
-              const std::string& module, const std::string& builtins_path) {
+              const std::string& module, const std::string& root) {
   const auto plan = planRule(rule);
-  out.open("pub mod rule_" + rule.name);
-  out.line("use super::*;");
+  out.open("pub mod " + names.rule(rule.id));
+  out.line("use " +
+           paths::external("std", "{collections::HashMap, sync::Arc}") + ";");
+  out.line("use " + paths::external("egg", "{Analysis, EGraph, Rewrite, Var}") +
+           ";");
+  out.line("use " + paths::within(root, "{DType, OpNode, OpAttrs}") + ";");
+  out.line("use " +
+           paths::within(
+               root,
+               "analysis::{TensorAnalysis, tensor_info, infer_tensor_output}") +
+           ";");
+  out.line(
+      "use " +
+      paths::within(root,
+                    "pattern::{AttrExpr, AttrPattern, AttrVar, TensorExpr, "
+                    "TensorPattern, TensorConstraints, TensorConstraint, "
+                    "ShapePart, ShapeBindings, MatchBinding, MatchChecks, "
+                    "TensorMetadata, OutputInference, TensorInfo, "
+                    "MatchContext, tensor_rewrite_checked_with_checks}") +
+      ";");
+  const auto builtins_path = paths::within(root, "builtins");
   out.open("pub trait Functions: Send + Sync");
-  std::set<std::string> function_names;
   for (const auto id : plan.host_functions) {
     const auto& fn = program.host_functions.at(id.value);
-    if (!function_names.insert(fn.name).second)
-      throw std::invalid_argument("host function name collision within rule " +
-                                  module + "::" + rule.name);
     out.line("/// Host implementation of TEPL `$" + fn.name + "(...)`.");
-    std::string signature = "fn " + identifier(fn.name) + "(&self";
+    std::string signature = "fn " + names.host(fn.id) + "(&self";
     for (std::size_t i = 0; i < fn.signature.arguments.size(); ++i)
       signature +=
           ", arg" + std::to_string(i) + ": " +
@@ -103,10 +119,10 @@ void emitRule(CodeWriter& out, const core::Program& program,
   out.close();
   if (plan.host_functions.empty()) out.line("impl Functions for () {}");
   out.open("pub fn pattern() -> TensorPattern");
-  out.line(pattern(*rule.lhs, names));
+  out.line(pattern(*rule.lhs, names, root));
   out.close();
   out.open("pub fn expression() -> TensorExpr");
-  out.line(build(*rule.rhs, rule, names));
+  out.line(build(*rule.rhs, rule, names, root));
   out.close();
   out.open("pub fn constraints() -> TensorConstraints");
   out.line("TensorConstraints::new(vec![");
@@ -140,6 +156,46 @@ void emitRule(CodeWriter& out, const core::Program& program,
   }
   out.line("])");
   out.close();
+  for (std::size_t i = 0; i < plan.early_conditions.size(); ++i) {
+    out.open(
+        "fn condition_" + std::to_string(i) +
+        "<N: Analysis<OpNode>, M: TensorMetadata<N>>(ctx: &MatchContext<'_, N, "
+        "M>, dimensions: &ShapeBindings) -> Option<bool>");
+    out.line(
+        "Some(" +
+        emitExpression(program, names, *rule.conditions[i], builtins_path) +
+        ")");
+    out.close();
+  }
+  out.line("/// Shape declarations and the ordered builtin-only where prefix.");
+  out.open(
+      "pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + "
+      "'static>(metadata: Arc<M>) -> MatchChecks<N>");
+  out.line("MatchChecks::new(constraints(), vec![");
+  for (const auto& condition : plan.early_conditions) {
+    std::string deps = "vec![";
+    for (auto id : condition.captures)
+      deps += "MatchBinding::Tensor(" + var(id.value) + "), ";
+    for (auto id : condition.dimensions) {
+      deps += std::string(rule.dimensions.at(id.value).sequence
+                              ? "MatchBinding::Sequence("
+                              : "MatchBinding::Dimension(") +
+              std::to_string(id.value) + "), ";
+    }
+    for (auto id : condition.descriptors)
+      deps += "MatchBinding::Attribute(" + attrVar(id.value) + "), ";
+    out.line(deps + "],");
+  }
+  out.line("], move |index, graph, matched, dimensions| {");
+  out.line("let ctx = MatchContext::new(graph, matched, metadata.as_ref());");
+  out.open("match index");
+  for (std::size_t i = 0; i < plan.early_conditions.size(); ++i)
+    out.line(std::to_string(i) + " => condition_" + std::to_string(i) +
+             "(&ctx, dimensions),");
+  out.line("_ => None,");
+  out.close();
+  out.line("})");
+  out.close();
   out.line("/// Uses the same metadata and inference as TensorAnalysis.");
   out.open(
       "pub fn build_rewrite<F: Functions + 'static>(functions: F) -> "
@@ -152,14 +208,15 @@ void emitRule(CodeWriter& out, const core::Program& program,
       "functions: "
       "F) -> Result<Rewrite<OpNode, N>, String>");
   out.line(
-      "where N: Analysis<OpNode>, M: TensorMetadata<N> + 'static, I: "
+      "where N: Analysis<OpNode> + 'static, M: TensorMetadata<N> + 'static, I: "
       "OutputInference + 'static, F: Functions + 'static");
   out.open("");
   out.line("let metadata = Arc::new(metadata);");
+  out.line("let checks = match_checks::<N, M>(metadata.clone());");
   out.line("let checker_metadata = metadata.clone();");
-  out.line("tensor_rewrite_checked_with_constraints(");
+  out.line("tensor_rewrite_checked_with_checks(");
   out.line(quote(module + "::" + rule.name) +
-           ", pattern(), expression(), constraints(),");
+           ", pattern(), expression(), checks,");
   out.line(
       "move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id), "
       "inference,");
@@ -177,12 +234,16 @@ void emitRule(CodeWriter& out, const core::Program& program,
                descriptor(desc.id.value) + ".checked_schema(" +
                std::to_string(descriptor_type.schema->value) + ")?;");
   }
-  for (const auto& condition : rule.conditions)
-    out.line("if !(" + emitExpression(program, *condition, builtins_path) +
-             ") { return None; }");
+  for (std::size_t i = plan.early_conditions.size(); i < rule.conditions.size();
+       ++i)
+    out.line(
+        "if !(" +
+        emitExpression(program, names, *rule.conditions[i], builtins_path) +
+        ") { return None; }");
   for (const auto& derivation : rule.derivations)
     out.line("let " + descriptor(derivation.target.value) + " = " +
-             emitExpression(program, *derivation.value, builtins_path) + ";");
+             emitExpression(program, names, *derivation.value, builtins_path) +
+             ";");
   if (rule.derivations.empty())
     out.line("Some(Default::default())");
   else {
@@ -205,17 +266,9 @@ std::string emitRules(const core::Program& program, const Names& names,
   out.line("// Generated by TEPL from checked concrete rules.");
   out.line(
       "#![allow(unused_imports, unused_variables, unused_mut, unused_parens)]");
-  out.line("use std::{collections::HashMap, sync::Arc};");
-  out.line("use egg::{Analysis, EGraph, Rewrite, Var};");
-  out.line("use " + root_path + "::{DType, OpNode, OpAttrs, Op};");
-  out.line("use " + root_path +
-           "::analysis::{TensorAnalysis, tensor_info, infer_tensor_output};");
-  out.line("use " + root_path + "::pattern::*;");
-  out.line("use " + root_path + "::dialects::*;");
   for (const auto* rule : rules) {
     out.line();
-    emitRule(out, program, *rule, names, module,
-             root_path + "::super::builtins");
+    emitRule(out, program, *rule, names, module, paths::parent(root_path));
   }
   return out.str();
 }

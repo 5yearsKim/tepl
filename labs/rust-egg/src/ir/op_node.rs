@@ -1,23 +1,22 @@
 use super::DType;
-use egg::{Id, Language};
-use std::fmt;
+use ::egg::{Id, Language};
+use ::std::fmt;
 
 // Generated sum types: one egg language, distinct dialect identities.
-use super::dialects::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Op {
     Literal,
     Input,
-    Scalar(scalar::Op),
-    TensorLang(tensor_lang::Op),
+    Scalar(super::dialects::scalar::Op),
+    TensorLang(super::dialects::tensor_lang::Op),
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum OpAttrs {
     None,
     Literal { value: String, dtype: Option<DType> },
     Input { name: String },
-    Scalar(scalar::OpAttrs),
-    TensorLang(tensor_lang::OpAttrs),
+    Scalar(super::dialects::scalar::OpAttrs),
+    TensorLang(super::dialects::tensor_lang::OpAttrs),
 }
 impl Op {
     pub fn name(self) -> &'static str {
@@ -37,8 +36,8 @@ impl Op {
         }
         let (dialect, _op) = name.split_once('.')?;
         match dialect {
-            "Scalar" => scalar::Op::from_name(_op).map(Self::Scalar),
-            "TensorLang" => tensor_lang::Op::from_name(_op).map(Self::TensorLang),
+            "Scalar" => super::dialects::scalar::Op::from_name(_op).map(Self::Scalar),
+            "TensorLang" => super::dialects::tensor_lang::Op::from_name(_op).map(Self::TensorLang),
             _ => None,
         }
     }
@@ -56,9 +55,13 @@ impl Op {
                 valid_literal(value) && dtype.is_none_or(|d| d.accepts_literal(value))
             }
             (Self::Scalar(op), OpAttrs::Scalar(attrs)) => op.accepts_attrs(attrs),
-            (Self::Scalar(op), OpAttrs::None) => op.accepts_attrs(&scalar::OpAttrs::None),
+            (Self::Scalar(op), OpAttrs::None) => {
+                op.accepts_attrs(&super::dialects::scalar::OpAttrs::None)
+            }
             (Self::TensorLang(op), OpAttrs::TensorLang(attrs)) => op.accepts_attrs(attrs),
-            (Self::TensorLang(op), OpAttrs::None) => op.accepts_attrs(&tensor_lang::OpAttrs::None),
+            (Self::TensorLang(op), OpAttrs::None) => {
+                op.accepts_attrs(&super::dialects::tensor_lang::OpAttrs::None)
+            }
             _ => false,
         }
     }
@@ -97,7 +100,7 @@ impl fmt::Display for NodeError {
         f.write_str(&self.0)
     }
 }
-impl std::error::Error for NodeError {}
+impl ::std::error::Error for NodeError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct OpNode {

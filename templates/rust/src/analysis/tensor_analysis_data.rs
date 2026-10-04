@@ -1,4 +1,4 @@
-use egg::DidMerge;
+use ::egg::DidMerge;
 
 use super::super::pattern::TensorInfo;
 use super::Inference;
