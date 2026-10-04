@@ -12,8 +12,13 @@ namespace tepl::core::detail {
 class ExpressionChecker {
  public:
   ExpressionChecker(AnalysisContext& context, const ExpandedRule& input,
-                    const Rule& rule, const RuleScope& scope)
-      : context_(context), input_(input), rule_(rule), scope_(scope) {}
+                    const Rule& rule, const RuleScope& scope,
+                    builtins::Context section = builtins::Context::kWhere)
+      : context_(context),
+        input_(input),
+        rule_(rule),
+        scope_(scope),
+        section_(section) {}
 
   // Failed expressions return nullptr and report their source diagnostic.
   TypedExprPtr check(const ast::ConstraintExpr& expression,
@@ -48,10 +53,14 @@ class ExpressionChecker {
   TypedExprPtr lower(const ast::BinaryExpr&, const SourceOrigin&,
                      std::optional<TypeId>);
 
+  TypedExprPtr builtin(const ast::Call&, const SourceOrigin&,
+                       std::optional<TypeId>);
+
   AnalysisContext& context_;
   const ExpandedRule& input_;
   const Rule& rule_;
   const RuleScope& scope_;
+  builtins::Context section_;
 };
 
 }  // namespace tepl::core::detail

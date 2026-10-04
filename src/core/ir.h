@@ -160,6 +160,10 @@ struct HostCall {
   HostFunctionId function;
   std::vector<TypedExprPtr> arguments;
 };
+struct BuiltinCall {
+  builtins::Builtin builtin;
+  std::vector<TypedExprPtr> arguments;
+};
 struct UnaryExpr {
   UnaryOp op;
   TypedExprPtr operand;
@@ -173,7 +177,7 @@ struct TypedExpr {
   SourceOrigin origin;
   TypeId type;
   std::variant<CaptureRef, DimensionRef, DescriptorRef, NumericConstant, bool,
-               HostCall, UnaryExpr, BinaryExpr>
+               HostCall, BuiltinCall, UnaryExpr, BinaryExpr>
       value;
 };
 

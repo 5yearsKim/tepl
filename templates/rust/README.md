@@ -10,8 +10,14 @@ particular dialect.
 constructor. Generation inserts project-specific `Op` and `OpAttrs` sum types
 at the marker below the imports, before the node implementation, and writes
 `op_node.rs`. `src/types.rs` is copied as `types.rs`.
-`src/analysis/shape_builtins.rs` is copied as `analysis/shape_builtins.rs`.
-The generated `analysis` module exposes these helpers. They implement
+`src/builtins/` is copied into the generated `builtins/` directory:
+`common.rs` provides list/integer primitives, `shape.rs` provides shape semantics
+and dimension conversions, `dtype.rs` provides operation dtype policies, and
+`error.rs` defines `BuiltinError`/`BuiltinResult`. The catalog in
+[`src/core/builtins/`](../../src/core/builtins/README.md) controls language
+signatures and section availability. Callers use `builtins::common` and
+`builtins::shape`, with `BuiltinError`/`BuiltinResult` exported by `builtins`.
+The shared implementations cover
 every builtin in `examples/shape_guide.md`, including those not yet used by the
 sample evaluators, with no dependency on dialects, host semantics, or egg:
 
@@ -41,20 +47,25 @@ Rust calls pass slices; a TEPL call `concat(a, b, c)` becomes
 `len` returns `usize`; `range` produces `u64` axes. Index helpers accept integer
 types with checked conversion to `usize`, rejecting negative indices.
 `sum`, `product`, `min`, `max`, `floor_div`, and `ceil_div` support primitive
-signed and unsigned integers through `ShapeInteger`. Generated evaluators
+signed and unsigned integers through the sealed `Integer` trait. Generated evaluators
 use `integers` to widen dimensions to `i128`, and `dimensions` validates yielded
 values before converting to `u64`. `index` checks list accesses, and
-`add`, `sub`, `mul`, `div`, and `rem` implement checked scalar `i128` arithmetic.
+`add`, `sub`, `mul`, `div`, `rem`, and `neg` implement checked scalar integer
+arithmetic for both shape `i128` and rule `u64`/`i64` values.
 These support primitives supplement the 19 language builtins; they are not
 additional TEPL-callable functions. The shape emitter retains this integer
 contract. Signed attribute values widen directly from `i64`.
 
-Fallible helpers return `ShapeResult<T>` (`Result<T, ShapeError>`). Operation
-evaluators compose them with `?`; their dispatcher converts errors to invalid
-inference. Missing operation definitions are handled separately as unknown
+Fallible helpers return `BuiltinResult<T>` (`Result<T, BuiltinError>`).
+Operation evaluators compose them with `?`; their dispatcher converts errors
+to invalid inference. Rule `where`/`derive` calls use `.ok()?` to reject the
+candidate. `len` uses checked `index_len` conversion for rule indices. Rules
+support 17 builtins; `all`/`any` remain shape-only until rule Boolean lists exist.
+Integer operators, list access, and finite-float checks use shared helpers;
+Boolean operators retain native short-circuit syntax. Missing operation definitions are handled separately as unknown
 inference.
 The compiler generates evaluators from checked TEPL shape programs and dtype
-policies. `dtype_builtins.rs` implements common policies without promotion;
+policies. `builtins/dtype.rs` implements common policies without promotion;
 common policies with no operands are unknown.
 
 Generation emits files directly into the selected module directory of an

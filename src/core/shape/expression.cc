@@ -89,6 +89,11 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeCall& call,
     context_.report(origin, "unknown shape builtin '" + call.callee + "'");
     return nullptr;
   }
+  if (!signature->availableIn(builtins::Context::kShape)) {
+    context_.report(origin, "builtin '" + call.callee +
+                                "' is not available in shape expressions");
+    return nullptr;
+  }
   const auto count = signature->arguments.size();
   if (call.arguments.size() < count ||
       (!signature->variadic && call.arguments.size() != count)) {

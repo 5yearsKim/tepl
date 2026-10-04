@@ -1,6 +1,6 @@
 //! Common dtype policies; operation dispatch is generated from checked TEPL.
 use super::super::DType;
-use super::Inference;
+use super::super::analysis::Inference;
 
 pub fn same(operands: &[DType]) -> Inference<DType> {
     let Some(&first) = operands.first() else {

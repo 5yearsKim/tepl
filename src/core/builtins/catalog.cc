@@ -1,6 +1,6 @@
-#include "src/core/shape/builtins.h"
+#include "src/core/builtins/catalog.h"
 
-namespace tepl::core::shape {
+namespace tepl::core::builtins {
 namespace {
 using S = SignatureType;
 constexpr S kList[] = {S::kListT};
@@ -25,18 +25,40 @@ constexpr BuiltinSignature kBuiltins[] = {
     {Builtin::kReplace, "replace", kReplace, S::kListT},
     {Builtin::kSum, "sum", kIntegers, S::kInteger},
     {Builtin::kProduct, "product", kIntegers, S::kInteger},
-    {Builtin::kAll, "all", kBooleans, S::kBoolean},
-    {Builtin::kAny, "any", kBooleans, S::kBoolean},
+    {Builtin::kAll, "all", kBooleans, S::kBoolean, false, Domain::kCommon,
+     static_cast<unsigned>(Context::kShape)},
+    {Builtin::kAny, "any", kBooleans, S::kBoolean, false, Domain::kCommon,
+     static_cast<unsigned>(Context::kShape)},
     {Builtin::kContains, "contains", kContains, S::kBoolean},
-    {Builtin::kIsValidAxisList, "is_valid_axis_list", kAxes, S::kBoolean},
+    {Builtin::kIsValidAxisList, "is_valid_axis_list", kAxes, S::kBoolean, false,
+     Domain::kShape},
     {Builtin::kIsDisjoint, "is_disjoint", kLists, S::kBoolean},
-    {Builtin::kBroadcastShape, "broadcast_shape", kShapes, S::kIntegerList},
-    {Builtin::kMin, "min", kPair, S::kInteger},
-    {Builtin::kMax, "max", kPair, S::kInteger},
-    {Builtin::kFloorDiv, "floor_div", kPair, S::kInteger},
-    {Builtin::kCeilDiv, "ceil_div", kPair, S::kInteger},
+    {Builtin::kBroadcastShape, "broadcast_shape", kShapes, S::kIntegerList,
+     false, Domain::kShape},
+    {Builtin::kMin, "min", kPair, S::kInteger, false, Domain::kCommon,
+     kAllContexts, true},
+    {Builtin::kMax, "max", kPair, S::kInteger, false, Domain::kCommon,
+     kAllContexts, true},
+    {Builtin::kFloorDiv, "floor_div", kPair, S::kInteger, false,
+     Domain::kCommon, kAllContexts, true},
+    {Builtin::kCeilDiv, "ceil_div", kPair, S::kInteger, false, Domain::kCommon,
+     kAllContexts, true},
 };
 }  // namespace
+
+std::span<const BuiltinSignature> catalog() { return kBuiltins; }
+
+std::string_view contextName(Context context) {
+  switch (context) {
+    case Context::kShape:
+      return "shape";
+    case Context::kWhere:
+      return "where";
+    case Context::kDerive:
+      return "derive";
+  }
+  return "<invalid context>";
+}
 
 const BuiltinSignature* resolveBuiltin(std::string_view name) {
   for (const auto& builtin : kBuiltins)
@@ -50,4 +72,4 @@ std::string_view builtinName(Builtin builtin) {
   return "<invalid builtin>";
 }
 
-}  // namespace tepl::core::shape
+}  // namespace tepl::core::builtins

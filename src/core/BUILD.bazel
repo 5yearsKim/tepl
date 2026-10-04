@@ -5,7 +5,7 @@ cc_library(
     srcs = [
         "dtype_policy.cc",
         "literal.cc",
-        "shape/builtins.cc",
+        "builtins/catalog.cc",
         "shape/types.cc",
         "types.cc",
     ],
@@ -14,6 +14,7 @@ cc_library(
         "ids.h",
         "ir.h",
         "literal.h",
+        "builtins/catalog.h",
         "shape/builtins.h",
         "shape/ir.h",
         "shape/types.h",

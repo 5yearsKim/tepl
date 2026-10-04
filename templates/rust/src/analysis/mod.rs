@@ -1,12 +1,8 @@
 //! Generated tensor inference and reusable egg analysis.
 mod bindings;
 mod dtype;
-#[allow(dead_code)]
-mod dtype_builtins;
 mod inference;
 mod shape;
-#[allow(dead_code)]
-pub mod shape_builtins;
 mod tensor;
 mod tensor_analysis;
 mod tensor_analysis_data;

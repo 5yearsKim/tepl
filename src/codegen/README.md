@@ -29,8 +29,10 @@ The layout separates shared semantics from target syntax:
   definitions, including operation shape evaluators and attribute conversion.
 - `rust/shape_expression_emitter.*` emits shape expressions through shared
   builtins, checked arithmetic, fallible indexing, and list comprehensions.
-- `rust/expression_emitter.*` emits typed, fallible host expressions with checked
-  arithmetic and short-circuit boolean evaluation.
+- `rust/expression_emitter.*` emits typed rule builtin/host expressions with
+  shared checked arithmetic and short-circuit boolean evaluation.
+- `rust/builtin_emitter.*` emits builtin calls for both rule and shape contexts,
+  including borrowing, variadics, numeric adapters, and error propagation.
 - `rust/names.*` owns Rust names, string escaping, and type representations.
 - `rust/code_writer.h` handles indentation and blocks.
 - `templates/rust/` holds reusable Rust templates, embedded by Bazel and copied
@@ -51,10 +53,14 @@ language-backend interface.
 
 ## Generated Rust API
 
-The emitted module exposes `{analysis, dialects, op_node, types, pattern, rules}`.
+The emitted module exposes `{analysis, builtins, dialects, op_node, types, pattern, rules}`.
 `analysis` exposes `TensorAnalysis`, `TensorAnalysisData`, `TensorBindingTable`,
 `TensorInfo`, and pure `infer_shape`, `infer_dtype`, and `infer_tensor` functions.
-`analysis::shape_builtins` exposes the copied checked shape primitives.
+`builtins::{common, shape, dtype}` contains the shared checked runtime helpers.
+Common list/arithmetic functions live in `builtins::common`; shape semantics
+live in `builtins::shape`. Errors use `builtins::{BuiltinError, BuiltinResult}`.
+Both rule and shape emitters call these implementations. Builtin signatures and
+section availability live in `src/core/builtins/catalog.*`.
 Operation evaluators come from checked shape programs and dtype policies;
 missing definitions return `Unknown`. Reusable analysis implementations and
 policy helpers are copied from `templates/rust/src/analysis/`.
@@ -93,7 +99,9 @@ that schema. Attribute fields and host trait methods preserve their TEPL names.
 The `$` host-call sigil is syntax only: `$infer_dot(...)` generates the trait
 method `infer_dot` and calls `functions.infer_dot(...)`. Checking resolves host
 calls (including bound `fn` parameters) to `HostCall` before code generation;
-unknown unprefixed calls never implicitly create host methods.
+unprefixed builtin calls lower to `BuiltinCall` and never create host methods.
+Bound template `fn` calls retain their host binding; unknown unprefixed calls
+are errors. See [builtin signatures and availability](../core/builtins/README.md).
 Rust keywords use raw identifiers, such as `r#type` and `r#match`. Names Rust
 cannot escape (`self`, `Self`, `super`, and `crate`) produce a generation
 diagnostic; rename them in TEPL. No prefixes or suffixes are added.
@@ -116,7 +124,10 @@ re-exports. Host names are scoped to their source file; same-file overloads
 remain unsupported. For rules without host calls, pass `()` as `functions`. Abstract rules are
 already expanded in core; only concrete instances are emitted. Captures and
 attribute variables use core IDs to keep repeated identities and avoid collisions
-with user names. Both conditions and derivations read matched LHS metadata;
+with user names. Rule integer arithmetic calls shared checked builtin helpers. Builtin errors
+reject candidates through `Option` propagation, while shape evaluator errors
+use `Result` and become invalid inference. Both conditions and derivations
+read matched LHS metadata;
 derivations may also read earlier derived descriptors.
 
 Generated builders use `tensor_rewrite_checked_with_constraints`. Declarations

@@ -1,0 +1,64 @@
+dialect Toolkit {
+    op copy(input: tensor) -> tensor {
+        dtype: same;
+        shape(s) { yield s; }
+    }
+    op tag(input: tensor) -> tensor {
+        attrs { axes: index[]; }
+        dtype: same;
+        shape(s) { yield s; }
+    }
+}
+rule utilities {
+    X: [Dims...]
+    (copy X) => X
+    where {
+        len(Dims) == 2;
+        len(concat(Dims, range(2), Dims)) == len(Dims) * 2 + 2;
+        sum(gather(Dims, range(len(Dims)))) == sum(Dims);
+        len(exclude(Dims, Dims)) == 0;
+        sum(slice(Dims, 0, len(Dims))) == sum(Dims);
+        sum(replace(Dims, 0, 4)) == sum(Dims) + 4 - 2;
+        sum(Dims) == 5 && product(Dims) == 6;
+        contains(Dims, 3);
+        is_valid_axis_list(range(len(Dims)), len(Dims));
+        is_disjoint(Dims, range(2));
+        sum(broadcast_shape(Dims, range(0))) == sum(Dims);
+        min(-7, 3) == -7 && max(-7, 3) == 3;
+        min(len(Dims), 3) == 2 && max(len(Dims), 3) == 3;
+        floor_div(-7, 3) == -3 && ceil_div(-7, 3) == -2;
+        floor_div(sum(Dims), 2) == 2 && ceil_div(sum(Dims), 2) == 3;
+    }
+}
+rule derive_builtin {
+    X: [Dims...]
+    (copy X) => (tag[@out] X)
+    derive { @out = $infer_attrs(gather(concat(range(1), range(2)), range(2))); }
+}
+rule nested_hosts {
+    X: [Dims...]
+    (copy X) => X
+    where {
+        sum(concat($axes(X), $axes(X))) == 6;
+        contains(gather($axes(X), range(1)), $axis(X));
+    }
+}
+rule short_circuit {
+    X: [Dims...]
+    (copy X) => X
+    where {
+        true || sum(slice(Dims, 0, 999)) == 0;
+        !(false && contains($axes(X), 0));
+        true || $legal(len(range(18446744073709551615)));
+        ceil_div(18446744073709551615, 2) == 9223372036854775808;
+    }
+}
+rule failed_sum { X: [Dims...] (copy X) => X where { sum(Dims) >= 0; } }
+rule failed_product { X: [Dims...] (copy X) => X where { product(Dims) >= 0; } }
+rule failed_gather { X: [Dims...] (copy X) => X where { sum(gather(Dims, range(3))) >= 0; } }
+rule failed_slice { X: [Dims...] (copy X) => X where { len(slice(Dims, 2, 1)) >= 0; } }
+rule failed_replace { X: [Dims...] (copy X) => X where { len(replace(Dims, 999, 0)) >= 0; } }
+rule failed_divisor { X: [Dims...] (copy X) => X where { ceil_div(len(Dims), 0) >= 0; } }
+rule failed_range { X: [Dims...] (copy X) => X where { len(range(18446744073709551615)) >= 0; } }
+rule failed_broadcast { X: [Dims...] (copy X) => X where { len(broadcast_shape(Dims, range(2))) >= 0; } }
+rule failed_derive { X: [Dims...] (copy X) => (tag[@out] X) derive { @out = $infer_attrs(slice(Dims, 0, 999)); } }

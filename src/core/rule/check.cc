@@ -37,7 +37,9 @@ std::optional<Rule> check(AnalysisContext& analysis,
   context.rule.rhs = checkBuild(context, *input.rhs);
   ExpressionChecker expressions(analysis, input, context.rule, context.scope);
   checkConditions(context, expressions);
-  checkDerivations(context, expressions);
+  ExpressionChecker derivations(analysis, input, context.rule, context.scope,
+                                builtins::Context::kDerive);
+  checkDerivations(context, derivations);
   if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
   analysis.types.unify(context.rule.lhs->type, context.rule.rhs->type,
                        input.origin);

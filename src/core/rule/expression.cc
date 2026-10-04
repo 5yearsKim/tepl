@@ -1,5 +1,7 @@
 #include "src/core/rule/expression.h"
 
+#include <algorithm>
+
 namespace tepl::core::detail {
 
 TypedExprPtr ExpressionChecker::check(const ast::ConstraintExpr& expression,
@@ -89,10 +91,7 @@ TypedExprPtr ExpressionChecker::lower(const ast::Call& call,
   const auto bound = input_.bound_functions.find(&call);
   if (call.kind == ast::CallKind::kNative &&
       bound == input_.bound_functions.end()) {
-    context_.report(origin, "unknown native function '" + call.callee +
-                                "'; use '$" + call.callee +
-                                "(...)' to call a host function");
-    return nullptr;
+    return builtin(call, origin, expected);
   }
   const auto id =
       bound != input_.bound_functions.end()
@@ -117,6 +116,71 @@ TypedExprPtr ExpressionChecker::lower(const ast::Call& call,
   }
   if (!complete) return nullptr;
   return make(origin, signature.result, std::move(result));
+}
+
+TypedExprPtr ExpressionChecker::builtin(const ast::Call& call,
+                                        const SourceOrigin& origin,
+                                        std::optional<TypeId> expected) {
+  const auto* signature = builtins::resolveBuiltin(call.callee);
+  if (!signature) {
+    context_.report(origin, "unknown native function '" + call.callee +
+                                "'; use '$" + call.callee +
+                                "(...)' to call a host function");
+    return nullptr;
+  }
+  if (!signature->availableIn(section_)) {
+    context_.report(origin, "builtin '" + call.callee +
+                                "' is not available in " +
+                                std::string(builtins::contextName(section_)) +
+                                " expressions");
+    return nullptr;
+  }
+  const auto count = signature->arguments.size();
+  if (call.arguments.size() < count ||
+      (!signature->variadic && call.arguments.size() != count)) {
+    context_.report(origin,
+                    "builtin '" + call.callee + "' expects " +
+                        (signature->variadic ? "at least " : "exactly ") +
+                        std::to_string(count) + " arguments");
+    return nullptr;
+  }
+  auto& types = context_.types;
+  std::optional<TypeId> integer_pair;
+  if (signature->rule_integer_pair) {
+    integer_pair = types.variable(origin);
+    types.require(*integer_pair, TypeRequirement::kInteger, origin);
+  }
+  const auto type = [&](builtins::SignatureType pattern) -> TypeId {
+    using S = builtins::SignatureType;
+    switch (pattern) {
+      case S::kInteger:
+        if (integer_pair) return *integer_pair;
+        [[fallthrough]];
+      case S::kT:
+        return types.concrete({TypeKind::kIndex}, origin);
+      case S::kIntegerList:
+      case S::kListT:
+        return types.concrete({TypeKind::kIndexList}, origin);
+      case S::kBoolean:
+        return types.concrete({TypeKind::kBool}, origin);
+      case S::kBooleanList:
+        // Context validation rejects these before signature instantiation.
+        break;
+    }
+    return types.variable(origin);
+  };
+  const auto result_type = type(signature->result);
+  if (expected) types.unify(result_type, *expected, origin);
+  BuiltinCall result{signature->builtin, {}};
+  bool complete = true;
+  for (std::size_t i = 0; i < call.arguments.size(); ++i) {
+    auto argument = check(*call.arguments[i],
+                          type(signature->arguments[std::min(i, count - 1)]));
+    complete &= argument != nullptr;
+    result.arguments.push_back(std::move(argument));
+  }
+  if (!complete) return nullptr;
+  return make(origin, result_type, std::move(result));
 }
 
 TypedExprPtr ExpressionChecker::lower(const ast::UnaryExpr& unary,

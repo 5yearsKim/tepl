@@ -143,6 +143,13 @@ class Printer {
               expression(*value.arguments[i]);
             }
             out_ << ')';
+          } else if constexpr (std::is_same_v<T, BuiltinCall>) {
+            out_ << "Builtin(" << builtins::builtinName(value.builtin);
+            for (const auto& argument : value.arguments) {
+              out_ << ", ";
+              expression(*argument);
+            }
+            out_ << ')';
           } else if constexpr (std::is_same_v<T, UnaryExpr>) {
             out_ << spelling(value.op) << '(';
             expression(*value.operand);

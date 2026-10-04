@@ -4,7 +4,6 @@ use super::super::dialects::scalar;
 use super::super::dialects::tensor_lang;
 use super::super::{DType, Op, OpAttrs};
 use super::Inference;
-use super::dtype_builtins as b;
 pub fn infer_dtype(op: Op, operands: &[DType], attrs: &OpAttrs) -> Inference<DType> {
     if !op.arity().accepts(operands.len()) || !op.accepts_attrs(attrs) {
         return Inference::Invalid(
@@ -19,32 +18,60 @@ pub fn infer_dtype(op: Op, operands: &[DType], attrs: &OpAttrs) -> Inference<DTy
             };
             dtype.map(Inference::Known).unwrap_or(Inference::Unknown)
         }
-        Op::Scalar(scalar::Op::Add) => b::same_numeric(operands),
-        Op::Scalar(scalar::Op::Negate) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Add) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Subtract) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Multiply) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Divide) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Maximum) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Minimum) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Negate) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Exponential) => b::same_float(operands),
-        Op::TensorLang(tensor_lang::Op::Log) => b::same_float(operands),
-        Op::TensorLang(tensor_lang::Op::Abs) => b::same_numeric(operands),
-        Op::TensorLang(tensor_lang::Op::Sqrt) => b::same_float(operands),
-        Op::TensorLang(tensor_lang::Op::Rsqrt) => b::same_float(operands),
-        Op::TensorLang(tensor_lang::Op::Reshape) => b::same(operands),
-        Op::TensorLang(tensor_lang::Op::Transpose) => b::same(operands),
-        Op::TensorLang(tensor_lang::Op::BroadcastInDim) => b::same(operands),
-        Op::TensorLang(tensor_lang::Op::Slice) => b::same(operands),
-        Op::TensorLang(tensor_lang::Op::Concatenate) => b::same(operands),
-        Op::TensorLang(tensor_lang::Op::Reduce) => b::same(operands),
+        Op::Scalar(scalar::Op::Add) => super::super::builtins::dtype::same_numeric(operands),
+        Op::Scalar(scalar::Op::Negate) => super::super::builtins::dtype::same_numeric(operands),
+        Op::TensorLang(tensor_lang::Op::Add) => {
+            super::super::builtins::dtype::same_numeric(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Subtract) => {
+            super::super::builtins::dtype::same_numeric(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Multiply) => {
+            super::super::builtins::dtype::same_numeric(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Divide) => {
+            super::super::builtins::dtype::same_numeric(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Maximum) => {
+            super::super::builtins::dtype::same_numeric(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Minimum) => {
+            super::super::builtins::dtype::same_numeric(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Negate) => {
+            super::super::builtins::dtype::same_numeric(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Exponential) => {
+            super::super::builtins::dtype::same_float(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Log) => super::super::builtins::dtype::same_float(operands),
+        Op::TensorLang(tensor_lang::Op::Abs) => {
+            super::super::builtins::dtype::same_numeric(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Sqrt) => {
+            super::super::builtins::dtype::same_float(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Rsqrt) => {
+            super::super::builtins::dtype::same_float(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Reshape) => super::super::builtins::dtype::same(operands),
+        Op::TensorLang(tensor_lang::Op::Transpose) => super::super::builtins::dtype::same(operands),
+        Op::TensorLang(tensor_lang::Op::BroadcastInDim) => {
+            super::super::builtins::dtype::same(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Slice) => super::super::builtins::dtype::same(operands),
+        Op::TensorLang(tensor_lang::Op::Concatenate) => {
+            super::super::builtins::dtype::same(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::Reduce) => super::super::builtins::dtype::same(operands),
         Op::TensorLang(tensor_lang::Op::DotGeneral) => Inference::Unknown,
         Op::TensorLang(tensor_lang::Op::Convolution) => Inference::Unknown,
-        Op::TensorLang(tensor_lang::Op::AllGather) => b::same(operands),
-        Op::TensorLang(tensor_lang::Op::AllReduce) => b::same(operands),
-        Op::TensorLang(tensor_lang::Op::ReduceScatter) => b::same(operands),
-        Op::TensorLang(tensor_lang::Op::AllToAll) => b::same(operands),
+        Op::TensorLang(tensor_lang::Op::AllGather) => super::super::builtins::dtype::same(operands),
+        Op::TensorLang(tensor_lang::Op::AllReduce) => super::super::builtins::dtype::same(operands),
+        Op::TensorLang(tensor_lang::Op::ReduceScatter) => {
+            super::super::builtins::dtype::same(operands)
+        }
+        Op::TensorLang(tensor_lang::Op::AllToAll) => super::super::builtins::dtype::same(operands),
         Op::TensorLang(tensor_lang::Op::Constant) => Inference::Unknown,
     }
 }

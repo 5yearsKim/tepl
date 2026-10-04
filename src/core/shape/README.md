@@ -7,14 +7,15 @@ optional. Shape programs are checked even when no rule references the operation.
 
 The flow is: bind parameters, check statements in order, check the yield, and
 finish type inference. Core resolves syntax and types without executing shape
-programs. Code generation can later turn this IR into pure evaluators; host
+programs. Rust code generation turns this IR into checked pure evaluators; host
 applications retain e-class facts, input metadata, and merge policies.
 
 | File | Responsibility |
 | --- | --- |
 | `ir.h` | Owning checked expressions, symbols, operand bindings, and statements |
 | `types.*` | Concrete shape types and signed 128-bit literal range |
-| `builtins.*` | The 19 builtin identities and fixed/generic signatures |
+| `../builtins/catalog.*` | Shared builtin identities, signatures, domains, and section availability |
+| `builtins.h` | Compatibility names for the shared catalog |
 | `check.*` | Parameter/operand agreement, statement order, assertions, and yield |
 | `check_context.h` | State and name scope for checking one operation |
 | `expression.*` | Name and attribute resolution, expressions, and builtin calls |
@@ -28,9 +29,8 @@ instantiated independently for each call. Empty lists must obtain an element
 type from context or later use; unresolved element types are errors.
 
 Integer semantics use checked signed 128-bit computation to accommodate both
-u64 shapes and signed i64 attributes. Future evaluators must validate yielded
-dimensions against u64, check indices and arithmetic, and honor short-circuit
-control flow. This checker validates literals and expression types, preserving
+u64 shapes and signed i64 attributes. Generated evaluators validate yielded dimensions against u64, check indices
+and arithmetic, and honor short-circuit control flow. This checker validates literals and expression types, preserving
 runtime assertions and value-dependent checks in source order.
 
 See [the shape guide](../../../examples/shape_guide.md) for syntax and contracts.

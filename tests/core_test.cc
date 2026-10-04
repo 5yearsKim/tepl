@@ -60,11 +60,61 @@ void expectError(std::string_view text, std::string_view message,
   assert(false);
 }
 
+void builtinResolution() {
+  const auto result = analyzeText(R"(
+rule r {
+  X: [Batch..., N]
+  (negate X) => X
+  where {
+    len(concat(Batch, range(N), Batch)) >= N;
+    contains($axes(X), N);
+    is_valid_axis_list(range(len(Batch)), len(Batch));
+    min($signed(X), -1) <= max(-7, 3);
+    floor_div(-7, 3) == -3 && ceil_div(-7, 3) == -2;
+  }
+}
+abstract rule a(len: fn<(tensor) -> bool>) { X => X where { len(X); } }
+rule bound extends a(len = $legal);
+)");
+  assert(result.ok());
+  const auto& program = *result.program;
+  assert(std::holds_alternative<BuiltinCall>(
+      std::get<BinaryExpr>(program.rules[0].conditions[0]->value).lhs->value));
+  assert(
+      std::holds_alternative<HostCall>(program.rules[1].conditions[0]->value));
+  assert(program.host_functions.size() == 3);  // Builtins add no host entries.
+  assert(formatProgram(program).find("Builtin(len") != std::string::npos);
+  for (const auto& signature : builtins::catalog()) {
+    assert(builtins::resolveBuiltin(signature.name) == &signature);
+    assert(signature.availableIn(builtins::Context::kShape));
+    const bool boolean_list = signature.builtin == builtins::Builtin::kAll ||
+                              signature.builtin == builtins::Builtin::kAny;
+    assert(signature.availableIn(builtins::Context::kWhere) == !boolean_list);
+    assert(signature.availableIn(builtins::Context::kDerive) == !boolean_list);
+  }
+  expectError("rule r { X: [B...] X => X where { len(); } }",
+              "expects exactly 1");
+  expectError("rule r { X: [B...] X => X where { concat(B); } }",
+              "expects at least 2");
+  expectError("rule r { X: [B...] X => X where { contains(B, true); } }",
+              "type mismatch");
+  expectError("rule r { X: [B...] X => X where { len(B); } }", "type mismatch");
+  expectError("rule r { X: [B...] X => X where { all(B); } }",
+              "not available in where");
+  expectError(
+      "rule r { X: [B...] X => X derive { @d = $infer_attrs(any(B)); } }",
+      "not available in derive");
+  expectError("rule r { X => X where { min(1.0, 2.0) > 0.0; } }",
+              "does not support F64");
+  expectError("rule r { X: [N] X => X where { min(N, -1) == N; } }",
+              "invalid for Index");
+}
+
 void hostCallResolution() {
   expectError("rule r { X => X where { legal(X); } }",
               "use '$legal(...)' to call a host function");
   expectError("rule r { X => X where { $legal(len(X)); } }",
-              "unknown native function 'len'");
+              "type mismatch: Tensor versus IndexList");
   expectError(
       "abstract rule a(f: fn<(tensor) -> bool>) { X => X where { f(X); } } "
       "rule r extends a(f = legal);",
@@ -647,6 +697,7 @@ void examples(const char* executable, const char* lora, const char* inherited) {
 int main(int argc, char** argv) {
   assert(argc == 3);
   hostCallResolution();
+  builtinResolution();
   concreteRules();
   descriptorsAndTypes();
   inferenceAcrossRules();

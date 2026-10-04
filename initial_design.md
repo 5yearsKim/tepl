@@ -98,7 +98,7 @@ A shape has at most one sequence, anywhere in its dimension list. Arithmetic
 such as `K % 128 == 0` belongs in `where`.
 
 `where` contains boolean legality checks, intended to be pure. `derive` assigns
-attributes to RHS descriptors. Both support host calls, names, descriptor
+attributes to RHS descriptors. Both support builtins, host calls, names, descriptor
 references, integers, decimals, booleans, and conventional arithmetic,
 comparison, and
 logical expressions. Host checks must establish shape and numerical validity,
@@ -131,7 +131,10 @@ partial RHS behind.
 
 Dialects declare named operands, result types, aliases, and inline or shared
 attribute schemas. The current validator supports tensor operands/results and
-`index`, `string`, and their list forms as attribute types. A final variadic
+`index`, `i64`, `bool`, `string`, `precision`, `dot_algorithm`,
+`replica_groups`, `region`, and `elements` as attribute types, including nested
+lists and optional fields. Shape programs may read nonoptional integer/Boolean
+fields and their list forms; opaque attribute semantics remain with the host. A final variadic
 operand permits additional inputs. For example:
 
 ```tepl
@@ -213,7 +216,7 @@ insertion or union. Unknown metadata rejects the match. Numerical equivalence
 still requires host legality predicates. All generated rewrites use the checked
 path, including the LoRA saturation example.
 
-`TensorBindingTable` registers immutable symbol and named-constant types; conflicting
+`TensorBindingTable` registers immutable named-input symbol types; conflicting
 registrations are rejected. An identity must have one tensor type per graph.
 E-class metadata must describe every alternative, including dtype; hosts must
 return `None` when this cannot be established. Dtype is part of literal node
@@ -222,6 +225,10 @@ identity, so differently typed literals cannot be hash-consed into one node.
 The C++ core analyzer resolves operation and rule-local symbols, expands
 inherited rules, checks tensor/host types, and validates descriptor references.
 `check FILE` prints its checked IR; `generate` emits Rust dialect/rule code.
+Builtin identities, signatures, domains, and section availability live in
+`src/core/builtins/`. Operation shapes and rule `where`/`derive` use the same
+catalog and generated helpers in `builtins/`, with separate numeric type
+adapters. Rule Boolean-list builtins (`all`/`any`) remain shape-only.
 C++ and Python backends remain future work. Abstract bodies are checked on
 instantiation, and the initial analyzer explicitly rejects tuple/projection semantics.
 Multiple-root patterns, variadic graph captures such as `Xs...`, arbitrary

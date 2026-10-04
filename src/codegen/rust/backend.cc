@@ -32,7 +32,7 @@ GenerationResult Backend::generate(const core::Program& program,
     }
     result.files.push_back(
         {"mod.rs",
-         "pub mod analysis;\n"
+         "pub mod analysis;\npub mod builtins;\n"
          "pub mod dialects;\npub mod op_node;\npub mod types;\n"
          "pub mod pattern;\npub mod rules;\n"
          "pub use op_node::{Op, OpAttrs, OpNode, "

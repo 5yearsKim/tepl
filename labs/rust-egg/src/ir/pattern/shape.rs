@@ -34,7 +34,7 @@ impl ShapeBindings {
                     } else {
                         index
                     };
-                    let value = *shape.get(axis)?;
+                    let value = *super::super::builtins::common::index(shape, axis).ok()?;
                     if self
                         .dimensions
                         .get(id)
@@ -46,15 +46,20 @@ impl ShapeBindings {
                 }
                 ShapePart::Wildcard => {}
                 ShapePart::Sequence(Some(id)) => {
-                    let value = &shape[index..shape.len() - (pattern.len() - index - 1)];
+                    let value = super::super::builtins::common::slice(
+                        shape,
+                        index,
+                        shape.len() - (pattern.len() - index - 1),
+                    )
+                    .ok()?;
                     if self
                         .sequences
                         .get(id)
-                        .is_some_and(|previous| previous != value)
+                        .is_some_and(|previous| previous != &value)
                     {
                         return None;
                     }
-                    self.sequences.insert(*id, value.to_vec());
+                    self.sequences.insert(*id, value);
                 }
                 ShapePart::Sequence(None) => {}
             }
@@ -72,5 +77,5 @@ impl ShapeBindings {
 
 /// Host arithmetic rejects nonfinite results independently of build mode.
 pub fn finite(value: f64) -> Option<f64> {
-    value.is_finite().then_some(value)
+    super::super::builtins::common::finite(value)
 }

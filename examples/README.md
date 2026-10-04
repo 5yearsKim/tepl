@@ -1,11 +1,11 @@
 # Example project
 
-- `dialects/tensor.tepl`: a StableHLO subset with proposed shape definitions and
+- `dialects/tensor.tepl`: a StableHLO subset with generated shape definitions and
   attribute schemas; see the guide for adapter metadata and coverage limits.
 - `dialects/scalar.tepl`: a minimal second dialect with `add` and `negate`.
 - `rules/`: all concrete rules and reusable abstract templates.
 - `rules/lowering.tepl`: checked rank-zero TensorLang → Scalar lowering.
-- `shape_guide.md`: proposed shape definitions, builtins, and host-call syntax.
+- `shape_guide.md`: implemented shape definitions, builtins, and host-call syntax.
 
 ## Rank-zero shapes
 
@@ -36,10 +36,13 @@ types used here. Unknown unprefixed calls in rules are errors.
 Operation shape blocks now have structured parser/AST support, including builtin
 calls, lists, indexing, conditionals, and comprehensions. Core checks parameter
 signatures, names, builtin types, attribute fields, assertions, and yield types.
-Shape programs are not executed, and they generate no shape inference yet.
-The lab IR is regenerated from these operation signatures and attribute schemas;
-output metadata still comes from the host. Rule-level builtin resolution and
-operation evaluator generation remain future work.
+Rust codegen emits checked shape evaluators and declared dtype policies used
+by e-class analysis and RHS validation. Missing definitions return `Unknown`
+and may require application inference hooks. Rule `where` and `derive` support
+builtins on `index`, `i64`, and `index_list`; `all` and `any` remain shape-only.
+See [the builtin reference](../src/core/builtins/README.md) and
+[`rules/builtins.tepl`](rules/builtins.tepl) for an executable rule example.
+The lab IR is regenerated from these declarations and shared runtime templates.
 
 The operation set follows the [StableHLO specification](https://openxla.org/stablehlo/spec).
 `relu`, `scale`, `square`, `alias`, `rmsnorm`, `vocab_cross_entropy`,

@@ -11,7 +11,7 @@ whether a file is copied or emitted.
 | --- | --- |
 | `analysis/shape.rs` | Emit from checked operation shape programs |
 | `analysis/dtype.rs` | Emit from optional checked operation dtype policies |
-| `analysis/shape_builtins.rs`, `analysis/dtype_builtins.rs` | Copy maintained inference helpers from `templates/rust/src/analysis/` |
+| `builtins/*` | Copy common, shape, dtype, and error helpers from `templates/rust/src/builtins/` |
 | `analysis/tensor.rs` | Copy shared shape/dtype inference combination |
 | `analysis/tensor_analysis.rs` | Copy direct egg integration |
 | `analysis/tensor_analysis_data.rs` | Copy conservative metadata storage and merge |
@@ -68,7 +68,10 @@ let rewrite = rule_commute_add::build_rewrite(()).unwrap();
 ```
 
 `build_rewrite(functions)` uses `TensorAnalysis` and its tensor inference.
-Callers supply only explicit custom rule functions. The same inference is
+Callers supply only explicit custom rule functions. Native rule builtins and
+checked integer operators call shared helpers in `builtins/`; no host methods
+are generated for builtin calls. Builtin errors reject the candidate before
+insertion. Shape expressions use `i128`, while rule values keep `u64`/`i64`. The same inference is
 used for e-class analysis and RHS validation before insertion.
 `build_rewrite_with(metadata, inference, functions)` supports custom analyses.
 The LoRA demo uses this explicit path with `host::LoraAnalysis`, whose dot dtype

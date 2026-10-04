@@ -1,5 +1,5 @@
 // Shared integration tests for copied shape builtins.
-use tepl_generated::ir::analysis::shape_builtins::*;
+use tepl_generated::ir::builtins::{BuiltinError, common::*, shape::*};
 
 #[test]
 fn dimension_boundaries_and_indices_are_checked() {
@@ -8,29 +8,29 @@ fn dimension_boundaries_and_indices_are_checked() {
         dimensions(&[0, i128::from(u64::MAX)]),
         Ok(vec![0, u64::MAX])
     );
-    assert_eq!(dimensions(&[-1]), Err(ShapeError::InvalidDimension));
+    assert_eq!(dimensions(&[-1]), Err(BuiltinError::InvalidDimension));
     assert_eq!(
         dimensions(&[i128::from(u64::MAX) + 1]),
-        Err(ShapeError::InvalidDimension)
+        Err(BuiltinError::InvalidDimension)
     );
     assert_eq!(index(&[7], 0_i128), Ok(&7));
-    assert_eq!(index(&[7], -1_i128), Err(ShapeError::IndexOutOfBounds));
-    assert_eq!(index(&[7], i128::MAX), Err(ShapeError::IndexOutOfBounds));
-    assert_eq!(index(&[7], 1_i128), Err(ShapeError::IndexOutOfBounds));
+    assert_eq!(index(&[7], -1_i128), Err(BuiltinError::IndexOutOfBounds));
+    assert_eq!(index(&[7], i128::MAX), Err(BuiltinError::IndexOutOfBounds));
+    assert_eq!(index(&[7], 1_i128), Err(BuiltinError::IndexOutOfBounds));
 }
 
 #[test]
 fn scalar_shape_arithmetic_checks_overflow_and_zero_divisors() {
     assert_eq!(add(i128::from(u64::MAX), -2), Ok(i128::from(u64::MAX) - 2));
-    assert_eq!(add(i128::MAX, 1), Err(ShapeError::Overflow));
-    assert_eq!(sub(i128::MIN, 1), Err(ShapeError::Overflow));
-    assert_eq!(mul(i128::MAX, 2), Err(ShapeError::Overflow));
+    assert_eq!(add(i128::MAX, 1), Err(BuiltinError::Overflow));
+    assert_eq!(sub(i128::MIN, 1), Err(BuiltinError::Overflow));
+    assert_eq!(mul(i128::MAX, 2), Err(BuiltinError::Overflow));
     assert_eq!(div(-7, 3), Ok(-2));
     assert_eq!(rem(-7, 3), Ok(-1));
-    assert_eq!(div(1, 0), Err(ShapeError::DivisionByZero));
-    assert_eq!(rem(1, 0), Err(ShapeError::DivisionByZero));
-    assert_eq!(div(i128::MIN, -1), Err(ShapeError::Overflow));
-    assert_eq!(rem(i128::MIN, -1), Err(ShapeError::Overflow));
+    assert_eq!(div(1, 0), Err(BuiltinError::DivisionByZero));
+    assert_eq!(rem(1, 0), Err(BuiltinError::DivisionByZero));
+    assert_eq!(div(i128::MIN, -1), Err(BuiltinError::Overflow));
+    assert_eq!(rem(i128::MIN, -1), Err(BuiltinError::Overflow));
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn products_preserve_scalar_and_zero_sized_shapes() {
     assert_eq!(product(&[]), Ok(1));
     assert_eq!(product(&[2, 3, 4]), Ok(24));
     assert_eq!(product(&[u64::MAX, 1]), Ok(u64::MAX));
-    assert_eq!(product(&[u64::MAX, 2]), Err(ShapeError::Overflow));
+    assert_eq!(product(&[u64::MAX, 2]), Err(BuiltinError::Overflow));
     for values in [[0, u64::MAX, 2], [u64::MAX, 0, 2], [u64::MAX, 2, 0]] {
         assert_eq!(product(&values), Ok(0));
     }
@@ -60,10 +60,16 @@ fn gather_preserves_order_and_duplicates_and_checks_each_index() {
     assert_eq!(gather::<u64, u64>(&[], &[]), Ok(vec![]));
     assert_eq!(
         gather::<u64, u64>(&[], &[0]),
-        Err(ShapeError::IndexOutOfBounds)
+        Err(BuiltinError::IndexOutOfBounds)
     );
-    assert_eq!(gather(&[2, 3], &[0, 2]), Err(ShapeError::IndexOutOfBounds));
-    assert_eq!(gather(&[2], &[u64::MAX]), Err(ShapeError::IndexOutOfBounds));
+    assert_eq!(
+        gather(&[2, 3], &[0, 2]),
+        Err(BuiltinError::IndexOutOfBounds)
+    );
+    assert_eq!(
+        gather(&[2], &[u64::MAX]),
+        Err(BuiltinError::IndexOutOfBounds)
+    );
     assert_eq!(gather(&[vec![2, 3], vec![4]], &[1]), Ok(vec![vec![4]]));
 }
 
@@ -78,7 +84,7 @@ fn disjointness_compares_values() {
 fn assertions_return_errors_in_all_build_modes() {
     assert_eq!(ensure(true, "valid"), Ok(()));
     let error = ensure(false, "invalid permutation").unwrap_err();
-    assert_eq!(error, ShapeError::Assertion("invalid permutation"));
+    assert_eq!(error, BuiltinError::Assertion("invalid permutation"));
     assert_eq!(error.message(), "invalid permutation");
     assert_eq!(error.to_string(), "invalid permutation");
 }
@@ -90,9 +96,9 @@ fn lengths_and_ranges_cover_empty_negative_and_unrepresentable_bounds() {
     assert_eq!(range(0), Ok(vec![]));
     assert_eq!(range(3_u64), Ok(vec![0, 1, 2]));
     assert_eq!(range(len(&[2, 3, 4])), Ok(vec![0, 1, 2]));
-    assert_eq!(range(-1_i64), Err(ShapeError::InvalidRange));
-    assert_eq!(range(u128::MAX), Err(ShapeError::InvalidRange));
-    assert_eq!(range(usize::MAX), Err(ShapeError::CapacityExceeded));
+    assert_eq!(range(-1_i64), Err(BuiltinError::InvalidRange));
+    assert_eq!(range(u128::MAX), Err(BuiltinError::InvalidRange));
+    assert_eq!(range(usize::MAX), Err(BuiltinError::CapacityExceeded));
 }
 
 #[test]
@@ -102,7 +108,9 @@ fn concatenation_preserves_nested_lists_and_requires_two_arguments() {
     for lists in [vec![], vec![&[] as &[u64]]] {
         assert_eq!(
             concat(&lists),
-            Err(ShapeError::Assertion("concat requires at least two lists")),
+            Err(BuiltinError::Assertion(
+                "concat requires at least two lists"
+            )),
         );
     }
     let first = vec![vec![2, 3]];
@@ -134,24 +142,30 @@ fn slicing_and_replacement_check_bounds_without_changing_inputs() {
     assert_eq!(slice(&input, 3, 3), Ok(vec![]));
     assert_eq!(slice::<u64>(&[], 0, 0), Ok(vec![]));
     for (start, end) in [(-1_i64, 2), (0, -1), (2, 1), (0, 4), (4, 4)] {
-        assert_eq!(slice(&input, start, end), Err(ShapeError::IndexOutOfBounds));
+        assert_eq!(
+            slice(&input, start, end),
+            Err(BuiltinError::IndexOutOfBounds)
+        );
     }
     assert_eq!(
         slice(&input, 0, u128::MAX),
-        Err(ShapeError::IndexOutOfBounds)
+        Err(BuiltinError::IndexOutOfBounds)
     );
     assert_eq!(replace(&input, 1, 5), Ok(vec![2, 5, 4]));
     assert_eq!(replace(&input, 0_u64, 7), Ok(vec![7, 3, 4]));
     assert_eq!(
         replace(&input, -1_i64, 5),
-        Err(ShapeError::IndexOutOfBounds)
+        Err(BuiltinError::IndexOutOfBounds)
     );
-    assert_eq!(replace(&input, 3, 5), Err(ShapeError::IndexOutOfBounds));
+    assert_eq!(replace(&input, 3, 5), Err(BuiltinError::IndexOutOfBounds));
     assert_eq!(
         replace(&input, u128::MAX, 5),
-        Err(ShapeError::IndexOutOfBounds)
+        Err(BuiltinError::IndexOutOfBounds)
     );
-    assert_eq!(replace::<u64>(&[], 0, 5), Err(ShapeError::IndexOutOfBounds));
+    assert_eq!(
+        replace::<u64>(&[], 0, 5),
+        Err(BuiltinError::IndexOutOfBounds)
+    );
     assert_eq!(input, [2, 3, 4]);
 }
 
@@ -159,11 +173,11 @@ fn slicing_and_replacement_check_bounds_without_changing_inputs() {
 fn signed_and_unrepresentable_axes_are_checked_without_panicking() {
     assert_eq!(
         gather(&[2, 3], &[-1_i64]),
-        Err(ShapeError::IndexOutOfBounds)
+        Err(BuiltinError::IndexOutOfBounds)
     );
     assert_eq!(
         gather(&[2, 3], &[u128::MAX]),
-        Err(ShapeError::IndexOutOfBounds)
+        Err(BuiltinError::IndexOutOfBounds)
     );
     assert!(!is_valid_axis_list(&[-1_i64, 0], 2));
     assert!(!is_valid_axis_list(&[u128::MAX], 2));
@@ -175,12 +189,12 @@ fn arithmetic_reductions_accept_signed_values_and_check_overflow() {
     assert_eq!(sum::<u64>(&[]), Ok(0));
     assert_eq!(sum(&[3_u64, 5]), Ok(8));
     assert_eq!(sum(&[-3_i64, 5]), Ok(2));
-    assert_eq!(sum(&[u64::MAX, 1]), Err(ShapeError::Overflow));
-    assert_eq!(sum(&[i64::MIN, -1]), Err(ShapeError::Overflow));
-    assert_eq!(sum(&[i64::MAX, 1]), Err(ShapeError::Overflow));
+    assert_eq!(sum(&[u64::MAX, 1]), Err(BuiltinError::Overflow));
+    assert_eq!(sum(&[i64::MIN, -1]), Err(BuiltinError::Overflow));
+    assert_eq!(sum(&[i64::MAX, 1]), Err(BuiltinError::Overflow));
     assert_eq!(product::<i64>(&[]), Ok(1));
     assert_eq!(product(&[-2_i64, 3, -4]), Ok(24));
-    assert_eq!(product(&[i64::MIN, -1]), Err(ShapeError::Overflow));
+    assert_eq!(product(&[i64::MIN, -1]), Err(BuiltinError::Overflow));
     assert_eq!(product(&[i64::MIN, -1, 0]), Ok(0));
     // A wider signed representation can combine u64 dimensions and padding.
     assert_eq!(
@@ -205,7 +219,7 @@ fn broadcasting_aligns_right_and_handles_zero_dimensions() {
     assert_eq!(broadcast_shape(&[wide], &[1]), Ok(vec![wide]));
     assert_eq!(
         broadcast_shape(&[-1_i128], &[1]),
-        Err(ShapeError::InvalidDimension)
+        Err(BuiltinError::InvalidDimension)
     );
     for (lhs, rhs, expected) in [
         (vec![], vec![], vec![]),
@@ -225,11 +239,11 @@ fn broadcasting_aligns_right_and_handles_zero_dimensions() {
     ] {
         assert_eq!(
             broadcast_shape(&lhs, &rhs),
-            Err(ShapeError::IncompatibleBroadcast)
+            Err(BuiltinError::IncompatibleBroadcast)
         );
         assert_eq!(
             broadcast_shape(&rhs, &lhs),
-            Err(ShapeError::IncompatibleBroadcast)
+            Err(BuiltinError::IncompatibleBroadcast)
         );
     }
 }
@@ -264,11 +278,11 @@ fn rounded_division_obeys_mathematical_bounds_for_both_signs() {
     for divisor in [0_i64, -1, i64::MIN] {
         assert_eq!(
             floor_div(i64::MIN, divisor),
-            Err(ShapeError::NonPositiveDivisor)
+            Err(BuiltinError::NonPositiveDivisor)
         );
         assert_eq!(
             ceil_div(i64::MIN, divisor),
-            Err(ShapeError::NonPositiveDivisor)
+            Err(BuiltinError::NonPositiveDivisor)
         );
     }
 }

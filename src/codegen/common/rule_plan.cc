@@ -35,6 +35,8 @@ class Planner {
           else if constexpr (std::is_same_v<T, core::HostCall>) {
             hosts_.insert(value.function.value);
             for (const auto& argument : value.arguments) expression(*argument);
+          } else if constexpr (std::is_same_v<T, core::BuiltinCall>) {
+            for (const auto& argument : value.arguments) expression(*argument);
           } else if constexpr (std::is_same_v<T, core::UnaryExpr>)
             expression(*value.operand);
           else if constexpr (std::is_same_v<T, core::BinaryExpr>) {

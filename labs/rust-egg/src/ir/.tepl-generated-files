@@ -1,14 +1,17 @@
 # TEPL generated files v1
 analysis/bindings.rs
 analysis/dtype.rs
-analysis/dtype_builtins.rs
 analysis/inference.rs
 analysis/mod.rs
 analysis/shape.rs
-analysis/shape_builtins.rs
 analysis/tensor.rs
 analysis/tensor_analysis.rs
 analysis/tensor_analysis_data.rs
+builtins/common.rs
+builtins/dtype.rs
+builtins/error.rs
+builtins/mod.rs
+builtins/shape.rs
 dialects/mod.rs
 dialects/scalar.rs
 dialects/tensor_lang.rs
@@ -23,6 +26,7 @@ pattern/rewrite.rs
 pattern/shape.rs
 rules/basic.rs
 rules/binders.rs
+rules/builtins.rs
 rules/inherited.rs
 rules/lora.rs
 rules/lowering.rs

@@ -5,7 +5,10 @@
 > attribute fields, builtin signatures, and expression types are resolved. Shape
 > programs are emitted as checked Rust operation evaluators. The compiler
 > also supports the nested/opaque attribute types and `$` host-call syntax here.
-> Existing rule-level shape declarations remain match-time constraints.
+> Rule `where` and `derive` also resolve builtins through the shared catalog;
+> `all` and `any` are currently shape-only because rules have no Boolean lists.
+> Rule-level shape declarations are checked during search and rechecked before
+> application; other rule expressions execute during application.
 
 An operation's shape definition computes its output shape from operand shapes
 and attributes. TEPL compiles that definition into a shared evaluator used
@@ -114,7 +117,7 @@ The examples use these explicit adapter conventions:
 | `region` | Opaque reducer region, including its computation and identity; not a string such as `kind = "sum"` |
 | `elements` | Typed constant payload, including its element type and shape |
 
-These types extend the proposed attribute grammar with nested lists (`T[][]`),
+These types extend the attribute grammar with nested lists (`T[][]`),
 optional values (`T?`), and the named opaque types above. Opaque metadata is
 preserved for matching and construction; it cannot be inspected by arbitrary
 shape expressions. Its host adapter must preserve semantic identity and perform
@@ -165,8 +168,11 @@ or return types. It does not request access to tensor contents. For example, the
 existing Rust host interface passes tensor captures as `TensorInfo` metadata.
 Host functions remain fallible: failure rejects a rewrite candidate.
 
-Shape blocks allow only builtins in this initial proposal. Rule `where` and
-`derive` expressions can call builtins and host functions. Builtins have fixed
+Shape blocks allow builtin calls. Rule `where` and `derive` expressions can
+call the builtins available to their section and host functions. The
+[builtin reference](../src/core/builtins/README.md) lists availability and rule
+signatures. Shape-specific functions such as `broadcast_shape` are also useful
+in rules; semantic domain does not determine section availability. Builtins have fixed
 signatures and compiler-defined semantics. An unprefixed call must resolve to a
 builtin or an explicitly declared `fn` template parameter; unknown names are
 errors and do not implicitly declare host functions.
@@ -497,8 +503,12 @@ arguments      = constraintExpr, { ",", constraintExpr } ;
 The `$` prefix selects a host call; an unprefixed call selects a builtin.
 In abstract rules, unprefixed calls may also reference explicitly declared
 `fn` parameters, whose host bindings use `parameter = $function`.
-Native builtin resolution is future work; the current checker rejects unknown
-unprefixed calls in `where` and `derive` rather than treating them as host calls.
+Native calls resolve through the shared builtin catalog in `where` and `derive`.
+Unknown calls, unavailable builtins, and incorrect signatures are errors.
+Bound template `fn` parameters retain precedence over builtin names; `$` always
+selects a host call. Rule lists are `index_list`, not the nested integer/Boolean
+lists of operation shape expressions. Rule integer pairs retain `index` or
+`i64`; shape arithmetic retains checked signed `i128`.
 Abstract-rule operation bindings continue to use the existing grammar.
 
 Shape blocks use the expression grammar below, which excludes `$` calls:

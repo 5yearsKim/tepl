@@ -152,16 +152,19 @@ emits evaluators used by e-class analysis and rewrite output validation.
 `$name(...)` explicitly calls a host function. Unprefixed calls are reserved for
 native functions and bound `fn` parameters; unknown native functions are errors.
 Builtin names remain ordinary identifiers. The shape parser records their calls;
-core resolves their names and checks signatures within operation shape blocks.
-Builtin calls in rule conditions/derivations remain deferred.
+core resolves their names and checks signatures in operation shape blocks and
+rule `where`/`derive` expressions. A shared catalog records builtin signatures,
+semantic domains, and section availability. Rules support 17 builtins on their
+existing integer/list types; `all` and `any` require Boolean lists and currently
+remain shape-only. See [the builtin reference](src/core/builtins/README.md).
 Shape blocks exclude `$` calls, descriptor references, and floating literals.
 `assert`, `yield`, `if`, `then`, `else`, `for`, and `in` are reserved keywords;
 `shape` and `dtype` remain contextual so `attrs.shape` and `attrs.dtype` are valid.
 
 The parser and AST carry this information, and `check` resolves declarations
 and checks descriptor schemas. Rust code generation supports checked
-dialects and rules. The tuple and binder examples remain syntax fixtures and include operators outside
-the Rust tensor IR.
+dialects and rules, including LHS binders. Tuple/projection examples remain
+syntax fixtures outside the checked Rust tensor IR.
 
 ## Current rule syntax
 
@@ -330,7 +333,9 @@ Host functions have one inferred signature per name within each source file; v1 
 no overloads. Explicit `fn` parameter signatures support `tensor`, `bool`,
 `index`, `index_list`, `i64`, `f64`, and `attrs`. Successful host values are
 distinct from failure: host calls are fallible, and failure rejects a match.
-Conditions must produce `Bool`. Numeric operators accept compatible numeric
+Builtins use compiler-defined signatures and produce no host trait methods.
+Builtin failure rejects a candidate before RHS insertion. Conditions must
+produce `Bool`. Numeric operators accept compatible numeric
 types; equality supports numbers and booleans. Tensor and dimension-sequence
 comparisons must use host functions. Ambiguous calls such as `$f(X) == $g(X)`
 need another typed use or an explicit function parameter signature.

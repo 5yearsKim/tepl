@@ -1,5 +1,7 @@
 #include "src/codegen/rust/shape_expression_emitter.h"
 
+#include "src/codegen/rust/builtin_emitter.h"
+
 namespace tepl::codegen::rust {
 namespace {
 namespace shape = core::shape;
@@ -46,7 +48,7 @@ class ExpressionEmitter {
       case UnaryOp::kPlus:
         return "(" + operand + ")";
       case UnaryOp::kNegate:
-        return "b::sub(0_i128, " + operand + ")?";
+        return "super::super::builtins::common::sub(0_i128, " + operand + ")?";
       case UnaryOp::kLogicalNot:
         return "!(" + operand + ")";
     }
@@ -75,7 +77,8 @@ class ExpressionEmitter {
         break;
     }
     if (arithmetic)
-      return "b::" + std::string(arithmetic) + "(" + lhs + ", " + rhs + ")?";
+      return "super::super::builtins::common::" + std::string(arithmetic) +
+             "(" + lhs + ", " + rhs + ")?";
     return "(" + lhs + " " + std::string(spelling(value.op)) + " " + rhs + ")";
   }
   std::string lower(const shape::List& value, const shape::Expr& expr) const {
@@ -89,8 +92,8 @@ class ExpressionEmitter {
     return result + "])";
   }
   std::string lower(const shape::Index& value, const shape::Expr&) const {
-    return "b::index(&(" + emit(*value.value) + "), " + emit(*value.index) +
-           ")?.clone()";
+    return "super::super::builtins::common::index(&(" + emit(*value.value) +
+           "), " + emit(*value.index) + ")?.clone()";
   }
   std::string lower(const shape::Conditional& value, const shape::Expr&) const {
     return "(if " + emit(*value.condition) + " { " + emit(*value.then_value) +
@@ -101,64 +104,18 @@ class ExpressionEmitter {
     auto element = program_.types.at(expr.type.value);
     --element.list_depth;
     return "(" + emit(*value.iterable) + ").into_iter().map(|" +
-           shapeSymbol(value.variable) + "| -> b::ShapeResult<" +
-           shapeType(element) + "> { Ok(" + emit(*value.element) +
-           ") }).collect::<b::ShapeResult<" +
+           shapeSymbol(value.variable) +
+           "| -> super::super::builtins::BuiltinResult<" + shapeType(element) +
+           "> { Ok(" + emit(*value.element) +
+           ") }).collect::<super::super::builtins::BuiltinResult<" +
            shapeType(program_.types.at(expr.type.value)) + ">>()?";
   }
   std::string lower(const shape::Call& value, const shape::Expr&) const {
-    using B = shape::Builtin;
-    const auto arg = [&](std::size_t i) {
-      return emit(*value.arguments.at(i));
-    };
-    const auto ref = [&](std::size_t i) { return "&(" + arg(i) + ")"; };
-    const std::string fn =
-        "b::" + std::string(shape::builtinName(value.builtin));
-    switch (value.builtin) {
-      case B::kLen:
-        return "(" + fn + "(" + ref(0) + ") as i128)";
-      case B::kRange:
-        return "b::integers(&b::range(" + arg(0) + ")?)";
-      case B::kConcat: {
-        std::string result = fn + "(&[";
-        for (std::size_t i = 0; i < value.arguments.size(); ++i) {
-          if (i) result += ", ";
-          result += ref(i);
-        }
-        return result + "])?";
-      }
-      case B::kGather:
-        return fn + "(" + ref(0) + ", " + ref(1) + ")?";
-      case B::kExclude:
-      case B::kIsDisjoint:
-        return fn + "(" + ref(0) + ", " + ref(1) + ")";
-      case B::kSlice:
-        return fn + "(" + ref(0) + ", " + arg(1) + ", " + arg(2) + ")?";
-      case B::kReplace:
-        return fn + "(" + ref(0) + ", " + arg(1) + ", " + arg(2) + ")?";
-      case B::kSum:
-      case B::kProduct:
-        return fn + "(" + ref(0) + ")?";
-      case B::kAll:
-      case B::kAny:
-        return fn + "(" + ref(0) + ")";
-      case B::kContains:
-        return fn + "(" + ref(0) + ", " + ref(1) + ")";
-      case B::kIsValidAxisList:
-        // Negative and unrepresentable ranks cannot contain any valid axes.
-        return "{ let axes = " + arg(0) + "; let rank = " + arg(1) +
-               "; usize::try_from(rank).is_ok_and(|rank| " + fn +
-               "(&axes, rank)) }";
-      case B::kBroadcastShape:
-        return fn + "(" + ref(0) + ", " + ref(1) + ")?";
-      case B::kMin:
-      case B::kMax:
-        return fn + "(" + arg(0) + ", " + arg(1) + ")";
-      case B::kFloorDiv:
-      case B::kCeilDiv:
-        return fn + "(" + arg(0) + ", " + arg(1) + ")?";
-    }
-    return {};
+    std::vector<std::string> arguments;
+    for (const auto& argument : value.arguments)
+      arguments.push_back(emit(*argument));
+    return emitBuiltin(value.builtin, arguments, "super::super::builtins",
+                       true);
   }
   const shape::Program& program_;
 };

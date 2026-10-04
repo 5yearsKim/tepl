@@ -15,7 +15,7 @@ dialect Custom { op negate(input: tensor) -> tensor; }
 rule test {
   X: [N]
   (negate X) => X
-  where { $outer($inner(N) + 1, X); }
+  where { $outer(sum(range($inner(N) + 1)), X); }
 }
 )");
   assert(parsed.ok());
@@ -66,6 +66,9 @@ int main() {
     assert(file.contents.find("fn inner(") != std::string::npos);
     assert(file.contents.find("functions.outer(") != std::string::npos);
     assert(file.contents.find("functions.inner(") != std::string::npos);
+    assert(file.contents.find("::builtins::common::sum(") != std::string::npos);
+    assert(file.contents.find("::builtins::common::add(") != std::string::npos);
+    assert(file.contents.find(".checked_add(") == std::string::npos);
     assert(file.contents.find("TEPL `$outer(...)`") != std::string::npos);
   }
   assert(found_host_methods);

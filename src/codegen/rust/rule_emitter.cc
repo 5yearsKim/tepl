@@ -79,7 +79,7 @@ std::string build(const core::BuildExpr& node, const core::Rule& rule,
 
 void emitRule(CodeWriter& out, const core::Program& program,
               const core::Rule& rule, const Names& names,
-              const std::string& module) {
+              const std::string& module, const std::string& builtins_path) {
   const auto plan = planRule(rule);
   out.open("pub mod rule_" + rule.name);
   out.line("use super::*;");
@@ -178,11 +178,11 @@ void emitRule(CodeWriter& out, const core::Program& program,
                std::to_string(descriptor_type.schema->value) + ")?;");
   }
   for (const auto& condition : rule.conditions)
-    out.line("if !(" + emitExpression(program, *condition) +
+    out.line("if !(" + emitExpression(program, *condition, builtins_path) +
              ") { return None; }");
   for (const auto& derivation : rule.derivations)
     out.line("let " + descriptor(derivation.target.value) + " = " +
-             emitExpression(program, *derivation.value) + ";");
+             emitExpression(program, *derivation.value, builtins_path) + ";");
   if (rule.derivations.empty())
     out.line("Some(Default::default())");
   else {
@@ -214,7 +214,8 @@ std::string emitRules(const core::Program& program, const Names& names,
   out.line("use " + root_path + "::dialects::*;");
   for (const auto* rule : rules) {
     out.line();
-    emitRule(out, program, *rule, names, module);
+    emitRule(out, program, *rule, names, module,
+             root_path + "::super::builtins");
   }
   return out.str();
 }

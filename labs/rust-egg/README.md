@@ -77,7 +77,9 @@ later requires a fresh graph. Invalid facts do not retain error messages.
 
 All 24 TEPL shape definitions in the example dialects have generated evaluators,
 including variadic concatenate, reduce, general dot, convolution, and all-to-all.
-Rust statements follow their TEPL blocks and use `shape_builtins`. Shapes stay
+Rust statements follow their TEPL blocks and use shared `ir::builtins` helpers.
+Rules also use these helpers for builtin calls and checked integer arithmetic.
+Shapes stay
 `Vec<u64>` at the interface; computations widen to checked `i128` and validate
 final dimensions against `u64`. Missing blocks return `Unknown`; failed
 assertions, bad signatures, invalid indices, and arithmetic errors return

@@ -35,7 +35,7 @@ copy_runtime_tests() {
     cp "$project_root/tests/codegen/shape_patterns.rs" "$application/tests/shape_patterns.rs"
 }
 
-for source in analysis custom empty dialect_only literal_root lora basic binders inherited simple; do
+for source in builtins analysis custom empty dialect_only literal_root lora basic binders inherited simple; do
     if [[ -f "$project_root/tests/codegen/$source.tepl" ]]; then
         input="$project_root/tests/codegen/$source.tepl"
     else
@@ -50,7 +50,7 @@ for source in analysis custom empty dialect_only literal_root lora basic binders
         cp "$project_root/tests/codegen/$source.rs" "$crate/tests/generated.rs"
     fi
     cargo test --manifest-path "$crate/Cargo.toml"
-    if [[ "$source" == custom || "$source" == analysis ]]; then
+    if [[ "$source" == custom || "$source" == analysis || "$source" == builtins ]]; then
         cargo test --manifest-path "$crate/Cargo.toml" --release
     fi
 done

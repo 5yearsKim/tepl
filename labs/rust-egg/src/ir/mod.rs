@@ -1,4 +1,5 @@
 pub mod analysis;
+pub mod builtins;
 pub mod dialects;
 pub mod op_node;
 pub mod pattern;

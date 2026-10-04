@@ -49,16 +49,18 @@ void evaluator(CodeWriter& out, const core::Program& program,
                const core::Operation& op) {
   const auto& checked = *op.shape;
   out.line("/// TEPL shape program for " + op.dialect + "." + op.name + ".");
-  out.open(
-      "fn shape_" + std::to_string(op.id.value) +
-      "(operands: &[&[u64]], attrs: &OpAttrs) -> b::ShapeResult<Vec<u64>>");
+  out.open("fn shape_" + std::to_string(op.id.value) +
+           "(operands: &[&[u64]], attrs: &OpAttrs) -> "
+           "super::super::builtins::BuiltinResult<Vec<u64>>");
   for (const auto& parameter : checked.parameters) {
-    const auto value = parameter.variadic
-                           ? "operands[" + std::to_string(parameter.operand) +
-                                 "..].iter().map(|shape| "
-                                 "b::integers(shape)).collect::<Vec<_>>()"
-                           : "b::integers(operands[" +
-                                 std::to_string(parameter.operand) + "])";
+    const auto value =
+        parameter.variadic
+            ? "operands[" + std::to_string(parameter.operand) +
+                  "..].iter().map(|shape| "
+                  "super::super::builtins::shape::integers(shape)).collect::<"
+                  "Vec<_>>()"
+            : "super::super::builtins::shape::integers(operands[" +
+                  std::to_string(parameter.operand) + "])";
     out.line("let " + shapeSymbol(parameter.symbol) + ": " +
              shapeType(checked.types.at(
                  checked.symbols.at(parameter.symbol.value).type.value)) +
@@ -77,7 +79,8 @@ void evaluator(CodeWriter& out, const core::Program& program,
     out.line("let OpAttrs::" + dialect.variant + "(" + dialect.module +
              "::OpAttrs::" + names.schema(*op.attributes) + " { " + fields +
              ".. }) = attrs else { return "
-             "Err(b::ShapeError::Assertion(\"invalid shape attributes\")); };");
+             "Err(super::super::builtins::BuiltinError::Assertion(\"invalid "
+             "shape attributes\")); };");
     for (std::size_t i = 0; i < schema.fields.size(); ++i) {
       const auto& field = schema.fields[i];
       if (field.optional || (field.type != "index" && field.type != "i64" &&
@@ -101,15 +104,15 @@ void evaluator(CodeWriter& out, const core::Program& program,
     } else {
       const auto& assertion = std::get<shape::Assert>(statement.value);
       const auto& at = statement.origin.definition;
-      out.line("b::ensure(" + shapeExpression(checked, *assertion.condition) +
-               ", " +
+      out.line("super::super::builtins::common::ensure(" +
+               shapeExpression(checked, *assertion.condition) + ", " +
                quote(op.dialect + "." + op.name + " shape assertion at " +
                      std::to_string(at.span.begin.line) + ":" +
                      std::to_string(at.span.begin.column)) +
                ")?;");
     }
   }
-  out.line("b::dimensions(&(" +
+  out.line("super::super::builtins::shape::dimensions(&(" +
            shapeExpression(checked, *checked.result.value) + "))");
   out.close();
 }
@@ -119,12 +122,12 @@ std::string emitShapeInference(const core::Program& program,
                                const Names& names) {
   CodeWriter out;
   imports(out, names, false);
-  out.line("use super::shape_builtins as b;");
   out.open(
       "pub fn infer_shape(op: Op, operands: &[&[u64]], attrs: &OpAttrs) -> "
       "Inference<Vec<u64>>");
   signatureCheck(out);
-  out.open("let result: b::ShapeResult<Vec<u64>> = match op");
+  out.open(
+      "let result: super::super::builtins::BuiltinResult<Vec<u64>> = match op");
   out.line("Op::Input => return Inference::Unknown,");
   out.line("Op::Literal => return Inference::Known(vec![]),");
   for (const auto& dialect : names.dialects)
@@ -154,7 +157,6 @@ std::string emitDTypeInference(const core::Program& program,
                                const Names& names) {
   CodeWriter out;
   imports(out, names, true);
-  out.line("use super::dtype_builtins as b;");
   out.open(
       "pub fn infer_dtype(op: Op, operands: &[DType], attrs: &OpAttrs) -> "
       "Inference<DType>");
@@ -173,9 +175,9 @@ std::string emitDTypeInference(const core::Program& program,
         if (const auto* fixed = std::get_if<core::DType>(&*op.dtype_policy))
           result = "Inference::Known(" + dtype(*fixed) + ")";
         else
-          result =
-              "b::" + std::string(core::dtypePolicyName(*op.dtype_policy)) +
-              "(operands)";
+          result = "super::super::builtins::dtype::" +
+                   std::string(core::dtypePolicyName(*op.dtype_policy)) +
+                   "(operands)";
       }
       out.line(operation(dialect, op) + " => " + result + ",");
     }
