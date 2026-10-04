@@ -10,8 +10,8 @@ sh_binary(
 )
 
 sh_binary(
-    name = "embed_runtime",
-    srcs = ["tools/embed_runtime.sh"],
+    name = "embed_templates",
+    srcs = ["tools/embed_templates.sh"],
     visibility = ["//src/codegen:__pkg__"],
 )
 

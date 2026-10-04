@@ -192,7 +192,7 @@ dialects and concrete rules through the shared `src/codegen/` backend interface.
 [labs/rust-egg](labs/rust-egg/README.md) exercises generated tensor IR, matching,
 binders, host callbacks, and e-graph rewrite application. Its `src/ir/` is
 generated from `examples/`, including the shared
-templates under `runtime/rust/`. Handwritten semantics live in `src/host/`.
+templates under `templates/rust/`. Handwritten semantics live in `src/host/`.
 `tools/regenerate_lab.sh --check` verifies that its checked-in IR is current.
 Its execution model is:
 

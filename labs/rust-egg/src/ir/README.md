@@ -11,7 +11,7 @@ whether a file is copied or emitted.
 | --- | --- |
 | `analysis/shape.rs` | Emit from checked operation shape programs |
 | `analysis/dtype.rs` | Emit from optional checked operation dtype policies |
-| `analysis/shape_builtins.rs`, `analysis/dtype_builtins.rs` | Copy maintained inference helpers from `runtime/rust/src/analysis/` |
+| `analysis/shape_builtins.rs`, `analysis/dtype_builtins.rs` | Copy maintained inference helpers from `templates/rust/src/analysis/` |
 | `analysis/tensor.rs` | Copy shared shape/dtype inference combination |
 | `analysis/tensor_analysis.rs` | Copy direct egg integration |
 | `analysis/tensor_analysis_data.rs` | Copy conservative metadata storage and merge |
@@ -22,7 +22,7 @@ whether a file is copied or emitted.
 | `rules/*.rs` | Emit patterns, conditions, derivations, and default/explicit builders |
 | Root, dialect, and rule module declarations | Emit module wiring |
 
-The compiler uses `runtime/rust/src/` as its template input. Project-specific
+The compiler uses `templates/rust/src/` as its template input. Project-specific
 code is emitted by `src/codegen/rust/`. Each output path has one producer and
 is recorded in `.tepl-generated-files`. Application-specific policies live
 outside this directory, under `src/host/`.

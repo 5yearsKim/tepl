@@ -490,7 +490,7 @@ Generation uses the public checked core IR through a shared `Generator`
 interface. Rust is implemented; C++ and Python targets use the same interface
 and currently report that generation is not implemented. See
 [src/codegen/README.md](src/codegen/README.md) for the architecture, generated API,
-naming, and host type mapping, and [runtime/rust/README.md](runtime/rust/README.md)
+naming, and host type mapping, and [templates/rust/README.md](templates/rust/README.md)
 for the runtime contract. The CLI maintains `.tepl-generated-files` in the
 output directory and removes obsolete paths from that manifest on regeneration.
 Unlisted files are preserved; keep host implementations outside generated paths.

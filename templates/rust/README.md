@@ -1,7 +1,7 @@
-# Rust runtime templates
+# Rust code generation templates
 
-These files are the maintained runtime portion of each generated Rust module.
-Bazel embeds them into the compiler. `src/pattern/` is copied into the output's
+These files are handwritten Rust templates copied into generated modules.
+Bazel embeds them into the compiler; codegen copies them into its output. `src/pattern/` is copied into the output's
 `pattern/`; it contains matching, attribute witnesses, shape checks,
 metadata access, and checked rewrite application. It has no dependency on a
 particular dialect.
@@ -60,8 +60,7 @@ common policies with no operands are unknown.
 Generation emits files directly into the selected module directory of an
 existing crate. Internal imports use `super`, so the enclosing module can have
 any name and location. The lab's `src/ir/` is reproducible generated output; see
-its [ownership document](../../labs/rust-egg/src/ir/README.md). Keep copied runtime
-files synchronized with their maintained sources.
+its [ownership document](../../labs/rust-egg/src/ir/README.md). Edit the templates here and regenerate to update their copied output.
 
 Copied analysis support includes `TensorAnalysis`, `TensorAnalysisData`,
 `TensorBindingTable`, and `Inference`. Tensor inference combines generated shape

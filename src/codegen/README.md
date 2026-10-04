@@ -33,8 +33,8 @@ The layout separates shared semantics from target syntax:
   arithmetic and short-circuit boolean evaluation.
 - `rust/names.*` owns Rust names, string escaping, and type representations.
 - `rust/code_writer.h` handles indentation and blocks.
-- `runtime/rust/` holds fixed runtime code, embedded by Bazel and copied into the
-  generated module. Runtime algorithms are maintained separately from emitters.
+- `templates/rust/` holds reusable Rust templates, embedded by Bazel and copied
+  into the generated module. Runtime algorithms are maintained separately from emitters.
 - `write.*` synchronizes generated files, maintains their ownership manifest,
   formats output by default, and checks for drift without changing output.
 
@@ -57,7 +57,7 @@ The emitted module exposes `{analysis, dialects, op_node, types, pattern, rules}
 `analysis::shape_builtins` exposes the copied checked shape primitives.
 Operation evaluators come from checked shape programs and dtype policies;
 missing definitions return `Unknown`. Reusable analysis implementations and
-policy helpers are copied from `runtime/rust/src/analysis/`.
+policy helpers are copied from `templates/rust/src/analysis/`.
 Its enclosing name and location are chosen by the consuming application; the
 examples below use `generated`.
 Each dialect has its own module and short `Op` and `OpAttrs` enums, such as
@@ -134,7 +134,7 @@ Fallible host functions wrap results in `Option`. Inferred descriptor schemas
 are checked at runtime, including intermediate results. Bare graph literals use
 the common `Literal` node, separately from any user-declared `literal` op.
 An omitted dtype remains unconstrained during matching and generation. See
-`runtime/rust/README.md` for contextual RHS resolution and runtime requirements.
+`templates/rust/README.md` for contextual RHS resolution and runtime requirements.
 
 The generated module requires Rust edition 2024 and egg 0.11. Generation runs
 `rustfmt` on staged output by default, before writing or comparing it. This

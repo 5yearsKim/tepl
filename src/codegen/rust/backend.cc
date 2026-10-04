@@ -9,7 +9,7 @@
 #include "src/codegen/rust/dialect_emitter.h"
 #include "src/codegen/rust/names.h"
 #include "src/codegen/rust/rule_emitter.h"
-#include "src/codegen/rust/runtime_files.h"
+#include "src/codegen/rust/template_files.h"
 
 namespace tepl::codegen::rust {
 GenerationResult Backend::generate(const core::Program& program,
@@ -18,7 +18,7 @@ GenerationResult Backend::generate(const core::Program& program,
   try {
     const auto project = planProject(program, options.rules_root);
     Names names(program, project);
-    for (auto file : runtimeFiles()) {
+    for (auto file : templateFiles()) {
       file.path.erase(0, std::string("src/").size());
       if (file.path == "op_node.rs") {
         const std::string marker = "// @tepl:op-types";

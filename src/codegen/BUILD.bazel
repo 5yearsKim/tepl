@@ -1,17 +1,17 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 genrule(
-    name = "embed_rust_runtime",
-    srcs = ["//runtime/rust:templates"],
-    outs = ["rust/runtime_files.h"],
-    tools = ["//:embed_runtime"],
-    cmd = "$(location //:embed_runtime) $@ $(locations //runtime/rust:templates)",
+    name = "embed_rust_templates",
+    srcs = ["//templates/rust:templates"],
+    outs = ["rust/template_files.h"],
+    tools = ["//:embed_templates"],
+    cmd = "$(location //:embed_templates) $@ $(locations //templates/rust:templates)",
 )
 
 cc_library(
     name = "codegen",
     srcs = glob(["*.cc", "common/*.cc", "rust/*.cc"]),
-    hdrs = glob(["*.h", "common/*.h", "rust/*.h"]) + [":embed_rust_runtime"],
+    hdrs = glob(["*.h", "common/*.h", "rust/*.h"]) + [":embed_rust_templates"],
     visibility = ["//visibility:public"],
     deps = ["//src/core:ir"],
 )

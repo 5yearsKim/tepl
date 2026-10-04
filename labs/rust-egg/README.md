@@ -138,7 +138,7 @@ source ownership, and inherited templates expand to concrete rules in core.
 Bare literals use the shared `Literal` operation. Unannotated LHS literals match
 any dtype; RHS inference resolves dtype before insertion. Spelling and explicit
 dtype annotations are preserved. Input nodes use `OpNode::input(name)`. See
-[the runtime contract](../../runtime/rust/README.md) for literal and matching
+[the runtime contract](../../templates/rust/README.md) for literal and matching
 behavior. The compiler's current API is documented separately in
 [the generator architecture](../../src/codegen/README.md).
 
