@@ -1,6 +1,14 @@
 <h1><img src="misc/images/logo/tepl_192.png" alt="tepl logo" width="48" height="48" align="absmiddle"> TEPL - Tensor Equality Pattern Language</h1>
 
-**Write tensor rewrites with TEPL, and read like the math.**
+<p align="right">
+  <a href="labs/rust-egg/README.md"><img src="https://img.shields.io/badge/target-Rust-CE422B?style=flat&amp;logo=rust" alt="Target: Rust"></a>
+  <a href="https://egraphs-good.github.io/"><img src="https://img.shields.io/badge/runtime-egg-F2C94C?style=flat" alt="Runtime: egg"></a>
+  <a href="#-quick-start"><img src="https://img.shields.io/badge/build-Bazel-43A047?style=flat&amp;logo=bazel" alt="Build: Bazel"></a>
+</p>
+
+**TEPL: *Write tensor rewrites that read like math.***
+
+[Quick start](#-quick-start) · [Example rules](examples/rules)
 
 The same tensor computation can be expressed in different ways—with very different costs. In machine learning, choosing the right form can make a big difference: depending on tensor dimensions, `(XA)B` can require far less computation than `X(AB)`.
 
@@ -35,9 +43,15 @@ But which axes does `transpose` permute? Which dimensions does a matrix multipli
 
 ## 😭 Pattern rewriting in Rust is painful
 
-Custom matchers and appliers can handle those details, but a complete rewrite becomes verbose. Using this repository's Rust tensor runtime:
+Custom matchers and appliers can handle those details, but a complete rewrite becomes verbose. Here is the same rule using this repository's Rust tensor runtime:
+
+<details>
+<summary><strong>👉 See the equivalent Rust rewrite</strong></summary>
 
 ```rust
+// 👀 No need to follow every line! This example shows how verbose
+// 👀 a simple tensor rewrite becomes when defining patterns by hand in Rust.
+
 use egg::Var;
 use rust_egg::ir::{DType, OpAttrs, dialects::tensor_lang::Op};
 use rust_egg::ir::analysis::{infer_tensor_output, tensor_info};
@@ -87,7 +101,9 @@ let rule = tensor_rewrite_checked(
 ).unwrap();
 ```
 
-`lhs` matches the original expression; `rhs` builds the replacement with the captured permutation. The callback restricts `X` to `f32`, while the checked builder validates replacement operations and requires the output shape and dtype to match the original. The resulting `rule` can be passed to an egg runner.
+</details>
+
+Even this simple rewrite needs nested constructors, explicit attribute handling, and metadata checks. All that Rust code makes the underlying rule harder to see, review, and maintain—and larger patterns only add more nesting and repetition.
 
 ## ✨ Write the rule. Let TEPL generate the Rust.
 
@@ -116,6 +132,25 @@ TEPL keeps tensor rewrites concise while supporting the features needed for real
 - **Multiple dialects:** Define and import your own operation dialects, and write rules that rewrite between them.
 - **Host function bindings:** Implement complex logic in Rust and call it from TEPL with `$function(...)` in `where` and `derive` blocks.
 - **egg integration:** Generate Rust rewrites that run directly in egg, with generated tensor analysis or hooks for your own analysis and inference.
+
+## 📉 A smaller computation with LoRA
+
+The [LoRA example](labs/rust-egg/README.md#lora-saturation-example) uses TEPL-generated rules with egg to explore equivalent expressions and select one with a lower estimated arithmetic cost. Here, `@` denotes matrix multiplication.
+
+| | Expression | Estimated arithmetic operations |
+| --- | --- | ---: |
+| Before | `X @ (W + A @ B)` | 69,632 |
+| After | `X @ W + (X @ A) @ B` | 39,168 |
+
+That's **about 44% fewer estimated arithmetic operations** for input shapes `X=[2,4,64]`, `W=[2,64,32]`, `A=[2,64,4]`, and `B=[2,4,32]`. The demo checks equal results using deterministic integer inputs; floating-point reassociation is controlled by the host's legality policy.
+
+Read the [TEPL rule](examples/rules/lora.tepl) or reproduce the result from the repository root:
+
+```sh
+cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
+```
+
+## 🚀 Quick start
 
 Try it from the repository root:
 
