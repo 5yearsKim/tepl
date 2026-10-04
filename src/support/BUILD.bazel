@@ -1,0 +1,21 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "process",
+    srcs = ["process.cc"],
+    hdrs = ["process.h"],
+    linkopts = select({
+        "@platforms//os:linux": ["-pthread"],
+        "@platforms//os:macos": ["-pthread"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+    deps = ["@subprocess//:subprocess"],
+)
+
+cc_library(
+    name = "temporary_directory",
+    srcs = ["temporary_directory.cc"],
+    hdrs = ["temporary_directory.h"],
+    visibility = ["//visibility:public"],
+)

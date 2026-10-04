@@ -12,5 +12,9 @@ cc_library(
     srcs = glob(["*.cc", "common/*.cc", "rust/*.cc"]),
     hdrs = glob(["*.h", "common/*.h", "rust/*.h"]) + [":embed_rust_templates"],
     visibility = ["//visibility:public"],
-    deps = ["//src/core:ir"],
+    deps = [
+        "//src/core:ir",
+        "//src/support:process",
+        "//src/support:temporary_directory",
+    ],
 )

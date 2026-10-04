@@ -1,7 +1,7 @@
 // Shared integration tests for standalone shape declaration matching.
 use ShapePart::{Dimension as D, Sequence as S, Wildcard as W};
+use rust_egg::ir::pattern::{ShapeBindings, ShapePart};
 use std::collections::HashMap;
-use tepl_generated::ir::pattern::{ShapeBindings, ShapePart};
 
 #[derive(Clone, Default)]
 struct ReferenceBindings {

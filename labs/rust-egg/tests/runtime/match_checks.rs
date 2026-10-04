@@ -1,15 +1,15 @@
-// Public runtime checks shared by the lab and every freshly generated module.
+// Public runtime checks run against the lab's verified generated module.
 use egg::{EGraph, Id, Var};
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicBool, AtomicUsize, Ordering},
-};
-use tepl_generated::ir::pattern::{
+use rust_egg::ir::pattern::{
     AttrPattern, AttrVar, MatchBinding as Binding, MatchChecks, ShapePart, TensorConstraint,
     TensorConstraints, TensorExpr, TensorInfo, TensorPattern, matches_at_with_checks,
     tensor_rewrite_checked_with_checks,
 };
-use tepl_generated::ir::{DType, Op, OpAttrs, OpNode};
+use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, AtomicUsize, Ordering},
+};
 
 fn var(name: &str) -> Var {
     name.parse().unwrap()

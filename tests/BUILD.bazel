@@ -146,21 +146,21 @@ cc_test(
     name = "codegen_write_test",
     size = "small",
     srcs = ["codegen_write_test.cc"],
-    deps = ["//src/codegen:codegen"],
+    deps = [
+        "//src/codegen:codegen",
+        "//src/support:temporary_directory",
+    ],
 )
 
-# Requires the machine's Cargo/Rust toolchain and Cargo dependencies.
-# Explicitly run this target, or tools/test_codegen.sh, for runtime integration.
-sh_test(
-    name = "rust_codegen_test",
-    size = "large",
-    srcs = ["codegen_integration_test.sh"],
-    args = ["$(rootpath //:tepl)"],
-    data = [
-        "//:tepl",
-        "//:tools/test_codegen.sh",
-        "//examples:all",
-    ] + glob(["codegen/*.tepl", "codegen/*.rs"]),
-    tags = ["local", "manual"],
-    env_inherit = ["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME"],
+cc_test(
+    name = "support_test",
+    size = "small",
+    srcs = ["support_test.cc"],
+    env = {"TEPL_TEST_INHERIT": "present"},
+    # The test copies itself to a path containing spaces and Unicode.
+    linkstatic = True,
+    deps = [
+        "//src/support:process",
+        "//src/support:temporary_directory",
+    ],
 )

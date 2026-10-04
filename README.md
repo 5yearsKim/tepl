@@ -180,4 +180,7 @@ bazel-bin/tepl check examples
 bazel-bin/tepl generate examples --out my_app/src/generated
 ```
 
-Explore the [example rules](examples/rules), [shape guide](examples/shape_guide.md), and [runnable egg integration](labs/rust-egg/README.md).
+## 📚 More on…
+
+- 🧭 [Design philosophy](docs/design_philosophy.md) — Language principles and core concepts.
+- 🧩 [Example rules](examples/rules) — Tensor rewrites written in TEPL.

@@ -1,8 +1,8 @@
 use egg::{EGraph, Id, Language};
-use tepl_generated::ir::dialects::{scalar as s, tensor_lang as t};
-use tepl_generated::ir::pattern::{OutputInference, TensorInfo};
-use tepl_generated::ir::rules::{lowering::rule_scalar_add, scalar::rule_commute_add};
-use tepl_generated::ir::{DType, Op, OpAttrs, OpNode};
+use rust_egg::ir::dialects::{scalar as s, tensor_lang as t};
+use rust_egg::ir::pattern::{OutputInference, TensorInfo};
+use rust_egg::ir::rules::{lowering::rule_scalar_add, scalar::rule_commute_add};
+use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 struct Inference(bool);
 impl OutputInference for Inference {
@@ -81,7 +81,7 @@ fn rejected_cross_dialect_inference_is_atomic() {
 }
 #[test]
 fn shape_builtins_compose_in_generated_modules() {
-    use tepl_generated::ir::builtins::{BuiltinError, BuiltinResult, common, shape};
+    use rust_egg::ir::builtins::{BuiltinError, BuiltinResult, common, shape};
 
     fn transpose(input: &[u64], permutation: &[u64]) -> BuiltinResult<Vec<u64>> {
         common::ensure(
@@ -102,7 +102,7 @@ fn shape_builtins_compose_in_generated_modules() {
 
 #[test]
 fn full_shape_builtins_support_reduction_and_concatenation() {
-    use tepl_generated::ir::builtins::{common, shape};
+    use rust_egg::ir::builtins::{common, shape};
 
     // Reduction removes axis values, then gathers the remaining dimensions.
     let input = [2_u64, 3, 4, 5];

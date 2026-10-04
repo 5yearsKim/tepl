@@ -92,4 +92,4 @@ sealed `builtins::common::Integer` trait.
 Compiler tests live in `tests/core_test.cc` and `tests/shape_core_test.cc`.
 `tests/codegen/builtins.{tepl,rs}` exercises rule builtins in freshly generated
 Rust in debug and release, alongside shared runtime tests in
-`tests/codegen/shape_builtins.rs`. Generated code contains no test implementation.
+`labs/rust-egg/tests/runtime/shape_builtins.rs`. Generated code contains no test implementation.

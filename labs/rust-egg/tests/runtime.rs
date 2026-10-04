@@ -1,10 +1,8 @@
-// Exercise the same public runtime APIs in the lab and freshly generated crates.
-extern crate rust_egg as tepl_generated;
-
-#[path = "../../../tests/codegen/shape_builtins.rs"]
+// These tests exercise both handwritten lab code and temporary generated output.
+#[path = "runtime/shape_builtins.rs"]
 mod shape_builtins;
-#[path = "../../../tests/codegen/shape_patterns.rs"]
+#[path = "runtime/shape_patterns.rs"]
 mod shape_patterns;
 
-#[path = "../../../tests/codegen/match_checks.rs"]
+#[path = "runtime/match_checks.rs"]
 mod match_checks;

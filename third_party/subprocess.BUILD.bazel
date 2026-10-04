@@ -1,0 +1,8 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "subprocess",
+    hdrs = ["subprocess.h"],
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)

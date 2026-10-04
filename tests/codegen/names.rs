@@ -1,9 +1,9 @@
 use ::egg::{EGraph, Rewrite};
-use tepl_generated::ir::{
+use tepl_generated::components::generated::{
     DType, Op, OpAttrs, OpNode,
     analysis::{Inference, TensorAnalysis, TensorBindingTable, TensorInfo, infer_shape},
     dialects::{b, egg, std, r#type},
-    rules::names::{rule_match, rule_type},
+    rules::r#type::r#match::{rule_match, rule_type},
 };
 
 struct Keywords;
@@ -43,7 +43,7 @@ fn crate_names_and_keyword_methods_execute_a_checked_rewrite() {
     assert!(!rule.apply(&mut graph, &matches).is_empty());
     graph.rebuild();
     assert_eq!(graph.find(root), graph.find(x));
-    assert_eq!(rule.name.to_string(), "names::match");
+    assert_eq!(rule.name.to_string(), "type::match::match");
 }
 
 #[test]

@@ -1,9 +1,9 @@
 use egg::{EGraph, Id};
+use rust_egg::ir::dialects::tensor_lang;
+use rust_egg::ir::pattern::{OutputInference, TensorInfo};
+use rust_egg::ir::rules::lora::rule_lora;
+use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 use std::collections::HashMap;
-use tepl_generated::ir::dialects::tensor_lang;
-use tepl_generated::ir::pattern::{OutputInference, TensorInfo};
-use tepl_generated::ir::rules::lora::rule_lora;
-use tepl_generated::ir::{DType, Op, OpAttrs, OpNode};
 
 fn attrs() -> OpAttrs {
     OpAttrs::TensorLang(tensor_lang::OpAttrs::DotGeneralAttrs {
@@ -11,7 +11,7 @@ fn attrs() -> OpAttrs {
         rhs_contracting_dimensions: vec![1],
         lhs_batching_dimensions: vec![0],
         rhs_batching_dimensions: vec![0],
-        precision_config: vec![tepl_generated::ir::types::Precision::Default; 2],
+        precision_config: vec![rust_egg::ir::types::Precision::Default; 2],
         algorithm: None,
     })
 }

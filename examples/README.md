@@ -78,13 +78,12 @@ names in TEPL source but do not create extra Rust dialect modules.
 Single-file generation is also supported:
 `bazel-bin/tepl generate examples/rules/simple.tepl --out generated/simple`.
 
-The checked-in lab IR is generated from this project:
+Validate changes to these dialects and rules with:
 
 ```sh
-./tools/regenerate_lab.sh
-./tools/regenerate_lab.sh --check
+./tools/test_codegen.sh
 ```
 
-Edit dialects and rules here, regenerate, then run
-`cargo test --manifest-path labs/rust-egg/Cargo.toml` to exercise their generated
-code with the handwritten hosts under `labs/rust-egg/src/host/`.
+The script generates this project into a temporary crate and tests its output
+using the lab's tests and handwritten host helpers. The lab itself remains an
+editable development sandbox and is not regenerated.

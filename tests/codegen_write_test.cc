@@ -1,5 +1,3 @@
-#include <unistd.h>
-
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -9,6 +7,7 @@
 #include <vector>
 
 #include "src/codegen/write.h"
+#include "src/support/temporary_directory.h"
 
 namespace {
 std::string read(const std::filesystem::path& path) {
@@ -23,10 +22,8 @@ void write(const std::filesystem::path& path, const std::string& text) {
 }  // namespace
 int main() {
   namespace fs = std::filesystem;
-  std::string temporary =
-      (fs::temp_directory_path() / "tepl-write-test-XXXXXX").string();
-  assert(mkdtemp(temporary.data()));
-  const fs::path root(temporary);
+  tepl::support::TemporaryDirectory temporary("tepl-write-test-");
+  const fs::path root = temporary.path();
   using tepl::codegen::synchronize;
   const tepl::codegen::WriteOptions check{true, false};
   const tepl::codegen::WriteOptions raw{false, false};
@@ -61,13 +58,19 @@ int main() {
   }
   assert(rejected && read(root / "host.rs") == "handwritten");
   fs::remove(root / ".tepl-generated-files");
-  fs::create_directory_symlink(root, root / "link");
-  rejected = false;
-  try {
-    synchronize({{"link/host.rs", "overwrite"}}, root, raw);
-  } catch (const std::exception&) {
-    rejected = true;
+  std::error_code error;
+  fs::create_directory_symlink(root, root / "link", error);
+  // Windows may require Developer Mode or privileges to create symlinks.
+  if (!error) {
+    rejected = false;
+    try {
+      synchronize({{"link/host.rs", "overwrite"}}, root, raw);
+    } catch (const std::exception&) {
+      rejected = true;
+    }
+    assert(rejected && read(root / "host.rs") == "handwritten");
+  } else {
+    assert(error == std::errc::operation_not_permitted ||
+           error == std::errc::permission_denied);
   }
-  assert(rejected && read(root / "host.rs") == "handwritten");
-  fs::remove_all(root);
 }

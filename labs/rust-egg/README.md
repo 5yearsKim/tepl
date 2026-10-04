@@ -1,10 +1,10 @@
 # Tensor IR reference and rules with egg
 
-`src/ir/` is an executable reference for intended compiler output. It provides
+This lab is a sandbox for handwritten Rust runtime development. `src/ir/` provides
 `TensorAnalysis`, input bindings, shape and dtype inference, and checked rules.
 `src/host/` contains application-specific node helpers and LoRA legality functions.
-See [IR file ownership and contracts](src/ir/README.md) for copied versus emitted
-code and supported policies.
+See [the runtime reference](src/ir/README.md) for the path from lab
+implementations to compiler output and supported policies.
 
 ## Run and validate
 
@@ -15,16 +15,18 @@ cargo test --manifest-path labs/rust-egg/Cargo.toml --all-targets
 cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
 ```
 
-The compiler generates the complete `src/ir/` module: operation inference,
-reusable analysis support, dialects, nodes, and default/explicit rule builders.
-Regenerate and verify it with:
+Develop and test Rust logic here, then migrate reusable runtime code into
+`templates/rust/src/` and declaration-dependent logic into `src/codegen/rust/`.
+Application-specific helpers stay in `src/host/`. The lab can evolve independently
+of compiler output and is not regenerated. See the
+[development workflow](../../docs/developer_guide.md#develop-rust-runtime-logic).
 
-```sh
-./tools/regenerate_lab.sh
-./tools/regenerate_lab.sh --check
-```
+Run `./tools/test_codegen.sh` to test this lab, then run the same suite against
+freshly generated IR in a temporary crate. The script also checks focused
+compiler fixtures under `tests/codegen/`. Release runs target checked arithmetic
+and failure behavior. Runs reuse this crate's Cargo build cache.
 
-The output is a module directory for an existing Rust edition 2024 crate with
+Compiler output is a module directory for an existing Rust edition 2024 crate with
 egg 0.11. It can use any enclosing module name, including a nested path. The
 compiler creates no Cargo configuration. `.tepl-generated-files` tracks the
 files owned by current generation, and rustfmt formats output by default.

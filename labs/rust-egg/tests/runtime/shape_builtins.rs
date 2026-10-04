@@ -1,5 +1,5 @@
-// Shared integration tests for copied shape builtins.
-use tepl_generated::ir::builtins::{BuiltinError, common::*, shape::*};
+// Runtime tests for copied shape builtins.
+use rust_egg::ir::builtins::{BuiltinError, common::*, shape::*};
 
 #[test]
 fn dimension_boundaries_and_indices_are_checked() {

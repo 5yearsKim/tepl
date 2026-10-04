@@ -74,8 +74,11 @@ any name and location. External crate references use `::egg::` and `::std::`.
 Emitters use qualified dialect paths and explicit runtime imports so user names
 cannot shadow those dependencies. The Rust naming plan validates identifiers
 before emission and separates raw tokens such as `r#type` from filenames such as
-`type.rs`. The lab's `src/ir/` is reproducible generated output; see
-its [ownership document](../../labs/rust-egg/src/ir/README.md). Edit the templates here and regenerate to update their copied output.
+`type.rs`. Develop handwritten implementations in the lab's `src/ir/`, then
+migrate reusable runtime logic here. See the
+[development workflow](../../docs/developer_guide.md#develop-rust-runtime-logic).
+Compiler integration checks generate into temporary crates, leaving the lab
+available for independent development.
 
 Copied analysis support includes `TensorAnalysis`, `TensorAnalysisData`,
 `TensorBindingTable`, and `Inference`. Tensor inference combines generated shape
@@ -164,10 +167,11 @@ update their binding environment on failure; callers must discard that environme
 Run compiler-to-runtime integration tests with `./tools/test_codegen.sh` from
 the repository root. Rust runtime files and integration fixtures are formatted
 with `rustfmt --edition 2024`.
-Templates contain runtime code only. Shared shape-builtin and shape-pattern
-tests live in `tests/codegen/shape_builtins.rs` and `tests/codegen/shape_patterns.rs`;
-the integration script installs them in consuming crates' `tests/` directories.
-The lab runs the same fixtures through `labs/rust-egg/tests/runtime.rs`.
+Templates contain runtime code only. Runtime checks live in
+`labs/rust-egg/tests/runtime/` and run through `labs/rust-egg/tests/runtime.rs`.
+The integration script runs the handwritten lab suite and reuses it against
+freshly generated IR in a temporary crate. Separate fixtures under `tests/codegen/` cover
+definitions absent from the examples, including custom hosts and Rust keywords.
 
 Runtime input leaves use `OpNode::input(name)` and `Op::Input`, independently of
 any dialect. `types.rs` also defines `Precision`, `DotAlgorithm`, `ReplicaGroups`,

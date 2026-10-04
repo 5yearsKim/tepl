@@ -1,17 +1,15 @@
 #include "src/codegen/write.h"
 
-#include <sys/wait.h>
-#include <unistd.h>
-
-#include <cerrno>
-#include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <map>
 #include <set>
 #include <stdexcept>
-#include <system_error>
 #include <utility>
+
+#include "src/support/process.h"
+#include "src/support/temporary_directory.h"
 
 namespace tepl::codegen {
 namespace {
@@ -48,52 +46,34 @@ void validate(const std::string& name, const fs::path& root) {
       throw std::runtime_error("generated path crosses a symlink: " + name);
   }
 }
-struct TemporaryDirectory {
-  fs::path path;
-  TemporaryDirectory() {
-    std::string name =
-        (fs::temp_directory_path() / "tepl-format-XXXXXX").string();
-    if (!mkdtemp(name.data()))
-      throw std::system_error(errno, std::generic_category(), "mkdtemp");
-    path = name;
-  }
-  ~TemporaryDirectory() {
-    std::error_code error;
-    fs::remove_all(path, error);
-  }
-};
 void format(std::map<std::string, std::string>& files, Target target) {
   if (target != Target::kRust)
     throw std::runtime_error("formatting is only implemented for Rust");
-  TemporaryDirectory stage;
+  support::TemporaryDirectory stage("tepl-format-");
   std::vector<std::string> arguments{"rustfmt", "--edition", "2024", "--config",
                                      "skip_children=true"};
   for (const auto& [name, contents] : files) {
     if (fs::path(name).extension() != ".rs") continue;
-    auto path = stage.path / name;
+    auto path = stage.path() / name;
     write(path, contents);
-    arguments.push_back(path.string());
+    const auto utf8 = path.u8string();
+    arguments.emplace_back(utf8.begin(), utf8.end());
   }
   if (arguments.size() == 5) return;
-  std::vector<char*> argv;
-  for (auto& argument : arguments) argv.push_back(argument.data());
-  argv.push_back(nullptr);
-  const auto child = fork();
-  if (child < 0)
-    throw std::system_error(errno, std::generic_category(), "fork");
-  if (child == 0) {
-    execvp(argv.front(), argv.data());
-    _exit(127);
-  }
-  int status;
-  while (waitpid(child, &status, 0) < 0)
-    if (errno != EINTR)
-      throw std::system_error(errno, std::generic_category(), "waitpid");
-  if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+  try {
+    const auto result = support::runProcess(arguments);
+    std::cerr << result.output;
+    if (result.exit_code != 0)
+      throw std::runtime_error("formatter exited with code " +
+                               std::to_string(result.exit_code));
+  } catch (const std::exception& error) {
     throw std::runtime_error(
-        "rustfmt failed; install rustfmt or use --no-format");
+        "rustfmt failed; install rustfmt or use --no-format: " +
+        std::string(error.what()));
+  }
   for (auto& [name, contents] : files)
-    if (fs::path(name).extension() == ".rs") contents = read(stage.path / name);
+    if (fs::path(name).extension() == ".rs")
+      contents = read(stage.path() / name);
 }
 }  // namespace
 

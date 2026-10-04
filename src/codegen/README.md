@@ -204,7 +204,11 @@ An omitted dtype remains unconstrained during matching and generation. See
 
 The generated module requires Rust edition 2024 and egg 0.11. Generation runs
 `rustfmt` on staged output by default, before writing or comparing it. This
-requires `rustfmt` on `PATH`; `--no-format` disables formatting. API callers can
+requires `rustfmt` on `PATH`; `--no-format` disables formatting. The formatter
+uses `src/support/process.*` with the pinned Bazel-managed `subprocess.h` library
+to launch an argument vector directly on Windows, Linux, and macOS. Combined
+diagnostics are drained while waiting, and staging directories use the standard
+C++ filesystem API with automatic cleanup. API callers can
 set `WriteOptions::format = false` to opt out. `--format` explicitly enables it.
 Rustfmt formats layout but does not eliminate redundant expression parentheses;
 generated rule modules still allow `unused_parens`.
@@ -243,7 +247,7 @@ external crate imports use absolute paths such as `::egg::` and `::std::`.
 
 ```sh
 bazel-bin/tepl generate examples --out my_app/src/generated
-./tools/regenerate_lab.sh --check
+bazel-bin/tepl generate examples --out my_app/src/generated --check
 ```
 
 `.tepl-generated-files` records the relative paths owned by generation. A later
@@ -254,5 +258,6 @@ manifest paths and symlinked generated paths are rejected before writing.
 `--check` compares file contents and the manifest, reporting missing, changed,
 or obsolete output without modifying it. It returns 0 when current and 1 on
 drift; usage, formatting, and output errors return 2. Use the same
-formatting options for generation and checking. The lab checks in its generated
-IR and manifest; `tools/regenerate_lab.sh` supplies those options consistently.
+formatting options for generation and checking. The handwritten lab is developed
+independently; `tools/test_codegen.sh` validates compiler output in temporary
+crates without regenerating the lab.

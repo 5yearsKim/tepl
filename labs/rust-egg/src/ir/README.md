@@ -1,11 +1,14 @@
-# Rust output reference
+# Rust runtime development reference
 
-This directory is executable compiler output generated from `examples/`.
-`tools/regenerate_lab.sh --check` verifies that it matches the compiler. The
-layout groups code by responsibility; the generator's producer determines
-whether a file is copied or emitted.
+This directory is the lab's editable Rust runtime implementation. It started
+from compiler output for `examples/` and can evolve independently. Develop and
+test changes here, then migrate reusable code into `templates/rust/src/` or
+declaration-dependent logic into `src/codegen/rust/`.
 
-## File ownership
+## Corresponding compiler output
+
+When generating a Rust module, the compiler copies shared runtime templates
+and emits code that depends on TEPL declarations:
 
 | Files | Producer |
 | --- | --- |
@@ -24,8 +27,9 @@ whether a file is copied or emitted.
 
 The compiler uses `templates/rust/src/` as its template input. Project-specific
 code is emitted by `src/codegen/rust/`. Each output path has one producer and
-is recorded in `.tepl-generated-files`. Application-specific policies live
-outside this directory, under `src/host/`.
+is recorded in `.tepl-generated-files` in the generated directory. The lab has
+no generation manifest. Application-specific policies live outside this
+directory, under `src/host/`.
 
 ## Shape execution contract
 
@@ -91,12 +95,13 @@ derivations, or insertion. See the [runtime description](../../../../templates/r
 From the repository root:
 
 ```sh
-./tools/regenerate_lab.sh --check
 cargo test --manifest-path labs/rust-egg/Cargo.toml --all-targets
 ./tools/test_codegen.sh
 ```
 
-Tests cover every example shape block, all language builtins on freshly generated
-custom dialects, nested metadata, variadics, checked boundaries, default rewrites,
-and metadata merge behavior. The integration suite also checks empty projects,
-renamed/nested modules, deterministic regeneration, and custom callback builders.
+The integration script tests the handwritten lab and reuses its tests against
+freshly generated IR in a temporary crate. Tests cover every example shape
+block, all language builtins on freshly generated custom dialects, nested
+metadata, variadics, checked boundaries, default rewrites, and metadata merge
+behavior. Focused fixtures also check empty projects, renamed/nested modules,
+and custom callback builders.

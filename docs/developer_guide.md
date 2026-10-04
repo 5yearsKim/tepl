@@ -434,17 +434,6 @@ filenames keep their ordinary spelling (`type.rs`). Qualified dialect paths and
 absolute external crate paths prevent names such as `Std` and `Egg` from
 shadowing dependencies. See [Rust naming rules](src/codegen/README.md).
 
-The lab chooses `ir` as its module name and checks in the generated output:
-
-```sh
-./tools/regenerate_lab.sh
-./tools/regenerate_lab.sh --check
-cargo test --manifest-path labs/rust-egg/Cargo.toml
-```
-
-The script generates `labs/rust-egg/src/ir` from `examples/` and formats it with
-`rustfmt`. Handwritten host semantics live in `labs/rust-egg/src/host`.
-
 The compiler scans `dialects/**/*.tepl` and `rules/**/*.tepl`, preserves each
 file's import scope, and deduplicates shared dialect imports. Output is:
 
@@ -529,14 +518,36 @@ Run the API/CLI tests and compile and execute generated Rust fixtures with:
 ```sh
 bazel test //...
 ./tools/test_codegen.sh
-# Or explicitly run the Cargo integration target:
-bazel test //tests:rust_codegen_test --test_output=errors
 ```
 
 The integration script requires Cargo and Rust with edition 2024 support. It
-compiles all supported examples, runs custom-dialect and LoRA behavior tests,
-verifies custom rules in both debug and release builds, and executes deeply
-nested rules after renaming and relocating their enclosing module.
+runs the handwritten lab tests, generates the example project's Rust IR in a
+temporary crate, and runs the same tests against that output. It also compiles
+focused fixtures under `tests/codegen/`. Release checks cover arithmetic and
+failure behavior; a nested-module fixture checks Rust keyword names and module
+relocation. Temporary crates are removed when the script exits.
+
+## Develop Rust runtime logic
+
+`labs/rust-egg/` is the development sandbox for handwritten Rust implementations.
+Its `src/ir/` can evolve independently of compiler output; `src/host/` holds
+application-specific helpers and policies. Develop and test runtime behavior in
+the lab before moving reusable code into `templates/rust/`.
+
+1. Implement or refine the Rust logic in `labs/rust-egg/` and add behavior tests
+   under `labs/rust-egg/tests/`.
+2. Run `cargo test --manifest-path labs/rust-egg/Cargo.toml --all-targets` to
+   validate the handwritten implementation.
+3. Migrate reusable runtime code into `templates/rust/src/`. Code that depends
+   on TEPL declarations belongs in the emitters under `src/codegen/rust/`;
+   application-specific behavior stays in the lab's `src/host/`.
+4. Run `./tools/test_codegen.sh` to validate both the lab and freshly generated
+   Rust. The compiler embeds the templates when Bazel builds TEPL.
+
+The lab is not regenerated or required to match compiler output. Integration
+checks generate into temporary directories and reuse the lab's tests and host
+helpers without copying its `src/ir/`. Update shared tests and compiler output
+together when promoting an API change from the lab to the templates.
 
 ## Scope and next steps
 
