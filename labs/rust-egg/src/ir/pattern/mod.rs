@@ -16,4 +16,4 @@ pub use rewrite::{
     DerivedAttrs, tensor_rewrite_checked, tensor_rewrite_checked_with_checks,
     tensor_rewrite_checked_with_constraints,
 };
-pub use shape::{ShapeBindings, ShapePart, finite};
+pub use shape::{ShapeBindings, ShapePart};

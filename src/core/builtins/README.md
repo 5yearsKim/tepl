@@ -3,7 +3,6 @@
 `catalog.*` owns builtin IDs, names, signatures, semantic domains, variadic
 arity, and expression-section availability. Shape and rule checkers use this
 catalog; successful IR stores a resolved builtin ID, never an unresolved name.
-`shape/builtins.h` preserves compatibility names without another catalog.
 
 An unprefixed call resolves to an explicitly bound template `fn` parameter
 first, then a builtin. `$name(...)` always selects a host function, including

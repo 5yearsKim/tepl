@@ -428,6 +428,76 @@ fn incompatible_output_metadata_rejects_without_partial_rhs() {
     assert_eq!(graph.total_size(), before);
 }
 
+#[test]
+fn rhs_validation_finishes_before_host_inference() {
+    use tepl_generated::ir::pattern::{
+        AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, tensor_rewrite_checked,
+    };
+
+    for valid_attrs in [false, true] {
+        let mut graph = EGraph::default();
+        let x = input(&mut graph, "x");
+        let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
+        let var = "?x".parse().unwrap();
+        let out = AttrVar::from("out");
+        let lhs = TensorPattern::op(
+            custom::Op::Negate,
+            AttrPattern::Exact(OpAttrs::None),
+            vec![TensorPattern::Var(var)],
+        );
+        let rhs = TensorExpr::op(
+            custom::Op::Add,
+            AttrExpr::Exact(OpAttrs::None),
+            vec![
+                TensorExpr::op(
+                    custom::Op::Add,
+                    AttrExpr::Exact(OpAttrs::None),
+                    vec![TensorExpr::Var(var), TensorExpr::Var(var)],
+                ),
+                TensorExpr::op(
+                    custom::Op::Transform,
+                    AttrExpr::Derived(out),
+                    vec![TensorExpr::Var(var)],
+                ),
+            ],
+        );
+        let attrs = if valid_attrs {
+            OpAttrs::Custom(custom::OpAttrs::Axes {
+                axis: 0,
+                tags: vec![],
+            })
+        } else {
+            OpAttrs::Custom(custom::OpAttrs::AnotherAttrs { size: 1 })
+        };
+        let calls = Arc::new(AtomicUsize::new(0));
+        let inference_calls = calls.clone();
+        let rule = tensor_rewrite_checked(
+            "preflight",
+            lhs,
+            rhs,
+            metadata(vec![
+                (x, info(&[3], DType::F32)),
+                (root, info(&[3], DType::F32)),
+            ]),
+            move |_: Op, _: &[TensorInfo], _: &OpAttrs| {
+                inference_calls.fetch_add(1, Ordering::SeqCst);
+                Some(info(&[3], DType::F32))
+            },
+            move |_, _| Some(HashMap::from([(out, attrs.clone())])),
+        )
+        .unwrap();
+        let before = graph.total_size();
+        assert_eq!(!apply(&mut graph, rule).is_empty(), valid_attrs);
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            if valid_attrs { 3 } else { 0 }
+        );
+        if !valid_attrs {
+            assert_eq!(graph.total_size(), before);
+        }
+    }
+}
+
 struct TypedHost;
 impl rule_typed_pipeline::Functions for TypedHost {
     fn host_tensor(&self, tensor: &TensorInfo) -> Option<TensorInfo> {

@@ -143,7 +143,6 @@ std::string type(const core::Type& value, bool argument) {
   }
   return "()";
 }
-std::string capture(std::size_t id) { return "capture_" + std::to_string(id); }
 std::string descriptor(std::size_t id) {
   return "descriptor_" + std::to_string(id);
 }
@@ -211,9 +210,8 @@ Names::Names(const core::Program& program, const ProjectPlan& project) {
         Identifier::make(declaration.name, NameKind::kVariant, origin);
     module_scope.insert(module, declaration.name, origin, "dialect module");
     variant_scope.insert(variant, declaration.name, origin, "dialect variant");
-    DialectNames dialect{
-        declaration.name,   module.token, module.key, variant.token,
-        declaration.source, {},           {}};
+    DialectNames dialect{declaration.name, module.token, module.key,
+                         variant.token,    {},           {}};
     Scope ops, schemas;
     schemas.reserve("None");
     for (auto id : declaration.operations) {
@@ -256,7 +254,7 @@ Names::Names(const core::Program& program, const ProjectPlan& project) {
   std::map<std::string, std::set<std::string>> index_children;
   for (const auto& source : project.modules) {
     const auto& origin = program.rules.at(source.rules.front().value).origin;
-    RuleModuleNames module{{}, {}, source.source, "super::super", source.rules};
+    RuleModuleNames module{{}, {}, "super::super", source.rules};
     std::string raw_parent;
     for (std::size_t i = 0; i < source.path.size(); ++i) {
       const auto& part = source.path[i];

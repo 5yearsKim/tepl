@@ -55,16 +55,7 @@ pub mod rule_commute_f32 {
     pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
         metadata: Arc<M>,
     ) -> MatchChecks<N> {
-        MatchChecks::new(
-            constraints(),
-            vec![],
-            move |index, graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, metadata.as_ref());
-                match index {
-                    _ => None,
-                }
-            },
-        )
+        MatchChecks::tensors(constraints())
     }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
@@ -158,16 +149,7 @@ pub mod rule_commute_same_dtype {
     pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
         metadata: Arc<M>,
     ) -> MatchChecks<N> {
-        MatchChecks::new(
-            constraints(),
-            vec![],
-            move |index, graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, metadata.as_ref());
-                match index {
-                    _ => None,
-                }
-            },
-        )
+        MatchChecks::tensors(constraints())
     }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
@@ -265,16 +247,7 @@ pub mod rule_commute_scalar {
     pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
         metadata: Arc<M>,
     ) -> MatchChecks<N> {
-        MatchChecks::new(
-            constraints(),
-            vec![],
-            move |index, graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, metadata.as_ref());
-                match index {
-                    _ => None,
-                }
-            },
-        )
+        MatchChecks::tensors(constraints())
     }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
@@ -357,16 +330,7 @@ pub mod rule_commute_integer_literal {
     pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
         metadata: Arc<M>,
     ) -> MatchChecks<N> {
-        MatchChecks::new(
-            constraints(),
-            vec![],
-            move |index, graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, metadata.as_ref());
-                match index {
-                    _ => None,
-                }
-            },
-        )
+        MatchChecks::tensors(constraints())
     }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
@@ -449,16 +413,7 @@ pub mod rule_commute_float_literal {
     pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
         metadata: Arc<M>,
     ) -> MatchChecks<N> {
-        MatchChecks::new(
-            constraints(),
-            vec![],
-            move |index, graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, metadata.as_ref());
-                match index {
-                    _ => None,
-                }
-            },
-        )
+        MatchChecks::tensors(constraints())
     }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(

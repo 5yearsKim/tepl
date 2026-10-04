@@ -74,8 +74,3 @@ impl ShapeBindings {
         self.sequences.get(&id).map(Vec::as_slice)
     }
 }
-
-/// Host arithmetic rejects nonfinite results independently of build mode.
-pub fn finite(value: f64) -> Option<f64> {
-    super::super::builtins::common::finite(value)
-}

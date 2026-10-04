@@ -49,9 +49,6 @@ int main() {
   const auto program = checkedProgram();  // The source AST has been destroyed.
   const auto plan = tepl::codegen::planRule(program.rules.front());
   assert(plan.host_functions.size() == 2);  // Includes the nested call.
-  assert(plan.metadata_captures.size() == 1);
-  assert(plan.metadata_captures.front() ==
-         program.rules.front().captures.front().id);
   const auto generated = tepl::codegen::generate(program);
   assert(generated.ok() && !generated.files.empty());
   bool found_host_methods = false;

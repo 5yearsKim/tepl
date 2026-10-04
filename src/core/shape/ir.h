@@ -5,8 +5,8 @@
 #include <variant>
 #include <vector>
 
+#include "src/core/builtins/catalog.h"
 #include "src/core/ids.h"
-#include "src/core/shape/builtins.h"
 #include "src/core/shape/types.h"
 #include "src/operators.h"
 #include "src/source.h"
@@ -29,7 +29,7 @@ struct AttributeRef {
   std::size_t field;
 };
 struct Call {
-  Builtin builtin;
+  builtins::Builtin builtin;
   std::vector<ExprPtr> arguments;
 };
 struct Unary {

@@ -176,6 +176,9 @@ Handwritten callers can use `matches_at_with_checks` or
 `tensor_rewrite_checked_with_checks`; custom early evaluators must be pure and
 stable during traversal. The tensor-only APIs remain wrappers with an empty
 condition plan.
+Rules with no early conditions emit `MatchChecks::tensors(constraints())` instead
+of generating a condition-dispatch closure. Rule planning collects dependencies
+once per expression and retains only host functions and early-condition bindings.
 
 Host argument/result types are:
 

@@ -25,7 +25,7 @@ void expression(std::ostream& out, const Expr& expr, const Program& shape,
                      .name
               << ')';
         } else if constexpr (std::is_same_v<T, Call>) {
-          out << "Builtin(" << builtinName(value.builtin);
+          out << "Builtin(" << builtins::builtinName(value.builtin);
           for (const auto& argument : value.arguments) {
             out << ", ";
             expression(out, *argument, shape, program);

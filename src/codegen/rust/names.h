@@ -30,17 +30,16 @@ class NameError : public std::invalid_argument {
 };
 std::string dtype(core::DType dtype);
 std::string type(const core::Type& type, bool argument = false);
-std::string capture(std::size_t id);
 std::string descriptor(std::size_t id);
 
 struct DialectNames {
-  std::string name, module, file_stem, variant, source;
+  std::string name, module, file_stem, variant;
   std::vector<core::OpId> operations;
   std::vector<core::AttributeSchemaId> schemas;
 };
 
 struct RuleModuleNames {
-  std::string path, qualified, source, root;
+  std::string path, qualified, root;
   std::vector<core::RuleId> rules;
 };
 

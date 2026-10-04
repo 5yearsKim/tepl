@@ -99,6 +99,15 @@ annotations cannot be overridden. Output inference must accept the resulting
 literal as rank zero with that dtype. All RHS validation and output inference
 finish before any node is inserted.
 
+RHS preparation resolves captured/derived attributes and binds tensor references
+once, producing a private `PreparedRhs` tree of validated nodes. The entire tree
+is prepared before host inference runs, so a malformed later child cannot cause
+inference calls for earlier children. Inference resolves literal dtypes and
+checks the final output against the matched root. Insertion consumes the prepared
+tree and fills child IDs without resolving attributes or validating nodes again.
+Candidates in each application batch finish preparation and inference before
+graph mutation.
+
 Host functions are fallible: `None` rejects a match. Generated integer
 arithmetic uses checked operations; overflow and division/remainder by zero
 reject matches in debug and release. Nonfinite host floating values/results
@@ -112,6 +121,8 @@ rewrite equivalence is established by the host's legality functions.
 
 Generated rules expose `constraints()` and `match_checks(metadata)` alongside
 `pattern()` and `expression()`.
+Rules without an early condition prefix use `MatchChecks::tensors` directly;
+their matching plan has no generated evaluator or metadata capture.
 The immutable `TensorConstraints` plan retains every shape/dtype declaration,
 including inherited restrictions. The matcher checks a constrained tensor when
 it is first bound and stops that search branch immediately on a mismatch or

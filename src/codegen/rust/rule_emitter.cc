@@ -171,30 +171,34 @@ void emitRule(CodeWriter& out, const core::Program& program,
   out.open(
       "pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + "
       "'static>(metadata: Arc<M>) -> MatchChecks<N>");
-  out.line("MatchChecks::new(constraints(), vec![");
-  for (const auto& condition : plan.early_conditions) {
-    std::string deps = "vec![";
-    for (auto id : condition.captures)
-      deps += "MatchBinding::Tensor(" + var(id.value) + "), ";
-    for (auto id : condition.dimensions) {
-      deps += std::string(rule.dimensions.at(id.value).sequence
-                              ? "MatchBinding::Sequence("
-                              : "MatchBinding::Dimension(") +
-              std::to_string(id.value) + "), ";
+  if (plan.early_conditions.empty()) {
+    out.line("MatchChecks::tensors(constraints())");
+  } else {
+    out.line("MatchChecks::new(constraints(), vec![");
+    for (const auto& condition : plan.early_conditions) {
+      std::string deps = "vec![";
+      for (auto id : condition.captures)
+        deps += "MatchBinding::Tensor(" + var(id.value) + "), ";
+      for (auto id : condition.dimensions) {
+        deps += std::string(rule.dimensions.at(id.value).sequence
+                                ? "MatchBinding::Sequence("
+                                : "MatchBinding::Dimension(") +
+                std::to_string(id.value) + "), ";
+      }
+      for (auto id : condition.descriptors)
+        deps += "MatchBinding::Attribute(" + attrVar(id.value) + "), ";
+      out.line(deps + "],");
     }
-    for (auto id : condition.descriptors)
-      deps += "MatchBinding::Attribute(" + attrVar(id.value) + "), ";
-    out.line(deps + "],");
+    out.line("], move |index, graph, matched, dimensions| {");
+    out.line("let ctx = MatchContext::new(graph, matched, metadata.as_ref());");
+    out.open("match index");
+    for (std::size_t i = 0; i < plan.early_conditions.size(); ++i)
+      out.line(std::to_string(i) + " => condition_" + std::to_string(i) +
+               "(&ctx, dimensions),");
+    out.line("_ => None,");
+    out.close();
+    out.line("})");
   }
-  out.line("], move |index, graph, matched, dimensions| {");
-  out.line("let ctx = MatchContext::new(graph, matched, metadata.as_ref());");
-  out.open("match index");
-  for (std::size_t i = 0; i < plan.early_conditions.size(); ++i)
-    out.line(std::to_string(i) + " => condition_" + std::to_string(i) +
-             "(&ctx, dimensions),");
-  out.line("_ => None,");
-  out.close();
-  out.line("})");
   out.close();
   out.line("/// Uses the same metadata and inference as TensorAnalysis.");
   out.open(

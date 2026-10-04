@@ -84,7 +84,7 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeField& field,
 
 ExprPtr ExpressionChecker::lower(const ast::ShapeCall& call,
                                  const SourceOrigin& origin) {
-  const auto* signature = resolveBuiltin(call.callee);
+  const auto* signature = builtins::resolveBuiltin(call.callee);
   if (!signature) {
     context_.report(origin, "unknown shape builtin '" + call.callee + "'");
     return nullptr;
@@ -106,20 +106,20 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeCall& call,
   // Instantiate the single generic element type only for signatures using T.
   std::optional<TypeId> element;
   std::optional<TypeId> list;
-  const auto type = [&](SignatureType pattern) -> TypeId {
+  const auto type = [&](builtins::SignatureType pattern) -> TypeId {
     switch (pattern) {
-      case SignatureType::kInteger:
+      case builtins::SignatureType::kInteger:
         return concrete(Type::Kind::kInteger, origin);
-      case SignatureType::kBoolean:
+      case builtins::SignatureType::kBoolean:
         return concrete(Type::Kind::kBoolean, origin);
-      case SignatureType::kIntegerList:
+      case builtins::SignatureType::kIntegerList:
         return concrete(Type::Kind::kInteger, origin, 1);
-      case SignatureType::kBooleanList:
+      case builtins::SignatureType::kBooleanList:
         return concrete(Type::Kind::kBoolean, origin, 1);
-      case SignatureType::kT:
-      case SignatureType::kListT:
+      case builtins::SignatureType::kT:
+      case builtins::SignatureType::kListT:
         if (!element) element = context_.types.variable(origin);
-        if (pattern == SignatureType::kT) return *element;
+        if (pattern == builtins::SignatureType::kT) return *element;
         if (!list) list = context_.types.list(*element, origin);
         return *list;
     }

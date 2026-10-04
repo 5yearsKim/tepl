@@ -42,12 +42,7 @@ std::vector<Id> ids(const std::set<std::size_t>& values) {
 
 RulePlan planRule(const core::Rule& rule) {
   RulePlan plan;
-  Dependencies all;
-  std::set<std::size_t> constrained;
-  for (const auto& constraint : rule.constraints) {
-    all.captures.insert(constraint.capture.value);
-    constrained.insert(constraint.capture.value);
-  }
+  std::set<std::size_t> hosts;
   bool early = true;
   for (const auto& condition : rule.conditions) {
     Dependencies deps;
@@ -58,13 +53,14 @@ RulePlan planRule(const core::Rule& rule) {
           {ids<core::CaptureId>(deps.captures),
            ids<core::DimensionId>(deps.dimensions),
            ids<core::DescriptorId>(deps.descriptors)});
-    collect(*condition, all);
+    hosts.insert(deps.hosts.begin(), deps.hosts.end());
   }
-  for (const auto& derivation : rule.derivations)
-    collect(*derivation.value, all);
-  plan.host_functions = ids<core::HostFunctionId>(all.hosts);
-  plan.constraint_captures = ids<core::CaptureId>(constrained);
-  plan.metadata_captures = ids<core::CaptureId>(all.captures);
+  for (const auto& derivation : rule.derivations) {
+    Dependencies deps;
+    collect(*derivation.value, deps);
+    hosts.insert(deps.hosts.begin(), deps.hosts.end());
+  }
+  plan.host_functions = ids<core::HostFunctionId>(hosts);
   return plan;
 }
 }  // namespace tepl::codegen

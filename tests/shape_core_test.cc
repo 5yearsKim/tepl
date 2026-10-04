@@ -15,6 +15,7 @@
 
 namespace {
 namespace shape = tepl::core::shape;
+namespace builtins = tepl::core::builtins;
 
 void check(bool condition, std::string_view message) {
   if (!condition) throw std::runtime_error(std::string(message));
@@ -103,7 +104,7 @@ void builtinSignatures() {
         test.boolean
             ? std::get<shape::Assert>(program.statements[0].value).condition
             : std::get<shape::Let>(program.statements[0].value).value;
-    check(shape::builtinName(
+    check(builtins::builtinName(
               std::get<shape::Call>(expression->value).builtin) == test.name,
           "Calls must resolve to builtin IDs");
     expectError(
@@ -313,8 +314,8 @@ void checkExpression(const shape::ExprPtr& expression,
                                       .fields.size(),
                 "Attributes must resolve");
         } else if constexpr (std::is_same_v<T, shape::Call>) {
-          check(shape::resolveBuiltin(shape::builtinName(value.builtin)) !=
-                    nullptr,
+          check(builtins::resolveBuiltin(
+                    builtins::builtinName(value.builtin)) != nullptr,
                 "Builtins must resolve");
           for (const auto& argument : value.arguments)
             checkExpression(argument, shape, program);
