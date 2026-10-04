@@ -1,15 +1,19 @@
 <h1><img src="misc/images/logo/tepl_192.png" alt="tepl logo" width="48" height="48" align="absmiddle"> TEPL - Tensor Equality Pattern Language</h1>
 
-<p align="right">
+<p align="center">
+  <img src="misc/images/tepl_thumb.png" alt="TEPL tensor rewrite illustration">
+</p>
+
+<p align="center">
   <a href="labs/rust-egg/README.md"><img src="https://img.shields.io/badge/target-Rust-CE422B?style=flat&amp;logo=rust" alt="Target: Rust"></a>
   <a href="https://egraphs-good.github.io/"><img src="https://img.shields.io/badge/runtime-egg-F2C94C?style=flat" alt="Runtime: egg"></a>
   <a href="#-quick-start"><img src="https://img.shields.io/badge/build-Bazel-43A047?style=flat&amp;logo=bazel" alt="Build: Bazel"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
 </p>
 
-**TEPL: *Write tensor rewrites that read like math.***
+<p align="center"><strong>TEPL: <em>Write tensor rewrites that read like math.</em></strong></p>
 
-[Quick start](#-quick-start) · [Example rules](examples/rules)
+<p align="center"><a href="#-quick-start">Quick start</a> · <a href="examples/rules">Example rules</a></p>
 
 The same tensor computation can be expressed in different ways—with very different costs. In machine learning, choosing the right form can make a big difference: depending on tensor dimensions, `(XA)B` can require far less computation than `X(AB)`.
 
