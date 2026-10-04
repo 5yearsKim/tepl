@@ -1,0 +1,4 @@
+dialect Only {
+    attrs Payload { axis: index; regions: region[]; groups: replica_groups; elements: elements?; }
+    op leaf() -> tensor { attrs: Payload; }
+}

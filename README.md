@@ -132,7 +132,7 @@ Even this simple rewrite needs separate nested trees for the pattern and replace
 
 ## ✨ Write a rule in TEPL, a language dedicated to tensor rewrites
 
-TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates the Rust code for egg. It supports attribute capture, shape/dtype analysis, and multiple dialects.
+TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates Rust code for egg or C++ code for [egg-c](https://github.com/5yearsKim/egg-c). Both backends support attribute capture, shape/dtype analysis, and multiple dialects.
 
 Here is the complete TEPL rule, using the example tensor dialect. Save it as `examples/rules/transpose_negate.tepl`:
 
@@ -155,8 +155,8 @@ TEPL keeps tensor rewrites concise while supporting the features needed for real
 - **Shape and dtype analysis:** `f32[Dims...]` matches an `f32` tensor of any rank; generated checks require the replacement to preserve the output shape and dtype.
 - **Custom rewrite conditions:** Use `where` to express legality checks and `derive` to compute new attributes.
 - **Multiple dialects:** Define and import your own operation dialects, and write rules that rewrite between them.
-- **Host function bindings:** Implement complex logic in Rust and call it from TEPL with `$function(...)` in `where` and `derive` blocks.
-- **egg integration:** Generate Rust rewrites that run directly in egg, with generated tensor analysis or hooks for your own analysis and inference.
+- **Host function bindings:** Implement complex logic in Rust or C++ and call it from TEPL with `$function(...)` in `where` and `derive` blocks.
+- **E-graph integration:** Generate rewrites for egg or egg-c, with generated tensor analysis or hooks for your own analysis and inference.
 
 ## 📉 A smaller computation with LoRA
 
@@ -183,7 +183,13 @@ Try it from the repository root:
 bazel build //:tepl
 bazel-bin/tepl check examples
 bazel-bin/tepl generate examples --out my_app/src/generated
+bazel-bin/tepl generate examples --target cpp --out my_cpp_app/generated
 ```
+
+C++ output is a library of headers mirroring the Rust module structure. Include
+`generated/generated.h` and supply egg-c's include directory to a C++20 GCC or
+Clang build. See the [C++ runtime guide](templates/cpp/README.md) and the
+[build example](docs/developer_guide.md#generate-c-dialects-and-rules).
 
 ## 📚 More on…
 

@@ -7,7 +7,7 @@ because its IDs refer to the program's operation, type, schema, and host tables.
 
 A `GenerationResult` contains relative output paths, file contents, and source
 aware diagnostics. Backends perform no filesystem writes. The CLI writes files
-only after successful generation. Rust is implemented; selecting C++ or Python
+only after successful generation. Rust uses egg and C++ uses egg-c; Python
 reports an explicit diagnostic and emits no files.
 
 The layout separates shared semantics from target syntax:
@@ -50,14 +50,19 @@ The layout separates shared semantics from target syntax:
 - `write.*` synchronizes generated files, maintains their ownership manifest,
   formats output by default, and checks for drift without changing output.
 
-To add another language, create `cpp/` or `python/` with the same backend/emitter
+The C++ backend in `cpp/` follows the same backend/emitter roles and uses
+`templates/cpp/` for its runtime. Both targets reuse the checked core and shared
+project and rule planners. Template embedding accepts a language, template root,
+and target namespace; generated executables contain both sets of templates.
+
+To add another language, create its directory with the same backend/emitter
 roles, inherit the public `Generator`, and register it in `createGenerator`.
 Reuse checked core and `common/` project and dependency planning. Target syntax, ownership,
 names, and runtime integration stay in that backend. `Options` and
 `GenerationResult` remain the shared entry and exit types. `tests/codegen_test.cc`
 contains an independent example backend using this interface.
 
-The first runtime target is Rust with egg. An additional Rust runtime adapter
+The runtime targets are Rust with egg and C++ with egg-c. An additional Rust runtime adapter
 can be introduced inside the Rust backend without changing core or the public
 language-backend interface.
 

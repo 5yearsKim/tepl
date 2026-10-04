@@ -501,8 +501,8 @@ invalid literals reject the match before insertion. Shape dimensions and index
 attributes use Rust `u64`; tensor shapes are `Vec<u64>`.
 
 Generation uses the public checked core IR through a shared `Generator`
-interface. Rust is implemented; C++ and Python targets use the same interface
-and currently report that generation is not implemented. See
+interface. Rust and C++ are implemented; Python currently reports that generation
+is not implemented. See
 [src/codegen/README.md](src/codegen/README.md) for the architecture, generated API,
 naming, and host type mapping, and [templates/rust/README.md](templates/rust/README.md)
 for the runtime contract. The CLI maintains `.tepl-generated-files` in the
@@ -526,6 +526,82 @@ temporary crate, and runs the same tests against that output. It also compiles
 focused fixtures under `tests/codegen/`. Release checks cover arithmetic and
 failure behavior; a nested-module fixture checks Rust keyword names and module
 relocation. Temporary crates are removed when the script exits.
+
+## Generate C++ dialects and rules
+
+Generate library headers into your application's chosen include directory:
+
+```sh
+bazel-bin/tepl generate examples --target cpp --out my_cpp_app/generated
+bazel-bin/tepl generate examples --target cpp --out my_cpp_app/generated --check
+```
+
+The layout follows Rust: `analysis/`, `builtins/`, `dialects/`, `pattern/`,
+`rules/`, `op_node.h`, and `types.h`, with `generated.h` as the umbrella header.
+The application owns its build configuration. Generated relative includes allow
+moving the output directory. Use `--cpp-namespace app::optimizer` to choose the
+namespace; the default is `tepl_generated`. C++ keywords, reserved identifiers,
+and normalized name collisions produce source diagnostics before emission.
+Host or field names such as `signed` must be renamed explicitly in TEPL.
+
+For example, save this in `my_cpp_app/main.cc`:
+
+```cpp
+#include <eggc/all.hpp>
+#include "generated/generated.h"
+
+int main() {
+  namespace ir = tepl_generated;
+  ir::analysis::TensorBindingTable inputs;
+  inputs.register_symbol("x", {{2, 3}, ir::DType::F32});
+  inputs.register_symbol("y", {{2, 3}, ir::DType::F32});
+  using Analysis = ir::analysis::TensorAnalysis;
+  eggc::EGraph<ir::OpNode, Analysis> graph{Analysis(inputs)};
+  auto x = graph.add(ir::OpNode::input("x"));
+  auto y = graph.add(ir::OpNode::input("y"));
+  auto root = graph.add(ir::OpNode::make(
+      ir::dialects::tensor_lang::Op::Add, {}, {x, y}));
+  auto rule = ir::rules::simple::rule_commute_add::build_rewrite();
+  auto report = eggc::run(graph, std::vector{rule});
+  auto [cost, expression] =
+      eggc::Extractor<ir::OpNode, Analysis>(graph).find_best(root);
+  return report.reason == eggc::StopReason::Saturated && cost == 3 ? 0 : 1;
+}
+```
+
+With egg-c checked out locally, compile and run:
+
+```sh
+c++ -std=c++20 -I/path/to/egg-c/include my_cpp_app/main.cc -o my_cpp_app/demo
+./my_cpp_app/demo
+```
+
+Alternatively, an application using CMake can call `find_package(eggc CONFIG
+REQUIRED)` for an installed egg-c and link its target against `eggc::eggc`, which
+supplies the headers and C++20 requirement. TEPL does not generate an application
+or fetch egg-c as part of export.
+
+Output is formatted by `clang-format --style=Google` by default, with the same
+`--no-format`, manifest ownership, and `--check` behavior as Rust. Shapes use
+checked signed 128-bit arithmetic; generated code currently requires GCC/Clang
+with `__int128` support. Windows/MSVC needs a compatible future integer adapter.
+
+Run the compiler-to-runtime integration suite with:
+
+```sh
+./tools/test_codegen_cpp.sh
+# Test an existing checkout with a particular compiler:
+EGGC_SOURCE_DIR=/path/to/egg-c CXX=clang++ ./tools/test_codegen_cpp.sh
+```
+
+The script otherwise fetches pinned revision
+`0c28bd5050b85ed10e915b5348c27f760ed31ae5`. It generates and executes temporary
+applications in debug and optimized builds and uses UBSan for arithmetic and
+runtime fixtures. Coverage includes multiple translation units, relocatable and
+independently namespaced output, custom analyses, host calls, and LoRA saturation
+with extraction and numerical equivalence checks. See
+[the C++ runtime contracts](../templates/cpp/README.md) for details of egg-c's
+application batching, metadata joins, and checked replacement preparation.
 
 ## Develop Rust runtime logic
 
@@ -568,7 +644,7 @@ visitor with separate rule and dialect source files. Parsing lives in
 `src/core/`. Bazel exposes parsing through `//:frontend` and import loading
 through `//:imports`.
 
-Rust code generation from checked `core::Program` is implemented in
+Rust and C++ code generation from checked `core::Program` are implemented in
 `src/codegen/`; additional language backends are future work.
 See [the egg lab](labs/rust-egg/README.md) for the runtime, reference Rust output,
 and integration tests.

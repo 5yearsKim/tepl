@@ -52,8 +52,11 @@ int main(int argc, char** argv) {
       ->required();
   generate->add_flag("--check", write_options.check,
                      "Check generated output without changing files");
-  generate->add_flag("--format,!--no-format", write_options.format,
-                     "Format Rust output with rustfmt (default: on)");
+  generate->add_flag(
+      "--format,!--no-format", write_options.format,
+      "Format output with rustfmt or clang-format (default: on)");
+  generate->add_option("--cpp-namespace", generation_options.cpp_namespace,
+                       "Namespace for generated C++ (default: tepl_generated)");
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& error) {

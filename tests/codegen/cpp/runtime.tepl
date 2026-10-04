@@ -1,0 +1,29 @@
+dialect RuntimeTest {
+    attrs Params { axis: index; }
+    op tag(x: tensor) -> tensor { attrs: Params; dtype: same; shape(s) { yield s; } }
+    op copy(x: tensor) -> tensor { dtype: same; shape(s) { yield s; } }
+    op pair(x: tensor, y: tensor) -> tensor { dtype: same; shape(x,y) { assert x == y; yield x; } }
+}
+rule witnesses {
+    (tag[@a] X) => (tag[@out] X)
+    where { $allow(@a); }
+    derive { @out = $update(@a); }
+}
+rule branch {
+    X: [N]
+    Y: [N]
+    (pair (copy X) (copy Y)) => X
+    where { N <= 4; }
+}
+abstract rule ordered_template(
+    combine: fn<(index, index) -> bool>,
+    left: fn<(tensor) -> index>,
+    right: fn<(tensor) -> index>
+) {
+    (copy X) => X
+    where { combine(left(X), right(X)); }
+}
+rule ordered extends ordered_template(combine = $combine, left = $left, right = $right);
+rule scalar { (copy X) => 1 }
+rule eliminate { X: [N] (copy X) => X }
+rule float_literals { (copy X) => X where { $floating(X) + 0008 > 0.0; } }

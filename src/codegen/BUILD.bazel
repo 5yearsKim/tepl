@@ -1,5 +1,5 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("//:tools/embed_templates.bzl", "embed_rust_templates")
+load("//:tools/embed_templates.bzl", "embed_rust_templates", "embed_templates")
 
 embed_rust_templates(
     name = "embed_rust_templates",
@@ -7,10 +7,17 @@ embed_rust_templates(
     out = "rust/template_files.h",
 )
 
+embed_templates(
+    name = "embed_cpp_templates",
+    language = "cpp",
+    srcs = ["//templates/cpp:templates"],
+    out = "cpp/template_files.h",
+)
+
 cc_library(
     name = "codegen",
-    srcs = glob(["*.cc", "common/*.cc", "rust/*.cc"]),
-    hdrs = glob(["*.h", "common/*.h", "rust/*.h"]) + [":embed_rust_templates"],
+    srcs = glob(["*.cc", "common/*.cc", "rust/*.cc", "cpp/*.cc"]),
+    hdrs = glob(["*.h", "common/*.h", "rust/*.h", "cpp/*.h"]) + [":embed_rust_templates", ":embed_cpp_templates"],
     visibility = ["//visibility:public"],
     deps = [
         "//src/core:ir",

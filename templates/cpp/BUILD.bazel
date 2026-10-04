@@ -1,0 +1,5 @@
+filegroup(
+    name = "templates",
+    srcs = glob(["src/**/*.h"]),
+    visibility = ["//visibility:public"],
+)

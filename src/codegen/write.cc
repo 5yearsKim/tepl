@@ -47,19 +47,25 @@ void validate(const std::string& name, const fs::path& root) {
   }
 }
 void format(std::map<std::string, std::string>& files, Target target) {
-  if (target != Target::kRust)
-    throw std::runtime_error("formatting is only implemented for Rust");
+  if (target != Target::kRust && target != Target::kCpp)
+    throw std::runtime_error("formatting is not implemented for this target");
   support::TemporaryDirectory stage("tepl-format-");
-  std::vector<std::string> arguments{"rustfmt", "--edition", "2024", "--config",
+  const bool cpp = target == Target::kCpp;
+  const std::string formatter = cpp ? "clang-format" : "rustfmt";
+  std::vector<std::string> arguments =
+      cpp ? std::vector<std::string>{formatter, "--style=Google", "-i"}
+          : std::vector<std::string>{formatter, "--edition", "2024", "--config",
                                      "skip_children=true"};
+  const auto argument_count = arguments.size();
+  const auto extension = cpp ? ".h" : ".rs";
   for (const auto& [name, contents] : files) {
-    if (fs::path(name).extension() != ".rs") continue;
+    if (fs::path(name).extension() != extension) continue;
     auto path = stage.path() / name;
     write(path, contents);
     const auto utf8 = path.u8string();
     arguments.emplace_back(utf8.begin(), utf8.end());
   }
-  if (arguments.size() == 5) return;
+  if (arguments.size() == argument_count) return;
   try {
     const auto result = support::runProcess(arguments);
     std::cerr << result.output;
@@ -68,11 +74,11 @@ void format(std::map<std::string, std::string>& files, Target target) {
                                std::to_string(result.exit_code));
   } catch (const std::exception& error) {
     throw std::runtime_error(
-        "rustfmt failed; install rustfmt or use --no-format: " +
-        std::string(error.what()));
+        formatter + " failed; install " + formatter +
+        " or use --no-format: " + std::string(error.what()));
   }
   for (auto& [name, contents] : files)
-    if (fs::path(name).extension() == ".rs")
+    if (fs::path(name).extension() == extension)
       contents = read(stage.path() / name);
 }
 }  // namespace

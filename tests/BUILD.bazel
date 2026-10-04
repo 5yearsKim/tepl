@@ -153,6 +153,13 @@ cc_test(
 )
 
 cc_test(
+    name = "codegen_cpp_test",
+    size = "small",
+    srcs = ["codegen_cpp_test.cc"],
+    deps = ["//:frontend", "//src/codegen:codegen", "//src/core:analysis"],
+)
+
+cc_test(
     name = "support_test",
     size = "small",
     srcs = ["support_test.cc"],

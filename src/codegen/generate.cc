@@ -1,5 +1,6 @@
 #include "src/codegen/generate.h"
 
+#include "src/codegen/cpp/backend.h"
 #include "src/codegen/rust/backend.h"
 
 namespace tepl::codegen {
@@ -21,6 +22,7 @@ std::unique_ptr<Generator> createGenerator(Target target) {
     case Target::kRust:
       return std::make_unique<rust::Backend>();
     case Target::kCpp:
+      return std::make_unique<cpp::Backend>();
     case Target::kPython:
       return nullptr;
   }

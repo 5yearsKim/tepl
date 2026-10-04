@@ -52,17 +52,19 @@ std::string delimiter(const std::string& contents) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc < 2 || (argc - 2) % 2 != 0) {
-    std::cerr
-        << "Usage: embed_templates OUTPUT [RELATIVE_PATH INPUT_FILE]...\n";
+  if (argc < 3 || (argc - 3) % 2 != 0) {
+    std::cerr << "Usage: embed_templates OUTPUT NAMESPACE [RELATIVE_PATH "
+                 "INPUT_FILE]...\n";
     return 2;
   }
   try {
     std::string header =
         "#pragma once\n#include \"src/codegen/output.h\"\n"
-        "namespace tepl::codegen::rust {\n"
+        "namespace " +
+        std::string(argv[2]) +
+        " {\n"
         "inline std::vector<GeneratedFile> templateFiles() { return {\n";
-    for (int index = 2; index < argc; index += 2) {
+    for (int index = 3; index < argc; index += 2) {
       const auto contents = read(argv[index + 1]);
       const auto marker = delimiter(contents);
       header += "{" + quoted(argv[index]) + ", R\"" + marker + "(" + contents +

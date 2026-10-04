@@ -115,8 +115,7 @@ int main() {
     rejected_source = true;
   }
   assert(rejected_source);
-  for (const auto target :
-       {tepl::codegen::Target::kCpp, tepl::codegen::Target::kPython}) {
+  for (const auto target : {tepl::codegen::Target::kPython}) {
     tepl::codegen::Options options;
     options.target = target;
     const auto unavailable = tepl::codegen::generate(program, options);
