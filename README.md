@@ -18,7 +18,7 @@ The same tensor computation can be expressed in different ways—with very diffe
 
 ## 😢 Tensor rewrites need more than symbols
 
-With egg, a symbolic rewrite is easy to express. For example, moving negation through a transpose:
+Symbolic expressions make egg easy to use and powerful: operation names and nested operands can describe everything from simple arithmetic to complex computation graphs. Its Rust macros let you define your own operators and express rewrites in just a few lines. For example, moving negation through a transpose:
 
 ```rust
 use egg::{define_language, rewrite, Rewrite};
@@ -39,11 +39,31 @@ let rule: Rewrite<Math, ()> = rewrite!(
 );
 ```
 
-But which axes does `transpose` permute? Which dimensions does a matrix multiplication contract? Tensor IRs such as [StableHLO](https://openxla.org/stablehlo/spec) carry these details as attributes. A useful rewrite must preserve or transform them, while respecting shapes and dtypes.
+But which axes does `transpose` permute? Swapping axes `(1, 0)` is different from swapping axes `(2, 1)`. For a rank-three tensor, these swaps correspond to permutations `[1, 0, 2]` and `[0, 2, 1]`, respectively. The symbol `transpose` alone does not tell us which one we mean.
+
+Now consider reassociating matrix multiplication:
+
+```text
+(matmul (matmul ?x ?a) ?b)
+=>
+(matmul ?x (matmul ?a ?b))
+```
+
+As humans, we recognize the familiar identity `(XA)B = X(AB)` for compatible matrices under exact arithmetic. But consider what the rewrite engine sees: two `matmul` operations in the pattern and two in the replacement. When represented as general tensor contractions, each operation carries its own attributes, including the contracting dimensions of its left and right operands. Those attributes may need to change after reassociation. Which original operation supplies the attributes for each new one, and which values must be recomputed? This expression does not say.
+
+There is another missing detail: what is `?x`? We intend it to be a tensor, but what is its shape or dtype? Many tensor operations need that information to determine whether their inputs are compatible and what shape and dtype their outputs will have. A rewrite also needs to respect numerical semantics, such as whether floating-point reassociation is allowed.
+
+That is why tensor IRs carry more than operation names: [StableHLO](https://openxla.org/stablehlo/spec) and [ONNX](https://onnx.ai/onnx/operators/onnx__Transpose.html) represent operation attributes alongside tensor type information. A tensor rewrite must account for those details too.
+
+> **Operation symbols alone are too abstract to fully describe tensor rewrites. Attributes and shape/dtype transformations must also be explicit.**
+
+egg can represent these details, but the compact expressions above leave their representation and handling to us.
 
 ## 😭 Pattern rewriting in Rust is painful
 
-Custom matchers and appliers can handle those details, but a complete rewrite becomes verbose. Here is the same rule using this repository's Rust tensor runtime:
+You might ask, "Why not define the pattern directly in Rust instead of using symbolic expressions?"
+
+Yes, you can. Custom matchers and appliers can handle the attributes, tensor metadata, and legality checks in detail. But the complete pattern and rewrite logic quickly becomes verbose and complex. Here is the earlier transpose-negate rule using this repository's Rust tensor runtime:
 
 <details>
 <summary><strong>👉 See the equivalent Rust rewrite</strong></summary>
@@ -103,11 +123,11 @@ let rule = tensor_rewrite_checked(
 
 </details>
 
-Even this simple rewrite needs nested constructors, explicit attribute handling, and metadata checks. All that Rust code makes the underlying rule harder to see, review, and maintain—and larger patterns only add more nesting and repetition.
+Even this simple rewrite needs separate nested trees for the pattern and replacement, explicit attribute bindings, and metadata checks. As patterns grow, the repeated constructors and bookkeeping make the mathematical rule harder to see, review, and maintain.
 
-## ✨ Write the rule. Let TEPL generate the Rust.
+## ✨ Write a rule in TEPL, a language dedicated to tensor rewrites
 
-TEPL turns declarative tensor rewrite rules into Rust code for egg, with attribute capture, shape/dtype analysis, and support for multiple dialects.
+TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates the Rust code for egg. It supports attribute capture, shape/dtype analysis, and multiple dialects.
 
 Here is the complete TEPL rule, using the example tensor dialect. Save it as `examples/rules/transpose_negate.tepl`:
 
