@@ -2,6 +2,7 @@
 name = "rust-egg"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 egg = "0.11.0"
