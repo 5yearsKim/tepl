@@ -43,6 +43,10 @@ The layout separates shared semantics from target syntax:
 - `rust/code_writer.h` handles indentation and blocks.
 - `templates/rust/` holds reusable Rust templates, embedded by Bazel and copied
   into the generated module. Runtime algorithms are maintained separately from emitters.
+  Bazel builds `tools/embed_templates.cc` and invokes it directly through
+  `tools/embed_templates.bzl` to generate `rust/template_files.h` in its output
+  directory. This build step needs no shell; the compiled TEPL executable contains
+  the templates and does not need the embedding tool at runtime.
 - `write.*` synchronizes generated files, maintains their ownership manifest,
   formats output by default, and checks for drift without changing output.
 

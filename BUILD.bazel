@@ -4,17 +4,6 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 exports_files(["tools/test_codegen.sh"], visibility = ["//tests:__pkg__"])
 
-sh_binary(
-    name = "format",
-    srcs = ["tools/format.sh"],
-)
-
-sh_binary(
-    name = "embed_templates",
-    srcs = ["tools/embed_templates.sh"],
-    visibility = ["//src/codegen:__pkg__"],
-)
-
 cc_library(
     name = "source",
     hdrs = ["src/source.h"],
@@ -25,12 +14,6 @@ cc_library(
     name = "operators",
     hdrs = ["src/operators.h"],
     visibility = ["//visibility:public"],
-)
-
-sh_binary(
-    name = "format_check",
-    srcs = ["tools/format.sh"],
-    args = ["--check"],
 )
 
 cc_library(
@@ -69,4 +52,19 @@ cc_binary(
         "//src/core:print",
         "@cli11//:cli11",
     ],
+)
+#####################
+# Utility tools
+#####################
+
+sh_binary(
+    name = "format",
+    srcs = ["tools/format.sh"],
+)
+
+
+cc_binary(
+    name = "embed_templates",
+    srcs = ["tools/embed_templates.cc"],
+    visibility = ["//src/codegen:__pkg__"],
 )

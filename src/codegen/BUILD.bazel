@@ -1,11 +1,10 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("//:tools/embed_templates.bzl", "embed_rust_templates")
 
-genrule(
+embed_rust_templates(
     name = "embed_rust_templates",
     srcs = ["//templates/rust:templates"],
-    outs = ["rust/template_files.h"],
-    tools = ["//:embed_templates"],
-    cmd = "$(location //:embed_templates) $@ $(locations //templates/rust:templates)",
+    out = "rust/template_files.h",
 )
 
 cc_library(
