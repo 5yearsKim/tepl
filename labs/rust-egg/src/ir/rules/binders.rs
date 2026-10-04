@@ -57,6 +57,9 @@ pub mod rule_shared_expression {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -77,17 +80,17 @@ pub mod rule_shared_expression {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "binders::shared_expression",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
                 let descriptor_0 = ctx.attrs(AttrVar::from("d0"))?.clone();
                 let descriptor_0 = descriptor_0.checked_schema(7)?;
-                let mut dimensions = ShapeBindings::default();
                 if !(functions.is_reusable(
                     &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
                     &((descriptor_0.clone()).checked_schema(7)?),
@@ -119,6 +122,9 @@ pub mod rule_root_binding {
     pub fn expression() -> TensorExpr {
         TensorExpr::Var("?c1".parse::<Var>().expect("generated capture ID"))
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -139,17 +145,17 @@ pub mod rule_root_binding {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "binders::root_binding",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
                 let descriptor_0 = ctx.attrs(AttrVar::from("d0"))?.clone();
                 let descriptor_0 = descriptor_0.checked_schema(2)?;
-                let mut dimensions = ShapeBindings::default();
                 Some(Default::default())
             },
         )

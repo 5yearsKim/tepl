@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
+use std::sync::Arc;
 
 use egg::{
     Analysis, Applier, EGraph, Id, PatternAst, Rewrite, SearchMatches, Searcher, Subst, Symbol, Var,
@@ -7,9 +8,11 @@ use egg::{
 
 use super::super::{OpAttrs, OpNode};
 
+use super::constraints::TensorConstraints;
 use super::context::{OutputInference, TensorInfo, TensorMetadata};
 use super::matcher::{TensorMatch, for_each_match_at};
 use super::pattern::{AttrExpr, AttrVar, TensorExpr, TensorPattern};
+use super::shape::ShapeBindings;
 
 pub type DerivedAttrs = std::collections::HashMap<AttrVar, OpAttrs>;
 
@@ -30,25 +33,70 @@ where
     I: OutputInference + 'static,
     F: Fn(&EGraph<OpNode, N>, &TensorMatch) -> Option<DerivedAttrs> + Send + Sync + 'static,
 {
-    let expression = rhs.clone();
-    build_tensor_rewrite(name, lhs, rhs, move |graph, root, matched| {
-        let derived = check_and_derive(graph, matched)?;
-        validate_rhs(&expression, matched, &derived)?;
-        let expected = metadata.info(graph, graph.find(root))?;
-        let (resolved, actual) = infer_rhs(
-            graph,
-            &expression,
-            matched,
-            &derived,
-            &metadata,
-            &inference,
-            &expected,
-        )?;
-        (actual == expected).then_some((derived, resolved))
-    })
+    tensor_rewrite_checked_with_constraints(
+        name,
+        lhs,
+        rhs,
+        TensorConstraints::default(),
+        metadata,
+        inference,
+        move |graph, matched, _| check_and_derive(graph, matched),
+    )
 }
 
-fn infer_rhs<N: Analysis<OpNode>, M: TensorMetadata<N>, I: OutputInference>(
+/// Prune declared shape/dtype mismatches while matching. Recheck declarations
+/// before calling semantic functions with the current dimension bindings.
+pub fn tensor_rewrite_checked_with_constraints<N, M, I, F>(
+    name: impl Into<Symbol>,
+    lhs: TensorPattern,
+    rhs: TensorExpr,
+    constraints: TensorConstraints,
+    metadata: M,
+    inference: I,
+    check_and_derive: F,
+) -> Result<Rewrite<OpNode, N>, String>
+where
+    N: Analysis<OpNode>,
+    M: TensorMetadata<N> + 'static,
+    I: OutputInference + 'static,
+    F: Fn(&EGraph<OpNode, N>, &TensorMatch, &ShapeBindings) -> Option<DerivedAttrs>
+        + Send
+        + Sync
+        + 'static,
+{
+    constraints.validate(&lhs)?;
+    let constraints = Arc::new(constraints);
+    let metadata = Arc::new(metadata);
+    let checker_constraints = constraints.clone();
+    let checker_metadata = metadata.clone();
+    let expression = rhs.clone();
+    build_tensor_rewrite(
+        name,
+        lhs,
+        rhs,
+        constraints,
+        metadata,
+        move |graph, root, matched| {
+            let dimensions =
+                checker_constraints.check_match(graph, matched, checker_metadata.as_ref())?;
+            let derived = check_and_derive(graph, matched, &dimensions)?;
+            validate_rhs(&expression, matched, &derived)?;
+            let expected = checker_metadata.info(graph, graph.find(root))?;
+            let (resolved, actual) = infer_rhs(
+                graph,
+                &expression,
+                matched,
+                &derived,
+                checker_metadata.as_ref(),
+                &inference,
+                &expected,
+            )?;
+            (actual == expected).then_some((derived, resolved))
+        },
+    )
+}
+
+fn infer_rhs<N: Analysis<OpNode>, M: TensorMetadata<N> + ?Sized, I: OutputInference>(
     graph: &EGraph<OpNode, N>,
     expr: &TensorExpr,
     matched: &TensorMatch,
@@ -100,14 +148,17 @@ fn infer_rhs<N: Analysis<OpNode>, M: TensorMetadata<N>, I: OutputInference>(
     }
 }
 
-fn build_tensor_rewrite<N, F>(
+fn build_tensor_rewrite<N, M, F>(
     name: impl Into<Symbol>,
     lhs: TensorPattern,
     rhs: TensorExpr,
+    constraints: Arc<TensorConstraints>,
+    metadata: Arc<M>,
     check_and_derive: F,
 ) -> Result<Rewrite<OpNode, N>, String>
 where
     N: Analysis<OpNode>,
+    M: TensorMetadata<N> + 'static,
     F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<(DerivedAttrs, TensorExpr)>
         + Send
         + Sync
@@ -130,21 +181,27 @@ where
         name,
         TensorSearcher {
             pattern: lhs.clone(),
+            constraints: constraints.clone(),
+            metadata: metadata.clone(),
         },
         TensorApplier {
             lhs,
             lhs_vars,
             rhs,
+            constraints,
+            metadata,
             check_and_derive,
         },
     )
 }
 
-struct TensorSearcher {
+struct TensorSearcher<M> {
     pattern: TensorPattern,
+    constraints: Arc<TensorConstraints>,
+    metadata: Arc<M>,
 }
 
-impl<N: Analysis<OpNode>> Searcher<OpNode, N> for TensorSearcher {
+impl<N: Analysis<OpNode>, M: TensorMetadata<N>> Searcher<OpNode, N> for TensorSearcher<M> {
     fn search_eclass_with_limit(
         &self,
         egraph: &EGraph<OpNode, N>,
@@ -156,15 +213,22 @@ impl<N: Analysis<OpNode>> Searcher<OpNode, N> for TensorSearcher {
         }
         let mut seen = HashSet::new();
         let mut substs = Vec::new();
-        for_each_match_at(egraph, eclass, &self.pattern, |matched| {
-            if seen.insert(matched.tensors.clone()) {
-                substs.push(matched.tensors);
-                if substs.len() == limit {
-                    return ControlFlow::Break(());
+        for_each_match_at(
+            egraph,
+            eclass,
+            &self.pattern,
+            &self.constraints,
+            self.metadata.as_ref(),
+            |matched| {
+                if seen.insert(matched.tensors.clone()) {
+                    substs.push(matched.tensors);
+                    if substs.len() == limit {
+                        return ControlFlow::Break(());
+                    }
                 }
-            }
-            ControlFlow::Continue(())
-        });
+                ControlFlow::Continue(())
+            },
+        );
         (!substs.is_empty()).then_some(SearchMatches {
             eclass,
             substs,
@@ -193,8 +257,8 @@ impl<N: Analysis<OpNode>> Searcher<OpNode, N> for TensorSearcher {
     }
 }
 
-fn search_classes<'a, N: Analysis<OpNode>>(
-    searcher: &'a TensorSearcher,
+fn search_classes<'a, N: Analysis<OpNode>, M: TensorMetadata<N>>(
+    searcher: &'a TensorSearcher<M>,
     egraph: &EGraph<OpNode, N>,
     classes: impl Iterator<Item = Id>,
     mut limit: usize,
@@ -212,14 +276,16 @@ fn search_classes<'a, N: Analysis<OpNode>>(
     results
 }
 
-struct TensorApplier<F> {
+struct TensorApplier<M, F> {
     lhs: TensorPattern,
     lhs_vars: Vec<Var>,
     rhs: TensorExpr,
+    constraints: Arc<TensorConstraints>,
+    metadata: Arc<M>,
     check_and_derive: F,
 }
 
-impl<F> TensorApplier<F> {
+impl<M, F> TensorApplier<M, F> {
     fn apply_candidates<N: Analysis<OpNode>>(
         &self,
         egraph: &mut EGraph<OpNode, N>,
@@ -228,6 +294,7 @@ impl<F> TensorApplier<F> {
         rule_name: Symbol,
     ) -> Vec<Id>
     where
+        M: TensorMetadata<N>,
         F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<(DerivedAttrs, TensorExpr)>,
     {
         // Finish all semantic checks before changing this e-class. A rejected
@@ -252,9 +319,10 @@ impl<F> TensorApplier<F> {
     }
 }
 
-impl<N, F> Applier<OpNode, N> for TensorApplier<F>
+impl<N, M, F> Applier<OpNode, N> for TensorApplier<M, F>
 where
     N: Analysis<OpNode>,
+    M: TensorMetadata<N>,
     F: Fn(&EGraph<OpNode, N>, Id, &TensorMatch) -> Option<(DerivedAttrs, TensorExpr)> + Send + Sync,
 {
     fn apply_matches(
@@ -279,14 +347,21 @@ where
             if groups.is_empty() {
                 continue;
             }
-            for_each_match_at(egraph, mat.eclass, &self.lhs, |candidate| {
-                if let Some(key) = subst_key(egraph, &candidate.tensors, &self.lhs_vars) {
-                    if let Some(group) = groups.get_mut(&key) {
-                        group.push(candidate);
+            for_each_match_at(
+                egraph,
+                mat.eclass,
+                &self.lhs,
+                &self.constraints,
+                self.metadata.as_ref(),
+                |candidate| {
+                    if let Some(key) = subst_key(egraph, &candidate.tensors, &self.lhs_vars) {
+                        if let Some(group) = groups.get_mut(&key) {
+                            group.push(candidate);
+                        }
                     }
-                }
-                ControlFlow::Continue(())
-            });
+                    ControlFlow::Continue(())
+                },
+            );
             for key in keys.into_iter().flatten() {
                 if let Some(candidates) = groups.get(&key) {
                     changed
@@ -310,12 +385,19 @@ where
             None => return Vec::new(),
         };
         let mut candidates = Vec::new();
-        for_each_match_at(egraph, eclass, &self.lhs, |candidate| {
-            if subst_key(egraph, &candidate.tensors, &self.lhs_vars).as_ref() == Some(&key) {
-                candidates.push(candidate);
-            }
-            ControlFlow::Continue(())
-        });
+        for_each_match_at(
+            egraph,
+            eclass,
+            &self.lhs,
+            &self.constraints,
+            self.metadata.as_ref(),
+            |candidate| {
+                if subst_key(egraph, &candidate.tensors, &self.lhs_vars).as_ref() == Some(&key) {
+                    candidates.push(candidate);
+                }
+                ControlFlow::Continue(())
+            },
+        );
         self.apply_candidates(egraph, eclass, &candidates, rule_name)
     }
 

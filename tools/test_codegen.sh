@@ -28,6 +28,13 @@ TOML
     printf 'pub mod ir;\n' > "$application/src/lib.rs"
 }
 
+copy_runtime_tests() {
+    local application="$1"
+    mkdir -p "$application/tests"
+    cp "$project_root/tests/codegen/shape_builtins.rs" "$application/tests/shape_builtins.rs"
+    cp "$project_root/tests/codegen/shape_patterns.rs" "$application/tests/shape_patterns.rs"
+}
+
 for source in analysis custom empty dialect_only literal_root lora basic binders inherited simple; do
     if [[ -f "$project_root/tests/codegen/$source.tepl" ]]; then
         input="$project_root/tests/codegen/$source.tepl"
@@ -37,6 +44,7 @@ for source in analysis custom empty dialect_only literal_root lora basic binders
     crate="$work_directory/$source"
     prepare_application "$crate"
     "$compiler" generate "$input" --target rust --out "$crate/src/ir"
+    copy_runtime_tests "$crate"
     if [[ -f "$project_root/tests/codegen/$source.rs" ]]; then
         mkdir -p "$crate/tests"
         cp "$project_root/tests/codegen/$source.rs" "$crate/tests/generated.rs"
@@ -51,6 +59,7 @@ done
 crate="$work_directory/project"
 prepare_application "$crate"
 "$compiler" generate "$project_root/examples" --target rust --out "$crate/src/ir"
+copy_runtime_tests "$crate"
 mkdir -p "$crate/tests"
 cp "$project_root/tests/codegen/project.rs" "$crate/tests/generated.rs"
 cargo test --manifest-path "$crate/Cargo.toml"

@@ -108,52 +108,15 @@ void emitRule(CodeWriter& out, const core::Program& program,
   out.open("pub fn expression() -> TensorExpr");
   out.line(build(*rule.rhs, rule, names));
   out.close();
-  out.line("/// Uses the same metadata and inference as TensorAnalysis.");
-  out.open(
-      "pub fn build_rewrite<F: Functions + 'static>(functions: F) -> "
-      "Result<Rewrite<OpNode, TensorAnalysis>, String>");
-  out.line("build_rewrite_with(tensor_info, infer_tensor_output, functions)");
-  out.close();
-  out.line("/// Explicit hooks for a custom analysis or inference policy.");
-  out.line(
-      "pub fn build_rewrite_with<N, M, I, F>(metadata: M, inference: I, "
-      "functions: "
-      "F) -> Result<Rewrite<OpNode, N>, String>");
-  out.line(
-      "where N: Analysis<OpNode>, M: TensorMetadata<N> + 'static, I: "
-      "OutputInference + 'static, F: Functions + 'static");
-  out.open("");
-  out.line("let metadata = Arc::new(metadata);");
-  out.line("let checker_metadata = metadata.clone();");
-  out.line("tensor_rewrite_checked(");
-  out.line(quote(module + "::" + rule.name) + ", pattern(), expression(),");
-  out.line(
-      "move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id), "
-      "inference,");
-  out.open("move |graph, matched|");
-  out.line(
-      "let ctx = MatchContext::new(graph, matched, "
-      "checker_metadata.as_ref());");
-  for (const auto id : plan.constraint_captures)
-    out.line("let " + capture(id.value) + " = ctx.tensor(" + var(id.value) +
-             ")?;");
-  for (const auto& desc : rule.descriptors) {
-    if (desc.kind != core::Descriptor::Kind::kCaptured) continue;
-    out.line("let " + descriptor(desc.id.value) + " = ctx.attrs(" +
-             attrVar(desc.id.value) + ")?.clone();");
-    const auto& descriptor_type = program.types.at(desc.type.value);
-    if (descriptor_type.schema)
-      out.line("let " + descriptor(desc.id.value) + " = " +
-               descriptor(desc.id.value) + ".checked_schema(" +
-               std::to_string(descriptor_type.schema->value) + ")?;");
-  }
-  out.line("let mut dimensions = ShapeBindings::default();");
+  out.open("pub fn constraints() -> TensorConstraints");
+  out.line("TensorConstraints::new(vec![");
   for (const auto& constraint : rule.constraints) {
-    const auto tensor = capture(constraint.capture.value);
-    if (constraint.dtype)
-      out.line("if " + tensor + ".dtype != " + dtype(*constraint.dtype) +
-               " { return None; }");
-    std::string shape = "dimensions.check(&" + tensor + ".shape, &[";
+    out.line("(" + var(constraint.capture.value) + ", TensorConstraint {");
+    out.line(
+        "dtype: " +
+        (constraint.dtype ? "Some(" + dtype(*constraint.dtype) + ")" : "None") +
+        ",");
+    std::string shape = "shape: vec![";
     for (const auto& element : constraint.shape) {
       switch (element.kind) {
         case core::ShapeElement::Kind::kDimension:
@@ -173,7 +136,46 @@ void emitRule(CodeWriter& out, const core::Program& program,
       }
       shape += ", ";
     }
-    out.line(shape + "])?;");
+    out.line(shape + "], }),");
+  }
+  out.line("])");
+  out.close();
+  out.line("/// Uses the same metadata and inference as TensorAnalysis.");
+  out.open(
+      "pub fn build_rewrite<F: Functions + 'static>(functions: F) -> "
+      "Result<Rewrite<OpNode, TensorAnalysis>, String>");
+  out.line("build_rewrite_with(tensor_info, infer_tensor_output, functions)");
+  out.close();
+  out.line("/// Explicit hooks for a custom analysis or inference policy.");
+  out.line(
+      "pub fn build_rewrite_with<N, M, I, F>(metadata: M, inference: I, "
+      "functions: "
+      "F) -> Result<Rewrite<OpNode, N>, String>");
+  out.line(
+      "where N: Analysis<OpNode>, M: TensorMetadata<N> + 'static, I: "
+      "OutputInference + 'static, F: Functions + 'static");
+  out.open("");
+  out.line("let metadata = Arc::new(metadata);");
+  out.line("let checker_metadata = metadata.clone();");
+  out.line("tensor_rewrite_checked_with_constraints(");
+  out.line(quote(module + "::" + rule.name) +
+           ", pattern(), expression(), constraints(),");
+  out.line(
+      "move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id), "
+      "inference,");
+  out.open("move |graph, matched, dimensions|");
+  out.line(
+      "let ctx = MatchContext::new(graph, matched, "
+      "checker_metadata.as_ref());");
+  for (const auto& desc : rule.descriptors) {
+    if (desc.kind != core::Descriptor::Kind::kCaptured) continue;
+    out.line("let " + descriptor(desc.id.value) + " = ctx.attrs(" +
+             attrVar(desc.id.value) + ")?.clone();");
+    const auto& descriptor_type = program.types.at(desc.type.value);
+    if (descriptor_type.schema)
+      out.line("let " + descriptor(desc.id.value) + " = " +
+               descriptor(desc.id.value) + ".checked_schema(" +
+               std::to_string(descriptor_type.schema->value) + ")?;");
   }
   for (const auto& condition : rule.conditions)
     out.line("if !(" + emitExpression(program, *condition) +

@@ -106,6 +106,7 @@ Each concrete rule becomes `generated::rules::FILE::rule_NAME` with:
 
 - `Functions`: only host functions actually referenced by that rule.
 - `pattern()` and `expression()`: structural match and replacement trees.
+- `constraints()`: shape/dtype restrictions indexed by capture, including inheritance.
 - `build_rewrite(functions)`: a checked rewrite using generated `TensorAnalysis`.
 - `build_rewrite_with(metadata, inference, functions)`: explicit callbacks for a
   custom analysis or inference policy.
@@ -117,6 +118,12 @@ already expanded in core; only concrete instances are emitted. Captures and
 attribute variables use core IDs to keep repeated identities and avoid collisions
 with user names. Both conditions and derivations read matched LHS metadata;
 derivations may also read earlier derived descriptors.
+
+Generated builders use `tensor_rewrite_checked_with_constraints`. Declarations
+are emitted once as a reusable constraint plan; the runtime checks it during
+tensor binding in both search and application-time rematching. It also rechecks
+current metadata before passing dimension bindings to the generated semantic
+callback. Conditions and derivations keep their application-time source order.
 
 Host argument/result types are:
 

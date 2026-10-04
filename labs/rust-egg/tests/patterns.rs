@@ -6,7 +6,7 @@ use rust_egg::ir::pattern::{
     AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, matches_at, tensor_rewrite_checked,
 };
 use rust_egg::ir::rules::simple::rule_commute_add;
-use rust_egg::ir::{Op, OpAttrs, OpNode};
+use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 #[test]
 fn invalid_rhs_definitions_are_rejected_when_building_the_rule() {
@@ -208,13 +208,29 @@ fn batch_application_keeps_distinct_attribute_witnesses() {
         AttrExpr::Captured(attr_var),
         vec![TensorExpr::Var(y_var), TensorExpr::Var(x_var)],
     );
-    let rule = tensor_rewrite_checked(
+    let rule = rust_egg::ir::pattern::tensor_rewrite_checked_with_constraints(
         "swap_dot_inputs",
         lhs,
         rhs,
+        rust_egg::ir::pattern::TensorConstraints::new([
+            (
+                x_var,
+                rust_egg::ir::pattern::TensorConstraint {
+                    dtype: Some(DType::F32),
+                    shape: vec![],
+                },
+            ),
+            (
+                y_var,
+                rust_egg::ir::pattern::TensorConstraint {
+                    dtype: None,
+                    shape: vec![],
+                },
+            ),
+        ]),
         support::fixture_metadata,
         support::fixture_inference,
-        |_, _| Some(Default::default()),
+        |_, _, _| Some(Default::default()),
     )
     .unwrap();
     let found = rule.search(&egraph);

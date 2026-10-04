@@ -31,6 +31,9 @@ pub mod rule_commute_add {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -51,15 +54,15 @@ pub mod rule_commute_add {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "scalar::commute_add",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let mut dimensions = ShapeBindings::default();
                 Some(Default::default())
             },
         )

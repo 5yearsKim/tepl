@@ -447,7 +447,7 @@ generated/
   dialects/{mod.rs, tensor_lang.rs, scalar.rs}
   op_node.rs
   types.rs
-  pattern/{mod.rs, pattern.rs, matcher.rs, rewrite.rs, context.rs, shape.rs}
+  pattern/{mod.rs, pattern.rs, matcher.rs, rewrite.rs, context.rs, constraints.rs, shape.rs}
   rules/{mod.rs, simple.rs, scalar.rs, lowering.rs, ...}
 ```
 
@@ -459,7 +459,7 @@ dialect; arity and operation-specific schemas are checked at runtime.
 Rule files retain their own modules and runtime names, so both `simple.tepl`
 and `scalar.tepl` can define `commute_add`.
 
-Each concrete rule exposes `pattern()`, `expression()`, a host `Functions`
+Each concrete rule exposes `pattern()`, `expression()`, `constraints()`, a host `Functions`
 trait, and `build_rewrite(functions)`. The default builder uses generated
 `TensorAnalysis` for metadata and the same inference for output validation.
 Applications register input types and implement explicit rule functions; rules
@@ -477,6 +477,14 @@ let rewrite = rule_commute_add::build_rewrite(())?;
 `build_rewrite_with(metadata, inference, functions)` selects explicit hooks for
 a custom analysis. The LoRA demo uses that path for its application-specific dot
 dtype policy; the example TEPL dialect leaves that policy unspecified.
+
+Declared shapes and dtypes are checked when each tensor capture is first bound,
+so incompatible candidates stop before the matcher visits remaining operands.
+Dimension bindings are independent for each search branch. Application-time
+rematching also prunes, then rechecks declarations before evaluating `where`
+and `derive`. Missing required metadata rejects a candidate for that traversal.
+`matches_at` enumerates structural witnesses; `matches_at_with_constraints`
+also enforces a rule's constraint plan. Search limits count surviving substitutions.
 
 An omitted graph-literal dtype means any dtype. LHS literals match exact spelling
 at any dtype; explicitly annotated literals also require the given dtype. RHS

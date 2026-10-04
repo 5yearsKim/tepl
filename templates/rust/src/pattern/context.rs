@@ -40,6 +40,7 @@ where
 
 /// Supplies metadata valid for every alternative in an e-class. Return `None`
 /// when that cannot be established; choosing one arbitrary node is unsound.
+/// Answers must remain stable during a read-only matching traversal.
 pub trait TensorMetadata<N: Analysis<OpNode>>: Send + Sync {
     fn info(&self, egraph: &EGraph<OpNode, N>, eclass: Id) -> Option<TensorInfo>;
 }

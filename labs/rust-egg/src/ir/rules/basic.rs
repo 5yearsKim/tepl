@@ -31,6 +31,24 @@ pub mod rule_commute_f32 {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![
+            (
+                "?c0".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: Some(DType::F32),
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+            (
+                "?c1".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: Some(DType::F32),
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+        ])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -51,25 +69,15 @@ pub mod rule_commute_f32 {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "basic::commute_f32",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let capture_0 = ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?;
-                let capture_1 = ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?;
-                let mut dimensions = ShapeBindings::default();
-                if capture_0.dtype != DType::F32 {
-                    return None;
-                }
-                dimensions.check(&capture_0.shape, &[ShapePart::Dimension(0)])?;
-                if capture_1.dtype != DType::F32 {
-                    return None;
-                }
-                dimensions.check(&capture_1.shape, &[ShapePart::Dimension(0)])?;
                 Some(Default::default())
             },
         )
@@ -102,6 +110,24 @@ pub mod rule_commute_same_dtype {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![
+            (
+                "?c0".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: None,
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+            (
+                "?c1".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: None,
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+        ])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -122,19 +148,15 @@ pub mod rule_commute_same_dtype {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "basic::commute_same_dtype",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let capture_0 = ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?;
-                let capture_1 = ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?;
-                let mut dimensions = ShapeBindings::default();
-                dimensions.check(&capture_0.shape, &[ShapePart::Dimension(0)])?;
-                dimensions.check(&capture_1.shape, &[ShapePart::Dimension(0)])?;
                 if !(functions.is_same_dtype(
                     &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?),
@@ -171,6 +193,24 @@ pub mod rule_commute_scalar {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![
+            (
+                "?c0".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: Some(DType::F32),
+                    shape: vec![],
+                },
+            ),
+            (
+                "?c1".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: Some(DType::F32),
+                    shape: vec![],
+                },
+            ),
+        ])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -191,25 +231,15 @@ pub mod rule_commute_scalar {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "basic::commute_scalar",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let capture_0 = ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?;
-                let capture_1 = ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?;
-                let mut dimensions = ShapeBindings::default();
-                if capture_0.dtype != DType::F32 {
-                    return None;
-                }
-                dimensions.check(&capture_0.shape, &[])?;
-                if capture_1.dtype != DType::F32 {
-                    return None;
-                }
-                dimensions.check(&capture_1.shape, &[])?;
                 Some(Default::default())
             },
         )
@@ -240,6 +270,15 @@ pub mod rule_commute_integer_literal {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![(
+            "?c0".parse::<Var>().expect("generated capture ID"),
+            TensorConstraint {
+                dtype: Some(DType::I32),
+                shape: vec![],
+            },
+        )])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -260,20 +299,15 @@ pub mod rule_commute_integer_literal {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "basic::commute_integer_literal",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let capture_0 = ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?;
-                let mut dimensions = ShapeBindings::default();
-                if capture_0.dtype != DType::I32 {
-                    return None;
-                }
-                dimensions.check(&capture_0.shape, &[])?;
                 Some(Default::default())
             },
         )
@@ -304,6 +338,15 @@ pub mod rule_commute_float_literal {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![(
+            "?c0".parse::<Var>().expect("generated capture ID"),
+            TensorConstraint {
+                dtype: Some(DType::F32),
+                shape: vec![],
+            },
+        )])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -324,20 +367,15 @@ pub mod rule_commute_float_literal {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "basic::commute_float_literal",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let capture_0 = ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?;
-                let mut dimensions = ShapeBindings::default();
-                if capture_0.dtype != DType::F32 {
-                    return None;
-                }
-                dimensions.check(&capture_0.shape, &[])?;
                 Some(Default::default())
             },
         )

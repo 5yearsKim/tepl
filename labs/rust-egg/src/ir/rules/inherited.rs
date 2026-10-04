@@ -31,6 +31,9 @@ pub mod rule_commute_add {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -51,15 +54,15 @@ pub mod rule_commute_add {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "inherited::commute_add",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let mut dimensions = ShapeBindings::default();
                 Some(Default::default())
             },
         )
@@ -90,6 +93,9 @@ pub mod rule_commute_mul {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -110,15 +116,15 @@ pub mod rule_commute_mul {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "inherited::commute_mul",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let mut dimensions = ShapeBindings::default();
                 Some(Default::default())
             },
         )
@@ -149,6 +155,24 @@ pub mod rule_commute_small_vectors {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![
+            (
+                "?c0".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: None,
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+            (
+                "?c1".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: None,
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+        ])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -169,19 +193,15 @@ pub mod rule_commute_small_vectors {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "inherited::commute_small_vectors",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let capture_0 = ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?;
-                let capture_1 = ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?;
-                let mut dimensions = ShapeBindings::default();
-                dimensions.check(&capture_0.shape, &[ShapePart::Dimension(0)])?;
-                dimensions.check(&capture_1.shape, &[ShapePart::Dimension(0)])?;
                 if !((dimensions.dimension(0)?) <= ("1024".parse::<u64>().ok()?)) {
                     return None;
                 }
@@ -229,6 +249,9 @@ pub mod rule_associate_add_right {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -249,15 +272,15 @@ pub mod rule_associate_add_right {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "inherited::associate_add_right",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let mut dimensions = ShapeBindings::default();
                 Some(Default::default())
             },
         )
@@ -302,6 +325,9 @@ pub mod rule_associate_mul_right {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -322,15 +348,15 @@ pub mod rule_associate_mul_right {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "inherited::associate_mul_right",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let mut dimensions = ShapeBindings::default();
                 Some(Default::default())
             },
         )
@@ -375,6 +401,31 @@ pub mod rule_associate_small_vectors {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![
+            (
+                "?c0".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: None,
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+            (
+                "?c1".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: None,
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+            (
+                "?c2".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: None,
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+        ])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -395,21 +446,15 @@ pub mod rule_associate_small_vectors {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "inherited::associate_small_vectors",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let capture_0 = ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?;
-                let capture_1 = ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?;
-                let capture_2 = ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?;
-                let mut dimensions = ShapeBindings::default();
-                dimensions.check(&capture_0.shape, &[ShapePart::Dimension(0)])?;
-                dimensions.check(&capture_1.shape, &[ShapePart::Dimension(0)])?;
-                dimensions.check(&capture_2.shape, &[ShapePart::Dimension(0)])?;
                 if !((dimensions.dimension(0)?) <= ("1024".parse::<u64>().ok()?)) {
                     return None;
                 }
@@ -464,6 +509,9 @@ pub mod rule_distribute_mul_over_add {
             ],
         )
     }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![])
+    }
     /// Uses the same metadata and inference as TensorAnalysis.
     pub fn build_rewrite<F: Functions + 'static>(
         functions: F,
@@ -484,15 +532,15 @@ pub mod rule_distribute_mul_over_add {
     {
         let metadata = Arc::new(metadata);
         let checker_metadata = metadata.clone();
-        tensor_rewrite_checked(
+        tensor_rewrite_checked_with_constraints(
             "inherited::distribute_mul_over_add",
             pattern(),
             expression(),
+            constraints(),
             move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
             inference,
-            move |graph, matched| {
+            move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                let mut dimensions = ShapeBindings::default();
                 Some(Default::default())
             },
         )

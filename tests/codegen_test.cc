@@ -56,6 +56,9 @@ int main() {
   assert(generated.ok() && !generated.files.empty());
   bool found_host_methods = false;
   for (const auto& file : generated.files) {
+    assert(file.contents.find("#[test]") == std::string::npos);
+    assert(file.contents.find("#[cfg(test)]") == std::string::npos);
+    assert(file.contents.find("SEARCH_VISITS") == std::string::npos);
     assert(file.contents.find("fn $") == std::string::npos);
     assert(file.contents.find("functions.$") == std::string::npos);
     if (file.contents.find("fn outer(") == std::string::npos) continue;

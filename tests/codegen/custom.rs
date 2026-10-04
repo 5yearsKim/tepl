@@ -524,3 +524,28 @@ fn skipped_host_branch_does_not_eagerly_read_missing_capture_metadata() {
             .is_some()
     );
 }
+
+#[test]
+fn generated_mixed_shapes_prune_before_where_and_preserve_inherited_bindings() {
+    for (shape, dtype, searched, applied) in [
+        (vec![3, 7, 8, 9, 3], DType::F32, true, true),
+        (vec![3, 9, 3], DType::F32, true, true),
+        (vec![0, 0, 0], DType::F32, true, true),
+        (vec![3, 3], DType::F32, false, false),
+        (vec![3, 7, 8, 9, 4], DType::F32, false, false),
+        (vec![3, 9, 3], DType::I32, false, false),
+        (vec![5, 9, 5], DType::F32, true, false),
+    ] {
+        let mut graph = EGraph::default();
+        let x = input(&mut graph, "x");
+        let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
+        let meta = metadata(vec![(x, info(&shape, dtype)), (root, info(&shape, dtype))]);
+        let rule = rule_mixed_inherited::build_rewrite_with(meta, Inference, ()).unwrap();
+        graph.rebuild();
+        let matches = rule.search(&graph);
+        assert_eq!(!matches.is_empty(), searched, "{shape:?} {dtype:?}");
+        let before = graph.total_size();
+        assert_eq!(!rule.apply(&mut graph, &matches).is_empty(), applied);
+        assert_eq!(graph.total_size(), before);
+    }
+}

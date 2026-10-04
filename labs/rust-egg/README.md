@@ -122,12 +122,18 @@ for custom analyses and tests that inject missing or incompatible metadata.
 For example, LoRA selects `LoraAnalysis`, `lora_tensor_info`, and
 `infer_lora_tensor_output` explicitly through that builder.
 
-The matching runtime finds structural and attribute witnesses, checks tensor
-restrictions and `where` conditions, and derives descriptors in source order.
+The matching runtime checks declared shapes and dtypes as each tensor capture
+is bound, pruning incompatible branches before exploring remaining operands.
+It preserves structural and attribute witnesses, with independent dimension
+bindings for every branch. Generated rules expose their declarations through
+`constraints()`. Structural-only matching remains available through `matches_at`;
+`matches_at_with_constraints` checks declarations during traversal.
+Application rematches with the same pruning and rechecks current tensor facts
+before evaluating `where` conditions and deriving descriptors in source order.
 It infers every RHS operation and requires final shape/dtype equality with the
 matched root before inserting nodes. Missing facts, failed host functions, bad
 descriptors, and incompatible outputs reject application without partial RHS
-insertion. Early shape pruning during structural search remains future work.
+insertion. Search limits count only surviving tensor substitutions.
 Host legality functions remain responsible for numerical equivalence.
 
 Each dialect owns short `Op`/`OpAttrs` enums; `op_node.rs` combines them into one

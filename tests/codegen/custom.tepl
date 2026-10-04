@@ -86,3 +86,12 @@ rule short_literal {
     (Custom.negate X) => 1
     where { true || $fails(X); }
 }
+
+abstract rule mixed_restrictions() {
+    X: [M, Batch..., _, M]
+    (Custom.negate X) => X
+}
+rule mixed_inherited extends mixed_restrictions() {
+    X: f32[_, ..., N]
+    where { M == N && M <= 4; }
+}

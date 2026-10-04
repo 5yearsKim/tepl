@@ -159,7 +159,7 @@ fn generated_lora_checks_shapes_host_legality_and_every_intermediate_before_inse
         graph.rebuild();
         let before = graph.total_size();
         let matches = rule.search(&graph);
-        assert!(!matches.is_empty());
+        assert_eq!(!matches.is_empty(), b_columns == 5);
         assert_eq!(!rule.apply(&mut graph, &matches).is_empty(), accepted);
         if accepted {
             let xw = graph

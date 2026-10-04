@@ -7,7 +7,7 @@ pub enum ShapePart {
     Sequence(Option<usize>),
 }
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ShapeBindings {
     dimensions: HashMap<usize, u64>,
     sequences: HashMap<usize, Vec<u64>>,
@@ -15,6 +15,9 @@ pub struct ShapeBindings {
 
 impl ShapeBindings {
     /// Each invocation adds a restriction; repeated IDs must agree across all captures.
+    /// The pattern must contain at most one sequence (validated by the compiler or
+    /// `TensorConstraints::validate`). Sequences may be empty and appear anywhere.
+    /// Discard this binding environment after failure: checks may partially update it.
     pub fn check(&mut self, shape: &[u64], pattern: &[ShapePart]) -> Option<()> {
         let sequence = pattern
             .iter()

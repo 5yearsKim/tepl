@@ -197,7 +197,8 @@ templates under `templates/rust/`. Handwritten semantics live in `src/host/`.
 Its execution model is:
 
 ```text
-structural match -> metadata lookup and shape/dtype checks -> where checks
+structural search with shape/dtype checks at tensor binding
+-> application-time rematch and final declaration checks -> where checks
 -> derive descriptors from LHS inputs
 -> validate RHS structure and infer every RHS output
 -> require root shape/dtype compatibility -> insert and union with matched root

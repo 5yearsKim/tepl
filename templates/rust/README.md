@@ -95,9 +95,35 @@ same tensor substitution. Tensor metadata must describe all alternatives in an
 e-class; missing or incompatible metadata rejects the match. Numerical
 rewrite equivalence is established by the host's legality functions.
 
+Generated rules expose `constraints()` alongside `pattern()` and `expression()`.
+The immutable `TensorConstraints` plan retains every shape/dtype declaration,
+including inherited restrictions. The matcher checks a constrained tensor when
+it is first bound and stops that search branch immediately on a mismatch or
+unavailable metadata. Dimension and sequence bindings are cloned with each branch;
+failed checks cannot affect sibling alternatives. Sequences may be empty and
+appear anywhere, but each shape has at most one sequence. Repeated tensor captures
+use canonical e-class equality, and unconstrained captures do not read metadata.
+Metadata providers must return stable answers during a read-only traversal.
+
+`matches_at` remains structural. `matches_at_with_constraints` validates a plan
+and enumerates witnesses that satisfy its declarations. Handwritten rewrites can
+use `tensor_rewrite_checked_with_constraints`; its semantic callback receives
+`(graph, matched, dimensions)`. The original `tensor_rewrite_checked` remains an
+empty-plan wrapper with its existing two-argument callback. Search limits count
+surviving, distinct tensor substitutions. Application-time rematching also prunes,
+then final declaration checking recovers fresh dimensions before the callback.
+`where`, `derive`, and complete RHS inference still execute during application,
+before any insertion. The same constraint checker implements early and final
+checks. `ShapeBindings::check` and `TensorConstraints::check_capture` may partially
+update their binding environment on failure; callers must discard that environment.
+
 Run compiler-to-runtime integration tests with `./tools/test_codegen.sh` from
 the repository root. Rust runtime files and integration fixtures are formatted
 with `rustfmt --edition 2024`.
+Templates contain runtime code only. Shared shape-builtin and shape-pattern
+tests live in `tests/codegen/shape_builtins.rs` and `tests/codegen/shape_patterns.rs`;
+the integration script installs them in consuming crates' `tests/` directories.
+The lab runs the same fixtures through `labs/rust-egg/tests/runtime.rs`.
 
 Runtime input leaves use `OpNode::input(name)` and `Op::Input`, independently of
 any dialect. `types.rs` also defines `Precision`, `DotAlgorithm`, `ReplicaGroups`,

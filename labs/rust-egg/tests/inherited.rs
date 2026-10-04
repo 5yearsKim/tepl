@@ -38,7 +38,11 @@ fn apply(
     egraph.rebuild();
     let before = egraph.total_size();
     let found = rule.search(egraph);
-    assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
+    let count = found.iter().map(|m| m.substs.len()).sum::<usize>();
+    assert!(count <= 1);
+    if accepted {
+        assert_eq!(count, 1);
+    }
     let changed = rule.apply(egraph, &found);
     if accepted {
         assert_eq!(changed.len(), 1);

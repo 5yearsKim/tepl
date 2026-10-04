@@ -98,7 +98,9 @@ fn graph() -> (EGraph<OpNode, ()>, [Id; 3]) {
 fn apply(graph: &mut EGraph<OpNode, ()>, rule: &Rewrite<OpNode, ()>, accepted: bool) {
     let before = graph.total_number_of_nodes();
     let matches = rule.search(graph);
-    assert!(!matches.is_empty());
+    if accepted {
+        assert!(!matches.is_empty());
+    }
     let changed = rule.apply(graph, &matches);
     assert_eq!(!changed.is_empty(), accepted);
     if !accepted {
@@ -116,6 +118,7 @@ fn typed_declarations_reject_same_shaped_tensors_of_other_dtypes() {
             (),
         )
         .unwrap();
+        assert_eq!(!rule.search(&graph).is_empty(), dtype == DType::F32);
         apply(&mut graph, &rule, dtype == DType::F32);
     }
 }
@@ -164,6 +167,7 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
             (),
         )
         .unwrap();
+        assert_eq!(!rule.search(&graph).is_empty(), accepted);
         apply(&mut graph, &rule, accepted);
     }
     for dtype in [DType::F32, DType::BF16] {

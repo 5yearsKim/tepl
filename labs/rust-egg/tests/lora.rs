@@ -111,7 +111,7 @@ fn lora_rule_rejects_incompatible_shapes() {
     let rule = test_rule();
     let before = egraph.total_size();
     let found = rule.search(&egraph);
-    assert_eq!(found.iter().map(|m| m.substs.len()).sum::<usize>(), 1);
+    assert!(found.is_empty());
     assert!(rule.apply(&mut egraph, &found).is_empty());
     assert_eq!(egraph.total_size(), before);
     assert!(egraph.lookup(dot(x, w)).is_none());

@@ -185,6 +185,7 @@ fn default_rewrites_use_analysis_for_shape_constraints_and_rhs_validation() {
         let (mut graph, [x, y, root]) = graph(info(&shape, dtype), info(&shape, dtype));
         let rewrite = rule_commute::build_rewrite(()).unwrap();
         let matches = rewrite.search(&graph);
+        assert_eq!(!matches.is_empty(), accepted);
         let changed = rewrite.apply(&mut graph, &matches);
         assert_eq!(!changed.is_empty(), accepted);
         if accepted {
