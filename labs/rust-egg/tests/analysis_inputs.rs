@@ -96,7 +96,7 @@ fn concrete_add_inputs_cover_scalars_empty_tensors_and_type_errors() {
 }
 
 #[test]
-fn batched_dot_checks_batch_and_contracting_dimensions() {
+fn batched_dot_checks_shape_but_has_no_declared_dtype_policy() {
     // [batch, rows, inner] @ [batch, inner, columns].
     for rhs_shape in [[2, 3, 5], [2, 6, 5], [1, 3, 5]] {
         let mut graph = graph(&[("A", &[2, 4, 3], DType::F32), ("B", &rhs_shape, DType::F32)]);
@@ -106,7 +106,8 @@ fn batched_dot_checks_batch_and_contracting_dimensions() {
             .add(OpNode::from_parts(t::Op::DotGeneral.into(), vec![a, b], dot_attrs()).unwrap());
         graph.rebuild();
         if rhs_shape == [2, 3, 5] {
-            assert_known(&graph, dot, &[2, 4, 5], DType::F32);
+            assert!(graph[graph.find(dot)].data.is_unknown());
+            assert!(tensor_info(&graph, dot).is_none());
         } else {
             assert!(graph[graph.find(dot)].data.is_invalid());
             assert!(tensor_info(&graph, dot).is_none());

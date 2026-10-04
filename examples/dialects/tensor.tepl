@@ -14,18 +14,21 @@ dialect TensorLang {
     }
 
     op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype: same_numeric;
         shape(l, r) {
             assert l == r;
             yield l;
         }
     }
     op subtract(lhs: tensor, rhs: tensor) -> tensor {
+        dtype: same_numeric;
         shape(l, r) {
             assert l == r;
             yield l;
         }
     }
     op multiply(lhs: tensor, rhs: tensor) -> tensor {
+        dtype: same_numeric;
         alias: mul;
         shape(l, r) {
             assert l == r;
@@ -33,18 +36,21 @@ dialect TensorLang {
         }
     }
     op divide(lhs: tensor, rhs: tensor) -> tensor {
+        dtype: same_numeric;
         shape(l, r) {
             assert l == r;
             yield l;
         }
     }
     op maximum(lhs: tensor, rhs: tensor) -> tensor {
+        dtype: same_numeric;
         shape(l, r) {
             assert l == r;
             yield l;
         }
     }
     op minimum(lhs: tensor, rhs: tensor) -> tensor {
+        dtype: same_numeric;
         shape(l, r) {
             assert l == r;
             yield l;
@@ -52,38 +58,45 @@ dialect TensorLang {
     }
 
     op negate(input: tensor) -> tensor {
+        dtype: same_numeric;
         shape(s) {
             yield s;
         }
     }
     op exponential(input: tensor) -> tensor {
+        dtype: same_float;
         alias: exp;
         shape(s) {
             yield s;
         }
     }
     op log(input: tensor) -> tensor {
+        dtype: same_float;
         shape(s) {
             yield s;
         }
     }
     op abs(input: tensor) -> tensor {
+        dtype: same_numeric;
         shape(s) {
             yield s;
         }
     }
     op sqrt(input: tensor) -> tensor {
+        dtype: same_float;
         shape(s) {
             yield s;
         }
     }
     op rsqrt(input: tensor) -> tensor {
+        dtype: same_float;
         shape(s) {
             yield s;
         }
     }
 
     op reshape(input: tensor) -> tensor {
+        dtype: same;
         attrs {
             // TEPL adapter metadata from the StableHLO result type.
             shape: index[];
@@ -94,6 +107,7 @@ dialect TensorLang {
         }
     }
     op transpose(input: tensor) -> tensor {
+        dtype: same;
         attrs {
             permutation: index[];
         }
@@ -104,6 +118,7 @@ dialect TensorLang {
         }
     }
     op broadcast_in_dim(input: tensor) -> tensor {
+        dtype: same;
         attrs {
             broadcast_dimensions: index[];
             // TEPL adapter metadata from the StableHLO result type.
@@ -118,6 +133,7 @@ dialect TensorLang {
         }
     }
     op slice(input: tensor) -> tensor {
+        dtype: same;
         attrs {
             start_indices: index[];
             limit_indices: index[];
@@ -137,6 +153,7 @@ dialect TensorLang {
     }
     // StableHLO permits one or more inputs. The assertion enforces nonemptiness.
     op concatenate(inputs: tensor...) -> tensor {
+        dtype: same;
         attrs {
             dimension: index;
         }
@@ -154,6 +171,7 @@ dialect TensorLang {
     }
     // Single-input/result specialization; init_value is a real scalar operand.
     op reduce(input: tensor, init_value: tensor) -> tensor {
+        dtype: same;
         attrs {
             dimensions: index[];
             // TEPL adapter handle for the StableHLO body region.
@@ -279,6 +297,7 @@ dialect TensorLang {
 
     // Collective signatures below specialize to one tensor input/result.
     op all_gather(input: tensor) -> tensor {
+        dtype: same;
         attrs {
             all_gather_dim: index;
             replica_groups: replica_groups;
@@ -289,12 +308,14 @@ dialect TensorLang {
         // including partition count or mesh metadata. Obtain shape from host.
     }
     op all_reduce(input: tensor) -> tensor {
+        dtype: same;
         attrs: CollectiveReduce;
         shape(s) {
             yield s;
         }
     }
     op reduce_scatter(input: tensor) -> tensor {
+        dtype: same;
         attrs {
             scatter_dimension: index;
             replica_groups: replica_groups;
@@ -305,6 +326,7 @@ dialect TensorLang {
         // No shape block: the host must resolve the actual process-group size.
     }
     op all_to_all(input: tensor) -> tensor {
+        dtype: same;
         attrs {
             split_dimension: index;
             concat_dimension: index;

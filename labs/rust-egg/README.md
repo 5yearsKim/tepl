@@ -4,7 +4,7 @@
 `TensorAnalysis`, input bindings, shape and dtype inference, and checked rules.
 `src/host/` contains application-specific node helpers and LoRA legality functions.
 See [IR file ownership and contracts](src/ir/README.md) for copied versus emitted
-code, supported policies, and the remaining compiler-generation gaps.
+code and supported policies.
 
 ## Run and validate
 
@@ -15,15 +15,13 @@ cargo test --manifest-path labs/rust-egg/Cargo.toml --all-targets
 cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
 ```
 
-The compiler currently generates builtins, dialects, node types, and callback-only
-rules. The lab additionally contains handwritten analysis and default rewrite
-builders. Generating in place replaces the analysis module registration and rule
-wrappers; `tools/regenerate_lab.sh --check` reports these intentional differences.
-To inspect current compiler output without changing the reference:
+The compiler generates the complete `src/ir/` module: operation inference,
+reusable analysis support, dialects, nodes, and default/explicit rule builders.
+Regenerate and verify it with:
 
 ```sh
-bazel build //:tepl
-bazel-bin/tepl generate examples --target rust --out /tmp/tepl-generated-reference
+./tools/regenerate_lab.sh
+./tools/regenerate_lab.sh --check
 ```
 
 The output is a module directory for an existing Rust edition 2024 crate with
@@ -77,7 +75,7 @@ later requires a fresh graph. Invalid facts do not retain error messages.
 
 ## Operation inference
 
-All 24 TEPL shape definitions in the example dialects have reference evaluators,
+All 24 TEPL shape definitions in the example dialects have generated evaluators,
 including variadic concatenate, reduce, general dot, convolution, and all-to-all.
 Rust statements follow their TEPL blocks and use `shape_builtins`. Shapes stay
 `Vec<u64>` at the interface; computations widen to checked `i128` and validate
@@ -93,17 +91,17 @@ use rust_egg::ir::analysis::{Inference, infer_shape, infer_dtype, infer_tensor};
 // infer_tensor(op, &[TensorInfo], attrs) -> Inference<TensorInfo>
 ```
 
-Dtype policies are defined in Rust, outside TEPL. Supported arithmetic requires
-matching non-bool operands; transcendental operations require floating-point
-operands. Data movement and reference reductions/collectives preserve compatible
-dtypes. Precision or algorithm overrides with unspecified output semantics
-return `Unknown`. Constants and literals read explicit dtypes.
+Dtype inference follows optional TEPL policies: `same`, `same_numeric`,
+`same_float`, or a fixed concrete dtype. Missing definitions return `Unknown`;
+common policies with zero operands also return `Unknown`. Graph literals read
+explicit dtypes. Dot, convolution, and constants have no example dtype policy,
+so default combined inference remains unknown for them. Constants also have no
+shape definition; their payload does not implicitly supply metadata. All-gather
+and reduce-scatter need process-grid metadata and have no shape block.
 
-`payload.rs` contains the explicit constant metadata policy. Constants have no
-TEPL shape block, so pure shape inference returns `Unknown`, but combined tensor
-inference reads their typed payload. All-gather and reduce-scatter have no shape
-block and remain unknown without process-grid metadata. Opaque regions, mesh
-groups, and constant byte encodings remain application responsibilities.
+The LoRA demo explicitly supplies `host::LoraAnalysis` and
+`infer_lora_tensor_output` for its dot policy. Opaque regions, mesh groups, and
+constant byte encodings remain application responsibilities.
 
 ## Checked rewrites
 
@@ -111,12 +109,9 @@ Each rule exposes `pattern()`, `expression()`, a `Functions` trait, and the
 default builder:
 
 ```rust
-use rust_egg::host::DemoLoraFunctions;
-use rust_egg::ir::rules::lora::rule_lora;
+use rust_egg::ir::rules::simple::rule_commute_add;
 
-let rewrite = rule_lora::build_rewrite(DemoLoraFunctions {
-    allow_reassociation: true,
-}).unwrap();
+let rewrite = rule_commute_add::build_rewrite(()).unwrap();
 ```
 
 The default builder reads metadata from `TensorAnalysis` and validates RHS
@@ -124,6 +119,8 @@ operations with the same inference. Users pass only implementations of the
 rule's explicit custom functions, or `()` when there are none.
 `build_rewrite_with(metadata, inference, functions)` provides explicit hooks
 for custom analyses and tests that inject missing or incompatible metadata.
+For example, LoRA selects `LoraAnalysis`, `lora_tensor_info`, and
+`infer_lora_tensor_output` explicitly through that builder.
 
 The matching runtime finds structural and attribute witnesses, checks tensor
 restrictions and `where` conditions, and derives descriptors in source order.

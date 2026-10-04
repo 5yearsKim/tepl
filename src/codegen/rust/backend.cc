@@ -5,6 +5,7 @@
 #include <set>
 #include <stdexcept>
 
+#include "src/codegen/rust/analysis_emitter.h"
 #include "src/codegen/rust/dialect_emitter.h"
 #include "src/codegen/rust/names.h"
 #include "src/codegen/rust/rule_emitter.h"
@@ -31,11 +32,15 @@ GenerationResult Backend::generate(const core::Program& program,
     }
     result.files.push_back(
         {"mod.rs",
-         "pub mod analysis { pub mod shape_builtins; }\n"
+         "pub mod analysis;\n"
          "pub mod dialects;\npub mod op_node;\npub mod types;\n"
          "pub mod pattern;\npub mod rules;\n"
          "pub use op_node::{Op, OpAttrs, OpNode, "
          "NodeError, Arity, DialectOp};\npub use types::DType;\n"});
+    result.files.push_back(
+        {"analysis/shape.rs", emitShapeInference(program, names)});
+    result.files.push_back(
+        {"analysis/dtype.rs", emitDTypeInference(program, names)});
     std::string dialect_index;
     for (const auto& dialect : names.dialects) {
       dialect_index += "pub mod " + dialect.module + ";\n";

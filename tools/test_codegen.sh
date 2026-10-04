@@ -28,7 +28,7 @@ TOML
     printf 'pub mod ir;\n' > "$application/src/lib.rs"
 }
 
-for source in custom empty dialect_only literal_root lora basic binders inherited simple; do
+for source in analysis custom empty dialect_only literal_root lora basic binders inherited simple; do
     if [[ -f "$project_root/tests/codegen/$source.tepl" ]]; then
         input="$project_root/tests/codegen/$source.tepl"
     else
@@ -42,7 +42,7 @@ for source in custom empty dialect_only literal_root lora basic binders inherite
         cp "$project_root/tests/codegen/$source.rs" "$crate/tests/generated.rs"
     fi
     cargo test --manifest-path "$crate/Cargo.toml"
-    if [[ "$source" == custom ]]; then
+    if [[ "$source" == custom || "$source" == analysis ]]; then
         cargo test --manifest-path "$crate/Cargo.toml" --release
     fi
 done
@@ -99,7 +99,7 @@ fn deeply_nested_rule_executes_in_renamed_module() {
     let y = graph.add(OpNode::literal("2", DType::I32).unwrap());
     let root = graph.add(OpNode::new(s::Op::Add, s::OpAttrs::None, vec![x, y]).unwrap());
     graph.rebuild();
-    let rule = rule_commute_add::build_rewrite(metadata, Inference(true), ()).unwrap();
+    let rule = rule_commute_add::build_rewrite_with(metadata, Inference(true), ()).unwrap();
     let matches = rule.search(&graph);
     assert!(!rule.apply(&mut graph, &matches).is_empty());
     graph.rebuild();

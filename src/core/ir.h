@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 
+#include "src/core/dtype_policy.h"
 #include "src/core/ids.h"
 #include "src/core/shape/ir.h"
 #include "src/core/types.h"
@@ -48,6 +49,7 @@ struct Operation {
   std::optional<AttributeSchemaId> attributes;
   SourceOrigin origin;
   std::optional<shape::Program> shape;
+  std::optional<DTypePolicy> dtype_policy;
 };
 
 struct HostFunction {

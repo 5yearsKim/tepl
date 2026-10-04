@@ -11,7 +11,7 @@ constructor. Generation inserts project-specific `Op` and `OpAttrs` sum types
 at the marker below the imports, before the node implementation, and writes
 `op_node.rs`. `src/types.rs` is copied as `types.rs`.
 `src/analysis/shape_builtins.rs` is copied as `analysis/shape_builtins.rs`.
-The generator exposes it through an inline `analysis` module. It implements
+The generated `analysis` module exposes these helpers. They implement
 every builtin in `examples/shape_guide.md`, including those not yet used by the
 sample evaluators, with no dependency on dialects, host semantics, or egg:
 
@@ -41,31 +41,40 @@ Rust calls pass slices; a TEPL call `concat(a, b, c)` becomes
 `len` returns `usize`; `range` produces `u64` axes. Index helpers accept integer
 types with checked conversion to `usize`, rejecting negative indices.
 `sum`, `product`, `min`, `max`, `floor_div`, and `ceil_div` support primitive
-signed and unsigned integers through `ShapeInteger`. The reference evaluators
+signed and unsigned integers through `ShapeInteger`. Generated evaluators
 use `integers` to widen dimensions to `i128`, and `dimensions` validates yielded
 values before converting to `u64`. `index` checks list accesses, and
 `add`, `sub`, `mul`, `div`, and `rem` implement checked scalar `i128` arithmetic.
 These support primitives supplement the 19 language builtins; they are not
-additional TEPL-callable functions. A future emitter must retain this integer
+additional TEPL-callable functions. The shape emitter retains this integer
 contract. Signed attribute values widen directly from `i64`.
 
 Fallible helpers return `ShapeResult<T>` (`Result<T, ShapeError>`). Operation
 evaluators compose them with `?`; their dispatcher converts errors to invalid
 inference. Missing operation definitions are handled separately as unknown
 inference.
-The lab's handwritten operation evaluators demonstrate this interface; the
-compiler does not yet generate evaluators from TEPL shape blocks.
+The compiler generates evaluators from checked TEPL shape programs and dtype
+policies. `dtype_builtins.rs` implements common policies without promotion;
+common policies with no operands are unknown.
 
 Generation emits files directly into the selected module directory of an
 existing crate. Internal imports use `super`, so the enclosing module can have
-any name and location. The lab's `src/ir/` also contains handwritten reference
-analysis and simplified default builders which current generation does not yet
-reproduce. See its [ownership document](../../labs/rust-egg/src/ir/README.md)
-before regenerating in place. Keep copied runtime files synchronized with their
-maintained sources.
+any name and location. The lab's `src/ir/` is reproducible generated output; see
+its [ownership document](../../labs/rust-egg/src/ir/README.md). Keep copied runtime
+files synchronized with their maintained sources.
 
-Hosts supply `TensorMetadata`, `OutputInference`, and the generated per-rule
-`Functions` traits. Shapes and index values use `u64` consistently with core's
+Copied analysis support includes `TensorAnalysis`, `TensorAnalysisData`,
+`TensorBindingTable`, and `Inference`. Tensor inference combines generated shape
+and dtype results, with invalid results taking priority over unknown results.
+Input bindings supply named input metadata. Every e-class alternative must have
+known, agreeing metadata before `info()` exposes it; merge retains unknown and
+conflicting evidence. Missing bindings cannot be filled in retroactively: build
+a fresh graph when input metadata changes.
+
+The default `build_rewrite(functions)` supplies the metadata reader and output
+inference automatically. Hosts implement only the referenced per-rule `Functions`
+traits and register inputs. `build_rewrite_with(metadata, inference, functions)`
+accepts explicit `TensorMetadata` and `OutputInference` for custom analyses. Shapes and index values use `u64` consistently with core's
 64-bit Index contract. Rust slice positions and table IDs use `usize`.
 
 Literal patterns carry `Option<DType>`: `None` accepts any dtype while preserving

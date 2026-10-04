@@ -45,6 +45,10 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
     }
   }
   if (auto* properties = context->opProperties()) {
+    if (auto* dtype = properties->dtypeProperty()) {
+      op.dtype_policy = ast::DTypePolicy{getSpan(dtype->dtypeName()),
+                                         dtype->dtypeName()->getText()};
+    }
     if (auto* shape = properties->shapeProperty()) {
       op.shape_definition = std::any_cast<ast::ShapeDefinition>(visit(shape));
     }

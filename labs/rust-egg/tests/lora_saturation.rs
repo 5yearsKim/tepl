@@ -7,7 +7,7 @@ mod support;
 use std::time::Duration;
 
 use egg::{EGraph, Extractor, Runner, StopReason};
-use rust_egg::ir::analysis::{TensorAnalysis, tensor_info};
+use rust_egg::host::{LoraAnalysis, infer_lora_tensor_output, lora_tensor_info};
 use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::rules::{lora::rule_lora, simple::rule_commute_add};
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
@@ -18,17 +18,22 @@ use support::{
 };
 
 fn run_rules(
-    egraph: EGraph<OpNode, TensorAnalysis>,
+    egraph: EGraph<OpNode, LoraAnalysis>,
     allow_reassociation: bool,
-) -> Runner<OpNode, TensorAnalysis> {
+) -> Runner<OpNode, LoraAnalysis> {
     let rules = [
-        rule_lora::build_rewrite(DemoLoraFunctions {
-            allow_reassociation,
-        })
+        rule_lora::build_rewrite_with(
+            lora_tensor_info,
+            infer_lora_tensor_output,
+            DemoLoraFunctions {
+                allow_reassociation,
+            },
+        )
         .unwrap(),
-        rule_commute_add::build_rewrite(()).unwrap(),
+        rule_commute_add::build_rewrite_with(lora_tensor_info, infer_lora_tensor_output, ())
+            .unwrap(),
     ];
-    Runner::<OpNode, TensorAnalysis>::new(TensorAnalysis::default())
+    Runner::<OpNode, LoraAnalysis>::new(LoraAnalysis::default())
         .with_egraph(egraph)
         .with_iter_limit(12)
         .with_node_limit(1_000)
@@ -48,7 +53,7 @@ fn lora_saturates_extracts_cheaper_expression_and_preserves_values() {
     let alternative = runner.egraph.lookup_expr(&expected_expr()).unwrap();
     assert_eq!(runner.egraph.find(root), runner.egraph.find(alternative));
     assert_eq!(
-        tensor_info(&runner.egraph, root),
+        lora_tensor_info(&runner.egraph, root),
         Some(TensorInfo {
             shape: vec![2, 4, 32],
             dtype: DType::I64
@@ -111,7 +116,7 @@ fn commutation_exposes_lora_match_in_a_later_iteration() {
     }));
 }
 
-fn dot_count(egraph: &EGraph<OpNode, TensorAnalysis>) -> usize {
+fn dot_count(egraph: &EGraph<OpNode, LoraAnalysis>) -> usize {
     egraph
         .classes()
         .flat_map(|class| &class.nodes)

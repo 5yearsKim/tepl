@@ -68,9 +68,17 @@ variadicOperand
     ;
 
 opProperties
-    : aliasProperty attrsProperty? shapeProperty?
-    | attrsProperty aliasProperty? shapeProperty?
+    : (aliasProperty (attrsProperty dtypeProperty? | dtypeProperty attrsProperty?)?
+      | attrsProperty (aliasProperty dtypeProperty? | dtypeProperty aliasProperty?)?
+      | dtypeProperty (aliasProperty attrsProperty? | attrsProperty aliasProperty?)?)
+      shapeProperty?
     | shapeProperty
+    ;
+
+// Metadata properties may appear in any order, at most once each; shape is last.
+// Keep "dtype" contextual, just like "shape". Core validates the policy name.
+dtypeProperty
+    : {getCurrentToken()->getText() == "dtype"}? ID ':' dtypeName ';'
     ;
 
 // Shape programs are parsed here; names, signatures, and types are checked later.

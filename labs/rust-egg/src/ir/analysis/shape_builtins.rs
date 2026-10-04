@@ -268,15 +268,18 @@ pub fn gather<T: Clone, I: Copy + TryInto<usize>>(
 
 /// Right-aligned broadcasting with missing leading dimensions treated as one.
 /// A zero broadcasts with one to zero, but is incompatible with other sizes.
-pub fn broadcast_shape(lhs: &[u64], rhs: &[u64]) -> ShapeResult<Vec<u64>> {
+pub fn broadcast_shape<T: ShapeInteger>(lhs: &[T], rhs: &[T]) -> ShapeResult<Vec<T>> {
+    if lhs.iter().chain(rhs).any(|&dimension| dimension < T::ZERO) {
+        return Err(ShapeError::InvalidDimension);
+    }
     let rank = std::cmp::max(lhs.len(), rhs.len());
     let mut output = Vec::with_capacity(rank);
     for offset in 0..rank {
-        let left = lhs.iter().rev().nth(offset).copied().unwrap_or(1);
-        let right = rhs.iter().rev().nth(offset).copied().unwrap_or(1);
-        output.push(if left == right || right == 1 {
+        let left = lhs.iter().rev().nth(offset).copied().unwrap_or(T::ONE);
+        let right = rhs.iter().rev().nth(offset).copied().unwrap_or(T::ONE);
+        output.push(if left == right || right == T::ONE {
             left
-        } else if left == 1 {
+        } else if left == T::ONE {
             right
         } else {
             return Err(ShapeError::IncompatibleBroadcast);
@@ -526,6 +529,12 @@ mod tests {
 
     #[test]
     fn broadcasting_aligns_right_and_handles_zero_dimensions() {
+        let wide = i128::from(u64::MAX) + 1;
+        assert_eq!(broadcast_shape(&[wide], &[1]), Ok(vec![wide]));
+        assert_eq!(
+            broadcast_shape(&[-1_i128], &[1]),
+            Err(ShapeError::InvalidDimension)
+        );
         for (lhs, rhs, expected) in [
             (vec![], vec![], vec![]),
             (vec![], vec![2, 3], vec![2, 3]),

@@ -148,7 +148,7 @@ fn generated_lora_checks_shapes_host_legality_and_every_intermediate_before_inse
                     dtype: DType::F32,
                 })
         };
-        let rule = rule_lora::build_rewrite(
+        let rule = rule_lora::build_rewrite_with(
             metadata,
             Inference {
                 reject_intermediate,

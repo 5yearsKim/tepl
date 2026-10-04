@@ -342,6 +342,7 @@ std::string formatAst(const ast::Program& program) {
       }
       out << ") -> " << op.result_type;
       if (op.alias) out << " alias " << *op.alias;
+      if (op.dtype_policy) out << " dtype " << op.dtype_policy->name;
       if (op.attrs) {
         if (const auto* shared = std::get_if<ast::SharedAttrs>(&*op.attrs)) {
           out << " attrs " << shared->name;

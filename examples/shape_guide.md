@@ -3,12 +3,12 @@
 > Implementation status: shape blocks, expressions, and builtin call syntax are
 > parsed into a structured AST and checked by core. Parameters, local names,
 > attribute fields, builtin signatures, and expression types are resolved. Shape
-> programs are not executed or emitted as operation evaluators yet. The compiler
+> programs are emitted as checked Rust operation evaluators. The compiler
 > also supports the nested/opaque attribute types and `$` host-call syntax here.
 > Existing rule-level shape declarations remain match-time constraints.
 
 An operation's shape definition computes its output shape from operand shapes
-and attributes. TEPL could compile that definition into a shared evaluator used
+and attributes. TEPL compiles that definition into a shared evaluator used
 by e-class analysis and by RHS validation before a rewrite inserts nodes.
 Every parameter is an operand shape or a variadic list of operand shapes, not
 a tensor.
@@ -34,7 +34,7 @@ Operation shape blocks provide the reusable operation-level counterpart:
 They do not replace the rule's shape-pattern checks.
 
 ```tepl
-// Proposed operation syntax: describe how an output shape is computed.
+// Operation syntax: describe how an output shape is computed.
 op transpose(input: tensor) -> tensor {
     attrs {
         permutation: index[];
@@ -49,8 +49,9 @@ op transpose(input: tensor) -> tensor {
 ```
 
 The operation examples below belong inside a `dialect` declaration. Their shape
-blocks define shape behavior only; dtype rules and numerical rewrite legality
-remain separate responsibilities.
+blocks define shape behavior only. Optional [dtype policies](dtype_guide.md)
+describe output dtypes separately; numerical rewrite legality remains a separate
+responsibility.
 
 Shape parameters bind to operand shapes in declaration order: `shape(s)` receives
 the shape of the sole operand, and `shape(l, r)` receives the shapes of the first

@@ -323,6 +323,11 @@ struct InlineAttrs {
 
 using OpAttrs = std::variant<SharedAttrs, InlineAttrs>;
 
+struct DTypePolicy {
+  SourceSpan span;
+  std::string name;
+};
+
 struct OpDecl {
   SourceSpan span;
   // The declared operation name is canonical; alias is another spelling.
@@ -334,6 +339,7 @@ struct OpDecl {
   // Parsed syntax only; semantic checking and evaluator generation are
   // separate.
   std::optional<ShapeDefinition> shape_definition;
+  std::optional<DTypePolicy> dtype_policy;
 };
 
 struct Dialect {

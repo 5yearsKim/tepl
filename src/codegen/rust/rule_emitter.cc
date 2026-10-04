@@ -108,8 +108,16 @@ void emitRule(CodeWriter& out, const core::Program& program,
   out.open("pub fn expression() -> TensorExpr");
   out.line(build(*rule.rhs, rule, names));
   out.close();
+  out.line("/// Uses the same metadata and inference as TensorAnalysis.");
+  out.open(
+      "pub fn build_rewrite<F: Functions + 'static>(functions: F) -> "
+      "Result<Rewrite<OpNode, TensorAnalysis>, String>");
+  out.line("build_rewrite_with(tensor_info, infer_tensor_output, functions)");
+  out.close();
+  out.line("/// Explicit hooks for a custom analysis or inference policy.");
   out.line(
-      "pub fn build_rewrite<N, M, I, F>(metadata: M, inference: I, functions: "
+      "pub fn build_rewrite_with<N, M, I, F>(metadata: M, inference: I, "
+      "functions: "
       "F) -> Result<Rewrite<OpNode, N>, String>");
   out.line(
       "where N: Analysis<OpNode>, M: TensorMetadata<N> + 'static, I: "
@@ -198,6 +206,8 @@ std::string emitRules(const core::Program& program, const Names& names,
   out.line("use std::{collections::HashMap, sync::Arc};");
   out.line("use egg::{Analysis, EGraph, Rewrite, Var};");
   out.line("use " + root_path + "::{DType, OpNode, OpAttrs, Op};");
+  out.line("use " + root_path +
+           "::analysis::{TensorAnalysis, tensor_info, infer_tensor_output};");
   out.line("use " + root_path + "::pattern::*;");
   out.line("use " + root_path + "::dialects::*;");
   for (const auto* rule : rules) {

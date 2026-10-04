@@ -29,7 +29,7 @@ fn untyped_literal_roots_match_and_construct_each_concrete_dtype() {
         let mut graph = EGraph::<OpNode, ()>::default();
         let root = graph.add(OpNode::literal("1", dtype).unwrap());
         graph.rebuild();
-        let rule = rule_integer_root::build_rewrite(metadata, LiteralInference, ()).unwrap();
+        let rule = rule_integer_root::build_rewrite_with(metadata, LiteralInference, ()).unwrap();
         let matches = rule.search(&graph);
         assert!(!rule.apply(&mut graph, &matches).is_empty());
         let rhs = graph.lookup(OpNode::literal("2", dtype).unwrap()).unwrap();
@@ -42,7 +42,7 @@ fn literal_spelling_sign_and_explicit_dtype_are_preserved() {
     let root = graph.add(OpNode::literal("+1.00", DType::F32).unwrap());
     graph.add(OpNode::literal("1.00", DType::F32).unwrap());
     graph.rebuild();
-    let rule = rule_decimal_root::build_rewrite(metadata, LiteralInference, ()).unwrap();
+    let rule = rule_decimal_root::build_rewrite_with(metadata, LiteralInference, ()).unwrap();
     let matches = rule.search(&graph);
     assert_eq!(matches.len(), 1);
     assert!(!rule.apply(&mut graph, &matches).is_empty());
@@ -56,7 +56,7 @@ fn capture_root_generates_and_runs_without_operations_or_constraints() {
     let mut graph = EGraph::<OpNode, ()>::default();
     graph.add(OpNode::literal("3", DType::F32).unwrap());
     graph.rebuild();
-    let rule = rule_capture_root::build_rewrite(metadata, LiteralInference, ()).unwrap();
+    let rule = rule_capture_root::build_rewrite_with(metadata, LiteralInference, ()).unwrap();
     let matches = rule.search(&graph);
     assert_eq!(matches.len(), 1);
     assert!(rule.apply(&mut graph, &matches).is_empty());

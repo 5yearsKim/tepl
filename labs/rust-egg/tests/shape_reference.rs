@@ -216,7 +216,7 @@ fn every_tepl_shape_block_has_a_working_evaluator_and_signature_checks() {
 }
 
 #[test]
-fn absent_definitions_are_unknown_and_constants_use_an_explicit_payload_policy() {
+fn absent_definitions_are_unknown_including_payload_bearing_constants() {
     let constant = t::OpAttrs::ConstantAttrs {
         value: Elements {
             element_type: "f32".into(),
@@ -260,10 +260,7 @@ fn absent_definitions_are_unknown_and_constants_use_an_explicit_payload_policy()
     }
     assert_eq!(
         infer_tensor(t::Op::Constant.into(), &[], &constant.into()),
-        Inference::Known(TensorInfo {
-            shape: vec![2, 3],
-            dtype: DType::F32
-        })
+        Inference::Unknown
     );
 }
 
@@ -673,7 +670,7 @@ fn convolution_empty_windows_and_checked_integer_boundaries_follow_tepl() {
 }
 
 #[test]
-fn rust_dtype_policy_preserves_data_movement_and_checks_numeric_inputs() {
+fn generated_dtype_policy_preserves_data_movement_and_checks_numeric_inputs() {
     for dtype in DType::ALL {
         let attrs = t::OpAttrs::BroadcastInDimAttrs {
             broadcast_dimensions: vec![0],
@@ -725,10 +722,10 @@ fn rust_dtype_policy_preserves_data_movement_and_checks_numeric_inputs() {
         infer_dtype(t::Op::Concatenate.into(), &[DType::F32, DType::I64], &attrs),
         Inference::Invalid(_)
     ));
-    assert!(matches!(
+    assert_eq!(
         infer_dtype(t::Op::Concatenate.into(), &[], &attrs),
-        Inference::Invalid(_)
-    ));
+        Inference::Unknown
+    );
     let mut attrs = convolution_attrs();
     assert_eq!(
         infer_dtype(
@@ -736,7 +733,7 @@ fn rust_dtype_policy_preserves_data_movement_and_checks_numeric_inputs() {
             &[DType::F32, DType::F32],
             &attrs.clone().into()
         ),
-        Inference::Known(DType::F32)
+        Inference::Unknown
     );
     if let t::OpAttrs::ConvolutionAttrs {
         precision_config, ..

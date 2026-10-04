@@ -53,6 +53,13 @@ void registerOperation(AnalysisContext& context, TypeId tensor,
   if (op.shape_definition)
     value.shape =
         shape::check(context, value, *op.shape_definition, dialect.source_name);
+  if (op.dtype_policy) {
+    value.dtype_policy = resolveDTypePolicy(op.dtype_policy->name);
+    if (!value.dtype_policy)
+      context.report(
+          origin(dialect.source_name, op.dtype_policy->span),
+          "unknown operation dtype policy '" + op.dtype_policy->name + "'");
+  }
   context.output.operations.push_back(std::move(value));
   const auto addName = [&](const std::string& name) {
     if (!names.emplace(name, id).second)

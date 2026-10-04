@@ -101,30 +101,62 @@ operation attributes, and `attrs: Name;` reuses a schema. Attribute fields
 support `index`, `string`, `i64`, `bool`, `precision`, `dot_algorithm`,
 `replica_groups`, `region`, and `elements`. Nested lists (`i64[][]`) and
 optional values (`dot_algorithm?`) are preserved in the generated Rust types.
-An operation can declare at most one `alias` and one `attrs` property, in
-either order. Inline and shared attributes are alternative forms of the same
-property. `alias` gives a second spelling to the same operation; for example,
+An operation can declare at most one `alias`, `attrs`, and `dtype` property, in
+any order before its optional shape block. Inline and shared attributes are
+alternative forms of the same property. `alias` gives a second spelling to the
+same operation; for example,
 `dot_general` remains the declared name and `dot` refers to it. In files with
 a dialect, `check` validates rule operation names, arity, and whether an attribute
 descriptor is required.
+
+An optional `dtype:` property declares an operation's output dtype policy:
+
+```tepl
+op add(lhs: tensor, rhs: tensor) -> tensor {
+    dtype: same_numeric;
+    shape(l, r) {
+        assert l == r;
+        yield l;
+    }
+}
+```
+
+| Policy | Meaning |
+| --- | --- |
+| `same` | All operand dtypes must match; preserve that dtype, including `bool`. |
+| `same_numeric` | Same as `same`, but reject `bool`. |
+| `same_float` | Same as `same`, restricted to `f16`, `bf16`, `f32`, or `f64`. |
+| A concrete dtype, e.g. `bool` or `f32` | Fix the result dtype without imposing operand dtype restrictions. |
+| Omitted | No declared dtype inference; return `Unknown` unless a separate payload or host policy supplies it. |
+
+Concrete dtypes are `bool`, `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`,
+`u64`, `f16`, `bf16`, `f32`, and `f64`. Common policies cover every actual
+operand, including variadic operands, without implicit promotion. With no
+operands, or insufficient dtype information to establish a common dtype,
+the result is `Unknown`; known incompatible operands are invalid.
+Fixed-result policies can describe zero-operand operations as well.
+
+The parser retains the property, core validates and stores its policy, and Rust
+codegen emits its inference dispatch through shared runtime helpers.
+Shape inference remains independent. Payload-dependent constants and
+attribute-dependent dtype rules need separate policies and may omit `dtype:`.
+See [the dtype guide](examples/dtype_guide.md) for examples.
 
 An optional trailing `shape(...) { ... }` block is parsed into a structured AST.
 It supports fixed and trailing variadic parameters, `let`, `assert`, a final
 `yield`, builtin calls, lists, indexing, attribute fields, conditionals, and
 comprehensions. `parse --ast` displays that structure with source spans retained
 in the AST. `check` resolves shape names, attribute fields, and builtin calls,
-checks their types, and stores the checked program on its operation. Shape
-evaluator generation and execution remain deferred; hosts still supply output
-metadata.
+checks their types, and stores the checked program on its operation. Rust codegen
+emits evaluators used by e-class analysis and rewrite output validation.
 `$name(...)` explicitly calls a host function. Unprefixed calls are reserved for
 native functions and bound `fn` parameters; unknown native functions are errors.
 Builtin names remain ordinary identifiers. The shape parser records their calls;
 core resolves their names and checks signatures within operation shape blocks.
-Builtin calls in rule conditions/derivations and shape evaluator generation
-remain deferred.
+Builtin calls in rule conditions/derivations remain deferred.
 Shape blocks exclude `$` calls, descriptor references, and floating literals.
 `assert`, `yield`, `if`, `then`, `else`, `for`, and `in` are reserved keywords;
-`shape` remains contextual so `attrs.shape` is valid.
+`shape` and `dtype` remain contextual so `attrs.shape` and `attrs.dtype` are valid.
 
 The parser and AST carry this information, and `check` resolves declarations
 and checks descriptor schemas. Rust code generation supports checked
@@ -411,6 +443,7 @@ file's import scope, and deduplicates shared dialect imports. Output is:
 
 ```text
 generated/
+  analysis/{mod.rs, shape.rs, dtype.rs, tensor_analysis.rs, ...}
   dialects/{mod.rs, tensor_lang.rs, scalar.rs}
   op_node.rs
   types.rs
@@ -426,21 +459,24 @@ dialect; arity and operation-specific schemas are checked at runtime.
 Rule files retain their own modules and runtime names, so both `simple.tepl`
 and `scalar.tepl` can define `commute_add`.
 
-Each concrete rule exposes `pattern()`,
-`expression()`, a host `Functions` trait, and
-`build_rewrite(metadata, inference, functions)`. Hosts supply tensor metadata,
-operation output inference, and implementations of rule legality/derivation
-functions. Rules without host calls accept `()` for `functions`. The generated
-rewrite checks the whole replacement before inserting nodes. Example invocation
-for the generated LoRA rule:
+Each concrete rule exposes `pattern()`, `expression()`, a host `Functions`
+trait, and `build_rewrite(functions)`. The default builder uses generated
+`TensorAnalysis` for metadata and the same inference for output validation.
+Applications register input types and implement explicit rule functions; rules
+without host calls accept `()`. The generated rewrite validates the whole
+replacement before inserting nodes:
 
 ```rust
-use crate::generated::rules::lora::rule_lora;
+use crate::generated::analysis::{TensorAnalysis, TensorBindingTable};
+use crate::generated::rules::simple::rule_commute_add;
 
-// Implement rule_lora::Functions in application code, then provide metadata
-// and output inference implementations from generated::pattern.
-let rewrite = rule_lora::build_rewrite(metadata, inference, functions)?;
+let graph = egg::EGraph::new(TensorAnalysis::new(inputs));
+let rewrite = rule_commute_add::build_rewrite(())?;
 ```
+
+`build_rewrite_with(metadata, inference, functions)` selects explicit hooks for
+a custom analysis. The LoRA demo uses that path for its application-specific dot
+dtype policy; the example TEPL dialect leaves that policy unspecified.
 
 An omitted graph-literal dtype means any dtype. LHS literals match exact spelling
 at any dtype; explicitly annotated literals also require the given dtype. RHS

@@ -25,6 +25,10 @@ The layout separates shared semantics from target syntax:
   from all checked dialect declarations, with arity, aliases, and schema checks.
 - `rust/rule_emitter.*` recursively emits patterns, RHS expressions, shape
   restrictions, and per-rule host interfaces and callbacks.
+- `rust/analysis_emitter.*` emits shape and dtype dispatch from checked operation
+  definitions, including operation shape evaluators and attribute conversion.
+- `rust/shape_expression_emitter.*` emits shape expressions through shared
+  builtins, checked arithmetic, fallible indexing, and list comprehensions.
 - `rust/expression_emitter.*` emits typed, fallible host expressions with checked
   arithmetic and short-circuit boolean evaluation.
 - `rust/names.*` owns Rust names, string escaping, and type representations.
@@ -48,8 +52,12 @@ language-backend interface.
 ## Generated Rust API
 
 The emitted module exposes `{analysis, dialects, op_node, types, pattern, rules}`.
-`analysis::shape_builtins` contains the copied, checked shape primitives; operation
-shape programs are checked in core, but evaluator generation remains future work.
+`analysis` exposes `TensorAnalysis`, `TensorAnalysisData`, `TensorBindingTable`,
+`TensorInfo`, and pure `infer_shape`, `infer_dtype`, and `infer_tensor` functions.
+`analysis::shape_builtins` exposes the copied checked shape primitives.
+Operation evaluators come from checked shape programs and dtype policies;
+missing definitions return `Unknown`. Reusable analysis implementations and
+policy helpers are copied from `runtime/rust/src/analysis/`.
 Its enclosing name and location are chosen by the consuming application; the
 examples below use `generated`.
 Each dialect has its own module and short `Op` and `OpAttrs` enums, such as
@@ -98,7 +106,9 @@ Each concrete rule becomes `generated::rules::FILE::rule_NAME` with:
 
 - `Functions`: only host functions actually referenced by that rule.
 - `pattern()` and `expression()`: structural match and replacement trees.
-- `build_rewrite(metadata, inference, functions)`: a checked egg rewrite.
+- `build_rewrite(functions)`: a checked rewrite using generated `TensorAnalysis`.
+- `build_rewrite_with(metadata, inference, functions)`: explicit callbacks for a
+  custom analysis or inference policy.
 
 Rewrite names are qualified as `FILE::NAME`, and rule modules have no broad
 re-exports. Host names are scoped to their source file; same-file overloads
@@ -132,6 +142,28 @@ requires `rustfmt` on `PATH`; `--no-format` disables formatting. API callers can
 set `WriteOptions::format = false` to opt out. `--format` explicitly enables it.
 Rustfmt formats layout but does not eliminate redundant expression parentheses;
 generated rule modules still allow `unused_parens`.
+
+## Operation inference
+
+Shape expression values use signed `i128` arithmetic and homogeneous nested
+lists. Dimensions and index attributes enter as `u64`; signed attributes enter
+as `i64`. Generated evaluators widen inputs, call checked helpers, and validate
+all yielded dimensions against `u64`. Parameters follow the operation's fixed
+and variadic operand signature. Assertions and local bindings execute in source
+order; logical operators and conditional branches short-circuit. Comprehensions
+propagate element failures without panicking.
+
+Dtype dispatch uses the checked optional policy: common policies require equal
+operand dtypes, numeric policies exclude bool, float policies accept only floats,
+and concrete policies fix the result dtype. Common policies with no actual
+operands return `Unknown`. There is no name-based inference or implicit promotion.
+
+`infer_tensor` combines known shape and dtype; any invalid component takes
+priority, and incomplete metadata is unknown. Runtime input and literal nodes
+have shared policies. User operations with absent shape or dtype declarations
+remain unknown, including typed-payload constants. Attribute-dependent dtype
+behavior needs an explicit application policy or a future language extension.
+The LoRA demo illustrates a host policy through `build_rewrite_with`.
 
 ## Output ownership and regeneration
 

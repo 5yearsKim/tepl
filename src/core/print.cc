@@ -24,6 +24,8 @@ class Printer {
       }
       out_ << ") -> " << type(op.result);
       if (op.attributes) out_ << " attrs=#" << op.attributes->value;
+      if (op.dtype_policy)
+        out_ << " dtype=" << dtypePolicyName(*op.dtype_policy);
       out_ << '\n';
       if (op.shape) shape::print(out_, *op.shape, program_);
     }

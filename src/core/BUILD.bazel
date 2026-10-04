@@ -3,12 +3,14 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 cc_library(
     name = "ir",
     srcs = [
+        "dtype_policy.cc",
         "literal.cc",
         "shape/builtins.cc",
         "shape/types.cc",
         "types.cc",
     ],
     hdrs = [
+        "dtype_policy.h",
         "ids.h",
         "ir.h",
         "literal.h",

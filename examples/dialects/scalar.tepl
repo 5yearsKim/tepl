@@ -2,12 +2,14 @@
 // These examples restrict the StableHLO operations to rank-zero tensors.
 dialect Scalar {
     op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype: same_numeric;
         shape(l, r) {
             assert l == [] && r == [];
             yield [];
         }
     }
     op negate(input: tensor) -> tensor {
+        dtype: same_numeric;
         shape(s) {
             assert s == [];
             yield [];

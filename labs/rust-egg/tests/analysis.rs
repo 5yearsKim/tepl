@@ -168,7 +168,7 @@ fn unsupported_inference_is_unknown_and_invalid_operands_propagate() {
 }
 
 #[test]
-fn constant_metadata_agrees_between_analysis_and_rewrite_inference() {
+fn undeclared_constant_metadata_is_unknown_in_analysis_and_rewrite_inference() {
     use rust_egg::host::nodes::constant;
     use rust_egg::ir::types::Elements;
 
@@ -178,11 +178,7 @@ fn constant_metadata_agrees_between_analysis_and_rewrite_inference() {
             shape: vec![1],
             data: 1f32.to_le_bytes().to_vec(),
         });
-        let expected = if element_type == "f32" {
-            Some(info(&[1]))
-        } else {
-            None
-        };
+        let expected = None;
         assert_eq!(infer_tensor_output(node.op(), &[], node.attrs()), expected);
         let mut graph = EGraph::new(TensorAnalysis::default());
         let id = graph.add(node);
@@ -320,12 +316,12 @@ fn dtype_rules_preserve_types_and_reject_invalid_arithmetic() {
 }
 
 #[test]
-fn unsupported_dot_dtype_remains_unknown() {
+fn undeclared_dot_dtype_remains_unknown_with_default_or_overridden_precision() {
     let op = Op::TensorLang(t::Op::DotGeneral);
     let mut attrs = rust_egg::host::dot_attrs();
     assert_eq!(
         infer_dtype(op, &[DType::F32, DType::F32], &attrs),
-        Inference::Known(DType::F32)
+        Inference::Unknown
     );
     if let OpAttrs::TensorLang(t::OpAttrs::DotGeneralAttrs {
         precision_config, ..
