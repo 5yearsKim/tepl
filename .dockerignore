@@ -1,0 +1,9 @@
+.git
+.agents
+.aws
+.codex
+bazel-*
+generated
+**/target
+**/.cache
+**/__pycache__

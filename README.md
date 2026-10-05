@@ -191,6 +191,52 @@ C++ output is a library of headers mirroring the Rust module structure. Include
 Clang build. See the [C++ runtime guide](templates/cpp/README.md) and the
 [build example](docs/developer_guide.md#generate-c-dialects-and-rules).
 
+## Run with Docker
+
+Build the image from the repository root:
+
+```sh
+docker build -t tepl:local .
+docker run --rm tepl:local --help
+```
+
+The multi-stage build uses the Bazel version in `.bazelversion` and produces an
+optimized, stripped executable. The final image contains TEPL and a Distroless
+C++ runtime, runs as non-root, and supports builds for Linux amd64 and arm64.
+The first build downloads the compiler dependencies; subsequent builds reuse a
+Bazel cache managed by Docker BuildKit.
+
+Mount your project at `/work` so TEPL can read inputs and write generated files.
+On Linux, use your user and group IDs to keep generated files owned by you:
+
+```sh
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" tepl:local check examples
+
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" tepl:local generate examples \
+  --out my_app/src/generated --no-format
+
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" tepl:local generate examples --target cpp \
+  --out my_cpp_app/generated --no-format
+```
+
+**Always pass `--no-format` when generating code in Docker.** The image omits
+`rustfmt` and `clang-format` to keep it small. Format the generated files on your
+host if needed. Mount the input files together with their imported files so
+relative import paths remain valid. On macOS and Windows with Docker Desktop,
+you can omit `--user`; the examples above use a POSIX shell.
+
+Inspect the local image size with:
+
+```sh
+docker image inspect tepl:local --format '{{.Size}}'
+```
+
+The result is in bytes. `docker image ls tepl:local` also shows Docker's local
+storage usage; reported sizes depend on the Docker storage backend.
+
 ## 📚 More on…
 
 - 🧭 [Design philosophy](docs/design_philosophy.md) — Language principles and core concepts.
