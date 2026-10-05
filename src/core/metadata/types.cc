@@ -1,11 +1,13 @@
-#include "src/core/shape/types.h"
+#include "src/core/metadata/types.h"
 
 #include <string_view>
 
-namespace tepl::core::shape {
+namespace tepl::core::metadata {
 
 std::string typeName(Type type) {
-  std::string name = type.kind == Type::Kind::kInteger ? "Integer" : "Bool";
+  std::string name = type.kind == Type::Kind::kInteger   ? "Integer"
+                     : type.kind == Type::Kind::kBoolean ? "Bool"
+                                                         : "DType";
   for (std::size_t i = 0; i < type.list_depth; ++i) name = "List<" + name + ">";
   return name;
 }
@@ -27,4 +29,4 @@ bool validIntegerLiteral(const std::string& spelling) {
          (digits.size() == limit.size() && digits <= limit);
 }
 
-}  // namespace tepl::core::shape
+}  // namespace tepl::core::metadata

@@ -146,6 +146,8 @@ std::string dtype(core::DType value) {
 }
 std::string type(const core::Type& value, bool argument) {
   switch (value.kind) {
+    case core::TypeKind::kDType:
+      return "DType";
     case core::TypeKind::kTensor:
       return argument ? "const TensorInfo&" : "TensorInfo";
     case core::TypeKind::kIndex:

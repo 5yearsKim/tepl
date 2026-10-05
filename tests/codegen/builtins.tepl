@@ -1,11 +1,11 @@
 dialect Toolkit {
     op copy(input: tensor) -> tensor {
-        dtype: same;
+        dtype(t0) { yield t0; }
         shape(s) { yield s; }
     }
     op tag(input: tensor) -> tensor {
         attrs { axes: index[]; }
-        dtype: same;
+        dtype(t0) { yield t0; }
         shape(s) { yield s; }
     }
 }

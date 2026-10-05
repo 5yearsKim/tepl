@@ -7,14 +7,15 @@
 
 #include "src/core/builtins/catalog.h"
 #include "src/core/ids.h"
-#include "src/core/shape/types.h"
+#include "src/core/metadata/types.h"
+#include "src/core/type/types.h"
 #include "src/operators.h"
 #include "src/source.h"
 
-namespace tepl::core::shape {
+namespace tepl::core::metadata {
 
-using TypeId = core::Id<struct ShapeTypeTag>;
-using SymbolId = core::Id<struct ShapeSymbolTag>;
+using TypeId = core::Id<struct MetadataTypeTag>;
+using SymbolId = core::Id<struct MetadataSymbolTag>;
 struct Expr;
 using ExprPtr = std::shared_ptr<const Expr>;
 
@@ -61,8 +62,8 @@ struct Comprehension {
 struct Expr {
   SourceOrigin origin;
   TypeId type;
-  std::variant<SymbolRef, Integer, bool, AttributeRef, Call, Unary, Binary,
-               List, Index, Conditional, Comprehension>
+  std::variant<SymbolRef, Integer, bool, core::DType, AttributeRef, Call, Unary,
+               Binary, List, Index, Conditional, Comprehension>
       value;
 };
 struct Symbol {
@@ -91,6 +92,8 @@ struct Yield {
   SourceOrigin origin;
   ExprPtr value;
 };
+enum class ProgramKind { Shape, DType };
+
 struct Program {
   SourceOrigin origin;
   // IDs are local to this operation's shape program. Every type is concrete
@@ -100,6 +103,7 @@ struct Program {
   std::vector<Parameter> parameters;
   std::vector<Statement> statements;
   Yield result;
+  ProgramKind kind = ProgramKind::Shape;
 };
 
-}  // namespace tepl::core::shape
+}  // namespace tepl::core::metadata

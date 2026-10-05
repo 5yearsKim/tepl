@@ -1,0 +1,70 @@
+dialect DTypes {
+    op convert(input: tensor) -> tensor {
+        attrs { to: dtype; }
+        dtype(src) { assert is_numeric(src); assert is_numeric(attrs.to); yield attrs.to; }
+        shape(s) { yield s; }
+    }
+    op pair(x: tensor, y: tensor) -> tensor {
+        dtype(a, b) { assert a == b; yield a; }
+        shape(a, b) { assert a == b; yield a; }
+    }
+    op equal(x: tensor, y: tensor) -> tensor {
+        dtype(a, b) { assert a == b; assert is_numeric(a); yield bool; }
+        shape(a, b) { assert a == b; yield a; }
+    }
+    op select(condition: tensor, x: tensor, y: tensor) -> tensor {
+        dtype(c, a, b) { assert c == bool; assert a == b; yield a; }
+        shape(c, a, b) { assert c == a && a == b; yield a; }
+    }
+    op variadic(inputs: tensor...) -> tensor {
+        dtype(types...) {
+            assert len(types) > 0;
+            let first = types[0];
+            assert all([t == first for t in types]);
+            yield first;
+        }
+        shape(inputs...) { assert len(inputs) > 0; yield inputs[0]; }
+    }
+    op tail(first: tensor, rest: tensor...) -> tensor {
+        dtype(first, rest...) { assert all([t == first for t in rest]); yield first; }
+        shape(first, rest...) { yield first; }
+    }
+    op choices(input: tensor) -> tensor {
+        attrs { to: dtype; alternatives: dtype[]; widen: bool; }
+        dtype(t) {
+            assert is_float(t) || is_integer(t);
+            assert is_signed_integer(i64) && is_unsigned_integer(u32);
+            assert !is_integer(bool) && !is_numeric(bool);
+            assert true || attrs.alternatives[999] == t;
+            let choices = concat([t], attrs.alternatives);
+            assert contains(choices, t);
+            assert all([x == x for x in choices]);
+            let selected = if attrs.widen then f32 else attrs.to;
+            yield if false then attrs.alternatives[999] else selected;
+        }
+        shape(s) { yield s; }
+    }
+    op fixed() -> tensor { dtype() { yield f32; } shape() { yield []; } }
+    op unknown(input: tensor) -> tensor;
+}
+abstract rule identity() {
+    dtype T;
+    X: T[...]
+    (convert[@c] X) => X
+    where { is_numeric(T); @c.to == T; }
+}
+rule remove_identity_convert extends identity();
+rule remove_f32_convert extends identity() { X: f32[N] }
+rule shared {
+    dtype T;
+    X: T[N]
+    Y: T[N]
+    (pair X Y) => (pair Y X)
+    where { is_float(T); }
+}
+rule host_identity {
+    dtype T;
+    X: T[...]
+    (convert[@c] X) => X
+    where { @c.to == T; $allow_dtype(T); }
+}

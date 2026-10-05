@@ -30,7 +30,8 @@ tepl::codegen::GenerationResult generate(const std::string& text,
 }  // namespace
 int main() {
   auto result = generate(
-      "dialect T { op copy(x: tensor) -> tensor { dtype: same; shape(s) { "
+      "dialect T { op copy(x: tensor) -> tensor { dtype(t0) { yield t0; } "
+      "shape(s) { "
       "yield s; } } } rule identity { (copy X) => X }");
   assert(result.ok());
   std::set<std::string> paths;

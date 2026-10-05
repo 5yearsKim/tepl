@@ -29,7 +29,7 @@ The layout separates shared semantics from target syntax:
   restrictions, and per-rule host interfaces and callbacks.
 - `rust/analysis_emitter.*` emits shape and dtype dispatch from checked operation
   definitions, including operation shape evaluators and attribute conversion.
-- `rust/shape_expression_emitter.*` emits shape expressions through shared
+- `rust/metadata_expression_emitter.*` emits shape and dtype expressions through shared
   builtins, checked arithmetic, fallible indexing, and list comprehensions.
 - `rust/expression_emitter.*` emits typed rule builtin/host expressions with
   shared checked arithmetic and short-circuit boolean evaluation.
@@ -76,7 +76,7 @@ Common list/arithmetic functions live in `builtins::common`; shape semantics
 live in `builtins::shape`. Errors use `builtins::{BuiltinError, BuiltinResult}`.
 Both rule and shape emitters call these implementations. Builtin signatures and
 section availability live in `src/core/builtins/catalog.*`.
-Operation evaluators come from checked shape programs and dtype policies;
+Operation evaluators come from checked shape and dtype programs;
 missing definitions return `Unknown`. Reusable analysis implementations and
 policy helpers are copied from `templates/rust/src/analysis/`.
 Its enclosing name and location are chosen by the consuming application; the
@@ -197,6 +197,7 @@ Host argument/result types are:
 | Index | `u64` | `u64` |
 | IndexList | `&[u64]` | `Vec<u64>` |
 | Bool | `bool` | `bool` |
+| DType | `DType` | `DType` |
 | I64 | `i64` | `i64` |
 | F64 | `f64` | `f64` |
 | Descriptor | `&OpAttrs` | `OpAttrs` |
@@ -228,16 +229,17 @@ and variadic operand signature. Assertions and local bindings execute in source
 order; logical operators and conditional branches short-circuit. Comprehensions
 propagate element failures without panicking.
 
-Dtype dispatch uses the checked optional policy: common policies require equal
-operand dtypes, numeric policies exclude bool, float policies accept only floats,
-and concrete policies fix the result dtype. Common policies with no actual
-operands return `Unknown`. There is no name-based inference or implicit promotion.
+Dtype dispatch evaluates checked optional dtype programs over operand dtype
+values, with typed attribute access, assertions, dtype predicates, generic
+lists, and short-circuit expressions. Zero-operand and variadic programs follow
+the declared signature. Absent programs return `Unknown`; failed assertions or
+builtin errors are invalid. There is no name-based inference or implicit promotion.
 
 `infer_tensor` combines known shape and dtype; any invalid component takes
 priority, and incomplete metadata is unknown. Runtime input and literal nodes
 have shared policies. User operations with absent shape or dtype declarations
 remain unknown, including typed-payload constants. Attribute-dependent dtype
-behavior needs an explicit application policy or a future language extension.
+behavior uses dtype-valued attributes in the declared program.
 The LoRA demo illustrates a host policy through `build_rewrite_with`.
 
 ## Output ownership and regeneration

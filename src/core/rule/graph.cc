@@ -20,6 +20,9 @@ CaptureId capture(RuleCheckContext& context, const std::string& name,
   if (const auto found = context.scope.captures.find(name);
       found != context.scope.captures.end())
     return found->second;
+  if (resolveDType(name))
+    context.analysis.report(
+        at, "tensor capture '" + name + "' conflicts with a dtype constant");
   const CaptureId id{context.rule.captures.size()};
   context.rule.captures.push_back({id, name, context.tensor, at});
   context.scope.captures.emplace(name, id);

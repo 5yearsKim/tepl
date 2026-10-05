@@ -15,6 +15,14 @@ TypedExprPtr ExpressionChecker::check(const ast::ConstraintExpr& expression,
 TypedExprPtr ExpressionChecker::lower(const ast::NameRef& name,
                                       const SourceOrigin& origin,
                                       std::optional<TypeId> expected) {
+  if (auto dtype = resolveDType(name.name))
+    return make(origin, context_.types.concrete({TypeKind::kDType}, origin),
+                *dtype, expected);
+  if (auto variable = scope_.dtypes.find(name.name);
+      variable != scope_.dtypes.end()) {
+    const auto& symbol = rule_.dtypes.at(variable->second.value);
+    return make(origin, symbol.type, DTypeVariableRef{symbol.id}, expected);
+  }
   if (const auto found = scope_.captures.find(name.name);
       found != scope_.captures.end()) {
     const auto& capture = rule_.captures.at(found->second.value);
@@ -41,6 +49,41 @@ TypedExprPtr ExpressionChecker::lower(const ast::AttributeRef& reference,
   }
   const auto& descriptor = rule_.descriptors.at(found->second.value);
   return make(origin, descriptor.type, DescriptorRef{descriptor.id}, expected);
+}
+
+TypedExprPtr ExpressionChecker::lower(const ast::DescriptorField& field,
+                                      const SourceOrigin& origin,
+                                      std::optional<TypeId> expected) {
+  auto descriptor = lower(field.descriptor, origin, {});
+  if (!descriptor) return nullptr;
+  auto type = context_.types.known(descriptor->type);
+  if (!type || !type->schema) {
+    context_.report(
+        origin, "descriptor field access requires a known attribute schema");
+    return nullptr;
+  }
+  const auto& schema =
+      context_.output.attribute_schemas.at(type->schema->value);
+  for (std::size_t i = 0; i < schema.fields.size(); ++i) {
+    const auto& attribute = schema.fields[i];
+    if (attribute.name != field.field) continue;
+    auto field_type = resolveType(attribute.type);
+    if (!field_type || attribute.optional || attribute.list_depth ||
+        field_type->kind == TypeKind::kTensor ||
+        field_type->kind == TypeKind::kDescriptor) {
+      context_.report(origin,
+                      "descriptor field is optional, a list, or opaque to rule "
+                      "expressions");
+      return nullptr;
+    }
+    return make(origin, context_.types.concrete(*field_type, origin),
+                DescriptorFieldRef{
+                    std::get<DescriptorRef>(descriptor->value).descriptor,
+                    schema.id, i},
+                expected);
+  }
+  context_.report(origin, "unknown descriptor field '" + field.field + "'");
+  return nullptr;
 }
 
 TypedExprPtr ExpressionChecker::number(std::string spelling, bool decimal,
@@ -153,6 +196,8 @@ TypedExprPtr ExpressionChecker::builtin(const ast::Call& call,
   const auto type = [&](builtins::SignatureType pattern) -> TypeId {
     using S = builtins::SignatureType;
     switch (pattern) {
+      case S::kDType:
+        return types.concrete({TypeKind::kDType}, origin);
       case S::kInteger:
         if (integer_pair) return *integer_pair;
         [[fallthrough]];

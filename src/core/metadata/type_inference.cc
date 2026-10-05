@@ -1,9 +1,9 @@
-#include "src/core/shape/type_inference.h"
+#include "src/core/metadata/type_inference.h"
 
 #include <set>
 #include <utility>
 
-namespace tepl::core::shape::detail {
+namespace tepl::core::metadata::detail {
 
 TypeId TypeInference::variable(SourceOrigin origin) {
   TypeId id{variables_.size()};
@@ -18,8 +18,10 @@ TypeId TypeInference::concrete(Type type, SourceOrigin origin) {
     return list(element, std::move(origin));
   }
   const auto id = variable(std::move(origin));
-  variables_[id.value].kind =
-      type.kind == Type::Kind::kInteger ? Kind::kInteger : Kind::kBoolean;
+  variables_[id.value].kind = type.kind == Type::Kind::kInteger ? Kind::kInteger
+                              : type.kind == Type::Kind::kBoolean
+                                  ? Kind::kBoolean
+                                  : Kind::kDType;
   return id;
 }
 
@@ -51,6 +53,8 @@ std::string TypeInference::describe(TypeId type) {
       return "Integer";
     case Kind::kBoolean:
       return "Bool";
+    case Kind::kDType:
+      return "DType";
     case Kind::kList:
       return "List<" + describe(variables_[id].element) + ">";
     case Kind::kUnknown:
@@ -67,17 +71,18 @@ void TypeInference::unify(TypeId left, TypeId right,
   if (variables_[b].kind == Kind::kUnknown) std::swap(a, b);
   if (variables_[a].kind == Kind::kUnknown) {
     if (contains(TypeId{b}, a)) {
-      diagnostics_.push_back({origin, "shape type would contain itself", {}});
+      diagnostics_.push_back(
+          {origin, "metadata type would contain itself", {}});
       return;
     }
     variables_[a].parent = b;
     return;
   }
   if (variables_[a].kind != variables_[b].kind) {
-    diagnostics_.push_back(
-        {origin,
-         "shape type mismatch: " + describe(left) + " and " + describe(right),
-         {}});
+    diagnostics_.push_back({origin,
+                            "metadata type mismatch: " + describe(left) +
+                                " and " + describe(right),
+                            {}});
     return;
   }
   if (variables_[a].kind == Kind::kList) {
@@ -95,6 +100,8 @@ std::optional<Type> TypeInference::resolve(TypeId type) {
       return Type{Type::Kind::kInteger};
     case Kind::kBoolean:
       return Type{Type::Kind::kBoolean};
+    case Kind::kDType:
+      return Type{Type::Kind::kDType};
     case Kind::kList:
       if (auto element = resolve(variables_[id].element)) {
         ++element->list_depth;
@@ -121,7 +128,7 @@ std::optional<std::vector<Type>> TypeInference::finish() {
       if (variables_[id].kind == Kind::kUnknown && reported.insert(id).second)
         diagnostics_.push_back(
             {variables_[id].origin,
-             "cannot infer shape list element type; provide a typed use",
+             "cannot infer metadata list element type; provide a typed use",
              {}});
     }
   }
@@ -129,4 +136,4 @@ std::optional<std::vector<Type>> TypeInference::finish() {
   return types;
 }
 
-}  // namespace tepl::core::shape::detail
+}  // namespace tepl::core::metadata::detail

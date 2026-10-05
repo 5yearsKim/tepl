@@ -28,7 +28,7 @@ int main() {
       (tensor(Op::Boolean, {value}).value == TensorInfo{{2, 3}, DType::Bool}));
   assert((tensor(Op::Tail, {value, {{4, 5}, DType::I32}}).value ==
           TensorInfo{{2, 3, 9}, DType::I32}));
-  assert(tensor(Op::Variadic, {}).kind == Inference::Kind::Unknown);
+  assert(tensor(Op::Variadic, {}).kind == Inference::Kind::Invalid);
   assert((tensor(Op::Variadic, {value, {{4}, DType::I32}}).value ==
           TensorInfo{{5, 4}, DType::I32}));
   ir::dialects::unfamiliar::UtilitiesAttrs utilities{

@@ -116,6 +116,9 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, ast::NameRef>) {
           out << "name " << value.name << '\n';
+        } else if constexpr (std::is_same_v<T, ast::DescriptorField>) {
+          out << "field @" << value.descriptor.name << '.' << value.field
+              << '\n';
         } else if constexpr (std::is_same_v<T, ast::AttributeRef>) {
           out << "attribute @" << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::IntegerLiteral>) {
@@ -146,8 +149,8 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
       expression.value);
 }
 
-void printShapeExpr(std::ostream& out, const ast::ShapeExpr& expression,
-                    int depth) {
+void printMetadataExpr(std::ostream& out, const ast::MetadataExpr& expression,
+                       int depth) {
   indent(out, depth);
   std::visit(
       [&](const auto& value) {
@@ -158,55 +161,56 @@ void printShapeExpr(std::ostream& out, const ast::ShapeExpr& expression,
           out << "integer " << value.digits << '\n';
         } else if constexpr (std::is_same_v<T, ast::BooleanLiteral>) {
           out << "boolean " << (value.value ? "true" : "false") << '\n';
-        } else if constexpr (std::is_same_v<T, ast::ShapeAttrs>) {
+        } else if constexpr (std::is_same_v<T, ast::MetadataAttrs>) {
           out << "attrs\n";
-        } else if constexpr (std::is_same_v<T, ast::ShapeCall>) {
+        } else if constexpr (std::is_same_v<T, ast::MetadataCall>) {
           out << "call " << value.callee << '\n';
           for (const auto& argument : value.arguments)
-            printShapeExpr(out, *argument, depth + 1);
-        } else if constexpr (std::is_same_v<T, ast::ShapeUnary>) {
+            printMetadataExpr(out, *argument, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::MetadataUnary>) {
           out << "unary " << unarySymbol(value.op) << '\n';
-          printShapeExpr(out, *value.operand, depth + 1);
-        } else if constexpr (std::is_same_v<T, ast::ShapeBinary>) {
+          printMetadataExpr(out, *value.operand, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::MetadataBinary>) {
           out << "binary " << binarySymbol(value.op) << '\n';
-          printShapeExpr(out, *value.lhs, depth + 1);
-          printShapeExpr(out, *value.rhs, depth + 1);
-        } else if constexpr (std::is_same_v<T, ast::ShapeList>) {
+          printMetadataExpr(out, *value.lhs, depth + 1);
+          printMetadataExpr(out, *value.rhs, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::MetadataList>) {
           out << "list\n";
           for (const auto& element : value.elements)
-            printShapeExpr(out, *element, depth + 1);
-        } else if constexpr (std::is_same_v<T, ast::ShapeIndex>) {
+            printMetadataExpr(out, *element, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::MetadataIndex>) {
           out << "index\n";
-          printShapeExpr(out, *value.value, depth + 1);
-          printShapeExpr(out, *value.index, depth + 1);
-        } else if constexpr (std::is_same_v<T, ast::ShapeField>) {
+          printMetadataExpr(out, *value.value, depth + 1);
+          printMetadataExpr(out, *value.index, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::MetadataField>) {
           out << "field " << value.field << '\n';
-          printShapeExpr(out, *value.value, depth + 1);
-        } else if constexpr (std::is_same_v<T, ast::ShapeConditional>) {
+          printMetadataExpr(out, *value.value, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::MetadataConditional>) {
           out << "if\n";
-          printShapeExpr(out, *value.condition, depth + 1);
+          printMetadataExpr(out, *value.condition, depth + 1);
           indent(out, depth);
           out << "then\n";
-          printShapeExpr(out, *value.then_value, depth + 1);
+          printMetadataExpr(out, *value.then_value, depth + 1);
           indent(out, depth);
           out << "else\n";
-          printShapeExpr(out, *value.else_value, depth + 1);
-        } else if constexpr (std::is_same_v<T, ast::ShapeComprehension>) {
+          printMetadataExpr(out, *value.else_value, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::MetadataComprehension>) {
           out << "comprehension " << value.variable << '\n';
           indent(out, depth + 1);
           out << "element\n";
-          printShapeExpr(out, *value.element, depth + 2);
+          printMetadataExpr(out, *value.element, depth + 2);
           indent(out, depth + 1);
           out << "in\n";
-          printShapeExpr(out, *value.iterable, depth + 2);
+          printMetadataExpr(out, *value.iterable, depth + 2);
         }
       },
       expression.value);
 }
 
-void printShapeDefinition(std::ostream& out,
-                          const ast::ShapeDefinition& definition) {
-  out << "      shape(";
+void printMetadataDefinition(std::ostream& out,
+                             const ast::MetadataDefinition& definition,
+                             const char* kind = "shape") {
+  out << "      " << kind << "(";
   for (std::size_t i = 0; i < definition.parameters.size(); ++i) {
     if (i != 0) out << ", ";
     const auto& parameter = definition.parameters[i];
@@ -218,18 +222,18 @@ void printShapeDefinition(std::ostream& out,
     std::visit(
         [&](const auto& value) {
           using T = std::decay_t<decltype(value)>;
-          if constexpr (std::is_same_v<T, ast::ShapeLet>) {
+          if constexpr (std::is_same_v<T, ast::MetadataLet>) {
             out << "        let " << value.name << '\n';
-            printShapeExpr(out, *value.value, 5);
+            printMetadataExpr(out, *value.value, 5);
           } else {
             out << "        assert\n";
-            printShapeExpr(out, *value.condition, 5);
+            printMetadataExpr(out, *value.condition, 5);
           }
         },
         statement.value);
   }
   out << "        yield\n";
-  printShapeExpr(out, *definition.result.value, 5);
+  printMetadataExpr(out, *definition.result.value, 5);
 }
 
 void printDeclaration(std::ostream& out, const ast::Declaration& declaration) {
@@ -263,6 +267,9 @@ void printRule(std::ostream& out, const ast::Rule& rule) {
       out << "      " << binding.parameter << " = " << (binding.host ? "$" : "")
           << binding.value << '\n';
     }
+  }
+  for (const auto& declaration : rule.dtypes) {
+    out << "    dtype " << declaration.name << '\n';
   }
   for (const auto& declaration : rule.declarations) {
     printDeclaration(out, declaration);
@@ -342,7 +349,7 @@ std::string formatAst(const ast::Program& program) {
       }
       out << ") -> " << op.result_type;
       if (op.alias) out << " alias " << *op.alias;
-      if (op.dtype_policy) out << " dtype " << op.dtype_policy->name;
+
       if (op.attrs) {
         if (const auto* shared = std::get_if<ast::SharedAttrs>(&*op.attrs)) {
           out << " attrs " << shared->name;
@@ -361,7 +368,10 @@ std::string formatAst(const ast::Program& program) {
           }
         }
       }
-      if (op.shape_definition) printShapeDefinition(out, *op.shape_definition);
+      if (op.dtype_definition)
+        printMetadataDefinition(out, *op.dtype_definition, "dtype");
+      if (op.shape_definition)
+        printMetadataDefinition(out, *op.shape_definition);
     }
   }
   for (const auto& rule : program.rules) {

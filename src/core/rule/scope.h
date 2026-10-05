@@ -13,6 +13,7 @@ namespace tepl::core::detail {
 struct RuleScope {
   std::map<std::string, CaptureId> captures;
   std::map<std::string, DimensionId> dimensions;
+  std::map<std::string, DTypeVariableId> dtypes;
   std::map<std::string, DescriptorId> descriptors;
   std::set<std::size_t> available_descriptors;
 };

@@ -1,10 +1,10 @@
-#include "src/core/shape/print.h"
+#include "src/core/metadata/print.h"
 
 #include <type_traits>
 
 #include "src/core/ir.h"
 
-namespace tepl::core::shape {
+namespace tepl::core::metadata {
 namespace {
 void expression(std::ostream& out, const Expr& expr, const Program& shape,
                 const core::Program& program) {
@@ -15,6 +15,8 @@ void expression(std::ostream& out, const Expr& expr, const Program& shape,
           out << "Symbol(#" << value.symbol.value << ')';
         } else if constexpr (std::is_same_v<T, Integer>) {
           out << "Integer(" << value.spelling << ')';
+        } else if constexpr (std::is_same_v<T, core::DType>) {
+          out << "DType(" << dtypeName(value) << ')';
         } else if constexpr (std::is_same_v<T, bool>) {
           out << (value ? "true" : "false");
         } else if constexpr (std::is_same_v<T, AttributeRef>) {
@@ -77,7 +79,7 @@ void expression(std::ostream& out, const Expr& expr, const Program& shape,
 
 void print(std::ostream& out, const Program& shape,
            const core::Program& program) {
-  out << "    shape\n";
+  out << (shape.kind == ProgramKind::DType ? "    dtype\n" : "    shape\n");
   for (const auto& parameter : shape.parameters) {
     const auto& symbol = shape.symbols.at(parameter.symbol.value);
     out << "      parameter #" << symbol.id.value << ' ' << symbol.name << ": "
@@ -107,4 +109,4 @@ void print(std::ostream& out, const Program& shape,
   expression(out, *shape.result.value, shape, program);
   out << '\n';
 }
-}  // namespace tepl::core::shape
+}  // namespace tepl::core::metadata

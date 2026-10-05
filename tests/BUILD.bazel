@@ -110,9 +110,9 @@ cc_test(
 )
 
 cc_test(
-    name = "dtype_policy_test",
+    name = "dtype_program_test",
     size = "small",
-    srcs = ["dtype_policy_test.cc"],
+    srcs = ["dtype_program_test.cc"],
     deps = [
         "//:frontend",
         "//src/ast:ast",

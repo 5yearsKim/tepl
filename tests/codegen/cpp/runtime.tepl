@@ -1,8 +1,8 @@
 dialect RuntimeTest {
     attrs Params { axis: index; }
-    op tag(x: tensor) -> tensor { attrs: Params; dtype: same; shape(s) { yield s; } }
-    op copy(x: tensor) -> tensor { dtype: same; shape(s) { yield s; } }
-    op pair(x: tensor, y: tensor) -> tensor { dtype: same; shape(x,y) { assert x == y; yield x; } }
+    op tag(x: tensor) -> tensor { attrs: Params; dtype(t0) { yield t0; } shape(s) { yield s; } }
+    op copy(x: tensor) -> tensor { dtype(t0) { yield t0; } shape(s) { yield s; } }
+    op pair(x: tensor, y: tensor) -> tensor { dtype(t0, t1) { assert t1 == t0; yield t0; } shape(x,y) { assert x == y; yield x; } }
 }
 rule witnesses {
     (tag[@a] X) => (tag[@out] X)

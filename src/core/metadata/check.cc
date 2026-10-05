@@ -1,23 +1,26 @@
-#include "src/core/shape/check.h"
+#include "src/core/metadata/check.h"
 
 #include <type_traits>
 #include <utility>
 
-#include "src/core/shape/expression.h"
+#include "src/core/metadata/expression.h"
 
-namespace tepl::core::shape {
+namespace tepl::core::metadata {
 
 std::optional<Program> check(core::detail::AnalysisContext& analysis,
                              const Operation& operation,
-                             const ast::ShapeDefinition& definition,
-                             const std::string& source) {
+                             const ast::MetadataDefinition& definition,
+                             const std::string& source, ProgramKind kind) {
   const auto before = analysis.diagnostics.size();
   detail::CheckContext context(analysis, operation, source);
+  context.program.kind = kind;
+  const bool dtype = kind == ProgramKind::DType;
   context.program.origin = context.origin(definition.span);
   if (definition.parameters.size() != operation.operands.size())
     context.report(
         context.program.origin,
-        "shape parameter count must match operation operand signature");
+        std::string(dtype ? "dtype" : "shape") +
+            " parameter count must match operation operand signature");
   for (std::size_t i = 0; i < definition.parameters.size(); ++i) {
     const auto& parameter = definition.parameters[i];
     const auto origin = context.origin(parameter.span);
@@ -25,9 +28,12 @@ std::optional<Program> check(core::detail::AnalysisContext& analysis,
         parameter.variadic != operation.operands[i].variadic)
       context.report(
           origin,
-          "shape variadic parameter must match operation variadic operand");
+          std::string(dtype ? "dtype" : "shape") +
+              " variadic parameter must match operation variadic operand");
     const auto type = context.types.concrete(
-        {Type::Kind::kInteger, parameter.variadic ? 2u : 1u}, origin);
+        {dtype ? Type::Kind::kDType : Type::Kind::kInteger,
+         (dtype ? 0u : 1u) + (parameter.variadic ? 1u : 0u)},
+        origin);
     const auto symbol = context.symbol(parameter.name, type, origin);
     context.bind(parameter.name, symbol);
     context.program.parameters.push_back({symbol, i, parameter.variadic});
@@ -38,7 +44,7 @@ std::optional<Program> check(core::detail::AnalysisContext& analysis,
     std::visit(
         [&](const auto& value) {
           using T = std::decay_t<decltype(value)>;
-          if constexpr (std::is_same_v<T, ast::ShapeLet>) {
+          if constexpr (std::is_same_v<T, ast::MetadataLet>) {
             auto checked = expressions.check(*value.value);
             if (!checked) return;
             const auto symbol = context.symbol(value.name, checked->type,
@@ -57,7 +63,8 @@ std::optional<Program> check(core::detail::AnalysisContext& analysis,
         statement.value);
   }
   const auto shape = context.types.concrete(
-      {Type::Kind::kInteger, 1}, context.origin(definition.result.span));
+      {dtype ? Type::Kind::kDType : Type::Kind::kInteger, dtype ? 0u : 1u},
+      context.origin(definition.result.span));
   context.program.result = {context.origin(definition.result.span),
                             expressions.check(*definition.result.value, shape)};
   if (analysis.diagnostics.size() != before) return std::nullopt;
@@ -67,4 +74,4 @@ std::optional<Program> check(core::detail::AnalysisContext& analysis,
   return std::move(context.program);
 }
 
-}  // namespace tepl::core::shape
+}  // namespace tepl::core::metadata

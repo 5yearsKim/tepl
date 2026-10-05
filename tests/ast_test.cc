@@ -171,8 +171,9 @@ dialect D {
             !shape.parameters[0].variadic && shape.statements.size() == 1,
         "Shape parameters and statements must be retained");
   const auto& assertion =
-      std::get<tepl::ast::ShapeAssert>(shape.statements[0].value);
-  const auto& call = std::get<tepl::ast::ShapeCall>(assertion.condition->value);
+      std::get<tepl::ast::MetadataAssert>(shape.statements[0].value);
+  const auto& call =
+      std::get<tepl::ast::MetadataCall>(assertion.condition->value);
   check(call.callee == "not_implemented" && call.arguments.size() == 1 &&
             std::get<tepl::ast::NameRef>(shape.result.value->value).name == "s",
         "Shape calls remain unresolved syntax until core checking");

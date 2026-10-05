@@ -6,11 +6,17 @@ use super::super::{DType, OpNode};
 use super::context::{TensorInfo, TensorMetadata};
 use super::matcher::TensorMatch;
 use super::pattern::TensorPattern;
-use super::shape::{ShapeBindings, ShapePart};
+use super::shape::{MetadataBindings, ShapePart};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DTypeConstraint {
+    Exact(DType),
+    Bind(usize),
+}
 
 #[derive(Clone, Debug)]
 pub struct TensorConstraint {
-    pub dtype: Option<DType>,
+    pub dtype: Option<DTypeConstraint>,
     pub shape: Vec<ShapePart>,
 }
 
@@ -82,6 +88,15 @@ impl TensorConstraints {
             })
     }
 
+    pub(super) fn dtype_symbols(&self) -> impl Iterator<Item = usize> + '_ {
+        self.declarations
+            .iter()
+            .filter_map(|(_, constraint)| match constraint.dtype {
+                Some(DTypeConstraint::Bind(id)) => Some(id),
+                _ => None,
+            })
+    }
+
     pub fn contains(&self, var: Var) -> bool {
         self.by_capture.contains_key(&var)
     }
@@ -92,13 +107,15 @@ impl TensorConstraints {
         &self,
         var: Var,
         info: &TensorInfo,
-        bindings: &mut ShapeBindings,
+        bindings: &mut MetadataBindings,
     ) -> Option<()> {
         if let Some(indices) = self.by_capture.get(&var) {
             for &index in indices {
                 let constraint = &self.declarations[index].1;
-                if constraint.dtype.is_some_and(|dtype| dtype != info.dtype) {
-                    return None;
+                match constraint.dtype {
+                    Some(DTypeConstraint::Exact(dtype)) if dtype != info.dtype => return None,
+                    Some(DTypeConstraint::Bind(id)) => bindings.bind_dtype(id, info.dtype)?,
+                    _ => {}
                 }
                 bindings.check(&info.shape, &constraint.shape)?;
             }
@@ -112,8 +129,8 @@ impl TensorConstraints {
         graph: &EGraph<OpNode, N>,
         matched: &TensorMatch,
         metadata: &dyn TensorMetadata<N>,
-    ) -> Option<ShapeBindings> {
-        let mut bindings = ShapeBindings::default();
+    ) -> Option<MetadataBindings> {
+        let mut bindings = MetadataBindings::default();
         let mut checked = HashSet::new();
         for (var, _) in &self.declarations {
             if checked.insert(*var) {

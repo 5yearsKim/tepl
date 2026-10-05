@@ -6,7 +6,7 @@
 namespace tepl::codegen {
 namespace {
 struct Dependencies {
-  std::set<std::size_t> captures, dimensions, descriptors, hosts;
+  std::set<std::size_t> captures, dimensions, descriptors, hosts, dtypes;
 };
 void collect(const core::TypedExpr& expr, Dependencies& deps) {
   std::visit(
@@ -16,6 +16,10 @@ void collect(const core::TypedExpr& expr, Dependencies& deps) {
           deps.captures.insert(value.capture.value);
         else if constexpr (std::is_same_v<T, core::DimensionRef>)
           deps.dimensions.insert(value.dimension.value);
+        else if constexpr (std::is_same_v<T, core::DTypeVariableRef>)
+          deps.dtypes.insert(value.variable.value);
+        else if constexpr (std::is_same_v<T, core::DescriptorFieldRef>)
+          deps.descriptors.insert(value.descriptor.value);
         else if constexpr (std::is_same_v<T, core::DescriptorRef>)
           deps.descriptors.insert(value.descriptor.value);
         else if constexpr (std::is_same_v<T, core::HostCall> ||
@@ -52,7 +56,8 @@ RulePlan planRule(const core::Rule& rule) {
       plan.early_conditions.push_back(
           {ids<core::CaptureId>(deps.captures),
            ids<core::DimensionId>(deps.dimensions),
-           ids<core::DescriptorId>(deps.descriptors)});
+           ids<core::DescriptorId>(deps.descriptors),
+           ids<core::DTypeVariableId>(deps.dtypes)});
     hosts.insert(deps.hosts.begin(), deps.hosts.end());
   }
   for (const auto& derivation : rule.derivations) {

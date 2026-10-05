@@ -240,6 +240,9 @@ class RuleExpander {
   }
 
   void appendRestrictions(const ast::Rule& definition, std::size_t layer) {
+    for (const auto& dtype : definition.dtypes)
+      output_.dtypes.push_back(
+          {dtype, location(definition, dtype.span), layer});
     for (const auto& declaration : definition.declarations)
       output_.declarations.push_back(
           {declaration, location(definition, declaration.span), layer});

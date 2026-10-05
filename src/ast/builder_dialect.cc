@@ -45,17 +45,39 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
     }
   }
   if (auto* properties = context->opProperties()) {
-    if (auto* dtype = properties->dtypeProperty()) {
-      op.dtype_policy = ast::DTypePolicy{getSpan(dtype->dtypeName()),
-                                         dtype->dtypeName()->getText()};
+    const auto duplicate = [&](std::size_t count, const char* property) {
+      if (count > 1) op.duplicate_properties.push_back(property);
+    };
+    duplicate(properties->dtypeProperty().size(), "dtype");
+    duplicate(properties->attrsProperty().size(), "attrs");
+    duplicate(properties->aliasProperty().size(), "alias");
+    if (!properties->dtypeProperty().empty()) {
+      auto* dtype = properties->dtypeProperty().front();
+      ast::MetadataDefinition definition;
+      definition.span = getSpan(dtype);
+      if (auto* inputs = dtype->shapeInputs()) {
+        for (auto* input : inputs->shapeInput())
+          definition.parameters.push_back(
+              {getSpan(input), input->ID()->getText(), false});
+        if (auto* input = inputs->shapeVariadicInput())
+          definition.parameters.push_back(
+              {getSpan(input), input->ID()->getText(), true});
+      }
+      for (auto* statement : dtype->shapeStatement())
+        definition.statements.push_back(
+            std::any_cast<ast::MetadataStatement>(visit(statement)));
+      auto* result = dtype->shapeYield();
+      definition.result = {getSpan(result), std::any_cast<ast::MetadataExprPtr>(
+                                                visit(result->shapeExpr()))};
+      op.dtype_definition = std::move(definition);
     }
-    if (auto* shape = properties->shapeProperty()) {
-      op.shape_definition = std::any_cast<ast::ShapeDefinition>(visit(shape));
-    }
-    if (auto* alias = properties->aliasProperty()) {
-      op.alias = alias->ID()->getText();
-    }
-    if (auto* property = properties->attrsProperty()) {
+    if (auto* shape = properties->shapeProperty())
+      op.shape_definition =
+          std::any_cast<ast::MetadataDefinition>(visit(shape));
+    if (!properties->aliasProperty().empty())
+      op.alias = properties->aliasProperty().front()->ID()->getText();
+    if (!properties->attrsProperty().empty()) {
+      auto* property = properties->attrsProperty().front();
       if (auto* shared =
               dynamic_cast<Parser::SharedAttrsPropertyContext*>(property)) {
         op.attrs = ast::SharedAttrs{shared->ID()->getText()};
@@ -63,9 +85,8 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
                      dynamic_cast<Parser::InlineAttrsPropertyContext*>(
                          property)) {
         ast::InlineAttrs attrs;
-        for (auto* field : inline_attrs->attrField()) {
+        for (auto* field : inline_attrs->attrField())
           attrs.fields.push_back(std::any_cast<ast::AttrField>(visit(field)));
-        }
         op.attrs = std::move(attrs);
       }
     }

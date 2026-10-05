@@ -8,12 +8,13 @@ rule commute_f32 {
     (add X Y) => (add Y X)
 }
 
-// Shape-only declarations allow any dtype accepted by the host operation.
+// A shared dtype binding requires equality without a host dtype query.
 rule commute_same_dtype {
-    X: [N]
-    Y: [N]
+    dtype T;
+    X: T[N]
+    Y: T[N]
     (add X Y) => (add Y X)
-    where { $is_same_dtype(X, Y); }
+    where { is_numeric(T); }
 }
 
 // A typed scalar is a rank-zero tensor; f32[] constrains its element type.

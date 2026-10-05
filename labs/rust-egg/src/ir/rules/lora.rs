@@ -4,8 +4,8 @@
 pub mod rule_lora {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -188,9 +188,9 @@ pub mod rule_lora {
             move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
                 let descriptor_0 = ctx.attrs(AttrVar::from("d0"))?.clone();
-                let descriptor_0 = descriptor_0.checked_schema(7)?;
+                let descriptor_0 = descriptor_0.checked_schema(8)?;
                 let descriptor_1 = ctx.attrs(AttrVar::from("d1"))?.clone();
-                let descriptor_1 = descriptor_1.checked_schema(7)?;
+                let descriptor_1 = descriptor_1.checked_schema(8)?;
                 if !(functions.is_broadcastable(
                     &(dimensions.sequence(0)?.to_vec()),
                     &(dimensions.sequence(3)?.to_vec()),
@@ -201,31 +201,31 @@ pub mod rule_lora {
                     &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c3".parse::<Var>().expect("generated capture ID"))?),
-                    &((descriptor_0.clone()).checked_schema(7)?),
-                    &((descriptor_1.clone()).checked_schema(7)?),
+                    &((descriptor_0.clone()).checked_schema(8)?),
+                    &((descriptor_1.clone()).checked_schema(8)?),
                 )?) {
                     return None;
                 }
                 let descriptor_2 = (functions.infer_dot(
                     &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?),
-                    &((descriptor_0.clone()).checked_schema(7)?),
+                    &((descriptor_0.clone()).checked_schema(8)?),
                 )?)
-                .checked_schema(7)?;
+                .checked_schema(8)?;
                 let descriptor_3 = (functions.infer_dot(
                     &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
-                    &((descriptor_0.clone()).checked_schema(7)?),
+                    &((descriptor_0.clone()).checked_schema(8)?),
                 )?)
-                .checked_schema(7)?;
+                .checked_schema(8)?;
                 let descriptor_4 = (functions.infer_lora_out(
                     &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
                     &(ctx.tensor("?c3".parse::<Var>().expect("generated capture ID"))?),
-                    &((descriptor_0.clone()).checked_schema(7)?),
-                    &((descriptor_1.clone()).checked_schema(7)?),
+                    &((descriptor_0.clone()).checked_schema(8)?),
+                    &((descriptor_1.clone()).checked_schema(8)?),
                 )?)
-                .checked_schema(7)?;
+                .checked_schema(8)?;
                 Some(HashMap::from([
                     (AttrVar::from("d2"), descriptor_2),
                     (AttrVar::from("d3"), descriptor_3),

@@ -1,0 +1,51 @@
+// A small demonstration dialect, independent of the StableHLO subset.
+dialect DTypeExamples {
+    op equal(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield bool;
+        }
+        shape(l, r) {
+            assert l == r;
+            yield l;
+        }
+    }
+
+    // The host defines numeric conversion semantics. Same-type conversion is
+    // an identity; other conversions may round or lose information.
+    op convert(input: tensor) -> tensor {
+        attrs {
+            to: dtype;
+        }
+        dtype(src) {
+            assert is_numeric(src);
+            assert is_numeric(attrs.to);
+            yield attrs.to;
+        }
+        shape(s) {
+            yield s;
+        }
+    }
+
+    op select(condition: tensor, x: tensor, y: tensor) -> tensor {
+        dtype(c, a, b) {
+            assert c == bool;
+            assert a == b;
+            yield a;
+        }
+        shape(c, x, y) {
+            assert c == x && x == y;
+            yield x;
+        }
+    }
+
+    op scalar_zero() -> tensor {
+        dtype() {
+            yield f32;
+        }
+        shape() {
+            yield [];
+        }
+    }
+}

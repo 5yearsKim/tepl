@@ -47,7 +47,7 @@ TOML
     printf 'pub mod ir;\n' > "$application/src/lib.rs"
 }
 
-for source in early_where names builtins analysis custom empty dialect_only literal_root; do
+for source in dtype early_where names builtins analysis custom empty dialect_only literal_root; do
     crate="$work_directory/$source"
     prepare_application "$crate"
     input="$project_root/tests/codegen/$source.tepl"
@@ -72,6 +72,10 @@ for source in early_where names builtins analysis custom empty dialect_only lite
 
     # Check only behavior that could accidentally depend on debug overflow checks.
     case "$source" in
+        dtype)
+            cargo test --offline --manifest-path "$crate/Cargo.toml" --release --test generated
+            release_test=
+            ;;
         custom) release_test=overflow_and_division_by_zero ;;
         analysis) release_test=checked_boundaries ;;
         builtins) release_test=failures_reject_candidates ;;

@@ -16,14 +16,14 @@ void check(bool condition, std::string_view message) {
 }
 
 template <typename T>
-const T& as(const ast::ShapeExprPtr& expression) {
+const T& as(const ast::MetadataExprPtr& expression) {
   check(expression != nullptr, "Required expression must be present");
   const auto* value = std::get_if<T>(&expression->value);
   check(value != nullptr, "Unexpected shape expression kind");
   return *value;
 }
 
-ast::ShapeDefinition shape(std::string_view body) {
+ast::MetadataDefinition shape(std::string_view body) {
   const auto parsed =
       tepl::parse("dialect D { op test(inputs: tensor...) -> tensor { " +
                       std::string(body) + " } }",
@@ -64,16 +64,16 @@ void testBuiltinCallSyntax() {
   for (auto [name, expression] : cases) {
     const auto definition =
         shape("shape(s) { yield " + std::string(expression) + "; }");
-    check(as<ast::ShapeCall>(definition.result.value).callee == name,
+    check(as<ast::MetadataCall>(definition.result.value).callee == name,
           "Builtin call name must survive AST construction");
   }
   const auto unresolved =
       shape("shape(s) { assert future_builtin(); yield unknown(s, true); }");
-  check(as<ast::ShapeCall>(unresolved.result.value).callee == "unknown",
+  check(as<ast::MetadataCall>(unresolved.result.value).callee == "unknown",
         "Parser must leave builtin name checking to core");
   const auto& assertion =
-      std::get<ast::ShapeAssert>(unresolved.statements[0].value);
-  check(as<ast::ShapeCall>(assertion.condition).arguments.empty(),
+      std::get<ast::MetadataAssert>(unresolved.statements[0].value);
+  check(as<ast::MetadataCall>(assertion.condition).arguments.empty(),
         "Zero-argument native calls must parse");
 }
 
@@ -97,17 +97,19 @@ void testStatementsParametersAndSpans() {
             !definition.parameters[0].variadic &&
             definition.statements.size() == 2,
         "Parameters and statement order must be preserved");
-  const auto& binding = std::get<ast::ShapeLet>(definition.statements[0].value);
+  const auto& binding =
+      std::get<ast::MetadataLet>(definition.statements[0].value);
   check(binding.name == "axes", "Let name must be preserved");
-  const auto& field = as<ast::ShapeField>(binding.value);
+  const auto& field = as<ast::MetadataField>(binding.value);
   check(field.field == "permutation" &&
-            std::holds_alternative<ast::ShapeAttrs>(field.value->value),
+            std::holds_alternative<ast::MetadataAttrs>(field.value->value),
         "attrs field access must be structured");
   const auto& assertion =
-      std::get<ast::ShapeAssert>(definition.statements[1].value);
-  check(as<ast::ShapeBinary>(assertion.condition).op == ast::BinaryOp::kEqual,
-        "Assert must retain its Boolean expression");
-  const auto& result = as<ast::ShapeCall>(definition.result.value);
+      std::get<ast::MetadataAssert>(definition.statements[1].value);
+  check(
+      as<ast::MetadataBinary>(assertion.condition).op == ast::BinaryOp::kEqual,
+      "Assert must retain its Boolean expression");
+  const auto& result = as<ast::MetadataCall>(definition.result.value);
   check(result.callee == "gather" && result.arguments.size() == 2,
         "Yield must retain call arguments");
   check(definition.span.begin.line == 4 && definition.span.begin.column == 5 &&
@@ -137,46 +139,48 @@ void testStatementsParametersAndSpans() {
         "A variadic-only parameter must parse");
   const auto scalar = shape("shape() { yield []; }");
   check(scalar.parameters.empty() && scalar.statements.empty() &&
-            as<ast::ShapeList>(scalar.result.value).elements.empty(),
+            as<ast::MetadataList>(scalar.result.value).elements.empty(),
         "A zero-operand scalar shape must parse");
 }
 
 void testPrecedenceAndPostfix() {
   const auto definition =
       shape("shape(s) { yield -s[0] + 2 * s[1] >= 3 && !false || true; }");
-  const auto& disjunction = as<ast::ShapeBinary>(definition.result.value);
+  const auto& disjunction = as<ast::MetadataBinary>(definition.result.value);
   check(disjunction.op == ast::BinaryOp::kLogicalOr, "OR must be outermost");
-  const auto& conjunction = as<ast::ShapeBinary>(disjunction.lhs);
+  const auto& conjunction = as<ast::MetadataBinary>(disjunction.lhs);
   check(conjunction.op == ast::BinaryOp::kLogicalAnd,
         "AND must bind more tightly than OR");
-  const auto& comparison = as<ast::ShapeBinary>(conjunction.lhs);
+  const auto& comparison = as<ast::MetadataBinary>(conjunction.lhs);
   check(comparison.op == ast::BinaryOp::kGreaterEqual,
         "Comparison must bind more tightly than AND");
-  const auto& sum = as<ast::ShapeBinary>(comparison.lhs);
-  check(
-      sum.op == ast::BinaryOp::kAdd &&
-          as<ast::ShapeBinary>(sum.rhs).op == ast::BinaryOp::kMultiply &&
-          as<ast::ShapeUnary>(sum.lhs).op == ast::UnaryOp::kNegate &&
-          as<ast::ShapeUnary>(conjunction.rhs).op == ast::UnaryOp::kLogicalNot,
-      "Multiplication, postfix indexing and unary operations must keep "
-      "precedence");
-  check(as<ast::ShapeIndex>(as<ast::ShapeUnary>(sum.lhs).operand).value !=
+  const auto& sum = as<ast::MetadataBinary>(comparison.lhs);
+  check(sum.op == ast::BinaryOp::kAdd &&
+            as<ast::MetadataBinary>(sum.rhs).op == ast::BinaryOp::kMultiply &&
+            as<ast::MetadataUnary>(sum.lhs).op == ast::UnaryOp::kNegate &&
+            as<ast::MetadataUnary>(conjunction.rhs).op ==
+                ast::UnaryOp::kLogicalNot,
+        "Multiplication, postfix indexing and unary operations must keep "
+        "precedence");
+  check(as<ast::MetadataIndex>(as<ast::MetadataUnary>(sum.lhs).operand).value !=
             nullptr,
         "Indexing must bind more tightly than unary minus");
   const auto arithmetic =
       shape("shape(s) { yield 10 - 4 - 1 + +s[0] / 2 % 3; }");
-  const auto& outer = as<ast::ShapeBinary>(arithmetic.result.value);
-  check(as<ast::ShapeBinary>(outer.lhs).op == ast::BinaryOp::kSubtract &&
-            as<ast::ShapeBinary>(as<ast::ShapeBinary>(outer.lhs).lhs).op ==
-                ast::BinaryOp::kSubtract &&
-            as<ast::ShapeBinary>(outer.rhs).op == ast::BinaryOp::kRemainder &&
-            as<ast::ShapeBinary>(as<ast::ShapeBinary>(outer.rhs).lhs).op ==
-                ast::BinaryOp::kDivide,
-        "Arithmetic must associate left and retain division/remainder");
+  const auto& outer = as<ast::MetadataBinary>(arithmetic.result.value);
+  check(
+      as<ast::MetadataBinary>(outer.lhs).op == ast::BinaryOp::kSubtract &&
+          as<ast::MetadataBinary>(as<ast::MetadataBinary>(outer.lhs).lhs).op ==
+              ast::BinaryOp::kSubtract &&
+          as<ast::MetadataBinary>(outer.rhs).op == ast::BinaryOp::kRemainder &&
+          as<ast::MetadataBinary>(as<ast::MetadataBinary>(outer.rhs).lhs).op ==
+              ast::BinaryOp::kDivide,
+      "Arithmetic must associate left and retain division/remainder");
   const auto indexed = shape("shape(s) { yield (gather(s, attrs.axes))[0]; }");
-  check(as<ast::ShapeCall>(as<ast::ShapeIndex>(indexed.result.value).value)
-                .callee == "gather",
-        "Parenthesized call results must support indexing");
+  check(
+      as<ast::MetadataCall>(as<ast::MetadataIndex>(indexed.result.value).value)
+              .callee == "gather",
+      "Parenthesized call results must support indexing");
 }
 
 void testListsConditionalsAndComprehensions() {
@@ -186,36 +190,38 @@ void testListsConditionalsAndComprehensions() {
     yield [if contains(attrs.axes, i) then -s[i] else s[i] * 2 + 1
            for i in range(len(s))];
   })");
-  const auto& binding = std::get<ast::ShapeLet>(definition.statements[0].value);
-  const auto& pairs = as<ast::ShapeList>(binding.value);
+  const auto& binding =
+      std::get<ast::MetadataLet>(definition.statements[0].value);
+  const auto& pairs = as<ast::MetadataList>(binding.value);
   check(pairs.elements.size() == 2 &&
-            as<ast::ShapeList>(pairs.elements[1]).elements.size() == 2,
+            as<ast::MetadataList>(pairs.elements[1]).elements.size() == 2,
         "Nested list literals must retain their structure");
   const auto& comprehension =
-      as<ast::ShapeComprehension>(definition.result.value);
+      as<ast::MetadataComprehension>(definition.result.value);
   check(comprehension.variable == "i" &&
-            as<ast::ShapeCall>(comprehension.iterable).callee == "range",
+            as<ast::MetadataCall>(comprehension.iterable).callee == "range",
         "Comprehension binder and iterable must be retained");
-  const auto& conditional = as<ast::ShapeConditional>(comprehension.element);
-  check(as<ast::ShapeCall>(conditional.condition).callee == "contains" &&
-            as<ast::ShapeUnary>(conditional.then_value).op ==
+  const auto& conditional = as<ast::MetadataConditional>(comprehension.element);
+  check(as<ast::MetadataCall>(conditional.condition).callee == "contains" &&
+            as<ast::MetadataUnary>(conditional.then_value).op ==
                 ast::UnaryOp::kNegate &&
-            as<ast::ShapeBinary>(conditional.else_value).op ==
+            as<ast::MetadataBinary>(conditional.else_value).op ==
                 ast::BinaryOp::kAdd,
         "Conditional branches must preserve expression structure");
   const auto nested = shape(
       "shape(s) { yield [[s[i][j] for j in range(len(s[i]))] for i in "
       "range(len(s))]; }");
-  const auto& inner = as<ast::ShapeComprehension>(
-      as<ast::ShapeComprehension>(nested.result.value).element);
+  const auto& inner = as<ast::MetadataComprehension>(
+      as<ast::MetadataComprehension>(nested.result.value).element);
   check(inner.variable == "j" &&
-            std::holds_alternative<ast::ShapeIndex>(
-                as<ast::ShapeIndex>(inner.element).value->value),
+            std::holds_alternative<ast::MetadataIndex>(
+                as<ast::MetadataIndex>(inner.element).value->value),
         "Nested comprehensions and repeated indexing must parse");
   const auto branches = shape(
       "shape(s) { yield if true then [] else if false then [1] else s; }");
-  check(std::holds_alternative<ast::ShapeConditional>(
-            as<ast::ShapeConditional>(branches.result.value).else_value->value),
+  check(std::holds_alternative<ast::MetadataConditional>(
+            as<ast::MetadataConditional>(branches.result.value)
+                .else_value->value),
         "Conditional else branches must nest correctly");
 }
 

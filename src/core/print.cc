@@ -3,7 +3,7 @@
 #include <sstream>
 #include <type_traits>
 
-#include "src/core/shape/print.h"
+#include "src/core/metadata/print.h"
 
 namespace tepl::core {
 namespace {
@@ -24,10 +24,9 @@ class Printer {
       }
       out_ << ") -> " << type(op.result);
       if (op.attributes) out_ << " attrs=#" << op.attributes->value;
-      if (op.dtype_policy)
-        out_ << " dtype=" << dtypePolicyName(*op.dtype_policy);
       out_ << '\n';
-      if (op.shape) shape::print(out_, *op.shape, program_);
+      if (op.dtype) metadata::print(out_, *op.dtype, program_);
+      if (op.shape) metadata::print(out_, *op.shape, program_);
     }
     for (const auto& schema : program_.attribute_schemas) {
       out_ << "  attr_schema #" << schema.id.value << ' ' << schema.dialect
@@ -131,6 +130,13 @@ class Printer {
             out_ << "DimensionRef(#" << value.dimension.value << ')';
           else if constexpr (std::is_same_v<T, DescriptorRef>)
             out_ << "DescriptorRef(@#" << value.descriptor.value << ')';
+          else if constexpr (std::is_same_v<T, DType>)
+            out_ << "DType(" << dtypeName(value) << ')';
+          else if constexpr (std::is_same_v<T, DTypeVariableRef>)
+            out_ << "DTypeRef(#" << value.variable.value << ')';
+          else if constexpr (std::is_same_v<T, DescriptorFieldRef>)
+            out_ << "DescriptorField(@#" << value.descriptor.value << '.'
+                 << value.field << ')';
           else if constexpr (std::is_same_v<T, NumericConstant>)
             out_ << value.spelling;
           else if constexpr (std::is_same_v<T, bool>)
@@ -172,6 +178,8 @@ class Printer {
     for (const auto& capture : rule.captures)
       out_ << "    capture #" << capture.id.value << ' ' << capture.name << ": "
            << type(capture.type) << '\n';
+    for (const auto& dtype : rule.dtypes)
+      out_ << "    dtype #" << dtype.id.value << ' ' << dtype.name << '\n';
     for (const auto& dimension : rule.dimensions)
       out_ << "    dimension #" << dimension.id.value << ' ' << dimension.name
            << ": " << type(dimension.type) << '\n';
@@ -183,7 +191,14 @@ class Printer {
            << '\n';
     for (const auto& constraint : rule.constraints) {
       out_ << "    constraint #" << constraint.capture.value << " dtype=";
-      out_ << (constraint.dtype ? dtypeName(*constraint.dtype) : "any")
+      out_ << (constraint.dtype
+                   ? (std::holds_alternative<DType>(*constraint.dtype)
+                          ? std::string(
+                                dtypeName(std::get<DType>(*constraint.dtype)))
+                          : "T#" + std::to_string(std::get<DTypeVariableId>(
+                                                      *constraint.dtype)
+                                                      .value))
+                   : "any")
            << " shape=[";
       for (std::size_t i = 0; i < constraint.shape.size(); ++i) {
         if (i) out_ << ", ";

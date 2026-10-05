@@ -196,20 +196,6 @@ void testInvalidSyntax() {
        "dialect t { op bad(xs: tensor..., last: tensor) -> tensor; }"},
       {"missing attribute type",
        "dialect t { op bad(x: tensor) -> tensor { attrs { axis:; } } }"},
-      {"duplicate aliases",
-       "dialect t { op bad(x: tensor) -> tensor { "
-       "alias: one; alias: two; } }"},
-      {"duplicate inline attributes",
-       "dialect t { op bad(x: tensor) -> tensor { "
-       "attrs { axis: index; } attrs { shape: index[]; } } }"},
-      {"shared and inline attributes",
-       "dialect t { attrs Metadata { kind: string; } "
-       "op bad(x: tensor) -> tensor { "
-       "attrs: Metadata; attrs { axis: index; } } }"},
-      {"duplicate shared attributes",
-       "dialect t { attrs First {} attrs Second {} "
-       "op bad(x: tensor) -> tensor { "
-       "attrs: First; attrs: Second; } }"},
       {"named import missing dialect", "from \"tensor.tepl\" import;"},
       {"empty selected use", "use t::{}; rule r { X => X }"},
       {"selected use missing brace", "use t::{add; rule r { X => X }"},

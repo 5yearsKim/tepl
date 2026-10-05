@@ -20,7 +20,7 @@ fi
 eggc_source="$(cd "$eggc_source" && pwd)"
 test -f "$eggc_source/include/eggc/all.hpp"
 cxx="${CXX:-c++}"
-fixtures=(analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty)
+fixtures=(dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty)
 # Optional fixture arguments allow focused reruns after a failing integration.
 if [[ $# -gt 1 ]]; then fixtures=("${@:2}"); fi
 for fixture in "${fixtures[@]}"; do
@@ -89,7 +89,7 @@ for fixture in "${fixtures[@]}"; do
         "$application/test-$mode"
     done
     case "$fixture" in
-        runtime|analysis|builtins)
+        dtype|runtime|analysis|builtins)
             "$cxx" -std=c++20 -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -I"$application" -I"$eggc_source/include" "${sources[@]}" -o "$application/test-ubsan"
             "$application/test-ubsan"
             ;;

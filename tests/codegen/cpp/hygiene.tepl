@@ -2,10 +2,10 @@ dialect Hygiene {
     attrs Value { seed: index; }
     attrs Arity { seed: string; }
     op value_copy(x: tensor) -> tensor {
-        attrs: Value; dtype: same; shape(s) { yield s; }
+        attrs: Value; dtype(t0) { yield t0; } shape(s) { yield s; }
     }
     op arity_copy(x: tensor) -> tensor {
-        attrs: Arity; dtype: same; shape(s) { yield s; }
+        attrs: Arity; dtype(t0) { yield t0; } shape(s) { yield s; }
     }
 }
 rule identity { (value_copy[@a] X) => (value_copy[@a] X) }

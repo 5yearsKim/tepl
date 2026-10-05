@@ -670,7 +670,7 @@ fn convolution_empty_windows_and_checked_integer_boundaries_follow_tepl() {
 }
 
 #[test]
-fn generated_dtype_policy_preserves_data_movement_and_checks_numeric_inputs() {
+fn generated_dtype_program_preserves_data_movement_and_checks_numeric_inputs() {
     for dtype in DType::ALL {
         let attrs = t::OpAttrs::BroadcastInDimAttrs {
             broadcast_dimensions: vec![0],
@@ -722,10 +722,10 @@ fn generated_dtype_policy_preserves_data_movement_and_checks_numeric_inputs() {
         infer_dtype(t::Op::Concatenate.into(), &[DType::F32, DType::I64], &attrs),
         Inference::Invalid(_)
     ));
-    assert_eq!(
+    assert!(matches!(
         infer_dtype(t::Op::Concatenate.into(), &[], &attrs),
-        Inference::Unknown
-    );
+        Inference::Invalid(_)
+    ));
     let mut attrs = convolution_attrs();
     assert_eq!(
         infer_dtype(

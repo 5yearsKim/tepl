@@ -14,7 +14,7 @@ use super::constraints::TensorConstraints;
 use super::context::{OutputInference, TensorInfo, TensorMetadata};
 use super::matcher::{TensorMatch, for_each_match_at};
 use super::pattern::{AttrExpr, AttrVar, TensorExpr, TensorPattern};
-use super::shape::ShapeBindings;
+use super::shape::MetadataBindings;
 
 pub type DerivedAttrs = ::std::collections::HashMap<AttrVar, OpAttrs>;
 
@@ -71,7 +71,7 @@ where
     N: Analysis<OpNode> + 'static,
     M: TensorMetadata<N> + 'static,
     I: OutputInference + 'static,
-    F: Fn(&EGraph<OpNode, N>, &TensorMatch, &ShapeBindings) -> Option<DerivedAttrs>
+    F: Fn(&EGraph<OpNode, N>, &TensorMatch, &MetadataBindings) -> Option<DerivedAttrs>
         + Send
         + Sync
         + 'static,
@@ -102,7 +102,7 @@ where
     N: Analysis<OpNode> + 'static,
     M: TensorMetadata<N> + 'static,
     I: OutputInference + 'static,
-    F: Fn(&EGraph<OpNode, N>, &TensorMatch, &ShapeBindings) -> Option<DerivedAttrs>
+    F: Fn(&EGraph<OpNode, N>, &TensorMatch, &MetadataBindings) -> Option<DerivedAttrs>
         + Send
         + Sync
         + 'static,

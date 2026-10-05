@@ -14,7 +14,16 @@ struct ShapePart {
     return {Kind::Sequence, id};
   }
 };
-struct ShapeBindings {
+struct MetadataBindings {
+  ::std::map<::std::size_t, DType> dtypes;
+  bool bind_dtype(::std::size_t id, DType value) {
+    auto [found, added] = dtypes.emplace(id, value);
+    return added || found->second == value;
+  }
+  ::std::optional<DType> dtype(::std::size_t id) const {
+    auto i = dtypes.find(id);
+    return i == dtypes.end() ? ::std::nullopt : ::std::optional(i->second);
+  }
   ::std::map<::std::size_t, ::std::uint64_t> dimensions;
   ::std::map<::std::size_t, ::std::vector<::std::uint64_t>> sequences;
   ::std::optional<::std::uint64_t> dimension(::std::size_t id) const {

@@ -7,7 +7,7 @@ namespace @TEPL_NAMESPACE@::pattern {
 namespace detail {
 struct SearchState {
   TensorMatch matched;
-  ShapeBindings shapes;
+  MetadataBindings shapes;
   ::std::size_t next_condition = 0;
 };
 // Continuation matching streams witnesses, preserving branch-local bindings

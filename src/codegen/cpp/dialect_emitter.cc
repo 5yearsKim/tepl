@@ -27,6 +27,7 @@ std::string emitDialect(const core::Program& program, const Names& names,
     for (std::size_t i = 0; i < schema.fields.size(); ++i) {
       const auto& field = schema.fields[i];
       static const std::map<std::string, std::string> types = {
+          {"dtype", "DType"},
           {"index", "::std::uint64_t"},
           {"i64", "::std::int64_t"},
           {"bool", "bool"},
@@ -37,9 +38,9 @@ std::string emitDialect(const core::Program& program, const Names& names,
           {"region", "Region"},
           {"elements", "Elements"}};
       auto token = types.at(field.type);
-      if (field.type == "precision" || field.type == "dot_algorithm" ||
-          field.type == "replica_groups" || field.type == "region" ||
-          field.type == "elements")
+      if (field.type == "dtype" || field.type == "precision" ||
+          field.type == "dot_algorithm" || field.type == "replica_groups" ||
+          field.type == "region" || field.type == "elements")
         token = names.root + "::" + token;
       for (std::size_t depth = 0; depth < field.list_depth; ++depth)
         token = "::std::vector<" + token + ">";

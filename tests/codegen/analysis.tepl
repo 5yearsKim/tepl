@@ -1,33 +1,33 @@
 dialect Unfamiliar {
     op fuse(lhs: tensor, rhs: tensor) -> tensor {
-        dtype: same_numeric;
+        dtype(t0, t1) { assert t1 == t0; assert is_numeric(t0); yield t0; }
         shape(l, r) { assert l == r; yield l; }
     }
     // A familiar name provides no implicit semantics.
     op add(input: tensor) -> tensor;
     op shape_only(input: tensor) -> tensor { shape(s) { yield s; } }
-    op dtype_only(input: tensor) -> tensor { dtype: same; }
+    op dtype_only(input: tensor) -> tensor { dtype(t0) { yield t0; } }
     op floats(input: tensor) -> tensor {
-        dtype: same_float;
+        dtype(t0) { assert is_float(t0); yield t0; }
         shape(s) { yield s; }
     }
     op boolean(input: tensor) -> tensor {
-        dtype: bool;
+        dtype(t0) { yield bool; }
         shape(s) { yield s; }
     }
     op variadic(inputs: tensor...) -> tensor {
-        dtype: same;
+        dtype(t0...) { assert len(t0) > 0; let first = t0[0]; assert all([t == first for t in t0]); yield first; }
         shape(inputs...) { yield concat([], [sum(s) for s in inputs]); }
     }
     op tail(first: tensor, rest: tensor...) -> tensor {
-        dtype: same;
+        dtype(t0, t1...) { assert all([t == t0 for t in t1]); yield t0; }
         shape(first, rest...) {
             assert all([len(s) == len(first) for s in rest]);
             yield concat(first, [sum(s) for s in rest]);
         }
     }
     op utilities(input: tensor) -> tensor {
-        dtype: same;
+        dtype(t0) { yield t0; }
         attrs { flags: bool[]; nested: bool[][]; padding: i64[][]; rank: i64; match: bool; }
         shape(s) {
             let a = [1, 2, 3];
@@ -60,7 +60,7 @@ dialect Unfamiliar {
         }
     }
     op branches(input: tensor) -> tensor {
-        dtype: same;
+        dtype(t0) { yield t0; }
         shape(s) {
             assert true || s[999] == 0;
             assert !(false && 1 / 0 == 0);
@@ -70,16 +70,16 @@ dialect Unfamiliar {
         }
     }
     op output(input: tensor) -> tensor {
-        dtype: same;
+        dtype(t0) { yield t0; }
         attrs { shape: i64[]; }
         shape(s) { yield attrs.shape; }
     }
     op overflow() -> tensor {
-        dtype: f32;
+        dtype() { yield f32; }
         shape() { yield [170141183460469231731687303715884105727 * 2]; }
     }
     op minimum() -> tensor {
-        dtype: f32;
+        dtype() { yield f32; }
         shape() {
             let minimum = -170141183460469231731687303715884105728;
             assert minimum + 1 == -170141183460469231731687303715884105727;
@@ -88,7 +88,7 @@ dialect Unfamiliar {
         }
     }
     op stopped(input: tensor) -> tensor {
-        dtype: same;
+        dtype(t0) { yield t0; }
         shape(s) { assert false; yield [1 / 0]; }
     }
 }

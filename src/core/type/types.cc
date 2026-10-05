@@ -39,6 +39,8 @@ std::string typeName(const Type& type) {
       return "I64";
     case TypeKind::kF64:
       return "F64";
+    case TypeKind::kDType:
+      return "DType";
     case TypeKind::kDescriptor:
       return type.schema
                  ? "Descriptor(#" + std::to_string(type.schema->value) + ")"
@@ -49,13 +51,10 @@ std::string typeName(const Type& type) {
 
 std::optional<Type> resolveType(std::string_view name) {
   static constexpr std::pair<std::string_view, TypeKind> names[] = {
-      {"tensor", TypeKind::kTensor},
-      {"index", TypeKind::kIndex},
-      {"index_list", TypeKind::kIndexList},
-      {"bool", TypeKind::kBool},
-      {"i64", TypeKind::kI64},
-      {"f64", TypeKind::kF64},
-      {"attrs", TypeKind::kDescriptor},
+      {"dtype", TypeKind::kDType}, {"tensor", TypeKind::kTensor},
+      {"index", TypeKind::kIndex}, {"index_list", TypeKind::kIndexList},
+      {"bool", TypeKind::kBool},   {"i64", TypeKind::kI64},
+      {"f64", TypeKind::kF64},     {"attrs", TypeKind::kDescriptor},
   };
   for (const auto& [spelling, kind] : names)
     if (name == spelling) return Type{kind};

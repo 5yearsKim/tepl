@@ -4,8 +4,8 @@
 pub mod rule_scalar_add {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};

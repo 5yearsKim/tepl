@@ -1,7 +1,7 @@
 # TEPL builtins
 
 `catalog.*` owns builtin IDs, names, signatures, semantic domains, variadic
-arity, and expression-section availability. Shape and rule checkers use this
+arity, and expression-section availability. Metadata and rule checkers use this
 catalog; successful IR stores a resolved builtin ID, never an unresolved name.
 
 An unprefixed call resolves to an explicitly bound template `fn` parameter
@@ -12,12 +12,12 @@ incompatible types, and unavailable sections produce source diagnostics.
 
 Semantic domain and section availability are independent: `broadcast_shape`
 is a shape-domain function available in both shapes and rules. Catalog context
-flags distinguish operation `shape`, rule `where`, and rule `derive`, so future
+flags distinguish operation `shape` and `dtype`, rule `where`, and rule `derive`, so future
 functions can restrict their sections without separate name-resolution tables.
 
 ## Signatures and availability
 
-Operation shapes use checked signed `i128` Integer values, Bool, and homogeneous
+Operation metadata programs use checked signed `i128` Integer values, Bool, DType, and homogeneous
 nested lists. In the shape signatures below, `T` is a single shared element type
 within one call and may itself be a list. Rule values keep their existing types:
 `index` is unsigned `u64`, `i64` is signed, and `index_list` contains indices.
@@ -26,25 +26,30 @@ There is no implicit signed/unsigned conversion or floating builtin overload.
 
 | Builtin | Shape signature | Rule signature | Domain | Sections |
 | --- | --- | --- | --- | --- |
-| `len` | `List<T> → Integer` | `L → index` | Common | shape, where, derive |
-| `range` | `Integer → List<Integer>` | `index → L` | Common | shape, where, derive |
-| `concat` | Two or more `List<T> → List<T>` | Two or more `L → L` | Common | shape, where, derive |
-| `gather` | `(List<T>, List<Integer>) → List<T>` | `(L, L) → L` | Common | shape, where, derive |
-| `exclude` | `(List<T>, List<T>) → List<T>` | `(L, L) → L` | Common | shape, where, derive |
-| `slice` | `(List<T>, Integer, Integer) → List<T>` | `(L, index, index) → L` | Common | shape, where, derive |
-| `replace` | `(List<T>, Integer, T) → List<T>` | `(L, index, index) → L` | Common | shape, where, derive |
-| `sum`, `product` | `List<Integer> → Integer` | `L → index` | Common | shape, where, derive |
-| `all`, `any` | `List<Bool> → Bool` | Unavailable: rules have no Boolean-list type | Common | shape |
-| `contains` | `(List<T>, T) → Bool` | `(L, index) → bool` | Common | shape, where, derive |
-| `is_disjoint` | `(List<T>, List<T>) → Bool` | `(L, L) → bool` | Common | shape, where, derive |
-| `is_valid_axis_list` | `(List<Integer>, Integer) → Bool` | `(L, index) → bool` | Shape | shape, where, derive |
-| `broadcast_shape` | `(List<Integer>, List<Integer>) → List<Integer>` | `(L, L) → L` | Shape | shape, where, derive |
-| `min`, `max` | `(Integer, Integer) → Integer` | `(I, I) → I` | Common | shape, where, derive |
-| `floor_div`, `ceil_div` | `(Integer, Integer) → Integer` | `(I, I) → I` | Common | shape, where, derive |
+| `len` | `List<T> → Integer` | `L → index` | Common | shape, dtype, where, derive |
+| `range` | `Integer → List<Integer>` | `index → L` | Common | shape, dtype, where, derive |
+| `concat` | Two or more `List<T> → List<T>` | Two or more `L → L` | Common | shape, dtype, where, derive |
+| `gather` | `(List<T>, List<Integer>) → List<T>` | `(L, L) → L` | Common | shape, dtype, where, derive |
+| `exclude` | `(List<T>, List<T>) → List<T>` | `(L, L) → L` | Common | shape, dtype, where, derive |
+| `slice` | `(List<T>, Integer, Integer) → List<T>` | `(L, index, index) → L` | Common | shape, dtype, where, derive |
+| `replace` | `(List<T>, Integer, T) → List<T>` | `(L, index, index) → L` | Common | shape, dtype, where, derive |
+| `sum`, `product` | `List<Integer> → Integer` | `L → index` | Common | shape, dtype, where, derive |
+| `all`, `any` | `List<Bool> → Bool` | Unavailable: rules have no Boolean-list type | Common | shape, dtype |
+| `contains` | `(List<T>, T) → Bool` | `(L, index) → bool` | Common | shape, dtype, where, derive |
+| `is_disjoint` | `(List<T>, List<T>) → Bool` | `(L, L) → bool` | Common | shape, dtype, where, derive |
+| `is_valid_axis_list` | `(List<Integer>, Integer) → Bool` | `(L, index) → bool` | Shape | shape, dtype, where, derive |
+| `broadcast_shape` | `(List<Integer>, List<Integer>) → List<Integer>` | `(L, L) → L` | Shape | shape, dtype, where, derive |
+| `min`, `max` | `(Integer, Integer) → Integer` | `(I, I) → I` | Common | shape, dtype, where, derive |
+| `floor_div`, `ceil_div` | `(Integer, Integer) → Integer` | `(I, I) → I` | Common | shape, dtype, where, derive |
+
+`is_float`, `is_integer`, `is_signed_integer`, `is_unsigned_integer`, and
+`is_numeric` have signature `DType → Bool` in dtype programs and
+`dtype → bool` in rules. They belong to the DType domain and are available in
+`dtype`, `where`, and `derive`. Bool is neither integer nor numeric.
 
 Rule expressions retain their existing syntax. Dimension sequences and
 `index_list` host results supply lists; list literals, indexing, and
-comprehensions remain operation-shape expression forms. `derive` assigns
+comprehensions remain operation metadata expression forms. `derive` assigns
 attribute descriptors, so builtins usually appear inside descriptor-producing
 host calls, rather than as the whole assignment:
 
@@ -64,7 +69,7 @@ derive {
 Rust implementations live in `templates/rust/src/builtins/` and are copied into
 `builtins/` in each generated module. `common` contains generic list/integer
 primitives; `shape` contains broadcasting, axis validation, and tensor dimension
-conversions; `dtype` contains operation policies, not TEPL expression functions.
+conversions; `dtype` contains the five dtype classification predicates.
 `error` supplies `BuiltinError` and `BuiltinResult`.
 
 Shape and rule emitters share builtin-call lowering. Integer operators also

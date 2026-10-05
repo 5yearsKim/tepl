@@ -40,6 +40,8 @@ class ExpressionChecker {
                      std::optional<TypeId>);
   TypedExprPtr lower(const ast::AttributeRef&, const SourceOrigin&,
                      std::optional<TypeId>);
+  TypedExprPtr lower(const ast::DescriptorField&, const SourceOrigin&,
+                     std::optional<TypeId>);
   TypedExprPtr lower(const ast::IntegerLiteral&, const SourceOrigin&,
                      std::optional<TypeId>);
   TypedExprPtr lower(const ast::FloatLiteral&, const SourceOrigin&,

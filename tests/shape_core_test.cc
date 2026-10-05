@@ -14,7 +14,7 @@
 #include "src/parse.h"
 
 namespace {
-namespace shape = tepl::core::shape;
+namespace metadata = tepl::core::metadata;
 namespace builtins = tepl::core::builtins;
 
 void check(bool condition, std::string_view message) {
@@ -32,7 +32,8 @@ tepl::core::AnalysisResult analyze(std::string_view body,
   return tepl::core::analyze(*parsed.program);
 }
 
-const shape::Program& checkedShape(const tepl::core::AnalysisResult& result) {
+const metadata::Program& checkedShape(
+    const tepl::core::AnalysisResult& result) {
   if (!result.ok()) {
     for (const auto& diagnostic : result.diagnostics)
       std::cerr << diagnostic.message << '\n';
@@ -101,10 +102,10 @@ void builtinSignatures() {
     const auto& program = checkedShape(result);
     const auto expression =
         test.boolean
-            ? std::get<shape::Assert>(program.statements[0].value).condition
-            : std::get<shape::Let>(program.statements[0].value).value;
+            ? std::get<metadata::Assert>(program.statements[0].value).condition
+            : std::get<metadata::Let>(program.statements[0].value).value;
     check(builtins::builtinName(
-              std::get<shape::Call>(expression->value).builtin) == test.name,
+              std::get<metadata::Call>(expression->value).builtin) == test.name,
           "Calls must resolve to builtin IDs");
     expectError(
         "shape(s) { let result = " + std::string(test.invalid) + "; yield s; }",
@@ -143,14 +144,15 @@ void signaturesAndScopes() {
       "shape(s) { let i = 1; let xs = [i + 1 for i in range(3)]; assert i == "
       "1; yield xs; }");
   const auto& program = checkedShape(result);
-  const auto outer = std::get<shape::Let>(program.statements[0].value).symbol;
-  const auto xs = std::get<shape::Let>(program.statements[1].value).value;
-  const auto& comprehension = std::get<shape::Comprehension>(xs->value);
+  const auto outer =
+      std::get<metadata::Let>(program.statements[0].value).symbol;
+  const auto xs = std::get<metadata::Let>(program.statements[1].value).value;
+  const auto& comprehension = std::get<metadata::Comprehension>(xs->value);
   check(comprehension.variable != outer,
         "Comprehension shadowing needs a distinct ID");
-  const auto& assertion = std::get<shape::Binary>(
-      std::get<shape::Assert>(program.statements[2].value).condition->value);
-  check(std::get<shape::SymbolRef>(assertion.lhs->value).symbol == outer,
+  const auto& assertion = std::get<metadata::Binary>(
+      std::get<metadata::Assert>(program.statements[2].value).condition->value);
+  check(std::get<metadata::SymbolRef>(assertion.lhs->value).symbol == outer,
         "Outer binding must be restored after comprehension");
   const auto variadic = analyze(
       "shape(a, rest...) { yield concat(a, sum([len(s) for s in rest]) * [1]); "
@@ -194,19 +196,19 @@ void listsAndAttributes() {
                               "attrs { padding: i64[][]; enabled: bool; }");
   const auto& program = checkedShape(result);
   check(program.types.at(program.symbols[0].type.value) ==
-            shape::Type{shape::Type::Kind::kInteger, 1},
+            metadata::Type{metadata::Type::Kind::kInteger, 1},
         "Fixed parameters must be shapes");
   check(program.types.at(program.symbols[1].type.value) ==
-            shape::Type{shape::Type::Kind::kInteger, 2},
+            metadata::Type{metadata::Type::Kind::kInteger, 2},
         "Variadic parameters must be lists of shapes");
   check(program.types.at(program.symbols[2].type.value).list_depth == 2,
         "Nested empty list typing must come from its uses");
-  const auto& field = std::get<shape::AttributeRef>(
-      std::get<shape::Let>(program.statements[4].value).value->value);
+  const auto& field = std::get<metadata::AttributeRef>(
+      std::get<metadata::Let>(program.statements[4].value).value->value);
   check(field.schema.value == 0 && field.field == 0,
         "Attribute field must resolve to schema and field indexes");
   check(program.types.at(program.result.value->type.value) ==
-            shape::Type{shape::Type::Kind::kInteger, 1},
+            metadata::Type{metadata::Type::Kind::kInteger, 1},
         "Yield type must be a shape");
   expectError("shape(s) { let xs = []; yield s; }", "cannot infer");
   expectError("shape(s) { let n = len([]); yield s; }", "cannot infer");
@@ -255,10 +257,10 @@ void integerPolicyAndRuntimeChecks() {
       "shape(s) { assert false && s[999] > 0; yield if true then [] else [1 / "
       "0, -1]; }");
   const auto& program = checkedShape(deferred);
-  check(std::holds_alternative<shape::Binary>(
-            std::get<shape::Assert>(program.statements[0].value)
+  check(std::holds_alternative<metadata::Binary>(
+            std::get<metadata::Assert>(program.statements[0].value)
                 .condition->value) &&
-            std::holds_alternative<shape::Conditional>(
+            std::holds_alternative<metadata::Conditional>(
                 program.result.value->value),
         "Runtime control flow must be preserved");
 }
@@ -293,47 +295,47 @@ void diagnosticsAndPrinting() {
         "Missing shape definition must remain absent");
 }
 
-void checkExpression(const shape::ExprPtr& expression,
-                     const shape::Program& shape,
+void checkExpression(const metadata::ExprPtr& expression,
+                     const metadata::Program& shape,
                      const tepl::core::Program& program) {
   check(expression != nullptr && expression->type.value < shape.types.size(),
         "Every checked expression must have a resolved type");
   std::visit(
       [&](const auto& value) {
         using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, shape::SymbolRef>) {
+        if constexpr (std::is_same_v<T, metadata::SymbolRef>) {
           check(
               value.symbol.value < shape.symbols.size() &&
                   shape.types[expression->type.value] ==
                       shape.types[shape.symbols[value.symbol.value].type.value],
               "Symbol refs must have consistent types");
-        } else if constexpr (std::is_same_v<T, shape::AttributeRef>) {
+        } else if constexpr (std::is_same_v<T, metadata::AttributeRef>) {
           check(value.schema.value < program.attribute_schemas.size() &&
                     value.field < program.attribute_schemas[value.schema.value]
                                       .fields.size(),
                 "Attributes must resolve");
-        } else if constexpr (std::is_same_v<T, shape::Call>) {
+        } else if constexpr (std::is_same_v<T, metadata::Call>) {
           check(builtins::resolveBuiltin(
                     builtins::builtinName(value.builtin)) != nullptr,
                 "Builtins must resolve");
           for (const auto& argument : value.arguments)
             checkExpression(argument, shape, program);
-        } else if constexpr (std::is_same_v<T, shape::Unary>) {
+        } else if constexpr (std::is_same_v<T, metadata::Unary>) {
           checkExpression(value.operand, shape, program);
-        } else if constexpr (std::is_same_v<T, shape::Binary>) {
+        } else if constexpr (std::is_same_v<T, metadata::Binary>) {
           checkExpression(value.lhs, shape, program);
           checkExpression(value.rhs, shape, program);
-        } else if constexpr (std::is_same_v<T, shape::List>) {
+        } else if constexpr (std::is_same_v<T, metadata::List>) {
           for (const auto& element : value.elements)
             checkExpression(element, shape, program);
-        } else if constexpr (std::is_same_v<T, shape::Index>) {
+        } else if constexpr (std::is_same_v<T, metadata::Index>) {
           checkExpression(value.value, shape, program);
           checkExpression(value.index, shape, program);
-        } else if constexpr (std::is_same_v<T, shape::Conditional>) {
+        } else if constexpr (std::is_same_v<T, metadata::Conditional>) {
           checkExpression(value.condition, shape, program);
           checkExpression(value.then_value, shape, program);
           checkExpression(value.else_value, shape, program);
-        } else if constexpr (std::is_same_v<T, shape::Comprehension>) {
+        } else if constexpr (std::is_same_v<T, metadata::Comprehension>) {
           check(value.variable.value < shape.symbols.size(),
                 "Comprehension symbol must resolve");
           checkExpression(value.iterable, shape, program);
@@ -374,7 +376,7 @@ void examples(const char* executable, const char* tensor, const char* scalar) {
         std::visit(
             [&](const auto& value) {
               using T = std::decay_t<decltype(value)>;
-              if constexpr (std::is_same_v<T, shape::Let>)
+              if constexpr (std::is_same_v<T, metadata::Let>)
                 checkExpression(value.value, shape, *result.program);
               else
                 checkExpression(value.condition, shape, *result.program);

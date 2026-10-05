@@ -95,13 +95,15 @@ use rust_egg::ir::analysis::{Inference, infer_shape, infer_dtype, infer_tensor};
 // infer_tensor(op, &[TensorInfo], attrs) -> Inference<TensorInfo>
 ```
 
-Dtype inference follows optional TEPL policies: `same`, `same_numeric`,
-`same_float`, or a fixed concrete dtype. Missing definitions return `Unknown`;
-common policies with zero operands also return `Unknown`. Graph literals read
-explicit dtypes. Dot, convolution, and constants have no example dtype policy,
-so default combined inference remains unknown for them. Constants also have no
-shape definition; their payload does not implicitly supply metadata. All-gather
-and reduce-scatter need process-grid metadata and have no shape block.
+Dtype inference evaluates optional TEPL dtype programs. Parameters receive
+operand dtype values; assertions validate them, and the yielded dtype describes
+the result. Programs can use dtype-valued attributes and classification
+predicates. Missing definitions return `Unknown`; failed assertions are invalid.
+Graph literals read explicit dtypes. Dot, convolution, and constants have no
+example dtype program, so default combined inference remains unknown for them.
+Constants also have no shape definition; their payload does not implicitly
+supply metadata. All-gather and reduce-scatter need process-grid metadata and
+have no shape block.
 
 The LoRA demo explicitly supplies `host::LoraAnalysis` and
 `infer_lora_tensor_output` for its dot policy. Opaque regions, mesh groups, and

@@ -13,7 +13,7 @@ and emits code that depends on TEPL declarations:
 | Files | Producer |
 | --- | --- |
 | `analysis/shape.rs` | Emit from checked operation shape programs |
-| `analysis/dtype.rs` | Emit from optional checked operation dtype policies |
+| `analysis/dtype.rs` | Emit from optional checked operation dtype programs |
 | `builtins/*` | Copy common, shape, dtype, and error helpers from `templates/rust/src/builtins/` |
 | `analysis/tensor.rs` | Copy shared shape/dtype inference combination |
 | `analysis/tensor_analysis.rs` | Copy direct egg integration |
@@ -51,16 +51,15 @@ example shape block and remain unknown. There is no implicit payload inference.
 Shape inference does not execute opaque regions, validate constant bytes, or
 establish numerical rewrite equivalence.
 
-## Dtype policy and public API
+## Dtype programs and public API
 
-`infer_dtype` dispatches only on [declared TEPL policies](../../../../examples/dtype_guide.md).
-`same`, `same_numeric`, and `same_float` use shared helpers without promotion.
-Zero operands under a common policy return `Unknown`; a concrete policy fixes
-the result dtype. Missing policies return `Unknown`. Runtime literals read
-their explicit dtype; named inputs obtain metadata from the binding table.
-Dot, convolution, and constants have no declared dtype policy in the example
-dialect, so their default combined tensor inference remains unknown even when
-shape inference succeeds.
+`infer_dtype` evaluates [declared TEPL programs](../../../../examples/dtype_guide.md)
+using dtype values, attributes, assertions, and classification predicates.
+Missing programs return `Unknown`; failed assertions produce invalid inference.
+Runtime literals read their explicit dtype; named inputs obtain metadata from
+the binding table. Dot, convolution, and constants have no declared dtype
+program in the example dialect, so their default combined inference remains
+unknown even when shape inference succeeds.
 
 ```rust
 use crate::ir::analysis::{TensorAnalysis, TensorBindingTable, TensorInfo};

@@ -8,7 +8,7 @@ use egg::{EGraph, Id, Language, Var};
 use rust_egg::host::nodes::{binary, symbol};
 use rust_egg::ir::dialects::tensor_lang;
 use rust_egg::ir::pattern::{
-    AttrPattern, ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr,
+    AttrPattern, MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr,
     TensorInfo, TensorPattern, matches_at, matches_at_with_constraints,
     tensor_rewrite_checked_with_constraints,
 };
@@ -204,7 +204,7 @@ fn mixed_middle_sequences_and_inherited_restrictions_share_bindings() {
         (
             b,
             TensorConstraint {
-                dtype: Some(DType::F32),
+                dtype: Some(rust_egg::ir::pattern::DTypeConstraint::Exact(DType::F32)),
                 shape: vec![S(None)],
             },
         ),
@@ -219,7 +219,7 @@ fn mixed_middle_sequences_and_inherited_restrictions_share_bindings() {
         (vec![3, 7, 8, 9, 4], vec![7, 8, 9, 3], false),
         (vec![3], vec![3], false),
     ] {
-        let mut bindings = ShapeBindings::default();
+        let mut bindings = MetadataBindings::default();
         let actual = constraints
             .check_capture(a, &info(&left), &mut bindings)
             .and_then(|_| constraints.check_capture(b, &info(&right), &mut bindings))
@@ -266,7 +266,7 @@ fn missing_metadata_and_dtype_mismatches_reject_only_constrained_captures() {
     let constraints = TensorConstraints::new([(
         a,
         TensorConstraint {
-            dtype: Some(DType::F32),
+            dtype: Some(rust_egg::ir::pattern::DTypeConstraint::Exact(DType::F32)),
             shape: vec![S(None)],
         },
     )]);

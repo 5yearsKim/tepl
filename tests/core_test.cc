@@ -86,7 +86,9 @@ rule bound extends a(len = $legal);
   assert(formatProgram(program).find("Builtin(len") != std::string::npos);
   for (const auto& signature : builtins::catalog()) {
     assert(builtins::resolveBuiltin(signature.name) == &signature);
-    assert(signature.availableIn(builtins::Context::kShape));
+    assert(signature.availableIn(builtins::Context::kShape) ==
+           (signature.domain != builtins::Domain::kDType));
+    assert(signature.availableIn(builtins::Context::kDType));
     const bool boolean_list = signature.builtin == builtins::Builtin::kAll ||
                               signature.builtin == builtins::Builtin::kAny;
     assert(signature.availableIn(builtins::Context::kWhere) == !boolean_list);
@@ -167,7 +169,7 @@ rule unrestricted { X => X }
          rule.captures[1].name == "Y");
   assert(rule.dimensions.size() == 1 && rule.dimensions[0].name == "N");
   assert(rule.constraints.size() == 2);
-  assert(rule.constraints[0].dtype == DType::kF32);
+  assert(std::get<DType>(*rule.constraints[0].dtype) == DType::kF32);
   assert(rule.constraints[0].shape[0].symbol ==
          rule.constraints[1].shape[0].symbol);
   const auto& rhs = std::get<BuildOperation>(rule.rhs->value);
@@ -339,7 +341,7 @@ rule b extends commute(F = mul, allowed = $legal) { where { N < 32; } }
   const auto& rules = result.program->rules;
   assert(rules.size() == 2);
   assert(rules[0].constraints.size() == 2);
-  assert(rules[0].constraints[1].dtype == DType::kF32);
+  assert(std::get<DType>(*rules[0].constraints[1].dtype) == DType::kF32);
   assert(rules[1].conditions.size() == 2);
   assert(std::get<MatchOperation>(rules[0].lhs->value).operation !=
          std::get<MatchOperation>(rules[1].lhs->value).operation);
@@ -440,7 +442,7 @@ void tensorDTypes() {
                     "[Batch..., M, _] X => X where { $check(X); } }");
     assert(result.ok());
     const auto& rule = result.program->rules.front();
-    assert(rule.constraints.front().dtype == dtype);
+    assert(std::get<DType>(*rule.constraints.front().dtype) == *dtype);
     assert(rule.constraints.front().shape.size() == 3);
     const auto& host = result.program->host_functions.front();
     assert(result.program->types[host.signature.arguments[0].value].kind ==

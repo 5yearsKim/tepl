@@ -54,7 +54,7 @@ op transpose(input: tensor) -> tensor {
 ```
 
 The operation examples below belong inside a `dialect` declaration. Their shape
-blocks define shape behavior only. Optional [dtype policies](dtype_guide.md)
+blocks define shape behavior only. Optional [dtype programs](dtype_guide.md)
 describe output dtypes separately; numerical rewrite legality remains a separate
 responsibility.
 

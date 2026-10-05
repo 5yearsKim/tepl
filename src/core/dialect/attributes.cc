@@ -19,8 +19,8 @@ std::vector<AttributeField> checkFields(
     if (!names.insert(field.name).second)
       context.report(at, "duplicate attribute field '" + field.name + "'");
     static const std::set<std::string> supported = {
-        "index",         "string",         "i64",    "bool",    "precision",
-        "dot_algorithm", "replica_groups", "region", "elements"};
+        "dtype",     "index",         "string",         "i64",    "bool",
+        "precision", "dot_algorithm", "replica_groups", "region", "elements"};
     if (!supported.contains(field.type))
       context.report(at, "unknown attribute type '" + field.type + "'");
     if (field.empty_default && !field.list_depth)

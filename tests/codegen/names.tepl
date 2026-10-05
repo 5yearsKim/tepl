@@ -1,19 +1,19 @@
 // Dialects that previously collided with external crates and emitter aliases.
 dialect Std {
     op std_copy(x: tensor) -> tensor {
-        dtype: same;
+        dtype(t0) { yield t0; }
         shape(s) { yield s; }
     }
 }
 dialect Egg {
     op egg_copy(x: tensor) -> tensor {
-        dtype: same;
+        dtype(t0) { yield t0; }
         shape(s) { yield s; }
     }
 }
 dialect B {
     op b_copy(x: tensor) -> tensor {
-        dtype: same;
+        dtype(t0) { yield t0; }
         shape(s) { yield s; }
     }
 }
@@ -22,7 +22,7 @@ dialect Type {
     attrs Match { type: index; type_: index; match: bool; gen: index; }
     op type(x: tensor) -> tensor {
         attrs: Match;
-        dtype: same;
+        dtype(t0) { yield t0; }
         shape(s) {
             assert attrs.match;
             assert attrs.type == attrs.gen;

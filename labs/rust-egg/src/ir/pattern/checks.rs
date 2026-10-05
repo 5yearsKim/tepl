@@ -7,7 +7,7 @@ use super::constraints::TensorConstraints;
 use super::context::TensorMetadata;
 use super::matcher::TensorMatch;
 use super::pattern::{AttrVar, TensorPattern};
-use super::shape::ShapeBindings;
+use super::shape::MetadataBindings;
 
 /// A binding needed before a condition can execute. Metadata is fetched only
 /// inside the expression, preserving &&/|| short-circuit behavior.
@@ -15,23 +15,26 @@ use super::shape::ShapeBindings;
 pub enum MatchBinding {
     Tensor(Var),
     Attribute(AttrVar),
+    DType(usize),
     Dimension(usize),
     Sequence(usize),
 }
 
 impl MatchBinding {
-    fn is_bound(self, matched: &TensorMatch, shapes: &ShapeBindings) -> bool {
+    fn is_bound(self, matched: &TensorMatch, shapes: &MetadataBindings) -> bool {
         match self {
             Self::Tensor(var) => matched.tensors.get(var).is_some(),
             Self::Attribute(var) => matched.attrs.contains_key(&var),
+            Self::DType(id) => shapes.dtype(id).is_some(),
             Self::Dimension(id) => shapes.dimension(id).is_some(),
             Self::Sequence(id) => shapes.sequence(id).is_some(),
         }
     }
 }
 
-type ConditionEvaluator<N> =
-    dyn Fn(usize, &EGraph<OpNode, N>, &TensorMatch, &ShapeBindings) -> Option<bool> + Send + Sync;
+type ConditionEvaluator<N> = dyn Fn(usize, &EGraph<OpNode, N>, &TensorMatch, &MetadataBindings) -> Option<bool>
+    + Send
+    + Sync;
 
 /// Tensor declarations bind facts; ordered conditions consume those facts.
 /// Evaluators must be pure and stable during a read-only traversal. Some(false)
@@ -46,7 +49,7 @@ impl<N: Analysis<OpNode>> MatchChecks<N> {
     pub fn new(
         tensors: TensorConstraints,
         conditions: Vec<Vec<MatchBinding>>,
-        evaluate: impl Fn(usize, &EGraph<OpNode, N>, &TensorMatch, &ShapeBindings) -> Option<bool>
+        evaluate: impl Fn(usize, &EGraph<OpNode, N>, &TensorMatch, &MetadataBindings) -> Option<bool>
         + Send
         + Sync
         + 'static,
@@ -81,6 +84,7 @@ impl<N: Analysis<OpNode>> MatchChecks<N> {
                 MatchBinding::Dimension(id)
             }
         }));
+        available.extend(self.tensors.dtype_symbols().map(MatchBinding::DType));
         for (index, dependencies) in self.conditions.iter().enumerate() {
             for dependency in dependencies {
                 if !available.contains(dependency) {
@@ -99,7 +103,7 @@ impl<N: Analysis<OpNode>> MatchChecks<N> {
         &self,
         graph: &EGraph<OpNode, N>,
         matched: &TensorMatch,
-        shapes: &ShapeBindings,
+        shapes: &MetadataBindings,
         next: &mut usize,
     ) -> Option<()> {
         while let Some(dependencies) = self.conditions.get(*next) {
@@ -128,7 +132,7 @@ impl<N: Analysis<OpNode>> MatchChecks<N> {
         graph: &EGraph<OpNode, N>,
         matched: &TensorMatch,
         metadata: &dyn TensorMetadata<N>,
-    ) -> Option<ShapeBindings> {
+    ) -> Option<MetadataBindings> {
         let shapes = self.tensors.check_match(graph, matched, metadata)?;
         let mut next = 0;
         self.advance(graph, matched, &shapes, &mut next)?;

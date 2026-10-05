@@ -31,7 +31,8 @@ struct RankRestriction {
 std::optional<DimensionId> dimension(RuleCheckContext& context,
                                      const std::string& name, bool sequence,
                                      const SourceOrigin& at) {
-  if (context.scope.captures.contains(name)) {
+  if (context.scope.captures.contains(name) ||
+      context.scope.dtypes.contains(name) || resolveDType(name)) {
     context.analysis.report(
         at, "dimension '" + name + "' conflicts with a tensor capture");
     return std::nullopt;
@@ -57,6 +58,25 @@ std::optional<DimensionId> dimension(RuleCheckContext& context,
 }  // namespace
 
 void checkDeclarations(RuleCheckContext& context) {
+  for (const auto& located : context.input.dtypes) {
+    const auto& name = located.value.name;
+    if (context.scope.captures.contains(name) || resolveDType(name)) {
+      context.analysis.report(
+          located.origin, "dtype variable '" + name +
+                              "' conflicts with a capture or dtype constant");
+      continue;
+    }
+    const DTypeVariableId id{context.rule.dtypes.size()};
+    if (!context.scope.dtypes.emplace(name, id).second) {
+      context.analysis.report(located.origin,
+                              "duplicate dtype variable '" + name + "'");
+      continue;
+    }
+    auto type =
+        context.analysis.types.concrete({TypeKind::kDType}, located.origin);
+    context.rule.dtypes.push_back({id, name, type, located.origin});
+  }
+  std::set<std::size_t> bound_dtypes;
   std::set<std::pair<std::size_t, std::string>> declared;
   std::map<std::size_t, std::pair<DType, SourceOrigin>> dtypes;
   std::map<std::size_t, RankRestriction> ranks;
@@ -77,10 +97,17 @@ void checkDeclarations(RuleCheckContext& context) {
     bool sequence = false;
     std::size_t minimum_rank = 0;
     if (declaration.dtype) {
-      constraint.dtype = resolveDType(declaration.dtype->name);
-      if (!constraint.dtype)
+      if (auto concrete = resolveDType(declaration.dtype->name)) {
+        constraint.dtype = *concrete;
+      } else if (auto variable =
+                     context.scope.dtypes.find(declaration.dtype->name);
+                 variable != context.scope.dtypes.end()) {
+        constraint.dtype = variable->second;
+        bound_dtypes.insert(variable->second.value);
+      } else {
         context.analysis.report(
             at, "unknown dtype '" + declaration.dtype->name + "'");
+      }
     }
     for (const auto& shape : declaration.shape) {
       auto location = at;
@@ -107,10 +134,11 @@ void checkDeclarations(RuleCheckContext& context) {
             {ShapeElement::Kind::kWildcard, std::nullopt, location});
       }
     }
-    if (constraint.dtype) {
-      const auto [previous, inserted] = dtypes.emplace(
-          found->second.value, std::make_pair(*constraint.dtype, at));
-      if (!inserted && previous->second.first != *constraint.dtype)
+    if (constraint.dtype && std::holds_alternative<DType>(*constraint.dtype)) {
+      const auto concrete = std::get<DType>(*constraint.dtype);
+      const auto [previous, inserted] =
+          dtypes.emplace(found->second.value, std::make_pair(concrete, at));
+      if (!inserted && previous->second.first != concrete)
         context.analysis.report(
             at, "conflicting dtype restrictions for '" + name + "'",
             {previous->second.second.definition});
@@ -129,6 +157,11 @@ void checkDeclarations(RuleCheckContext& context) {
     }
     context.rule.constraints.push_back(std::move(constraint));
   }
+  for (const auto& variable : context.rule.dtypes)
+    if (!bound_dtypes.contains(variable.id.value))
+      context.analysis.report(
+          variable.origin, "dtype variable '" + variable.name +
+                               "' is not bound by an LHS tensor declaration");
 }
 
 }  // namespace tepl::core::detail

@@ -29,9 +29,12 @@ Infer infer(ir::Op op, std::span<const Info> inputs, const ir::OpAttrs& attrs) {
     dtypes.push_back(input.dtype);
   }
   auto shape = ir::analysis::infer_shape(op, shapes, attrs);
-  auto dtype = ir::builtins::dtype::same_numeric(dtypes);
-  if (!shape.value || !dtype.value) return Infer::invalid("invalid dot");
-  return Infer::known({*shape.value, *dtype.value});
+  if (!shape.value || dtypes.empty() ||
+      !ir::builtins::dtype::is_numeric(dtypes.front()) ||
+      !std::all_of(dtypes.begin(), dtypes.end(),
+                   [&](auto t) { return t == dtypes.front(); }))
+    return Infer::invalid("invalid dot");
+  return Infer::known({*shape.value, dtypes.front()});
 }
 struct LoraAnalysis {
   using Data = ir::analysis::TensorAnalysisData;

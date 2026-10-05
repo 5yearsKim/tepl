@@ -77,6 +77,12 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
     rule.declarations.push_back(
         std::any_cast<ast::Declaration>(visit(declaration)));
   }
+  const auto dtypes = body        ? body->dtypeDecl()
+                      : inherited ? inherited->dtypeDecl()
+                                  : std::vector<Parser::DtypeDeclContext*>{};
+  for (auto* declaration : dtypes)
+    rule.dtypes.push_back(
+        {getSpan(declaration), declaration->ID(1)->getText()});
   if (body) {
     rule.lhs = std::any_cast<ast::GraphExprPtr>(visit(body->graphExpr()));
     rule.rhs = std::any_cast<ast::GraphExprPtr>(visit(body->rhsGraphExpr()));
@@ -304,8 +310,11 @@ std::any AstBuilder::visitNamePrimary(Parser::NamePrimaryContext* context) {
 
 std::any AstBuilder::visitAttributePrimary(
     Parser::AttributePrimaryContext* context) {
-  return makeConstraint(context,
-                        ast::AttributeRef{context->attrRef()->ID()->getText()});
+  const ast::AttributeRef descriptor{context->attrRef()->ID()->getText()};
+  if (context->ID())
+    return makeConstraint(
+        context, ast::DescriptorField{descriptor, context->ID()->getText()});
+  return makeConstraint(context, descriptor);
 }
 
 std::any AstBuilder::visitIntegerPrimary(

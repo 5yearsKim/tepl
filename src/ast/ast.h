@@ -132,88 +132,94 @@ struct BinaryExpr {
   ConstraintExprPtr rhs;
 };
 
+struct DescriptorField {
+  AttributeRef descriptor;
+  std::string field;
+};
+
 struct ConstraintExpr {
   SourceSpan span;
-  std::variant<NameRef, AttributeRef, IntegerLiteral, FloatLiteral,
-               BooleanLiteral, Call, UnaryExpr, BinaryExpr>
+  std::variant<NameRef, AttributeRef, DescriptorField, IntegerLiteral,
+               FloatLiteral, BooleanLiteral, Call, UnaryExpr, BinaryExpr>
       value;
 };
 
 // Shape programs have their own expression tree. Unlike rule constraints,
 // they cannot contain tensor captures, descriptor references, or host calls.
-struct ShapeExpr;
-using ShapeExprPtr = std::shared_ptr<ShapeExpr>;
+struct MetadataExpr;
+using MetadataExprPtr = std::shared_ptr<MetadataExpr>;
 
-struct ShapeAttrs {};
-struct ShapeCall {
+struct MetadataAttrs {};
+struct MetadataCall {
   // Unresolved builtin name; the parser does not validate names or signatures.
   std::string callee;
-  std::vector<ShapeExprPtr> arguments;
+  std::vector<MetadataExprPtr> arguments;
 };
-struct ShapeUnary {
+struct MetadataUnary {
   UnaryOp op;
-  ShapeExprPtr operand;
+  MetadataExprPtr operand;
 };
-struct ShapeBinary {
+struct MetadataBinary {
   BinaryOp op;
-  ShapeExprPtr lhs;
-  ShapeExprPtr rhs;
+  MetadataExprPtr lhs;
+  MetadataExprPtr rhs;
 };
-struct ShapeList {
-  std::vector<ShapeExprPtr> elements;
+struct MetadataList {
+  std::vector<MetadataExprPtr> elements;
 };
-struct ShapeIndex {
-  ShapeExprPtr value;
-  ShapeExprPtr index;
+struct MetadataIndex {
+  MetadataExprPtr value;
+  MetadataExprPtr index;
 };
-struct ShapeField {
-  ShapeExprPtr value;
+struct MetadataField {
+  MetadataExprPtr value;
   std::string field;
 };
-struct ShapeConditional {
-  ShapeExprPtr condition;
-  ShapeExprPtr then_value;
-  ShapeExprPtr else_value;
+struct MetadataConditional {
+  MetadataExprPtr condition;
+  MetadataExprPtr then_value;
+  MetadataExprPtr else_value;
 };
-struct ShapeComprehension {
-  ShapeExprPtr element;
+struct MetadataComprehension {
+  MetadataExprPtr element;
   std::string variable;
   SourceSpan variable_span;
-  ShapeExprPtr iterable;
+  MetadataExprPtr iterable;
 };
-struct ShapeExpr {
+struct MetadataExpr {
   SourceSpan span;
-  std::variant<NameRef, IntegerLiteral, BooleanLiteral, ShapeAttrs, ShapeCall,
-               ShapeUnary, ShapeBinary, ShapeList, ShapeIndex, ShapeField,
-               ShapeConditional, ShapeComprehension>
+  std::variant<NameRef, IntegerLiteral, BooleanLiteral, MetadataAttrs,
+               MetadataCall, MetadataUnary, MetadataBinary, MetadataList,
+               MetadataIndex, MetadataField, MetadataConditional,
+               MetadataComprehension>
       value;
 };
-struct ShapeParameter {
+struct MetadataParameter {
   SourceSpan span;
   std::string name;
   bool variadic = false;
 };
-struct ShapeLet {
+struct MetadataLet {
   std::string name;
   SourceSpan name_span;
-  ShapeExprPtr value;
+  MetadataExprPtr value;
 };
-struct ShapeAssert {
-  ShapeExprPtr condition;
+struct MetadataAssert {
+  MetadataExprPtr condition;
 };
-struct ShapeStatement {
+struct MetadataStatement {
   SourceSpan span;
-  std::variant<ShapeLet, ShapeAssert> value;
+  std::variant<MetadataLet, MetadataAssert> value;
 };
-struct ShapeYield {
+struct MetadataYield {
   SourceSpan span;
-  ShapeExprPtr value;
+  MetadataExprPtr value;
 };
-struct ShapeDefinition {
+struct MetadataDefinition {
   SourceSpan span;
-  std::vector<ShapeParameter> parameters;
-  std::vector<ShapeStatement> statements;
-  ShapeYield result;
+  std::vector<MetadataParameter> parameters;
+  std::vector<MetadataStatement> statements;
+  MetadataYield result;
 };
 
 struct Derivation {
@@ -251,6 +257,11 @@ struct RuleInheritance {
   std::vector<RuleBinding> bindings;
 };
 
+struct DTypeDeclaration {
+  SourceSpan span;
+  std::string name;
+};
+
 struct Rule {
   SourceSpan span;
   std::string name;
@@ -266,6 +277,7 @@ struct Rule {
   std::vector<RuleParameter> parameters;
   std::optional<RuleInheritance> inheritance;
   std::string source_name;
+  std::vector<DTypeDeclaration> dtypes;
 };
 
 struct Import {
@@ -318,11 +330,6 @@ struct InlineAttrs {
 
 using OpAttrs = std::variant<SharedAttrs, InlineAttrs>;
 
-struct DTypePolicy {
-  SourceSpan span;
-  std::string name;
-};
-
 struct OpDecl {
   SourceSpan span;
   // The declared operation name is canonical; alias is another spelling.
@@ -331,8 +338,9 @@ struct OpDecl {
   std::string result_type;
   std::optional<std::string> alias;
   std::optional<OpAttrs> attrs;
-  std::optional<ShapeDefinition> shape_definition;
-  std::optional<DTypePolicy> dtype_policy;
+  std::optional<MetadataDefinition> shape_definition;
+  std::optional<MetadataDefinition> dtype_definition;
+  std::vector<std::string> duplicate_properties;
 };
 
 struct Dialect {

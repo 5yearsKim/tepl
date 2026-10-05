@@ -98,7 +98,8 @@ void emitRule(CodeWriter& out, const core::Program& program,
       paths::within(root,
                     "pattern::{AttrExpr, AttrPattern, AttrVar, TensorExpr, "
                     "TensorPattern, TensorConstraints, TensorConstraint, "
-                    "ShapePart, ShapeBindings, MatchBinding, MatchChecks, "
+                    "DTypeConstraint, "
+                    "ShapePart, MetadataBindings, MatchBinding, MatchChecks, "
                     "TensorMetadata, OutputInference, TensorInfo, "
                     "MatchContext, tensor_rewrite_checked_with_checks}") +
       ";");
@@ -130,7 +131,19 @@ void emitRule(CodeWriter& out, const core::Program& program,
     out.line("(" + var(constraint.capture.value) + ", TensorConstraint {");
     out.line(
         "dtype: " +
-        (constraint.dtype ? "Some(" + dtype(*constraint.dtype) + ")" : "None") +
+        (constraint.dtype
+             ? "Some(" +
+                   (std::holds_alternative<core::DType>(*constraint.dtype)
+                        ? "DTypeConstraint::Exact(" +
+                              dtype(std::get<core::DType>(*constraint.dtype)) +
+                              ")"
+                        : "DTypeConstraint::Bind(" +
+                              std::to_string(std::get<core::DTypeVariableId>(
+                                                 *constraint.dtype)
+                                                 .value) +
+                              ")") +
+                   ")"
+             : "None") +
         ",");
     std::string shape = "shape: vec![";
     for (const auto& element : constraint.shape) {
@@ -160,7 +173,7 @@ void emitRule(CodeWriter& out, const core::Program& program,
     out.open(
         "fn condition_" + std::to_string(i) +
         "<N: Analysis<OpNode>, M: TensorMetadata<N>>(ctx: &MatchContext<'_, N, "
-        "M>, dimensions: &ShapeBindings) -> Option<bool>");
+        "M>, dimensions: &MetadataBindings) -> Option<bool>");
     out.line(
         "Some(" +
         emitExpression(program, names, *rule.conditions[i], builtins_path) +
@@ -187,6 +200,8 @@ void emitRule(CodeWriter& out, const core::Program& program,
       }
       for (auto id : condition.descriptors)
         deps += "MatchBinding::Attribute(" + attrVar(id.value) + "), ";
+      for (auto id : condition.dtypes)
+        deps += "MatchBinding::DType(" + std::to_string(id.value) + "), ";
       out.line(deps + "],");
     }
     out.line("], move |index, graph, matched, dimensions| {");

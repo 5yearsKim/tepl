@@ -19,6 +19,12 @@ struct LocatedDeclaration {
   std::size_t layer = 0;
 };
 
+struct LocatedDTypeDeclaration {
+  ast::DTypeDeclaration value;
+  SourceOrigin origin;
+  std::size_t layer;
+};
+
 struct LocatedDerivation {
   std::string target;
   ast::ConstraintExprPtr value;
@@ -38,6 +44,7 @@ struct ExpandedRule {
   ast::GraphExprPtr lhs;
   ast::GraphExprPtr rhs;
   std::vector<LocatedDeclaration> declarations;
+  std::vector<LocatedDTypeDeclaration> dtypes;
   std::vector<ast::ConstraintExprPtr> conditions;
   std::vector<LocatedDerivation> derivations;
   // Keys refer to the owning expression trees above and live for this stage.

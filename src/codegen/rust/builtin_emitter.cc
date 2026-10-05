@@ -9,13 +9,20 @@ std::string emitBuiltin(core::builtins::Builtin builtin,
       core::builtins::resolveBuiltin(core::builtins::builtinName(builtin));
   const std::string fn =
       runtime +
-      (signature->domain == core::builtins::Domain::kShape ? "::shape::"
-                                                           : "::common::") +
+      (signature->domain == core::builtins::Domain::kShape   ? "::shape::"
+       : signature->domain == core::builtins::Domain::kDType ? "::dtype::"
+                                                             : "::common::") +
       std::string(signature->name);
   const auto arg = [&](std::size_t i) { return arguments.at(i); };
   const auto ref = [&](std::size_t i) { return "&(" + arg(i) + ")"; };
   const std::string failure = shape ? "?" : ".ok()?";
   switch (builtin) {
+    case B::kIsFloat:
+    case B::kIsInteger:
+    case B::kIsSignedInteger:
+    case B::kIsUnsignedInteger:
+    case B::kIsNumeric:
+      return fn + "(" + arg(0) + ")";
     case B::kLen:
       return shape ? "(" + fn + "(" + ref(0) + ") as i128)"
                    : runtime + "::common::index_len(" + ref(0) + ")" + failure;

@@ -4,8 +4,8 @@
 pub mod rule_shared_expression {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -99,10 +99,10 @@ pub mod rule_shared_expression {
             move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
                 let descriptor_0 = ctx.attrs(AttrVar::from("d0"))?.clone();
-                let descriptor_0 = descriptor_0.checked_schema(7)?;
+                let descriptor_0 = descriptor_0.checked_schema(8)?;
                 if !(functions.is_reusable(
                     &(ctx.tensor("?c2".parse::<Var>().expect("generated capture ID"))?),
-                    &((descriptor_0.clone()).checked_schema(7)?),
+                    &((descriptor_0.clone()).checked_schema(8)?),
                 )?) {
                     return None;
                 }
@@ -115,8 +115,8 @@ pub mod rule_shared_expression {
 pub mod rule_root_binding {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -179,7 +179,7 @@ pub mod rule_root_binding {
             move |graph, matched, dimensions| {
                 let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
                 let descriptor_0 = ctx.attrs(AttrVar::from("d0"))?.clone();
-                let descriptor_0 = descriptor_0.checked_schema(2)?;
+                let descriptor_0 = descriptor_0.checked_schema(3)?;
                 Some(Default::default())
             },
         )

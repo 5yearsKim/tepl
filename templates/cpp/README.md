@@ -73,10 +73,13 @@ it does not use egg-c's union-rejecting conflict result. Register inputs through
 registrations throw. Rebuild a fresh graph when input metadata changes.
 
 Matching streams structural witnesses through branch-local tensor, attribute,
-dimension, sequence, and ordered-condition bindings. The builtin-only condition
+dtype, dimension, sequence, and ordered-condition bindings. The builtin-only condition
 prefix ends at the first condition containing any host call. Readiness checks
 binding presence, preserving short-circuiting and lazy metadata reads. Host
-conditions and derivations run during application. C++ expression emission
+conditions and derivations run during application. `MetadataBindings` shares
+dtype variables across captures; repeated IDs must agree. Exact restrictions
+retain concrete dtype checks. Descriptor-field guards use the inferred schema
+and participate in the same dependency plan. C++ expression emission
 sequences host arguments and nonlogical operands explicitly from left to right.
 
 One surviving tensor substitution reaches egg-c's custom-search sink regardless

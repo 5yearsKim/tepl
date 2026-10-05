@@ -1,0 +1,15 @@
+from "../dialects/dtype.tepl" import DTypeExamples as d;
+use d::{convert};
+
+// Valid because this dialect defines same-type numeric conversion as identity.
+rule remove_identity_convert {
+    dtype T;
+    X: T[...]
+
+    (convert[@c] X) => X
+
+    where {
+        is_numeric(T);
+        @c.to == T;
+    }
+}

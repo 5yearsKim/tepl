@@ -12,7 +12,7 @@ at the marker below the imports, before the node implementation, and writes
 `op_node.rs`. `src/types.rs` is copied as `types.rs`.
 `src/builtins/` is copied into the generated `builtins/` directory:
 `common.rs` provides list/integer primitives, `shape.rs` provides shape semantics
-and dimension conversions, `dtype.rs` provides operation dtype policies, and
+and dimension conversions, `dtype.rs` provides dtype classification predicates, and
 `error.rs` defines `BuiltinError`/`BuiltinResult`. The catalog in
 [`src/core/builtins/`](../../src/core/builtins/README.md) controls language
 signatures and section availability. Callers use `builtins::common` and
@@ -60,13 +60,13 @@ Fallible helpers return `BuiltinResult<T>` (`Result<T, BuiltinError>`).
 Operation evaluators compose them with `?`; their dispatcher converts errors
 to invalid inference. Rule `where`/`derive` calls use `.ok()?` to reject the
 candidate. `len` uses checked `index_len` conversion for rule indices. Rules
-support 17 builtins; `all`/`any` remain shape-only until rule Boolean lists exist.
+support 22 builtins; `all`/`any` remain metadata-only until rule Boolean lists exist.
 Integer operators, list access, and finite-float checks use shared helpers;
 Boolean operators retain native short-circuit syntax. Missing operation definitions are handled separately as unknown
 inference.
-The compiler generates evaluators from checked TEPL shape programs and dtype
-policies. `builtins/dtype.rs` implements common policies without promotion;
-common policies with no operands are unknown.
+The compiler generates evaluators from checked TEPL shape and dtype
+programs. Dtype expressions operate on dtype values and typed attributes, with
+no implicit promotion. Missing programs are unknown.
 
 Generation emits files directly into the selected module directory of an
 existing crate. Internal imports use `super`, so the enclosing module can have
@@ -129,15 +129,19 @@ their matching plan has no generated evaluator or metadata capture.
 The immutable `TensorConstraints` plan retains every shape/dtype declaration,
 including inherited restrictions. The matcher checks a constrained tensor when
 it is first bound and stops that search branch immediately on a mismatch or
-unavailable metadata. Dimension and sequence bindings are cloned with each branch;
+unavailable metadata. Dtype, dimension, and sequence bindings are cloned with each branch;
 failed checks cannot affect sibling alternatives. Sequences may be empty and
 appear anywhere, but each shape has at most one sequence. Repeated tensor captures
 use canonical e-class equality, and unconstrained captures do not read metadata.
 Metadata providers must return stable answers during a read-only traversal.
+`MetadataBindings` stores dtype variables alongside shape symbols. An exact dtype
+restriction checks equality; a binding restriction binds a dtype ID or requires
+it to equal an earlier value. Generated descriptor-field conditions read typed
+scalar fields and wait until their attribute witness and dtype inputs are bound.
 
 `checks.rs` coordinates declarations and ordered pure conditions through
 `MatchChecks`. A condition lists `MatchBinding` dependencies (tensor, attribute,
-dimension, or sequence). Each branch adds one condition cursor. At traversal
+dtype, dimension, or sequence). Each branch adds one condition cursor. At traversal
 start and after new bindings, ready conditions run in source order until the
 next dependency is unbound. False or `None` rejects; unbound dependencies wait.
 Readiness tests binding presence only, preserving lazy metadata reads and
@@ -160,8 +164,8 @@ evaluators must be pure and stable during traversal. The tensor-only
 require `'static` analysis types and callbacks. Search limits count surviving,
 distinct substitutions after checking their individual attribute witnesses.
 Application-time rematching prunes with the same plan, and final checks recover
-current dimensions before the callback. The same shape and condition evaluators
-implement early and final checks. `ShapeBindings::check` and `TensorConstraints::check_capture` may partially
+current dimensions and dtypes before the callback. The same shape and condition evaluators
+implement early and final checks. `MetadataBindings::check` and `TensorConstraints::check_capture` may partially
 update their binding environment on failure; callers must discard that environment.
 
 Run compiler-to-runtime integration tests with `./tools/test_codegen.sh` from

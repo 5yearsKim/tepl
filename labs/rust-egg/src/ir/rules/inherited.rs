@@ -4,8 +4,8 @@
 pub mod rule_commute_add {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -81,8 +81,8 @@ pub mod rule_commute_add {
 pub mod rule_commute_mul {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -158,8 +158,8 @@ pub mod rule_commute_mul {
 pub mod rule_commute_small_vectors {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -207,7 +207,7 @@ pub mod rule_commute_small_vectors {
     }
     fn condition_0<N: Analysis<OpNode>, M: TensorMetadata<N>>(
         ctx: &MatchContext<'_, N, M>,
-        dimensions: &ShapeBindings,
+        dimensions: &MetadataBindings,
     ) -> Option<bool> {
         Some(((dimensions.dimension(0)?) <= ("1024".parse::<u64>().ok()?)))
     }
@@ -266,8 +266,8 @@ pub mod rule_commute_small_vectors {
 pub mod rule_associate_add_right {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -357,8 +357,8 @@ pub mod rule_associate_add_right {
 pub mod rule_associate_mul_right {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -448,8 +448,8 @@ pub mod rule_associate_mul_right {
 pub mod rule_associate_small_vectors {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
@@ -518,7 +518,7 @@ pub mod rule_associate_small_vectors {
     }
     fn condition_0<N: Analysis<OpNode>, M: TensorMetadata<N>>(
         ctx: &MatchContext<'_, N, M>,
-        dimensions: &ShapeBindings,
+        dimensions: &MetadataBindings,
     ) -> Option<bool> {
         Some(((dimensions.dimension(0)?) <= ("1024".parse::<u64>().ok()?)))
     }
@@ -577,8 +577,8 @@ pub mod rule_associate_small_vectors {
 pub mod rule_distribute_mul_over_add {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
+        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
         TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};

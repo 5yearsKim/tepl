@@ -12,8 +12,9 @@ std::string emitBuiltin(core::builtins::Builtin builtin,
     out += "auto arg_" + std::to_string(i) + " = " + args[i] + "; ";
   std::string call =
       runtime +
-      (signature->domain == core::builtins::Domain::kShape ? "::shape::"
-                                                           : "::common::") +
+      (signature->domain == core::builtins::Domain::kShape   ? "::shape::"
+       : signature->domain == core::builtins::Domain::kDType ? "::dtype::"
+                                                             : "::common::") +
       std::string(signature->name);
   if (builtin == B::kRange && shape) call += "<" + runtime + "::Integer>";
   call += "(";
@@ -23,6 +24,12 @@ std::string emitBuiltin(core::builtins::Builtin builtin,
   }
   call += ")";
   switch (builtin) {
+    case B::kIsFloat:
+    case B::kIsInteger:
+    case B::kIsSignedInteger:
+    case B::kIsUnsignedInteger:
+    case B::kIsNumeric:
+      break;
     case B::kLen:
       if (shape) call = "static_cast<" + runtime + "::Integer>(" + call + ")";
       break;

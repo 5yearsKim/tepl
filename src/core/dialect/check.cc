@@ -5,8 +5,8 @@
 
 #include "src/core/analysis_context.h"
 #include "src/core/dialect/attributes.h"
+#include "src/core/metadata/check.h"
 #include "src/core/resolution/source.h"
-#include "src/core/shape/check.h"
 
 namespace tepl::core::detail {
 
@@ -16,6 +16,8 @@ void registerOperation(AnalysisContext& context, TypeId tensor,
                        const ast::Dialect& dialect, const ast::OpDecl& op,
                        const SchemaNames& schemas, OperationNames& names) {
   const auto at = origin(dialect.source_name, op.span);
+  for (const auto& property : op.duplicate_properties)
+    context.report(at, "duplicate operation property '" + property + "'");
   const OpId id{context.output.operations.size()};
   Operation value{id, dialect.name, op.name,      op.alias,
                   {}, tensor,       std::nullopt, at};
@@ -51,15 +53,12 @@ void registerOperation(AnalysisContext& context, TypeId tensor,
     }
   }
   if (op.shape_definition)
-    value.shape =
-        shape::check(context, value, *op.shape_definition, dialect.source_name);
-  if (op.dtype_policy) {
-    value.dtype_policy = resolveDTypePolicy(op.dtype_policy->name);
-    if (!value.dtype_policy)
-      context.report(
-          origin(dialect.source_name, op.dtype_policy->span),
-          "unknown operation dtype policy '" + op.dtype_policy->name + "'");
-  }
+    value.shape = metadata::check(context, value, *op.shape_definition,
+                                  dialect.source_name);
+  if (op.dtype_definition)
+    value.dtype =
+        metadata::check(context, value, *op.dtype_definition,
+                        dialect.source_name, metadata::ProgramKind::DType);
   context.output.operations.push_back(std::move(value));
   const auto addName = [&](const std::string& name) {
     if (!names.emplace(name, id).second)

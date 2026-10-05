@@ -62,17 +62,14 @@ variadicOperand
     ;
 
 opProperties
-    : (aliasProperty (attrsProperty dtypeProperty? | dtypeProperty attrsProperty?)?
-      | attrsProperty (aliasProperty dtypeProperty? | dtypeProperty aliasProperty?)?
-      | dtypeProperty (aliasProperty attrsProperty? | attrsProperty aliasProperty?)?)
-      shapeProperty?
+    : (aliasProperty | attrsProperty | dtypeProperty)+ shapeProperty?
     | shapeProperty
     ;
 
-// Metadata properties may appear in any order, at most once each; shape is last.
-// "dtype" is contextual; core validates the policy name.
+// Dtype is contextual; legacy colon policies are no longer accepted.
 dtypeProperty
-    : {getCurrentToken()->getText() == "dtype"}? ID ':' dtypeName ';'
+    : {getCurrentToken()->getText() == "dtype"}? ID '(' shapeInputs? ')'
+      '{' shapeStatement* shapeYield '}'
     ;
 
 // Shape programs are parsed here; names, signatures, and types are checked later.
@@ -196,7 +193,7 @@ ruleDecl
     ;
 
 rewriteBody
-    : '{' shapeDecl* graphExpr ARROW rhsGraphExpr whereBlock? deriveBlock? '}'
+    : '{' (dtypeDecl | shapeDecl)* graphExpr ARROW rhsGraphExpr whereBlock? deriveBlock? '}'
     ;
 
 inheritanceClause
@@ -234,10 +231,14 @@ hostFunctionRef
 
 // Instances add restrictions to the inherited pattern.
 inheritedBody
-    : '{' shapeDecl* whereBlock? '}'
+    : '{' (dtypeDecl | shapeDecl)* whereBlock? '}'
     ;
 
 // Rule declarations: tensor shapes (including rank-zero tensors)
+
+dtypeDecl
+    : {getCurrentToken()->getText() == "dtype"}? ID ID ';'
+    ;
 
 shapeDecl
     : ID ':' dtypeName? '[' shapeElements? ']'
@@ -344,7 +345,7 @@ unary
 primary
     : (ID | hostFunctionRef) '(' arguments? ')' # CallPrimary
     | ID                                     # NamePrimary
-    | attrRef                                # AttributePrimary
+    | attrRef ('.' ID)?                      # AttributePrimary
     | INT                                    # IntegerPrimary
     | FLOAT                                  # FloatPrimary
     | TRUE                                   # TruePrimary

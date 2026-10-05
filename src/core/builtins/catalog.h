@@ -6,6 +6,11 @@
 namespace tepl::core::builtins {
 
 enum class Builtin {
+  kIsFloat,
+  kIsInteger,
+  kIsSignedInteger,
+  kIsUnsignedInteger,
+  kIsNumeric,
   kLen,
   kRange,
   kConcat,
@@ -28,13 +33,19 @@ enum class Builtin {
 };
 
 // Availability is independent of a builtin's semantic domain.
-enum class Context : unsigned { kShape = 1, kWhere = 2, kDerive = 4 };
-enum class Domain { kCommon, kShape };
-constexpr unsigned kAllContexts = 7;
+enum class Context : unsigned {
+  kShape = 1,
+  kWhere = 2,
+  kDerive = 4,
+  kDType = 8
+};
+enum class Domain { kCommon, kShape, kDType };
+constexpr unsigned kAllContexts = 15;
 std::string_view contextName(Context context);
 
 // T is shared by every occurrence within one call, including nested lists.
 enum class SignatureType {
+  kDType,
   kInteger,
   kBoolean,
   kIntegerList,

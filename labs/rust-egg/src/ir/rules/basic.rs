@@ -4,9 +4,9 @@
 pub mod rule_commute_f32 {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, OutputInference, ShapePart, TensorConstraint, TensorConstraints,
+        TensorExpr, TensorInfo, TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
     use ::egg::{Analysis, EGraph, Rewrite, Var};
@@ -38,14 +38,14 @@ pub mod rule_commute_f32 {
             (
                 "?c0".parse::<Var>().expect("generated capture ID"),
                 TensorConstraint {
-                    dtype: Some(DType::F32),
+                    dtype: Some(DTypeConstraint::Exact(DType::F32)),
                     shape: vec![ShapePart::Dimension(0)],
                 },
             ),
             (
                 "?c1".parse::<Var>().expect("generated capture ID"),
                 TensorConstraint {
-                    dtype: Some(DType::F32),
+                    dtype: Some(DTypeConstraint::Exact(DType::F32)),
                     shape: vec![ShapePart::Dimension(0)],
                 },
             ),
@@ -96,109 +96,9 @@ pub mod rule_commute_f32 {
 pub mod rule_commute_same_dtype {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
-    };
-    use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
-    pub trait Functions: Send + Sync {
-        /// Host implementation of TEPL `$is_same_dtype(...)`.
-        fn is_same_dtype(&self, arg0: &TensorInfo, arg1: &TensorInfo) -> Option<bool>;
-    }
-    pub fn pattern() -> TensorPattern {
-        TensorPattern::op(
-            super::super::super::dialects::tensor_lang::Op::Add,
-            AttrPattern::Exact(OpAttrs::None),
-            vec![
-                TensorPattern::Var("?c0".parse::<Var>().expect("generated capture ID")),
-                TensorPattern::Var("?c1".parse::<Var>().expect("generated capture ID")),
-            ],
-        )
-    }
-    pub fn expression() -> TensorExpr {
-        TensorExpr::op(
-            super::super::super::dialects::tensor_lang::Op::Add,
-            AttrExpr::Exact(OpAttrs::None),
-            vec![
-                TensorExpr::Var("?c1".parse::<Var>().expect("generated capture ID")),
-                TensorExpr::Var("?c0".parse::<Var>().expect("generated capture ID")),
-            ],
-        )
-    }
-    pub fn constraints() -> TensorConstraints {
-        TensorConstraints::new(vec![
-            (
-                "?c0".parse::<Var>().expect("generated capture ID"),
-                TensorConstraint {
-                    dtype: None,
-                    shape: vec![ShapePart::Dimension(0)],
-                },
-            ),
-            (
-                "?c1".parse::<Var>().expect("generated capture ID"),
-                TensorConstraint {
-                    dtype: None,
-                    shape: vec![ShapePart::Dimension(0)],
-                },
-            ),
-        ])
-    }
-    /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
-        MatchChecks::tensors(constraints())
-    }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
-    where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
-        F: Functions + 'static,
-    {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
-            "basic::commute_same_dtype",
-            pattern(),
-            expression(),
-            checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
-            move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
-                if !(functions.is_same_dtype(
-                    &(ctx.tensor("?c0".parse::<Var>().expect("generated capture ID"))?),
-                    &(ctx.tensor("?c1".parse::<Var>().expect("generated capture ID"))?),
-                )?) {
-                    return None;
-                }
-                Some(Default::default())
-            },
-        )
-    }
-}
-
-pub mod rule_commute_scalar {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
-    use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, OutputInference, ShapePart, TensorConstraint, TensorConstraints,
+        TensorExpr, TensorInfo, TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
     use ::egg::{Analysis, EGraph, Rewrite, Var};
@@ -230,14 +130,124 @@ pub mod rule_commute_scalar {
             (
                 "?c0".parse::<Var>().expect("generated capture ID"),
                 TensorConstraint {
-                    dtype: Some(DType::F32),
+                    dtype: Some(DTypeConstraint::Bind(0)),
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+            (
+                "?c1".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: Some(DTypeConstraint::Bind(0)),
+                    shape: vec![ShapePart::Dimension(0)],
+                },
+            ),
+        ])
+    }
+    fn condition_0<N: Analysis<OpNode>, M: TensorMetadata<N>>(
+        ctx: &MatchContext<'_, N, M>,
+        dimensions: &MetadataBindings,
+    ) -> Option<bool> {
+        Some(super::super::super::builtins::dtype::is_numeric(
+            dimensions.dtype(0)?,
+        ))
+    }
+    /// Shape declarations and the ordered builtin-only where prefix.
+    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
+        metadata: Arc<M>,
+    ) -> MatchChecks<N> {
+        MatchChecks::new(
+            constraints(),
+            vec![vec![MatchBinding::DType(0)]],
+            move |index, graph, matched, dimensions| {
+                let ctx = MatchContext::new(graph, matched, metadata.as_ref());
+                match index {
+                    0 => condition_0(&ctx, dimensions),
+                    _ => None,
+                }
+            },
+        )
+    }
+    /// Uses the same metadata and inference as TensorAnalysis.
+    pub fn build_rewrite<F: Functions + 'static>(
+        functions: F,
+    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
+        build_rewrite_with(tensor_info, infer_tensor_output, functions)
+    }
+    /// Explicit hooks for a custom analysis or inference policy.
+    pub fn build_rewrite_with<N, M, I, F>(
+        metadata: M,
+        inference: I,
+        functions: F,
+    ) -> Result<Rewrite<OpNode, N>, String>
+    where
+        N: Analysis<OpNode> + 'static,
+        M: TensorMetadata<N> + 'static,
+        I: OutputInference + 'static,
+        F: Functions + 'static,
+    {
+        let metadata = Arc::new(metadata);
+        let checks = match_checks::<N, M>(metadata.clone());
+        let checker_metadata = metadata.clone();
+        tensor_rewrite_checked_with_checks(
+            "basic::commute_same_dtype",
+            pattern(),
+            expression(),
+            checks,
+            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
+            inference,
+            move |graph, matched, dimensions| {
+                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                Some(Default::default())
+            },
+        )
+    }
+}
+
+pub mod rule_commute_scalar {
+    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, OutputInference, ShapePart, TensorConstraint, TensorConstraints,
+        TensorExpr, TensorInfo, TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+    };
+    use super::super::super::{DType, OpAttrs, OpNode};
+    use ::egg::{Analysis, EGraph, Rewrite, Var};
+    use ::std::{collections::HashMap, sync::Arc};
+    pub trait Functions: Send + Sync {}
+    impl Functions for () {}
+    pub fn pattern() -> TensorPattern {
+        TensorPattern::op(
+            super::super::super::dialects::tensor_lang::Op::Add,
+            AttrPattern::Exact(OpAttrs::None),
+            vec![
+                TensorPattern::Var("?c0".parse::<Var>().expect("generated capture ID")),
+                TensorPattern::Var("?c1".parse::<Var>().expect("generated capture ID")),
+            ],
+        )
+    }
+    pub fn expression() -> TensorExpr {
+        TensorExpr::op(
+            super::super::super::dialects::tensor_lang::Op::Add,
+            AttrExpr::Exact(OpAttrs::None),
+            vec![
+                TensorExpr::Var("?c1".parse::<Var>().expect("generated capture ID")),
+                TensorExpr::Var("?c0".parse::<Var>().expect("generated capture ID")),
+            ],
+        )
+    }
+    pub fn constraints() -> TensorConstraints {
+        TensorConstraints::new(vec![
+            (
+                "?c0".parse::<Var>().expect("generated capture ID"),
+                TensorConstraint {
+                    dtype: Some(DTypeConstraint::Exact(DType::F32)),
                     shape: vec![],
                 },
             ),
             (
                 "?c1".parse::<Var>().expect("generated capture ID"),
                 TensorConstraint {
-                    dtype: Some(DType::F32),
+                    dtype: Some(DTypeConstraint::Exact(DType::F32)),
                     shape: vec![],
                 },
             ),
@@ -288,9 +298,9 @@ pub mod rule_commute_scalar {
 pub mod rule_commute_integer_literal {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, OutputInference, ShapePart, TensorConstraint, TensorConstraints,
+        TensorExpr, TensorInfo, TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
     use ::egg::{Analysis, EGraph, Rewrite, Var};
@@ -321,7 +331,7 @@ pub mod rule_commute_integer_literal {
         TensorConstraints::new(vec![(
             "?c0".parse::<Var>().expect("generated capture ID"),
             TensorConstraint {
-                dtype: Some(DType::I32),
+                dtype: Some(DTypeConstraint::Exact(DType::I32)),
                 shape: vec![],
             },
         )])
@@ -371,9 +381,9 @@ pub mod rule_commute_integer_literal {
 pub mod rule_commute_float_literal {
     use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, OutputInference,
-        ShapeBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, OutputInference, ShapePart, TensorConstraint, TensorConstraints,
+        TensorExpr, TensorInfo, TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
     use ::egg::{Analysis, EGraph, Rewrite, Var};
@@ -404,7 +414,7 @@ pub mod rule_commute_float_literal {
         TensorConstraints::new(vec![(
             "?c0".parse::<Var>().expect("generated capture ID"),
             TensorConstraint {
-                dtype: Some(DType::F32),
+                dtype: Some(DTypeConstraint::Exact(DType::F32)),
                 shape: vec![],
             },
         )])

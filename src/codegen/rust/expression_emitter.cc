@@ -18,7 +18,26 @@ std::string emit(const core::Program& program, const Names& names,
           return "ctx.tensor(" +
                  quote("?c" + std::to_string(value.capture.value)) +
                  ".parse::<Var>().expect(\"generated capture ID\"))?";
-        else if constexpr (std::is_same_v<T, core::DimensionRef>) {
+        else if constexpr (std::is_same_v<T, core::DType>)
+          return dtype(value);
+        else if constexpr (std::is_same_v<T, core::DTypeVariableRef>)
+          return "dimensions.dtype(" + std::to_string(value.variable.value) +
+                 ")?";
+        else if constexpr (std::is_same_v<T, core::DescriptorFieldRef>) {
+          const auto& schema = program.attribute_schemas.at(value.schema.value);
+          const auto root = builtins_path.substr(
+              0, builtins_path.size() - std::string("builtins").size());
+          for (const auto& dialect : names.dialects)
+            if (dialect.name == schema.dialect)
+              return "(match ctx.attrs(AttrVar::from(" +
+                     quote("d" + std::to_string(value.descriptor.value)) +
+                     "))? { OpAttrs::" + dialect.variant + "(" + root +
+                     "dialects::" + dialect.module +
+                     "::OpAttrs::" + names.schema(schema.id) + " { " +
+                     names.field(schema.id, value.field) +
+                     ": field, .. }) => Some(field.clone()), _ => None })?";
+          throw std::logic_error("missing descriptor dialect");
+        } else if constexpr (std::is_same_v<T, core::DimensionRef>) {
           return "dimensions." +
                  std::string(result_type.kind == core::TypeKind::kIndexList
                                  ? "sequence("

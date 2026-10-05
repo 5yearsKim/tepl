@@ -9,7 +9,7 @@ namespace {
 std::string checkedType(const Names& names, const core::Type& t) {
   auto result = type(t);
   if (t.kind == core::TypeKind::kTensor ||
-      t.kind == core::TypeKind::kDescriptor)
+      t.kind == core::TypeKind::kDescriptor || t.kind == core::TypeKind::kDType)
     result = names.root + "::" + result;
   return result;
 }
@@ -43,6 +43,21 @@ std::string emitExpression(const core::Program& program, const Names& names,
         if constexpr (std::is_same_v<T, core::CaptureRef>)
           return runtime + "::require(ctx.tensor(" +
                  std::to_string(value.capture.value) + "))";
+        else if constexpr (std::is_same_v<T, core::DType>)
+          return names.root + "::" + dtype(value);
+        else if constexpr (std::is_same_v<T, core::DTypeVariableRef>)
+          return runtime + "::require(dimensions.dtype(" +
+                 std::to_string(value.variable.value) + "))";
+        else if constexpr (std::is_same_v<T, core::DescriptorFieldRef>)
+          return "([&]() { auto descriptor=" + runtime +
+                 "::require(ctx.attrs(" +
+                 std::to_string(value.descriptor.value) +
+                 ")); auto fields=" + names.root + "::attrs_schema_" +
+                 std::to_string(value.schema.value) +
+                 "(descriptor); if (!fields) throw " + runtime +
+                 "::BuiltinError(\"descriptor schema mismatch\"); return "
+                 "fields->" +
+                 names.field(value.schema, value.field) + "; }())";
         else if constexpr (std::is_same_v<T, core::DimensionRef>)
           return runtime + "::require(dimensions." +
                  (result_type.kind == core::TypeKind::kIndexList

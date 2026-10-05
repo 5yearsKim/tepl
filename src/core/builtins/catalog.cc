@@ -3,6 +3,10 @@
 namespace tepl::core::builtins {
 namespace {
 using S = SignatureType;
+constexpr unsigned kDTypeContexts = static_cast<unsigned>(Context::kDType) |
+                                    static_cast<unsigned>(Context::kWhere) |
+                                    static_cast<unsigned>(Context::kDerive);
+constexpr S kDType[] = {S::kDType};
 constexpr S kList[] = {S::kListT};
 constexpr S kInteger[] = {S::kInteger};
 constexpr S kLists[] = {S::kListT, S::kListT};
@@ -16,6 +20,16 @@ constexpr S kAxes[] = {S::kIntegerList, S::kInteger};
 constexpr S kShapes[] = {S::kIntegerList, S::kIntegerList};
 constexpr S kPair[] = {S::kInteger, S::kInteger};
 constexpr BuiltinSignature kBuiltins[] = {
+    {Builtin::kIsFloat, "is_float", kDType, S::kBoolean, false, Domain::kDType,
+     14},
+    {Builtin::kIsInteger, "is_integer", kDType, S::kBoolean, false,
+     Domain::kDType, kDTypeContexts},
+    {Builtin::kIsSignedInteger, "is_signed_integer", kDType, S::kBoolean, false,
+     Domain::kDType, kDTypeContexts},
+    {Builtin::kIsUnsignedInteger, "is_unsigned_integer", kDType, S::kBoolean,
+     false, Domain::kDType, kDTypeContexts},
+    {Builtin::kIsNumeric, "is_numeric", kDType, S::kBoolean, false,
+     Domain::kDType, kDTypeContexts},
     {Builtin::kLen, "len", kList, S::kInteger},
     {Builtin::kRange, "range", kInteger, S::kIntegerList},
     {Builtin::kConcat, "concat", kLists, S::kListT, true},
@@ -26,9 +40,11 @@ constexpr BuiltinSignature kBuiltins[] = {
     {Builtin::kSum, "sum", kIntegers, S::kInteger},
     {Builtin::kProduct, "product", kIntegers, S::kInteger},
     {Builtin::kAll, "all", kBooleans, S::kBoolean, false, Domain::kCommon,
-     static_cast<unsigned>(Context::kShape)},
+     static_cast<unsigned>(Context::kShape) |
+         static_cast<unsigned>(Context::kDType)},
     {Builtin::kAny, "any", kBooleans, S::kBoolean, false, Domain::kCommon,
-     static_cast<unsigned>(Context::kShape)},
+     static_cast<unsigned>(Context::kShape) |
+         static_cast<unsigned>(Context::kDType)},
     {Builtin::kContains, "contains", kContains, S::kBoolean},
     {Builtin::kIsValidAxisList, "is_valid_axis_list", kAxes, S::kBoolean, false,
      Domain::kShape},
@@ -50,6 +66,8 @@ std::span<const BuiltinSignature> catalog() { return kBuiltins; }
 
 std::string_view contextName(Context context) {
   switch (context) {
+    case Context::kDType:
+      return "dtype";
     case Context::kShape:
       return "shape";
     case Context::kWhere:

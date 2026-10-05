@@ -9,7 +9,7 @@ use super::checks::MatchChecks;
 use super::constraints::TensorConstraints;
 use super::context::TensorMetadata;
 use super::pattern::{AttrPattern, AttrVar, TensorPattern};
-use super::shape::ShapeBindings;
+use super::shape::MetadataBindings;
 
 /// One exact structural match. `tensors` holds e-class IDs; `attrs` holds
 /// values read from the particular e-nodes chosen while matching.
@@ -79,7 +79,7 @@ pub fn matches_at_with_checks<N: Analysis<OpNode>>(
 #[derive(Clone)]
 struct SearchState {
     matched: TensorMatch,
-    shapes: ShapeBindings,
+    shapes: MetadataBindings,
     next_condition: usize,
 }
 
@@ -103,7 +103,7 @@ pub(super) fn for_each_match_at<N: Analysis<OpNode>>(
                 tensors: Subst::default(),
                 attrs: HashMap::new(),
             },
-            shapes: ShapeBindings::default(),
+            shapes: MetadataBindings::default(),
             next_condition: 0,
         },
         checks,

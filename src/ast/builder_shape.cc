@@ -9,15 +9,15 @@ using Parser = tepl_generated::TeplParser;
 using detail::getSpan;
 
 template <typename Value>
-ast::ShapeExprPtr makeShape(const antlr4::ParserRuleContext* context,
-                            Value value) {
-  return std::make_shared<ast::ShapeExpr>(
-      ast::ShapeExpr{getSpan(context), std::move(value)});
+ast::MetadataExprPtr makeMetadataExpr(const antlr4::ParserRuleContext* context,
+                                      Value value) {
+  return std::make_shared<ast::MetadataExpr>(
+      ast::MetadataExpr{getSpan(context), std::move(value)});
 }
 }  // namespace
 
 std::any AstBuilder::visitShapeProperty(Parser::ShapePropertyContext* context) {
-  ast::ShapeDefinition definition;
+  ast::MetadataDefinition definition;
   definition.span = getSpan(context);
   if (auto* inputs = context->shapeInputs()) {
     for (auto* input : inputs->shapeInput()) {
@@ -31,10 +31,10 @@ std::any AstBuilder::visitShapeProperty(Parser::ShapePropertyContext* context) {
   }
   for (auto* statement : context->shapeStatement()) {
     definition.statements.push_back(
-        std::any_cast<ast::ShapeStatement>(visit(statement)));
+        std::any_cast<ast::MetadataStatement>(visit(statement)));
   }
   auto* result = context->shapeYield();
-  definition.result = {getSpan(result), std::any_cast<ast::ShapeExprPtr>(
+  definition.result = {getSpan(result), std::any_cast<ast::MetadataExprPtr>(
                                             visit(result->shapeExpr()))};
   return definition;
 }
@@ -42,28 +42,28 @@ std::any AstBuilder::visitShapeProperty(Parser::ShapePropertyContext* context) {
 std::any AstBuilder::visitShapeLetStatement(
     Parser::ShapeLetStatementContext* context) {
   auto* name = context->ID()->getSymbol();
-  return ast::ShapeStatement{
+  return ast::MetadataStatement{
       getSpan(context),
-      ast::ShapeLet{
+      ast::MetadataLet{
           context->ID()->getText(), getSpan(name, name),
-          std::any_cast<ast::ShapeExprPtr>(visit(context->shapeExpr()))}};
+          std::any_cast<ast::MetadataExprPtr>(visit(context->shapeExpr()))}};
 }
 
 std::any AstBuilder::visitShapeAssertStatement(
     Parser::ShapeAssertStatementContext* context) {
-  return ast::ShapeStatement{getSpan(context),
-                             ast::ShapeAssert{std::any_cast<ast::ShapeExprPtr>(
-                                 visit(context->shapeExpr()))}};
+  return ast::MetadataStatement{
+      getSpan(context), ast::MetadataAssert{std::any_cast<ast::MetadataExprPtr>(
+                            visit(context->shapeExpr()))}};
 }
 
 std::any AstBuilder::visitShapeConditionalExpr(
     Parser::ShapeConditionalExprContext* context) {
-  return makeShape(
+  return makeMetadataExpr(
       context,
-      ast::ShapeConditional{
-          std::any_cast<ast::ShapeExprPtr>(visit(context->shapeExpr(0))),
-          std::any_cast<ast::ShapeExprPtr>(visit(context->shapeExpr(1))),
-          std::any_cast<ast::ShapeExprPtr>(visit(context->shapeExpr(2)))});
+      ast::MetadataConditional{
+          std::any_cast<ast::MetadataExprPtr>(visit(context->shapeExpr(0))),
+          std::any_cast<ast::MetadataExprPtr>(visit(context->shapeExpr(1))),
+          std::any_cast<ast::MetadataExprPtr>(visit(context->shapeExpr(2)))});
 }
 
 std::any AstBuilder::visitShapeSimpleExpr(
@@ -72,70 +72,71 @@ std::any AstBuilder::visitShapeSimpleExpr(
 }
 
 template <typename Context>
-ast::ShapeExprPtr AstBuilder::foldShapeBinary(
+ast::MetadataExprPtr AstBuilder::foldMetadataBinary(
     antlr4::ParserRuleContext* parent, const std::vector<Context*>& operands) {
-  auto lhs = std::any_cast<ast::ShapeExprPtr>(visit(operands.front()));
+  auto lhs = std::any_cast<ast::MetadataExprPtr>(visit(operands.front()));
   for (std::size_t index = 1; index < operands.size(); ++index) {
     const auto op =
         detail::binaryOperator(parent->children[2 * index - 1]->getText());
-    auto rhs = std::any_cast<ast::ShapeExprPtr>(visit(operands[index]));
+    auto rhs = std::any_cast<ast::MetadataExprPtr>(visit(operands[index]));
     const ast::SourceSpan span{lhs->span.begin, rhs->span.end};
-    lhs = std::make_shared<ast::ShapeExpr>(ast::ShapeExpr{
-        span, ast::ShapeBinary{op, std::move(lhs), std::move(rhs)}});
+    lhs = std::make_shared<ast::MetadataExpr>(ast::MetadataExpr{
+        span, ast::MetadataBinary{op, std::move(lhs), std::move(rhs)}});
   }
   return lhs;
 }
 
 std::any AstBuilder::visitShapeLogicalOr(
     Parser::ShapeLogicalOrContext* context) {
-  return foldShapeBinary(context, context->shapeLogicalAnd());
+  return foldMetadataBinary(context, context->shapeLogicalAnd());
 }
 
 std::any AstBuilder::visitShapeLogicalAnd(
     Parser::ShapeLogicalAndContext* context) {
-  return foldShapeBinary(context, context->shapeEquality());
+  return foldMetadataBinary(context, context->shapeEquality());
 }
 
 std::any AstBuilder::visitShapeEquality(Parser::ShapeEqualityContext* context) {
-  return foldShapeBinary(context, context->shapeComparison());
+  return foldMetadataBinary(context, context->shapeComparison());
 }
 
 std::any AstBuilder::visitShapeComparison(
     Parser::ShapeComparisonContext* context) {
-  return foldShapeBinary(context, context->shapeAdditive());
+  return foldMetadataBinary(context, context->shapeAdditive());
 }
 
 std::any AstBuilder::visitShapeAdditive(Parser::ShapeAdditiveContext* context) {
-  return foldShapeBinary(context, context->shapeMultiplicative());
+  return foldMetadataBinary(context, context->shapeMultiplicative());
 }
 
 std::any AstBuilder::visitShapeMultiplicative(
     Parser::ShapeMultiplicativeContext* context) {
-  return foldShapeBinary(context, context->shapeUnary());
+  return foldMetadataBinary(context, context->shapeUnary());
 }
 
 std::any AstBuilder::visitShapeUnary(Parser::ShapeUnaryContext* context) {
   if (auto* postfix = context->shapePostfix()) return visit(postfix);
-  return makeShape(
+  return makeMetadataExpr(
       context,
-      ast::ShapeUnary{
+      ast::MetadataUnary{
           detail::unaryOperator(context->getStart()->getText()),
-          std::any_cast<ast::ShapeExprPtr>(visit(context->shapeUnary()))});
+          std::any_cast<ast::MetadataExprPtr>(visit(context->shapeUnary()))});
 }
 
 std::any AstBuilder::visitShapePostfix(Parser::ShapePostfixContext* context) {
-  auto value = std::any_cast<ast::ShapeExprPtr>(visit(context->shapePrimary()));
+  auto value =
+      std::any_cast<ast::MetadataExprPtr>(visit(context->shapePrimary()));
   for (auto* suffix : context->shapeSuffix()) {
     const ast::SourceSpan span{value->span.begin, getSpan(suffix).end};
     if (auto* field = dynamic_cast<Parser::ShapeFieldSuffixContext*>(suffix)) {
-      value = std::make_shared<ast::ShapeExpr>(ast::ShapeExpr{
-          span, ast::ShapeField{std::move(value), field->ID()->getText()}});
+      value = std::make_shared<ast::MetadataExpr>(ast::MetadataExpr{
+          span, ast::MetadataField{std::move(value), field->ID()->getText()}});
     } else {
       auto* index = dynamic_cast<Parser::ShapeIndexSuffixContext*>(suffix);
-      value = std::make_shared<ast::ShapeExpr>(ast::ShapeExpr{
-          span,
-          ast::ShapeIndex{std::move(value), std::any_cast<ast::ShapeExprPtr>(
-                                                visit(index->shapeExpr()))}});
+      value = std::make_shared<ast::MetadataExpr>(ast::MetadataExpr{
+          span, ast::MetadataIndex{std::move(value),
+                                   std::any_cast<ast::MetadataExprPtr>(
+                                       visit(index->shapeExpr()))}});
     }
   }
   return value;
@@ -143,72 +144,74 @@ std::any AstBuilder::visitShapePostfix(Parser::ShapePostfixContext* context) {
 
 std::any AstBuilder::visitShapeCallPrimary(
     Parser::ShapeCallPrimaryContext* context) {
-  ast::ShapeCall call{context->ID()->getText(), {}};
+  ast::MetadataCall call{context->ID()->getText(), {}};
   if (auto* arguments = context->shapeArguments()) {
     for (auto* argument : arguments->shapeExpr()) {
       call.arguments.push_back(
-          std::any_cast<ast::ShapeExprPtr>(visit(argument)));
+          std::any_cast<ast::MetadataExprPtr>(visit(argument)));
     }
   }
-  return makeShape(context, std::move(call));
+  return makeMetadataExpr(context, std::move(call));
 }
 
 std::any AstBuilder::visitShapeNamePrimary(
     Parser::ShapeNamePrimaryContext* context) {
-  return makeShape(context, ast::NameRef{context->ID()->getText()});
+  return makeMetadataExpr(context, ast::NameRef{context->ID()->getText()});
 }
 
 std::any AstBuilder::visitShapeAttrsPrimary(
     Parser::ShapeAttrsPrimaryContext* context) {
-  return makeShape(context, ast::ShapeAttrs{});
+  return makeMetadataExpr(context, ast::MetadataAttrs{});
 }
 
 std::any AstBuilder::visitShapeIntegerPrimary(
     Parser::ShapeIntegerPrimaryContext* context) {
-  return makeShape(context, ast::IntegerLiteral{context->INT()->getText()});
+  return makeMetadataExpr(context,
+                          ast::IntegerLiteral{context->INT()->getText()});
 }
 
 std::any AstBuilder::visitShapeTruePrimary(
     Parser::ShapeTruePrimaryContext* context) {
-  return makeShape(context, ast::BooleanLiteral{true});
+  return makeMetadataExpr(context, ast::BooleanLiteral{true});
 }
 
 std::any AstBuilder::visitShapeFalsePrimary(
     Parser::ShapeFalsePrimaryContext* context) {
-  return makeShape(context, ast::BooleanLiteral{false});
+  return makeMetadataExpr(context, ast::BooleanLiteral{false});
 }
 
 std::any AstBuilder::visitShapeGroupPrimary(
     Parser::ShapeGroupPrimaryContext* context) {
   auto expression =
-      std::any_cast<ast::ShapeExprPtr>(visit(context->shapeExpr()));
+      std::any_cast<ast::MetadataExprPtr>(visit(context->shapeExpr()));
   expression->span = getSpan(context);
   return expression;
 }
 
 std::any AstBuilder::visitShapeEmptyListPrimary(
     Parser::ShapeEmptyListPrimaryContext* context) {
-  return makeShape(context, ast::ShapeList{});
+  return makeMetadataExpr(context, ast::MetadataList{});
 }
 
 std::any AstBuilder::visitShapeListPrimary(
     Parser::ShapeListPrimaryContext* context) {
-  ast::ShapeList list;
+  ast::MetadataList list;
   for (auto* element : context->shapeExpr()) {
-    list.elements.push_back(std::any_cast<ast::ShapeExprPtr>(visit(element)));
+    list.elements.push_back(
+        std::any_cast<ast::MetadataExprPtr>(visit(element)));
   }
-  return makeShape(context, std::move(list));
+  return makeMetadataExpr(context, std::move(list));
 }
 
 std::any AstBuilder::visitShapeComprehensionPrimary(
     Parser::ShapeComprehensionPrimaryContext* context) {
   auto* name = context->ID()->getSymbol();
-  return makeShape(
+  return makeMetadataExpr(
       context,
-      ast::ShapeComprehension{
-          std::any_cast<ast::ShapeExprPtr>(visit(context->shapeExpr(0))),
+      ast::MetadataComprehension{
+          std::any_cast<ast::MetadataExprPtr>(visit(context->shapeExpr(0))),
           context->ID()->getText(), getSpan(name, name),
-          std::any_cast<ast::ShapeExprPtr>(visit(context->shapeExpr(1)))});
+          std::any_cast<ast::MetadataExprPtr>(visit(context->shapeExpr(1)))});
 }
 
 }  // namespace tepl

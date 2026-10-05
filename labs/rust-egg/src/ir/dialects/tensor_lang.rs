@@ -234,19 +234,19 @@ impl OpAttrs {
     pub fn schema_id(&self) -> Option<usize> {
         match self {
             Self::None => None,
-            Self::CollectiveReduce { .. } => Some(0),
-            Self::ReshapeAttrs { .. } => Some(1),
-            Self::TransposeAttrs { .. } => Some(2),
-            Self::BroadcastInDimAttrs { .. } => Some(3),
-            Self::SliceAttrs { .. } => Some(4),
-            Self::ConcatenateAttrs { .. } => Some(5),
-            Self::ReduceAttrs { .. } => Some(6),
-            Self::DotGeneralAttrs { .. } => Some(7),
-            Self::ConvolutionAttrs { .. } => Some(8),
-            Self::AllGatherAttrs { .. } => Some(9),
-            Self::ReduceScatterAttrs { .. } => Some(10),
-            Self::AllToAllAttrs { .. } => Some(11),
-            Self::ConstantAttrs { .. } => Some(12),
+            Self::CollectiveReduce { .. } => Some(1),
+            Self::ReshapeAttrs { .. } => Some(2),
+            Self::TransposeAttrs { .. } => Some(3),
+            Self::BroadcastInDimAttrs { .. } => Some(4),
+            Self::SliceAttrs { .. } => Some(5),
+            Self::ConcatenateAttrs { .. } => Some(6),
+            Self::ReduceAttrs { .. } => Some(7),
+            Self::DotGeneralAttrs { .. } => Some(8),
+            Self::ConvolutionAttrs { .. } => Some(9),
+            Self::AllGatherAttrs { .. } => Some(10),
+            Self::ReduceScatterAttrs { .. } => Some(11),
+            Self::AllToAllAttrs { .. } => Some(12),
+            Self::ConstantAttrs { .. } => Some(13),
         }
     }
 }

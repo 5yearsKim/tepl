@@ -216,7 +216,7 @@ fn batch_application_keeps_distinct_attribute_witnesses() {
             (
                 x_var,
                 rust_egg::ir::pattern::TensorConstraint {
-                    dtype: Some(DType::F32),
+                    dtype: Some(rust_egg::ir::pattern::DTypeConstraint::Exact(DType::F32)),
                     shape: vec![],
                 },
             ),

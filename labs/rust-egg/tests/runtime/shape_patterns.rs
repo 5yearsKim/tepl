@@ -1,6 +1,6 @@
 // Shared integration tests for standalone shape declaration matching.
 use ShapePart::{Dimension as D, Sequence as S, Wildcard as W};
-use rust_egg::ir::pattern::{ShapeBindings, ShapePart};
+use rust_egg::ir::pattern::{MetadataBindings, ShapePart};
 use std::collections::HashMap;
 
 #[derive(Clone, Default)]
@@ -77,7 +77,7 @@ fn mixed_shapes_agree_with_recursive_reference() {
         }
         for input in &inputs {
             let expected = reference(&pattern, input, ReferenceBindings::default());
-            let mut actual = ShapeBindings::default();
+            let mut actual = MetadataBindings::default();
             assert_eq!(
                 actual.check(input, &pattern).is_some(),
                 expected.is_some(),
@@ -102,7 +102,7 @@ fn shared_dimensions_and_sequences_are_checked_across_calls() {
         let first = [D(0), S(Some(2)), W, D(0)];
         if let Some(expected) = reference(&first, &input, ReferenceBindings::default()) {
             for other in lists(&[0_u64, 1, 2], 4) {
-                let mut actual = ShapeBindings::default();
+                let mut actual = MetadataBindings::default();
                 actual.check(&input, &first).unwrap();
                 let second = [S(Some(2)), D(0)];
                 assert_eq!(
@@ -116,9 +116,9 @@ fn shared_dimensions_and_sequences_are_checked_across_calls() {
 
 #[test]
 fn failed_checks_require_discarding_partial_bindings() {
-    let mut bindings = ShapeBindings::default();
+    let mut bindings = MetadataBindings::default();
     assert!(bindings.check(&[2, 3], &[D(0), D(0)]).is_none());
     assert_eq!(bindings.dimension(0), Some(2));
-    let mut fresh = ShapeBindings::default();
+    let mut fresh = MetadataBindings::default();
     assert!(fresh.check(&[4, 4], &[D(0), D(0)]).is_some());
 }

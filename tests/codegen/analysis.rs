@@ -74,7 +74,10 @@ fn declarations_control_inference_independently_of_operation_names() {
         tensor(Op::Tail, &[info(&[2, 3], DType::Bool)], OpAttrs::None),
         Inference::Known(info(&[2, 3], DType::Bool))
     );
-    assert_eq!(tensor(Op::Variadic, &[], OpAttrs::None), Inference::Unknown);
+    assert!(matches!(
+        tensor(Op::Variadic, &[], OpAttrs::None),
+        Inference::Invalid(_)
+    ));
     assert_eq!(
         infer_shape(Op::Variadic.into(), &[], &AnyAttrs::None),
         Inference::Known(vec![])

@@ -233,7 +233,7 @@ int main() {
   assert(matches.size() == 1);
   assert(matches.front().tensors.at(0) == good);
   // Sequence bindings support empty sequences anywhere in a restriction.
-  p::ShapeBindings bindings;
+  p::MetadataBindings bindings;
   assert(bindings.check(std::vector<std::uint64_t>{2, 3},
                         {p::ShapePart::dimension(0), p::ShapePart::sequence(1),
                          p::ShapePart::dimension(2)}));

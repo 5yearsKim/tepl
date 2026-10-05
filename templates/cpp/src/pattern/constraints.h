@@ -5,8 +5,22 @@
 #include "shape.h"
 
 namespace @TEPL_NAMESPACE@::pattern {
+struct DTypeConstraint {
+  enum class Kind { Exact, Bind };
+  Kind kind;
+  DType value = DType::Bool;
+  ::std::size_t variable = 0;
+  static DTypeConstraint exact(DType dtype) { return {Kind::Exact, dtype, 0}; }
+  static DTypeConstraint bind(::std::size_t id) {
+    return {Kind::Bind, DType::Bool, id};
+  }
+  bool check(DType actual, MetadataBindings& bindings) const {
+    return kind == Kind::Exact ? value == actual
+                               : bindings.bind_dtype(variable, actual);
+  }
+};
 struct TensorConstraint {
-  ::std::optional<DType> dtype;
+  ::std::optional<DTypeConstraint> dtype;
   ::std::vector<ShapePart> shape;
 };
 struct TensorConstraints {
@@ -38,7 +52,7 @@ struct TensorConstraints {
   template <class A, class M>
   bool check_capture(const ::eggc::EGraph<OpNode, A>& graph, BindingId capture,
                      ::eggc::Id id, const M& metadata,
-                     ShapeBindings& shapes) const {
+                     MetadataBindings& shapes) const {
     ::std::optional<TensorInfo> info;
     bool fetched = false;
     for (const auto& [target, restriction] : entries) {
@@ -47,7 +61,9 @@ struct TensorConstraints {
         info = metadata(graph, graph.find(id));
         fetched = true;
       }
-      if (!info || (restriction.dtype && info->dtype != *restriction.dtype) ||
+      if (!info ||
+          (restriction.dtype &&
+           !restriction.dtype->check(info->dtype, shapes)) ||
           !shapes.check(info->shape, restriction.shape))
         return false;
     }

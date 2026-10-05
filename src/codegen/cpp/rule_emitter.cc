@@ -77,8 +77,8 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
   out.open("namespace " + names.root.substr(2) +
            "::rules::" + module.qualified + "::" + names.rule(rule.id));
   for (auto name : {"TensorPattern", "TensorExpr", "AttrPattern", "AttrExpr",
-                    "TensorConstraints", "ShapePart", "ShapeBindings",
-                    "MatchBinding", "DerivedAttrs"})
+                    "TensorConstraints", "DTypeConstraint", "ShapePart",
+                    "MetadataBindings", "MatchBinding", "DerivedAttrs"})
     out.line("using " + names.root + "::pattern::" + name + ";");
   for (auto name : {"OpAttrs", "DType", "TensorInfo"})
     out.line("using " + names.root + "::" + name + ";");
@@ -136,8 +136,18 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
       shape += ",";
     }
     out.line("{" + std::to_string(c.capture.value) + ",{" +
-             (c.dtype ? "::std::optional(" + dtype(*c.dtype) + ")"
-                      : "::std::nullopt") +
+             (c.dtype
+                  ? "::std::optional(" +
+                        (std::holds_alternative<core::DType>(*c.dtype)
+                             ? "DTypeConstraint::exact(" +
+                                   dtype(std::get<core::DType>(*c.dtype)) + ")"
+                             : "DTypeConstraint::bind(" +
+                                   std::to_string(
+                                       std::get<core::DTypeVariableId>(*c.dtype)
+                                           .value) +
+                                   ")") +
+                        ")"
+                  : "::std::nullopt") +
              "," + shape + "}}},");
   }
   out.line("}};");
@@ -146,7 +156,7 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
     out.line("template<class C>");
     out.open("inline ::std::optional<bool> condition_" + std::to_string(i) +
              "([[maybe_unused]] const C& ctx, [[maybe_unused]] const "
-             "ShapeBindings& dimensions)");
+             "MetadataBindings& dimensions)");
     out.line("try { return " +
              emitExpression(program, names, *rule.conditions[i]) +
              "; } catch(const " + names.root +
@@ -175,13 +185,16 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
             std::string(rule.dimensions.at(id.value).sequence ? "Sequence"
                                                               : "Dimension") +
             "," + std::to_string(id.value) + "},";
+      for (auto id : c.dtypes)
+        dependencies +=
+            "{MatchBinding::Kind::DType," + std::to_string(id.value) + "},";
       out.line(dependencies + "},");
     }
     out.open(
         "},[metadata=::std::move(metadata)](::std::size_t index, const "
         "::eggc::EGraph<" +
         names.root + "::OpNode,A>& graph, const " + names.root +
-        "::pattern::TensorMatch& matched, const ShapeBindings& "
+        "::pattern::TensorMatch& matched, const MetadataBindings& "
         "dimensions)->::std::optional<bool>");
     out.line(names.root +
              "::pattern::MatchContext ctx{graph,matched,metadata};");
@@ -214,7 +227,7 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
   out.open("[host,reader](const ::eggc::EGraph<" + names.root +
            "::OpNode,A>& graph, const " + names.root +
            "::pattern::TensorMatch& matched, [[maybe_unused]] const "
-           "ShapeBindings& dimensions)->::std::optional<DerivedAttrs>");
+           "MetadataBindings& dimensions)->::std::optional<DerivedAttrs>");
   out.line("[[maybe_unused]] const auto& functions=*host;");
   out.line("DerivedAttrs derived;");
   out.line("[[maybe_unused]] " + names.root +

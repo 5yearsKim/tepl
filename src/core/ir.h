@@ -7,8 +7,7 @@
 #include <vector>
 
 #include "src/core/ids.h"
-#include "src/core/shape/ir.h"
-#include "src/core/type/dtype_policy.h"
+#include "src/core/metadata/ir.h"
 #include "src/core/type/types.h"
 #include "src/operators.h"
 #include "src/source.h"
@@ -48,8 +47,8 @@ struct Operation {
   TypeId result;
   std::optional<AttributeSchemaId> attributes;
   SourceOrigin origin;
-  std::optional<shape::Program> shape;
-  std::optional<DTypePolicy> dtype_policy;
+  std::optional<metadata::Program> shape;
+  std::optional<metadata::Program> dtype;
 };
 
 struct HostFunction {
@@ -91,9 +90,18 @@ struct ShapeElement {
   SourceOrigin origin;
 };
 
+struct DTypeVariable {
+  DTypeVariableId id;
+  std::string name;
+  TypeId type;
+  SourceOrigin origin;
+};
+
+using DTypeConstraint = std::variant<DType, DTypeVariableId>;
+
 struct CaptureConstraint {
   CaptureId capture;
-  std::optional<DType> dtype;
+  std::optional<DTypeConstraint> dtype;
   // Each entry is an additional runtime shape restriction. Inheritance may
   // add restrictions, including different symbolic patterns for one capture.
   std::vector<ShapeElement> shape;
@@ -152,6 +160,15 @@ struct DimensionRef {
 struct DescriptorRef {
   DescriptorId descriptor;
 };
+struct DTypeVariableRef {
+  DTypeVariableId variable;
+};
+struct DescriptorFieldRef {
+  DescriptorId descriptor;
+  AttributeSchemaId schema;
+  std::size_t field;
+};
+
 struct NumericConstant {
   std::string spelling;
   bool decimal = false;
@@ -176,8 +193,9 @@ struct BinaryExpr {
 struct TypedExpr {
   SourceOrigin origin;
   TypeId type;
-  std::variant<CaptureRef, DimensionRef, DescriptorRef, NumericConstant, bool,
-               HostCall, BuiltinCall, UnaryExpr, BinaryExpr>
+  std::variant<CaptureRef, DimensionRef, DescriptorRef, DescriptorFieldRef,
+               DTypeVariableRef, DType, NumericConstant, bool, HostCall,
+               BuiltinCall, UnaryExpr, BinaryExpr>
       value;
 };
 
@@ -201,6 +219,7 @@ struct Rule {
   std::vector<TypedExprPtr> conditions;
   std::vector<Derivation> derivations;
   BuildExprPtr rhs;
+  std::vector<DTypeVariable> dtypes;
 };
 
 // IDs index these owning tables. Rule-local IDs index their rule's tables.

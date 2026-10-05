@@ -79,13 +79,6 @@ fn metadata(inputs: [TensorInfo; 2]) -> impl TensorMetadata<()> {
     }
 }
 
-struct Host;
-impl rule_commute_same_dtype::Functions for Host {
-    fn is_same_dtype(&self, x: &TensorInfo, y: &TensorInfo) -> Option<bool> {
-        Some(x.dtype == y.dtype)
-    }
-}
-
 fn graph() -> (EGraph<OpNode, ()>, [Id; 3]) {
     let mut graph = EGraph::default();
     let x = graph.add(symbol("X"));
@@ -124,30 +117,22 @@ fn typed_declarations_reject_same_shaped_tensors_of_other_dtypes() {
 }
 
 #[test]
-fn shape_only_declarations_and_generated_host_trait_use_concrete_dtype() {
+fn shared_dtype_bindings_require_equal_numeric_types() {
     for dtype in [DType::BF16, DType::F32, DType::I64] {
         let (mut graph, _) = graph();
         let rule = rule_commute_same_dtype::build_rewrite_with(
             metadata([info(&[0], dtype), info(&[0], dtype)]),
             add_output,
-            Host,
+            (),
         )
         .unwrap();
         apply(&mut graph, &rule, true);
     }
-    assert_eq!(
-        rule_commute_same_dtype::Functions::is_same_dtype(
-            &Host,
-            &info(&[4], DType::F32),
-            &info(&[4], DType::BF16)
-        ),
-        Some(false)
-    );
     let (mut graph, _) = graph();
     let rule = rule_commute_same_dtype::build_rewrite_with(
         metadata([info(&[4], DType::F32), info(&[4], DType::BF16)]),
         add_output,
-        Host,
+        (),
     )
     .unwrap();
     apply(&mut graph, &rule, false);

@@ -12,6 +12,7 @@ struct ConditionPlan {
   std::vector<core::CaptureId> captures;
   std::vector<core::DimensionId> dimensions;
   std::vector<core::DescriptorId> descriptors;
+  std::vector<core::DTypeVariableId> dtypes;
 };
 
 struct RulePlan {

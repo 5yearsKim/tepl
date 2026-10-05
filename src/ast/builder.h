@@ -140,8 +140,8 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
       tepl_generated::TeplParser::ShapeComprehensionPrimaryContext*) override;
 
   template <typename Context>
-  ast::ShapeExprPtr foldShapeBinary(antlr4::ParserRuleContext* parent,
-                                    const std::vector<Context*>& operands);
+  ast::MetadataExprPtr foldMetadataBinary(
+      antlr4::ParserRuleContext* parent, const std::vector<Context*>& operands);
 
   template <typename Context>
   ast::ConstraintExprPtr foldBinary(antlr4::ParserRuleContext* parent,

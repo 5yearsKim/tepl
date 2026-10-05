@@ -1,10 +1,10 @@
-#include "src/core/shape/expression.h"
+#include "src/core/metadata/expression.h"
 
 #include <algorithm>
 
-namespace tepl::core::shape::detail {
+namespace tepl::core::metadata::detail {
 
-ExprPtr ExpressionChecker::check(const ast::ShapeExpr& expression,
+ExprPtr ExpressionChecker::check(const ast::MetadataExpr& expression,
                                  std::optional<TypeId> expected) {
   const auto origin = context_.origin(expression.span);
   auto result =
@@ -16,9 +16,12 @@ ExprPtr ExpressionChecker::check(const ast::ShapeExpr& expression,
 
 ExprPtr ExpressionChecker::lower(const ast::NameRef& name,
                                  const SourceOrigin& origin) {
+  if (auto dtype = core::resolveDType(name.name))
+    return make(origin, concrete(Type::Kind::kDType, origin), *dtype);
   const auto found = context_.scope.find(name.name);
   if (found == context_.scope.end()) {
-    context_.report(origin, "unknown shape name '" + name.name + "'");
+    context_.report(origin, "unknown " + context_.programName() + " name '" +
+                                name.name + "'");
     return nullptr;
   }
   const auto& symbol = context_.program.symbols[found->second.value];
@@ -29,7 +32,7 @@ ExprPtr ExpressionChecker::lower(const ast::IntegerLiteral& value,
                                  const SourceOrigin& origin) {
   if (!validIntegerLiteral(value.digits)) {
     context_.report(origin,
-                    "shape integer literal is outside signed 128-bit range");
+                    "metadata integer literal is outside signed 128-bit range");
     return nullptr;
   }
   return make(origin, concrete(Type::Kind::kInteger, origin),
@@ -41,16 +44,18 @@ ExprPtr ExpressionChecker::lower(const ast::BooleanLiteral& value,
   return make(origin, concrete(Type::Kind::kBoolean, origin), value.value);
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeAttrs&,
+ExprPtr ExpressionChecker::lower(const ast::MetadataAttrs&,
                                  const SourceOrigin& origin) {
-  context_.report(origin, "attrs requires a field access in shape expressions");
+  context_.report(origin, "attrs requires a field access in " +
+                              context_.programName() + " expressions");
   return nullptr;
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeField& field,
+ExprPtr ExpressionChecker::lower(const ast::MetadataField& field,
                                  const SourceOrigin& origin) {
-  if (!std::holds_alternative<ast::ShapeAttrs>(field.value->value)) {
-    context_.report(origin, "shape field access requires attrs.field");
+  if (!std::holds_alternative<ast::MetadataAttrs>(field.value->value)) {
+    context_.report(
+        origin, context_.programName() + " field access requires attrs.field");
     return nullptr;
   }
   if (!context_.operation.attributes) {
@@ -66,39 +71,45 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeField& field,
     if (attribute.name != field.field) continue;
     if (attribute.optional ||
         (attribute.type != "index" && attribute.type != "i64" &&
-         attribute.type != "bool")) {
-      context_.report(origin,
-                      "attribute '" + field.field +
-                          "' is optional or opaque to shape expressions");
+         attribute.type != "bool" && attribute.type != "dtype")) {
+      context_.report(origin, "attribute '" + field.field +
+                                  "' is optional or opaque to " +
+                                  context_.programName() + " expressions");
       return nullptr;
     }
-    const auto kind =
-        attribute.type == "bool" ? Type::Kind::kBoolean : Type::Kind::kInteger;
+    const auto kind = attribute.type == "bool"    ? Type::Kind::kBoolean
+                      : attribute.type == "dtype" ? Type::Kind::kDType
+                                                  : Type::Kind::kInteger;
     return make(origin, concrete(kind, origin, attribute.list_depth),
                 AttributeRef{schema_id, i});
   }
-  context_.report(origin,
-                  "unknown shape attribute field '" + field.field + "'");
+  context_.report(origin, "unknown " + context_.programName() +
+                              " attribute field '" + field.field + "'");
   return nullptr;
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeCall& call,
+ExprPtr ExpressionChecker::lower(const ast::MetadataCall& call,
                                  const SourceOrigin& origin) {
   const auto* signature = builtins::resolveBuiltin(call.callee);
   if (!signature) {
-    context_.report(origin, "unknown shape builtin '" + call.callee + "'");
+    context_.report(origin, "unknown " + context_.programName() + " builtin '" +
+                                call.callee + "'");
     return nullptr;
   }
-  if (!signature->availableIn(builtins::Context::kShape)) {
+  if (!signature->availableIn(context_.program.kind == ProgramKind::DType
+                                  ? builtins::Context::kDType
+                                  : builtins::Context::kShape)) {
     context_.report(origin, "builtin '" + call.callee +
-                                "' is not available in shape expressions");
+                                "' is not available in " +
+                                context_.programName() + " expressions");
     return nullptr;
   }
   const auto count = signature->arguments.size();
   if (call.arguments.size() < count ||
       (!signature->variadic && call.arguments.size() != count)) {
     context_.report(origin,
-                    "shape builtin '" + call.callee + "' expects " +
+                    context_.programName() + " builtin '" + call.callee +
+                        "' expects " +
                         (signature->variadic ? "at least " : "exactly ") +
                         std::to_string(count) + " arguments");
     return nullptr;
@@ -107,6 +118,8 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeCall& call,
   std::optional<TypeId> list;
   const auto type = [&](builtins::SignatureType pattern) -> TypeId {
     switch (pattern) {
+      case builtins::SignatureType::kDType:
+        return concrete(Type::Kind::kDType, origin);
       case builtins::SignatureType::kInteger:
         return concrete(Type::Kind::kInteger, origin);
       case builtins::SignatureType::kBoolean:
@@ -134,7 +147,7 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeCall& call,
   return make(origin, type(signature->result), std::move(result));
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeUnary& unary,
+ExprPtr ExpressionChecker::lower(const ast::MetadataUnary& unary,
                                  const SourceOrigin& origin) {
   // Keep the minimum signed value representable without first checking its
   // positive magnitude as a separate (out-of-range) literal.
@@ -154,7 +167,7 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeUnary& unary,
   return make(origin, type, Unary{unary.op, std::move(operand)});
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeBinary& binary,
+ExprPtr ExpressionChecker::lower(const ast::MetadataBinary& binary,
                                  const SourceOrigin& origin) {
   const auto kind = category(binary.op);
   const auto operand_type =
@@ -173,7 +186,7 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeBinary& binary,
               Binary{binary.op, std::move(lhs), std::move(rhs)});
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeList& list,
+ExprPtr ExpressionChecker::lower(const ast::MetadataList& list,
                                  const SourceOrigin& origin) {
   const auto element_type = context_.types.variable(origin);
   List result;
@@ -186,7 +199,7 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeList& list,
               std::move(result));
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeIndex& index,
+ExprPtr ExpressionChecker::lower(const ast::MetadataIndex& index,
                                  const SourceOrigin& origin) {
   const auto element_type = context_.types.variable(origin);
   auto value = check(*index.value, context_.types.list(element_type, origin));
@@ -196,7 +209,7 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeIndex& index,
               Index{std::move(value), std::move(position)});
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeConditional& conditional,
+ExprPtr ExpressionChecker::lower(const ast::MetadataConditional& conditional,
                                  const SourceOrigin& origin) {
   auto condition =
       check(*conditional.condition, concrete(Type::Kind::kBoolean, origin));
@@ -209,15 +222,19 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeConditional& conditional,
                           std::move(else_value)});
 }
 
-ExprPtr ExpressionChecker::lower(const ast::ShapeComprehension& comprehension,
-                                 const SourceOrigin& origin) {
+ExprPtr ExpressionChecker::lower(
+    const ast::MetadataComprehension& comprehension,
+    const SourceOrigin& origin) {
   const auto element_type = context_.types.variable(origin);
   // The iterable is checked in the outer scope.
   auto iterable =
       check(*comprehension.iterable, context_.types.list(element_type, origin));
   if (!iterable) return nullptr;
-  if (comprehension.variable == "attrs") {
-    context_.report(origin, "shape binding cannot use reserved name 'attrs'");
+  if (comprehension.variable == "attrs" ||
+      core::resolveDType(comprehension.variable)) {
+    context_.report(
+        origin,
+        "metadata binding cannot use reserved name attrs or a dtype constant");
     return nullptr;
   }
   const auto previous = context_.scope.find(comprehension.variable);
@@ -239,4 +256,4 @@ ExprPtr ExpressionChecker::lower(const ast::ShapeComprehension& comprehension,
               Comprehension{std::move(element), symbol, std::move(iterable)});
 }
 
-}  // namespace tepl::core::shape::detail
+}  // namespace tepl::core::metadata::detail

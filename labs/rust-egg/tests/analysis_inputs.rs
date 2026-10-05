@@ -96,7 +96,7 @@ fn concrete_add_inputs_cover_scalars_empty_tensors_and_type_errors() {
 }
 
 #[test]
-fn batched_dot_checks_shape_but_has_no_declared_dtype_policy() {
+fn batched_dot_checks_shape_but_has_no_declared_dtype_program() {
     // [batch, rows, inner] @ [batch, inner, columns].
     for rhs_shape in [[2, 3, 5], [2, 6, 5], [1, 3, 5]] {
         let mut graph = graph(&[("A", &[2, 4, 3], DType::F32), ("B", &rhs_shape, DType::F32)]);

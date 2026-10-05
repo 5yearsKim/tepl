@@ -7,6 +7,7 @@ use ::std::fmt;
 pub enum Op {
     Literal,
     Input,
+    DTypeExamples(super::dialects::d_type_examples::Op),
     Scalar(super::dialects::scalar::Op),
     TensorLang(super::dialects::tensor_lang::Op),
 }
@@ -15,6 +16,7 @@ pub enum OpAttrs {
     None,
     Literal { value: String, dtype: Option<DType> },
     Input { name: String },
+    DTypeExamples(super::dialects::d_type_examples::OpAttrs),
     Scalar(super::dialects::scalar::OpAttrs),
     TensorLang(super::dialects::tensor_lang::OpAttrs),
 }
@@ -23,6 +25,7 @@ impl Op {
         match self {
             Self::Literal => "<literal>",
             Self::Input => "<input>",
+            Self::DTypeExamples(op) => op.name(),
             Self::Scalar(op) => op.name(),
             Self::TensorLang(op) => op.name(),
         }
@@ -36,6 +39,9 @@ impl Op {
         }
         let (dialect, _op) = name.split_once('.')?;
         match dialect {
+            "DTypeExamples" => {
+                super::dialects::d_type_examples::Op::from_name(_op).map(Self::DTypeExamples)
+            }
             "Scalar" => super::dialects::scalar::Op::from_name(_op).map(Self::Scalar),
             "TensorLang" => super::dialects::tensor_lang::Op::from_name(_op).map(Self::TensorLang),
             _ => None,
@@ -44,6 +50,7 @@ impl Op {
     pub fn arity(self) -> Arity {
         match self {
             Self::Literal | Self::Input => Arity::Exact(0),
+            Self::DTypeExamples(op) => op.arity(),
             Self::Scalar(op) => op.arity(),
             Self::TensorLang(op) => op.arity(),
         }
@@ -53,6 +60,10 @@ impl Op {
             (Self::Input, OpAttrs::Input { .. }) => true,
             (Self::Literal, OpAttrs::Literal { value, dtype }) => {
                 valid_literal(value) && dtype.is_none_or(|d| d.accepts_literal(value))
+            }
+            (Self::DTypeExamples(op), OpAttrs::DTypeExamples(attrs)) => op.accepts_attrs(attrs),
+            (Self::DTypeExamples(op), OpAttrs::None) => {
+                op.accepts_attrs(&super::dialects::d_type_examples::OpAttrs::None)
             }
             (Self::Scalar(op), OpAttrs::Scalar(attrs)) => op.accepts_attrs(attrs),
             (Self::Scalar(op), OpAttrs::None) => {
@@ -70,6 +81,7 @@ impl OpAttrs {
     pub fn schema_id(&self) -> Option<usize> {
         match self {
             Self::None | Self::Literal { .. } | Self::Input { .. } => None,
+            Self::DTypeExamples(attrs) => attrs.schema_id(),
             Self::Scalar(attrs) => attrs.schema_id(),
             Self::TensorLang(attrs) => attrs.schema_id(),
         }

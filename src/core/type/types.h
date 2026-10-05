@@ -37,7 +37,8 @@ enum class TypeKind {
   kBool,
   kI64,
   kF64,
-  kDescriptor
+  kDescriptor,
+  kDType
 };
 
 struct Type {

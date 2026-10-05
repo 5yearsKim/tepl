@@ -3,14 +3,14 @@
 #include <optional>
 
 #include "src/ast/ast.h"
-#include "src/core/shape/check_context.h"
+#include "src/core/metadata/check_context.h"
 
-namespace tepl::core::shape::detail {
+namespace tepl::core::metadata::detail {
 
 class ExpressionChecker {
  public:
   explicit ExpressionChecker(CheckContext& context) : context_(context) {}
-  ExprPtr check(const ast::ShapeExpr& expression,
+  ExprPtr check(const ast::MetadataExpr& expression,
                 std::optional<TypeId> expected = std::nullopt);
 
  private:
@@ -25,16 +25,16 @@ class ExpressionChecker {
   ExprPtr lower(const ast::NameRef&, const SourceOrigin&);
   ExprPtr lower(const ast::IntegerLiteral&, const SourceOrigin&);
   ExprPtr lower(const ast::BooleanLiteral&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeAttrs&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeCall&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeUnary&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeBinary&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeList&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeIndex&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeField&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeConditional&, const SourceOrigin&);
-  ExprPtr lower(const ast::ShapeComprehension&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataAttrs&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataCall&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataUnary&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataBinary&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataList&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataIndex&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataField&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataConditional&, const SourceOrigin&);
+  ExprPtr lower(const ast::MetadataComprehension&, const SourceOrigin&);
   CheckContext& context_;
 };
 
-}  // namespace tepl::core::shape::detail
+}  // namespace tepl::core::metadata::detail

@@ -4,9 +4,9 @@
 #include <vector>
 
 #include "src/core/diagnostic.h"
-#include "src/core/shape/ir.h"
+#include "src/core/metadata/ir.h"
 
-namespace tepl::core::shape::detail {
+namespace tepl::core::metadata::detail {
 
 // Resolves homogeneous nested lists, including initially untyped [] literals.
 class TypeInference {
@@ -20,7 +20,7 @@ class TypeInference {
   std::optional<std::vector<Type>> finish();
 
  private:
-  enum class Kind { kUnknown, kInteger, kBoolean, kList };
+  enum class Kind { kUnknown, kInteger, kBoolean, kDType, kList };
   struct Variable {
     std::size_t parent;
     Kind kind = Kind::kUnknown;
@@ -35,4 +35,4 @@ class TypeInference {
   std::vector<Diagnostic>& diagnostics_;
 };
 
-}  // namespace tepl::core::shape::detail
+}  // namespace tepl::core::metadata::detail
