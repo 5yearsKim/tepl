@@ -48,6 +48,7 @@ cc_binary(
         "//src/codegen:codegen",
         "//src/core:analysis",
         "//src/core:print",
+        "//src/support:init",
         "@cli11//:cli11",
     ],
 )

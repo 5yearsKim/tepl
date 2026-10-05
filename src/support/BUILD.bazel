@@ -1,6 +1,13 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 cc_library(
+    name = "init",
+    srcs = ["init.cc"],
+    hdrs = ["init.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "process",
     srcs = ["process.cc"],
     hdrs = ["process.h"],

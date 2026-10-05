@@ -186,6 +186,19 @@ bazel-bin/tepl generate examples --out my_app/src/generated
 bazel-bin/tepl generate examples --target cpp --out my_cpp_app/generated
 ```
 
+Start a new TEPL project with `tepl init <directory>` (use `.` for the current
+directory):
+
+```sh
+bazel-bin/tepl init my_rules
+bazel-bin/tepl check my_rules
+```
+
+This creates `dialects/your_dialect.tepl` with a basic `add` operation and
+`rules/your_rule.tepl` with a rule that swaps its operands. Missing directories
+are created. Existing starter files are preserved, and initialization fails if
+either filename is already present.
+
 C++ output is a library of headers mirroring the Rust module structure. Include
 `generated/generated.h` and supply egg-c's include directory to a C++20 GCC or
 Clang build. See the [C++ runtime guide](templates/cpp/README.md) and the

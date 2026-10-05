@@ -19,7 +19,94 @@ check_exit() {
 
 check_exit 0 --help
 grep -Fq 'parse' "$output"
+grep -Fq 'init' "$output"
 check_exit 0 -h
+
+# Initialization creates a usable project without relying on external templates.
+check_exit 0 init --help
+grep -Fq 'dir' "$output"
+check_exit 0 init -h
+check_exit 2 init
+check_exit 2 init ""
+check_exit 2 init "${TEST_TMPDIR}/unused" extra
+check_exit 2 init "${TEST_TMPDIR}/unused" --unknown
+test ! -e "${TEST_TMPDIR}/unused"
+starter="${TEST_TMPDIR}/new parent/starter project"
+check_exit 0 init "$starter"
+grep -Fq 'Initialized TEPL project in' "$output"
+grep -Fq 'tepl check' "$output"
+test -f "$starter/dialects/your_dialect.tepl"
+test -f "$starter/rules/your_rule.tepl"
+check_exit 0 check "$starter"
+grep -Fq 'MatchOp(YourDialect.add' "$output"
+check_exit 0 generate "$starter" --no-format --out "${TEST_TMPDIR}/starter_rust"
+test -f "${TEST_TMPDIR}/starter_rust/dialects/your_dialect.rs"
+test -f "${TEST_TMPDIR}/starter_rust/rules/your_rule.rs"
+check_exit 0 generate "$starter" --target cpp --no-format --out "${TEST_TMPDIR}/starter_cpp"
+test -f "${TEST_TMPDIR}/starter_cpp/dialects/your_dialect.h"
+test -f "${TEST_TMPDIR}/starter_cpp/rules/your_rule.h"
+
+# Existing directories and unrelated files are preserved; '.' and relative paths work.
+init_current="${TEST_TMPDIR}/init_current"
+mkdir -p "$init_current/dialects" "$init_current/rules"
+printf 'keep me\n' > "$init_current/notes.txt"
+(
+  cd "$init_current"
+  check_exit 0 init .
+  check_exit 0 check .
+  check_exit 0 init "relative project"
+)
+grep -Fxq 'keep me' "$init_current/notes.txt"
+cmp "$starter/dialects/your_dialect.tepl" "$init_current/dialects/your_dialect.tepl"
+cmp "$starter/rules/your_rule.tepl" "$init_current/rules/your_rule.tepl"
+check_exit 0 check "$init_current/relative project"
+
+# Both starter destinations are checked before either is written.
+for part in dialect rule; do
+  conflict="${TEST_TMPDIR}/init_conflict_${part}"
+  mkdir -p "$conflict/${part}s"
+  printf 'user content\n' > "$conflict/${part}s/your_${part}.tepl"
+  check_exit 2 init "$conflict"
+  grep -Fq 'refusing to overwrite' "$output"
+  grep -Fxq 'user content' "$conflict/${part}s/your_${part}.tepl"
+  if [[ "$part" == dialect ]]; then
+    test ! -e "$conflict/rules"
+  else
+    test ! -e "$conflict/dialects"
+  fi
+done
+check_exit 2 init "$starter"
+cmp "$starter/dialects/your_dialect.tepl" "$init_current/dialects/your_dialect.tepl"
+cmp "$starter/rules/your_rule.tepl" "$init_current/rules/your_rule.tepl"
+
+# Directories and dangling symlinks at starter filenames also count as conflicts.
+conflict="${TEST_TMPDIR}/init_file_directory"
+mkdir -p "$conflict/rules/your_rule.tepl"
+check_exit 2 init "$conflict"
+test ! -e "$conflict/dialects"
+conflict="${TEST_TMPDIR}/init_file_symlink"
+mkdir -p "$conflict/rules"
+ln -s "${TEST_TMPDIR}/missing_link_target" "$conflict/rules/your_rule.tepl"
+check_exit 2 init "$conflict"
+test -L "$conflict/rules/your_rule.tepl"
+test ! -e "${TEST_TMPDIR}/missing_link_target"
+test ! -e "$conflict/dialects"
+
+# Files blocking required directories fail before writing any samples.
+printf 'keep me\n' > "${TEST_TMPDIR}/init_blocked"
+check_exit 2 init "${TEST_TMPDIR}/init_blocked"
+check_exit 2 init "${TEST_TMPDIR}/init_blocked/child"
+grep -Fxq 'keep me' "${TEST_TMPDIR}/init_blocked"
+for part in dialects rules; do
+  blocked="${TEST_TMPDIR}/init_blocked_${part}"
+  mkdir -p "$blocked"
+  printf 'keep me\n' > "$blocked/$part"
+  check_exit 2 init "$blocked"
+  grep -Fxq 'keep me' "$blocked/$part"
+  test ! -e "$blocked/dialects/your_dialect.tepl"
+  test ! -e "$blocked/rules/your_rule.tepl"
+done
+
 check_exit 0 parse --help
 grep -Fq -- '--tree' "$output"
 grep -Fq -- '--ast' "$output"

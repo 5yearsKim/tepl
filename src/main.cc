@@ -12,10 +12,15 @@
 #include "src/core/print.h"
 #include "src/imports.h"
 #include "src/parse.h"
+#include "src/support/init.h"
 
 int main(int argc, char** argv) {
-  CLI::App app{"Parse, check, and generate TEPL tensor rewrite rules"};
+  CLI::App app{"Initialize, parse, check, and generate TEPL projects"};
   app.require_subcommand(1);
+  std::string project_directory;
+  auto* init = app.add_subcommand("init", "Create a minimal TEPL project");
+  init->add_option("dir", project_directory, "Project directory to initialize")
+      ->required();
   std::string filename;
   bool print_tree = false;
   bool print_ast = false;
@@ -61,6 +66,19 @@ int main(int argc, char** argv) {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& error) {
     return app.exit(error) == 0 ? 0 : 2;
+  }
+
+  if (*init) {
+    try {
+      tepl::support::initializeProject(project_directory);
+    } catch (const std::exception& error) {
+      std::cerr << error.what() << '\n';
+      return 2;
+    }
+    std::cout << "Initialized TEPL project in " << project_directory << ".\n"
+              << "Run tepl check \"" << project_directory
+              << "\" to check the starter project.\n";
+    return 0;
   }
 
   tepl::ParseResult result;
