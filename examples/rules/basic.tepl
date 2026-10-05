@@ -5,6 +5,7 @@ use t::{add};
 rule commute_f32 {
     X: f32[N]
     Y: f32[N]
+
     (add X Y) => (add Y X)
 }
 
@@ -13,8 +14,12 @@ rule commute_same_dtype {
     dtype T;
     X: T[N]
     Y: T[N]
+
     (add X Y) => (add Y X)
-    where { is_numeric(T); }
+
+    where {
+        is_numeric(T);
+    }
 }
 
 // A typed scalar is a rank-zero tensor; f32[] constrains its element type.
@@ -22,16 +27,19 @@ rule commute_same_dtype {
 rule commute_scalar {
     X: f32[]
     S: f32[]
+
     (add X S) => (add S X)
 }
 
 // Literal patterns require exact spelling and dtype.
 rule commute_integer_literal {
     X: i32[]
+
     (add X 1:i32) => (add 1:i32 X)
 }
 
 rule commute_float_literal {
     X: f32[]
+
     (add X 1.0:f32) => (add 1.0:f32 X)
 }

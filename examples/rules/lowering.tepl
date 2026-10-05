@@ -6,5 +6,6 @@ from "../dialects/scalar.tepl" import Scalar as s;
 rule scalar_add {
     X: []
     Y: []
+
     (t.add X Y) => (s.add X Y)
 }

@@ -7,15 +7,9 @@ rule lora {
     A: [WeightBatch..., K, R]
     B: [WeightBatch..., R, N]
 
-    (dot[@outer] X
-      (add W
-        (dot[@inner] A B)))
+    (dot[@outer] X (add W (dot[@inner] A B)))
     =>
-    (add
-      (dot[@xw] X W)
-      (dot[@out]
-        (dot[@xa] X A)
-        B))
+    (add (dot[@xw] X W) (dot[@out] (dot[@xa] X A) B))
 
     where {
         $is_broadcastable(Batch, WeightBatch);
@@ -23,8 +17,8 @@ rule lora {
     }
 
     derive {
-        @xw  = $infer_dot(X, W, @outer);
-        @xa  = $infer_dot(X, A, @outer);
+        @xw = $infer_dot(X, W, @outer);
+        @xa = $infer_dot(X, A, @outer);
         @out = $infer_lora_out(X, A, B, @outer, @inner);
     }
 }

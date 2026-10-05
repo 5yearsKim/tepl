@@ -12,6 +12,7 @@ dialect Scalar {
             yield [];
         }
     }
+
     op negate(input: tensor) -> tensor {
         dtype(t) {
             assert is_numeric(t);

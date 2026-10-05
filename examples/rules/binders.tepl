@@ -3,11 +3,7 @@ use t::{add, dot, mul, transpose};
 
 // `let Y` names the dot result. Both later references use its e-class.
 rule shared_expression {
-    (add
-        (let Y = (dot[@d] X W))
-        (mul Y Z))
-    =>
-    (add (mul Y Z) Y)
+    (add (let Y = (dot[@d] X W)) (mul Y Z)) => (add (mul Y Z) Y)
 
     where {
         $is_reusable(Y, @d);
