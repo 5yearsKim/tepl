@@ -73,15 +73,21 @@ needs the `markdown="1"` attribute to render correctly.
 
 ## Publish to GitHub Pages
 
-The repository includes a manual deployment in the **Documentation** workflow:
+The **Documentation** workflow publishes automatically when documentation changes
+are pushed or merged into the default branch (`main`):
 
 1. In the repository's **Settings → Pages**, set **Source** to **GitHub Actions**.
-2. In **Actions → Documentation**, choose **Run workflow** on the default branch.
+2. Push changes to `docs/`, `mkdocs.yml`, `requirements-docs.txt`,
+   `tools/docs_hooks.py`, or `.github/workflows/docs.yml` to the default branch.
 3. The workflow builds the site and deploys it to GitHub Pages. Its deployment
    job links to the published site.
 
-Pushes and pull requests validate the documentation. Publishing requires running
-the workflow manually on the default branch. GitHub Actions supplies the actual
+Pull requests and pushes to other branches validate the docs without publishing.
+To publish manually, open **Actions → Documentation**, choose **Run workflow**,
+and select the default branch. The workflow waits for the strict build to pass
+before publishing and runs one workflow at a time per branch.
+
+GitHub Actions supplies the actual
 Pages URL, including a configured custom domain. Repository and edit links in
 `mkdocs.yml` point to `5yearsKim/tepl` on `main`. For a fork or another source
 branch, update `repo_url`, `edit_uri`, and `extra.source_branch` in that file.
