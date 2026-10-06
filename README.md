@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="labs/rust-egg/README.md"><img src="https://img.shields.io/badge/target-Rust-CE422B?style=flat&amp;logo=rust" alt="Target: Rust"></a>
+  <a href="docs/tutorial/cpp/01_build.md"><img src="https://img.shields.io/badge/target-C%2B%2B-00599C?style=flat&amp;logo=cplusplus" alt="Target: C++"></a>
   <a href="https://egraphs-good.github.io/"><img src="https://img.shields.io/badge/runtime-egg-F2C94C?style=flat" alt="Runtime: egg"></a>
   <a href="#-quick-start"><img src="https://img.shields.io/badge/build-Bazel-43A047?style=flat&amp;logo=bazel" alt="Build: Bazel"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
