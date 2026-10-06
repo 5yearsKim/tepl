@@ -1,0 +1,11 @@
+from "../dialects/my_dialect.tepl" import MyDialect as d;
+
+graph add_dot_sample {
+    input x: i32[2, 3];
+    input y: i32[3, 4];
+    input z: i32[3, 4];
+
+    let a = (d.dot[axis = 1] x y);
+    let b = (d.dot[axis = 1] x z);
+    yield (d.add a b);
+}

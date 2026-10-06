@@ -1,0 +1,14 @@
+from "../dialects/my_dialect.tepl" import MyDialect as d;
+
+graph add_dot_sample {
+    input x;
+    input y;
+    input z;
+
+    let a = (d.dot[axis = 0] x y);
+    let b = (d.dot[axis = 0] x z);
+    let c = (d.dot[axis = 0] y z);
+    // Keep this node to exercise the host condition, even though it is not yielded.
+    let unsupported = (d.dot[axis = 1] x y);
+    yield (d.add (d.add a b) c);
+}

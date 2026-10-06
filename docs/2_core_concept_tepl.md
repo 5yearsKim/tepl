@@ -157,6 +157,7 @@ output still adds the shared `sum` to itself.
 **Dialect operations give the graph its vocabulary. Rules describe equivalences.
 The graph supplies the starting computation. The host runs the optimization.**
 
-Next: [run the generated code in Rust](tutorial/rust/02_run.md), explore
+Next: run the generated code in [Rust](tutorial/rust/02_run.md) or
+[C++](tutorial/cpp/02_run.md), explore
 [concrete graph examples](../examples/sample/graphs/README.md), or read the
 [CLI reference](references/cli.md).

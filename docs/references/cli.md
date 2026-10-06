@@ -142,6 +142,8 @@ tepl generate examples/sample --target cpp --out my_cpp_app/generated
 ```
 
 The destination contains generated headers and the `generated.h` entry point.
+See the [C++ tutorial](../tutorial/cpp/02_run.md) for application setup with egg-c.
+
 To give an independently generated project its own namespace:
 
 ```sh

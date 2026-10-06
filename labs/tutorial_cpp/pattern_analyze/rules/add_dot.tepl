@@ -1,0 +1,39 @@
+from "../dialects/my_dialect.tepl" import MyDialect as d;
+
+rule associate_add {
+    (d.add (d.add X Y) Z) => (d.add X (d.add Y Z))
+}
+
+rule swap_add {
+    (d.add X Y) => (d.add Y X)
+}
+
+rule swap_dot {
+    (d.dot[@dot] X Y) => (d.dot[@dot] Y X)
+
+    where {
+        $supports_axis(@dot.axis);
+    }
+}
+
+abstract rule factor_dot() {
+    dtype T;
+    X: T[M, K]
+    Y: T[K, N]
+    Z: T[K, N]
+
+    (d.add (d.dot[@left] X Y) (d.dot[@right] X Z))
+    =>
+    (d.dot[@left] X (d.add Y Z))
+
+    where {
+        @left.axis == @right.axis;
+    }
+}
+
+// Inherit the pattern, dtype/shape bindings, and axis check; add a limit.
+rule factor_small_dot extends factor_dot() {
+    where {
+        K <= 8;
+    }
+}
