@@ -20,7 +20,7 @@ fi
 eggc_source="$(cd "$eggc_source" && pwd)"
 test -f "$eggc_source/include/eggc/all.hpp"
 cxx="${CXX:-c++}"
-fixtures=(dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty)
+fixtures=(dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty structural)
 # Optional fixture arguments allow focused reruns after a failing integration.
 if [[ $# -gt 1 ]]; then fixtures=("${@:2}"); fi
 for fixture in "${fixtures[@]}"; do

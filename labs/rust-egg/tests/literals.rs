@@ -10,7 +10,7 @@ use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 #[test]
 fn literals_preserve_kind_spelling_and_precision() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let values = [
         "1",
         "1.0",
@@ -61,7 +61,7 @@ fn invalid_literals_and_literal_nodes_are_rejected() {
             "invalid_literal",
             TensorPattern::Var("?x".parse().unwrap()),
             rhs,
-            support::fixture_metadata,
+            support::fixture_metadata::<support::TestAnalysis>,
             support::fixture_inference,
             |_, _| Some(Default::default()),
         );
@@ -69,7 +69,11 @@ fn invalid_literals_and_literal_nodes_are_rejected() {
     }
 }
 
-fn literal_metadata(graph: &EGraph<OpNode, ()>, id: Id, input_dtype: DType) -> Option<TensorInfo> {
+fn literal_metadata(
+    graph: &EGraph<OpNode, support::TestAnalysis>,
+    id: Id,
+    input_dtype: DType,
+) -> Option<TensorInfo> {
     let mut result = None;
     for node in &graph[graph.find(id)].nodes {
         let info = if symbol_name(&node) == Some("X") {
@@ -96,13 +100,27 @@ fn literal_metadata(graph: &EGraph<OpNode, ()>, id: Id, input_dtype: DType) -> O
 #[test]
 fn reference_rules_match_only_their_literal_and_construct_the_rhs() {
     for (value, dtype) in [("1", DType::I32), ("1.0", DType::F32)] {
-        let metadata = move |graph: &EGraph<OpNode, ()>, id: Id| literal_metadata(graph, id, dtype);
-        let rule = if dtype == DType::I32 {
-            rule_commute_integer_literal::build_rewrite_with(metadata, literal_output, ()).unwrap()
-        } else {
-            rule_commute_float_literal::build_rewrite_with(metadata, literal_output, ()).unwrap()
+        let metadata = move |graph: &EGraph<OpNode, support::TestAnalysis>, id: Id| {
+            literal_metadata(graph, id, dtype)
         };
-        let mut egraph = EGraph::<OpNode, ()>::default();
+        let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
+        let rule = if dtype == DType::I32 {
+            support::configure_rule(
+                &mut egraph,
+                metadata,
+                literal_output,
+                rule_commute_integer_literal::build_rewrite(()),
+            )
+            .unwrap()
+        } else {
+            support::configure_rule(
+                &mut egraph,
+                metadata,
+                literal_output,
+                rule_commute_float_literal::build_rewrite(()),
+            )
+            .unwrap()
+        };
         let x = egraph.add(symbol("X"));
         let mut expected = None;
         for input in ["1", "1.0", "1.00", "-0.5", "2"] {
@@ -145,7 +163,7 @@ fn reference_rules_match_only_their_literal_and_construct_the_rhs() {
 
 #[test]
 fn literals_can_be_rewrite_roots_and_insert_new_values() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let root = egraph.add(OpNode::literal("1", DType::I32).unwrap());
     egraph.rebuild();
     // Structural fixture only: the test callback authorizes this substitution.
@@ -153,7 +171,7 @@ fn literals_can_be_rewrite_roots_and_insert_new_values() {
         "literal_root",
         TensorPattern::literal("1", Some(DType::I32)),
         TensorExpr::literal("-2", Some(DType::I32)),
-        |_: &EGraph<OpNode, ()>, _: egg::Id| {
+        |_: &EGraph<OpNode, support::TestAnalysis>, _: egg::Id| {
             Some(TensorInfo {
                 shape: vec![],
                 dtype: DType::I32,

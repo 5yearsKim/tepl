@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 
+#include "../analysis/rewrite_analysis.h"
 #include "matcher.h"
 
 namespace @TEPL_NAMESPACE@::pattern {
@@ -59,9 +60,15 @@ TensorInfo infer_rhs(const ::eggc::EGraph<OpNode, A>& graph, PreparedRhs& rhs,
   if (node.op() == Op::Literal) {
     auto literal = ::std::get<LiteralAttrs>(node.attrs().value);
     if constexpr (requires {
-                    inference.infer_literal(literal.value, literal.dtype,
+                    inference.infer_literal(graph, literal.value, literal.dtype,
                                             expected);
                   })
+      literal_dtype = inference.infer_literal(graph, literal.value,
+                                              literal.dtype, expected);
+    else if constexpr (requires {
+                         inference.infer_literal(literal.value, literal.dtype,
+                                                 expected);
+                       })
       literal_dtype =
           inference.infer_literal(literal.value, literal.dtype, expected);
     else
@@ -76,9 +83,17 @@ TensorInfo infer_rhs(const ::eggc::EGraph<OpNode, A>& graph, PreparedRhs& rhs,
   auto result = [&]() -> ::std::optional<TensorInfo> {
     if constexpr (requires {
                     inference.infer_output(
-                        node.op(), ::std::span<const TensorInfo>(operands),
-                        node.attrs());
+                        graph, node.op(),
+                        ::std::span<const TensorInfo>(operands), node.attrs());
                   })
+      return inference.infer_output(graph, node.op(),
+                                    ::std::span<const TensorInfo>(operands),
+                                    node.attrs());
+    else if constexpr (requires {
+                         inference.infer_output(
+                             node.op(), ::std::span<const TensorInfo>(operands),
+                             node.attrs());
+                       })
       return inference.infer_output(
           node.op(), ::std::span<const TensorInfo>(operands), node.attrs());
     else
@@ -128,11 +143,12 @@ inline void validate_rhs(const TensorExpr& rhs,
   }
   for (const auto& child : rhs.children) validate_rhs(child, tensors, attrs);
 }
-}  // namespace detail
 template <class A, class M, class I, class F>
-::eggc::Rewrite<OpNode, A> tensor_rewrite_checked_with_checks(
-    ::std::string name, TensorPattern lhs, TensorExpr rhs,
-    MatchChecks<A> checks, M metadata, I inference, F check_and_derive) {
+::eggc::Rewrite<OpNode, A> make_rewrite(::std::string name, TensorPattern lhs,
+                                        TensorExpr rhs, MatchChecks<A> checks,
+                                        M metadata, I inference,
+                                        F check_and_derive,
+                                        bool validate_tensor_output) {
   checks.validate(lhs);
   ::std::set<BindingId> tensors, attrs;
   lhs.bindings(tensors, attrs);
@@ -145,11 +161,12 @@ template <class A, class M, class I, class F>
     M metadata;
     I inference;
     F callback;
+    bool validate_tensor_output;
   };
   auto state = ::std::make_shared<State>(
       State{::std::move(name), ::std::move(lhs), ::std::move(rhs),
             ::std::move(checks), ::std::move(metadata), ::std::move(inference),
-            ::std::move(check_and_derive)});
+            ::std::move(check_and_derive), validate_tensor_output});
   using Key = ::std::vector<::eggc::Id>;
   struct MatchBatch {
     ::std::vector<Key> keys;
@@ -177,9 +194,9 @@ template <class A, class M, class I, class F>
                 {root,
                  [state, root, batch, index](::eggc::EGraph<OpNode, A>& current)
                      -> ::std::optional<::eggc::Id> {
-                   // The runner batches actions. Repair before querying current
-                   // nodes; copied witnesses and prepared trees survive
-                   // subsequent mutations.
+                   // The runner batches actions. Repair before querying
+                   // current nodes; copied witnesses and prepared trees
+                   // survive subsequent mutations.
                    if (!current.is_clean()) current.rebuild();
                    auto target = current.find(root);
                    // Like Rust's apply_matches, rematch once per e-class and
@@ -216,12 +233,14 @@ template <class A, class M, class I, class F>
                        if (!derived) continue;
                        auto replacement =
                            detail::prepare_rhs(state->rhs, candidate, *derived);
-                       auto expected =
-                           builtins::require(state->metadata(current, target));
-                       if (detail::infer_rhs(current, replacement,
-                                             state->metadata, state->inference,
-                                             expected) != expected)
-                         continue;
+                       if (state->validate_tensor_output) {
+                         auto expected = builtins::require(
+                             state->metadata(current, target));
+                         if (detail::infer_rhs(
+                                 current, replacement, state->metadata,
+                                 state->inference, expected) != expected)
+                           continue;
+                       }
                        prepared.push_back(::std::move(replacement));
                      } catch (const builtins::BuiltinError&) {
                      } catch (const NodeError&) {
@@ -232,9 +251,9 @@ template <class A, class M, class I, class F>
                    for (auto& replacement : prepared)
                      replacements.push_back(
                          detail::insert_rhs(current, ::std::move(replacement)));
-                   // The runner merges the final replacement; earlier witnesses
-                   // use the same attribution. All semantic work finished
-                   // before any insertion.
+                   // The runner merges the final replacement; earlier
+                   // witnesses use the same attribution. All semantic work
+                   // finished before any insertion.
                    for (::std::size_t i = 0; i + 1 < replacements.size(); ++i)
                      current.merge(
                          target, replacements[i],
@@ -247,6 +266,17 @@ template <class A, class M, class I, class F>
     }
     return !(stop && stop());
   });
+}
+}  // namespace detail
+// Advanced handwritten rewrites can supply explicit checked semantics.
+template <class A, class M, class I, class F>
+::eggc::Rewrite<OpNode, A> tensor_rewrite_checked_with_checks(
+    ::std::string name, TensorPattern lhs, TensorExpr rhs,
+    MatchChecks<A> checks, M metadata, I inference, F callback) {
+  return detail::make_rewrite<A>(::std::move(name), ::std::move(lhs),
+                                 ::std::move(rhs), ::std::move(checks),
+                                 ::std::move(metadata), ::std::move(inference),
+                                 ::std::move(callback), true);
 }
 template <class A, class M, class I, class F>
 ::eggc::Rewrite<OpNode, A> tensor_rewrite_checked_with_constraints(
@@ -269,5 +299,49 @@ template <class A, class M, class I, class F>
                                          const auto&) {
         return callback(graph, matched);
       });
+}
+namespace detail {
+inline void require_typed_literals(const TensorExpr& rhs) {
+  if (rhs.kind == TensorExpr::Kind::Literal && !rhs.literal_value.dtype)
+    throw ::std::invalid_argument(
+        "untyped RHS literal requires tensor analysis; add an explicit "
+        "dtype");
+  for (const auto& child : rhs.children) require_typed_literals(child);
+}
+template <class A>
+struct AnalysisInference {
+  ::std::optional<TensorInfo> infer_output(
+      const ::eggc::EGraph<OpNode, A>& graph, Op op,
+      ::std::span<const TensorInfo> operands, const OpAttrs& attrs) const {
+    return analysis::RewriteAnalysis<A>::infer_output(graph, op, operands,
+                                                      attrs);
+  }
+  ::std::optional<DType> infer_literal(const ::eggc::EGraph<OpNode, A>& graph,
+                                       ::std::string_view value,
+                                       ::std::optional<DType> dtype,
+                                       const TensorInfo& expected) const {
+    return analysis::RewriteAnalysis<A>::infer_literal(graph, value, dtype,
+                                                       expected);
+  }
+};
+}  // namespace detail
+template <class A, class F>
+::eggc::Rewrite<OpNode, A> tensor_rewrite_with_checks(
+    ::std::string name, TensorPattern lhs, TensorExpr rhs,
+    MatchChecks<A> checks, bool requires_tensor_info, F callback) {
+  if constexpr (!analysis::RewriteAnalysis<A>::has_tensor_info) {
+    if (requires_tensor_info || !checks.tensors.entries.empty())
+      throw ::std::invalid_argument(
+          "rule requires tensor analysis, but this graph has no tensor "
+          "analysis");
+    detail::require_typed_literals(rhs);
+  }
+  auto reader = [](const ::eggc::EGraph<OpNode, A>& graph, ::eggc::Id id) {
+    return analysis::RewriteAnalysis<A>::tensor_info(graph, id);
+  };
+  return detail::make_rewrite<A>(
+      ::std::move(name), ::std::move(lhs), ::std::move(rhs),
+      ::std::move(checks), reader, detail::AnalysisInference<A>{},
+      ::std::move(callback), analysis::RewriteAnalysis<A>::has_tensor_info);
 }
 }  // namespace @TEPL_NAMESPACE@::pattern

@@ -28,7 +28,7 @@ impl Functions for TestFunctions {
     }
 }
 
-fn metadata_for() -> impl Fn(&EGraph<OpNode, ()>, Id) -> Option<TensorInfo> {
+fn metadata_for() -> impl Fn(&EGraph<OpNode, support::TestAnalysis>, Id) -> Option<TensorInfo> {
     move |_, _| {
         Some(TensorInfo {
             dtype: DType::F32,
@@ -39,7 +39,7 @@ fn metadata_for() -> impl Fn(&EGraph<OpNode, ()>, Id) -> Option<TensorInfo> {
 
 #[test]
 fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = egraph.add(symbol("X"));
     let w = egraph.add(symbol("W"));
     let z = egraph.add(symbol("Z"));
@@ -60,19 +60,21 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
     assert_eq!(matched[0].tensors["?c2".parse::<Var>().unwrap()], dot);
     assert_eq!(matched[0].attrs[&"d0".into()], dot_attrs());
 
-    let rejected = rule_shared_expression::build_rewrite_with(
+    let rejected = support::configure_rule(
+        &mut egraph,
         metadata_for(),
         binder_inference,
-        TestFunctions { allow: false },
+        rule_shared_expression::build_rewrite(TestFunctions { allow: false }),
     )
     .unwrap();
     let found = rejected.search(&egraph);
     assert!(rejected.apply(&mut egraph, &found).is_empty());
 
-    let rule = rule_shared_expression::build_rewrite_with(
+    let rule = support::configure_rule(
+        &mut egraph,
         metadata_for(),
         binder_inference,
-        TestFunctions { allow: true },
+        rule_shared_expression::build_rewrite(TestFunctions { allow: true }),
     )
     .unwrap();
     let found = rule.search(&egraph);
@@ -88,7 +90,7 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
 
 #[test]
 fn root_binder_is_visible_to_search_and_rhs() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = egraph.add(symbol("X"));
     let root = egraph.add(
         OpNode::from_parts(
@@ -113,10 +115,11 @@ fn root_binder_is_visible_to_search_and_rhs() {
         })
     );
 
-    let rule = rule_root_binding::build_rewrite_with(
-        support::fixture_metadata,
+    let rule = support::configure_rule(
+        &mut egraph,
+        support::fixture_metadata::<support::TestAnalysis>,
         support::fixture_inference,
-        (),
+        rule_root_binding::build_rewrite(()),
     )
     .unwrap();
     let found = rule.search(&egraph);
@@ -127,7 +130,7 @@ fn root_binder_is_visible_to_search_and_rhs() {
 
 #[test]
 fn repeated_binder_uses_eclass_equality() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let a = egraph.add(symbol("A"));
     let b = egraph.add(symbol("B"));
     let c = egraph.add(symbol("C"));

@@ -58,7 +58,22 @@ impl Analysis<OpNode> for TensorAnalysis {
     }
 }
 
-/// Read an e-class's agreed shape and dtype; also accepted by rewrite builders.
+/// Read an e-class's agreed shape and dtype.
 pub fn tensor_info(egraph: &EGraph<OpNode, TensorAnalysis>, id: Id) -> Option<TensorInfo> {
     egraph[egraph.find(id)].data.info().cloned()
+}
+
+impl super::super::pattern::RewriteAnalysis for TensorAnalysis {
+    const HAS_TENSOR_INFO: bool = true;
+    fn tensor_info(graph: &EGraph<OpNode, Self>, id: Id) -> Option<TensorInfo> {
+        tensor_info(graph, id)
+    }
+    fn infer_output(
+        &self,
+        op: super::super::Op,
+        operands: &[TensorInfo],
+        attrs: &super::super::OpAttrs,
+    ) -> Option<TensorInfo> {
+        super::infer_tensor_output(op, operands, attrs)
+    }
 }

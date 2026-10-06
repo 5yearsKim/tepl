@@ -2,15 +2,15 @@
 #![allow(unused_imports, unused_variables, unused_mut, unused_parens)]
 
 pub mod rule_lora {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{AnalysisMetadata, RewriteAnalysis};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
-        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        TensorPattern, tensor_rewrite_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
+    use ::egg::{EGraph, Rewrite, Var};
+    use ::std::collections::HashMap;
     pub trait Functions: Send + Sync {
         /// Host implementation of TEPL `$is_broadcastable(...)`.
         fn is_broadcastable(&self, arg0: &[u64], arg1: &[u64]) -> Option<bool>;
@@ -152,41 +152,25 @@ pub mod rule_lora {
         ])
     }
     /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
+    pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N> {
         MatchChecks::tensors(constraints())
     }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
+    /// Uses the graph's analysis; () supports structural rules.
+    pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
+        N: RewriteAnalysis,
         F: Functions + 'static,
     {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
+        let checks = match_checks::<N>();
+        let metadata = AnalysisMetadata::<N>::new();
+        tensor_rewrite_with_checks(
             "lora::lora",
             pattern(),
             expression(),
             checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
+            true,
             move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 let descriptor_0 = ctx.attrs(AttrVar::from("d0"))?.clone();
                 let descriptor_0 = descriptor_0.checked_schema(8)?;
                 let descriptor_1 = ctx.attrs(AttrVar::from("d1"))?.clone();

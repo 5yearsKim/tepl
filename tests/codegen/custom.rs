@@ -1,3 +1,4 @@
+mod support;
 use egg::{EGraph, Id, Rewrite};
 use std::collections::HashMap;
 use std::sync::{
@@ -16,7 +17,7 @@ fn info(shape: &[u64], dtype: DType) -> TensorInfo {
         dtype,
     }
 }
-fn input(graph: &mut EGraph<OpNode, ()>, name: &str) -> Id {
+fn input(graph: &mut EGraph<OpNode, support::TestAnalysis>, name: &str) -> Id {
     graph.add(
         OpNode::from_parts(
             Op::Custom(custom::Op::Input),
@@ -26,12 +27,12 @@ fn input(graph: &mut EGraph<OpNode, ()>, name: &str) -> Id {
         .unwrap(),
     )
 }
-fn operation(graph: &mut EGraph<OpNode, ()>, op: Op, children: Vec<Id>) -> Id {
+fn operation(graph: &mut EGraph<OpNode, support::TestAnalysis>, op: Op, children: Vec<Id>) -> Id {
     graph.add(OpNode::from_parts(op, children, OpAttrs::None).unwrap())
 }
-fn metadata(entries: Vec<(Id, TensorInfo)>) -> impl TensorMetadata<()> {
+fn metadata(entries: Vec<(Id, TensorInfo)>) -> impl TensorMetadata<support::TestAnalysis> {
     let entries: HashMap<_, _> = entries.into_iter().collect();
-    move |graph: &EGraph<OpNode, ()>, id: Id| {
+    move |graph: &EGraph<OpNode, support::TestAnalysis>, id: Id| {
         entries
             .iter()
             .find(|(key, _)| graph.find(**key) == graph.find(id))
@@ -71,7 +72,10 @@ impl OutputInference for Inference {
         }
     }
 }
-fn apply(graph: &mut EGraph<OpNode, ()>, rule: Rewrite<OpNode, ()>) -> Vec<Id> {
+fn apply(
+    graph: &mut EGraph<OpNode, support::TestAnalysis>,
+    rule: Rewrite<OpNode, support::TestAnalysis>,
+) -> Vec<Id> {
     graph.rebuild();
     let matches = rule.search(graph);
     rule.apply(graph, &matches)
@@ -123,7 +127,7 @@ fn middle_sequences_allow_empty_and_check_repeated_dimensions_and_dtype() {
         (vec![2], vec![2], false),
         (vec![2, 129], vec![2, 129], false),
     ] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = input(&mut graph, "x");
         let y = input(&mut graph, "y");
         let root = operation(&mut graph, Op::Custom(custom::Op::Add), vec![x, y]);
@@ -132,7 +136,9 @@ fn middle_sequences_allow_empty_and_check_repeated_dimensions_and_dtype() {
             (y, info(&right, DType::F32)),
             (root, info(&left, DType::F32)),
         ]);
-        let rule = rule_commute::build_rewrite_with(meta, Inference, ()).unwrap();
+        let rule =
+            support::configure_rule(&mut graph, meta, Inference, rule_commute::build_rewrite(()))
+                .unwrap();
         assert_eq!(!apply(&mut graph, rule).is_empty(), accepted);
     }
 }
@@ -145,11 +151,17 @@ fn inherited_restrictions_and_dtype_are_all_enforced() {
         (vec![2, 4], DType::F32, false),
         (vec![0, 3, 4], DType::F32, false),
     ] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = input(&mut graph, "x");
         let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
         let meta = metadata(vec![(x, info(&shape, dtype)), (root, info(&shape, dtype))]);
-        let rule = rule_inherited::build_rewrite_with(meta, Inference, ()).unwrap();
+        let rule = support::configure_rule(
+            &mut graph,
+            meta,
+            Inference,
+            rule_inherited::build_rewrite(()),
+        )
+        .unwrap();
         assert_eq!(!apply(&mut graph, rule).is_empty(), accepted);
     }
 }
@@ -157,7 +169,7 @@ fn inherited_restrictions_and_dtype_are_all_enforced() {
 #[test]
 fn untyped_literal_patterns_match_any_dtype_and_rhs_uses_context() {
     for dtype in [DType::I32, DType::F32, DType::U64] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = input(&mut graph, "x");
         let literal = graph.add(OpNode::literal("1", dtype).unwrap());
         let root = operation(&mut graph, Op::Custom(custom::Op::Add), vec![x, literal]);
@@ -171,7 +183,13 @@ fn untyped_literal_patterns_match_any_dtype_and_rhs_uses_context() {
             dtype == DType::I32
         );
         let meta = metadata(vec![(x, info(&[3], dtype)), (root, info(&[3], dtype))]);
-        let rule = rule_literal_any::build_rewrite_with(meta, Inference, ()).unwrap();
+        let rule = support::configure_rule(
+            &mut graph,
+            meta,
+            Inference,
+            rule_literal_any::build_rewrite(()),
+        )
+        .unwrap();
         assert!(!apply(&mut graph, rule).is_empty());
         assert!(
             graph
@@ -206,7 +224,7 @@ fn new_untyped_rhs_literal_is_resolved_before_insertion_and_failure_is_atomic() 
         }
     }
     for accepted in [true, false] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = input(&mut graph, "x");
         let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
         let before = graph.total_size();
@@ -215,9 +233,21 @@ fn new_untyped_rhs_literal_is_resolved_before_insertion_and_failure_is_atomic() 
             (root, info(&[3], DType::F32)),
         ]);
         let rule = if accepted {
-            rule_construct_literal::build_rewrite_with(meta, Inference, ()).unwrap()
+            support::configure_rule(
+                &mut graph,
+                meta,
+                Inference,
+                rule_construct_literal::build_rewrite(()),
+            )
+            .unwrap()
         } else {
-            rule_construct_literal::build_rewrite_with(meta, Reject, ()).unwrap()
+            support::configure_rule(
+                &mut graph,
+                meta,
+                Reject,
+                rule_construct_literal::build_rewrite(()),
+            )
+            .unwrap()
         };
         assert_eq!(!apply(&mut graph, rule).is_empty(), accepted);
         if accepted {
@@ -234,7 +264,7 @@ fn new_untyped_rhs_literal_is_resolved_before_insertion_and_failure_is_atomic() 
 
 #[test]
 fn lhs_binder_reuses_the_bound_eclass() {
-    let mut graph = EGraph::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = input(&mut graph, "x");
     let y = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
     let root = operation(&mut graph, Op::Custom(custom::Op::Add), vec![y, y]);
@@ -242,7 +272,8 @@ fn lhs_binder_reuses_the_bound_eclass() {
         (y, info(&[3], DType::F32)),
         (root, info(&[3], DType::F32)),
     ]);
-    let rule = rule_bind::build_rewrite_with(meta, Inference, ()).unwrap();
+    let rule =
+        support::configure_rule(&mut graph, meta, Inference, rule_bind::build_rewrite(())).unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
     assert_eq!(graph.find(root), graph.find(y));
 }
@@ -273,7 +304,7 @@ impl rule_derive_chain::Functions for Chain {
 #[test]
 fn derivations_run_in_order_and_wrong_schemas_reject_without_insertion() {
     for wrong in [false, true] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = input(&mut graph, "x");
         let root = graph.add(
             OpNode::from_parts(
@@ -292,13 +323,14 @@ fn derivations_run_in_order_and_wrong_schemas_reject_without_insertion() {
             (x, info(&[3], DType::F32)),
             (root, info(&[3], DType::F32)),
         ]);
-        let rule = rule_derive_chain::build_rewrite_with(
+        let rule = support::configure_rule(
+            &mut graph,
             meta,
             Inference,
-            Chain {
+            rule_derive_chain::build_rewrite(Chain {
                 calls: calls.clone(),
                 wrong,
-            },
+            }),
         )
         .unwrap();
         assert_eq!(!apply(&mut graph, rule).is_empty(), !wrong);
@@ -333,34 +365,52 @@ impl rule_short_circuit::Functions for NoCalls {
 }
 #[test]
 fn short_circuit_skips_fallible_host_calls() {
-    let mut graph = EGraph::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = input(&mut graph, "x");
     let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
     let meta = metadata(vec![
         (x, info(&[], DType::F32)),
         (root, info(&[], DType::F32)),
     ]);
-    let rule = rule_short_circuit::build_rewrite_with(meta, Inference, NoCalls).unwrap();
+    let rule = support::configure_rule(
+        &mut graph,
+        meta,
+        Inference,
+        rule_short_circuit::build_rewrite(NoCalls),
+    )
+    .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
 }
 
 #[test]
 fn overflow_and_division_by_zero_reject_in_debug_and_release() {
     for n in [2, u64::MAX] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = input(&mut graph, "x");
         let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
         let meta = metadata(vec![
             (x, info(&[n], DType::F32)),
             (root, info(&[n], DType::F32)),
         ]);
-        let rule = rule_overflow::build_rewrite_with(meta, Inference, ()).unwrap();
+        let rule = support::configure_rule(
+            &mut graph,
+            meta,
+            Inference,
+            rule_overflow::build_rewrite(()),
+        )
+        .unwrap();
         assert_eq!(!apply(&mut graph, rule).is_empty(), n != u64::MAX);
         let meta = metadata(vec![
             (x, info(&[n], DType::F32)),
             (root, info(&[n], DType::F32)),
         ]);
-        let rule = rule_divide_zero::build_rewrite_with(meta, Inference, ()).unwrap();
+        let rule = support::configure_rule(
+            &mut graph,
+            meta,
+            Inference,
+            rule_divide_zero::build_rewrite(()),
+        )
+        .unwrap();
         assert!(apply(&mut graph, rule).is_empty());
     }
 }
@@ -383,39 +433,41 @@ impl rule_signed_float::Functions for Numeric {
 }
 #[test]
 fn nested_host_calls_and_signed_float_expressions_execute() {
-    let mut graph = EGraph::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = input(&mut graph, "x");
     let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
     let meta = metadata(vec![
         (x, info(&[2], DType::F32)),
         (root, info(&[2], DType::F32)),
     ]);
-    assert!(
-        !apply(
-            &mut graph,
-            rule_nested_calls::build_rewrite_with(meta, Inference, Numeric).unwrap()
-        )
-        .is_empty()
-    );
-    let mut graph = EGraph::default();
+    let rule = support::configure_rule(
+        &mut graph,
+        meta,
+        Inference,
+        rule_nested_calls::build_rewrite(Numeric),
+    )
+    .unwrap();
+    assert!(!apply(&mut graph, rule).is_empty());
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = input(&mut graph, "x");
     let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
     let meta = metadata(vec![
         (x, info(&[], DType::F32)),
         (root, info(&[], DType::F32)),
     ]);
-    assert!(
-        !apply(
-            &mut graph,
-            rule_signed_float::build_rewrite_with(meta, Inference, Numeric).unwrap()
-        )
-        .is_empty()
-    );
+    let rule = support::configure_rule(
+        &mut graph,
+        meta,
+        Inference,
+        rule_signed_float::build_rewrite(Numeric),
+    )
+    .unwrap();
+    assert!(!apply(&mut graph, rule).is_empty());
 }
 
 #[test]
 fn incompatible_output_metadata_rejects_without_partial_rhs() {
-    let mut graph = EGraph::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = input(&mut graph, "x");
     let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
     let meta = metadata(vec![
@@ -423,7 +475,13 @@ fn incompatible_output_metadata_rejects_without_partial_rhs() {
         (root, info(&[3], DType::F32)),
     ]);
     let before = graph.total_size();
-    let rule = rule_construct_literal::build_rewrite_with(meta, Inference, ()).unwrap();
+    let rule = support::configure_rule(
+        &mut graph,
+        meta,
+        Inference,
+        rule_construct_literal::build_rewrite(()),
+    )
+    .unwrap();
     assert!(apply(&mut graph, rule).is_empty());
     assert_eq!(graph.total_size(), before);
 }
@@ -435,7 +493,7 @@ fn rhs_validation_finishes_before_host_inference() {
     };
 
     for valid_attrs in [false, true] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = input(&mut graph, "x");
         let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
         let var = "?x".parse().unwrap();
@@ -534,20 +592,26 @@ impl rule_reserved_names::Functions for KeywordHost {
 
 #[test]
 fn keyword_host_method_uses_raw_identifier_in_declaration_and_call() {
-    let mut graph = EGraph::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = input(&mut graph, "x");
     let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
     let meta = metadata(vec![
         (x, info(&[2], DType::F32)),
         (root, info(&[2], DType::F32)),
     ]);
-    let rule = rule_reserved_names::build_rewrite_with(meta, Inference, KeywordHost).unwrap();
+    let rule = support::configure_rule(
+        &mut graph,
+        meta,
+        Inference,
+        rule_reserved_names::build_rewrite(KeywordHost),
+    )
+    .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
     assert_eq!(graph.find(root), graph.find(x));
 }
 #[test]
 fn nested_owned_tensor_and_sequence_results_borrow_correctly_in_host_calls() {
-    let mut graph = EGraph::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = input(&mut graph, "x");
     let root = graph.add(
         OpNode::from_parts(
@@ -564,7 +628,13 @@ fn nested_owned_tensor_and_sequence_results_borrow_correctly_in_host_calls() {
         (x, info(&[2, 3, 4], DType::F32)),
         (root, info(&[2, 3, 4], DType::F32)),
     ]);
-    let rule = rule_typed_pipeline::build_rewrite_with(meta, Inference, TypedHost).unwrap();
+    let rule = support::configure_rule(
+        &mut graph,
+        meta,
+        Inference,
+        rule_typed_pipeline::build_rewrite(TypedHost),
+    )
+    .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
     assert!(
         graph
@@ -582,11 +652,17 @@ impl rule_short_literal::Functions for NoCalls {
 }
 #[test]
 fn skipped_host_branch_does_not_eagerly_read_missing_capture_metadata() {
-    let mut graph = EGraph::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = input(&mut graph, "x");
     let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
     let meta = metadata(vec![(root, info(&[], DType::F32))]);
-    let rule = rule_short_literal::build_rewrite_with(meta, Inference, NoCalls).unwrap();
+    let rule = support::configure_rule(
+        &mut graph,
+        meta,
+        Inference,
+        rule_short_literal::build_rewrite(NoCalls),
+    )
+    .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
     assert!(
         graph
@@ -606,11 +682,17 @@ fn generated_mixed_shapes_and_where_prune_with_inherited_bindings() {
         (vec![3, 9, 3], DType::I32, false, false),
         (vec![5, 9, 5], DType::F32, false, false),
     ] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = input(&mut graph, "x");
         let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
         let meta = metadata(vec![(x, info(&shape, dtype)), (root, info(&shape, dtype))]);
-        let rule = rule_mixed_inherited::build_rewrite_with(meta, Inference, ()).unwrap();
+        let rule = support::configure_rule(
+            &mut graph,
+            meta,
+            Inference,
+            rule_mixed_inherited::build_rewrite(()),
+        )
+        .unwrap();
         graph.rebuild();
         let matches = rule.search(&graph);
         assert_eq!(!matches.is_empty(), searched, "{shape:?} {dtype:?}");

@@ -5,9 +5,6 @@
 #include "pattern.h"
 
 namespace @TEPL_NAMESPACE@::pattern {
-template <class A>
-using TensorMetadata = ::std::function<::std::optional<TensorInfo>(
-    const ::eggc::EGraph<OpNode, A>&, ::eggc::Id)>;
 template <class A, class M>
 struct MatchContext {
   const ::eggc::EGraph<OpNode, A>& graph;

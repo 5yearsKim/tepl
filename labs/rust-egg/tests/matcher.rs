@@ -57,7 +57,7 @@ fn sibling_alternatives_are_independent_ordered_and_can_stop_early() {
         "limit",
         pattern,
         TensorExpr::Var(a),
-        support::fixture_metadata,
+        support::fixture_metadata::<()>,
         support::fixture_inference,
         |_, _| Some(Default::default()),
     )

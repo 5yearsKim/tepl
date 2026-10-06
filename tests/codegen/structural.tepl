@@ -1,0 +1,27 @@
+dialect Structural {
+    op add(lhs: tensor, rhs: tensor) -> tensor;
+    op negate(input: tensor) -> tensor;
+    op dot(lhs: tensor, rhs: tensor) -> tensor {
+        attrs { axis: index; }
+    }
+}
+rule swap_add { (Structural.add X Y) => (Structural.add Y X) }
+rule swap_dot {
+    (Structural.dot[@dot] X Y) => (Structural.dot[@dot] Y X)
+    where { $supports_axis(@dot.axis); }
+}
+rule remove_zero { (Structural.add X 0) => X }
+rule typed_rhs { (Structural.add X 0:i32) => (Structural.add 0:i32 X) }
+rule untyped_rhs { (Structural.add X 0:i32) => (Structural.add 0 X) }
+rule shaped {
+    X: i32[N]
+    (Structural.negate X) => X
+}
+rule tensor_host {
+    (Structural.negate X) => X
+    where { $allowed(X); }
+}
+rule tensor_derive {
+    (Structural.dot[@dot] X Y) => (Structural.dot[@new] X Y)
+    derive { @new = $update(X, @dot); }
+}

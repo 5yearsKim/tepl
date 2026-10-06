@@ -6,7 +6,7 @@ use rust_egg::ir::dialects::tensor_lang;
 use std::sync::{Arc, Mutex};
 
 use egg::{EGraph, Id, Rewrite, Var};
-use rust_egg::host::{LoraAnalysis, infer_lora_tensor_output, lora_tensor_info};
+use rust_egg::host::LoraAnalysis;
 use rust_egg::ir::analysis::TensorBindingTable;
 use rust_egg::ir::pattern::{AttrVar, TensorInfo, matches_at};
 use rust_egg::ir::rules::lora::rule_lora;
@@ -62,13 +62,9 @@ fn fixture(b_output: u64) -> Fixture {
 }
 
 fn test_rule() -> Rewrite<OpNode, LoraAnalysis> {
-    rule_lora::build_rewrite_with(
-        lora_tensor_info,
-        infer_lora_tensor_output,
-        DemoLoraFunctions {
-            allow_reassociation: true,
-        },
-    )
+    rule_lora::build_rewrite(DemoLoraFunctions {
+        allow_reassociation: true,
+    })
     .unwrap()
 }
 
@@ -172,13 +168,9 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
     }
     let Fixture { mut egraph, .. } = fixture(5);
     let calls = Arc::new(Mutex::new(Vec::new()));
-    let rule = rule_lora::build_rewrite_with(
-        lora_tensor_info,
-        infer_lora_tensor_output,
-        TracingFunctions {
-            calls: calls.clone(),
-        },
-    )
+    let rule = rule_lora::build_rewrite(TracingFunctions {
+        calls: calls.clone(),
+    })
     .unwrap();
     let found = rule.search(&egraph);
     assert_eq!(rule.apply(&mut egraph, &found).len(), 1);

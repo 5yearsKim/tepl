@@ -109,3 +109,13 @@ impl Analysis<OpNode> for LoraAnalysis {
         target.merge(incoming)
     }
 }
+
+impl crate::ir::pattern::RewriteAnalysis for LoraAnalysis {
+    const HAS_TENSOR_INFO: bool = true;
+    fn tensor_info(graph: &EGraph<OpNode, Self>, id: Id) -> Option<TensorInfo> {
+        lora_tensor_info(graph, id)
+    }
+    fn infer_output(&self, op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo> {
+        infer_lora_tensor_output(op, operands, attrs)
+    }
+}

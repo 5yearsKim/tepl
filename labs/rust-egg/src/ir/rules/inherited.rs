@@ -2,15 +2,15 @@
 #![allow(unused_imports, unused_variables, unused_mut, unused_parens)]
 
 pub mod rule_commute_add {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{AnalysisMetadata, RewriteAnalysis};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
-        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        TensorPattern, tensor_rewrite_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
+    use ::egg::{EGraph, Rewrite, Var};
+    use ::std::collections::HashMap;
     pub trait Functions: Send + Sync {}
     impl Functions for () {}
     pub fn pattern() -> TensorPattern {
@@ -37,41 +37,25 @@ pub mod rule_commute_add {
         TensorConstraints::new(vec![])
     }
     /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
+    pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N> {
         MatchChecks::tensors(constraints())
     }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
+    /// Uses the graph's analysis; () supports structural rules.
+    pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
+        N: RewriteAnalysis,
         F: Functions + 'static,
     {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
+        let checks = match_checks::<N>();
+        let metadata = AnalysisMetadata::<N>::new();
+        tensor_rewrite_with_checks(
             "inherited::commute_add",
             pattern(),
             expression(),
             checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
+            false,
             move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 Some(Default::default())
             },
         )
@@ -79,15 +63,15 @@ pub mod rule_commute_add {
 }
 
 pub mod rule_commute_mul {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{AnalysisMetadata, RewriteAnalysis};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
-        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        TensorPattern, tensor_rewrite_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
+    use ::egg::{EGraph, Rewrite, Var};
+    use ::std::collections::HashMap;
     pub trait Functions: Send + Sync {}
     impl Functions for () {}
     pub fn pattern() -> TensorPattern {
@@ -114,41 +98,25 @@ pub mod rule_commute_mul {
         TensorConstraints::new(vec![])
     }
     /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
+    pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N> {
         MatchChecks::tensors(constraints())
     }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
+    /// Uses the graph's analysis; () supports structural rules.
+    pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
+        N: RewriteAnalysis,
         F: Functions + 'static,
     {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
+        let checks = match_checks::<N>();
+        let metadata = AnalysisMetadata::<N>::new();
+        tensor_rewrite_with_checks(
             "inherited::commute_mul",
             pattern(),
             expression(),
             checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
+            false,
             move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 Some(Default::default())
             },
         )
@@ -156,15 +124,15 @@ pub mod rule_commute_mul {
 }
 
 pub mod rule_commute_small_vectors {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{AnalysisMetadata, RewriteAnalysis};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
-        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        TensorPattern, tensor_rewrite_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
+    use ::egg::{EGraph, Rewrite, Var};
+    use ::std::collections::HashMap;
     pub trait Functions: Send + Sync {}
     impl Functions for () {}
     pub fn pattern() -> TensorPattern {
@@ -205,21 +173,20 @@ pub mod rule_commute_small_vectors {
             ),
         ])
     }
-    fn condition_0<N: Analysis<OpNode>, M: TensorMetadata<N>>(
-        ctx: &MatchContext<'_, N, M>,
+    fn condition_0<N: RewriteAnalysis>(
+        ctx: &MatchContext<'_, N, AnalysisMetadata<N>>,
         dimensions: &MetadataBindings,
     ) -> Option<bool> {
         Some(((dimensions.dimension(0)?) <= ("1024".parse::<u64>().ok()?)))
     }
     /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
+    pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N> {
+        let metadata = AnalysisMetadata::<N>::new();
         MatchChecks::new(
             constraints(),
             vec![vec![MatchBinding::Dimension(0)]],
             move |index, graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 match index {
                     0 => condition_0(&ctx, dimensions),
                     _ => None,
@@ -227,36 +194,22 @@ pub mod rule_commute_small_vectors {
             },
         )
     }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
+    /// Uses the graph's analysis; () supports structural rules.
+    pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
+        N: RewriteAnalysis,
         F: Functions + 'static,
     {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
+        let checks = match_checks::<N>();
+        let metadata = AnalysisMetadata::<N>::new();
+        tensor_rewrite_with_checks(
             "inherited::commute_small_vectors",
             pattern(),
             expression(),
             checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
+            true,
             move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 Some(Default::default())
             },
         )
@@ -264,15 +217,15 @@ pub mod rule_commute_small_vectors {
 }
 
 pub mod rule_associate_add_right {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{AnalysisMetadata, RewriteAnalysis};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
-        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        TensorPattern, tensor_rewrite_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
+    use ::egg::{EGraph, Rewrite, Var};
+    use ::std::collections::HashMap;
     pub trait Functions: Send + Sync {}
     impl Functions for () {}
     pub fn pattern() -> TensorPattern {
@@ -313,41 +266,25 @@ pub mod rule_associate_add_right {
         TensorConstraints::new(vec![])
     }
     /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
+    pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N> {
         MatchChecks::tensors(constraints())
     }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
+    /// Uses the graph's analysis; () supports structural rules.
+    pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
+        N: RewriteAnalysis,
         F: Functions + 'static,
     {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
+        let checks = match_checks::<N>();
+        let metadata = AnalysisMetadata::<N>::new();
+        tensor_rewrite_with_checks(
             "inherited::associate_add_right",
             pattern(),
             expression(),
             checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
+            false,
             move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 Some(Default::default())
             },
         )
@@ -355,15 +292,15 @@ pub mod rule_associate_add_right {
 }
 
 pub mod rule_associate_mul_right {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{AnalysisMetadata, RewriteAnalysis};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
-        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        TensorPattern, tensor_rewrite_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
+    use ::egg::{EGraph, Rewrite, Var};
+    use ::std::collections::HashMap;
     pub trait Functions: Send + Sync {}
     impl Functions for () {}
     pub fn pattern() -> TensorPattern {
@@ -404,41 +341,25 @@ pub mod rule_associate_mul_right {
         TensorConstraints::new(vec![])
     }
     /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
+    pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N> {
         MatchChecks::tensors(constraints())
     }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
+    /// Uses the graph's analysis; () supports structural rules.
+    pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
+        N: RewriteAnalysis,
         F: Functions + 'static,
     {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
+        let checks = match_checks::<N>();
+        let metadata = AnalysisMetadata::<N>::new();
+        tensor_rewrite_with_checks(
             "inherited::associate_mul_right",
             pattern(),
             expression(),
             checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
+            false,
             move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 Some(Default::default())
             },
         )
@@ -446,15 +367,15 @@ pub mod rule_associate_mul_right {
 }
 
 pub mod rule_associate_small_vectors {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{AnalysisMetadata, RewriteAnalysis};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
-        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        TensorPattern, tensor_rewrite_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
+    use ::egg::{EGraph, Rewrite, Var};
+    use ::std::collections::HashMap;
     pub trait Functions: Send + Sync {}
     impl Functions for () {}
     pub fn pattern() -> TensorPattern {
@@ -516,21 +437,20 @@ pub mod rule_associate_small_vectors {
             ),
         ])
     }
-    fn condition_0<N: Analysis<OpNode>, M: TensorMetadata<N>>(
-        ctx: &MatchContext<'_, N, M>,
+    fn condition_0<N: RewriteAnalysis>(
+        ctx: &MatchContext<'_, N, AnalysisMetadata<N>>,
         dimensions: &MetadataBindings,
     ) -> Option<bool> {
         Some(((dimensions.dimension(0)?) <= ("1024".parse::<u64>().ok()?)))
     }
     /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
+    pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N> {
+        let metadata = AnalysisMetadata::<N>::new();
         MatchChecks::new(
             constraints(),
             vec![vec![MatchBinding::Dimension(0)]],
             move |index, graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 match index {
                     0 => condition_0(&ctx, dimensions),
                     _ => None,
@@ -538,36 +458,22 @@ pub mod rule_associate_small_vectors {
             },
         )
     }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
+    /// Uses the graph's analysis; () supports structural rules.
+    pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
+        N: RewriteAnalysis,
         F: Functions + 'static,
     {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
+        let checks = match_checks::<N>();
+        let metadata = AnalysisMetadata::<N>::new();
+        tensor_rewrite_with_checks(
             "inherited::associate_small_vectors",
             pattern(),
             expression(),
             checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
+            true,
             move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 Some(Default::default())
             },
         )
@@ -575,15 +481,15 @@ pub mod rule_associate_small_vectors {
 }
 
 pub mod rule_distribute_mul_over_add {
-    use super::super::super::analysis::{TensorAnalysis, infer_tensor_output, tensor_info};
+    use super::super::super::pattern::{AnalysisMetadata, RewriteAnalysis};
     use super::super::super::pattern::{
-        AttrExpr, AttrPattern, AttrVar, MatchBinding, MatchChecks, MatchContext, MetadataBindings,
-        OutputInference, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
-        TensorMetadata, TensorPattern, tensor_rewrite_checked_with_checks,
+        AttrExpr, AttrPattern, AttrVar, DTypeConstraint, MatchBinding, MatchChecks, MatchContext,
+        MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr, TensorInfo,
+        TensorPattern, tensor_rewrite_with_checks,
     };
     use super::super::super::{DType, OpAttrs, OpNode};
-    use ::egg::{Analysis, EGraph, Rewrite, Var};
-    use ::std::{collections::HashMap, sync::Arc};
+    use ::egg::{EGraph, Rewrite, Var};
+    use ::std::collections::HashMap;
     pub trait Functions: Send + Sync {}
     impl Functions for () {}
     pub fn pattern() -> TensorPattern {
@@ -631,41 +537,25 @@ pub mod rule_distribute_mul_over_add {
         TensorConstraints::new(vec![])
     }
     /// Shape declarations and the ordered builtin-only where prefix.
-    pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + 'static>(
-        metadata: Arc<M>,
-    ) -> MatchChecks<N> {
+    pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N> {
         MatchChecks::tensors(constraints())
     }
-    /// Uses the same metadata and inference as TensorAnalysis.
-    pub fn build_rewrite<F: Functions + 'static>(
-        functions: F,
-    ) -> Result<Rewrite<OpNode, TensorAnalysis>, String> {
-        build_rewrite_with(tensor_info, infer_tensor_output, functions)
-    }
-    /// Explicit hooks for a custom analysis or inference policy.
-    pub fn build_rewrite_with<N, M, I, F>(
-        metadata: M,
-        inference: I,
-        functions: F,
-    ) -> Result<Rewrite<OpNode, N>, String>
+    /// Uses the graph's analysis; () supports structural rules.
+    pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, String>
     where
-        N: Analysis<OpNode> + 'static,
-        M: TensorMetadata<N> + 'static,
-        I: OutputInference + 'static,
+        N: RewriteAnalysis,
         F: Functions + 'static,
     {
-        let metadata = Arc::new(metadata);
-        let checks = match_checks::<N, M>(metadata.clone());
-        let checker_metadata = metadata.clone();
-        tensor_rewrite_checked_with_checks(
+        let checks = match_checks::<N>();
+        let metadata = AnalysisMetadata::<N>::new();
+        tensor_rewrite_with_checks(
             "inherited::distribute_mul_over_add",
             pattern(),
             expression(),
             checks,
-            move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id),
-            inference,
+            false,
             move |graph, matched, dimensions| {
-                let ctx = MatchContext::new(graph, matched, checker_metadata.as_ref());
+                let ctx = MatchContext::new(graph, matched, &metadata);
                 Some(Default::default())
             },
         )

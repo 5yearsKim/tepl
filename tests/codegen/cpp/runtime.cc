@@ -2,6 +2,7 @@
 #include <eggc/all.hpp>
 
 #include "ir/generated.h"
+#include "support.h"
 
 namespace ir = tepl_generated;
 using Op = ir::dialects::runtime_test::Op;
@@ -54,7 +55,7 @@ void grouped_application_test(unsigned count, bool accept,
                               bool invalidate_metadata = false) {
   namespace p = ir::pattern;
   namespace r = ir::rules::runtime;
-  using B = eggc::NoAnalysis<ir::OpNode>;
+  using B = support::TestAnalysis;
   using G = eggc::EGraph<ir::OpNode, B>;
   G g;
   std::optional<eggc::Id> root;
@@ -79,8 +80,9 @@ void grouped_application_test(unsigned count, bool accept,
   };
   auto rule = p::tensor_rewrite_checked_with_checks<B>(
       "grouped", r::rule_eliminate::pattern(), r::rule_eliminate::expression(),
-      r::rule_eliminate::match_checks<B>(metadata), metadata,
-      ir::analysis::TensorOutputInference{},
+      support::configure_checks(g, metadata,
+                                r::rule_eliminate::match_checks<B>()),
+      metadata, ir::analysis::TensorOutputInference{},
       [&](const auto&, const auto&,
           const auto&) -> std::optional<p::DerivedAttrs> {
         ++callbacks;
@@ -210,7 +212,7 @@ int main() {
   assert(rejected.node_count() == before);
   assert(inference_calls == 0);
   // Branches with conflicting shape bindings do not contaminate siblings.
-  using B = eggc::NoAnalysis<ir::OpNode>;
+  using B = support::TestAnalysis;
   using G = eggc::EGraph<ir::OpNode, B>;
   G branches;
   auto bad = branches.add(ir::OpNode::input("bad")),
@@ -227,7 +229,8 @@ int main() {
         {g.find(id) == g.find(bad) ? std::uint64_t(5) : std::uint64_t(2)},
         ir::DType::F32};
   };
-  auto checks = r::rule_branch::match_checks<B>(metadata);
+  auto checks = support::configure_checks(branches, metadata,
+                                          r::rule_branch::match_checks<B>());
   auto matches = p::matches_at_with_checks(
       branches, root, r::rule_branch::pattern(), checks, metadata);
   assert(matches.size() == 1);

@@ -1,3 +1,4 @@
+mod support;
 use egg::{EGraph, Id};
 use std::{
     collections::HashMap,
@@ -151,7 +152,8 @@ fn identity_conversion_binds_input_dtype_and_preserves_real_conversions() {
 }
 #[test]
 fn shared_dtype_variables_bind_per_branch_and_reject_mismatches() {
-    let mut graph: EGraph<OpNode, ()> = EGraph::default();
+    let mut graph: EGraph<OpNode, support::TestAnalysis> =
+        EGraph::<OpNode, support::TestAnalysis>::default();
     let mut facts = HashMap::new();
     for (index, (a, b, accepted)) in [
         (DType::F32, DType::F32, true),
@@ -170,10 +172,11 @@ fn shared_dtype_variables_bind_per_branch_and_reject_mismatches() {
         facts.insert(root, info(a));
         graph.rebuild();
         let data = facts.clone();
-        let rule = rule_shared::build_rewrite_with(
-            move |_: &EGraph<OpNode, ()>, id| data.get(&id).cloned(),
+        let rule = support::configure_rule(
+            &mut graph,
+            move |_: &EGraph<OpNode, support::TestAnalysis>, id| data.get(&id).cloned(),
             infer_tensor_output,
-            (),
+            rule_shared::build_rewrite(()),
         )
         .unwrap();
         let checks = rule.searcher.search_eclass(&graph, root);
@@ -185,7 +188,8 @@ fn no_attrs() -> OpAttrs {
 }
 #[test]
 fn failed_candidates_discard_dtype_bindings_before_the_next_branch() {
-    let mut graph: EGraph<OpNode, ()> = EGraph::default();
+    let mut graph: EGraph<OpNode, support::TestAnalysis> =
+        EGraph::<OpNode, support::TestAnalysis>::default();
     let x = graph.add(OpNode::input("f32"));
     let y = graph.add(OpNode::input("bf16"));
     let bad = graph.add(OpNode::from_parts(Op::Pair.into(), vec![x, y], no_attrs()).unwrap());
@@ -193,12 +197,13 @@ fn failed_candidates_discard_dtype_bindings_before_the_next_branch() {
     graph.union(bad, good);
     graph.rebuild();
     let root = graph.find(good);
-    let rule = rule_shared::build_rewrite_with(
-        move |_: &EGraph<OpNode, ()>, id| {
+    let rule = support::configure_rule(
+        &mut graph,
+        move |_: &EGraph<OpNode, support::TestAnalysis>, id| {
             Some(info(if id == x { DType::F32 } else { DType::BF16 }))
         },
         infer_tensor_output,
-        (),
+        rule_shared::build_rewrite(()),
     )
     .unwrap();
     let matched = rule.searcher.search_eclass(&graph, root).unwrap();
@@ -209,21 +214,23 @@ fn failed_candidates_discard_dtype_bindings_before_the_next_branch() {
 }
 #[test]
 fn dtype_guard_prunes_before_reading_a_later_capture() {
-    let mut graph: EGraph<OpNode, ()> = EGraph::default();
+    let mut graph: EGraph<OpNode, support::TestAnalysis> =
+        EGraph::<OpNode, support::TestAnalysis>::default();
     let x = graph.add(OpNode::input("x"));
     let y = graph.add(OpNode::input("y"));
     let root = graph.add(OpNode::from_parts(Op::Pair.into(), vec![x, y], no_attrs()).unwrap());
     graph.rebuild();
     let reads = Arc::new(AtomicUsize::new(0));
     let count = reads.clone();
-    let rule = rule_shared::build_rewrite_with(
-        move |_: &EGraph<OpNode, ()>, id| {
+    let rule = support::configure_rule(
+        &mut graph,
+        move |_: &EGraph<OpNode, support::TestAnalysis>, id| {
             count.fetch_add(1, Ordering::Relaxed);
             assert_eq!(id, x);
             Some(info(DType::I32))
         },
         infer_tensor_output,
-        (),
+        rule_shared::build_rewrite(()),
     )
     .unwrap();
     assert!(rule.searcher.search_eclass(&graph, root).is_none());
@@ -263,7 +270,8 @@ fn missing_and_conflicting_eclass_metadata_prevent_binding() {
 }
 #[test]
 fn application_rebinds_dtype_and_rechecks_guards_before_mutation() {
-    let mut graph: EGraph<OpNode, ()> = EGraph::default();
+    let mut graph: EGraph<OpNode, support::TestAnalysis> =
+        EGraph::<OpNode, support::TestAnalysis>::default();
     let x = graph.add(OpNode::input("x"));
     let root = graph.add(conversion(x, DType::F32));
     graph.rebuild();
@@ -272,10 +280,13 @@ fn application_rebinds_dtype_and_rechecks_guards_before_mutation() {
         (root, info(DType::F32)),
     ])));
     let reader = facts.clone();
-    let rule = identity::build_rewrite_with(
-        move |_: &EGraph<OpNode, ()>, id| reader.lock().unwrap().get(&id).cloned(),
+    let rule = support::configure_rule(
+        &mut graph,
+        move |_: &EGraph<OpNode, support::TestAnalysis>, id| {
+            reader.lock().unwrap().get(&id).cloned()
+        },
         infer_tensor_output,
-        (),
+        identity::build_rewrite(()),
     )
     .unwrap();
     let matches = rule.search(&graph);

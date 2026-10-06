@@ -17,6 +17,7 @@ struct ConditionPlan {
 
 struct RulePlan {
   std::vector<core::HostFunctionId> host_functions;
+  bool requires_tensor_info = false;
   // The ordered builtin-only prefix ends at the first condition containing a
   // host call. Readiness depends on bindings, never on eagerly fetched
   // metadata.

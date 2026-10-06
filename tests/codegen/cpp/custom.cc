@@ -3,12 +3,13 @@
 #include <limits>
 
 #include "ir/generated.h"
+#include "support.h"
 
 namespace ir = tepl_generated;
 using Op = ir::dialects::custom::Op;
 using Axes = ir::dialects::custom::Axes;
 using LocalAttrs = ir::dialects::custom::OpAttrs;
-using A = eggc::NoAnalysis<ir::OpNode>;
+using A = support::TestAnalysis;
 using Graph = eggc::EGraph<ir::OpNode, A>;
 using Info = ir::TensorInfo;
 auto metadata = [](const Graph&, eggc::Id) -> std::optional<Info> {
@@ -85,7 +86,8 @@ int main() {
   auto x = graph.add(ir::OpNode::input("x")),
        y = graph.add(ir::OpNode::input("y"));
   auto xy = graph.add(ir::OpNode::make(Op::Add, {}, {x, y}));
-  auto commute = r::rule_commute::build_rewrite_with<A>(metadata, inference);
+  auto commute = support::configure_rule(graph, metadata, inference,
+                                         r::rule_commute::build_rewrite<A>());
   apply_once(graph, commute);
   auto yx = graph.lookup(ir::OpNode::make(Op::Add, {}, {y, x}));
   assert(yx && graph.find(xy) == graph.find(*yx));
@@ -97,23 +99,26 @@ int main() {
   auto root = graph.add(ir::OpNode::make(Op::Transform, Axes{1, {"tag"}}, {x}));
   graph.rebuild();
   auto calls = std::make_shared<std::vector<unsigned>>();
-  auto chain = r::rule_derive_chain::build_rewrite_with<A>(metadata, inference,
-                                                           Host{calls});
+  auto chain = support::configure_rule(
+      graph, metadata, inference,
+      r::rule_derive_chain::build_rewrite<A>(Host{calls}));
   assert(apply_once(graph, chain));
   assert(*calls == std::vector<unsigned>({0, 1, 2}));
   auto derived =
       graph.lookup(ir::OpNode::make(Op::Transform, Axes{3, {"tag"}}, {x}));
   assert(derived && graph.find(*derived) == graph.find(root));
-  auto bad = r::rule_derive_chain::build_rewrite_with<A>(metadata, inference,
-                                                         Host{calls, true});
+  auto bad = support::configure_rule(
+      graph, metadata, inference,
+      r::rule_derive_chain::build_rewrite<A>(Host{calls, true}));
   auto before = graph.node_count();
   calls->clear();
   assert(!apply_once(graph, bad));
   assert(graph.node_count() == before);
   assert(std::find(calls->begin(), calls->end(), 2) == calls->end());
   calls->clear();
-  auto shorted = r::rule_short_circuit::build_rewrite_with<A>(
-      metadata, inference, Host{calls});
+  auto shorted = support::configure_rule(
+      graph, metadata, inference,
+      r::rule_short_circuit::build_rewrite<A>(Host{calls}));
   assert(apply_once(graph, shorted));
   assert(calls->empty());
   // Use a fresh graph so each host-order check has one structural match.
@@ -124,15 +129,19 @@ int main() {
     return Info{{2}, ir::DType::F32};
   };
   calls->clear();
-  assert(apply_once(nested, r::rule_nested_calls::build_rewrite_with<A>(
-                                dims, inference, Host{calls})));
+  assert(apply_once(nested,
+                    support::configure_rule(
+                        nested, dims, inference,
+                        r::rule_nested_calls::build_rewrite<A>(Host{calls}))));
   assert(*calls == std::vector<unsigned>({1, 2}));
   Graph pipeline;
   input = pipeline.add(ir::OpNode::input("x"));
   pipeline.add(ir::OpNode::make(Op::Transform, Axes{1, {}}, {input}));
   calls->clear();
-  assert(apply_once(pipeline, r::rule_typed_pipeline::build_rewrite_with<A>(
-                                  metadata, inference, Host{calls})));
+  assert(apply_once(
+      pipeline, support::configure_rule(
+                    pipeline, metadata, inference,
+                    r::rule_typed_pipeline::build_rewrite<A>(Host{calls}))));
   assert(*calls == std::vector<unsigned>({3, 4, 5}));
   Graph overflow;
   input = overflow.add(ir::OpNode::input("x"));
@@ -141,10 +150,12 @@ int main() {
     return Info{{std::numeric_limits<std::uint64_t>::max()}, ir::DType::F32};
   };
   before = overflow.node_count();
-  assert(!apply_once(overflow,
-                     r::rule_overflow::build_rewrite_with<A>(huge, inference)));
   assert(!apply_once(
-      overflow, r::rule_divide_zero::build_rewrite_with<A>(huge, inference)));
+      overflow, support::configure_rule(overflow, huge, inference,
+                                        r::rule_overflow::build_rewrite<A>())));
+  assert(!apply_once(overflow, support::configure_rule(
+                                   overflow, huge, inference,
+                                   r::rule_divide_zero::build_rewrite<A>())));
   assert(overflow.node_count() == before);
   Graph numeric;
   input = numeric.add(ir::OpNode::input("x"));
@@ -152,10 +163,13 @@ int main() {
   before = numeric.node_count();
   assert(!apply_once(
       numeric,
-      r::rule_signed_float::build_rewrite_with<A>(
-          metadata, inference,
-          Host{calls, false, std::numeric_limits<double>::infinity()})));
+      support::configure_rule(
+          numeric, metadata, inference,
+          r::rule_signed_float::build_rewrite<A>(
+              Host{calls, false, std::numeric_limits<double>::infinity()}))));
   assert(numeric.node_count() == before);
-  assert(apply_once(numeric, r::rule_signed_float::build_rewrite_with<A>(
-                                 metadata, inference, Host{calls})));
+  assert(apply_once(numeric,
+                    support::configure_rule(
+                        numeric, metadata, inference,
+                        r::rule_signed_float::build_rewrite<A>(Host{calls}))));
 }

@@ -12,6 +12,63 @@ pub struct TensorInfo {
     pub dtype: DType,
 }
 
+/// Connect an egg analysis to generated rewrites. The capability is fixed by the
+/// analysis type; unavailable facts in a checked analysis never disable checks.
+pub trait RewriteAnalysis: Analysis<OpNode> + Send + Sync + 'static {
+    const HAS_TENSOR_INFO: bool;
+
+    fn tensor_info(graph: &EGraph<OpNode, Self>, id: Id) -> Option<TensorInfo>;
+
+    fn infer_output(&self, op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo>;
+
+    fn infer_literal(
+        &self,
+        _value: &str,
+        dtype: Option<DType>,
+        expected: &TensorInfo,
+    ) -> Option<DType> {
+        dtype.or(Some(expected.dtype))
+    }
+}
+
+impl RewriteAnalysis for () {
+    const HAS_TENSOR_INFO: bool = false;
+    fn tensor_info(_: &EGraph<OpNode, Self>, _: Id) -> Option<TensorInfo> {
+        None
+    }
+    fn infer_output(&self, _: Op, _: &[TensorInfo], _: &OpAttrs) -> Option<TensorInfo> {
+        None
+    }
+}
+
+// Readers remain an implementation detail of generated matchers.
+pub(crate) struct AnalysisMetadata<N>(::std::marker::PhantomData<fn() -> N>);
+impl<N> AnalysisMetadata<N> {
+    pub(crate) fn new() -> Self {
+        Self(::std::marker::PhantomData)
+    }
+}
+impl<N: RewriteAnalysis> TensorMetadata<N> for AnalysisMetadata<N> {
+    fn info(&self, graph: &EGraph<OpNode, N>, id: Id) -> Option<TensorInfo> {
+        N::tensor_info(graph, id)
+    }
+}
+
+pub(super) struct AnalysisInference<'a, N>(pub &'a N);
+impl<N: RewriteAnalysis> OutputInference for AnalysisInference<'_, N> {
+    fn infer_output(&self, op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<TensorInfo> {
+        self.0.infer_output(op, operands, attrs)
+    }
+    fn infer_literal(
+        &self,
+        value: &str,
+        dtype: Option<DType>,
+        expected: &TensorInfo,
+    ) -> Option<DType> {
+        self.0.infer_literal(value, dtype, expected)
+    }
+}
+
 /// Infer a constructed operation's output separately from descriptor derivation.
 /// Implementations can share the same operation semantics with e-class analysis.
 pub trait OutputInference: Send + Sync {

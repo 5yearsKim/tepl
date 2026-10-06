@@ -1,3 +1,4 @@
+mod support;
 use egg::{EGraph, Id, Rewrite, Var};
 use rust_egg::host::nodes::*;
 use rust_egg::ir::analysis::TensorBindingTable;
@@ -48,8 +49,8 @@ fn add_output(op: Op, operands: &[TensorInfo], attrs: &OpAttrs) -> Option<Tensor
     }
 }
 
-fn metadata(inputs: [TensorInfo; 2]) -> impl TensorMetadata<()> {
-    move |graph: &EGraph<OpNode, ()>, id: Id| {
+fn metadata(inputs: [TensorInfo; 2]) -> impl TensorMetadata<support::TestAnalysis> {
+    move |graph: &EGraph<OpNode, support::TestAnalysis>, id: Id| {
         // This fixture has exactly symbols, literals and one add root. Every
         // witness in an e-class must independently have the same known type.
         let mut result = None;
@@ -79,8 +80,8 @@ fn metadata(inputs: [TensorInfo; 2]) -> impl TensorMetadata<()> {
     }
 }
 
-fn graph() -> (EGraph<OpNode, ()>, [Id; 3]) {
-    let mut graph = EGraph::default();
+fn graph() -> (EGraph<OpNode, support::TestAnalysis>, [Id; 3]) {
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = graph.add(symbol("X"));
     let y = graph.add(symbol("Y"));
     let root = graph.add(binary(tensor_lang::Op::Add, x, y).unwrap());
@@ -88,7 +89,11 @@ fn graph() -> (EGraph<OpNode, ()>, [Id; 3]) {
     (graph, [x, y, root])
 }
 
-fn apply(graph: &mut EGraph<OpNode, ()>, rule: &Rewrite<OpNode, ()>, accepted: bool) {
+fn apply(
+    graph: &mut EGraph<OpNode, support::TestAnalysis>,
+    rule: &Rewrite<OpNode, support::TestAnalysis>,
+    accepted: bool,
+) {
     let before = graph.total_number_of_nodes();
     let matches = rule.search(graph);
     if accepted {
@@ -105,10 +110,11 @@ fn apply(graph: &mut EGraph<OpNode, ()>, rule: &Rewrite<OpNode, ()>, accepted: b
 fn typed_declarations_reject_same_shaped_tensors_of_other_dtypes() {
     for dtype in DType::ALL {
         let (mut graph, _) = graph();
-        let rule = rule_commute_f32::build_rewrite_with(
+        let rule = support::configure_rule(
+            &mut graph,
             metadata([info(&[4], dtype), info(&[4], dtype)]),
             add_output,
-            (),
+            rule_commute_f32::build_rewrite(()),
         )
         .unwrap();
         assert_eq!(!rule.search(&graph).is_empty(), dtype == DType::F32);
@@ -120,19 +126,21 @@ fn typed_declarations_reject_same_shaped_tensors_of_other_dtypes() {
 fn shared_dtype_bindings_require_equal_numeric_types() {
     for dtype in [DType::BF16, DType::F32, DType::I64] {
         let (mut graph, _) = graph();
-        let rule = rule_commute_same_dtype::build_rewrite_with(
+        let rule = support::configure_rule(
+            &mut graph,
             metadata([info(&[0], dtype), info(&[0], dtype)]),
             add_output,
-            (),
+            rule_commute_same_dtype::build_rewrite(()),
         )
         .unwrap();
         apply(&mut graph, &rule, true);
     }
     let (mut graph, _) = graph();
-    let rule = rule_commute_same_dtype::build_rewrite_with(
+    let rule = support::configure_rule(
+        &mut graph,
         metadata([info(&[4], DType::F32), info(&[4], DType::BF16)]),
         add_output,
-        (),
+        rule_commute_same_dtype::build_rewrite(()),
     )
     .unwrap();
     apply(&mut graph, &rule, false);
@@ -146,25 +154,27 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
         (vec![], DType::BF16, false),
     ] {
         let (mut graph, _) = graph();
-        let rule = rule_commute_scalar::build_rewrite_with(
+        let rule = support::configure_rule(
+            &mut graph,
             metadata([info(&[], DType::F32), info(&shape, dtype)]),
             add_output,
-            (),
+            rule_commute_scalar::build_rewrite(()),
         )
         .unwrap();
         assert_eq!(!rule.search(&graph).is_empty(), accepted);
         apply(&mut graph, &rule, accepted);
     }
     for dtype in [DType::F32, DType::BF16] {
-        let mut graph = EGraph::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let x = graph.add(symbol("X"));
         let value = graph.add(OpNode::literal("1.0", dtype).unwrap());
         graph.add(binary(tensor_lang::Op::Add, x, value).unwrap());
         graph.rebuild();
-        let rule = rule_commute_float_literal::build_rewrite_with(
+        let rule = support::configure_rule(
+            &mut graph,
             metadata([info(&[], DType::F32), info(&[], dtype)]),
             add_output,
-            (),
+            rule_commute_float_literal::build_rewrite(()),
         )
         .unwrap();
         let matches = rule.search(&graph);
@@ -178,7 +188,7 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
 
 #[test]
 fn dtype_participates_in_literal_identity_and_matching() {
-    let mut graph = EGraph::<OpNode, ()>::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let i32_id = graph.add(OpNode::literal("1", DType::I32).unwrap());
     let f32_id = graph.add(OpNode::literal("1", DType::F32).unwrap());
     graph.rebuild();
@@ -262,7 +272,7 @@ fn output_dtype_shape_and_missing_metadata_rejections_leave_no_partial_rhs() {
         Some(info(&[4], DType::BF16)),
         Some(info(&[5], DType::F32)),
     ] {
-        let mut graph = EGraph::<OpNode, ()>::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let root = graph.add(symbol("X"));
         graph.rebuild();
         let expected = info(&[4], DType::F32);
@@ -274,7 +284,7 @@ fn output_dtype_shape_and_missing_metadata_rejections_leave_no_partial_rhs() {
                 AttrExpr::Exact(OpAttrs::None),
                 vec![TensorExpr::Var(var)],
             ),
-            move |_: &EGraph<OpNode, ()>, _: Id| Some(expected.clone()),
+            move |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(expected.clone()),
             move |_: Op, _: &[TensorInfo], _: &OpAttrs| actual.clone(),
             |_, _| Some(Default::default()),
         )
@@ -287,15 +297,19 @@ fn output_dtype_shape_and_missing_metadata_rejections_leave_no_partial_rhs() {
         );
     }
     let (mut graph, _) = graph();
-    let rule =
-        rule_commute_f32::build_rewrite_with(|_: &EGraph<OpNode, ()>, _: Id| None, add_output, ())
-            .unwrap();
+    let rule = support::configure_rule(
+        &mut graph,
+        |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| None,
+        add_output,
+        rule_commute_f32::build_rewrite(()),
+    )
+    .unwrap();
     apply(&mut graph, &rule, false);
 }
 
 #[test]
 fn invalid_derived_descriptor_is_rejected_before_any_intermediate_insertion() {
-    let mut graph = EGraph::<OpNode, ()>::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     graph.add(symbol("X"));
     graph.rebuild();
     let var = "?X".parse::<Var>().unwrap();
@@ -312,7 +326,7 @@ fn invalid_derived_descriptor_is_rejected_before_any_intermediate_insertion() {
         "invalid_transpose",
         TensorPattern::Var(var),
         rhs,
-        |_: &EGraph<OpNode, ()>, _: Id| Some(info(&[2, 2], DType::F32)),
+        |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(info(&[2, 2], DType::F32)),
         |op: Op, inputs: &[TensorInfo], attrs: &OpAttrs| {
             let [input] = inputs else {
                 return None;
@@ -358,14 +372,14 @@ fn invalid_derived_descriptor_is_rejected_before_any_intermediate_insertion() {
 
 #[test]
 fn literal_root_output_checks_use_the_literal_dtype() {
-    let mut graph = EGraph::<OpNode, ()>::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     graph.add(OpNode::literal("1", DType::I32).unwrap());
     graph.rebuild();
     let rule = tensor_rewrite_checked(
         "wrong_literal_type",
         TensorPattern::literal("1", Some(DType::I32)),
         TensorExpr::literal("1", Some(DType::F32)),
-        |_: &EGraph<OpNode, ()>, _: Id| Some(info(&[], DType::I32)),
+        |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(info(&[], DType::I32)),
         add_output,
         |_, _| Some(Default::default()),
     )
@@ -380,7 +394,7 @@ fn literal_root_output_checks_use_the_literal_dtype() {
 
 #[test]
 fn unsupported_intermediate_is_rejected_even_when_the_final_operation_is_supported() {
-    let mut graph = EGraph::<OpNode, ()>::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     graph.add(symbol("X"));
     graph.rebuild();
     let var = "?X".parse::<Var>().unwrap();
@@ -400,7 +414,7 @@ fn unsupported_intermediate_is_rejected_even_when_the_final_operation_is_support
         "unsupported_intermediate",
         TensorPattern::Var(var),
         rhs,
-        |_: &EGraph<OpNode, ()>, _: Id| Some(info(&[4], DType::I32)),
+        |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(info(&[4], DType::I32)),
         |op: Op, inputs: &[TensorInfo], _: &OpAttrs| {
             // This integer host supports add but does not support exp.
             (op == Op::TensorLang(tensor_lang::Op::Add)).then(|| inputs[0].clone())
@@ -418,7 +432,7 @@ fn literal_inference_can_reject_formats_but_cannot_override_explicit_types() {
         Some(info(&[], DType::I32)),
         Some(info(&[1], DType::F32)),
     ] {
-        let mut graph = EGraph::<OpNode, ()>::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         graph.add(symbol("X"));
         graph.rebuild();
         let var = "?X".parse::<Var>().unwrap();
@@ -427,7 +441,7 @@ fn literal_inference_can_reject_formats_but_cannot_override_explicit_types() {
             "invalid_literal_inference",
             TensorPattern::Var(var),
             TensorExpr::literal("1.0", Some(DType::F32)),
-            move |_: &EGraph<OpNode, ()>, _: Id| Some(expected.clone()),
+            move |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(expected.clone()),
             move |_: Op, _: &[TensorInfo], _: &OpAttrs| actual.clone(),
             |_, _| Some(Default::default()),
         )

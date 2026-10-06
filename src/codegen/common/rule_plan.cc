@@ -46,11 +46,15 @@ std::vector<Id> ids(const std::set<std::size_t>& values) {
 
 RulePlan planRule(const core::Rule& rule) {
   RulePlan plan;
+  plan.requires_tensor_info = !rule.constraints.empty();
   std::set<std::size_t> hosts;
   bool early = true;
   for (const auto& condition : rule.conditions) {
     Dependencies deps;
     collect(*condition, deps);
+    plan.requires_tensor_info |= !deps.captures.empty() ||
+                                 !deps.dimensions.empty() ||
+                                 !deps.dtypes.empty();
     early = early && deps.hosts.empty();
     if (early)
       plan.early_conditions.push_back(
@@ -63,6 +67,9 @@ RulePlan planRule(const core::Rule& rule) {
   for (const auto& derivation : rule.derivations) {
     Dependencies deps;
     collect(*derivation.value, deps);
+    plan.requires_tensor_info |= !deps.captures.empty() ||
+                                 !deps.dimensions.empty() ||
+                                 !deps.dtypes.empty();
     hosts.insert(deps.hosts.begin(), deps.hosts.end());
   }
   plan.host_functions = ids<core::HostFunctionId>(hosts);

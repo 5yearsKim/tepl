@@ -44,7 +44,7 @@ fn invalid_rhs_definitions_are_rejected_when_building_the_rule() {
             "invalid",
             TensorPattern::Var(x),
             rhs,
-            support::fixture_metadata,
+            support::fixture_metadata::<support::TestAnalysis>,
             support::fixture_inference,
             |_, _| Some(Default::default()),
         )
@@ -59,7 +59,7 @@ fn failed_host_or_missing_invalid_descriptors_leave_no_partial_rhs() {
     let x = "?X".parse::<Var>().unwrap();
     let descriptor = AttrVar::from("transpose");
     for mode in 0..4 {
-        let mut egraph = EGraph::<OpNode, ()>::default();
+        let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
         let input = egraph.add(symbol("X"));
         egraph.rebuild();
         let before = egraph.total_number_of_nodes();
@@ -83,7 +83,7 @@ fn failed_host_or_missing_invalid_descriptors_leave_no_partial_rhs() {
             "construct",
             TensorPattern::Var(x),
             rhs,
-            support::fixture_metadata,
+            support::fixture_metadata::<support::TestAnalysis>,
             support::fixture_inference,
             move |_, _| match mode {
                 0 => None,
@@ -120,7 +120,7 @@ fn failed_host_or_missing_invalid_descriptors_leave_no_partial_rhs() {
 
 #[test]
 fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let mut additions = Vec::new();
     for index in 0..12 {
         let x = egraph.add(symbol(format!("x{index}")));
@@ -133,10 +133,11 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
     }
     egraph.rebuild();
 
-    let rule = rule_commute_add::build_rewrite_with(
-        support::fixture_metadata,
+    let rule = support::configure_rule(
+        &mut egraph,
+        support::fixture_metadata::<support::TestAnalysis>,
         support::fixture_inference,
-        (),
+        rule_commute_add::build_rewrite(()),
     )
     .unwrap();
     let limited = rule.search_with_limit(&egraph, 1);
@@ -156,7 +157,7 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
 
 #[test]
 fn batch_application_keeps_distinct_attribute_witnesses() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = egraph.add(symbol("x"));
     let y = egraph.add(symbol("y"));
     let attrs = [
@@ -228,7 +229,7 @@ fn batch_application_keeps_distinct_attribute_witnesses() {
                 },
             ),
         ]),
-        support::fixture_metadata,
+        support::fixture_metadata::<support::TestAnalysis>,
         support::fixture_inference,
         |_, _, _| Some(Default::default()),
     )
@@ -255,7 +256,7 @@ fn batch_application_keeps_distinct_attribute_witnesses() {
 
 #[test]
 fn grounded_lookup_rejects_missing_nodes_and_nodes_in_another_eclass() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let [x, y, z] = ["x", "y", "z"].map(|name| egraph.add(symbol(name)));
     let xy = egraph.add(binary(tensor_lang::Op::Multiply, x, y).unwrap());
     let zy = egraph.add(binary(tensor_lang::Op::Multiply, z, y).unwrap());
@@ -290,7 +291,7 @@ fn grounded_lookup_rejects_missing_nodes_and_nodes_in_another_eclass() {
 
 #[test]
 fn grounded_nested_subtrees_preserve_new_and_repeated_binders() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = egraph.add(symbol("x"));
     let y = egraph.add(symbol("y"));
     let xy = egraph.add(binary(tensor_lang::Op::Multiply, x, y).unwrap());
@@ -342,7 +343,7 @@ fn grounded_nested_subtrees_preserve_new_and_repeated_binders() {
 
 #[test]
 fn known_operands_do_not_hide_unbound_or_wildcard_attribute_witnesses() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = egraph.add(symbol("x"));
     let first = egraph.add(
         OpNode::from_parts(
@@ -397,7 +398,7 @@ fn known_operands_do_not_hide_unbound_or_wildcard_attribute_witnesses() {
 
 #[test]
 fn matching_after_union_falls_back_until_the_graph_is_rebuilt() {
-    let mut egraph = EGraph::<OpNode, ()>::default();
+    let mut egraph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = egraph.add(symbol("x"));
     let y = egraph.add(symbol("y"));
     let neg_y = egraph.add(unary(tensor_lang::Op::Negate, y).unwrap());

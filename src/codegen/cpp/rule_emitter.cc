@@ -163,13 +163,14 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
              "::builtins::BuiltinError&) { return {}; }");
     out.close();
   }
-  out.line("template<class A, class M>");
-  out.open(
-      "inline " + names.root +
-      "::pattern::MatchChecks<A> match_checks([[maybe_unused]] M metadata)");
+  out.line("template<class A>");
+  out.open("inline " + names.root + "::pattern::MatchChecks<A> match_checks()");
   if (plan.early_conditions.empty())
     out.line("return {constraints(),{}, {}};");
   else {
+    out.line("auto metadata=[](const ::eggc::EGraph<" + names.root +
+             "::OpNode,A>& graph, ::eggc::Id id) { return " + names.root +
+             "::analysis::RewriteAnalysis<A>::tensor_info(graph,id); }; ");
     out.line("return {constraints(),{");
     for (const auto& c : plan.early_conditions) {
       std::string dependencies = "{";
@@ -207,23 +208,21 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
     out.close("};");
   }
   out.close();
-  out.line("template<class A, class M, class I, Functions F=" + names.root +
+  out.line("template<class A=" + names.root +
+           "::analysis::TensorAnalysis, Functions F=" + names.root +
            "::pattern::NoFunctions>");
   out.open("inline ::eggc::Rewrite<" + names.root +
-           "::OpNode,A> build_rewrite_with(M metadata, I inference, F "
-           "functions={})");
-  out.line(
-      "auto shared_metadata=::std::make_shared<M>(::std::move(metadata));");
+           "::OpNode,A> build_rewrite(F functions={})");
   out.line("auto host=::std::make_shared<F>(::std::move(functions));");
-  out.line("auto reader=[shared_metadata](const ::eggc::EGraph<" + names.root +
-           "::OpNode,A>& graph, ::eggc::Id id) { return "
-           "(*shared_metadata)(graph,id); };");
-  out.line("auto checks=match_checks<A>(reader);");
+  out.line("auto reader=[](const ::eggc::EGraph<" + names.root +
+           "::OpNode,A>& graph, ::eggc::Id id) { return " + names.root +
+           "::analysis::RewriteAnalysis<A>::tensor_info(graph,id); };");
+  out.line("auto checks=match_checks<A>();");
   out.line("return " + names.root +
-           "::pattern::tensor_rewrite_checked_with_checks<A>(" +
+           "::pattern::tensor_rewrite_with_checks<A>(" +
            quote(module.qualified + "::" + rule.name) +
-           ",pattern(),expression(),::std::move(checks),reader,::std::move("
-           "inference),");
+           ",pattern(),expression(),::std::move(checks)," +
+           (plan.requires_tensor_info ? "true," : "false,"));
   out.open("[host,reader](const ::eggc::EGraph<" + names.root +
            "::OpNode,A>& graph, const " + names.root +
            "::pattern::TensorMatch& matched, [[maybe_unused]] const "
@@ -254,13 +253,6 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
   out.line("catch(const " + names.root +
            "::builtins::BuiltinError&) { return {}; }");
   out.close(");");
-  out.close();
-  out.line("template<Functions F=" + names.root + "::pattern::NoFunctions>");
-  out.open("inline auto build_rewrite(F functions={})");
-  out.line("return build_rewrite_with<" + names.root +
-           "::analysis::TensorAnalysis>(" + names.root +
-           "::analysis::tensor_info," + names.root +
-           "::analysis::TensorOutputInference{},::std::move(functions));");
   out.close();
   out.close();
 }

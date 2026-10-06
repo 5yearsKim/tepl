@@ -47,7 +47,7 @@ TOML
     printf 'pub mod ir;\n' > "$application/src/lib.rs"
 }
 
-for source in dtype early_where names builtins analysis custom empty dialect_only literal_root; do
+for source in dtype early_where names builtins analysis custom empty dialect_only literal_root structural; do
     crate="$work_directory/$source"
     prepare_application "$crate"
     input="$project_root/tests/codegen/$source.tepl"
@@ -68,6 +68,7 @@ for source in dtype early_where names builtins analysis custom empty dialect_onl
     fi
     mkdir -p "$crate/tests"
     cp "$project_root/tests/codegen/$source.rs" "$crate/tests/generated.rs"
+    cp -R "$project_root/tests/codegen/support" "$crate/tests/support"
     cargo test --offline --manifest-path "$crate/Cargo.toml" --test generated
 
     # Check only behavior that could accidentally depend on debug overflow checks.

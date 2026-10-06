@@ -2,6 +2,7 @@
 #include <eggc/all.hpp>
 
 #include "ir/generated.h"
+#include "support.h"
 
 namespace ir = tepl_generated;
 namespace d = ir::dialects::d_types;
@@ -68,8 +69,7 @@ int main() {
       auto root =
           graph.add(ir::OpNode::make(d::Op::Convert, d::ConvertAttrs{to}, {x}));
       graph.rebuild();
-      auto checks = r::rule_remove_identity_convert::match_checks<A>(
-          ir::analysis::tensor_info);
+      auto checks = r::rule_remove_identity_convert::match_checks<A>();
       auto matches = ir::pattern::matches_at_with_checks(
           graph, root, r::rule_remove_identity_convert::pattern(), checks,
           ir::analysis::tensor_info);
@@ -90,8 +90,7 @@ int main() {
         ir::OpNode::make(d::Op::Convert, d::ConvertAttrs{input}, {x}));
     auto calls = std::make_shared<unsigned>(0);
     graph.rebuild();
-    auto checks =
-        r::rule_remove_f32_convert::match_checks<A>(ir::analysis::tensor_info);
+    auto checks = r::rule_remove_f32_convert::match_checks<A>();
     auto matches = ir::pattern::matches_at_with_checks(
         graph, root, r::rule_remove_f32_convert::pattern(), checks,
         ir::analysis::tensor_info);
@@ -101,7 +100,7 @@ int main() {
     assert((graph.find(x) == graph.find(root)) == (input == DType::F32));
     assert(*calls > 0);
   }
-  using NA = eggc::NoAnalysis<ir::OpNode>;
+  using NA = support::TestAnalysis;
   using BareGraph = eggc::EGraph<ir::OpNode, NA>;
   for (auto [left, right, accepted] :
        {std::tuple{DType::F32, DType::F32, true},
@@ -117,7 +116,8 @@ int main() {
                         eggc::Id id) -> std::optional<ir::TensorInfo> {
       return info(id == y ? right : left);
     };
-    auto checks = r::rule_shared::match_checks<NA>(metadata);
+    auto checks = support::configure_checks(graph, metadata,
+                                            r::rule_shared::match_checks<NA>());
     auto matches = ir::pattern::matches_at_with_checks(
         graph, root, r::rule_shared::pattern(), checks, metadata);
     assert(!matches.empty() == accepted);
@@ -135,7 +135,8 @@ int main() {
                         eggc::Id id) -> std::optional<ir::TensorInfo> {
       return info(id == f32 ? DType::F32 : DType::BF16);
     };
-    auto checks = r::rule_shared::match_checks<NA>(metadata);
+    auto checks = support::configure_checks(alternatives, metadata,
+                                            r::rule_shared::match_checks<NA>());
     auto matches = ir::pattern::matches_at_with_checks(
         alternatives, good, r::rule_shared::pattern(), checks, metadata);
     assert(matches.size() == 1);
@@ -155,7 +156,8 @@ int main() {
       assert(id == x);
       return info(DType::I32);
     };
-    auto checks = r::rule_shared::match_checks<NA>(metadata);
+    auto checks = support::configure_checks(pruning, metadata,
+                                            r::rule_shared::match_checks<NA>());
     assert(ir::pattern::matches_at_with_checks(
                pruning, root, r::rule_shared::pattern(), checks, metadata)
                .empty());
@@ -173,8 +175,9 @@ int main() {
                       eggc::Id id) -> std::optional<ir::TensorInfo> {
     return info(id == x ? current : DType::F32);
   };
-  auto rule = r::rule_remove_identity_convert::build_rewrite_with<NA>(
-      metadata, ir::analysis::TensorOutputInference{});
+  auto rule = support::configure_rule(
+      graph, metadata, ir::analysis::TensorOutputInference{},
+      r::rule_remove_identity_convert::build_rewrite<NA>());
   std::vector<eggc::Application<ir::OpNode, NA>> actions;
   rule.custom_search(graph,
                      [&](auto action) {

@@ -1,3 +1,4 @@
+mod support;
 use egg::{EGraph, Id};
 use rust_egg::ir::dialects::tensor_lang;
 use rust_egg::ir::pattern::{OutputInference, TensorInfo};
@@ -97,7 +98,7 @@ impl OutputInference for Inference {
         })
     }
 }
-fn dot(graph: &mut EGraph<OpNode, ()>, lhs: Id, rhs: Id) -> Id {
+fn dot(graph: &mut EGraph<OpNode, support::TestAnalysis>, lhs: Id, rhs: Id) -> Id {
     graph.add(
         OpNode::from_parts(
             Op::TensorLang(tensor_lang::Op::DotGeneral),
@@ -115,7 +116,7 @@ fn generated_lora_checks_shapes_host_legality_and_every_intermediate_before_inse
         (5, false, false, false),
         (5, true, true, false),
     ] {
-        let mut graph = EGraph::<OpNode, ()>::default();
+        let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
         let [x, w, a, b] = ["X", "W", "A", "B"].map(|name| {
             graph.add(
                 OpNode::from_parts(Op::Input, vec![], OpAttrs::Input { name: name.into() })
@@ -139,7 +140,7 @@ fn generated_lora_checks_shapes_host_legality_and_every_intermediate_before_inse
             (b, vec![2, 2, b_columns]),
             (root, vec![2, 3, 5]),
         ]);
-        let metadata = move |graph: &EGraph<OpNode, ()>, id: Id| {
+        let metadata = move |graph: &EGraph<OpNode, support::TestAnalysis>, id: Id| {
             entries
                 .iter()
                 .find(|(key, _)| graph.find(**key) == graph.find(id))
@@ -148,12 +149,13 @@ fn generated_lora_checks_shapes_host_legality_and_every_intermediate_before_inse
                     dtype: DType::F32,
                 })
         };
-        let rule = rule_lora::build_rewrite_with(
+        let rule = support::configure_rule(
+            &mut graph,
             metadata,
             Inference {
                 reject_intermediate,
             },
-            Host { allowed },
+            rule_lora::build_rewrite(Host { allowed }),
         )
         .unwrap();
         graph.rebuild();

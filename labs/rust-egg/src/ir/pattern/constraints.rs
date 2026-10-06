@@ -97,6 +97,10 @@ impl TensorConstraints {
             })
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.declarations.is_empty()
+    }
+
     pub fn contains(&self, var: Var) -> bool {
         self.by_capture.contains_key(&var)
     }

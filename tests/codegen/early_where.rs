@@ -1,3 +1,4 @@
+mod support;
 use egg::{EGraph, Id};
 use std::sync::{
     Arc, Mutex,
@@ -43,16 +44,16 @@ impl rule_nested_host_boundary::Functions for Host {
     }
 }
 
-fn pair_graph() -> (EGraph<OpNode, ()>, Id, Id, Id) {
-    let mut graph = EGraph::default();
+fn pair_graph() -> (EGraph<OpNode, support::TestAnalysis>, Id, Id, Id) {
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = graph.add(OpNode::input("x"));
     let y = graph.add(OpNode::input("y"));
     let root = graph.add(OpNode::new(guard::Op::Pair, guard::OpAttrs::None, vec![x, y]).unwrap());
     graph.rebuild();
     (graph, x, y, root)
 }
-fn copy_graph() -> (EGraph<OpNode, ()>, Id, Id) {
-    let mut graph = EGraph::default();
+fn copy_graph() -> (EGraph<OpNode, support::TestAnalysis>, Id, Id) {
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = graph.add(OpNode::input("x"));
     let root = graph.add(OpNode::new(guard::Op::Copy, guard::OpAttrs::None, vec![x]).unwrap());
     graph.rebuild();
@@ -62,18 +63,19 @@ fn copy_graph() -> (EGraph<OpNode, ()>, Id, Id) {
 #[test]
 fn generated_dimension_condition_prunes_before_visiting_the_next_child() {
     for shape in [vec![8], vec![1, 8], vec![1, 1, 1, 2]] {
-        let (graph, x, y, root) = pair_graph();
+        let (mut graph, x, y, root) = pair_graph();
         let reads = Arc::new(Mutex::new(Vec::new()));
         let read_log = reads.clone();
         let host = Host::default();
-        let rule = rule_early::build_rewrite_with(
-            move |_: &EGraph<OpNode, ()>, id: Id| {
+        let rule = support::configure_rule(
+            &mut graph,
+            move |_: &EGraph<OpNode, support::TestAnalysis>, id: Id| {
                 assert_ne!(id, y, "rejected branch visited its next child");
                 read_log.lock().unwrap().push(id);
                 Some(info(&shape))
             },
             infer,
-            host.clone(),
+            rule_early::build_rewrite(host.clone()),
         )
         .unwrap();
         assert!(rule.searcher.search_eclass(&graph, root).is_none());
@@ -87,8 +89,9 @@ fn generated_condition_waits_for_the_later_dimension_and_hosts_run_only_on_apply
     for size in [3, 8] {
         let (mut graph, x, y, root) = pair_graph();
         let host = Host::default();
-        let rule = rule_early::build_rewrite_with(
-            move |_: &EGraph<OpNode, ()>, id: Id| {
+        let rule = support::configure_rule(
+            &mut graph,
+            move |_: &EGraph<OpNode, support::TestAnalysis>, id: Id| {
                 Some(info(if id == y {
                     if size == 3 { &[1, 3] } else { &[1, 8] }
                 } else {
@@ -96,7 +99,7 @@ fn generated_condition_waits_for_the_later_dimension_and_hosts_run_only_on_apply
                 }))
             },
             infer,
-            host.clone(),
+            rule_early::build_rewrite(host.clone()),
         )
         .unwrap();
         let found = rule.searcher.search_eclass(&graph, root);
@@ -114,10 +117,11 @@ fn generated_condition_waits_for_the_later_dimension_and_hosts_run_only_on_apply
 fn first_host_condition_keeps_later_builtin_conditions_at_application_time() {
     let (mut graph, _, root) = copy_graph();
     let host = Host::default();
-    let rule = rule_host_boundary::build_rewrite_with(
-        |_: &EGraph<OpNode, ()>, _: Id| Some(info(&[8])),
+    let rule = support::configure_rule(
+        &mut graph,
+        |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(info(&[8])),
         infer,
-        host.clone(),
+        rule_host_boundary::build_rewrite(host.clone()),
     )
     .unwrap();
     let found = rule.searcher.search_eclass(&graph, root).unwrap();
@@ -125,10 +129,11 @@ fn first_host_condition_keeps_later_builtin_conditions_at_application_time() {
     assert!(rule.apply(&mut graph, &[found]).is_empty());
     assert_eq!(host.0.load(Ordering::Relaxed), 1);
 
-    let rule = rule_nested_host_boundary::build_rewrite_with(
-        |_: &EGraph<OpNode, ()>, _: Id| Some(info(&[8])),
+    let rule = support::configure_rule(
+        &mut graph,
+        |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(info(&[8])),
         infer,
-        Host::default(),
+        rule_nested_host_boundary::build_rewrite(Host::default()),
     )
     .unwrap();
     let found = rule.searcher.search_eclass(&graph, root).unwrap();
@@ -138,13 +143,14 @@ fn first_host_condition_keeps_later_builtin_conditions_at_application_time() {
 #[test]
 fn early_short_circuit_skips_failed_builtins_and_unneeded_capture_metadata() {
     let (mut graph, x, root) = copy_graph();
-    let rule = rule_skipped_builtin::build_rewrite_with(
-        move |_: &EGraph<OpNode, ()>, id: Id| {
+    let rule = support::configure_rule(
+        &mut graph,
+        move |_: &EGraph<OpNode, support::TestAnalysis>, id: Id| {
             assert_ne!(id, x, "unconstrained capture metadata is unnecessary");
             Some(info(&[]))
         },
         infer,
-        (),
+        rule_skipped_builtin::build_rewrite(()),
     )
     .unwrap();
     let found = rule.searcher.search_eclass(&graph, root).unwrap();

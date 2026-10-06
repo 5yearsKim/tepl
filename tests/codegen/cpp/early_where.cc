@@ -2,9 +2,10 @@
 #include <eggc/all.hpp>
 
 #include "ir/generated.h"
+#include "support.h"
 
 namespace ir = tepl_generated;
-using A = eggc::NoAnalysis<ir::OpNode>;
+using A = support::TestAnalysis;
 using Graph = eggc::EGraph<ir::OpNode, A>;
 using Op = ir::dialects::guard::Op;
 struct Host {
@@ -30,7 +31,8 @@ int main() {
         {g.find(id) == g.find(x) ? std::uint64_t(5) : std::uint64_t(2)},
         ir::DType::F32};
   };
-  auto checks = r::rule_early::match_checks<A>(metadata);
+  auto checks = support::configure_checks(graph, metadata,
+                                          r::rule_early::match_checks<A>());
   auto matches = p::matches_at_with_checks(
       graph, root, r::rule_early::pattern(), checks, metadata);
   assert(matches.empty());
@@ -42,22 +44,25 @@ int main() {
   };
   auto copy = graph.add(ir::OpNode::make(Op::Copy, {}, {x}));
   graph.rebuild();
-  auto boundary = r::rule_host_boundary::build_rewrite_with<A>(
-      metadata, inference, Host{calls});
+  auto boundary = support::configure_rule(
+      graph, metadata, inference,
+      r::rule_host_boundary::build_rewrite<A>(Host{calls}));
   auto before = graph.node_count();
   eggc::run(graph, std::vector{boundary});
   assert(*calls > 0);
   assert(graph.find(copy) != graph.find(x));
   assert(graph.node_count() == before);
   *calls = 0;
-  auto nested = r::rule_nested_host_boundary::build_rewrite_with<A>(
-      metadata, inference, Host{calls});
+  auto nested = support::configure_rule(
+      graph, metadata, inference,
+      r::rule_nested_host_boundary::build_rewrite<A>(Host{calls}));
   eggc::run(graph, std::vector{nested});
   assert(*calls == 0);
   assert(graph.find(copy) != graph.find(x));
   // Unavailable metadata in a skipped branch must remain unevaluated.
   reads = 0;
-  auto skipped = r::rule_skipped_builtin::match_checks<A>(metadata);
+  auto skipped = support::configure_checks(
+      graph, metadata, r::rule_skipped_builtin::match_checks<A>());
   assert(p::matches_at_with_checks(
              graph, copy, r::rule_skipped_builtin::pattern(), skipped, metadata)
              .size() == 1);
@@ -76,8 +81,9 @@ int main() {
         ir::DType::F32};
   };
   *calls = 0;
-  auto rule =
-      r::rule_host_boundary::build_rewrite_with<A>(md, inference, Host{calls});
+  auto rule = support::configure_rule(
+      limited, md, inference,
+      r::rule_host_boundary::build_rewrite<A>(Host{calls}));
   eggc::RunOptions options;
   options.match_limit = 1;
   options.iteration_limit = 1;

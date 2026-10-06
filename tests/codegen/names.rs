@@ -60,5 +60,5 @@ fn raw_module_and_field_tokens_preserve_tepl_identity_in_analysis() {
         Inference::Known(vec![2, 3])
     );
     assert_eq!(Op::from_name("Type.type"), Some(r#type::Op::Type.into()));
-    assert!(rule_type::build_rewrite(()).is_ok());
+    assert!(rule_type::build_rewrite::<TensorAnalysis, _>(()).is_ok());
 }

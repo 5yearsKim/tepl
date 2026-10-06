@@ -1,3 +1,4 @@
+mod support;
 use egg::{EGraph, Id, Language};
 use rust_egg::ir::dialects::{scalar as s, tensor_lang as t};
 use rust_egg::ir::pattern::{OutputInference, TensorInfo};
@@ -14,7 +15,7 @@ impl OutputInference for Inference {
         (lhs == rhs).then(|| lhs.clone())
     }
 }
-fn metadata(_: &EGraph<OpNode, ()>, _: Id) -> Option<TensorInfo> {
+fn metadata(_: &EGraph<OpNode, support::TestAnalysis>, _: Id) -> Option<TensorInfo> {
     Some(TensorInfo {
         shape: vec![],
         dtype: DType::I32,
@@ -46,14 +47,26 @@ fn dialect_names_and_discriminants_remain_distinct() {
 
 #[test]
 fn cross_dialect_lowering_and_scalar_rule_share_one_graph() {
-    let mut graph = EGraph::<OpNode, ()>::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = graph.add(OpNode::literal("1", DType::I32).unwrap());
     let y = graph.add(OpNode::literal("2", DType::I32).unwrap());
     let root = graph.add(OpNode::new(t::Op::Add, t::OpAttrs::None, vec![x, y]).unwrap());
     graph.rebuild();
-    let scalar_rule = rule_commute_add::build_rewrite_with(metadata, Inference(true), ()).unwrap();
+    let scalar_rule = support::configure_rule(
+        &mut graph,
+        metadata,
+        Inference(true),
+        rule_commute_add::build_rewrite(()),
+    )
+    .unwrap();
     assert!(scalar_rule.search(&graph).is_empty());
-    let lowering = rule_scalar_add::build_rewrite_with(metadata, Inference(true), ()).unwrap();
+    let lowering = support::configure_rule(
+        &mut graph,
+        metadata,
+        Inference(true),
+        rule_scalar_add::build_rewrite(()),
+    )
+    .unwrap();
     let matches = lowering.search(&graph);
     assert!(!lowering.apply(&mut graph, &matches).is_empty());
     graph.rebuild();
@@ -69,12 +82,18 @@ fn cross_dialect_lowering_and_scalar_rule_share_one_graph() {
 
 #[test]
 fn rejected_cross_dialect_inference_is_atomic() {
-    let mut graph = EGraph::<OpNode, ()>::default();
+    let mut graph = EGraph::<OpNode, support::TestAnalysis>::default();
     let x = graph.add(OpNode::literal("1", DType::I32).unwrap());
     graph.add(OpNode::new(t::Op::Add, t::OpAttrs::None, vec![x, x]).unwrap());
     graph.rebuild();
     let before = graph.total_size();
-    let rule = rule_scalar_add::build_rewrite_with(metadata, Inference(false), ()).unwrap();
+    let rule = support::configure_rule(
+        &mut graph,
+        metadata,
+        Inference(false),
+        rule_scalar_add::build_rewrite(()),
+    )
+    .unwrap();
     let matches = rule.search(&graph);
     assert!(rule.apply(&mut graph, &matches).is_empty());
     assert_eq!(graph.total_size(), before);

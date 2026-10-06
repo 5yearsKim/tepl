@@ -11,7 +11,10 @@ use super::super::{OpAttrs, OpNode};
 
 use super::checks::MatchChecks;
 use super::constraints::TensorConstraints;
-use super::context::{OutputInference, TensorInfo, TensorMetadata};
+use super::context::{
+    AnalysisInference, AnalysisMetadata, OutputInference, RewriteAnalysis, TensorInfo,
+    TensorMetadata,
+};
 use super::matcher::{TensorMatch, for_each_match_at};
 use super::pattern::{AttrExpr, AttrVar, TensorExpr, TensorPattern};
 use super::shape::MetadataBindings;
@@ -26,6 +29,90 @@ enum PreparedRhs {
         node: OpNode,
         children: Vec<PreparedRhs>,
     },
+}
+
+/// Build using the graph's analysis. Structural graphs still validate operation
+/// arity and descriptors; checked graphs also validate the complete output.
+pub fn tensor_rewrite_with_checks<N, F>(
+    name: impl Into<Symbol>,
+    lhs: TensorPattern,
+    rhs: TensorExpr,
+    checks: MatchChecks<N>,
+    requires_tensor_info: bool,
+    check_and_derive: F,
+) -> Result<Rewrite<OpNode, N>, String>
+where
+    N: RewriteAnalysis,
+    F: Fn(&EGraph<OpNode, N>, &TensorMatch, &MetadataBindings) -> Option<DerivedAttrs>
+        + Send
+        + Sync
+        + 'static,
+{
+    checks.validate(&lhs)?;
+    if !N::HAS_TENSOR_INFO {
+        if requires_tensor_info || !checks.tensor_constraints().is_empty() {
+            return Err(
+                "rule requires tensor analysis, but this graph has no tensor analysis".into(),
+            );
+        }
+        require_typed_literals(&rhs)?;
+    }
+    let checks = Arc::new(checks);
+    let metadata = Arc::new(AnalysisMetadata::<N>::new());
+    let checker_checks = checks.clone();
+    let checker_metadata = metadata.clone();
+    let expression = rhs.clone();
+    build_tensor_rewrite(
+        name,
+        lhs,
+        rhs,
+        checks,
+        metadata,
+        move |graph, root, matched| {
+            let dimensions =
+                checker_checks.check_match(graph, matched, checker_metadata.as_ref())?;
+            let derived = check_and_derive(graph, matched, &dimensions)?;
+            let mut prepared = prepare_rhs(&expression, matched, &derived)?;
+            if N::HAS_TENSOR_INFO {
+                let expected = N::tensor_info(graph, graph.find(root))?;
+                let actual = infer_rhs(
+                    graph,
+                    &mut prepared,
+                    checker_metadata.as_ref(),
+                    &AnalysisInference(&graph.analysis),
+                    &expected,
+                )?;
+                if actual != expected {
+                    return None;
+                }
+            }
+            Some(prepared)
+        },
+    )
+}
+
+fn require_typed_literals(expr: &TensorExpr) -> Result<(), String> {
+    if let TensorExpr::Op {
+        op,
+        attrs,
+        children,
+    } = expr
+    {
+        if *op == super::super::Op::Literal {
+            if !matches!(
+                attrs,
+                AttrExpr::Exact(OpAttrs::Literal { dtype: Some(_), .. })
+            ) {
+                return Err(
+                    "untyped RHS literal requires tensor analysis; add an explicit dtype".into(),
+                );
+            }
+        }
+        for child in children {
+            require_typed_literals(child)?;
+        }
+    }
+    Ok(())
 }
 
 /// Validate every RHS operation and require shape/dtype equality with the

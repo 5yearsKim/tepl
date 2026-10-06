@@ -83,15 +83,11 @@ void emitRule(CodeWriter& out, const core::Program& program,
               const std::string& module, const std::string& root) {
   const auto plan = planRule(rule);
   out.open("pub mod " + names.rule(rule.id));
-  out.line("use " +
-           paths::external("std", "{collections::HashMap, sync::Arc}") + ";");
-  out.line("use " + paths::external("egg", "{Analysis, EGraph, Rewrite, Var}") +
-           ";");
+  out.line("use " + paths::external("std", "collections::HashMap") + ";");
+  out.line("use " + paths::external("egg", "{EGraph, Rewrite, Var}") + ";");
   out.line("use " + paths::within(root, "{DType, OpNode, OpAttrs}") + ";");
   out.line("use " +
-           paths::within(
-               root,
-               "analysis::{TensorAnalysis, tensor_info, infer_tensor_output}") +
+           paths::within(root, "pattern::{RewriteAnalysis, AnalysisMetadata}") +
            ";");
   out.line(
       "use " +
@@ -100,8 +96,8 @@ void emitRule(CodeWriter& out, const core::Program& program,
                     "TensorPattern, TensorConstraints, TensorConstraint, "
                     "DTypeConstraint, "
                     "ShapePart, MetadataBindings, MatchBinding, MatchChecks, "
-                    "TensorMetadata, OutputInference, TensorInfo, "
-                    "MatchContext, tensor_rewrite_checked_with_checks}") +
+                    "TensorInfo, "
+                    "MatchContext, tensor_rewrite_with_checks}") +
       ";");
   const auto builtins_path = paths::within(root, "builtins");
   out.open("pub trait Functions: Send + Sync");
@@ -172,8 +168,8 @@ void emitRule(CodeWriter& out, const core::Program& program,
   for (std::size_t i = 0; i < plan.early_conditions.size(); ++i) {
     out.open(
         "fn condition_" + std::to_string(i) +
-        "<N: Analysis<OpNode>, M: TensorMetadata<N>>(ctx: &MatchContext<'_, N, "
-        "M>, dimensions: &MetadataBindings) -> Option<bool>");
+        "<N: RewriteAnalysis>(ctx: &MatchContext<'_, N, "
+        "AnalysisMetadata<N>>, dimensions: &MetadataBindings) -> Option<bool>");
     out.line(
         "Some(" +
         emitExpression(program, names, *rule.conditions[i], builtins_path) +
@@ -181,12 +177,11 @@ void emitRule(CodeWriter& out, const core::Program& program,
     out.close();
   }
   out.line("/// Shape declarations and the ordered builtin-only where prefix.");
-  out.open(
-      "pub fn match_checks<N: Analysis<OpNode>, M: TensorMetadata<N> + "
-      "'static>(metadata: Arc<M>) -> MatchChecks<N>");
+  out.open("pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N>");
   if (plan.early_conditions.empty()) {
     out.line("MatchChecks::tensors(constraints())");
   } else {
+    out.line("let metadata = AnalysisMetadata::<N>::new();");
     out.line("MatchChecks::new(constraints(), vec![");
     for (const auto& condition : plan.early_conditions) {
       std::string deps = "vec![";
@@ -205,7 +200,7 @@ void emitRule(CodeWriter& out, const core::Program& program,
       out.line(deps + "],");
     }
     out.line("], move |index, graph, matched, dimensions| {");
-    out.line("let ctx = MatchContext::new(graph, matched, metadata.as_ref());");
+    out.line("let ctx = MatchContext::new(graph, matched, &metadata);");
     out.open("match index");
     for (std::size_t i = 0; i < plan.early_conditions.size(); ++i)
       out.line(std::to_string(i) + " => condition_" + std::to_string(i) +
@@ -215,34 +210,20 @@ void emitRule(CodeWriter& out, const core::Program& program,
     out.line("})");
   }
   out.close();
-  out.line("/// Uses the same metadata and inference as TensorAnalysis.");
-  out.open(
-      "pub fn build_rewrite<F: Functions + 'static>(functions: F) -> "
-      "Result<Rewrite<OpNode, TensorAnalysis>, String>");
-  out.line("build_rewrite_with(tensor_info, infer_tensor_output, functions)");
-  out.close();
-  out.line("/// Explicit hooks for a custom analysis or inference policy.");
+  out.line("/// Uses the graph's analysis; () supports structural rules.");
   out.line(
-      "pub fn build_rewrite_with<N, M, I, F>(metadata: M, inference: I, "
-      "functions: "
-      "F) -> Result<Rewrite<OpNode, N>, String>");
-  out.line(
-      "where N: Analysis<OpNode> + 'static, M: TensorMetadata<N> + 'static, I: "
-      "OutputInference + 'static, F: Functions + 'static");
+      "pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, "
+      "String>");
+  out.line("where N: RewriteAnalysis, F: Functions + 'static");
   out.open("");
-  out.line("let metadata = Arc::new(metadata);");
-  out.line("let checks = match_checks::<N, M>(metadata.clone());");
-  out.line("let checker_metadata = metadata.clone();");
-  out.line("tensor_rewrite_checked_with_checks(");
+  out.line("let checks = match_checks::<N>();");
+  out.line("let metadata = AnalysisMetadata::<N>::new();");
+  out.line("tensor_rewrite_with_checks(");
   out.line(quote(module + "::" + rule.name) +
-           ", pattern(), expression(), checks,");
-  out.line(
-      "move |graph: &EGraph<OpNode, N>, id| metadata.info(graph, id), "
-      "inference,");
+           ", pattern(), expression(), checks, " +
+           (plan.requires_tensor_info ? "true," : "false,"));
   out.open("move |graph, matched, dimensions|");
-  out.line(
-      "let ctx = MatchContext::new(graph, matched, "
-      "checker_metadata.as_ref());");
+  out.line("let ctx = MatchContext::new(graph, matched, &metadata);");
   for (const auto& desc : rule.descriptors) {
     if (desc.kind != core::Descriptor::Kind::kCaptured) continue;
     out.line("let " + descriptor(desc.id.value) + " = ctx.attrs(" +

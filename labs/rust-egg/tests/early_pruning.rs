@@ -247,7 +247,7 @@ fn malformed_constraint_plans_are_rejected_before_search() {
                 pattern.clone(),
                 TensorExpr::Var(a),
                 constraints,
-                support::fixture_metadata,
+                support::fixture_metadata::<()>,
                 support::fixture_inference,
                 |_, _, _| Some(Default::default()),
             )
