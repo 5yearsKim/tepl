@@ -205,10 +205,10 @@ fn every_tepl_shape_block_has_a_working_evaluator_and_signature_checks() {
         covered += 1;
     }
     // Guard reference coverage against shape definitions added to the examples.
-    let declared = include_str!("../../../examples/dialects/tensor.tepl")
+    let declared = include_str!("../../../examples/sample/dialects/tensor.tepl")
         .matches("        shape(")
         .count()
-        + include_str!("../../../examples/dialects/scalar.tepl")
+        + include_str!("../../../examples/sample/dialects/scalar.tepl")
             .matches("        shape(")
             .count();
     assert_eq!(covered, declared);

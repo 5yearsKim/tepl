@@ -5,8 +5,19 @@
 int main() {
   namespace ir = tepl_generated;
   static_assert(std::same_as<ir::types::Elements, ir::Elements>);
+  static_assert(std::same_as<ir::analysis::TensorInfo, ir::TensorInfo>);
+  static_assert(std::same_as<ir::Inference<int>, ir::analysis::Inference<int>>);
+  static_assert(std::same_as<ir::TensorAnalysis, ir::analysis::TensorAnalysis>);
   static_assert(
-      std::same_as<ir::analysis::TensorInfo, ir::pattern::TensorInfo>);
+      std::same_as<ir::TensorAnalysisData, ir::analysis::TensorAnalysisData>);
+  static_assert(
+      std::same_as<ir::TensorBindingTable, ir::analysis::TensorBindingTable>);
+  static_assert(std::same_as<ir::GraphDefinition, ir::graphs::GraphDefinition>);
+  static_assert(std::same_as<ir::BuiltGraph, ir::graphs::BuiltGraph>);
+  static_assert(std::same_as<ir::InputSpec, ir::graphs::InputSpec>);
+  static_assert(
+      std::same_as<ir::RewriteAnalysis<ir::TensorAnalysis>,
+                   ir::rewriting::RewriteAnalysis<ir::TensorAnalysis>>);
   ir::dialects::only::Payload payload{
       2,
       {{{1, 2, 3}}},

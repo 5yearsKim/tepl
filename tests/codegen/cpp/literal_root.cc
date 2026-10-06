@@ -8,8 +8,7 @@ int main() {
   eggc::EGraph<ir::OpNode, A> graph;
   auto root = graph.add(ir::OpNode::literal("1", ir::DType::I32));
   auto report = eggc::run(
-      graph,
-      std::vector{ir::rules::literal_root::rule_integer_root::build_rewrite()});
+      graph, std::vector{ir::rules::literal_root::rule_integer_root::build()});
   auto two = graph.lookup(ir::OpNode::literal("2", ir::DType::I32));
   assert(two && graph.find(root) == graph.find(*two));
   assert(report.reason == eggc::StopReason::Saturated);

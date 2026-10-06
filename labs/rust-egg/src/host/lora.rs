@@ -1,14 +1,14 @@
 //! LoRA-specific rewrite conditions and rank-three dot helpers.
+use crate::ir::TensorInfo;
 use crate::ir::analysis::infer_shape;
 use crate::ir::dialects::tensor_lang;
-use crate::ir::pattern::TensorInfo;
 use crate::ir::rules::lora::rule_lora;
 use crate::ir::{Op, OpAttrs};
 pub struct DemoLoraFunctions {
     pub allow_reassociation: bool,
 }
 
-impl rule_lora::Functions for DemoLoraFunctions {
+impl rule_lora::HostFunctions for DemoLoraFunctions {
     fn is_broadcastable(&self, batch: &[u64], weight_batch: &[u64]) -> Option<bool> {
         Some(batch == weight_batch)
     }

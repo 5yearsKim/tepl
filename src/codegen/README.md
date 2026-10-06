@@ -19,12 +19,14 @@ The layout separates shared semantics from target syntax:
   separately so expression metadata reads remain inside short-circuit control
   flow. Conditions and derivations retain core's source order.
 - `common/project_plan.*` groups dialect operations and schemas by declaration
-  source, and rules by their owning source module. It preserves raw relative
+  source, and rules and graphs by their owning source module. It preserves raw relative
   module paths so every target can apply its own identifier rules.
 - `rust/backend.*` assembles module contents for an existing crate from the
   validated naming plan.
 - `rust/dialect_emitter.*` emits the combined operation enum and attribute enum
   from all checked dialect declarations, with arity, aliases, and schema checks.
+- `rust/graph_emitter.*` emits concrete nodes, schema-ordered attributes, input
+  metadata, named bindings, and one root. C++ has a matching emitter.
 - `rust/rule_emitter.*` recursively emits patterns, RHS expressions, shape
   restrictions, and per-rule host interfaces and callbacks.
 - `rust/analysis_emitter.*` emits shape and dtype dispatch from checked operation
@@ -68,7 +70,7 @@ language-backend interface.
 
 ## Generated Rust API
 
-The emitted module exposes `{analysis, builtins, dialects, op_node, types, pattern, rules}`.
+The emitted module exposes `{analysis, builtins, dialects, op_node, types, pattern, rules, graphs}`.
 `analysis` exposes `TensorAnalysis`, `TensorAnalysisData`, `TensorBindingTable`,
 `TensorInfo`, and pure `infer_shape`, `infer_dtype`, and `infer_tensor` functions.
 `builtins::{common, shape, dtype}` contains the shared checked runtime helpers.
@@ -115,11 +117,11 @@ Dialects named `Std`, `Egg`, `Op`, or `DType` therefore cannot shadow runtime ty
 or external crates. External references start with `::std::` and `::egg::`;
 generated references remain relative so the output can be relocated.
 
-Project input scans `dialects/**/*.tepl` and `rules/**/*.tepl` in sorted order,
+Project input scans `dialects/**/*.tepl`, `rules/**/*.tepl`, and `graphs/**/*.tepl` in sorted order,
 resolves imports per file, and deduplicates declarations by source and name.
 It preserves each file's imports and host-function scope. `Options.rules_root`
-controls relative rule paths for API callers. Nested files become nested Rust
-modules. A single input file produces a rule module named after its file stem.
+controls relative rule paths for API callers; `Options.graphs_root` controls graph
+paths. Nested files become nested Rust modules. A single input file produces a rule module named after its file stem.
 Inherited rules belong to their instance file, independently of diagnostic
 origins that can point into a template file.
 
@@ -141,14 +143,13 @@ empty-list default.
 
 Each concrete rule becomes `generated::rules::FILE::rule_NAME` with:
 
-- `Functions`: only host functions actually referenced by that rule.
+- `HostFunctions`: only host functions actually referenced by that rule.
 - `pattern()` and `expression()`: structural match and replacement trees.
 - `constraints()`: shape/dtype restrictions indexed by capture, including inheritance.
-- `match_checks(metadata)`: declarations and ordered pure condition evaluators;
-  metadata is shared through `Arc`.
-- `build_rewrite(functions)`: a checked rewrite using generated `TensorAnalysis`.
-- `build_rewrite_with(metadata, inference, functions)`: explicit callbacks for a
-  custom analysis or inference policy.
+- `match_checks<N>()`: declarations and ordered pure condition evaluators using
+  the graph's analysis.
+- `build(functions)`: a rewrite using the graph's analysis type. Rust
+  infers that type from use; standalone builders can specify it explicitly.
 
 Rewrite names are qualified as `FILE::NAME`, and rule modules have no broad
 re-exports. Host names are scoped to their source file; same-file overloads
@@ -161,7 +162,7 @@ use `Result` and become invalid inference. Both conditions and derivations
 read matched LHS metadata;
 derivations may also read earlier derived descriptors.
 
-Generated builders use `tensor_rewrite_checked_with_checks`. `MatchChecks`
+Generated builders use `tensor_rewrite_with_checks`. `MatchChecks`
 combines the existing tensor declarations with ordered condition dependencies
 and generated Rust evaluators. Shapes bind dimensions; conditions consume those
 bindings. Each branch holds one `next_condition` cursor alongside tensor,
@@ -240,7 +241,12 @@ priority, and incomplete metadata is unknown. Runtime input and literal nodes
 have shared policies. User operations with absent shape or dtype declarations
 remain unknown, including typed-payload constants. Attribute-dependent dtype
 behavior uses dtype-valued attributes in the declared program.
-The LoRA demo illustrates a host policy through `build_rewrite_with`.
+Analyses implement `RewriteAnalysis` once to provide tensor information and
+output inference. The LoRA demo supplies its host policy this way. Graphs with
+no analysis allow structural rules and skip tensor output validation. Rules
+requiring tensor information reject that configuration at construction.
+Checked analyses reject candidates with missing or incompatible information;
+they never switch to structural behavior.
 
 ## Output ownership and regeneration
 
@@ -253,8 +259,8 @@ name and depth. Nested rules use the appropriate number of `super::` segments;
 external crate imports use absolute paths such as `::egg::` and `::std::`.
 
 ```sh
-bazel-bin/tepl generate examples --out my_app/src/generated
-bazel-bin/tepl generate examples --out my_app/src/generated --check
+bazel-bin/tepl generate examples/sample --out my_app/src/generated
+bazel-bin/tepl generate examples/sample --out my_app/src/generated --check
 ```
 
 `.tepl-generated-files` records the relative paths owned by generation. A later
@@ -265,6 +271,20 @@ manifest paths and symlinked generated paths are rejected before writing.
 `--check` compares file contents and the manifest, reporting missing, changed,
 or obsolete output without modifying it. It returns 0 when current and 1 on
 drift; usage, formatting, and output errors return 2. Use the same
-formatting options for generation and checking. The handwritten lab is developed
-independently; `tools/test_codegen.sh` validates compiler output in temporary
-crates without regenerating the lab.
+formatting options for generation and checking. `tools/test_codegen.sh`
+regenerates `labs/rust-egg/src/ir/`, runs the lab tests, and validates additional
+compiler fixtures in temporary crates.
+
+
+## Concrete graph builders
+
+`graphs::FILE::graph_NAME::build()` prepares a `GraphDefinition` with local child
+indices, input specifications, named bindings, and one root. Nested source paths
+become nested modules in both targets. See the
+[graph examples and API](../../examples/sample/graphs/README.md).
+
+Graph runtime templates validate topology and available shape/dtype programs
+before insertion, remap local children to e-graph IDs, and retain unused nodes.
+`into_egraph` installs generated tensor analysis; `into_egraph_with` accepts a
+factory receiving complete input bindings. `insert_into` inserts structural
+inputs into an existing graph without changing its analysis configuration.

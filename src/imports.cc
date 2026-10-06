@@ -68,9 +68,11 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
             }
             continue;
           }
-          if (imported.rules.empty() && !parsed.program->rules.empty()) {
+          if (imported.rules.empty() && (!parsed.program->rules.empty() ||
+                                         !parsed.program->graphs.empty())) {
             report("import '" + imported.path +
-                   "' contains rules; imports must define dialects only");
+                   "' contains rules or graphs; imports must define dialects "
+                   "only");
             continue;
           }
           std::unordered_set<std::string> direct_names;
@@ -157,7 +159,7 @@ ParseResult loadProject(const std::string& directory) {
   const auto root = fs::absolute(directory).lexically_normal();
   project.source_name = (root / "<project>").string();
   std::vector<fs::path> files;
-  for (const auto* part : {"dialects", "rules"}) {
+  for (const auto* part : {"dialects", "rules", "graphs"}) {
     if (!fs::is_directory(root / part)) continue;
     for (const auto& entry : fs::recursive_directory_iterator(root / part))
       if (entry.is_regular_file() && entry.path().extension() == ".tepl")
@@ -166,7 +168,8 @@ ParseResult loadProject(const std::string& directory) {
   std::sort(files.begin(), files.end());
   if (files.empty()) {
     result.diagnostics.push_back(
-        {1, 1, "no .tepl files found under dialects/ or rules/", directory});
+        {1, 1, "no .tepl files found under dialects/, rules/, or graphs/",
+         directory});
     return result;
   }
   std::unordered_set<std::string> dialects, scopes, instances, imported;
@@ -203,6 +206,8 @@ ParseResult loadProject(const std::string& directory) {
     for (auto& dialect : module.dialects)
       if (dialects.insert(dialect.source_name + "\n" + dialect.name).second)
         project.dialects.push_back(std::move(dialect));
+    for (auto& graph : module.graphs)
+      project.graphs.push_back(std::move(graph));
     for (auto& rule : module.rules) {
       instances.insert(rule.source_name + "\n" + rule.name);
       project.rules.push_back(std::move(rule));

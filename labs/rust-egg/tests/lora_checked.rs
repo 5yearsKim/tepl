@@ -1,7 +1,8 @@
 mod support;
 use egg::{EGraph, Id};
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::dialects::tensor_lang;
-use rust_egg::ir::pattern::{OutputInference, TensorInfo};
+use rust_egg::ir::rewriting::OutputInference;
 use rust_egg::ir::rules::lora::rule_lora;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 use std::collections::HashMap;
@@ -30,7 +31,7 @@ fn dot_shape(lhs: &[u64], rhs: &[u64], attributes: &OpAttrs) -> Option<Vec<u64>>
 struct Host {
     allowed: bool,
 }
-impl rule_lora::Functions for Host {
+impl rule_lora::HostFunctions for Host {
     fn is_broadcastable(&self, batch: &[u64], weight: &[u64]) -> Option<bool> {
         Some(batch == weight)
     }
@@ -155,7 +156,7 @@ fn generated_lora_checks_shapes_host_legality_and_every_intermediate_before_inse
             Inference {
                 reject_intermediate,
             },
-            rule_lora::build_rewrite(Host { allowed }),
+            rule_lora::build(Host { allowed }),
         )
         .unwrap();
         graph.rebuild();

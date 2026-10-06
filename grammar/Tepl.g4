@@ -3,10 +3,10 @@ grammar Tepl;
 // File structure: imports, operation visibility, and top-level declarations
 
 // Whitespace, including newlines, is insignificant. A file contains imports,
-// dialects, and/or rules (concrete, abstract, or inherited).
+// dialects, concrete graphs, and/or rules (concrete, abstract, or inherited).
 // Bindings, inheritance expansion, and typing are validated later.
 program
-    : (importDecl | useDecl | dialectDecl | ruleDecl)+ EOF
+    : (importDecl | useDecl | dialectDecl | ruleDecl | concreteGraphDecl)+ EOF
     ;
 
 importDecl
@@ -182,6 +182,39 @@ attrType
 
 attrDefault
     : '=' '[' ']'
+    ;
+
+// Concrete graphs use construction semantics, separate from rule captures.
+// graph/input remain contextual so existing operation identifiers still work.
+concreteGraphDecl
+    : {getCurrentToken()->getText() == "graph"}? ID ID '{'
+      concreteInput* concreteLet* YIELD concreteExpr ';' '}'
+    ;
+concreteInput
+    : {getCurrentToken()->getText() == "input"}? ID ID
+      (':' (dtypeName concreteShape? | concreteShape))? ';'
+    ;
+concreteShape
+    : '[' (INT (',' INT)*)? ']'
+    ;
+concreteLet
+    : LET ID '=' concreteExpr ';'
+    ;
+concreteExpr
+    : ID
+    | ('+' | '-')? (INT | FLOAT) (':' dtypeName)?
+    | '(' opRef concreteAttributes? concreteExpr* ')'
+    ;
+concreteAttributes
+    : '[' concreteField (',' concreteField)* ']'
+    ;
+concreteField
+    : ID '=' concreteValue
+    ;
+concreteValue
+    : ('+' | '-')? (INT | FLOAT)
+    | TRUE | FALSE | STRING | ID
+    | '[' (concreteValue (',' concreteValue)*)? ']'
     ;
 
 // Rewrite rules: concrete and abstract definitions, parameters, and inheritance

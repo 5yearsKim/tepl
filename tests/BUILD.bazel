@@ -6,14 +6,14 @@ cc_test(
     size = "small",
     srcs = ["core_test.cc"],
     args = [
-        "$(rlocationpath //examples:rules/lora.tepl)",
-        "$(rlocationpath //examples:rules/inherited.tepl)",
+        "$(rlocationpath //:examples/sample/rules/lora.tepl)",
+        "$(rlocationpath //:examples/sample/rules/inherited.tepl)",
     ],
     data = [
-        "//examples:rules/lora.tepl",
-        "//examples:rules/inherited.tepl",
-        "//examples:rules/abstract.tepl",
-        "//examples:dialects/tensor.tepl",
+        "//:examples/sample/rules/lora.tepl",
+        "//:examples/sample/rules/inherited.tepl",
+        "//:examples/sample/rules/abstract.tepl",
+        "//:examples/sample/dialects/tensor.tepl",
     ],
     deps = [
         "//:frontend",
@@ -31,15 +31,15 @@ sh_test(
     srcs = ["cli_test.sh"],
     args = [
         "$(rootpath //:tepl)",
-        "$(rootpath //examples:rules/simple.tepl)",
+        "$(rootpath //:examples/sample/rules/simple.tepl)",
     ],
     data = [
         "//:tepl",
-        "//examples:rules/simple.tepl",
-        "//examples:dialects/tensor.tepl",
-        "//examples:rules/abstract.tepl",
-        "//examples:rules/inherited.tepl",
-        "//examples:rules/basic.tepl",
+        "//:examples/sample/rules/simple.tepl",
+        "//:examples/sample/dialects/tensor.tepl",
+        "//:examples/sample/rules/abstract.tepl",
+        "//:examples/sample/rules/inherited.tepl",
+        "//:examples/sample/rules/basic.tepl",
     ],
     env_inherit = ["PATH", "HOME", "RUSTUP_HOME"],
 )
@@ -49,16 +49,16 @@ cc_test(
     size = "small",
     srcs = ["ast_test.cc"],
     args = [
-        "$(rlocationpath //examples:rules/lora.tepl)",
-        "$(rlocationpath //examples:dialects/tensor.tepl)",
-        "$(rlocationpath //examples:rules/abstract.tepl)",
-        "$(rlocationpath //examples:rules/inherited.tepl)",
+        "$(rlocationpath //:examples/sample/rules/lora.tepl)",
+        "$(rlocationpath //:examples/sample/dialects/tensor.tepl)",
+        "$(rlocationpath //:examples/sample/rules/abstract.tepl)",
+        "$(rlocationpath //:examples/sample/rules/inherited.tepl)",
     ],
     data = [
-        "//examples:rules/lora.tepl",
-        "//examples:dialects/tensor.tepl",
-        "//examples:rules/abstract.tepl",
-        "//examples:rules/inherited.tepl",
+        "//:examples/sample/rules/lora.tepl",
+        "//:examples/sample/dialects/tensor.tepl",
+        "//:examples/sample/rules/abstract.tepl",
+        "//:examples/sample/rules/inherited.tepl",
     ],
     deps = [
         "//src/ast:ast",
@@ -93,12 +93,12 @@ cc_test(
     size = "small",
     srcs = ["shape_core_test.cc"],
     args = [
-        "$(rlocationpath //examples:dialects/tensor.tepl)",
-        "$(rlocationpath //examples:dialects/scalar.tepl)",
+        "$(rlocationpath //:examples/sample/dialects/tensor.tepl)",
+        "$(rlocationpath //:examples/sample/dialects/scalar.tepl)",
     ],
     data = [
-        "//examples:dialects/tensor.tepl",
-        "//examples:dialects/scalar.tepl",
+        "//:examples/sample/dialects/tensor.tepl",
+        "//:examples/sample/dialects/scalar.tepl",
     ],
     deps = [
         "//:frontend",
@@ -170,4 +170,11 @@ cc_test(
         "//src/support:process",
         "//src/support:temporary_directory",
     ],
+)
+
+cc_test(
+    name = "graph_test",
+    size = "small",
+    srcs = ["graph_test.cc"],
+    deps = ["//:frontend", "//src/codegen:codegen", "//src/core:analysis"],
 )

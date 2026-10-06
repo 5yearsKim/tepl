@@ -2,6 +2,8 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
+exports_files(glob(["examples/**/*.tepl"]))
+
 cc_library(
     name = "source",
     hdrs = ["src/source.h"],

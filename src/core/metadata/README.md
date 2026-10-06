@@ -30,7 +30,7 @@ values support equality and the five classification predicates, with no
 implicit promotion or arithmetic. Attributes may supply dtype values and lists.
 Assertions and local bindings execute in source order in both backends.
 
-See the [shape guide](../../../examples/shape_guide.md) and
-[dtype guide](../../../examples/dtype_guide.md). Checker tests live in
+See the [shape guide](../../../examples/sample/shape_guide.md) and
+[dtype guide](../../../examples/sample/dtype_guide.md). Checker tests live in
 `tests/shape_core_test.cc` and `tests/dtype_program_test.cc`; generated integration
 fixtures exercise both Rust and C++ evaluators and rule bindings.

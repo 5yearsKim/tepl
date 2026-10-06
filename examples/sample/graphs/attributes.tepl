@@ -1,0 +1,15 @@
+from "../dialects/tensor.tepl" import TensorLang as t;
+
+graph slice_and_join {
+    input X: f32[8, 16];
+
+    // Named attributes are comma-separated. Output: f32[8, 6].
+    let sliced = (t.slice[
+        start_indices = [0, 2],
+        limit_indices = [8, 14],
+        strides = [1, 2]
+    ] X);
+
+    // Variadic operations accept multiple operands. Output: f32[8, 18].
+    yield (t.concatenate[dimension = 1] sliced sliced sliced);
+}

@@ -1,9 +1,9 @@
 #pragma once
 #include <eggc/egraph.hpp>
 
+#include "../rewriting/rewrite_analysis.h"
 #include "bindings.h"
 #include "dtype.h"
-#include "rewrite_analysis.h"
 #include "shape.h"
 #include "tensor_analysis_data.h"
 
@@ -62,24 +62,6 @@ inline ::std::optional<TensorInfo> tensor_info(
     const ::eggc::EGraph<OpNode, TensorAnalysis>& graph, ::eggc::Id id) {
   return graph.analysis_data(graph.find(id)).info();
 }
-template <>
-struct RewriteAnalysis<TensorAnalysis> {
-  static constexpr bool has_tensor_info = true;
-  static ::std::optional<TensorInfo> tensor_info(
-      const ::eggc::EGraph<OpNode, TensorAnalysis>& graph, ::eggc::Id id) {
-    return analysis::tensor_info(graph, id);
-  }
-  static ::std::optional<TensorInfo> infer_output(
-      const ::eggc::EGraph<OpNode, TensorAnalysis>&, Op op,
-      ::std::span<const TensorInfo> operands, const OpAttrs& attrs) {
-    return infer_tensor(op, operands, attrs).into_option();
-  }
-  static ::std::optional<DType> infer_literal(
-      const ::eggc::EGraph<OpNode, TensorAnalysis>&, ::std::string_view,
-      ::std::optional<DType> dtype, const TensorInfo& expected) {
-    return dtype ? dtype : ::std::optional(expected.dtype);
-  }
-};
 struct TensorOutputInference {
   ::std::optional<DType> infer_literal(::std::string_view,
                                        ::std::optional<DType> dtype,
@@ -93,3 +75,26 @@ struct TensorOutputInference {
   }
 };
 }  // namespace @TEPL_NAMESPACE@::analysis
+
+namespace @TEPL_NAMESPACE@::rewriting {
+template <>
+struct RewriteAnalysis<analysis::TensorAnalysis> {
+  static constexpr bool has_tensor_info = true;
+  static ::std::optional<TensorInfo> tensor_info(
+      const ::eggc::EGraph<OpNode, analysis::TensorAnalysis>& graph,
+      ::eggc::Id id) {
+    return analysis::tensor_info(graph, id);
+  }
+  static ::std::optional<TensorInfo> infer_output(
+      const ::eggc::EGraph<OpNode, analysis::TensorAnalysis>&, Op op,
+      ::std::span<const TensorInfo> operands, const OpAttrs& attrs) {
+    return analysis::infer_tensor(op, operands, attrs).into_option();
+  }
+  static ::std::optional<DType> infer_literal(
+      const ::eggc::EGraph<OpNode, analysis::TensorAnalysis>&,
+      ::std::string_view, ::std::optional<DType> dtype,
+      const TensorInfo& expected) {
+    return dtype ? dtype : ::std::optional(expected.dtype);
+  }
+};
+}  // namespace @TEPL_NAMESPACE@::rewriting

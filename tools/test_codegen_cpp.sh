@@ -20,16 +20,24 @@ fi
 eggc_source="$(cd "$eggc_source" && pwd)"
 test -f "$eggc_source/include/eggc/all.hpp"
 cxx="${CXX:-c++}"
-fixtures=(dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty structural)
+fixtures=(dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty structural concrete_graphs)
 # Optional fixture arguments allow focused reruns after a failing integration.
 if [[ $# -gt 1 ]]; then fixtures=("${@:2}"); fi
 for fixture in "${fixtures[@]}"; do
+    fixture_flags=()
+    if [[ "$fixture" == concrete_graphs ]]; then fixture_flags=(-DTEPL_TEST_NESTED_GRAPHS); fi
     application="$work_directory/$fixture"
     mkdir -p "$application"
     input="$project_root/tests/codegen/$fixture.tepl"
     case "$fixture" in
         runtime|hygiene|dialect_only) input="$project_root/tests/codegen/cpp/$fixture.tepl" ;;
-        examples) input="$project_root/examples" ;;
+        concrete_graphs)
+            mkdir -p "$application/graphs/type"
+            cp "$input" "$application/graphs/concrete_graphs.tepl"
+            printf 'graph nested { yield 1:i32; }\n' > "$application/graphs/type/match.tepl"
+            input="$application"
+            ;;
+        examples) input="$project_root/examples/sample" ;;
         custom)
             # A Rust host named `signed` is a C++ keyword. Diagnose the original
             # and use the same fixture with an explicitly renamed host.
@@ -85,7 +93,7 @@ for fixture in "${fixtures[@]}"; do
     for mode in debug release; do
         flags=(-O0 -g)
         if [[ "$mode" == release ]]; then flags=(-O2); fi
-        "$cxx" -std=c++20 "${flags[@]}" -I"$application" -I"$eggc_source/include" "${sources[@]}" -o "$application/test-$mode"
+        "$cxx" -std=c++20 "${flags[@]}" "${fixture_flags[@]}" -I"$application" -I"$eggc_source/include" "${sources[@]}" -o "$application/test-$mode"
         "$application/test-$mode"
     done
     case "$fixture" in

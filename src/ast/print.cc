@@ -1,6 +1,8 @@
 #include "src/ast/print.h"
 
 #include <cstddef>
+#include <functional>
+#include <iomanip>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -380,6 +382,67 @@ std::string formatAst(const ast::Program& program) {
   for (const auto& rule : program.imported_rules) {
     out << "  imported from " << rule.source_name << '\n';
     printRule(out, rule);
+  }
+  for (const auto& graph : program.graphs) {
+    out << "  graph " << graph.name << '\n';
+    for (const auto& input : graph.inputs) {
+      out << "    input " << input.name;
+      if (input.dtype) out << " dtype=" << input.dtype->name;
+      if (input.shape) {
+        out << " shape=[";
+        for (std::size_t i = 0; i < input.shape->size(); ++i) {
+          if (i) out << ", ";
+          out << input.shape->at(i);
+        }
+        out << ']';
+      }
+      out << '\n';
+    }
+    std::function<void(const ast::ConcreteExpr&)> expression =
+        [&](const auto& expr) {
+          if (expr.kind != ast::ConcreteExpr::Kind::kOperation) {
+            out << expr.name;
+            if (expr.dtype) out << ':' << expr.dtype->name;
+            return;
+          }
+          out << '(' << expr.name;
+          if (!expr.attributes.empty()) {
+            out << '[';
+            std::function<void(const ast::ConcreteValue&)> value =
+                [&](const auto& item) {
+                  if (item.kind == ast::ConcreteValue::Kind::kList) {
+                    out << '[';
+                    for (std::size_t i = 0; i < item.elements.size(); ++i) {
+                      if (i) out << ", ";
+                      value(item.elements[i]);
+                    }
+                    out << ']';
+                  } else if (item.kind == ast::ConcreteValue::Kind::kString)
+                    out << std::quoted(item.text);
+                  else
+                    out << item.text;
+                };
+            for (std::size_t i = 0; i < expr.attributes.size(); ++i) {
+              if (i) out << ", ";
+              out << expr.attributes[i].name << " = ";
+              value(expr.attributes[i].value);
+            }
+            out << ']';
+          }
+          for (const auto& operand : expr.operands) {
+            out << ' ';
+            expression(operand);
+          }
+          out << ')';
+        };
+    for (const auto& binding : graph.bindings) {
+      out << "    let " << binding.name << " = ";
+      expression(binding.expression);
+      out << '\n';
+    }
+    out << "    yield ";
+    expression(graph.output);
+    out << '\n';
   }
   return out.str();
 }

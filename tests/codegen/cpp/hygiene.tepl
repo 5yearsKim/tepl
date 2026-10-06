@@ -10,3 +10,9 @@ dialect Hygiene {
 }
 rule identity { (value_copy[@a] X) => (value_copy[@a] X) }
 rule eliminate { (arity_copy[@a] X) => X }
+
+graph example {
+    input X: f32[2];
+    let N = (Hygiene.value_copy[seed = 1] X);
+    yield (Hygiene.arity_copy[seed = "one"] N);
+}

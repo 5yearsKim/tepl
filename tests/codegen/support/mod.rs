@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use egg::{EGraph, Id};
-use tepl_generated::ir::pattern::TensorInfo;
+use tepl_generated::ir::TensorInfo;
 use tepl_generated::ir::{DType, Op, OpAttrs, OpNode};
 // Structural fixtures give every operation and alternative the same scalar
 // metadata. Separate semantic tests exercise real shape and dtype inference.
@@ -22,7 +22,8 @@ pub fn fixture_inference(_: Op, _: &[TensorInfo], _: &OpAttrs) -> Option<TensorI
 
 use egg::{Analysis, DidMerge, Rewrite};
 use std::sync::Arc;
-use tepl_generated::ir::pattern::{OutputInference, RewriteAnalysis, TensorMetadata};
+use tepl_generated::ir::RewriteAnalysis;
+use tepl_generated::ir::rewriting::{OutputInference, TensorMetadata};
 
 // A test analysis keeps controllable observations and output policies on the
 // graph. Generated rules access them through the same interface as real analyses.

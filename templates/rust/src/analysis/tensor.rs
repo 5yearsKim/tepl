@@ -1,6 +1,6 @@
 //! Infer one operation, without accessing an e-graph.
-use super::super::pattern::TensorInfo;
 use super::super::{Op, OpAttrs};
+use super::TensorInfo;
 use super::{Inference, infer_dtype, infer_shape};
 
 /// Used by TensorAnalysis: preserve Known, Unknown, and Invalid results.

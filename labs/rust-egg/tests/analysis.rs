@@ -1,11 +1,11 @@
 use egg::{EGraph, Runner};
 use rust_egg::host::nodes::{binary, symbol, unary};
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::analysis::{
     Inference, TensorAnalysis, TensorAnalysisData, TensorBindingTable, infer_dtype, infer_shape,
     infer_tensor, infer_tensor_output, tensor_info,
 };
 use rust_egg::ir::dialects::tensor_lang as t;
-use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::rules::simple::rule_commute_add;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
@@ -92,7 +92,7 @@ fn direct_tensor_analysis_works_with_generated_rewrites() {
     let root = graph.add(binary(t::Op::Add, x, y).unwrap());
     graph.rebuild();
 
-    let rewrite = rule_commute_add::build_rewrite(()).unwrap();
+    let rewrite = rule_commute_add::build(()).unwrap();
     let runner = Runner::<OpNode, TensorAnalysis>::new(TensorAnalysis::default())
         .with_egraph(graph)
         .with_iter_limit(4)

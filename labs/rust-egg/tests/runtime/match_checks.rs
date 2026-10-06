@@ -1,8 +1,9 @@
 // Public runtime checks run against the lab's verified generated module.
 use egg::{EGraph, Id, Var};
-use rust_egg::ir::pattern::{
+use rust_egg::ir::TensorInfo;
+use rust_egg::ir::rewriting::{
     AttrPattern, AttrVar, MatchBinding as Binding, MatchChecks, ShapePart, TensorConstraint,
-    TensorConstraints, TensorExpr, TensorInfo, TensorPattern, matches_at_with_checks,
+    TensorConstraints, TensorExpr, TensorPattern, matches_at_with_checks,
     tensor_rewrite_checked_with_checks,
 };
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};

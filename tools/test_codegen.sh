@@ -13,22 +13,11 @@ trap 'rm -rf "$work_directory"' EXIT
 # Retain Cargo's build cache across runs.
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$project_root/labs/rust-egg/target}"
 
-# Test handwritten lab code independently of compiler output.
+# Regenerate the lab IR from the example project before testing it.
 lab="$project_root/labs/rust-egg"
+"$compiler" generate "$project_root/examples/sample" --target rust --out "$lab/src/ir"
 cargo test --manifest-path "$lab/Cargo.toml" --locked --all-targets
-
-# Reuse the lab's tests and host helpers against freshly generated IR in isolation.
-# Keep the directory layout for tests that include the example TEPL sources.
-generated_lab="$work_directory/labs/rust-egg"
-mkdir -p "$generated_lab/src"
-cp "$lab/Cargo.toml" "$lab/Cargo.lock" "$generated_lab/"
-cp "$lab/src/lib.rs" "$generated_lab/src/"
-cp -R "$lab/src/host" "$generated_lab/src/"
-cp -R "$lab/tests" "$lab/examples" "$generated_lab/"
-cp -R "$project_root/examples" "$work_directory/examples"
-"$compiler" generate "$project_root/examples" --target rust --out "$generated_lab/src/ir"
-cargo test --manifest-path "$generated_lab/Cargo.toml" --locked --all-targets
-cargo test --manifest-path "$generated_lab/Cargo.toml" --locked --release --test runtime shape_builtins
+cargo test --manifest-path "$lab/Cargo.toml" --locked --release --test runtime shape_builtins
 
 # Only definitions absent from the example project need isolated generated crates.
 prepare_application() {
@@ -47,11 +36,17 @@ TOML
     printf 'pub mod ir;\n' > "$application/src/lib.rs"
 }
 
-for source in dtype early_where names builtins analysis custom empty dialect_only literal_root structural; do
+for source in dtype early_where names builtins analysis custom empty dialect_only literal_root structural concrete_graphs; do
     crate="$work_directory/$source"
     prepare_application "$crate"
     input="$project_root/tests/codegen/$source.tepl"
     module_out="$crate/src/ir"
+    if [[ "$source" == concrete_graphs ]]; then
+        mkdir -p "$crate/graphs/type"
+        cp "$input" "$crate/graphs/concrete_graphs.tepl"
+        printf 'graph nested { yield 1:i32; }\n' > "$crate/graphs/type/match.tepl"
+        input="$crate"
+    fi
     if [[ "$source" == names ]]; then
         # One fixture covers nested output modules and Rust keyword source paths.
         mkdir -p "$crate/rules/type" "$crate/src/components"

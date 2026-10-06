@@ -70,13 +70,12 @@ int main() {
           graph.add(ir::OpNode::make(d::Op::Convert, d::ConvertAttrs{to}, {x}));
       graph.rebuild();
       auto checks = r::rule_remove_identity_convert::match_checks<A>();
-      auto matches = ir::pattern::matches_at_with_checks(
+      auto matches = ir::rewriting::matches_at_with_checks(
           graph, root, r::rule_remove_identity_convert::pattern(), checks,
           ir::analysis::tensor_info);
       assert(!matches.empty() == (input == to));
       auto before = graph.node_count();
-      eggc::run(graph,
-                std::vector{r::rule_remove_identity_convert::build_rewrite()});
+      eggc::run(graph, std::vector{r::rule_remove_identity_convert::build()});
       assert((graph.find(x) == graph.find(root)) == (input == to));
       assert(graph.node_count() == before);
     }
@@ -91,11 +90,11 @@ int main() {
     auto calls = std::make_shared<unsigned>(0);
     graph.rebuild();
     auto checks = r::rule_remove_f32_convert::match_checks<A>();
-    auto matches = ir::pattern::matches_at_with_checks(
+    auto matches = ir::rewriting::matches_at_with_checks(
         graph, root, r::rule_remove_f32_convert::pattern(), checks,
         ir::analysis::tensor_info);
     assert(!matches.empty() == (input == DType::F32));
-    auto host = r::rule_host_identity::build_rewrite(Host{calls});
+    auto host = r::rule_host_identity::build(Host{calls});
     eggc::run(graph, std::vector{host});
     assert((graph.find(x) == graph.find(root)) == (input == DType::F32));
     assert(*calls > 0);
@@ -118,7 +117,7 @@ int main() {
     };
     auto checks = support::configure_checks(graph, metadata,
                                             r::rule_shared::match_checks<NA>());
-    auto matches = ir::pattern::matches_at_with_checks(
+    auto matches = ir::rewriting::matches_at_with_checks(
         graph, root, r::rule_shared::pattern(), checks, metadata);
     assert(!matches.empty() == accepted);
   }
@@ -137,7 +136,7 @@ int main() {
     };
     auto checks = support::configure_checks(alternatives, metadata,
                                             r::rule_shared::match_checks<NA>());
-    auto matches = ir::pattern::matches_at_with_checks(
+    auto matches = ir::rewriting::matches_at_with_checks(
         alternatives, good, r::rule_shared::pattern(), checks, metadata);
     assert(matches.size() == 1);
     for (auto [id, captured] : matches.front().tensors)
@@ -158,7 +157,7 @@ int main() {
     };
     auto checks = support::configure_checks(pruning, metadata,
                                             r::rule_shared::match_checks<NA>());
-    assert(ir::pattern::matches_at_with_checks(
+    assert(ir::rewriting::matches_at_with_checks(
                pruning, root, r::rule_shared::pattern(), checks, metadata)
                .empty());
     assert(reads == 1);
@@ -177,7 +176,7 @@ int main() {
   };
   auto rule = support::configure_rule(
       graph, metadata, ir::analysis::TensorOutputInference{},
-      r::rule_remove_identity_convert::build_rewrite<NA>());
+      r::rule_remove_identity_convert::build<NA>());
   std::vector<eggc::Application<ir::OpNode, NA>> actions;
   rule.custom_search(graph,
                      [&](auto action) {

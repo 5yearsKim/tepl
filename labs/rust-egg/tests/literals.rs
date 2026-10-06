@@ -1,10 +1,9 @@
 mod support;
 use egg::{EGraph, Id, Language};
 use rust_egg::host::nodes::*;
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::dialects::tensor_lang;
-use rust_egg::ir::pattern::{
-    TensorExpr, TensorInfo, TensorPattern, matches_at, tensor_rewrite_checked,
-};
+use rust_egg::ir::rewriting::{TensorExpr, TensorPattern, matches_at, tensor_rewrite_checked};
 use rust_egg::ir::rules::basic::{rule_commute_float_literal, rule_commute_integer_literal};
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
@@ -109,7 +108,7 @@ fn reference_rules_match_only_their_literal_and_construct_the_rhs() {
                 &mut egraph,
                 metadata,
                 literal_output,
-                rule_commute_integer_literal::build_rewrite(()),
+                rule_commute_integer_literal::build(()),
             )
             .unwrap()
         } else {
@@ -117,7 +116,7 @@ fn reference_rules_match_only_their_literal_and_construct_the_rhs() {
                 &mut egraph,
                 metadata,
                 literal_output,
-                rule_commute_float_literal::build_rewrite(()),
+                rule_commute_float_literal::build(()),
             )
             .unwrap()
         };

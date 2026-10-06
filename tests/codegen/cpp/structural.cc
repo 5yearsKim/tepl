@@ -34,17 +34,17 @@ void requires_analysis(F build) {
   assert(rejected);
 }
 int main() {
-  requires_analysis([] { r::rule_shaped::build_rewrite<A>(); });
-  requires_analysis([] { r::rule_tensor_host::build_rewrite<A>(Host{}); });
-  requires_analysis([] { r::rule_tensor_derive::build_rewrite<A>(Host{}); });
-  requires_analysis([] { r::rule_untyped_rhs::build_rewrite<A>(); });
+  requires_analysis([] { r::rule_shaped::build<A>(); });
+  requires_analysis([] { r::rule_tensor_host::build<A>(Host{}); });
+  requires_analysis([] { r::rule_tensor_derive::build<A>(Host{}); });
+  requires_analysis([] { r::rule_untyped_rhs::build<A>(); });
   eggc::EGraph<ir::OpNode, A> graph;
   auto x = graph.add(ir::OpNode::input("x")),
        y = graph.add(ir::OpNode::input("y"));
   auto sum = graph.add(add(x, y)), product = graph.add(dot(0, x, y));
   graph.add(dot(1, x, y));
-  eggc::run(graph, std::vector{r::rule_swap_add::build_rewrite<A>(),
-                               r::rule_swap_dot::build_rewrite<A>(Host{})});
+  eggc::run(graph, std::vector{r::rule_swap_add::build<A>(),
+                               r::rule_swap_dot::build<A>(Host{})});
   auto swapped_sum = graph.lookup(add(y, x)),
        swapped_dot = graph.lookup(dot(0, y, x));
   assert(swapped_sum && graph.find(sum) == graph.find(*swapped_sum));
@@ -52,13 +52,13 @@ int main() {
   assert(!graph.lookup(dot(1, y, x)));
   auto zero_i32 = graph.add(ir::OpNode::literal("0", ir::DType::I32));
   auto with_zero = graph.add(add(x, zero_i32));
-  eggc::run(graph, std::vector{r::rule_typed_rhs::build_rewrite<A>()});
+  eggc::run(graph, std::vector{r::rule_typed_rhs::build<A>()});
   auto replacement = graph.lookup(add(zero_i32, x));
   assert(replacement && graph.find(with_zero) == graph.find(*replacement));
   for (auto dtype : {ir::DType::I32, ir::DType::F32}) {
     auto zero = graph.add(ir::OpNode::literal("0", dtype));
     auto root = graph.add(add(x, zero));
-    eggc::run(graph, std::vector{r::rule_remove_zero::build_rewrite<A>()});
+    eggc::run(graph, std::vector{r::rule_remove_zero::build<A>()});
     assert(graph.find(root) == graph.find(x));
   }
   using Checked = ir::analysis::TensorAnalysis;
@@ -72,7 +72,7 @@ int main() {
   checked.rebuild();
   assert(checked.analysis_data(root).is_unknown());
   auto before = checked.node_count();
-  eggc::run(checked, std::vector{r::rule_swap_add::build_rewrite()});
+  eggc::run(checked, std::vector{r::rule_swap_add::build()});
   assert(checked.node_count() == before && !checked.lookup(add(y, x)));
-  r::rule_untyped_rhs::build_rewrite();
+  r::rule_untyped_rhs::build();
 }

@@ -1,7 +1,8 @@
 mod support;
 use egg::{EGraph, Id, Language};
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::dialects::{scalar as s, tensor_lang as t};
-use rust_egg::ir::pattern::{OutputInference, TensorInfo};
+use rust_egg::ir::rewriting::OutputInference;
 use rust_egg::ir::rules::{lowering::rule_scalar_add, scalar::rule_commute_add};
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
@@ -56,7 +57,7 @@ fn cross_dialect_lowering_and_scalar_rule_share_one_graph() {
         &mut graph,
         metadata,
         Inference(true),
-        rule_commute_add::build_rewrite(()),
+        rule_commute_add::build(()),
     )
     .unwrap();
     assert!(scalar_rule.search(&graph).is_empty());
@@ -64,7 +65,7 @@ fn cross_dialect_lowering_and_scalar_rule_share_one_graph() {
         &mut graph,
         metadata,
         Inference(true),
-        rule_scalar_add::build_rewrite(()),
+        rule_scalar_add::build(()),
     )
     .unwrap();
     let matches = lowering.search(&graph);
@@ -91,7 +92,7 @@ fn rejected_cross_dialect_inference_is_atomic() {
         &mut graph,
         metadata,
         Inference(false),
-        rule_scalar_add::build_rewrite(()),
+        rule_scalar_add::build(()),
     )
     .unwrap();
     let matches = rule.search(&graph);

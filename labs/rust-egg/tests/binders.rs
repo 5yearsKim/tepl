@@ -1,9 +1,10 @@
 mod support;
 use egg::{EGraph, Id, Var};
 use rust_egg::host::nodes::*;
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::dialects::tensor_lang;
-use rust_egg::ir::pattern::{AttrPattern, TensorInfo, TensorPattern, matches_at};
-use rust_egg::ir::rules::binders::rule_shared_expression::Functions;
+use rust_egg::ir::rewriting::{AttrPattern, TensorPattern, matches_at};
+use rust_egg::ir::rules::binders::rule_shared_expression::HostFunctions;
 use rust_egg::ir::rules::binders::{rule_root_binding, rule_shared_expression};
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
@@ -22,7 +23,7 @@ struct TestFunctions {
     allow: bool,
 }
 
-impl Functions for TestFunctions {
+impl HostFunctions for TestFunctions {
     fn is_reusable(&self, tensor: &TensorInfo, attrs: &OpAttrs) -> Option<bool> {
         Some(self.allow && tensor.shape.as_slice() == [2, 2] && *attrs == dot_attrs())
     }
@@ -64,7 +65,7 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
         &mut egraph,
         metadata_for(),
         binder_inference,
-        rule_shared_expression::build_rewrite(TestFunctions { allow: false }),
+        rule_shared_expression::build(TestFunctions { allow: false }),
     )
     .unwrap();
     let found = rejected.search(&egraph);
@@ -74,7 +75,7 @@ fn nested_binder_reuses_the_matched_tensor_and_preserves_attrs() {
         &mut egraph,
         metadata_for(),
         binder_inference,
-        rule_shared_expression::build_rewrite(TestFunctions { allow: true }),
+        rule_shared_expression::build(TestFunctions { allow: true }),
     )
     .unwrap();
     let found = rule.search(&egraph);
@@ -119,7 +120,7 @@ fn root_binder_is_visible_to_search_and_rhs() {
         &mut egraph,
         support::fixture_metadata::<support::TestAnalysis>,
         support::fixture_inference,
-        rule_root_binding::build_rewrite(()),
+        rule_root_binding::build(()),
     )
     .unwrap();
     let found = rule.search(&egraph);

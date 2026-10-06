@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use egg::{EGraph, Extractor, Runner, StopReason};
 use rust_egg::host::{LoraAnalysis, lora_tensor_info};
-use rust_egg::ir::pattern::TensorInfo;
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::rules::{lora::rule_lora, simple::rule_commute_add};
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
@@ -22,11 +22,11 @@ fn run_rules(
     allow_reassociation: bool,
 ) -> Runner<OpNode, LoraAnalysis> {
     let rules = [
-        rule_lora::build_rewrite(DemoLoraFunctions {
+        rule_lora::build(DemoLoraFunctions {
             allow_reassociation,
         })
         .unwrap(),
-        rule_commute_add::build_rewrite(()).unwrap(),
+        rule_commute_add::build(()).unwrap(),
     ];
     Runner::<OpNode, LoraAnalysis>::new(LoraAnalysis::default())
         .with_egraph(egraph)

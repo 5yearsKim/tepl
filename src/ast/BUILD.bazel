@@ -13,6 +13,7 @@ cc_library(
     srcs = [
         "builder.cc",
         "builder_dialect.cc",
+        "builder_graph.cc",
         "builder_rule.cc",
         "builder_shape.cc",
     ],

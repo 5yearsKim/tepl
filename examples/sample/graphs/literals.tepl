@@ -1,0 +1,14 @@
+from "../dialects/scalar.tepl" import Scalar as s;
+use s::{add};
+
+graph add_scalar_literal {
+    // [] denotes a rank-zero tensor, matching the scalar literal.
+    input X: f32[];
+
+    yield (add X 1.0:f32);
+}
+
+// A file may declare multiple graphs. A literal can be the entire output.
+graph literal_output {
+    yield 5:i32;
+}

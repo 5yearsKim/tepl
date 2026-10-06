@@ -7,7 +7,7 @@ catalog; successful IR stores a resolved builtin ID, never an unresolved name.
 An unprefixed call resolves to an explicitly bound template `fn` parameter
 first, then a builtin. `$name(...)` always selects a host function, including
 when its name is also a builtin. Builtins do not add entries to the host-function
-table or methods to generated `Functions` traits. Unknown names, wrong arity,
+table or methods to generated `HostFunctions` traits. Unknown names, wrong arity,
 incompatible types, and unavailable sections produce source diagnostics.
 
 Semantic domain and section availability are independent: `broadcast_shape`

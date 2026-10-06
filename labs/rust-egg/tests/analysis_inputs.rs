@@ -2,9 +2,9 @@
 use egg::{EGraph, Id};
 use rust_egg::host::dot_attrs;
 use rust_egg::host::nodes::{binary, symbol, unary};
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::analysis::{TensorAnalysis, TensorBindingTable, tensor_info};
 use rust_egg::ir::dialects::tensor_lang as t;
-use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::{DType, OpNode};
 
 fn graph(inputs: &[(&str, &[u64], DType)]) -> EGraph<OpNode, TensorAnalysis> {

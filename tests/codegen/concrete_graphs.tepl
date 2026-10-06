@@ -1,0 +1,57 @@
+dialect GraphOps {
+    op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(l, r) { assert l == r; yield l; }
+        shape(l, r) { assert l == r; yield l; }
+    }
+    op negate(input: tensor) -> tensor {
+        dtype(t) { yield t; }
+        shape(s) { yield s; }
+    }
+    op config(input: tensor) -> tensor {
+        attrs {
+            axis: index;
+            offset: i64;
+            label: string;
+            enabled: bool;
+            dtype: dtype;
+            precision: precision;
+            nested: i64[][];
+            axes: index[]?;
+            note: string?;
+            flags: bool[] = [];
+            regions: region[]?;
+        }
+        dtype(t) { yield t; }
+        shape(s) { yield s; }
+    }
+}
+graph shared {
+    input X: f32[2, 3];
+    let N = (GraphOps.negate X);
+    let shared_node = N;
+    let unused = (GraphOps.config[precision = highest, dtype = f32, enabled = true,
+        label = "a\"b\\c", axis = +0001, offset = -9223372036854775808,
+        nested = [[-2, 3], []], axes = [0, 1], regions = []] N);
+    yield (GraphOps.add N shared_node);
+}
+graph structural {
+    input X;
+    input Y;
+    let unused = (GraphOps.negate Y);
+    yield (GraphOps.add X X);
+}
+graph literal { yield +01:i32; }
+graph untyped_literal { yield -2.5; }
+graph defaults {
+    input X;
+    yield (GraphOps.config[axis = 18446744073709551615, offset = +001,
+        label = "", enabled = false, dtype = bool, precision = default,
+        nested = [], axes = none, note = "text", flags = [true, false]] X);
+}
+graph input_output { input X; yield X; }
+graph partial { input X: [2, 3]; input Y: f32; yield (GraphOps.add X Y); }
+graph invalid_shape { input X: f32[2]; input Y: f32[3]; yield (GraphOps.add X Y); }
+graph invalid_dtype { input X: i32[2]; input Y: f32[2]; yield (GraphOps.add X Y); }
+
+graph invalid_partial_shape { input X: [2]; input Y: [3]; yield (GraphOps.add X Y); }
+graph invalid_partial_dtype { input X: i32; input Y: f32; yield (GraphOps.add X Y); }

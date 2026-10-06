@@ -351,6 +351,46 @@ struct Dialect {
   std::string source_name;
 };
 
+// Concrete graph values own their data; bare names in attributes denote enums.
+struct ConcreteValue {
+  enum class Kind { kInteger, kDecimal, kBool, kString, kName, kList } kind;
+  SourceSpan span;
+  std::string text;
+  std::vector<ConcreteValue> elements;
+};
+struct ConcreteField {
+  SourceSpan span;
+  std::string name;
+  ConcreteValue value;
+};
+struct ConcreteExpr {
+  enum class Kind { kReference, kLiteral, kOperation } kind;
+  SourceSpan span;
+  std::string name;
+  bool decimal = false;
+  std::optional<DTypeAnnotation> dtype;
+  std::vector<ConcreteField> attributes;
+  std::vector<ConcreteExpr> operands;
+};
+struct ConcreteInput {
+  SourceSpan span;
+  std::string name;
+  std::optional<DTypeAnnotation> dtype;
+  std::optional<std::vector<std::string>> shape;
+};
+struct ConcreteBinding {
+  SourceSpan span;
+  std::string name;
+  ConcreteExpr expression;
+};
+struct ConcreteGraph {
+  SourceSpan span;
+  std::string name, source_name;
+  std::vector<ConcreteInput> inputs;
+  std::vector<ConcreteBinding> bindings;
+  ConcreteExpr output;
+};
+
 struct Program {
   SourceSpan span;
   // Root rules, imports, uses, and local dialects use this source file.
@@ -370,6 +410,7 @@ struct Program {
     std::vector<Use> uses;
   };
   std::vector<ImportedScope> imported_scopes;
+  std::vector<ConcreteGraph> graphs;
 };
 
 }  // namespace tepl::ast

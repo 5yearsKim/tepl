@@ -1,11 +1,11 @@
 mod support;
 use egg::{EGraph, Id, Rewrite, Var};
 use rust_egg::host::nodes::*;
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::analysis::TensorBindingTable;
 use rust_egg::ir::dialects::tensor_lang;
-use rust_egg::ir::pattern::{
-    AttrExpr, TensorExpr, TensorInfo, TensorMetadata, TensorPattern, matches_at,
-    tensor_rewrite_checked,
+use rust_egg::ir::rewriting::{
+    AttrExpr, TensorExpr, TensorMetadata, TensorPattern, matches_at, tensor_rewrite_checked,
 };
 use rust_egg::ir::rules::basic::{
     rule_commute_f32, rule_commute_float_literal, rule_commute_same_dtype, rule_commute_scalar,
@@ -114,7 +114,7 @@ fn typed_declarations_reject_same_shaped_tensors_of_other_dtypes() {
             &mut graph,
             metadata([info(&[4], dtype), info(&[4], dtype)]),
             add_output,
-            rule_commute_f32::build_rewrite(()),
+            rule_commute_f32::build(()),
         )
         .unwrap();
         assert_eq!(!rule.search(&graph).is_empty(), dtype == DType::F32);
@@ -130,7 +130,7 @@ fn shared_dtype_bindings_require_equal_numeric_types() {
             &mut graph,
             metadata([info(&[0], dtype), info(&[0], dtype)]),
             add_output,
-            rule_commute_same_dtype::build_rewrite(()),
+            rule_commute_same_dtype::build(()),
         )
         .unwrap();
         apply(&mut graph, &rule, true);
@@ -140,7 +140,7 @@ fn shared_dtype_bindings_require_equal_numeric_types() {
         &mut graph,
         metadata([info(&[4], DType::F32), info(&[4], DType::BF16)]),
         add_output,
-        rule_commute_same_dtype::build_rewrite(()),
+        rule_commute_same_dtype::build(()),
     )
     .unwrap();
     apply(&mut graph, &rule, false);
@@ -158,7 +158,7 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
             &mut graph,
             metadata([info(&[], DType::F32), info(&shape, dtype)]),
             add_output,
-            rule_commute_scalar::build_rewrite(()),
+            rule_commute_scalar::build(()),
         )
         .unwrap();
         assert_eq!(!rule.search(&graph).is_empty(), accepted);
@@ -174,7 +174,7 @@ fn typed_scalar_is_rank_zero_and_typed_literal_is_exact() {
             &mut graph,
             metadata([info(&[], DType::F32), info(&[], dtype)]),
             add_output,
-            rule_commute_float_literal::build_rewrite(()),
+            rule_commute_float_literal::build(()),
         )
         .unwrap();
         let matches = rule.search(&graph);
@@ -301,7 +301,7 @@ fn output_dtype_shape_and_missing_metadata_rejections_leave_no_partial_rhs() {
         &mut graph,
         |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| None,
         add_output,
-        rule_commute_f32::build_rewrite(()),
+        rule_commute_f32::build(()),
     )
     .unwrap();
     apply(&mut graph, &rule, false);

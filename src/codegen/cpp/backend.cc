@@ -2,6 +2,7 @@
 
 #include "src/codegen/cpp/analysis_emitter.h"
 #include "src/codegen/cpp/dialect_emitter.h"
+#include "src/codegen/cpp/graph_emitter.h"
 #include "src/codegen/cpp/names.h"
 #include "src/codegen/cpp/rule_emitter.h"
 #include "src/codegen/cpp/template_files.h"
@@ -21,7 +22,8 @@ GenerationResult Backend::generate(const core::Program& program,
                                    const Options& options) const {
   GenerationResult result;
   try {
-    auto project = planProject(program, options.rules_root);
+    auto project =
+        planProject(program, options.rules_root, options.graphs_root);
     Names names(program, project, options.cpp_namespace);
     std::string includes;
     for (const auto& d : names.dialects)
@@ -65,11 +67,13 @@ GenerationResult Backend::generate(const core::Program& program,
       result.files.push_back({"rules/" + module.path + ".h",
                               emitRules(program, names, rules, module)});
     }
+    emitGraphs(program, names, project, result);
     result.files.push_back(
         {"generated.h",
          "#pragma once\n#include \"op_node.h\"\n#include "
          "\"analysis/analysis.h\"\n#include \"builtins/builtins.h\"\n#include "
-         "\"pattern/rewrite.h\"\n#include \"rules/rules.h\"\n"});
+         "\"rewriting/rewrite.h\"\n#include \"rules/rules.h\"\n#include "
+         "\"graphs/graphs.h\"\n"});
     // GCC can treat byte-identical #pragma once headers with matching
     // timestamps as the same file. Namespace-specific contents keep
     // wrapper/index headers distinct when multiple generated libraries share a

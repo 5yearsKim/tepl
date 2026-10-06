@@ -13,7 +13,7 @@
 
 <p align="center"><strong>TEPL: <em>Write tensor rewrites that read like math.</em></strong></p>
 
-<p align="center"><a href="#-quick-start">Quick start</a> · <a href="examples/rules">Example rules</a></p>
+<p align="center"><a href="#-quick-start">Quick start</a> · <a href="examples/sample/rules">Example rules</a></p>
 
 The same tensor computation can be expressed in different ways—with very different costs. In machine learning, choosing the right form can make a big difference: depending on tensor dimensions, `(XA)B` can require far less computation than `X(AB)`.
 
@@ -80,7 +80,7 @@ Yes, you can. Custom matchers and appliers can handle the attributes, tensor met
 use egg::Var;
 use rust_egg::ir::{DType, OpAttrs, dialects::tensor_lang::Op};
 use rust_egg::ir::analysis::{infer_tensor_output, tensor_info};
-use rust_egg::ir::pattern::{
+use rust_egg::ir::rewriting::{
     AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, tensor_rewrite_checked,
 };
 
@@ -134,7 +134,7 @@ Even this simple rewrite needs separate nested trees for the pattern and replace
 
 TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates Rust code for egg or C++ code for [egg-c](https://github.com/5yearsKim/egg-c). Both backends support attribute capture, shape/dtype analysis, and multiple dialects.
 
-Here is the complete TEPL rule, using the example tensor dialect. Save it as `examples/rules/transpose_negate.tepl`:
+Here is the complete TEPL rule, using the example tensor dialect. Save it as `examples/sample/rules/transpose_negate.tepl`:
 
 ```javascript
 from "../dialects/tensor.tepl" import TensorLang as t;
@@ -169,7 +169,7 @@ The [LoRA example](labs/rust-egg/README.md#lora-saturation-example) uses TEPL-ge
 
 That's **about 44% fewer estimated arithmetic operations** for input shapes `X=[2,4,64]`, `W=[2,64,32]`, `A=[2,64,4]`, and `B=[2,4,32]`. The demo checks equal results using deterministic integer inputs; floating-point reassociation is controlled by the host's legality policy.
 
-Read the [TEPL rule](examples/rules/lora.tepl) or reproduce the result from the repository root:
+Read the [TEPL rule](examples/sample/rules/lora.tepl) or reproduce the result from the repository root:
 
 ```sh
 cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
@@ -181,9 +181,9 @@ Try it from the repository root:
 
 ```sh
 bazel build //:tepl
-bazel-bin/tepl check examples
-bazel-bin/tepl generate examples --out my_app/src/generated
-bazel-bin/tepl generate examples --target cpp --out my_cpp_app/generated
+bazel-bin/tepl check examples/sample
+bazel-bin/tepl generate examples/sample --out my_app/src/generated
+bazel-bin/tepl generate examples/sample --target cpp --out my_cpp_app/generated
 ```
 
 Start a new TEPL project with `tepl init <directory>` (use `.` for the current
@@ -253,4 +253,4 @@ storage usage; reported sizes depend on the Docker storage backend.
 ## 📚 More on…
 
 - 🧭 [Design philosophy](docs/design_philosophy.md) — Language principles and core concepts.
-- 🧩 [Example rules](examples/rules) — Tensor rewrites written in TEPL.
+- 🧩 [Example rules](examples/sample/rules) — Tensor rewrites written in TEPL.

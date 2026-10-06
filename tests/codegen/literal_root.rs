@@ -1,6 +1,7 @@
 mod support;
 use egg::{EGraph, Id};
-use tepl_generated::ir::pattern::{OutputInference, TensorInfo};
+use tepl_generated::ir::TensorInfo;
+use tepl_generated::ir::rewriting::OutputInference;
 use tepl_generated::ir::rules::literal_root::{
     rule_capture_root, rule_decimal_root, rule_integer_root,
 };
@@ -34,7 +35,7 @@ fn untyped_literal_roots_match_and_construct_each_concrete_dtype() {
             &mut graph,
             metadata,
             LiteralInference,
-            rule_integer_root::build_rewrite(()),
+            rule_integer_root::build(()),
         )
         .unwrap();
         let matches = rule.search(&graph);
@@ -53,7 +54,7 @@ fn literal_spelling_sign_and_explicit_dtype_are_preserved() {
         &mut graph,
         metadata,
         LiteralInference,
-        rule_decimal_root::build_rewrite(()),
+        rule_decimal_root::build(()),
     )
     .unwrap();
     let matches = rule.search(&graph);
@@ -73,7 +74,7 @@ fn capture_root_generates_and_runs_without_operations_or_constraints() {
         &mut graph,
         metadata,
         LiteralInference,
-        rule_capture_root::build_rewrite(()),
+        rule_capture_root::build(()),
     )
     .unwrap();
     let matches = rule.search(&graph);

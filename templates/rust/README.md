@@ -1,8 +1,8 @@
 # Rust code generation templates
 
 These files are handwritten Rust templates copied into generated modules.
-Bazel embeds them into the compiler; codegen copies them into its output. `src/pattern/` is copied into the output's
-`pattern/`; it contains matching, attribute witnesses, shape checks,
+Bazel embeds them into the compiler; codegen copies them into its output. `src/rewriting/` is copied into the output's
+`rewriting/`; it contains matching, attribute witnesses, shape checks,
 metadata access, and checked rewrite application. It has no dependency on a
 particular dialect.
 
@@ -18,7 +18,7 @@ and dimension conversions, `dtype.rs` provides dtype classification predicates, 
 signatures and section availability. Callers use `builtins::common` and
 `builtins::shape`, with `BuiltinError`/`BuiltinResult` exported by `builtins`.
 The shared implementations cover
-every builtin in `examples/shape_guide.md`, including those not yet used by the
+every builtin in `examples/sample/shape_guide.md`, including those not yet used by the
 sample evaluators, with no dependency on dialects, host semantics, or egg:
 
 | Helpers | Runtime behavior |
@@ -74,11 +74,22 @@ any name and location. External crate references use `::egg::` and `::std::`.
 Emitters use qualified dialect paths and explicit runtime imports so user names
 cannot shadow those dependencies. The Rust naming plan validates identifiers
 before emission and separates raw tokens such as `r#type` from filenames such as
-`type.rs`. Develop handwritten implementations in the lab's `src/ir/`, then
-migrate reusable runtime logic here. See the
+`type.rs`. Update runtime logic here and declaration-dependent logic in
+`src/codegen/rust/`. The integration script regenerates `labs/rust-egg/src/ir/`
+and validates it with the lab's tests. See the
 [development workflow](../../docs/developer_guide.md#develop-rust-runtime-logic).
-Compiler integration checks generate into temporary crates, leaving the lab
-available for independent development.
+
+The generated module root exports common node, analysis, and graph types:
+
+```rust
+use generated::{DType, OpNode, TensorAnalysis, TensorInfo};
+use generated::{graphs, rules};
+```
+
+`TensorInfo` is defined in `analysis/tensor_info.rs` and also exported by
+`analysis`. Custom analyses import `RewriteAnalysis` from the root. Advanced
+matching and rewrite helpers live in `rewriting`, including `TensorPattern`,
+`TensorExpr`, and `matches_at`.
 
 Copied analysis support includes `TensorAnalysis`, `TensorAnalysisData`,
 `TensorBindingTable`, and `Inference`. Tensor inference combines generated shape
@@ -88,16 +99,25 @@ known, agreeing metadata before `info()` exposes it; merge retains unknown and
 conflicting evidence. Missing bindings cannot be filled in retroactively: build
 a fresh graph when input metadata changes.
 
-The default `build_rewrite(functions)` supplies the metadata reader and output
-inference automatically. Hosts implement only the referenced per-rule `Functions`
-traits and register inputs. `build_rewrite_with(metadata, inference, functions)`
-accepts explicit `TensorMetadata` and `OutputInference` for custom analyses. Shapes and index values use `u64` consistently with core's
-64-bit Index contract. Rust slice positions and table IDs use `usize`.
+`build(functions)` reads the graph's analysis automatically. Hosts
+implement only the referenced per-rule `HostFunctions` traits and register inputs.
+Custom analyses implement `RewriteAnalysis` once, providing `tensor_info` and
+`infer_output`, with optional `infer_literal` customization. Rust infers the
+analysis type from graph use; standalone construction can use
+`build::<MyAnalysis, _>(host)`.
+
+Graphs with `()` permit structural rules without tensor output validation.
+Builders reject rules requiring shape/dtype bindings or tensor arguments to host
+functions when analysis is unavailable. Checked analyses always validate the
+replacement, rejecting missing, invalid, or conflicting tensor information.
+Shapes and index values use `u64` consistently with core's 64-bit Index contract.
+Rust slice positions and table IDs use `usize`.
 
 Literal patterns carry `Option<DType>`: `None` accepts any dtype while preserving
 exact spelling. RHS literal requests also retain `None` until
-`OutputInference::infer_literal` resolves them. Its default uses the matched
-root's dtype as context; a host can override it or return `None`. Explicit
+`RewriteAnalysis::infer_literal` resolves them for checked graphs. Its default
+uses the matched root's dtype as context; an analysis can override it or return
+`None`. Structural rewrites require explicit RHS literal dtypes. Explicit
 annotations cannot be overridden. Output inference must accept the resulting
 literal as rank zero with that dtype. All RHS validation and output inference
 finish before any node is inserted.
@@ -122,7 +142,7 @@ same tensor substitution. Tensor metadata must describe all alternatives in an
 e-class; missing or incompatible metadata rejects the match. Numerical
 rewrite equivalence is established by the host's legality functions.
 
-Generated rules expose `constraints()` and `match_checks(metadata)` alongside
+Generated rules expose `constraints()` and `match_checks<N>()` alongside
 `pattern()` and `expression()`.
 Rules without an early condition prefix use `MatchChecks::tensors` directly;
 their matching plan has no generated evaluator or metadata capture.
@@ -156,11 +176,12 @@ The runtime rechecks declarations and the early prefix before that callback.
 
 `matches_at` remains structural. `matches_at_with_constraints` validates tensor
 declarations; `matches_at_with_checks` also evaluates ordered pure conditions.
-Generated and handwritten rewrites use `tensor_rewrite_checked_with_checks`,
-whose callback receives `(graph, matched, dimensions)`. Handwritten early
-evaluators must be pure and stable during traversal. The tensor-only
-`tensor_rewrite_checked_with_constraints` remains an empty-condition wrapper;
-`tensor_rewrite_checked` also preserves its two-argument callback. Builders
+Generated rewrites use `tensor_rewrite_with_checks`, whose callback receives
+`(graph, matched, dimensions)`. It selects structural or checked behavior from
+`RewriteAnalysis::HAS_TENSOR_INFO`. Advanced handwritten rewrites can still
+supply explicit checked semantics through `tensor_rewrite_checked_with_checks`
+and its tensor-only wrappers. Handwritten early evaluators must be pure and
+stable during traversal. Builders
 require `'static` analysis types and callbacks. Search limits count surviving,
 distinct substitutions after checking their individual attribute witnesses.
 Application-time rematching prunes with the same plan, and final checks recover
@@ -173,8 +194,7 @@ the repository root. Rust runtime files and integration fixtures are formatted
 with `rustfmt --edition 2024`.
 Templates contain runtime code only. Runtime checks live in
 `labs/rust-egg/tests/runtime/` and run through `labs/rust-egg/tests/runtime.rs`.
-The integration script runs the handwritten lab suite and reuses it against
-freshly generated IR in a temporary crate. Separate fixtures under `tests/codegen/` cover
+The integration script regenerates the lab IR and runs the lab suite against it. Separate fixtures under `tests/codegen/` cover
 definitions absent from the examples, including custom hosts and Rust keywords.
 
 Runtime input leaves use `OpNode::input(name)` and `Op::Input`, independently of
@@ -184,3 +204,11 @@ canonical opaque bytes supplied by the host. Elements preserve a canonical type
 encoding, shape, and payload bytes; algorithm type encodings can represent formats
 outside the built-in `DType` set. All metadata participates in equality and
 hashing. The host validates payloads and operation-specific attribute semantics.
+
+
+## Concrete graphs
+
+`src/graphs/definition.rs` owns graph validation, input metadata,
+local-to-e-graph ID mapping, and named handles. Project-specific constructors
+and module indexes come from the graph emitter. See the
+[graph API](../../examples/sample/graphs/README.md) for usage.

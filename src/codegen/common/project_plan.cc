@@ -6,7 +6,8 @@
 
 namespace tepl::codegen {
 ProjectPlan planProject(const core::Program& program,
-                        const std::string& rules_root) {
+                        const std::string& rules_root,
+                        const std::string& graphs_root) {
   namespace fs = std::filesystem;
   const auto identity = [](const std::string& source) {
     return fs::absolute(source).lexically_normal().string();
@@ -60,6 +61,33 @@ ProjectPlan planProject(const core::Program& program,
   }
   for (auto& [path, module] : modules)
     plan.modules.push_back(std::move(module));
+  std::map<std::vector<std::string>, GraphModulePlan> graph_modules;
+  for (const auto& graph : program.graphs) {
+    auto source = identity(graph.source_name);
+    fs::path path = graphs_root.empty()
+                        ? fs::path(source).filename()
+                        : fs::path(source).lexically_relative(
+                              fs::absolute(graphs_root).lexically_normal());
+    if (graph.source_name == "<input>" && graphs_root.empty())
+      path = "input.tepl";
+    path.replace_extension();
+    std::vector<std::string> parts;
+    for (const auto& part : path) {
+      if (part == ".." || part == "." || part.empty())
+        throw std::invalid_argument("graph source is outside graphs root: " +
+                                    graph.source_name);
+      parts.push_back(part.string());
+    }
+    if (parts.empty())
+      throw std::invalid_argument("graph source has no module path");
+    auto [entry, inserted] =
+        graph_modules.try_emplace(parts, GraphModulePlan{source, parts, {}});
+    if (!inserted && entry->second.source != source)
+      throw std::invalid_argument("graph source module path collision");
+    entry->second.graphs.push_back(graph.id);
+  }
+  for (auto& [path, module] : graph_modules)
+    plan.graph_modules.push_back(std::move(module));
   return plan;
 }
 }  // namespace tepl::codegen

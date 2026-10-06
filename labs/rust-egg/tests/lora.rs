@@ -7,10 +7,11 @@ use std::sync::{Arc, Mutex};
 
 use egg::{EGraph, Id, Rewrite, Var};
 use rust_egg::host::LoraAnalysis;
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::analysis::TensorBindingTable;
-use rust_egg::ir::pattern::{AttrVar, TensorInfo, matches_at};
+use rust_egg::ir::rewriting::{AttrVar, matches_at};
 use rust_egg::ir::rules::lora::rule_lora;
-use rust_egg::ir::rules::lora::rule_lora::Functions;
+use rust_egg::ir::rules::lora::rule_lora::HostFunctions;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 
 fn dot(lhs: Id, rhs: Id) -> OpNode {
@@ -62,7 +63,7 @@ fn fixture(b_output: u64) -> Fixture {
 }
 
 fn test_rule() -> Rewrite<OpNode, LoraAnalysis> {
-    rule_lora::build_rewrite(DemoLoraFunctions {
+    rule_lora::build(DemoLoraFunctions {
         allow_reassociation: true,
     })
     .unwrap()
@@ -118,7 +119,7 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
     struct TracingFunctions {
         calls: Arc<Mutex<Vec<&'static str>>>,
     }
-    impl Functions for TracingFunctions {
+    impl HostFunctions for TracingFunctions {
         fn is_broadcastable(&self, _: &[u64], _: &[u64]) -> Option<bool> {
             Some(true)
         }
@@ -168,7 +169,7 @@ fn lora_derivations_use_only_lhs_captures_and_return_descriptors() {
     }
     let Fixture { mut egraph, .. } = fixture(5);
     let calls = Arc::new(Mutex::new(Vec::new()));
-    let rule = rule_lora::build_rewrite(TracingFunctions {
+    let rule = rule_lora::build(TracingFunctions {
         calls: calls.clone(),
     })
     .unwrap();
@@ -193,7 +194,7 @@ fn generated_host_interface_accepts_dtype_metadata() {
         shape: vec![2, 2, 5],
         dtype: DType::BF16,
     };
-    let functions: &dyn Functions = &DemoLoraFunctions {
+    let functions: &dyn HostFunctions = &DemoLoraFunctions {
         allow_reassociation: true,
     };
     assert_eq!(functions.is_broadcastable(&[2], &[2]), Some(true));

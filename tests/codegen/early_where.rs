@@ -4,8 +4,8 @@ use std::sync::{
     Arc, Mutex,
     atomic::{AtomicUsize, Ordering},
 };
+use tepl_generated::ir::TensorInfo;
 use tepl_generated::ir::dialects::guard;
-use tepl_generated::ir::pattern::TensorInfo;
 use tepl_generated::ir::rules::early_where::{
     rule_early, rule_host_boundary, rule_nested_host_boundary, rule_skipped_builtin,
 };
@@ -28,17 +28,17 @@ impl Host {
         Some(true)
     }
 }
-impl rule_early::Functions for Host {
+impl rule_early::HostFunctions for Host {
     fn allowed(&self, x: &TensorInfo) -> Option<bool> {
         self.allowed(x)
     }
 }
-impl rule_host_boundary::Functions for Host {
+impl rule_host_boundary::HostFunctions for Host {
     fn allowed(&self, x: &TensorInfo) -> Option<bool> {
         self.allowed(x)
     }
 }
-impl rule_nested_host_boundary::Functions for Host {
+impl rule_nested_host_boundary::HostFunctions for Host {
     fn allowed(&self, _: &TensorInfo) -> Option<bool> {
         panic!("short-circuited host")
     }
@@ -75,7 +75,7 @@ fn generated_dimension_condition_prunes_before_visiting_the_next_child() {
                 Some(info(&shape))
             },
             infer,
-            rule_early::build_rewrite(host.clone()),
+            rule_early::build(host.clone()),
         )
         .unwrap();
         assert!(rule.searcher.search_eclass(&graph, root).is_none());
@@ -99,7 +99,7 @@ fn generated_condition_waits_for_the_later_dimension_and_hosts_run_only_on_apply
                 }))
             },
             infer,
-            rule_early::build_rewrite(host.clone()),
+            rule_early::build(host.clone()),
         )
         .unwrap();
         let found = rule.searcher.search_eclass(&graph, root);
@@ -121,7 +121,7 @@ fn first_host_condition_keeps_later_builtin_conditions_at_application_time() {
         &mut graph,
         |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(info(&[8])),
         infer,
-        rule_host_boundary::build_rewrite(host.clone()),
+        rule_host_boundary::build(host.clone()),
     )
     .unwrap();
     let found = rule.searcher.search_eclass(&graph, root).unwrap();
@@ -133,7 +133,7 @@ fn first_host_condition_keeps_later_builtin_conditions_at_application_time() {
         &mut graph,
         |_: &EGraph<OpNode, support::TestAnalysis>, _: Id| Some(info(&[8])),
         infer,
-        rule_nested_host_boundary::build_rewrite(Host::default()),
+        rule_nested_host_boundary::build(Host::default()),
     )
     .unwrap();
     let found = rule.searcher.search_eclass(&graph, root).unwrap();
@@ -150,7 +150,7 @@ fn early_short_circuit_skips_failed_builtins_and_unneeded_capture_metadata() {
             Some(info(&[]))
         },
         infer,
-        rule_skipped_builtin::build_rewrite(()),
+        rule_skipped_builtin::build(()),
     )
     .unwrap();
     let found = rule.searcher.search_eclass(&graph, root).unwrap();

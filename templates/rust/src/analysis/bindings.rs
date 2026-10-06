@@ -1,5 +1,5 @@
-use super::super::pattern::TensorInfo;
 use super::super::{Op, OpAttrs, OpNode};
+use super::TensorInfo;
 
 /// Input identities with immutable tensor metadata.
 #[derive(Clone, Debug, Default)]

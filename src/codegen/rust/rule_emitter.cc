@@ -85,22 +85,22 @@ void emitRule(CodeWriter& out, const core::Program& program,
   out.open("pub mod " + names.rule(rule.id));
   out.line("use " + paths::external("std", "collections::HashMap") + ";");
   out.line("use " + paths::external("egg", "{EGraph, Rewrite, Var}") + ";");
-  out.line("use " + paths::within(root, "{DType, OpNode, OpAttrs}") + ";");
   out.line("use " +
-           paths::within(root, "pattern::{RewriteAnalysis, AnalysisMetadata}") +
+           paths::within(
+               root, "{DType, OpNode, OpAttrs, TensorInfo, RewriteAnalysis}") +
            ";");
+  out.line("use " + paths::within(root, "rewriting::AnalysisMetadata") + ";");
   out.line(
       "use " +
       paths::within(root,
-                    "pattern::{AttrExpr, AttrPattern, AttrVar, TensorExpr, "
+                    "rewriting::{AttrExpr, AttrPattern, AttrVar, TensorExpr, "
                     "TensorPattern, TensorConstraints, TensorConstraint, "
                     "DTypeConstraint, "
                     "ShapePart, MetadataBindings, MatchBinding, MatchChecks, "
-                    "TensorInfo, "
                     "MatchContext, tensor_rewrite_with_checks}") +
       ";");
   const auto builtins_path = paths::within(root, "builtins");
-  out.open("pub trait Functions: Send + Sync");
+  out.open("pub trait HostFunctions: Send + Sync");
   for (const auto id : plan.host_functions) {
     const auto& fn = program.host_functions.at(id.value);
     out.line("/// Host implementation of TEPL `$" + fn.name + "(...)`.");
@@ -114,7 +114,7 @@ void emitRule(CodeWriter& out, const core::Program& program,
     out.line(signature + ") -> " + result + ";");
   }
   out.close();
-  if (plan.host_functions.empty()) out.line("impl Functions for () {}");
+  if (plan.host_functions.empty()) out.line("impl HostFunctions for () {}");
   out.open("pub fn pattern() -> TensorPattern");
   out.line(pattern(*rule.lhs, names, root));
   out.close();
@@ -212,9 +212,9 @@ void emitRule(CodeWriter& out, const core::Program& program,
   out.close();
   out.line("/// Uses the graph's analysis; () supports structural rules.");
   out.line(
-      "pub fn build_rewrite<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, "
+      "pub fn build<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, "
       "String>");
-  out.line("where N: RewriteAnalysis, F: Functions + 'static");
+  out.line("where N: RewriteAnalysis, F: HostFunctions + 'static");
   out.open("");
   out.line("let checks = match_checks::<N>();");
   out.line("let metadata = AnalysisMetadata::<N>::new();");

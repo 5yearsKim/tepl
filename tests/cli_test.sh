@@ -156,7 +156,7 @@ printf 'import "%s"; rule r { (add X) => X }\n' "$example" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq 'contains rules' "$output"
 
-dialect="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/dialects/tensor.tepl"
+dialect="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/dialects/tensor.tepl"
 printf 'from "%s" import TensorLang as t; use t; rule r { (multiply X Y) => (multiply Y X) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
@@ -236,8 +236,8 @@ printf 'import "a.tepl";\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 
-abstract="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/rules/abstract.tepl"
-inherited="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/rules/inherited.tepl"
+abstract="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/rules/abstract.tepl"
+inherited="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/rules/inherited.tepl"
 check_exit 0 parse "$abstract"
 grep -Fxq 'Parsed 3 rule(s).' "$output"
 check_exit 0 parse "$inherited"
@@ -279,7 +279,7 @@ check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 
 # Parse preserves dtype annotations; core validates them through check.
-basic="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/rules/basic.tepl"
+basic="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/rules/basic.tepl"
 check_exit 0 parse "$basic" --ast
 grep -Fq 'tensor X f32[N]' "$output"
 grep -Fq 'float 1.0:f32' "$output"
@@ -325,6 +325,24 @@ check_exit 0 generate "$example" --target cpp --no-format --out "${TEST_TMPDIR}/
 test -f "${TEST_TMPDIR}/cpp/generated.h"
 test -f "${TEST_TMPDIR}/cpp/rules/simple.h"
 check_exit 0 generate "$example" --target cpp --no-format --out "${TEST_TMPDIR}/cpp" --check
+# Migrate owned C++ headers to the same structure as Rust.
+cpp_migration_out="${TEST_TMPDIR}/cpp"
+test -f "$cpp_migration_out/rewriting/rewrite.h"
+test -f "$cpp_migration_out/analysis/tensor_info.h"
+mkdir -p "$cpp_migration_out/pattern"
+printf '// Old matching runtime.\n' > "$cpp_migration_out/pattern/context.h"
+printf '// Old tensor metadata.\n' > "$cpp_migration_out/analysis/tensor.h"
+printf '// Old rewrite adapter.\n' > "$cpp_migration_out/analysis/rewrite_analysis.h"
+printf 'pattern/context.h\nanalysis/tensor.h\nanalysis/rewrite_analysis.h\n' >> "$cpp_migration_out/.tepl-generated-files"
+printf 'Application notes.\n' > "$cpp_migration_out/pattern/notes.md"
+check_exit 1 generate "$example" --target cpp --no-format --out "$cpp_migration_out" --check
+test -f "$cpp_migration_out/pattern/context.h"
+check_exit 0 generate "$example" --target cpp --no-format --out "$cpp_migration_out"
+test ! -e "$cpp_migration_out/pattern/context.h"
+test ! -e "$cpp_migration_out/analysis/tensor.h"
+test ! -e "$cpp_migration_out/analysis/rewrite_analysis.h"
+grep -Fq 'Application notes.' "$cpp_migration_out/pattern/notes.md"
+check_exit 0 generate "$example" --target cpp --no-format --out "$cpp_migration_out" --check
 check_exit 1 generate "$example" --target cpp --no-format --cpp-namespace class --out "${TEST_TMPDIR}/cpp_invalid"
 test ! -e "${TEST_TMPDIR}/cpp_invalid"
 check_exit 1 generate "$example" --target python --out "${TEST_TMPDIR}/unimplemented"
@@ -338,6 +356,23 @@ check_exit 0 generate "$example" --target rust --out "${TEST_TMPDIR}/generated"
 test -f "${TEST_TMPDIR}/generated/mod.rs"
 test -f "${TEST_TMPDIR}/generated/dialects/tensor_lang.rs"
 test -f "${TEST_TMPDIR}/generated/rules/simple.rs"
+test -f "${TEST_TMPDIR}/generated/rewriting/mod.rs"
+test -f "${TEST_TMPDIR}/generated/analysis/tensor_info.rs"
+test ! -e "${TEST_TMPDIR}/generated/pattern"
+# Migration removes old owned runtime files and preserves unrelated files.
+migration_out="${TEST_TMPDIR}/generated"
+mkdir -p "$migration_out/pattern"
+printf '// Previously generated runtime.\n' > "$migration_out/pattern/mod.rs"
+printf '// Previously generated tensor metadata.\n' > "$migration_out/pattern/context.rs"
+printf 'pattern/mod.rs\npattern/context.rs\n' >> "$migration_out/.tepl-generated-files"
+printf 'Application notes.\n' > "$migration_out/pattern/notes.md"
+check_exit 1 generate "$example" --out "$migration_out" --check
+test -f "$migration_out/pattern/mod.rs"
+check_exit 0 generate "$example" --out "$migration_out"
+test ! -e "$migration_out/pattern/mod.rs"
+test ! -e "$migration_out/pattern/context.rs"
+grep -Fq 'Application notes.' "$migration_out/pattern/notes.md"
+check_exit 0 generate "$example" --out "$migration_out" --check
 test ! -e "${TEST_TMPDIR}/generated/Cargo.toml"
 test ! -e "${TEST_TMPDIR}/generated/src"
 grep -Fq 'pub mod rule_commute_add' "${TEST_TMPDIR}/generated/rules/simple.rs"
@@ -414,3 +449,30 @@ test ! -f "$module_out/rules/simple.rs"
 test -f "$module_out/rules/inherited.rs"
 test -f "$module_out/host.rs"
 check_exit 0 generate "$inherited" --out "$module_out" --check
+
+# Graph-only projects are discovered, including nested modules and single files.
+graph_project="${TEST_TMPDIR}/graph_project"
+mkdir -p "$graph_project/graphs/nested"
+printf 'graph scalar { yield 5:i32; }\n' > "$graph_project/graphs/nested/example.tepl"
+check_exit 0 check "$graph_project"
+grep -Fq 'graph #0 scalar' "$output"
+check_exit 0 parse "$graph_project/graphs/nested/example.tepl"
+grep -Fxq 'Parsed 0 rule(s) and 1 graph(s).' "$output"
+check_exit 0 parse "$graph_project/graphs/nested/example.tepl" --ast
+grep -Fq 'yield 5:i32' "$output"
+check_exit 0 generate "$graph_project" --out "${TEST_TMPDIR}/graph_rust"
+test -f "${TEST_TMPDIR}/graph_rust/graphs/nested/example.rs"
+check_exit 0 generate "$graph_project" --out "${TEST_TMPDIR}/graph_rust" --check
+check_exit 0 generate "$graph_project" --target cpp --out "${TEST_TMPDIR}/graph_cpp"
+test -f "${TEST_TMPDIR}/graph_cpp/graphs/nested/example.h"
+check_exit 0 generate "$graph_project" --target cpp --out "${TEST_TMPDIR}/graph_cpp" --check
+# Invalid graph module names fail before writing output.
+printf 'graph scalar { yield 1; }\n' > "$graph_project/graphs/definition.tepl"
+check_exit 1 generate "$graph_project" --out "${TEST_TMPDIR}/graph_reserved"
+grep -Fq 'reserved graph output module' "$output"
+test ! -e "${TEST_TMPDIR}/graph_reserved"
+rm "$graph_project/graphs/definition.tepl"
+printf 'graph scalar { yield 1; }\n' > "$graph_project/graphs/nested.tepl"
+check_exit 1 generate "$graph_project" --out "${TEST_TMPDIR}/graph_file_directory"
+grep -Fq 'graph file/directory module collision' "$output"
+test ! -e "${TEST_TMPDIR}/graph_file_directory"

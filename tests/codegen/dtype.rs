@@ -7,11 +7,11 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
 };
+use tepl_generated::ir::TensorInfo;
 use tepl_generated::ir::analysis::{
     Inference, TensorAnalysis, TensorBindingTable, infer_dtype, infer_tensor_output, tensor_info,
 };
 use tepl_generated::ir::dialects::d_types::{self as d, Op};
-use tepl_generated::ir::pattern::TensorInfo;
 use tepl_generated::ir::rules::dtype::{
     rule_host_identity, rule_remove_f32_convert as specialized,
     rule_remove_identity_convert as identity, rule_shared,
@@ -129,7 +129,7 @@ fn identity_conversion_binds_input_dtype_and_preserves_real_conversions() {
     for input in [DType::BF16, DType::F32, DType::I64] {
         for to in [DType::BF16, DType::F32, DType::I64] {
             let (mut graph, x, root) = make_graph(input, to);
-            let rule = identity::build_rewrite(()).unwrap();
+            let rule = identity::build(()).unwrap();
             let matches = rule.search(&graph);
             assert_eq!(!matches.is_empty(), input == to);
             let before = graph.total_number_of_nodes();
@@ -142,10 +142,7 @@ fn identity_conversion_binds_input_dtype_and_preserves_real_conversions() {
     for t in [DType::F32, DType::BF16] {
         let (graph, _, _) = make_graph(t, t);
         assert_eq!(
-            !specialized::build_rewrite(())
-                .unwrap()
-                .search(&graph)
-                .is_empty(),
+            !specialized::build(()).unwrap().search(&graph).is_empty(),
             t == DType::F32
         );
     }
@@ -176,7 +173,7 @@ fn shared_dtype_variables_bind_per_branch_and_reject_mismatches() {
             &mut graph,
             move |_: &EGraph<OpNode, support::TestAnalysis>, id| data.get(&id).cloned(),
             infer_tensor_output,
-            rule_shared::build_rewrite(()),
+            rule_shared::build(()),
         )
         .unwrap();
         let checks = rule.searcher.search_eclass(&graph, root);
@@ -203,7 +200,7 @@ fn failed_candidates_discard_dtype_bindings_before_the_next_branch() {
             Some(info(if id == x { DType::F32 } else { DType::BF16 }))
         },
         infer_tensor_output,
-        rule_shared::build_rewrite(()),
+        rule_shared::build(()),
     )
     .unwrap();
     let matched = rule.searcher.search_eclass(&graph, root).unwrap();
@@ -230,7 +227,7 @@ fn dtype_guard_prunes_before_reading_a_later_capture() {
             Some(info(DType::I32))
         },
         infer_tensor_output,
-        rule_shared::build_rewrite(()),
+        rule_shared::build(()),
     )
     .unwrap();
     assert!(rule.searcher.search_eclass(&graph, root).is_none());
@@ -244,7 +241,7 @@ fn missing_and_conflicting_eclass_metadata_prevent_binding() {
     graph.rebuild();
     assert!(tensor_info(&graph, x).is_none());
     assert!(
-        identity::build_rewrite(())
+        identity::build(())
             .unwrap()
             .searcher
             .search_eclass(&graph, root)
@@ -261,7 +258,7 @@ fn missing_and_conflicting_eclass_metadata_prevent_binding() {
     graph.rebuild();
     assert!(graph[x].data.is_invalid());
     assert!(
-        identity::build_rewrite(())
+        identity::build(())
             .unwrap()
             .searcher
             .search_eclass(&graph, root)
@@ -286,7 +283,7 @@ fn application_rebinds_dtype_and_rechecks_guards_before_mutation() {
             reader.lock().unwrap().get(&id).cloned()
         },
         infer_tensor_output,
-        identity::build_rewrite(()),
+        identity::build(()),
     )
     .unwrap();
     let matches = rule.search(&graph);
@@ -299,7 +296,7 @@ fn application_rebinds_dtype_and_rechecks_guards_before_mutation() {
 }
 #[derive(Clone)]
 struct Host(Arc<AtomicUsize>);
-impl rule_host_identity::Functions for Host {
+impl rule_host_identity::HostFunctions for Host {
     fn allow_dtype(&self, dtype: DType) -> Option<bool> {
         self.0.fetch_add(1, Ordering::Relaxed);
         Some(dtype == DType::F32)
@@ -310,7 +307,7 @@ fn host_functions_receive_rebound_dtype_values_at_application() {
     for t in [DType::F32, DType::BF16] {
         let (mut graph, x, root) = make_graph(t, t);
         let calls = Arc::new(AtomicUsize::new(0));
-        let rule = rule_host_identity::build_rewrite(Host(calls.clone())).unwrap();
+        let rule = rule_host_identity::build(Host(calls.clone())).unwrap();
         let matches = rule.search(&graph);
         assert!(!matches.is_empty());
         assert_eq!(calls.load(Ordering::Relaxed), 0);

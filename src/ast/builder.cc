@@ -30,6 +30,8 @@ std::any AstBuilder::visitProgram(Parser::ProgramContext* context) {
   for (auto* rule : context->ruleDecl()) {
     program.rules.push_back(std::any_cast<ast::Rule>(visit(rule)));
   }
+  for (auto* graph : context->concreteGraphDecl())
+    program.graphs.push_back(std::any_cast<ast::ConcreteGraph>(visit(graph)));
   return program;
 }
 

@@ -40,9 +40,10 @@ int main() {
     assert(file.contents.find("@TEPL_NAMESPACE@") == std::string::npos);
     assert(file.contents.find("// @tepl:") == std::string::npos);
   }
-  for (auto path : {"generated.h", "op_node.h", "types.h",
-                    "rules/nested/example.h", "rules/nested/rules.h",
-                    "analysis/shape.h", "pattern/rewrite.h", "dialects/t.h"})
+  for (auto path :
+       {"generated.h", "op_node.h", "types.h", "rules/nested/example.h",
+        "rules/nested/rules.h", "analysis/shape.h", "analysis/tensor_info.h",
+        "rewriting/rewrite.h", "rewriting/rewrite_analysis.h", "dialects/t.h"})
     assert(paths.contains(path));
   assert(generate("").ok());
   assert(generate("", "app::optimizer").ok());

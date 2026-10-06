@@ -1,13 +1,13 @@
 use ::egg::{EGraph, Rewrite};
 use tepl_generated::components::generated::{
-    DType, Op, OpAttrs, OpNode,
-    analysis::{Inference, TensorAnalysis, TensorBindingTable, TensorInfo, infer_shape},
+    DType, Inference, Op, OpAttrs, OpNode, TensorAnalysis, TensorBindingTable, TensorInfo,
+    analysis::infer_shape,
     dialects::{b, egg, std, r#type},
     rules::r#type::r#match::{rule_match, rule_type},
 };
 
 struct Keywords;
-impl rule_match::Functions for Keywords {
+impl rule_match::HostFunctions for Keywords {
     fn r#type(&self, x: &TensorInfo) -> Option<bool> {
         Some(x.shape == [2, 3])
     }
@@ -37,7 +37,7 @@ fn crate_names_and_keyword_methods_execute_a_checked_rewrite() {
     let middle = graph.add(OpNode::new(egg::Op::EggCopy, egg::OpAttrs::None, vec![inner]).unwrap());
     let root = graph.add(OpNode::new(std::Op::StdCopy, std::OpAttrs::None, vec![middle]).unwrap());
     graph.rebuild();
-    let rule: Rewrite<OpNode, TensorAnalysis> = rule_match::build_rewrite(Keywords).unwrap();
+    let rule: Rewrite<OpNode, TensorAnalysis> = rule_match::build(Keywords).unwrap();
     let matches = rule.search(&graph);
     assert_eq!(matches.len(), 1);
     assert!(!rule.apply(&mut graph, &matches).is_empty());
@@ -60,5 +60,5 @@ fn raw_module_and_field_tokens_preserve_tepl_identity_in_analysis() {
         Inference::Known(vec![2, 3])
     );
     assert_eq!(Op::from_name("Type.type"), Some(r#type::Op::Type.into()));
-    assert!(rule_type::build_rewrite::<TensorAnalysis, _>(()).is_ok());
+    assert!(rule_type::build::<TensorAnalysis, _>(()).is_ok());
 }

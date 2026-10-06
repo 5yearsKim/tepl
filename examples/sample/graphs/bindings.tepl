@@ -1,0 +1,15 @@
+from "../dialects/tensor.tepl" import TensorLang as t;
+
+graph shared_result {
+    input X: f32[2, 3];
+    input Y: f32[3, 2];
+
+    let negated = (t.negate X);
+    let transposed = (t.transpose[permutation = [1, 0]] negated);
+    let sum = (t.add transposed Y);
+
+    // Both operands reference the same constructed value.
+    let result = (t.add sum sum);
+
+    yield result;
+}

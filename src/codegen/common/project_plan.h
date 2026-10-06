@@ -20,14 +20,22 @@ struct ModulePlan {
   std::vector<std::string> path;
   std::vector<core::RuleId> rules;
 };
+struct GraphModulePlan {
+  std::string source;
+  std::vector<std::string> path;
+  std::vector<core::GraphId> graphs;
+};
 struct ProjectPlan {
   std::vector<DialectPlan> dialects;
   std::vector<ModulePlan> modules;
+  std::vector<GraphModulePlan> graph_modules;
 };
 
-// Requires checked core. Rejects rule sources outside rules_root and ambiguous
-// source module paths. Target-specific naming validation belongs to backends.
+// Requires checked core. Rejects rule/graph sources outside their roots and
+// ambiguous source module paths. Target-specific naming validation belongs to
+// backends.
 ProjectPlan planProject(const core::Program& program,
-                        const std::string& rules_root = {});
+                        const std::string& rules_root = {},
+                        const std::string& graphs_root = {});
 
 }  // namespace tepl::codegen

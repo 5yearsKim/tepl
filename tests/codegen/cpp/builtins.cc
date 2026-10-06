@@ -43,33 +43,30 @@ int main() {
   namespace rules = ir::rules::builtins;
   auto g = graph({2, 3});
   auto x = g.find(0), copy = g.find(1);
-  auto report =
-      eggc::run(g, std::vector{rules::rule_utilities::build_rewrite()});
+  auto report = eggc::run(g, std::vector{rules::rule_utilities::build()});
   assert(g.find(x) == g.find(copy));
   assert(report.reason == eggc::StopReason::Saturated);
   auto calls = std::make_shared<unsigned>(0);
   Host host{calls};
   auto nested = graph({2, 3});
-  eggc::run(nested, std::vector{rules::rule_nested_hosts::build_rewrite(host)});
+  eggc::run(nested, std::vector{rules::rule_nested_hosts::build(host)});
   assert(*calls > 0);
   *calls = 0;
   auto shorted = graph({2, 3});
-  eggc::run(shorted,
-            std::vector{rules::rule_short_circuit::build_rewrite(host)});
+  eggc::run(shorted, std::vector{rules::rule_short_circuit::build(host)});
   assert(*calls == 0);
   auto derived = graph({2, 3});
-  eggc::run(derived,
-            std::vector{rules::rule_derive_builtin::build_rewrite(host)});
+  eggc::run(derived, std::vector{rules::rule_derive_builtin::build(host)});
   assert(*calls > 0);
   assert(derived.lookup(
       ir::OpNode::make(Op::Tag, ir::dialects::toolkit::TagAttrs{{0, 0}}, {0})));
-  std::vector<Rewrite> failures{rules::rule_failed_gather::build_rewrite(),
-                                rules::rule_failed_slice::build_rewrite(),
-                                rules::rule_failed_replace::build_rewrite(),
-                                rules::rule_failed_divisor::build_rewrite(),
-                                rules::rule_failed_range::build_rewrite(),
-                                rules::rule_failed_broadcast::build_rewrite(),
-                                rules::rule_failed_derive::build_rewrite(host)};
+  std::vector<Rewrite> failures{rules::rule_failed_gather::build(),
+                                rules::rule_failed_slice::build(),
+                                rules::rule_failed_replace::build(),
+                                rules::rule_failed_divisor::build(),
+                                rules::rule_failed_range::build(),
+                                rules::rule_failed_broadcast::build(),
+                                rules::rule_failed_derive::build(host)};
   auto failed = graph({2, 3});
   auto before = failed.node_count();
   *calls = 0;
@@ -79,8 +76,8 @@ int main() {
   assert(*calls == 0);
   auto overflow = graph({std::numeric_limits<std::uint64_t>::max(), 2});
   before = overflow.node_count();
-  eggc::run(overflow, std::vector{rules::rule_failed_sum::build_rewrite(),
-                                  rules::rule_failed_product::build_rewrite()});
+  eggc::run(overflow, std::vector{rules::rule_failed_sum::build(),
+                                  rules::rule_failed_product::build()});
   assert(overflow.node_count() == before);
   assert(overflow.find(0) != overflow.find(1));
   namespace b = ir::builtins;

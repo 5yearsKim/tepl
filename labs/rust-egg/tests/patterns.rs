@@ -2,7 +2,7 @@ mod support;
 use egg::{EGraph, Var};
 use rust_egg::host::nodes::*;
 use rust_egg::ir::dialects::tensor_lang;
-use rust_egg::ir::pattern::{
+use rust_egg::ir::rewriting::{
     AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, matches_at, tensor_rewrite_checked,
 };
 use rust_egg::ir::rules::simple::rule_commute_add;
@@ -137,7 +137,7 @@ fn search_limit_and_batch_application_cover_substitutions_in_one_eclass() {
         &mut egraph,
         support::fixture_metadata::<support::TestAnalysis>,
         support::fixture_inference,
-        rule_commute_add::build_rewrite(()),
+        rule_commute_add::build(()),
     )
     .unwrap();
     let limited = rule.search_with_limit(&egraph, 1);
@@ -209,21 +209,21 @@ fn batch_application_keeps_distinct_attribute_witnesses() {
         AttrExpr::Captured(attr_var),
         vec![TensorExpr::Var(y_var), TensorExpr::Var(x_var)],
     );
-    let rule = rust_egg::ir::pattern::tensor_rewrite_checked_with_constraints(
+    let rule = rust_egg::ir::rewriting::tensor_rewrite_checked_with_constraints(
         "swap_dot_inputs",
         lhs,
         rhs,
-        rust_egg::ir::pattern::TensorConstraints::new([
+        rust_egg::ir::rewriting::TensorConstraints::new([
             (
                 x_var,
-                rust_egg::ir::pattern::TensorConstraint {
-                    dtype: Some(rust_egg::ir::pattern::DTypeConstraint::Exact(DType::F32)),
+                rust_egg::ir::rewriting::TensorConstraint {
+                    dtype: Some(rust_egg::ir::rewriting::DTypeConstraint::Exact(DType::F32)),
                     shape: vec![],
                 },
             ),
             (
                 y_var,
-                rust_egg::ir::pattern::TensorConstraint {
+                rust_egg::ir::rewriting::TensorConstraint {
                     dtype: None,
                     shape: vec![],
                 },

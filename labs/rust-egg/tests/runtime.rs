@@ -1,4 +1,4 @@
-// These tests exercise both handwritten lab code and temporary generated output.
+// These tests exercise the generated Rust runtime.
 #[path = "runtime/shape_builtins.rs"]
 mod shape_builtins;
 #[path = "runtime/shape_patterns.rs"]

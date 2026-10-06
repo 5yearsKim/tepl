@@ -79,13 +79,13 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
   for (auto name : {"TensorPattern", "TensorExpr", "AttrPattern", "AttrExpr",
                     "TensorConstraints", "DTypeConstraint", "ShapePart",
                     "MetadataBindings", "MatchBinding", "DerivedAttrs"})
-    out.line("using " + names.root + "::pattern::" + name + ";");
+    out.line("using " + names.root + "::rewriting::" + name + ";");
   for (auto name : {"OpAttrs", "DType", "TensorInfo"})
     out.line("using " + names.root + "::" + name + ";");
   if (plan.host_functions.empty())
-    out.line("template<class F> concept Functions=true;");
+    out.line("template<class F> concept HostFunctions=true;");
   else {
-    out.line("template<class F> concept Functions =");
+    out.line("template<class F> concept HostFunctions =");
     bool first = true;
     for (auto id : plan.host_functions) {
       const auto& fn = program.host_functions.at(id.value);
@@ -164,13 +164,14 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
     out.close();
   }
   out.line("template<class A>");
-  out.open("inline " + names.root + "::pattern::MatchChecks<A> match_checks()");
+  out.open("inline " + names.root +
+           "::rewriting::MatchChecks<A> match_checks()");
   if (plan.early_conditions.empty())
     out.line("return {constraints(),{}, {}};");
   else {
     out.line("auto metadata=[](const ::eggc::EGraph<" + names.root +
              "::OpNode,A>& graph, ::eggc::Id id) { return " + names.root +
-             "::analysis::RewriteAnalysis<A>::tensor_info(graph,id); }; ");
+             "::RewriteAnalysis<A>::tensor_info(graph,id); }; ");
     out.line("return {constraints(),{");
     for (const auto& c : plan.early_conditions) {
       std::string dependencies = "{";
@@ -195,10 +196,10 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
         "},[metadata=::std::move(metadata)](::std::size_t index, const "
         "::eggc::EGraph<" +
         names.root + "::OpNode,A>& graph, const " + names.root +
-        "::pattern::TensorMatch& matched, const MetadataBindings& "
+        "::rewriting::TensorMatch& matched, const MetadataBindings& "
         "dimensions)->::std::optional<bool>");
     out.line(names.root +
-             "::pattern::MatchContext ctx{graph,matched,metadata};");
+             "::rewriting::MatchContext ctx{graph,matched,metadata};");
     out.open("switch(index)");
     for (std::size_t i = 0; i < plan.early_conditions.size(); ++i)
       out.line("case " + std::to_string(i) + ": return condition_" +
@@ -209,28 +210,28 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
   }
   out.close();
   out.line("template<class A=" + names.root +
-           "::analysis::TensorAnalysis, Functions F=" + names.root +
-           "::pattern::NoFunctions>");
+           "::analysis::TensorAnalysis, HostFunctions F=" + names.root +
+           "::rewriting::NoFunctions>");
   out.open("inline ::eggc::Rewrite<" + names.root +
-           "::OpNode,A> build_rewrite(F functions={})");
+           "::OpNode,A> build(F functions={})");
   out.line("auto host=::std::make_shared<F>(::std::move(functions));");
   out.line("auto reader=[](const ::eggc::EGraph<" + names.root +
            "::OpNode,A>& graph, ::eggc::Id id) { return " + names.root +
-           "::analysis::RewriteAnalysis<A>::tensor_info(graph,id); };");
+           "::RewriteAnalysis<A>::tensor_info(graph,id); };");
   out.line("auto checks=match_checks<A>();");
   out.line("return " + names.root +
-           "::pattern::tensor_rewrite_with_checks<A>(" +
+           "::rewriting::tensor_rewrite_with_checks<A>(" +
            quote(module.qualified + "::" + rule.name) +
            ",pattern(),expression(),::std::move(checks)," +
            (plan.requires_tensor_info ? "true," : "false,"));
   out.open("[host,reader](const ::eggc::EGraph<" + names.root +
            "::OpNode,A>& graph, const " + names.root +
-           "::pattern::TensorMatch& matched, [[maybe_unused]] const "
+           "::rewriting::TensorMatch& matched, [[maybe_unused]] const "
            "MetadataBindings& dimensions)->::std::optional<DerivedAttrs>");
   out.line("[[maybe_unused]] const auto& functions=*host;");
   out.line("DerivedAttrs derived;");
   out.line("[[maybe_unused]] " + names.root +
-           "::pattern::MatchContext ctx{graph,matched,reader,&derived};");
+           "::rewriting::MatchContext ctx{graph,matched,reader,&derived};");
   out.open("try");
   for (const auto& d : rule.descriptors)
     if (d.kind == core::Descriptor::Kind::kCaptured) {
@@ -262,7 +263,8 @@ std::string emitRules(const core::Program& program, const Names& names,
                       const RuleModuleNames& module) {
   CodeWriter out;
   out.line("#pragma once");
-  out.line("#include \"" + parentInclude(module.path) + "pattern/rewrite.h\"");
+  out.line("#include \"" + parentInclude(module.path) +
+           "rewriting/rewrite.h\"");
   out.line("#include \"" + parentInclude(module.path) +
            "analysis/analysis.h\"");
   for (auto rule : rules) emitRule(out, program, names, module, *rule);

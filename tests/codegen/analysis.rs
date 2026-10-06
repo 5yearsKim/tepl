@@ -1,11 +1,11 @@
 use egg::{EGraph, Id};
-use tepl_generated::ir::analysis::{
-    Inference, TensorAnalysis, TensorAnalysisData, TensorBindingTable, TensorInfo, infer_dtype,
-    infer_shape, infer_tensor,
-};
+use tepl_generated::ir::analysis::{infer_dtype, infer_shape, infer_tensor};
 use tepl_generated::ir::dialects::unfamiliar::{Op, OpAttrs};
 use tepl_generated::ir::rules::analysis::{rule_bad_output, rule_commute};
 use tepl_generated::ir::{DType, Op as AnyOp, OpAttrs as AnyAttrs, OpNode};
+use tepl_generated::ir::{
+    Inference, TensorAnalysis, TensorAnalysisData, TensorBindingTable, TensorInfo,
+};
 
 fn info(shape: &[u64], dtype: DType) -> TensorInfo {
     TensorInfo {
@@ -186,7 +186,7 @@ fn default_rewrites_use_analysis_for_shape_constraints_and_rhs_validation() {
         (vec![2], DType::I32, false),
     ] {
         let (mut graph, [x, y, root]) = graph(info(&shape, dtype), info(&shape, dtype));
-        let rewrite = rule_commute::build_rewrite(()).unwrap();
+        let rewrite = rule_commute::build(()).unwrap();
         let matches = rewrite.search(&graph);
         assert_eq!(!matches.is_empty(), accepted);
         let changed = rewrite.apply(&mut graph, &matches);
@@ -200,7 +200,7 @@ fn default_rewrites_use_analysis_for_shape_constraints_and_rhs_validation() {
         }
     }
     let (mut graph, [x, _, _]) = graph(info(&[2], DType::F32), info(&[2], DType::F32));
-    let rewrite = rule_bad_output::build_rewrite(()).unwrap();
+    let rewrite = rule_bad_output::build(()).unwrap();
     let matches = rewrite.search(&graph);
     let before = graph.total_number_of_nodes();
     assert!(rewrite.apply(&mut graph, &matches).is_empty());

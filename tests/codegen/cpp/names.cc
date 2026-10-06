@@ -22,7 +22,7 @@ int main() {
       graph.add(ir::OpNode::make(ir::dialects::egg::Op::EggCopy, {}, {b}));
   auto root =
       graph.add(ir::OpNode::make(ir::dialects::std::Op::StdCopy, {}, {egg}));
-  auto rule = ir::rules::type::match::rule_match::build_rewrite(Host{});
+  auto rule = ir::rules::type::match::rule_match::build(Host{});
   eggc::run(graph, std::vector{rule});
   assert(graph.find(root) == graph.find(x));
   assert(odr_check() == 13);

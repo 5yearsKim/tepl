@@ -112,7 +112,7 @@ void testLora(const std::string& source, const std::string& path) {
             inner_rhs_dot.attribute->name == "xa" &&
             inner_rhs_dot.operands.size() == 2,
         "Nested dot or descriptor was not preserved");
-  check(final_dot.operands[0]->span.begin.line == 17,
+  check(final_dot.operands[0]->span.begin.line == rule.rhs->span.begin.line,
         "Nested expression span is wrong");
 
   check(rule.conditions.size() == 2 && rule.derivations.size() == 3,
@@ -382,7 +382,16 @@ void testAbstractAndInherited(const std::string& abstract_path,
     return std::string(std::istreambuf_iterator<char>(input),
                        std::istreambuf_iterator<char>());
   };
-  auto templates = tepl::parse(read(abstract_path), abstract_path);
+  const auto abstract_source = read(abstract_path);
+  const auto span_text = [&](tepl::SourceSpan span) {
+    check(span.begin.line == span.end.line, "Expected a single-line span");
+    std::size_t start = 0;
+    for (std::size_t line = 1; line < span.begin.line; ++line)
+      start = abstract_source.find('\n', start) + 1;
+    return abstract_source.substr(start + span.begin.column - 1,
+                                  span.end.column - span.begin.column);
+  };
+  auto templates = tepl::parse(abstract_source, abstract_path);
   check(templates.ok() && templates.rule_count == 3,
         "Abstract fixture must parse all three templates");
   const auto& commute = templates.program->rules.front();
@@ -396,10 +405,8 @@ void testAbstractAndInherited(const std::string& abstract_path,
             parameter.operand_types.size() == 2 &&
             parameter.operand_types[0].name == "tensor" &&
             parameter.result_type.name == "tensor" &&
-            parameter.span.begin.line == 2 &&
-            parameter.span.begin.column == 5 && parameter.span.end.line == 2 &&
-            parameter.span.end.column == 38 &&
-            parameter.result_type.span.begin.column == 31,
+            span_text(parameter.span) == "F: op<(tensor, tensor) -> tensor>" &&
+            span_text(parameter.result_type.span) == "tensor",
         "Operation parameter signature or spans are wrong");
   const auto& associate = templates.program->rules[1];
   check(associate.parameters.size() == 1 && associate.conditions.empty(),

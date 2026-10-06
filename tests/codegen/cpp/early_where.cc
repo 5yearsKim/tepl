@@ -16,7 +16,7 @@ struct Host {
   }
 };
 int main() {
-  namespace p = ir::pattern;
+  namespace p = ir::rewriting;
   namespace r = ir::rules::early_where;
   Graph graph;
   auto x = graph.add(ir::OpNode::input("x")),
@@ -45,8 +45,7 @@ int main() {
   auto copy = graph.add(ir::OpNode::make(Op::Copy, {}, {x}));
   graph.rebuild();
   auto boundary = support::configure_rule(
-      graph, metadata, inference,
-      r::rule_host_boundary::build_rewrite<A>(Host{calls}));
+      graph, metadata, inference, r::rule_host_boundary::build<A>(Host{calls}));
   auto before = graph.node_count();
   eggc::run(graph, std::vector{boundary});
   assert(*calls > 0);
@@ -55,7 +54,7 @@ int main() {
   *calls = 0;
   auto nested = support::configure_rule(
       graph, metadata, inference,
-      r::rule_nested_host_boundary::build_rewrite<A>(Host{calls}));
+      r::rule_nested_host_boundary::build<A>(Host{calls}));
   eggc::run(graph, std::vector{nested});
   assert(*calls == 0);
   assert(graph.find(copy) != graph.find(x));
@@ -82,8 +81,7 @@ int main() {
   };
   *calls = 0;
   auto rule = support::configure_rule(
-      limited, md, inference,
-      r::rule_host_boundary::build_rewrite<A>(Host{calls}));
+      limited, md, inference, r::rule_host_boundary::build<A>(Host{calls}));
   eggc::RunOptions options;
   options.match_limit = 1;
   options.iteration_limit = 1;

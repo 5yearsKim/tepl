@@ -90,7 +90,7 @@ int main() {
     auto x = graph.add(ir::OpNode::input("x")),
          y = graph.add(ir::OpNode::input("y"));
     auto root = graph.add(ir::OpNode::make(Op::Fuse, {}, {x, y}));
-    auto rule = ir::rules::analysis::rule_commute::build_rewrite();
+    auto rule = ir::rules::analysis::rule_commute::build();
     auto report = eggc::run(graph, std::vector{rule});
     auto swapped = graph.lookup(ir::OpNode::make(Op::Fuse, {}, {y, x}));
     assert(swapped.has_value() == (shape.size() == 1));
@@ -98,9 +98,8 @@ int main() {
     assert(report.reason == eggc::StopReason::Saturated);
     assert((eggc::Extractor<ir::OpNode, A>(graph).find_best(root).first == 3));
     auto before = graph.node_count();
-    eggc::run(
-        graph,
-        std::vector{ir::rules::analysis::rule_bad_output::build_rewrite()});
+    eggc::run(graph,
+              std::vector{ir::rules::analysis::rule_bad_output::build()});
     assert(graph.node_count() == before);
   }
   // Unions retain invalid evidence and propagate it to parents.

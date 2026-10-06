@@ -4,9 +4,9 @@ use egg::{CostFunction, EGraph, Id, Language, RecExpr, StopReason};
 use rust_egg::host::LoraAnalysis;
 use rust_egg::host::nodes::*;
 pub use rust_egg::host::{DemoLoraFunctions, batched_dot_shape, dot_attrs};
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::analysis::TensorBindingTable;
 use rust_egg::ir::dialects::tensor_lang;
-use rust_egg::ir::pattern::TensorInfo;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 use std::collections::HashMap;
 

@@ -1,4 +1,4 @@
-//! Behavior checks for the concrete expansion of `examples/rules/inherited.tepl`.
+//! Behavior checks for the concrete expansion of `examples/sample/rules/inherited.tepl`.
 
 use egg::{EGraph, Id, Rewrite};
 use rust_egg::host::nodes::*;
@@ -56,13 +56,10 @@ fn apply(
 #[test]
 fn commutativity_instances_swap_their_specialized_operation() {
     for (op, rule) in [
-        (
-            tensor_lang::Op::Add,
-            rule_commute_add::build_rewrite(()).unwrap(),
-        ),
+        (tensor_lang::Op::Add, rule_commute_add::build(()).unwrap()),
         (
             tensor_lang::Op::Multiply,
-            rule_commute_mul::build_rewrite(()).unwrap(),
+            rule_commute_mul::build(()).unwrap(),
         ),
     ] {
         let (mut egraph, [x, y, _]) = inputs([Some(vec![]), Some(vec![]), None]);
@@ -93,7 +90,7 @@ fn vector_commutativity_enforces_rank_shared_dimension_and_limit() {
     ] {
         let (mut egraph, [x, y, _]) = inputs(shapes);
         let root = egraph.add(binary(tensor_lang::Op::Add, x, y).unwrap());
-        let rule = rule_commute_small_vectors::build_rewrite(()).unwrap();
+        let rule = rule_commute_small_vectors::build(()).unwrap();
         apply(&mut egraph, &rule, accepted);
         let swapped = egraph.lookup(binary(tensor_lang::Op::Add, y, x).unwrap());
         if accepted {
@@ -117,9 +114,9 @@ fn association_instances_require_compatible_metadata() {
             let xy = egraph.add(binary(op, x, y).unwrap());
             let root = egraph.add(binary(op, xy, z).unwrap());
             let rule = if op == tensor_lang::Op::Add {
-                rule_associate_add_right::build_rewrite(()).unwrap()
+                rule_associate_add_right::build(()).unwrap()
             } else {
-                rule_associate_mul_right::build_rewrite(()).unwrap()
+                rule_associate_mul_right::build(()).unwrap()
             };
             let accepted = !missing_metadata;
             apply(&mut egraph, &rule, accepted);
@@ -158,7 +155,7 @@ fn vector_association_enforces_child_restrictions() {
                 && expected[0] == expected[1]
                 && expected[0] == expected[2]
                 && expected[0][0] <= 1024;
-            let rule = rule_associate_small_vectors::build_rewrite(()).unwrap();
+            let rule = rule_associate_small_vectors::build(()).unwrap();
             apply(&mut egraph, &rule, accepted);
             let yz = egraph.lookup(binary(tensor_lang::Op::Add, y, z).unwrap());
             if accepted {
@@ -184,7 +181,7 @@ fn distribution_reuses_x_with_compatible_metadata() {
         let (mut egraph, [x, y, z]) = inputs(shapes);
         let yz = egraph.add(binary(tensor_lang::Op::Add, y, z).unwrap());
         let root = egraph.add(binary(tensor_lang::Op::Multiply, x, yz).unwrap());
-        let rule = rule_distribute_mul_over_add::build_rewrite(()).unwrap();
+        let rule = rule_distribute_mul_over_add::build(()).unwrap();
         let accepted = !missing_metadata;
         apply(&mut egraph, &rule, accepted);
         let xy = egraph.lookup(binary(tensor_lang::Op::Multiply, x, y).unwrap());

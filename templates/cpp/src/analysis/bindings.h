@@ -1,7 +1,7 @@
 #pragma once
 #include <map>
 
-#include "tensor.h"
+#include "tensor_info.h"
 
 namespace @TEPL_NAMESPACE@::analysis {
 class TensorBindingTable {

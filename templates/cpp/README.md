@@ -2,7 +2,7 @@
 
 These handwritten C++20 runtime headers are embedded in TEPL and copied into
 generated output. Declaration-dependent code belongs in `src/codegen/cpp/`.
-The directories mirror the Rust runtime: `analysis`, `builtins`, and `pattern`,
+The directories mirror Rust: `analysis`, `builtins`, `rewriting`, and `graphs`,
 alongside `types.h` and `op_node.h`. The compiler replaces namespace placeholders
 and inserts project-specific operation and attribute unions into `op_node.h`.
 
@@ -17,9 +17,32 @@ timestamps would otherwise match.
 ## Generated API
 
 `generated.h` includes the full generated library. The public namespaces are
-`analysis`, `builtins::{common,shape,dtype}`, `dialects`, `pattern`, and `rules`.
-Individual headers can be included directly. Non-template definitions are
+`analysis`, `builtins::{common,shape,dtype}`, `dialects`, `rewriting`, `rules`,
+and `graphs`. Individual headers can be included directly. Non-template definitions are
 inline, allowing multiple translation units to include the library.
+
+Common types are exported at the root namespace:
+
+```cpp
+namespace ir = tepl_generated;
+using ir::GraphDefinition;
+using ir::OpNode;
+using ir::TensorAnalysis;
+using ir::TensorInfo;
+```
+
+`analysis/tensor_info.h` owns `TensorInfo`. Matching and rewrite helpers live
+in `rewriting/`; the `RewriteAnalysis<A>` adapter is also exported at the root.
+The root exports `Inference`, `TensorAnalysisData`, `TensorBindingTable`,
+`BuiltGraph`, and `InputSpec` alongside these types.
+
+Callers migrating from the previous layout replace `pattern/` includes and
+`::pattern` namespaces with `rewriting/` and `::rewriting`. Use
+`analysis/tensor_info.h` for tensor metadata and `rewriting/rewrite_analysis.h`
+for the adapter. Replace `analysis::RewriteAnalysis<A>` with
+`RewriteAnalysis<A>` or `rewriting::RewriteAnalysis<A>`; explicit adapter
+specializations belong to `rewriting`. Regeneration removes obsolete
+manifest-owned headers.
 
 Each dialect defines scoped `Op` values, named attribute structs, and an
 `OpAttrs` variant wrapper. The root `Op` and `OpAttrs` combine dialect values
@@ -38,10 +61,10 @@ and `OpNode::literal`. Opaque region, elements, replica-group, and algorithm
 payloads retain structural equality and hashing; hosts validate their semantics.
 
 Each rule namespace exposes `pattern`, `expression`, `constraints`,
-`match_checks`, and rewrite builders. `Functions` is a C++ concept checking only
+`match_checks`, and rewrite builders. `HostFunctions` is a C++ concept checking only
 the host methods used by that rule. Methods are callable on a const host object
 and return `std::optional<T>` for fallible results. Empty hosts use the default
-`build_rewrite()` argument. Builders own hosts and metadata callbacks; a move-only
+`build()` argument. Builders own hosts; a move-only
 host can be passed by move. Shared callback state must remain valid and stable
 through each read-only traversal.
 
@@ -55,13 +78,20 @@ through each read-only traversal.
 | F64 | `double` | `double` |
 | Descriptor | `const OpAttrs&` | `OpAttrs` |
 
-`build_rewrite()` uses generated `TensorAnalysis`. A custom analysis uses
-`build_rewrite_with<MyAnalysis>(metadata, inference, functions)`, where metadata
-is callable with `(const EGraph&, Id)` and returns `optional<TensorInfo>`.
-Inference may be callable with `(Op, span<const TensorInfo>, const OpAttrs&)`,
-or supply an `infer_output` method with that signature. An optional
-`infer_literal(value, requested_dtype, expected)` method overrides contextual
-literal resolution. Explicit dtype annotations always apply.
+`build()` defaults to generated `TensorAnalysis`. Custom analyses use
+`build<MyAnalysis>(host)` and integrate once through
+`RewriteAnalysis<MyAnalysis>`. The default adapter expects static
+`has_tensor_info`, `tensor_info(graph, id)`, and
+`infer_output(graph, op, operands, attrs)` members on the analysis. An optional
+`infer_literal(graph, value, requested_dtype, expected)` member customizes
+contextual literal resolution. Explicit dtype annotations always apply.
+
+`build<eggc::NoAnalysis<OpNode>>(host)` permits structural rules without
+tensor output validation. Rules requiring shape/dtype bindings or tensor host
+arguments reject that configuration at construction. Checked analyses always
+validate replacements; missing or conflicting information rejects a candidate.
+Untyped LHS literals match any dtype. New RHS literals require explicit dtypes
+in structural rewrites; checked rewrites can resolve them from output context.
 
 ## Runtime contracts
 
@@ -126,6 +156,16 @@ Clang. The suite exercises debug and optimized builds, plus UBSan for arithmetic
 and runtime failures, namespace relocation, standalone headers, generated-name
 collisions, grouped rematching, multiple translation units, typed
 attribute rejection, and the example LoRA rewrite through saturation, extraction,
-and numerical comparison. It does not regenerate or require a handwritten lab.
+and numerical comparison.
 To rerun selected fixtures, pass the compiler binary followed by fixture names,
 for example `./tools/test_codegen_cpp.sh bazel-bin/tepl hygiene runtime`.
+
+
+## Concrete graphs
+
+`src/graphs/definition.h` owns graph validation, input metadata,
+local-to-e-graph ID mapping, and named handles. Project-specific constructors
+and module indexes come from the graph emitter. Each graph namespace imports
+required types with `using` declarations and aliases the dialect namespace,
+keeping builder expressions short. See the
+[graph API](../../examples/sample/graphs/README.md) for usage.

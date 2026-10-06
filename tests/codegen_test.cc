@@ -58,7 +58,7 @@ int main() {
     assert(file.contents.find("SEARCH_VISITS") == std::string::npos);
     assert(file.contents.find("use super::*") == std::string::npos);
     assert(file.contents.find("::dialects::*") == std::string::npos);
-    assert(file.contents.find("::pattern::*") == std::string::npos);
+    assert(file.contents.find("::rewriting::*") == std::string::npos);
     assert(file.contents.find("fn $") == std::string::npos);
     assert(file.contents.find("functions.$") == std::string::npos);
     if (file.contents.find("fn outer(") == std::string::npos) continue;
@@ -104,7 +104,7 @@ int main() {
   for (const auto& file : project_files.files) {
     if (file.path != "rules/nested/two.rs") continue;
     found_nested = true;
-    assert(file.contents.find("use super::super::super::super::pattern::{") !=
+    assert(file.contents.find("use super::super::super::super::rewriting::{") !=
            std::string::npos);
   }
   assert(found_nested);

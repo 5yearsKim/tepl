@@ -53,7 +53,7 @@ Graph graph(std::vector<std::uint64_t> shape = {2}) {
 }
 void grouped_application_test(unsigned count, bool accept,
                               bool invalidate_metadata = false) {
-  namespace p = ir::pattern;
+  namespace p = ir::rewriting;
   namespace r = ir::rules::runtime;
   using B = support::TestAnalysis;
   using G = eggc::EGraph<ir::OpNode, B>;
@@ -111,7 +111,7 @@ void grouped_application_test(unsigned count, bool accept,
   g.rebuild();
 }
 int main() {
-  namespace p = ir::pattern;
+  namespace p = ir::rewriting;
   namespace r = ir::rules::runtime;
   auto g = graph();
   auto x = eggc::Id(0);
@@ -123,7 +123,7 @@ int main() {
   g.rebuild();
   assert(p::matches_at(g, one, r::rule_witnesses::pattern()).size() == 3);
   auto seen = std::make_shared<std::vector<std::uint64_t>>();
-  auto rule = r::rule_witnesses::build_rewrite(Host{seen});
+  auto rule = r::rule_witnesses::build(Host{seen});
   // Inspect one search/application rather than repeatedly applying the rule
   // which deliberately changes attributes on each iteration.
   std::vector<eggc::Application<ir::OpNode, A>> actions;
@@ -173,9 +173,8 @@ int main() {
     auto ordered = graph();
     auto root = ordered.add(ir::OpNode::make(Op::Copy, {}, {0}));
     auto calls = std::make_shared<std::vector<unsigned>>();
-    eggc::run(
-        ordered,
-        std::vector{r::rule_ordered::build_rewrite(OrderedHost{calls, fail})});
+    eggc::run(ordered,
+              std::vector{r::rule_ordered::build(OrderedHost{calls, fail})});
     if (fail) {
       assert(*calls == std::vector<unsigned>{1});
       assert(ordered.find(0) != ordered.find(root));
@@ -245,13 +244,13 @@ int main() {
   // Contextual literals use the root dtype but must remain scalar.
   auto scalar = graph({});
   auto scalar_root = scalar.add(ir::OpNode::make(Op::Copy, {}, {0}));
-  eggc::run(scalar, std::vector{r::rule_scalar::build_rewrite()});
+  eggc::run(scalar, std::vector{r::rule_scalar::build()});
   auto literal = scalar.lookup(ir::OpNode::literal("1", ir::DType::F32));
   assert(literal && scalar.find(*literal) == scalar.find(scalar_root));
   auto nonscalar = graph();
   nonscalar.add(ir::OpNode::make(Op::Copy, {}, {0}));
   before = nonscalar.node_count();
-  eggc::run(nonscalar, std::vector{r::rule_scalar::build_rewrite()});
+  eggc::run(nonscalar, std::vector{r::rule_scalar::build()});
   assert(nonscalar.node_count() == before);
   // Hashing includes metadata even when children and operation agree.
   auto n1 = ir::OpNode::make(Op::Tag, Params{1}, {0}),
@@ -265,16 +264,14 @@ int main() {
   auto outer = queued.add(ir::OpNode::make(Op::Copy, {}, {inner}));
   auto second = queued.add(ir::OpNode::input("unbound"));
   queued.add(ir::OpNode::make(Op::Copy, {}, {second}));
-  auto report =
-      eggc::run(queued, std::vector{r::rule_eliminate::build_rewrite()});
+  auto report = eggc::run(queued, std::vector{r::rule_eliminate::build()});
   assert(report.reason == eggc::StopReason::Saturated);
   assert(queued.find(outer) == queued.find(0));
   assert(queued.find(inner) == queued.find(0));
   assert(!queued.analysis_data(second).info());
   auto floated = graph();
   auto float_root = floated.add(ir::OpNode::make(Op::Copy, {}, {0}));
-  eggc::run(floated,
-            std::vector{r::rule_float_literals::build_rewrite(FloatHost{})});
+  eggc::run(floated, std::vector{r::rule_float_literals::build(FloatHost{})});
   assert(floated.find(float_root) == floated.find(0));
   grouped_application_test(1000, false);
   grouped_application_test(128, true);

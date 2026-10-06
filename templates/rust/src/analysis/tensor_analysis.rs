@@ -2,9 +2,9 @@
 
 use ::egg::{Analysis, DidMerge, EGraph, Id, Language};
 
-use super::super::pattern::TensorInfo;
 use super::super::{Op, OpNode};
 use super::Inference;
+use super::TensorInfo;
 use super::{TensorAnalysisData, TensorBindingTable, infer_tensor};
 
 /// Input shapes and dtypes, registered before building the graph.
@@ -63,7 +63,7 @@ pub fn tensor_info(egraph: &EGraph<OpNode, TensorAnalysis>, id: Id) -> Option<Te
     egraph[egraph.find(id)].data.info().cloned()
 }
 
-impl super::super::pattern::RewriteAnalysis for TensorAnalysis {
+impl super::super::rewriting::RewriteAnalysis for TensorAnalysis {
     const HAS_TENSOR_INFO: bool = true;
     fn tensor_info(graph: &EGraph<OpNode, Self>, id: Id) -> Option<TensorInfo> {
         tensor_info(graph, id)

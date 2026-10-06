@@ -33,10 +33,7 @@ fn apply(
 #[test]
 fn every_rule_builtin_executes_without_host_implementations() {
     let (mut graph, x, root) = graph(&[2, 3]);
-    assert!(apply(
-        &mut graph,
-        rule_utilities::build_rewrite(()).unwrap()
-    ));
+    assert!(apply(&mut graph, rule_utilities::build(()).unwrap()));
     assert_eq!(graph.find(x), graph.find(root));
 }
 
@@ -58,17 +55,17 @@ impl Host {
         )
     }
 }
-impl rule_derive_builtin::Functions for Host {
+impl rule_derive_builtin::HostFunctions for Host {
     fn infer_attrs(&self, axes: &[u64]) -> Option<OpAttrs> {
         self.infer_attrs(axes)
     }
 }
-impl rule_failed_derive::Functions for Host {
+impl rule_failed_derive::HostFunctions for Host {
     fn infer_attrs(&self, axes: &[u64]) -> Option<OpAttrs> {
         self.infer_attrs(axes)
     }
 }
-impl rule_nested_hosts::Functions for Host {
+impl rule_nested_hosts::HostFunctions for Host {
     fn axes(&self, _: &TensorInfo) -> Option<Vec<u64>> {
         self.record("axes");
         Some(vec![1, 2])
@@ -78,7 +75,7 @@ impl rule_nested_hosts::Functions for Host {
         Some(1)
     }
 }
-impl rule_short_circuit::Functions for Host {
+impl rule_short_circuit::HostFunctions for Host {
     fn axes(&self, _: &TensorInfo) -> Option<Vec<u64>> {
         panic!("short-circuited host call");
     }
@@ -92,7 +89,7 @@ fn builtins_compose_with_derivations_and_nested_hosts_in_evaluation_order() {
     let host = Host::default();
     assert!(apply(
         &mut g,
-        rule_derive_builtin::build_rewrite(host.clone()).unwrap()
+        rule_derive_builtin::build(host.clone()).unwrap()
     ));
     let tag = g
         .lookup(
@@ -111,7 +108,7 @@ fn builtins_compose_with_derivations_and_nested_hosts_in_evaluation_order() {
     let host = Host::default();
     assert!(apply(
         &mut g,
-        rule_nested_hosts::build_rewrite(host.clone()).unwrap()
+        rule_nested_hosts::build(host.clone()).unwrap()
     ));
     assert_eq!(
         *host.calls.lock().unwrap(),
@@ -123,29 +120,20 @@ fn short_circuit_skips_failed_builtins_and_host_calls() {
     let (mut graph, _, _) = graph(&[2, 3]);
     assert!(apply(
         &mut graph,
-        rule_short_circuit::build_rewrite(Host::default()).unwrap()
+        rule_short_circuit::build(Host::default()).unwrap()
     ));
 }
 #[test]
 fn failures_reject_candidates_before_any_insertion_or_following_host_call() {
     let cases = [
-        (
-            vec![u64::MAX, 1],
-            rule_failed_sum::build_rewrite(()).unwrap(),
-        ),
-        (
-            vec![u64::MAX, 2],
-            rule_failed_product::build_rewrite(()).unwrap(),
-        ),
-        (vec![2, 3], rule_failed_gather::build_rewrite(()).unwrap()),
-        (vec![2, 3], rule_failed_slice::build_rewrite(()).unwrap()),
-        (vec![2, 3], rule_failed_replace::build_rewrite(()).unwrap()),
-        (vec![2, 3], rule_failed_divisor::build_rewrite(()).unwrap()),
-        (vec![2, 3], rule_failed_range::build_rewrite(()).unwrap()),
-        (
-            vec![2, 3],
-            rule_failed_broadcast::build_rewrite(()).unwrap(),
-        ),
+        (vec![u64::MAX, 1], rule_failed_sum::build(()).unwrap()),
+        (vec![u64::MAX, 2], rule_failed_product::build(()).unwrap()),
+        (vec![2, 3], rule_failed_gather::build(()).unwrap()),
+        (vec![2, 3], rule_failed_slice::build(()).unwrap()),
+        (vec![2, 3], rule_failed_replace::build(()).unwrap()),
+        (vec![2, 3], rule_failed_divisor::build(()).unwrap()),
+        (vec![2, 3], rule_failed_range::build(()).unwrap()),
+        (vec![2, 3], rule_failed_broadcast::build(()).unwrap()),
     ];
     for (shape, rule) in cases {
         let (mut graph, x, root) = graph(&shape);
@@ -161,7 +149,7 @@ fn failures_reject_candidates_before_any_insertion_or_following_host_call() {
     let before = graph.total_number_of_nodes();
     assert!(!apply(
         &mut graph,
-        rule_failed_derive::build_rewrite(host.clone()).unwrap()
+        rule_failed_derive::build(host.clone()).unwrap()
     ));
     assert_eq!(graph.total_number_of_nodes(), before);
     assert!(host.calls.lock().unwrap().is_empty());

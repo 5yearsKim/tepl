@@ -5,8 +5,8 @@ use rust_egg::ir::dialects::tensor_lang;
 
 use egg::{EGraph, Language, Var};
 
-use rust_egg::ir::pattern::{AttrPattern, AttrVar, TensorPattern};
-use rust_egg::ir::pattern::{TensorExpr, matches_at, tensor_rewrite_checked};
+use rust_egg::ir::rewriting::{AttrPattern, AttrVar, TensorPattern};
+use rust_egg::ir::rewriting::{TensorExpr, matches_at, tensor_rewrite_checked};
 use rust_egg::ir::{Op, OpAttrs, OpNode};
 
 #[test]
@@ -32,7 +32,8 @@ fn sibling_alternatives_are_independent_ordered_and_can_stop_early() {
         add(vec![TensorPattern::Var(a), TensorPattern::Var(b)]),
         add(vec![TensorPattern::Var(c), TensorPattern::Var(d)]),
     ]);
-    let bindings = |m: &rust_egg::ir::pattern::TensorMatch| [a, b, c, d].map(|var| m.tensors[var]);
+    let bindings =
+        |m: &rust_egg::ir::rewriting::TensorMatch| [a, b, c, d].map(|var| m.tensors[var]);
     // Preserve the e-graph's node order, with the left child's alternatives
     // as the outer loop and the right child's alternatives as the inner loop.
     let nodes = &egraph[egraph.find(xy)].nodes;

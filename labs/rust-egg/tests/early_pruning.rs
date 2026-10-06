@@ -6,10 +6,11 @@ use std::sync::{Arc, Mutex};
 use ShapePart::{Dimension as D, Sequence as S, Wildcard as W};
 use egg::{EGraph, Id, Language, Var};
 use rust_egg::host::nodes::{binary, symbol};
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::dialects::tensor_lang;
-use rust_egg::ir::pattern::{
+use rust_egg::ir::rewriting::{
     AttrPattern, MetadataBindings, ShapePart, TensorConstraint, TensorConstraints, TensorExpr,
-    TensorInfo, TensorPattern, matches_at, matches_at_with_constraints,
+    TensorPattern, matches_at, matches_at_with_constraints,
     tensor_rewrite_checked_with_constraints,
 };
 use rust_egg::ir::{DType, OpAttrs, OpNode};
@@ -204,7 +205,7 @@ fn mixed_middle_sequences_and_inherited_restrictions_share_bindings() {
         (
             b,
             TensorConstraint {
-                dtype: Some(rust_egg::ir::pattern::DTypeConstraint::Exact(DType::F32)),
+                dtype: Some(rust_egg::ir::rewriting::DTypeConstraint::Exact(DType::F32)),
                 shape: vec![S(None)],
             },
         ),
@@ -266,7 +267,7 @@ fn missing_metadata_and_dtype_mismatches_reject_only_constrained_captures() {
     let constraints = TensorConstraints::new([(
         a,
         TensorConstraint {
-            dtype: Some(rust_egg::ir::pattern::DTypeConstraint::Exact(DType::F32)),
+            dtype: Some(rust_egg::ir::rewriting::DTypeConstraint::Exact(DType::F32)),
             shape: vec![S(None)],
         },
     )]);

@@ -5,9 +5,10 @@ use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
+use tepl_generated::ir::TensorInfo;
 use tepl_generated::ir::dialects::custom;
 use tepl_generated::ir::dialects::{mirror, other};
-use tepl_generated::ir::pattern::{OutputInference, TensorInfo, TensorMetadata, matches_at};
+use tepl_generated::ir::rewriting::{OutputInference, TensorMetadata, matches_at};
 use tepl_generated::ir::rules::custom::*;
 use tepl_generated::ir::{DType, Op, OpAttrs, OpNode};
 
@@ -137,8 +138,7 @@ fn middle_sequences_allow_empty_and_check_repeated_dimensions_and_dtype() {
             (root, info(&left, DType::F32)),
         ]);
         let rule =
-            support::configure_rule(&mut graph, meta, Inference, rule_commute::build_rewrite(()))
-                .unwrap();
+            support::configure_rule(&mut graph, meta, Inference, rule_commute::build(())).unwrap();
         assert_eq!(!apply(&mut graph, rule).is_empty(), accepted);
     }
 }
@@ -155,13 +155,8 @@ fn inherited_restrictions_and_dtype_are_all_enforced() {
         let x = input(&mut graph, "x");
         let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
         let meta = metadata(vec![(x, info(&shape, dtype)), (root, info(&shape, dtype))]);
-        let rule = support::configure_rule(
-            &mut graph,
-            meta,
-            Inference,
-            rule_inherited::build_rewrite(()),
-        )
-        .unwrap();
+        let rule = support::configure_rule(&mut graph, meta, Inference, rule_inherited::build(()))
+            .unwrap();
         assert_eq!(!apply(&mut graph, rule).is_empty(), accepted);
     }
 }
@@ -183,13 +178,9 @@ fn untyped_literal_patterns_match_any_dtype_and_rhs_uses_context() {
             dtype == DType::I32
         );
         let meta = metadata(vec![(x, info(&[3], dtype)), (root, info(&[3], dtype))]);
-        let rule = support::configure_rule(
-            &mut graph,
-            meta,
-            Inference,
-            rule_literal_any::build_rewrite(()),
-        )
-        .unwrap();
+        let rule =
+            support::configure_rule(&mut graph, meta, Inference, rule_literal_any::build(()))
+                .unwrap();
         assert!(!apply(&mut graph, rule).is_empty());
         assert!(
             graph
@@ -237,17 +228,12 @@ fn new_untyped_rhs_literal_is_resolved_before_insertion_and_failure_is_atomic() 
                 &mut graph,
                 meta,
                 Inference,
-                rule_construct_literal::build_rewrite(()),
+                rule_construct_literal::build(()),
             )
             .unwrap()
         } else {
-            support::configure_rule(
-                &mut graph,
-                meta,
-                Reject,
-                rule_construct_literal::build_rewrite(()),
-            )
-            .unwrap()
+            support::configure_rule(&mut graph, meta, Reject, rule_construct_literal::build(()))
+                .unwrap()
         };
         assert_eq!(!apply(&mut graph, rule).is_empty(), accepted);
         if accepted {
@@ -272,8 +258,7 @@ fn lhs_binder_reuses_the_bound_eclass() {
         (y, info(&[3], DType::F32)),
         (root, info(&[3], DType::F32)),
     ]);
-    let rule =
-        support::configure_rule(&mut graph, meta, Inference, rule_bind::build_rewrite(())).unwrap();
+    let rule = support::configure_rule(&mut graph, meta, Inference, rule_bind::build(())).unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
     assert_eq!(graph.find(root), graph.find(y));
 }
@@ -283,7 +268,7 @@ struct Chain {
     calls: Arc<AtomicUsize>,
     wrong: bool,
 }
-impl rule_derive_chain::Functions for Chain {
+impl rule_derive_chain::HostFunctions for Chain {
     fn enabled(&self, _: &TensorInfo, _: &OpAttrs) -> Option<bool> {
         Some(true)
     }
@@ -327,7 +312,7 @@ fn derivations_run_in_order_and_wrong_schemas_reject_without_insertion() {
             &mut graph,
             meta,
             Inference,
-            rule_derive_chain::build_rewrite(Chain {
+            rule_derive_chain::build(Chain {
                 calls: calls.clone(),
                 wrong,
             }),
@@ -358,7 +343,7 @@ fn derivations_run_in_order_and_wrong_schemas_reject_without_insertion() {
 }
 
 struct NoCalls;
-impl rule_short_circuit::Functions for NoCalls {
+impl rule_short_circuit::HostFunctions for NoCalls {
     fn fails(&self, _: &TensorInfo) -> Option<bool> {
         panic!("short circuit must skip this call")
     }
@@ -376,7 +361,7 @@ fn short_circuit_skips_fallible_host_calls() {
         &mut graph,
         meta,
         Inference,
-        rule_short_circuit::build_rewrite(NoCalls),
+        rule_short_circuit::build(NoCalls),
     )
     .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
@@ -392,30 +377,21 @@ fn overflow_and_division_by_zero_reject_in_debug_and_release() {
             (x, info(&[n], DType::F32)),
             (root, info(&[n], DType::F32)),
         ]);
-        let rule = support::configure_rule(
-            &mut graph,
-            meta,
-            Inference,
-            rule_overflow::build_rewrite(()),
-        )
-        .unwrap();
+        let rule =
+            support::configure_rule(&mut graph, meta, Inference, rule_overflow::build(())).unwrap();
         assert_eq!(!apply(&mut graph, rule).is_empty(), n != u64::MAX);
         let meta = metadata(vec![
             (x, info(&[n], DType::F32)),
             (root, info(&[n], DType::F32)),
         ]);
-        let rule = support::configure_rule(
-            &mut graph,
-            meta,
-            Inference,
-            rule_divide_zero::build_rewrite(()),
-        )
-        .unwrap();
+        let rule =
+            support::configure_rule(&mut graph, meta, Inference, rule_divide_zero::build(()))
+                .unwrap();
         assert!(apply(&mut graph, rule).is_empty());
     }
 }
 struct Numeric;
-impl rule_nested_calls::Functions for Numeric {
+impl rule_nested_calls::HostFunctions for Numeric {
     fn twice(&self, value: u64) -> Option<u64> {
         value.checked_mul(2)
     }
@@ -423,7 +399,7 @@ impl rule_nested_calls::Functions for Numeric {
         Some(left > right)
     }
 }
-impl rule_signed_float::Functions for Numeric {
+impl rule_signed_float::HostFunctions for Numeric {
     fn signed(&self, _: &TensorInfo) -> Option<i64> {
         Some(-1)
     }
@@ -444,7 +420,7 @@ fn nested_host_calls_and_signed_float_expressions_execute() {
         &mut graph,
         meta,
         Inference,
-        rule_nested_calls::build_rewrite(Numeric),
+        rule_nested_calls::build(Numeric),
     )
     .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
@@ -459,7 +435,7 @@ fn nested_host_calls_and_signed_float_expressions_execute() {
         &mut graph,
         meta,
         Inference,
-        rule_signed_float::build_rewrite(Numeric),
+        rule_signed_float::build(Numeric),
     )
     .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
@@ -479,7 +455,7 @@ fn incompatible_output_metadata_rejects_without_partial_rhs() {
         &mut graph,
         meta,
         Inference,
-        rule_construct_literal::build_rewrite(()),
+        rule_construct_literal::build(()),
     )
     .unwrap();
     assert!(apply(&mut graph, rule).is_empty());
@@ -488,7 +464,7 @@ fn incompatible_output_metadata_rejects_without_partial_rhs() {
 
 #[test]
 fn rhs_validation_finishes_before_host_inference() {
-    use tepl_generated::ir::pattern::{
+    use tepl_generated::ir::rewriting::{
         AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, tensor_rewrite_checked,
     };
 
@@ -557,7 +533,7 @@ fn rhs_validation_finishes_before_host_inference() {
 }
 
 struct TypedHost;
-impl rule_typed_pipeline::Functions for TypedHost {
+impl rule_typed_pipeline::HostFunctions for TypedHost {
     fn host_tensor(&self, tensor: &TensorInfo) -> Option<TensorInfo> {
         Some(tensor.clone())
     }
@@ -584,7 +560,7 @@ impl rule_typed_pipeline::Functions for TypedHost {
 }
 
 struct KeywordHost;
-impl rule_reserved_names::Functions for KeywordHost {
+impl rule_reserved_names::HostFunctions for KeywordHost {
     fn r#match(&self, tensor: &TensorInfo) -> Option<bool> {
         Some(tensor.dtype == DType::F32)
     }
@@ -603,7 +579,7 @@ fn keyword_host_method_uses_raw_identifier_in_declaration_and_call() {
         &mut graph,
         meta,
         Inference,
-        rule_reserved_names::build_rewrite(KeywordHost),
+        rule_reserved_names::build(KeywordHost),
     )
     .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
@@ -632,7 +608,7 @@ fn nested_owned_tensor_and_sequence_results_borrow_correctly_in_host_calls() {
         &mut graph,
         meta,
         Inference,
-        rule_typed_pipeline::build_rewrite(TypedHost),
+        rule_typed_pipeline::build(TypedHost),
     )
     .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
@@ -645,7 +621,7 @@ fn nested_owned_tensor_and_sequence_results_borrow_correctly_in_host_calls() {
     );
 }
 
-impl rule_short_literal::Functions for NoCalls {
+impl rule_short_literal::HostFunctions for NoCalls {
     fn fails(&self, _: &TensorInfo) -> Option<bool> {
         panic!("skipped branch must not require input metadata")
     }
@@ -660,7 +636,7 @@ fn skipped_host_branch_does_not_eagerly_read_missing_capture_metadata() {
         &mut graph,
         meta,
         Inference,
-        rule_short_literal::build_rewrite(NoCalls),
+        rule_short_literal::build(NoCalls),
     )
     .unwrap();
     assert!(!apply(&mut graph, rule).is_empty());
@@ -686,13 +662,9 @@ fn generated_mixed_shapes_and_where_prune_with_inherited_bindings() {
         let x = input(&mut graph, "x");
         let root = operation(&mut graph, Op::Custom(custom::Op::Negate), vec![x]);
         let meta = metadata(vec![(x, info(&shape, dtype)), (root, info(&shape, dtype))]);
-        let rule = support::configure_rule(
-            &mut graph,
-            meta,
-            Inference,
-            rule_mixed_inherited::build_rewrite(()),
-        )
-        .unwrap();
+        let rule =
+            support::configure_rule(&mut graph, meta, Inference, rule_mixed_inherited::build(()))
+                .unwrap();
         graph.rebuild();
         let matches = rule.search(&graph);
         assert_eq!(!matches.is_empty(), searched, "{shape:?} {dtype:?}");

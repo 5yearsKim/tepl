@@ -1,5 +1,7 @@
 #include "src/core/print.h"
 
+#include <functional>
+#include <iomanip>
 #include <sstream>
 #include <type_traits>
 
@@ -50,6 +52,54 @@ class Printer {
            << (fn.fallible ? " (fallible)" : "") << '\n';
     }
     for (const auto& rule : program_.rules) printRule(rule);
+    for (const auto& graph : program_.graphs) {
+      out_ << "  graph #" << graph.id.value << ' ' << graph.name << " [";
+      location(graph.origin);
+      out_ << "]\n";
+      for (std::size_t i = 0; i < graph.nodes.size(); ++i) {
+        const auto& node = graph.nodes[i];
+        out_ << "    node #" << i << ' ' << node.text;
+        if (node.dtype) out_ << " dtype=" << dtypeName(*node.dtype);
+        if (node.shape) {
+          out_ << " shape=[";
+          for (auto dim : *node.shape) out_ << dim << ',';
+          out_ << ']';
+        }
+        if (node.operation) out_ << " op=#" << node.operation->value;
+        std::function<void(const AttributeValue&)> attribute =
+            [&](const auto& value) {
+              if (value.kind == AttributeValue::Kind::kList) {
+                out_ << '[';
+                for (const auto& element : value.elements) {
+                  attribute(element);
+                  out_ << ',';
+                }
+                out_ << ']';
+              } else if (value.kind == AttributeValue::Kind::kNone)
+                out_ << "none";
+              else if (value.kind == AttributeValue::Kind::kString)
+                out_ << std::quoted(value.text);
+              else
+                out_ << value.text;
+            };
+        if (!node.attributes.empty()) {
+          out_ << " attrs={";
+          const auto& schema = program_.attribute_schemas.at(
+              program_.operations.at(node.operation->value).attributes->value);
+          for (std::size_t j = 0; j < node.attributes.size(); ++j) {
+            out_ << schema.fields[j].name << '=';
+            attribute(node.attributes[j]);
+            out_ << ';';
+          }
+          out_ << '}';
+        }
+        for (auto child : node.operands) out_ << " #" << child;
+        out_ << '\n';
+      }
+      for (const auto& [name, id] : graph.bindings)
+        out_ << "    let " << name << " = #" << id << '\n';
+      out_ << "    yield #" << graph.root << '\n';
+    }
     return out_.str();
   }
 

@@ -11,6 +11,7 @@ struct Id {
 };
 
 using DTypeVariableId = Id<struct DTypeVariableTag>;
+using GraphId = Id<struct ConcreteGraphTag>;
 using RuleId = Id<struct RuleTag>;
 using OpId = Id<struct OpTag>;
 using CaptureId = Id<struct CaptureTag>;

@@ -45,7 +45,8 @@ int main(int argc, char** argv) {
   tepl::codegen::WriteOptions write_options;
   tepl::codegen::Options generation_options;
   auto* generate = app.add_subcommand(
-      "generate", "Generate code from checked TEPL rules and dialects");
+      "generate",
+      "Generate code from checked TEPL rules, dialects, and graphs");
   generate
       ->add_option("file", filename,
                    "TEPL input file (or project directory for check/generate)")
@@ -85,6 +86,8 @@ int main(int argc, char** argv) {
   try {
     if ((*generate || *check) && std::filesystem::is_directory(filename)) {
       result = tepl::loadProject(filename);
+      generation_options.graphs_root =
+          (std::filesystem::absolute(filename) / "graphs").string();
       generation_options.rules_root =
           (std::filesystem::absolute(filename) / "rules").string();
     } else {
@@ -182,6 +185,9 @@ int main(int argc, char** argv) {
   } else if (print_ast) {
     std::cout << tepl::formatAst(*result.program);
   } else {
-    std::cout << "Parsed " << result.rule_count << " rule(s).\n";
+    std::cout << "Parsed " << result.rule_count << " rule(s)";
+    if (!result.program->graphs.empty())
+      std::cout << " and " << result.program->graphs.size() << " graph(s)";
+    std::cout << ".\n";
   }
 }

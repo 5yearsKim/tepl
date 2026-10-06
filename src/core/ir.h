@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -222,6 +224,32 @@ struct Rule {
   std::vector<DTypeVariable> dtypes;
 };
 
+// Checked concrete graphs are topologically ordered DAGs, not rewrite patterns.
+struct AttributeValue {
+  enum class Kind { kInteger, kBool, kString, kEnum, kList, kNone } kind;
+  std::string text;
+  std::vector<AttributeValue> elements;
+};
+struct ConcreteNode {
+  enum class Kind { kInput, kLiteral, kOperation } kind;
+  SourceOrigin origin;
+  std::string text;
+  std::optional<DType> dtype;
+  std::optional<std::vector<std::uint64_t>> shape;
+  std::optional<OpId> operation;
+  std::vector<std::size_t> operands;
+  // Schema field order, including declared defaults.
+  std::vector<AttributeValue> attributes;
+};
+struct ConcreteGraph {
+  GraphId id;
+  std::string name, source_name;
+  SourceOrigin origin;
+  std::vector<ConcreteNode> nodes;
+  std::vector<std::pair<std::string, std::size_t>> bindings;
+  std::size_t root = 0;
+};
+
 // IDs index these owning tables. Rule-local IDs index their rule's tables.
 // Types are concrete on successful analysis; tables may contain equal types.
 struct Dialect {
@@ -237,6 +265,7 @@ struct Program {
   std::vector<AttributeSchema> attribute_schemas;
   std::vector<HostFunction> host_functions;
   std::vector<Rule> rules;
+  std::vector<ConcreteGraph> graphs;
 };
 
 }  // namespace tepl::core

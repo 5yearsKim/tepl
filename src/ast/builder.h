@@ -147,6 +147,12 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
   ast::ConstraintExprPtr foldBinary(antlr4::ParserRuleContext* parent,
                                     const std::vector<Context*>& operands);
 
+  std::any visitConcreteGraphDecl(
+      tepl_generated::TeplParser::ConcreteGraphDeclContext*) override;
+  ast::ConcreteExpr concreteExpression(
+      tepl_generated::TeplParser::ConcreteExprContext*);
+  ast::ConcreteValue concreteValue(
+      tepl_generated::TeplParser::ConcreteValueContext*);
   std::string source_name_;
 };
 

@@ -30,6 +30,8 @@ cc_library(
         "analysis_context.cc",
         "analysis_context.h",
         "analyze.cc",
+        "graph/check.cc",
+        "graph/check.h",
         "dialect/attributes.cc",
         "dialect/attributes.h",
         "dialect/check.cc",

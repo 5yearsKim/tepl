@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "src/core/analysis_context.h"
+#include "src/core/graph/check.h"
 #include "src/core/resolution/resolve.h"
 #include "src/core/rule/check.h"
 #include "src/core/rule/expand.h"
@@ -20,6 +21,7 @@ AnalysisResult analyze(const ast::Program& input) {
       if (auto checked = detail::check(context, *expanded))
         context.output.rules.push_back(std::move(*checked));
     }
+    checkGraphs(context);
     if (context.diagnostics.empty()) {
       if (auto types = context.types.finish())
         context.output.types = std::move(*types);

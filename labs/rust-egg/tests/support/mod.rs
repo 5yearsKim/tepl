@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use egg::{EGraph, Id};
-use rust_egg::ir::pattern::TensorInfo;
+use rust_egg::ir::TensorInfo;
 use rust_egg::ir::{DType, Op, OpAttrs, OpNode};
 // Structural fixtures give every operation and alternative the same scalar
 // metadata. Separate semantic tests exercise real shape and dtype inference.
@@ -21,7 +21,8 @@ pub fn fixture_inference(_: Op, _: &[TensorInfo], _: &OpAttrs) -> Option<TensorI
 }
 
 use egg::{Analysis, DidMerge, Rewrite};
-use rust_egg::ir::pattern::{OutputInference, RewriteAnalysis, TensorMetadata};
+use rust_egg::ir::RewriteAnalysis;
+use rust_egg::ir::rewriting::{OutputInference, TensorMetadata};
 use std::sync::Arc;
 
 // A test analysis keeps controllable observations and output policies on the

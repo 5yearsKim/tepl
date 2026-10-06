@@ -37,6 +37,17 @@ Infer infer(ir::Op op, std::span<const Info> inputs, const ir::OpAttrs& attrs) {
   return Infer::known({*shape.value, dtypes.front()});
 }
 struct LoraAnalysis {
+  static constexpr bool has_tensor_info = true;
+  static std::optional<Info> tensor_info(
+      const eggc::EGraph<ir::OpNode, LoraAnalysis>& graph, eggc::Id id) {
+    return graph.analysis_data(graph.find(id)).info();
+  }
+  static std::optional<Info> infer_output(
+      const eggc::EGraph<ir::OpNode, LoraAnalysis>&, ir::Op op,
+      std::span<const Info> operands, const ir::OpAttrs& attrs) {
+    return infer(op, operands, attrs).into_option();
+  }
+
   using Data = ir::analysis::TensorAnalysisData;
   ir::analysis::TensorBindingTable inputs;
   Data make(const eggc::EGraph<ir::OpNode, LoraAnalysis>& graph,
@@ -90,12 +101,6 @@ struct Host {
     return inner;
   }
 };
-struct Output {
-  std::optional<Info> infer_output(ir::Op op, std::span<const Info> operands,
-                                   const ir::OpAttrs& attrs) const {
-    return infer(op, operands, attrs).into_option();
-  }
-};
 struct Value {
   std::vector<std::uint64_t> shape;
   std::vector<std::int64_t> data;
@@ -131,6 +136,25 @@ std::vector<Value> evaluate(const eggc::RecExpr<ir::OpNode>& expr,
   return values;
 }
 int main() {
+  auto check_graph = [](ir::graphs::GraphDefinition definition, Info expected) {
+    auto [graph, built] = definition.into_egraph();
+    assert(graph.analysis_data(built.root).info() == expected);
+  };
+  check_graph(ir::graphs::direct_yield::graph_transpose_example::build(),
+              {{3, 2}, ir::DType::F32});
+  check_graph(ir::graphs::bindings::graph_shared_result::build(),
+              {{3, 2}, ir::DType::F32});
+  check_graph(ir::graphs::attributes::graph_slice_and_join::build(),
+              {{8, 18}, ir::DType::F32});
+  check_graph(ir::graphs::literals::graph_add_scalar_literal::build(),
+              {{}, ir::DType::F32});
+  check_graph(ir::graphs::literals::graph_literal_output::build(),
+              {{}, ir::DType::I32});
+  check_graph(ir::graphs::untyped_inputs::graph_host_typed_add::build()
+                  .with_input_info("X", {{2, 3}, ir::DType::F32})
+                  .with_input_info("Y", {{2, 3}, ir::DType::F32}),
+              {{2, 3}, ir::DType::F32});
+
   using G = eggc::EGraph<ir::OpNode, LoraAnalysis>;
   for (bool allowed : {false, true}) {
     LoraAnalysis analysis;
@@ -161,11 +185,7 @@ int main() {
     graph.rebuild();
     auto original =
         eggc::Extractor<ir::OpNode, LoraAnalysis>(graph).find_best(root).second;
-    auto metadata = [](const G& g, eggc::Id id) {
-      return g.analysis_data(g.find(id)).info();
-    };
-    auto rule = ir::rules::lora::rule_lora::build_rewrite_with<LoraAnalysis>(
-        metadata, Output{}, Host{allowed});
+    auto rule = ir::rules::lora::rule_lora::build<LoraAnalysis>(Host{allowed});
     auto report = eggc::run(graph, std::vector{rule});
     assert(report.reason == eggc::StopReason::Saturated);
     auto xw = graph.lookup(
@@ -186,11 +206,12 @@ int main() {
       std::size_t total =
           std::accumulate(children.begin(), children.end(), std::size_t(1));
       if (node.op() == Op::DotGeneral) {
-        auto lhs = metadata(graph, node.children()[0])->shape;
-        auto rhs = metadata(graph, node.children()[1])->shape;
+        auto lhs = LoraAnalysis::tensor_info(graph, node.children()[0])->shape;
+        auto rhs = LoraAnalysis::tensor_info(graph, node.children()[1])->shape;
         total += lhs[1] * lhs[2] * rhs[2];
       } else if (node.op() == Op::Add) {
-        auto shape = metadata(graph, node.children()[0])->shape;
+        auto shape =
+            LoraAnalysis::tensor_info(graph, node.children()[0])->shape;
         total += shape[1] * shape[2];
       }
       return total;
