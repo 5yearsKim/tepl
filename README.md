@@ -13,7 +13,7 @@
 
 <p align="center"><strong>TEPL: <em>Write tensor rewrites that read like math.</em></strong></p>
 
-<p align="center"><a href="#-quick-start">Quick start</a> · <a href="examples/sample/rules">Example rules</a></p>
+<p align="center"><a href="https://5yearskim.github.io/tepl/">Official Documentation</a></p>
 
 The same tensor computation can be expressed in different ways—with very different costs. In machine learning, choosing the right form can make a big difference: depending on tensor dimensions, `(XA)B` can require far less computation than `X(AB)`.
 
@@ -200,7 +200,7 @@ highlighting and code formatting to your editor.
 
 ## 📚 More on…
 
-- 📖 [Documentation](docs/index.md) — Introductions, Rust and C++ tutorials, and language references.
-- 🛠️ [Preview the documentation site](docs/documentation.md) — Build and serve the docs locally with MkDocs.
-- 🧭 [Design philosophy](docs/design_philosophy.md) — Language principles and core concepts.
-- 🧩 [Example rules](examples/sample/rules) — Tensor rewrites written in TEPL.
+- [🧭 Design philosophy](https://5yearskim.github.io/tepl/design_philosophy/) — The principles behind TEPL's language design.
+- [🧠 Core concepts](https://5yearskim.github.io/tepl/2_core_concept_tepl/) — Understand TEPL's tensor patterns and rewrite rules.
+- [🦀 Rust tutorial](https://5yearskim.github.io/tepl/tutorial/rust/01_build/) — Build TEPL and get started with tensor rewrites in Rust.
+- [🛠️ Developer guide](https://5yearskim.github.io/tepl/developer_guide/) — Build, test, and contribute to TEPL.
