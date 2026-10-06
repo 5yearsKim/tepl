@@ -1,5 +1,5 @@
 [package]
-name = "quick_starts"
+name = "tutorial_rust"
 version = "0.1.0"
 edition = "2024"
 default-run = "pattern_basic"

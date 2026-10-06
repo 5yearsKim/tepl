@@ -218,7 +218,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "quick_starts"
+name = "tutorial_rust"
 version = "0.1.0"
 dependencies = [
  "egg",

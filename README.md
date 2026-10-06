@@ -183,72 +183,20 @@ Try it from the repository root:
 bazel build //:tepl
 bazel-bin/tepl check examples/sample
 bazel-bin/tepl generate examples/sample --out my_app/src/generated
-bazel-bin/tepl generate examples/sample --target cpp --out my_cpp_app/generated
 ```
 
 Start a new TEPL project with `tepl init <directory>` (use `.` for the current
 directory):
 
-```sh
-bazel-bin/tepl init my_rules
-bazel-bin/tepl check my_rules
-```
 
-This creates `dialects/your_dialect.tepl` with a basic `add` operation and
-`rules/your_rule.tepl` with a rule that swaps its operands. Missing directories
-are created. Existing starter files are preserved, and initialization fails if
-either filename is already present.
+## 💡 Tips
 
-C++ output is a library of headers mirroring the Rust module structure. Include
-`generated/generated.h` and supply egg-c's include directory to a C++20 GCC or
-Clang build. See the [C++ runtime guide](templates/cpp/README.md) and the
-[build example](docs/developer_guide.md#generate-c-dialects-and-rules).
+Write rules with less friction: the TEPL extension for VS Code brings syntax
+highlighting and code formatting to your editor.
 
-## Run with Docker
-
-Build the image from the repository root:
-
-```sh
-docker build -t tepl:local .
-docker run --rm tepl:local --help
-```
-
-The multi-stage build uses the Bazel version in `.bazelversion` and produces an
-optimized, stripped executable. The final image contains TEPL and a Distroless
-C++ runtime, runs as non-root, and supports builds for Linux amd64 and arm64.
-The first build downloads the compiler dependencies; subsequent builds reuse a
-Bazel cache managed by Docker BuildKit.
-
-Mount your project at `/work` so TEPL can read inputs and write generated files.
-On Linux, use your user and group IDs to keep generated files owned by you:
-
-```sh
-docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/work" tepl:local check examples
-
-docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/work" tepl:local generate examples \
-  --out my_app/src/generated --no-format
-
-docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/work" tepl:local generate examples --target cpp \
-  --out my_cpp_app/generated --no-format
-```
-
-**Always pass `--no-format` when generating code in Docker.** The image omits
-`rustfmt` and `clang-format` to keep it small. Format the generated files on your
-host if needed. Mount the input files together with their imported files so
-relative import paths remain valid. On macOS and Windows with Docker Desktop,
-you can omit `--user`; the examples above use a POSIX shell.
-
-Inspect the local image size with:
-
-```sh
-docker image inspect tepl:local --format '{{.Size}}'
-```
-
-The result is in bytes. `docker image ls tepl:local` also shows Docker's local
-storage usage; reported sizes depend on the Docker storage backend.
+<p align="center">
+  <img src="misc/images/tepl_vsc.png" alt="TEPL extension in VS Code with syntax highlighting for a LoRA rewrite rule" width="640">
+</p>
 
 ## 📚 More on…
 

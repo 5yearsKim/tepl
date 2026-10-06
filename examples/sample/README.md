@@ -1,19 +1,22 @@
 # Sample project
 
-The examples demonstrate shape and [dtype programs](dtype_guide.md), dtype-valued
+The examples demonstrate [shape](../../docs/references/shape.md) and
+[dtype programs](../../docs/references/dtype.md), dtype-valued
 attributes, rule dtype bindings, and descriptor-field access. Both Rust and C++
 backends support these definitions.
 
 - `dialects/tensor.tepl`: a StableHLO subset with generated shape definitions and
-  attribute schemas; see the guide for adapter metadata and coverage limits.
+  attribute schemas.
 - `dialects/scalar.tepl`: a minimal second dialect with `add` and `negate`.
 - `dialects/dtype.tepl`: numeric conversion, comparison, selection, and a fixed
   result dtype expressed with dtype programs.
 - `rules/`: all concrete rules and reusable abstract templates.
 - `rules/dtype.tepl`: dtype binding and identity-conversion removal.
 - `rules/lowering.tepl`: checked rank-zero TensorLang → Scalar lowering.
-- `shape_guide.md`: implemented shape definitions, builtins, and host-call syntax.
-- `dtype_guide.md`: dtype programs, predicates, attributes, and rule bindings.
+- [Shape reference](../../docs/references/shape.md): dimension lists, inference,
+  attributes, variadic operands, and rule constraints.
+- [Dtype reference](../../docs/references/dtype.md): element types, inference,
+  explicit conversion, and rule bindings.
 
 ## 🧩 Concrete graphs
 
@@ -42,7 +45,8 @@ Builtin calls are unprefixed, such as `len(s)` or `gather(s, axes)`. Host-functi
 calls use `$`, such as `$infer_dot(X, W, @outer)`.
 Descriptors retain their `@` prefix. Abstract-rule examples parameterize only
 operations; host calls appear directly in concrete rules. See
-[the shape guide](shape_guide.md) for shape syntax and resolution rules.
+[the builtin reference](../../docs/references/built-ins.md) for function syntax
+and resolution rules.
 
 The compiler requires `$` for direct host calls. Unknown unprefixed calls in
 rules are errors. Shape and dtype blocks support builtin calls, lists, indexing,
@@ -52,8 +56,8 @@ evaluators for e-class analysis and RHS validation. Missing definitions return
 `Unknown` and may require application inference hooks. Rule `where` and `derive`
 builtins operate on `index`, `i64`, `index_list`, and `dtype`; `all` and `any`
 accept Boolean lists inside shape and dtype programs.
-See [the builtin reference](../../src/core/builtins/README.md) and
-[`rules/builtins.tepl`](rules/builtins.tepl) for shape builtin usage.
+See [the builtin reference](../../docs/references/built-ins.md) for signatures,
+context availability, and rule examples.
 The generated lab IR includes the matching dtype programs and runtime bindings.
 
 The operation set follows the [StableHLO specification](https://openxla.org/stablehlo/spec).

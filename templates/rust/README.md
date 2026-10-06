@@ -18,8 +18,9 @@ and dimension conversions, `dtype.rs` provides dtype classification predicates, 
 signatures and section availability. Callers use `builtins::common` and
 `builtins::shape`, with `BuiltinError`/`BuiltinResult` exported by `builtins`.
 The shared implementations cover
-every builtin in `examples/sample/shape_guide.md`, including those not yet used by the
-sample evaluators, with no dependency on dialects, host semantics, or egg:
+every builtin in the [builtin reference](../../docs/references/built-ins.md),
+including those not yet used by the sample evaluators, with no dependency on
+dialects, host semantics, or egg:
 
 | Helpers | Runtime behavior |
 | --- | --- |

@@ -53,7 +53,7 @@ establish numerical rewrite equivalence.
 
 ## Dtype programs and public API
 
-`infer_dtype` evaluates [declared TEPL programs](../../examples/sample/dtype_guide.md)
+`infer_dtype` evaluates [declared TEPL programs](../../docs/references/dtype.md)
 using dtype values, attributes, assertions, and classification predicates.
 Missing programs return `Unknown`; failed assertions produce invalid inference.
 Runtime literals read their explicit dtype; named inputs obtain metadata from

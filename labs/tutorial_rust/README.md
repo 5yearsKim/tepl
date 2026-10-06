@@ -1,4 +1,4 @@
-# TEPL quick start
+# TEPL Rust tutorial
 
 This lab has two binaries: `pattern_basic` for structural rewriting and
 `pattern_analyze` for rewriting with tensor shape and dtype analysis.
@@ -38,7 +38,7 @@ bazel build //:tepl
 Then check the TEPL project, generate Rust, and run the demo:
 
 ```sh
-cd labs/quick_starts
+cd labs/tutorial_rust
 ../../bazel-bin/tepl check pattern_basic
 ../../bazel-bin/tepl generate pattern_basic --out src/tepl_pattern_basic
 cargo run --bin pattern_basic
@@ -90,7 +90,7 @@ swapping only axis-`0` vector dots, so it rejects the axis-`1` matrix dots in
 this graph. Matrix multiplication generally does not commute. `swap_add` adds
 both operand orders to the saturated graph; either order may be extracted.
 
-From `labs/quick_starts`, generate and run the second binary:
+From `labs/tutorial_rust`, generate and run the second binary:
 
 ```sh
 ../../bazel-bin/tepl check pattern_analyze

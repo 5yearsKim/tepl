@@ -1,10 +1,10 @@
-// Generated helpers include APIs beyond this small demo.
+// Generated helpers may be unused.
 #[allow(dead_code, unused_imports, unused_variables)]
 mod tepl_pattern_analyze;
 mod utils;
 
 use egg::{AstSize, EGraph, Extractor, Language, RecExpr, Runner, StopReason};
-// Shared utilities access this binary's generated types through `crate::tepl`.
+// Module alias for utils.rs.
 use tepl_pattern_analyze as tepl;
 use tepl_pattern_analyze::analysis::tensor_info;
 use tepl_pattern_analyze::dialects::my_dialect as d;
@@ -19,12 +19,12 @@ struct Host;
 
 impl rule_swap_dot::HostFunctions for Host {
     fn supports_axis(&self, axis: u64) -> Option<bool> {
-        // Only axis-0 vector dot products support swapping operands.
+        // Only axis-0 vector dots allow swapping.
         Some(axis == 0)
     }
 }
 
-// Omit attributes from display: every dot contracts lhs axis 1 with rhs axis 0.
+// Format expressions; dot attributes are fixed.
 fn expression(expr: &RecExpr<OpNode>) -> String {
     let mut terms: Vec<String> = Vec::new();
     for node in expr.as_ref() {
@@ -46,10 +46,13 @@ fn expression(expr: &RecExpr<OpNode>) -> String {
 
 fn main() {
     let graph_def = graph_add_dot_sample::build().unwrap();
+    // Configure shape and dtype analysis before insertion.
     let bindings = graph_def.input_bindings().unwrap();
     let analysis = TensorAnalysis::new(bindings);
     let mut graph = EGraph::new(analysis);
     let built = graph_def.insert_nodes(&mut graph).unwrap();
+
+    // Print inferred input and intermediate types.
     for (name, label) in [
         ("x", "x"),
         ("y", "y"),
@@ -60,21 +63,26 @@ fn main() {
         let info = tensor_info(&graph, built.get(name).unwrap()).unwrap();
         println!("  {label}: {}{:?}", info.dtype, info.shape);
     }
+    // Record the original output type and expression.
     let before_info = tensor_info(&graph, built.root).unwrap();
     let (before_size, before) = Extractor::new(&graph, AstSize).find_best(built.root);
+    // Build the basic rules and inherited factoring rule.
     let rules = [
         rule_associate_add::build(()).unwrap(),
         rule_swap_add::build(()).unwrap(),
         rule_swap_dot::build(Host).unwrap(),
         rule_factor_small_dot::build(()).unwrap(),
     ];
+    // Run rewrites to saturation.
     let runner = Runner::default().with_egraph(graph).run(&rules);
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
     println!("Stop reason: {:?}", runner.stop_reason);
     print_egraph(&runner.egraph, built.root);
 
+    // Extract a minimum-size expression.
     let after_info = tensor_info(&runner.egraph, built.root).unwrap();
     let (after_size, after) = Extractor::new(&runner.egraph, AstSize).find_best(built.root);
+    // Inspect the inferred type of the factored add.
     let sum = OpNode::new(
         d::Op::Add,
         d::OpAttrs::None,
@@ -88,6 +96,7 @@ fn main() {
     println!("After:  {} (AST size {after_size})", expression(&after));
     println!("Output: {}{:?}", after_info.dtype, after_info.shape);
 
+    // Verify type preservation and size reduction.
     assert_eq!(info.shape, vec![3, 4]);
     assert_eq!(before_info, after_info);
     assert_eq!(after_info.dtype, DType::I32);

@@ -28,10 +28,10 @@ TEPL is a declarative language for tensor graph rewrites, guided by four princip
 A rule describes a matched graph and its replacement with `LHS => RHS`.
 Operations use S-expressions; repeated names refer to the same captured value.
 
-The [LoRA example](../examples/rules/lora.tepl) combines graph structure,
+The [LoRA example](../examples/sample/rules/lora.tepl) combines graph structure,
 shape constraints, and host functions:
 
-```tepl
+```javascript
 from "../dialects/tensor.tepl" import TensorLang as t;
 use t::{add, dot};
 
@@ -60,14 +60,14 @@ rule lora {
 ```
 
 Import paths are relative to the rule file. This example uses the layout under
-`examples/rules/`.
+`examples/sample/rules/`.
 
 ### Tensor constraints and shape-generic rules
 
 Declarations constrain matches. Named dimensions express equality; named
 sequences support varying ranks.
 
-```tepl
+```javascript
 X: [Batch..., M, K]   // Any batch rank, followed by dimensions M and K
 W: [K, N]            // Shares dimension K with X
 Y: bf16[M, N]        // Restricts both shape and dtype
@@ -87,7 +87,7 @@ numerical legality, and specialized inference.
 Descriptors hold operation attributes. A pattern captures them with `@name`;
 the replacement can reuse them or use derived descriptors.
 
-```tepl
+```javascript
 (dot[@outer] X W)
 ```
 
@@ -99,7 +99,7 @@ and `W`. Descriptors contain operation attributes, not output tensor metadata.
 `where` states when a rewrite is legal. `derive` computes attributes for
 replacement operations.
 
-```tepl
+```javascript
 where {
     K % 128 == 0;
     $is_reassociable(X, A, B, @outer, @inner);
@@ -119,7 +119,7 @@ host permission.
 Dialects define operations and attribute schemas without expanding the core
 language syntax.
 
-```tepl
+```javascript
 dialect TensorLang {
     op add(lhs: tensor, rhs: tensor) -> tensor;
     op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul; }
@@ -132,7 +132,7 @@ dialect TensorLang {
 Abstract rules parameterize operations (`op`) and host functions (`fn`).
 Concrete rules bind those parameters and may add constraints.
 
-```tepl
+```javascript
 abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
     (F X Y) => (F Y X)
 }

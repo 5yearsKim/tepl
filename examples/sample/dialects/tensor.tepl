@@ -1,5 +1,5 @@
 // StableHLO subset: https://openxla.org/stablehlo/spec
-// See ../shape_guide.md for variadics and the StableHLO metadata mapping.
+// See ../../../docs/references/shape.md for shape programs and variadic operands.
 // Operations without shape blocks need host metadata for shape inference.
 dialect TensorLang {
     // Single-operand specialization of StableHLO all_reduce.
