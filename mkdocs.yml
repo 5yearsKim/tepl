@@ -1,0 +1,96 @@
+site_name: TEPL
+site_description: Write tensor rewrites that read like math, then generate Rust or C++ for e-graph optimizers.
+site_url: !ENV [DOCS_SITE_URL, ""]
+repo_url: !ENV [DOCS_REPO_URL, ""]
+edit_uri: ""
+
+hooks:
+  - tools/docs_hooks.py
+
+exclude_docs: |
+  documentation.md
+
+theme:
+  name: material
+  logo: assets/images/logo/tepl_192.png
+  favicon: assets/images/logo/tepl_favicon.ico
+  font: false
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: light green
+      accent: light green
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: light green
+      accent: light green
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.footer
+    - navigation.top
+    - content.action.edit
+    - content.code.copy
+    - search.highlight
+    - search.suggest
+
+nav:
+  - Home: index.md
+  - Background:
+      - What is an e-graph?: 0_what_is_e_graph.md
+      - What is TEPL?: 1_what_is_tepl.md
+      - Core concepts: 2_core_concept_tepl.md
+      - Design philosophy: design_philosophy.md
+  - Tutorials:
+      - Rust:
+          - Build TEPL: tutorial/rust/01_build.md
+          - Run your first rewrite: tutorial/rust/02_run.md
+          - Add tensor analysis: tutorial/rust/03_analyse.md
+      - C++:
+          - Build TEPL: tutorial/cpp/01_build.md
+          - Run your first rewrite: tutorial/cpp/02_run.md
+          - Add tensor analysis: tutorial/cpp/03_analyse.md
+  - Advanced:
+      - Attributes and conditions: advanced/attributes_and_conditions.md
+      - Binding and early pruning: advanced/binding_and_early_pruning.md
+      - Custom analysis: advanced/custom_analysis.md
+  - Reference:
+      - CLI: references/cli.md
+      - Shapes: references/shape.md
+      - Dtypes: references/dtype.md
+      - Built-in functions: references/built-ins.md
+  - Contributing:
+      - Developer guide: developer_guide.md
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+validation:
+  nav:
+    omitted_files: warn
+  links:
+    not_found: warn
+    anchors: warn
+    unrecognized_links: warn

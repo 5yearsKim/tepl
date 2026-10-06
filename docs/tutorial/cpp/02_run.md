@@ -174,7 +174,7 @@ TEPL files. Add these entries to `.gitignore`:
 
 ## Run the optimizer
 
-Download [utils.h](../../../labs/tutorial_cpp/src/utils.h) and save it as
+Download [utils.h](../../../labs/tutorial_cpp/src/utils.h "Download source") and save it as
 `src/utils.h` for readable graph and expression output. Create `src/basic.cpp`:
 
 ```cpp

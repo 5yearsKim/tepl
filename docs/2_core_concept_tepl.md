@@ -13,9 +13,9 @@ these declarations. The host application loads the graph into an e-graph engine,
 applies the rules through **equality saturation**, and extracts a result using
 its cost model.
 
-<p align="center">
-  <img src="../misc/images/tepl_concept_basic.png" alt="Overview of TEPL's core concepts: dialects, rules, and graphs" width="720">
-</p>
+<figure markdown="1">
+![Overview of TEPL's core concepts: dialects, rules, and graphs](assets/images/tepl_concept_basic.png){ width="720" }
+</figure>
 
 ## One example, three parts
 

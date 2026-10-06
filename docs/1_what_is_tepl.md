@@ -25,7 +25,7 @@ TEPL brings these requirements into a dedicated language and generated runtime.
 
 **1. Operation symbols alone do not fully describe tensor semantics.**
 
-<details>
+<details markdown="1">
 <summary><strong>👉 Check in detail</strong></summary>
 
 egg expresses rewrites as symbolic patterns, such as moving negation through
@@ -76,7 +76,7 @@ egg supports these details, but the author must encode and check them.
 
 **2. Custom tensor patterns in Rust become verbose and complex.**
 
-<details>
+<details markdown="1">
 <summary><strong>👉 Check in detail</strong></summary>
 
 Custom matchers and appliers can handle these checks, but the code grows quickly.
@@ -140,7 +140,7 @@ bookkeeping, making it harder to review and maintain.
 
 **3. Custom e-class analysis requires substantial shape/dtype boilerplate.**
 
-<details>
+<details markdown="1">
 <summary><strong>👉 Check in detail</strong></summary>
 
 Tensor operations usually need shape and dtype analysis to check their inputs

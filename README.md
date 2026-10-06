@@ -1,7 +1,7 @@
-<h1><img src="misc/images/logo/tepl_192.png" alt="tepl logo" width="48" height="48" align="absmiddle"> TEPL - Tensor Equality Pattern Language</h1>
+<h1><img src="docs/assets/images/logo/tepl_192.png" alt="tepl logo" width="48" height="48" align="absmiddle"> TEPL - Tensor Equality Pattern Language</h1>
 
 <p align="center">
-  <img src="misc/images/tepl_thumb.png" alt="TEPL tensor rewrite illustration">
+  <img src="docs/assets/images/tepl_thumb.png" alt="TEPL tensor rewrite illustration">
 </p>
 
 <p align="center">
@@ -195,10 +195,12 @@ Write rules with less friction: the TEPL extension for VS Code brings syntax
 highlighting and code formatting to your editor.
 
 <p align="center">
-  <img src="misc/images/tepl_vsc.png" alt="TEPL extension in VS Code with syntax highlighting for a LoRA rewrite rule" width="640">
+  <img src="docs/assets/images/tepl_vsc.png" alt="TEPL extension in VS Code with syntax highlighting for a LoRA rewrite rule" width="640">
 </p>
 
 ## 📚 More on…
 
+- 📖 [Documentation](docs/index.md) — Introductions, Rust and C++ tutorials, and language references.
+- 🛠️ [Preview the documentation site](docs/documentation.md) — Build and serve the docs locally with MkDocs.
 - 🧭 [Design philosophy](docs/design_philosophy.md) — Language principles and core concepts.
 - 🧩 [Example rules](examples/sample/rules) — Tensor rewrites written in TEPL.

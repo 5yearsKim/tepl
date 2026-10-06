@@ -7,3 +7,5 @@ generated
 **/target
 **/.cache
 **/__pycache__
+.venv-docs
+site

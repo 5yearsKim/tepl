@@ -7,9 +7,9 @@ to share subexpressions.
 
 ## 🔄 Why use an e-graph?
 
-<p align="center">
-  <img src="../../misc/images/why_e_graph.png" alt="An e-graph keeps a * 4 + a, a * 5, and (a &lt;&lt; 2) + a as equivalent alternatives for a cost model to choose from later" width="720">
-</p>
+<figure markdown="1">
+![An e-graph keeps a * 4 + a, a * 5, and (a << 2) + a as equivalent alternatives for a cost model to choose from later](assets/images/why_e_graph.png){ width="720" }
+</figure>
 
 Rewriting can expose several valid alternatives before we know which is cheapest.
 For example, consider `a * 4 + a`. For nonnegative integers with exact arithmetic,
@@ -93,6 +93,6 @@ replacements and reject incompatible matches early.
 equality saturation. It provides pattern matching, rewriting, e-class analysis,
 and extraction so applications can build their own optimizers.
 
-[TEPL](../1_what_is_tepl.md) builds on this workflow with a language for tensor
+[TEPL](1_what_is_tepl.md) builds on this workflow with a language for tensor
 rewrites. It generates rules and tensor analysis support for egg in Rust or
 egg-c in C++.

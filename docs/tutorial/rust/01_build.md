@@ -2,7 +2,7 @@
 
 ### 🧰 Prerequisites
 
-<details>
+<details markdown="1">
 <summary><strong>👉 Ubuntu / Debian</strong></summary>
 
 Install the system packages below, then install Bazel or Bazelisk separately:
@@ -14,7 +14,7 @@ sudo apt-get install -y build-essential ca-certificates curl python3 unzip zip
 
 </details>
 
-<details>
+<details markdown="1">
 <summary><strong>👉 macOS</strong></summary>
 
 Install Xcode Command Line Tools, then Bazelisk using Homebrew:

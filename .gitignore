@@ -1,3 +1,5 @@
+.vscode/
+
 # Bazel outputs
 /bazel-*
 
@@ -6,3 +8,8 @@
 
 # Generated language output
 /generated/
+
+# Documentation environment and build output
+/.venv-docs/
+/site/
+/tools/__pycache__/

@@ -1,0 +1,3 @@
+# Keep MkDocs 1.x and its compatible Material theme together.
+mkdocs==1.6.1
+mkdocs-material==9.7.7

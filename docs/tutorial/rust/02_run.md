@@ -161,7 +161,7 @@ Add `/src/tepl_pattern_basic/` to your project's `.gitignore`.
 
 ## 🦀 Run the optimizer
 
-Download [utils.rs](../../../labs/tutorial_rust/src/utils.rs) and save it as
+Download [utils.rs](../../../labs/tutorial_rust/src/utils.rs "Download source") and save it as
 `src/utils.rs` for the readable e-graph printer.
 
 Replace `src/main.rs` with:
