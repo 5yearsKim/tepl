@@ -186,7 +186,7 @@ tepl generate examples/sample --target cpp \
 
 These flags format generated code, not the input `.tepl` files. The Docker image
 omits the formatters, so pass `--no-format` when generating inside it. See the
-[Docker instructions](../tutorial/rust/01_build.md#build-with-docker).
+[Docker instructions](../tutorial/rust/01_build.md#option-2-build-with-docker).
 
 ### Check generated files
 

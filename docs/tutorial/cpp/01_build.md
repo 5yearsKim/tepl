@@ -1,10 +1,12 @@
-# 🧰 Build TEPL for the C++ tutorial
+# 🧰 Set up TEPL for the C++ tutorial
 
-TEPL uses the same compiler for Rust and C++ generation. If you already built
-`bazel-bin/tepl`, keep that executable and continue with
-[Run your first TEPL code](02_run.md).
+TEPL uses the same compiler for Rust and C++ generation. Build it from
+source (recommended) or build a Docker image locally. If you already have
+`bazel-bin/tepl`, continue with [Run your first TEPL code](02_run.md).
 
-## Prerequisites
+## Option 1: Build from source (Recommended)
+
+### Prerequisites
 
 For this tutorial, you need:
 
@@ -34,7 +36,7 @@ Bazelisk selects the Bazel version pinned in `.bazelversion`. Generated C++
 uses `__int128` for checked shape arithmetic, so MSVC is currently unsupported.
 The compiler does not need Rust or Cargo to generate C++.
 
-## Build and check TEPL
+### Build and check TEPL
 
 From the TEPL repository root:
 
@@ -59,7 +61,7 @@ tepl --help
 To make this permanent, add the export to your shell configuration using the
 absolute path to the repository's `bazel-bin` directory.
 
-## Where egg-c fits
+### Where egg-c fits
 
 TEPL generates headers; your C++ application includes those headers and
 the [egg-c](https://github.com/5yearsKim/egg-c) library. egg-c is header-only,
@@ -69,9 +71,38 @@ The next guide uses CMake to fetch the tested egg-c revision
 `0c28bd5050b85ed10e915b5348c27f760ed31ae5`. That first configuration needs
 network access. The compiler's own build does not depend on egg-c.
 
-You can also generate headers using the
-[shared Docker build instructions](../rust/01_build.md#build-with-docker).
-Pass `--target cpp --no-format` when generating inside that image; it does
-not include `clang-format`. Build the resulting C++ application on your host.
+## Option 2: Build with Docker
+
+With Docker installed, build the image from the TEPL repository root:
+
+```sh
+docker build -t tepl .
+docker run --rm tepl --help
+```
+
+This builds for your machine's architecture. The first build downloads and
+compiles dependencies; later builds reuse the Bazel cache.
+
+Mount your project at `/work` so TEPL can read inputs and write generated files.
+From the repository root:
+
+```sh
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" tepl check examples/sample
+
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" tepl generate examples/sample \
+  --target cpp --out my_cpp_app/generated --no-format
+```
+
+**Always pass `--no-format` when generating code with Docker.** The image omits
+`clang-format`; format generated headers on your host if needed.
+
+Keep imported TEPL files inside the mounted project. On Linux, `--user` keeps
+generated files owned by you. On macOS and Windows with Docker Desktop, you
+can usually omit it; these examples use a POSIX shell.
+
+Build the generated C++ application with GCC or Clang, CMake, and egg-c
+on your host.
 
 Next: [write and run the basic example](02_run.md).

@@ -1,4 +1,8 @@
-## Build from Source
+# 🧰 Set up TEPL for the Rust tutorial
+
+Build TEPL from source (recommended) or build a Docker image locally.
+
+## Option 1: Build from source (Recommended)
 
 ### 🧰 Prerequisites
 
@@ -56,49 +60,37 @@ The help lists the `parse`, `check`, and `generate` commands. The second command
 prints the checked program, beginning with `CheckedProgram`. Both commands should
 exit with status `0`.
 
-## Build with Docker
+## Option 2: Build with Docker
 
-Build the image from the repository root:
+With Docker installed, build the image from the TEPL repository root:
 
 ```sh
-docker build -t tepl:local .
-docker run --rm tepl:local --help
+docker build -t tepl .
+docker run --rm tepl --help
 ```
 
-The multi-stage build uses the Bazel version in `.bazelversion` and produces an
-optimized, stripped executable. The final image contains TEPL and a Distroless
-C++ runtime, runs as non-root, and supports builds for Linux amd64 and arm64.
-The first build downloads the compiler dependencies; subsequent builds reuse a
-Bazel cache managed by Docker BuildKit.
+This builds for your machine's architecture. The first build downloads and
+compiles dependencies; later builds reuse the Bazel cache.
 
 Mount your project at `/work` so TEPL can read inputs and write generated files.
-On Linux, use your user and group IDs to keep generated files owned by you:
+From the repository root:
 
 ```sh
 docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/work" tepl:local check examples/sample
+  -v "$PWD:/work" tepl check examples/sample
 
 docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/work" tepl:local generate examples/sample \
+  -v "$PWD:/work" tepl generate examples/sample \
   --out my_app/src/generated --no-format
-
-docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/work" tepl:local generate examples/sample --target cpp \
-  --out my_cpp_app/generated --no-format
 ```
 
-**Always pass `--no-format` when generating code in Docker.** The image omits
-`rustfmt` and `clang-format` to keep it small. Format the generated files on your
-host if needed. Mount the input files together with their imported files so
-relative import paths remain valid. On macOS and Windows with Docker Desktop,
-you can omit `--user`; the examples above use a POSIX shell.
+**Always pass `--no-format` when generating code with Docker.** The image omits
+`rustfmt`; format generated Rust on your host if needed.
 
-Inspect the local image size with:
+Keep imported TEPL files inside the mounted project. On Linux, `--user` keeps
+generated files owned by you. On macOS and Windows with Docker Desktop, you
+can usually omit it; these examples use a POSIX shell.
 
-```sh
-docker image inspect tepl:local --format '{{.Size}}'
-```
+Build and run the generated Rust with Cargo on your host.
 
-The result is in bytes. `docker image ls tepl:local` also shows Docker's local
-storage usage; reported sizes depend on the Docker storage backend.
-
+Next: [write and run the basic example](02_run.md).

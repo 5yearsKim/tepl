@@ -28,6 +28,7 @@ RUN set -eu; \
 
 COPY .bazelrc BUILD.bazel MODULE.bazel MODULE.bazel.lock ./
 COPY grammar/ grammar/
+COPY examples/ examples/
 COPY src/ src/
 COPY templates/ templates/
 COPY third_party/ third_party/

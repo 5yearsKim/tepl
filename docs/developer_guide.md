@@ -21,6 +21,28 @@ Use `parse --tree` to inspect the ANTLR tree, `parse --ast` for the source AST,
 and `check` for semantic diagnostics and checked IR. With `bazel run //:tepl --`,
 use absolute input paths because the binary starts in its runfiles directory.
 
+## Build and publish a Docker image
+
+Build the TEPL compiler image and check it:
+
+```sh
+docker build -t tepl:local .
+docker run --rm tepl:local --help
+```
+
+To publish, create a `tepl` repository on Docker Hub and replace `yourname`
+below with your username. These platforms cover x86 computers and all
+Apple Silicon Macs:
+
+```sh
+docker login
+docker buildx create --driver docker-container --bootstrap --use
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t {yourname}/tepl:{version} --push .
+```
+
+Pass `--no-format` when generating code with the image; it omits formatters.
+
 ## Where to make changes
 
 The compiler parses source, loads imports, builds checked core IR, and generates
