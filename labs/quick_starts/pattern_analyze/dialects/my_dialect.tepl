@@ -1,0 +1,27 @@
+dialect MyDialect {
+    op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) {
+            assert a == b && is_numeric(a);
+            yield a;
+        }
+        shape(l, r) {
+            assert l == r;
+            yield l;
+        }
+    }
+
+    // Matrix product: [M, K] x [K, N] -> [M, N].
+    op dot(lhs: tensor, rhs: tensor) -> tensor {
+        // Contract lhs axis 1 with rhs axis 0.
+        attrs { axis: index; }
+        dtype(a, b) {
+            assert a == b && is_numeric(a);
+            yield a;
+        }
+        shape(l, r) {
+            assert len(l) == 2 && len(r) == 2;
+            assert attrs.axis == 1 && l[1] == r[0];
+            yield [l[0], r[1]];
+        }
+    }
+}

@@ -1,6 +1,6 @@
 from "../dialects/my_dialect.tepl" import MyDialect as d;
 
-graph example {
+graph add_dot_sample {
     input x;
     input y;
     input z;

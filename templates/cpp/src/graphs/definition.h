@@ -62,25 +62,22 @@ class GraphDefinition {
         bindings.register_symbol(input.name, {*input.shape, *input.dtype});
     return bindings;
   }
+  // Configure the graph's input metadata before insertion.
   template <class A>
-  BuiltGraph insert_into(::eggc::EGraph<OpNode, A>& graph) const {
-    for (const auto& input : inputs_)
-      if (input.shape || input.dtype)
-        throw NodeError(
-            "graph input metadata requires into_egraph or into_egraph_with");
-    return insert_nodes(graph);
-  }
-  template <class Factory>
-  auto into_egraph_with(Factory factory) const {
-    using A = decltype(factory(input_bindings()));
-    ::eggc::EGraph<OpNode, A> graph(factory(input_bindings()));
-    auto built = insert_nodes(graph);
-    return ::std::make_pair(::std::move(graph), ::std::move(built));
-  }
-  auto into_egraph() const {
-    return into_egraph_with([](analysis::TensorBindingTable inputs) {
-      return analysis::TensorAnalysis(::std::move(inputs));
-    });
+  BuiltGraph insert_nodes(::eggc::EGraph<OpNode, A>& graph) const {
+    validate();
+    ::std::vector<::eggc::Id> ids;
+    for (const auto& node : nodes_) {
+      ::std::vector<::eggc::Id> children;
+      for (auto child : node.children()) children.push_back(ids.at(child));
+      ids.push_back(graph.add(
+          OpNode::from_parts(node.op(), ::std::move(children), node.attrs())));
+    }
+    graph.rebuild();
+    BuiltGraph built{graph.find(ids[root_]), {}};
+    for (const auto& [name, id] : bindings_)
+      built.bindings.emplace(name, graph.find(ids[id]));
+    return built;
   }
 
  private:
@@ -148,22 +145,6 @@ class GraphDefinition {
         dtypes[index] = result.value;
       }
     }
-  }
-  template <class A>
-  BuiltGraph insert_nodes(::eggc::EGraph<OpNode, A>& graph) const {
-    validate();
-    ::std::vector<::eggc::Id> ids;
-    for (const auto& node : nodes_) {
-      ::std::vector<::eggc::Id> children;
-      for (auto child : node.children()) children.push_back(ids.at(child));
-      ids.push_back(graph.add(
-          OpNode::from_parts(node.op(), ::std::move(children), node.attrs())));
-    }
-    graph.rebuild();
-    BuiltGraph built{graph.find(ids[root_]), {}};
-    for (const auto& [name, id] : bindings_)
-      built.bindings.emplace(name, graph.find(ids[id]));
-    return built;
   }
   ::std::vector<OpNode> nodes_;
   ::std::vector<InputSpec> inputs_;

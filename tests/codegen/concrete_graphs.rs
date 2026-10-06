@@ -41,7 +41,9 @@ fn sharing_attributes_and_typed_analysis() {
     assert_eq!(*note, None);
     assert!(flags.is_empty());
     assert!(regions.as_ref().unwrap().is_empty());
-    let (graph, built) = definition.into_egraph().unwrap();
+    let bindings = definition.input_bindings().unwrap();
+    let mut graph = EGraph::new(TensorAnalysis::new(bindings));
+    let built = definition.insert_nodes(&mut graph).unwrap();
     assert_eq!(built.get("N"), built.get("shared_node"));
     assert!(built.get("unused").is_some());
     assert_eq!(tensor_info(&graph, built.root), Some(info()));
@@ -68,7 +70,7 @@ fn inserting_remaps_ids_and_keeps_unused_nodes() {
     let existing = graph.add(OpNode::input("already"));
     let built: BuiltGraph = graph_structural::build()
         .unwrap()
-        .insert_into(&mut graph)
+        .insert_nodes(&mut graph)
         .unwrap();
     assert_ne!(built.get("X"), Some(existing));
     let children = graph[built.root].nodes[0].children();
@@ -78,17 +80,16 @@ fn inserting_remaps_ids_and_keeps_unused_nodes() {
     );
     assert!(built.get("Y").is_some() && built.get("unused").is_some());
     assert_eq!(built.get("missing"), None);
-    let count = graph.total_size();
-    assert!(
-        graph_shared::build()
-            .unwrap()
-            .insert_into(&mut graph)
-            .is_err()
-    );
-    assert_eq!(graph.total_size(), count);
+    let definition = graph_shared::build().unwrap();
+    let bindings = definition.input_bindings().unwrap();
+    let mut typed = EGraph::new(TensorAnalysis::new(bindings));
+    let existing = typed.add(OpNode::input("already"));
+    let built = definition.insert_nodes(&mut typed).unwrap();
+    assert_ne!(built.get("X"), Some(existing));
+    assert_eq!(tensor_info(&typed, built.root), Some(info()));
     let built = graph_input_output::build()
         .unwrap()
-        .insert_into(&mut graph)
+        .insert_nodes(&mut graph)
         .unwrap();
     assert_eq!(built.root, built.get("X").unwrap());
 }
@@ -99,7 +100,9 @@ fn literals_preserve_spelling_and_infer_scalar_types() {
     assert!(
         matches!(definition.nodes()[0].attrs(), OpAttrs::Literal { value, dtype: Some(DType::I32) } if value == "+01")
     );
-    let (graph, built) = definition.into_egraph().unwrap();
+    let bindings = definition.input_bindings().unwrap();
+    let mut graph = EGraph::new(TensorAnalysis::new(bindings));
+    let built = definition.insert_nodes(&mut graph).unwrap();
     assert_eq!(
         tensor_info(&graph, built.root),
         Some(TensorInfo {
@@ -107,22 +110,24 @@ fn literals_preserve_spelling_and_infer_scalar_types() {
             dtype: DType::I32
         })
     );
-    let (graph, built) = graph_untyped_literal::build()
-        .unwrap()
-        .into_egraph()
-        .unwrap();
+    let definition = graph_untyped_literal::build().unwrap();
+    let bindings = definition.input_bindings().unwrap();
+    let mut graph = EGraph::new(TensorAnalysis::new(bindings));
+    let built = definition.insert_nodes(&mut graph).unwrap();
     assert_eq!(tensor_info(&graph, built.root), None);
 }
 
 #[test]
-fn host_metadata_custom_analysis_and_invalid_graphs() {
+fn host_metadata_explicit_analysis_and_invalid_graphs() {
     let definition = graph_partial::build()
         .unwrap()
         .with_input_info("X", info())
         .unwrap()
         .with_input_info("Y", info())
         .unwrap();
-    let (graph, built) = definition.into_egraph_with(TensorAnalysis::new).unwrap();
+    let bindings = definition.input_bindings().unwrap();
+    let mut graph = EGraph::new(TensorAnalysis::new(bindings));
+    let built = definition.insert_nodes(&mut graph).unwrap();
     assert_eq!(tensor_info(&graph, built.root), Some(info()));
     assert!(
         graph_partial::build()
@@ -158,7 +163,10 @@ fn host_metadata_custom_analysis_and_invalid_graphs() {
     assert!(graph_invalid_dtype::build().is_err());
     assert!(graph_invalid_partial_shape::build().is_err());
     assert!(graph_invalid_partial_dtype::build().is_err());
-    let (graph, built) = graph_structural::build().unwrap().into_egraph().unwrap();
+    let definition = graph_structural::build().unwrap();
+    let bindings = definition.input_bindings().unwrap();
+    let mut graph = EGraph::new(TensorAnalysis::new(bindings));
+    let built = definition.insert_nodes(&mut graph).unwrap();
     assert_eq!(tensor_info(&graph, built.root), None);
     assert!(
         ir::graphs::GraphDefinition::new(vec![OpNode::input("X")], vec![], Default::default(), 0)
@@ -176,7 +184,9 @@ fn host_metadata_custom_analysis_and_invalid_graphs() {
 #[test]
 fn nested_keyword_source_paths_are_relocatable() {
     let definition = ir::graphs::r#type::r#match::graph_nested::build().unwrap();
-    let (graph, built) = definition.into_egraph().unwrap();
+    let bindings = definition.input_bindings().unwrap();
+    let mut graph = EGraph::new(TensorAnalysis::new(bindings));
+    let built = definition.insert_nodes(&mut graph).unwrap();
     assert_eq!(
         tensor_info(&graph, built.root),
         Some(TensorInfo {

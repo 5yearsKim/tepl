@@ -37,15 +37,21 @@ int main() {
   auto std_rule = app::std::rules::hygiene::rule_eliminate::build();
   assert(eggc_rule.custom_search && std_rule.custom_search);
   ir::GraphDefinition definition = ir::graphs::hygiene::graph_example::build();
-  auto [built_graph, built] = definition.into_egraph();
+  eggc::EGraph<ir::OpNode, ir::TensorAnalysis> built_graph{
+      ir::TensorAnalysis(definition.input_bindings())};
+  auto built = definition.insert_nodes(built_graph);
   assert((built_graph.analysis_data(built.root).info() ==
           ir::TensorInfo{{2}, ir::DType::F32}));
-  auto [eggc_graph, eggc_built] =
-      app::eggc::graphs::hygiene::graph_example::build().into_egraph();
+  auto eggc_definition = app::eggc::graphs::hygiene::graph_example::build();
+  eggc::EGraph<app::eggc::OpNode, app::eggc::TensorAnalysis> eggc_graph{
+      app::eggc::TensorAnalysis(eggc_definition.input_bindings())};
+  auto eggc_built = eggc_definition.insert_nodes(eggc_graph);
   assert((eggc_graph.analysis_data(eggc_built.root).info() ==
           app::eggc::TensorInfo{{2}, app::eggc::DType::F32}));
-  auto [std_graph, std_built] =
-      app::std::graphs::hygiene::graph_example::build().into_egraph();
+  auto std_definition = app::std::graphs::hygiene::graph_example::build();
+  eggc::EGraph<app::std::OpNode, app::std::TensorAnalysis> std_graph{
+      app::std::TensorAnalysis(std_definition.input_bindings())};
+  auto std_built = std_definition.insert_nodes(std_graph);
   assert((std_graph.analysis_data(std_built.root).info() ==
           app::std::TensorInfo{{2}, app::std::DType::F32}));
 }

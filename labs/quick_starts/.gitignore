@@ -1,2 +1,3 @@
 /target/
-/src/generated/
+/src/tepl_pattern_basic/
+/src/tepl_pattern_analyze/

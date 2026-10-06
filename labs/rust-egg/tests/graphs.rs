@@ -1,11 +1,14 @@
+use egg::EGraph;
 use rust_egg::ir::{
-    DType,
+    DType, TensorAnalysis,
     analysis::{TensorInfo, tensor_info},
     graphs::*,
 };
 
 fn check(definition: GraphDefinition, shape: &[u64], dtype: DType) {
-    let (graph, built) = definition.into_egraph().unwrap();
+    let bindings = definition.input_bindings().unwrap();
+    let mut graph = EGraph::new(TensorAnalysis::new(bindings));
+    let built = definition.insert_nodes(&mut graph).unwrap();
     assert_eq!(
         tensor_info(&graph, built.root),
         Some(TensorInfo {

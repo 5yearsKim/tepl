@@ -285,6 +285,7 @@ become nested modules in both targets. See the
 
 Graph runtime templates validate topology and available shape/dtype programs
 before insertion, remap local children to e-graph IDs, and retain unused nodes.
-`into_egraph` installs generated tensor analysis; `into_egraph_with` accepts a
-factory receiving complete input bindings. `insert_into` inserts structural
-inputs into an existing graph without changing its analysis configuration.
+`input_bindings()` collects complete declared input types. The application
+passes these bindings to its chosen analysis and constructs an e-graph, then
+calls `insert_nodes()` to insert the prepared nodes. Insertion does not register
+metadata or change the graph's analysis configuration.

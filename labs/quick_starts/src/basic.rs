@@ -1,11 +1,15 @@
 // The generated module contains runtime helpers that this small demo doesn't use.
 #[allow(dead_code, unused_imports, unused_variables)]
-mod generated;
+mod tepl_pattern_basic;
+mod utils;
 
 use egg::{AstDepth, EGraph, Extractor, Runner, StopReason};
-use generated::OpNode;
-use generated::graphs::example::graph_example;
-use generated::rules::your_rule::{rule_associate_add, rule_swap_add, rule_swap_dot};
+// Shared utilities access this binary's generated types through `crate::tepl`.
+use tepl_pattern_basic as tepl;
+use tepl_pattern_basic::OpNode;
+use tepl_pattern_basic::graphs::add_dot_sample::graph_add_dot_sample;
+use tepl_pattern_basic::rules::add_dot::{rule_associate_add, rule_swap_add, rule_swap_dot};
+use utils::print_egraph;
 
 struct Host;
 
@@ -17,7 +21,7 @@ impl rule_swap_dot::HostFunctions for Host {
 }
 
 fn main() {
-    let graph_def = graph_example::build().unwrap();
+    let graph_def = graph_add_dot_sample::build().unwrap();
     let rules = [
         rule_associate_add::build(()).unwrap(),
         rule_swap_add::build(()).unwrap(),
@@ -25,12 +29,12 @@ fn main() {
     ];
 
     let mut graph = EGraph::<OpNode, ()>::default();
-    let built = graph_def.insert_into(&mut graph).unwrap();
+    let built = graph_def.insert_nodes(&mut graph).unwrap();
     let runner = Runner::default().with_egraph(graph).run(&rules);
 
     println!("Stop reason: {:?}", runner.stop_reason);
     assert!(matches!(runner.stop_reason, Some(StopReason::Saturated)));
-    println!("\nSaturated e-graph:\n{:?}", runner.egraph.dump());
+    print_egraph(&runner.egraph, built.root);
 
     let (depth, best) = Extractor::new(&runner.egraph, AstDepth).find_best(built.root);
     println!("\nMinimum AST depth: {depth}");

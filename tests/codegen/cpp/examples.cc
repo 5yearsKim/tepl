@@ -137,7 +137,9 @@ std::vector<Value> evaluate(const eggc::RecExpr<ir::OpNode>& expr,
 }
 int main() {
   auto check_graph = [](ir::graphs::GraphDefinition definition, Info expected) {
-    auto [graph, built] = definition.into_egraph();
+    eggc::EGraph<ir::OpNode, ir::TensorAnalysis> graph{
+        ir::TensorAnalysis(definition.input_bindings())};
+    auto built = definition.insert_nodes(graph);
     assert(graph.analysis_data(built.root).info() == expected);
   };
   check_graph(ir::graphs::direct_yield::graph_transpose_example::build(),

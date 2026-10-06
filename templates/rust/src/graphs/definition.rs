@@ -1,7 +1,5 @@
 use super::super::analysis::TensorInfo;
-use super::super::analysis::{
-    Inference, TensorAnalysis, TensorBindingTable, infer_dtype, infer_shape,
-};
+use super::super::analysis::{Inference, TensorBindingTable, infer_dtype, infer_shape};
 use super::super::{DType, NodeError, Op, OpAttrs, OpNode};
 use ::egg::{Analysis, EGraph, Id, Language};
 use ::std::collections::BTreeMap;
@@ -171,7 +169,8 @@ impl GraphDefinition {
         }
         Ok(())
     }
-    fn insert_nodes<N: Analysis<OpNode>>(
+    /// Insert into an existing graph. Configure its input metadata before insertion.
+    pub fn insert_nodes<N: Analysis<OpNode>>(
         &self,
         graph: &mut EGraph<OpNode, N>,
     ) -> Result<BuiltGraph, NodeError> {
@@ -195,34 +194,5 @@ impl GraphDefinition {
                 .map(|(name, id)| (name.clone(), graph.find(ids[*id])))
                 .collect(),
         })
-    }
-    /// Insert a structural graph. Typed inputs require a fresh configured analysis.
-    pub fn insert_into<N: Analysis<OpNode>>(
-        &self,
-        graph: &mut EGraph<OpNode, N>,
-    ) -> Result<BuiltGraph, NodeError> {
-        if self
-            .inputs
-            .iter()
-            .any(|input| input.shape.is_some() || input.dtype.is_some())
-        {
-            return Err(NodeError(
-                "graph input metadata requires into_egraph or into_egraph_with".into(),
-            ));
-        }
-        self.insert_nodes(graph)
-    }
-    /// Register complete declared input types before constructing any nodes.
-    pub fn into_egraph(self) -> Result<(EGraph<OpNode, TensorAnalysis>, BuiltGraph), NodeError> {
-        self.into_egraph_with(TensorAnalysis::new)
-    }
-    /// A custom analysis factory receives all complete input types.
-    pub fn into_egraph_with<N: Analysis<OpNode>>(
-        self,
-        factory: impl FnOnce(TensorBindingTable) -> N,
-    ) -> Result<(EGraph<OpNode, N>, BuiltGraph), NodeError> {
-        let mut graph = EGraph::new(factory(self.input_bindings()?));
-        let built = self.insert_nodes(&mut graph)?;
-        Ok((graph, built))
     }
 }

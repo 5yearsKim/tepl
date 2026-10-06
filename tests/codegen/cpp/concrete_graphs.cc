@@ -21,8 +21,10 @@ void rejects(F fn) {
 }
 int main() {
 #ifdef TEPL_TEST_NESTED_GRAPHS
-  auto [nested, nested_result] =
-      ir::graphs::type::match::graph_nested::build().into_egraph();
+  auto nested_definition = ir::graphs::type::match::graph_nested::build();
+  eggc::EGraph<ir::OpNode, ir::TensorAnalysis> nested{
+      ir::TensorAnalysis(nested_definition.input_bindings())};
+  auto nested_result = nested_definition.insert_nodes(nested);
   assert((nested.analysis_data(nested_result.root).info() ==
           TensorInfo{{}, DType::I32}));
 #endif
@@ -42,7 +44,9 @@ int main() {
   assert(attrs.regions && attrs.regions->empty());
   assert(attrs.label == "a\"b\\c" && !attrs.note && attrs.flags.empty());
   assert((attrs.axes == std::vector<std::uint64_t>{0, 1}));
-  auto [typed, built] = def.into_egraph();
+  eggc::EGraph<ir::OpNode, ir::TensorAnalysis> typed{
+      ir::TensorAnalysis(def.input_bindings())};
+  auto built = def.insert_nodes(typed);
   assert(built.get("N") == built.get("shared_node") && built.get("unused"));
   assert(typed.analysis_data(built.root).info() == info());
   auto defaults = graph_defaults::build();
@@ -55,31 +59,40 @@ int main() {
          default_attrs.note == "text");
   eggc::EGraph<ir::OpNode> graph;
   auto existing = graph.add(ir::OpNode::input("already"));
-  ir::BuiltGraph structural = graph_structural::build().insert_into(graph);
+  ir::BuiltGraph structural = graph_structural::build().insert_nodes(graph);
   assert(structural.get("X") != existing);
   auto structural_node = graph.nodes(structural.root).front();
   assert((structural_node.children() ==
           std::vector<eggc::Id>{*structural.get("X"), *structural.get("X")}));
   assert(structural.get("unused") && structural.get("Y") &&
          !structural.get("missing"));
-  rejects([&] { def.insert_into(graph); });
-  auto input = graph_input_output::build().insert_into(graph);
+  eggc::EGraph<ir::OpNode, ir::TensorAnalysis> remapped{
+      ir::TensorAnalysis(def.input_bindings())};
+  auto previous = remapped.add(ir::OpNode::input("already"));
+  auto inserted = def.insert_nodes(remapped);
+  assert(inserted.get("X") != previous);
+  assert(remapped.analysis_data(inserted.root).info() == info());
+  auto input = graph_input_output::build().insert_nodes(graph);
   assert(input.root == input.get("X"));
   auto literal = graph_literal::build();
   assert(std::get<ir::LiteralAttrs>(literal.nodes()[0].attrs().value).value ==
          "+01");
-  auto [scalars, scalar] = literal.into_egraph();
+  eggc::EGraph<ir::OpNode, ir::TensorAnalysis> scalars{
+      ir::TensorAnalysis(literal.input_bindings())};
+  auto scalar = literal.insert_nodes(scalars);
   assert((scalars.analysis_data(scalar.root).info() ==
           TensorInfo{{}, DType::I32}));
-  auto [unknown, unknown_scalar] = graph_untyped_literal::build().into_egraph();
+  auto unknown_definition = graph_untyped_literal::build();
+  eggc::EGraph<ir::OpNode, ir::TensorAnalysis> unknown{
+      ir::TensorAnalysis(unknown_definition.input_bindings())};
+  auto unknown_scalar = unknown_definition.insert_nodes(unknown);
   assert(!unknown.analysis_data(unknown_scalar.root).info());
   auto supplied = graph_partial::build()
                       .with_input_info("X", info())
                       .with_input_info("Y", info());
-  auto [host, result] =
-      supplied.into_egraph_with([](ir::TensorBindingTable bindings) {
-        return ir::TensorAnalysis(std::move(bindings));
-      });
+  eggc::EGraph<ir::OpNode, ir::TensorAnalysis> host{
+      ir::TensorAnalysis(supplied.input_bindings())};
+  auto result = supplied.insert_nodes(host);
   assert(host.analysis_data(result.root).info() == info());
   rejects(
       [] { graph_partial::build().with_input_info("X", {{9}, DType::F32}); });
@@ -92,6 +105,9 @@ int main() {
   rejects([] { graph_invalid_partial_dtype::build(); });
   rejects(
       [] { ir::graphs::GraphDefinition({ir::OpNode::input("X")}, {}, {}, 0); });
-  auto [untyped, untyped_result] = graph_structural::build().into_egraph();
+  auto untyped_definition = graph_structural::build();
+  eggc::EGraph<ir::OpNode, ir::TensorAnalysis> untyped{
+      ir::TensorAnalysis(untyped_definition.input_bindings())};
+  auto untyped_result = untyped_definition.insert_nodes(untyped);
   assert(!untyped.analysis_data(untyped_result.root).info());
 }

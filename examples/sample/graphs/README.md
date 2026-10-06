@@ -40,8 +40,14 @@ Each graph exposes `graphs::FILE::graph_NAME::build()`. In Rust, typed inputs
 configure the generated tensor analysis before any nodes are inserted:
 
 ```rust
+use egg::EGraph;
+use generated::TensorAnalysis;
+
 let definition = generated::graphs::bindings::graph_shared_result::build()?;
-let (egraph, built) = definition.into_egraph()?;
+let bindings = definition.input_bindings()?;
+let analysis = TensorAnalysis::new(bindings);
+let mut egraph = EGraph::new(analysis);
+let built = definition.insert_nodes(&mut egraph)?;
 let root = built.root;
 let x = built.get("X").unwrap();
 ```
@@ -51,30 +57,37 @@ type:
 
 ```rust
 let definition = generated::graphs::untyped_inputs::graph_host_typed_add::build()?;
-let built = definition.insert_into(&mut egraph)?;
+let built = definition.insert_nodes(&mut egraph)?;
 ```
 
 Supply host metadata before creating a tensor-analysis graph:
 
 ```rust
-use generated::analysis::TensorInfo;
-use generated::DType;
+use egg::EGraph;
+use generated::{DType, TensorAnalysis, TensorInfo};
 
 let definition = generated::graphs::untyped_inputs::graph_host_typed_add::build()?
     .with_input_info("X", TensorInfo { shape: vec![2, 3], dtype: DType::F32 })?
     .with_input_info("Y", TensorInfo { shape: vec![2, 3], dtype: DType::F32 })?;
-let (egraph, built) = definition.into_egraph()?;
+let bindings = definition.input_bindings()?;
+let analysis = TensorAnalysis::new(bindings);
+let mut egraph = EGraph::new(analysis);
+let built = definition.insert_nodes(&mut egraph)?;
 ```
 
-`into_egraph_with(factory)` passes input bindings to a custom analysis factory.
-For example, `into_egraph_with(TensorAnalysis::new)` uses the generated analysis.
-The host still chooses and applies rewrite rules.
+The application chooses its analysis when creating the e-graph. Pass
+`input_bindings()` to the generated `TensorAnalysis` or to your custom analysis
+before inserting nodes. The host also chooses and applies rewrite rules.
 
-C++ exposes the same helpers under `generated::graphs::FILE::graph_NAME`:
+C++ exposes the same builders and insertion methods:
 
 ```cpp
 auto definition = tepl_generated::graphs::bindings::graph_shared_result::build();
-auto [egraph, built] = definition.into_egraph();
+auto bindings = definition.input_bindings();
+tepl_generated::TensorAnalysis analysis(std::move(bindings));
+eggc::EGraph<tepl_generated::OpNode, tepl_generated::TensorAnalysis> egraph(
+    std::move(analysis));
+auto built = definition.insert_nodes(egraph);
 auto root = built.root;
 auto x = built.get("X").value();
 ```
@@ -91,8 +104,9 @@ Rust reports `NodeError` through `Result`; C++ throws `NodeError`.
 Input dtype and shape are optional independently: `input X: f32;` or
 `input X: [2, 3];`. The tensor analysis registers complete shape/dtype pairs.
 Supply missing facts with `with_input_info`; conflicting declared facts are
-errors. `insert_into` accepts unannotated inputs; use `into_egraph` or
-`into_egraph_with` for inputs carrying metadata.
+errors. `insert_nodes` validates and inserts both typed and untyped graphs.
+It does not register metadata or change the analysis; the application supplies
+input bindings before insertion when tensor analysis is needed.
 
 Bindings preserve sharing. All declared nodes, including unused bindings, are
 inserted. Prepared child IDs are local indices; insertion remaps them to the

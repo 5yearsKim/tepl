@@ -2,6 +2,15 @@
 name = "quick_starts"
 version = "0.1.0"
 edition = "2024"
+default-run = "pattern_basic"
+
+[[bin]]
+name = "pattern_basic"
+path = "src/basic.rs"
+
+[[bin]]
+name = "pattern_analyze"
+path = "src/analyze.rs"
 
 [dependencies]
 egg = "0.11.0"
