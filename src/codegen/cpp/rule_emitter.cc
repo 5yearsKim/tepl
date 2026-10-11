@@ -2,8 +2,10 @@
 
 #include <type_traits>
 
+#include "src/codegen/common/inference_emitter.h"
 #include "src/codegen/common/rule_plan.h"
 #include "src/codegen/cpp/code_writer.h"
+#include "src/codegen/cpp/dialect_emitter.h"
 #include "src/codegen/cpp/expression_emitter.h"
 #include "src/codegen/cpp/paths.h"
 
@@ -249,6 +251,16 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
   for (const auto& d : rule.derivations)
     out.line("derived.emplace(" + std::to_string(d.target.value) + "," +
              emitExpression(program, names, *d.value) + ");");
+  InferenceSyntax inference_syntax{
+      false, names.root,
+      [&](core::AttributeSchemaId id, const std::string& fields) {
+        return schemaType(names, id) + " { " + fields + " }";
+      },
+      [&](core::AttributeSchemaId id, std::size_t f) {
+        return names.field(id, f);
+      },
+      [&](core::OpId id) { return names.operation(id, names.root); }};
+  out.line(emitAttributeInference(program, rule, inference_syntax));
   out.line("return derived;");
   out.close();
   out.line("catch(const " + names.root +

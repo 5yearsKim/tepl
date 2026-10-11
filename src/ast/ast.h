@@ -85,10 +85,28 @@ struct ConstraintExpr;
 using GraphExprPtr = std::shared_ptr<GraphExpr>;
 using ConstraintExprPtr = std::shared_ptr<ConstraintExpr>;
 
+struct AutoField {
+  SourceSpan span;
+  std::string name;
+  std::optional<AttributeRef> descriptor;
+  std::string field;
+  // Literal values use an owning tree, independent of rule expressions.
+  struct Literal {
+    enum class Kind { kInteger, kBool, kString, kName, kList, kFloat } kind;
+    std::string text;
+    std::vector<Literal> elements;
+  } value;
+};
+struct AutoAttribute {
+  SourceSpan span;
+  std::vector<AutoField> fields;
+};
+
 struct Operator {
   std::string name;
   std::optional<AttributeRef> attribute;
   std::vector<GraphExprPtr> operands;
+  std::optional<AutoAttribute> automatic;
 };
 
 struct Binding {
@@ -222,6 +240,44 @@ struct MetadataDefinition {
   MetadataYield result;
 };
 
+// Semantics expressions own their scope and are separate from metadata
+// programs.
+struct SemanticExpr;
+using SemanticExprPtr = std::shared_ptr<SemanticExpr>;
+struct SemanticLet {
+  SourceSpan span;
+  std::string name;
+  SemanticExprPtr value;
+};
+struct SemanticExpr {
+  enum class Kind {
+    kName,
+    kInteger,
+    kBool,
+    kAttrs,
+    kCall,
+    kField,
+    kIndex,
+    kList,
+    kUnary,
+    kBinary,
+    kConditional,
+    kComprehension,
+    kSum
+  };
+  SourceSpan span;
+  Kind kind;
+  std::string text;
+  std::vector<SemanticExprPtr> arguments;
+  std::vector<SemanticLet> locals;
+};
+struct SemanticDefinition {
+  SourceSpan span;
+  std::string index;
+  std::vector<SemanticLet> locals;
+  SemanticExprPtr result;
+};
+
 struct Derivation {
   SourceSpan span;
   AttributeRef target;
@@ -341,6 +397,7 @@ struct OpDecl {
   std::optional<MetadataDefinition> shape_definition;
   std::optional<MetadataDefinition> dtype_definition;
   std::vector<std::string> duplicate_properties;
+  std::optional<SemanticDefinition> semantics;
 };
 
 struct Dialect {

@@ -24,6 +24,53 @@ ast::ConstraintExprPtr makeConstraint(const antlr4::ParserRuleContext* context,
       ast::ConstraintExpr{getSpan(context), std::move(value)});
 }
 
+ast::AutoField::Literal autoLiteral(Parser::ConcreteValueContext* value) {
+  using L = ast::AutoField::Literal;
+  L out{};
+  out.text = value->getText();
+  if (!value->concreteValue().empty() || out.text == "[]") {
+    out.kind = L::Kind::kList;
+    for (auto* child : value->concreteValue())
+      out.elements.push_back(autoLiteral(child));
+  } else if (value->INT())
+    out.kind = L::Kind::kInteger;
+  else if (value->FLOAT())
+    out.kind = L::Kind::kFloat;
+  else if (value->TRUE() || value->FALSE())
+    out.kind = L::Kind::kBool;
+  else if (value->STRING()) {
+    out.kind = L::Kind::kString;
+    std::string decoded;
+    for (std::size_t i = 1; i + 1 < out.text.size(); ++i) {
+      if (out.text[i] == '\\') ++i;
+      decoded += out.text[i];
+    }
+    out.text = std::move(decoded);
+  } else
+    out.kind = L::Kind::kName;
+  return out;
+}
+void graphAttribute(ast::Operator& op, Parser::AttributeContext* attribute) {
+  if (!attribute) return;
+  if (attribute->attrRef()) {
+    op.attribute = ast::AttributeRef{attribute->attrRef()->ID()->getText()};
+    return;
+  }
+  ast::AutoAttribute out{getSpan(attribute), {}};
+  for (auto* input : attribute->autoField()) {
+    ast::AutoField field{};
+    field.span = getSpan(input);
+    field.name = input->ID(0)->getText();
+    if (input->attrRef()) {
+      field.descriptor = ast::AttributeRef{input->attrRef()->ID()->getText()};
+      field.field = input->ID(1)->getText();
+    } else
+      field.value = autoLiteral(input->concreteValue());
+    out.fields.push_back(std::move(field));
+  }
+  op.automatic = std::move(out);
+}
+
 using detail::binaryOperator;
 using detail::unaryOperator;
 
@@ -185,9 +232,7 @@ std::any AstBuilder::visitGetGraph(Parser::GetGraphContext* context) {
 
 std::any AstBuilder::visitOperatorGraph(Parser::OperatorGraphContext* context) {
   ast::Operator op{context->opRef()->getText(), std::nullopt, {}};
-  if (auto* attribute = context->attribute()) {
-    op.attribute = ast::AttributeRef{attribute->attrRef()->ID()->getText()};
-  }
+  graphAttribute(op, context->attribute());
   for (auto* operand : context->graphExpr()) {
     op.operands.push_back(std::any_cast<ast::GraphExprPtr>(visit(operand)));
   }
@@ -229,9 +274,7 @@ std::any AstBuilder::visitRhsGetGraph(Parser::RhsGetGraphContext* context) {
 std::any AstBuilder::visitRhsOperatorGraph(
     Parser::RhsOperatorGraphContext* context) {
   ast::Operator op{context->opRef()->getText(), std::nullopt, {}};
-  if (auto* attribute = context->attribute()) {
-    op.attribute = ast::AttributeRef{attribute->attrRef()->ID()->getText()};
-  }
+  graphAttribute(op, context->attribute());
   for (auto* operand : context->rhsGraphExpr()) {
     op.operands.push_back(std::any_cast<ast::GraphExprPtr>(visit(operand)));
   }

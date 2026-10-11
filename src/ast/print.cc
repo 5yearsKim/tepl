@@ -51,6 +51,17 @@ void printGraph(std::ostream& out, const ast::GraphExpr& expression,
         } else if constexpr (std::is_same_v<T, ast::Operator>) {
           out << "operator " << value.name;
           if (value.attribute) out << " @" << value.attribute->name;
+          if (value.automatic) {
+            out << " [auto";
+            for (const auto& field : value.automatic->fields) {
+              out << ", " << field.name << " = ";
+              if (field.descriptor)
+                out << '@' << field.descriptor->name << '.' << field.field;
+              else
+                out << field.value.text;
+            }
+            out << ']';
+          }
           out << '\n';
           for (const auto& operand : value.operands) {
             printGraph(out, *operand, depth + 1);
@@ -374,6 +385,29 @@ std::string formatAst(const ast::Program& program) {
         printMetadataDefinition(out, *op.dtype_definition, "dtype");
       if (op.shape_definition)
         printMetadataDefinition(out, *op.shape_definition);
+      if (op.semantics) {
+        out << "      semantics";
+        if (!op.semantics->index.empty())
+          out << "(" << op.semantics->index << ")";
+        out << "\n";
+        auto expression = [&](auto&& self, const ast::SemanticExpr& e,
+                              int depth) -> void {
+          indent(out, depth);
+          out << e.text << '\n';
+          for (const auto& local : e.locals) {
+            indent(out, depth + 1);
+            out << "let " << local.name << '\n';
+            self(self, *local.value, depth + 2);
+          }
+          for (const auto& arg : e.arguments) self(self, *arg, depth + 1);
+        };
+        for (const auto& local : op.semantics->locals) {
+          out << "        let " << local.name << '\n';
+          expression(expression, *local.value, 5);
+        }
+        out << "        yield\n";
+        expression(expression, *op.semantics->result, 5);
+      }
     }
   }
   for (const auto& rule : program.rules) {

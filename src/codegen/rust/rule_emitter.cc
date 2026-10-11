@@ -2,6 +2,7 @@
 
 #include <type_traits>
 
+#include "src/codegen/common/inference_emitter.h"
 #include "src/codegen/common/rule_plan.h"
 #include "src/codegen/rust/code_writer.h"
 #include "src/codegen/rust/expression_emitter.h"
@@ -244,13 +245,33 @@ void emitRule(CodeWriter& out, const core::Program& program,
     out.line("let " + descriptor(derivation.target.value) + " = " +
              emitExpression(program, names, *derivation.value, builtins_path) +
              ";");
-  if (rule.derivations.empty())
+  InferenceSyntax inference_syntax{
+      true, root,
+      [&](core::AttributeSchemaId id, const std::string& fields) {
+        const auto& schema = program.attribute_schemas.at(id.value);
+        for (const auto& dialect : names.dialects)
+          if (dialect.name == schema.dialect)
+            return "OpAttrs::" + dialect.variant + "(" + root +
+                   "::dialects::" + dialect.module +
+                   "::OpAttrs::" + names.schema(id) + " { " + fields + " })";
+        throw std::logic_error("missing inference schema");
+      },
+      [&](core::AttributeSchemaId id, std::size_t f) {
+        return names.field(id, f);
+      },
+      [&](core::OpId id) { return names.operation(id, root) + ".into()"; }};
+  out.line(emitAttributeInference(program, rule, inference_syntax));
+  if (rule.derivations.empty() && !rule.inference)
     out.line("Some(Default::default())");
   else {
     out.line("Some(HashMap::from([");
     for (const auto& derivation : rule.derivations)
       out.line("(" + attrVar(derivation.target.value) + ", " +
                descriptor(derivation.target.value) + "),");
+    if (rule.inference)
+      for (const auto& assignment : rule.inference->assignments)
+        out.line("(" + attrVar(assignment.descriptor.value) + ", " +
+                 descriptor(assignment.descriptor.value) + "),");
     out.line("]))");
   }
   out.close(",");

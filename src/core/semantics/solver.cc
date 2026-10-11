@@ -1,0 +1,1106 @@
+#include "src/core/semantics/solver.h"
+
+#include <z3++.h>
+
+#include <algorithm>
+#include <chrono>
+#include <functional>
+#include <iomanip>
+#include <limits>
+#include <map>
+#include <numeric>
+#include <optional>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <tuple>
+
+namespace tepl::core::semantics {
+namespace {
+using Node = inference::SemanticNode;
+struct Limit : std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
+struct Illegal {};
+struct Vector {
+  z3::expr length;
+  std::vector<z3::expr> entries;
+};
+struct Value {
+  z3::expr scalar;
+  std::optional<Vector> vector;
+  std::optional<std::size_t> upper;
+  Value(z3::expr e, std::optional<std::size_t> cap = {})
+      : scalar(e), upper(cap) {}
+  Value(Vector v) : scalar(v.length), vector(v), upper(v.entries.size()) {}
+};
+struct Engine {
+  const inference::SemanticPlan& plan;
+  const std::vector<List>& captures;
+  const std::vector<List>& known;
+  const std::vector<List>& pinned;
+  z3::context ctx;
+  z3::solver solver{ctx};
+  std::size_t budget;
+  std::chrono::steady_clock::time_point deadline;
+  std::vector<Vector> shapes;
+  std::vector<std::vector<Vector>> attrs;
+  std::map<std::size_t, Vector> variables;
+  bool generating = true;
+  Engine(const inference::SemanticPlan& p, const std::vector<List>& s,
+         const std::vector<List>& k, const std::vector<List>& pins,
+         std::size_t b)
+      : plan(p),
+        captures(s),
+        known(k),
+        pinned(pins),
+        budget(b),
+        deadline(std::chrono::steady_clock::now() +
+                 std::chrono::milliseconds(p.timeout_ms)) {
+    solver.set("timeout", p.timeout_ms);
+  }
+  void tick() {
+    if (!budget || std::chrono::steady_clock::now() >= deadline)
+      throw Limit("resource limit");
+    --budget;
+  }
+  z3::expr integer(std::uint64_t n) {
+    return ctx.int_val(std::to_string(n).c_str());
+  }
+  Vector literal(const List& xs) {
+    if (xs.size() > 256) throw Limit("vector capacity");
+    Vector v{integer(xs.size()), {}};
+    for (auto x : xs) v.entries.push_back(integer(x));
+    return v;
+  }
+  void require(z3::expr c) {
+    c = c.simplify();
+    if (generating)
+      solver.add(c);
+    else if (c.is_false())
+      throw Illegal{};
+    else if (!c.is_true())
+      throw Limit("nonconcrete candidate index");
+  }
+  z3::expr checked(z3::expr value) {
+    require(value >= ctx.int_val("-170141183460469231731687303715884105728") &&
+            value <= ctx.int_val("170141183460469231731687303715884105727"));
+    return value.simplify();
+  }
+  Vector vector(const Value& v) {
+    if (!v.vector) throw Limit("vector required");
+    return *v.vector;
+  }
+  z3::expr at(const Vector& v, const z3::expr& i, bool checked = true) {
+    if (checked) require(i >= 0 && i < v.length);
+    auto position = i.simplify();
+    if (position.is_numeral()) {
+      if ((position < 0 || position >= integer(v.entries.size()))
+              .simplify()
+              .is_true())
+        return integer(0);
+      return v.entries.at(position.get_numeral_uint64());
+    }
+    auto x = integer(0);
+    for (std::size_t j = v.entries.size(); j-- > 0;)
+      x = z3::ite(i == integer(j), v.entries[j], x);
+    return x.simplify();
+  }
+  z3::expr contains(const Vector& v, z3::expr x) {
+    auto length = v.length.simplify();
+    auto value = x.simplify();
+    if (length.is_numeral() && value.is_numeral() &&
+        (length >= 0 && length <= integer(v.entries.size()))
+            .simplify()
+            .is_true()) {
+      auto count = length.get_numeral_uint64();
+      bool concrete = true, found = false;
+      for (std::size_t j = 0; j < count; ++j) {
+        auto entry = v.entries[j].simplify();
+        concrete &= entry.is_numeral();
+        found |= z3::eq(entry, value);
+      }
+      if (concrete) return ctx.bool_val(found);
+    }
+    auto b = ctx.bool_val(false);
+    for (std::size_t j = 0; j < v.entries.size(); ++j)
+      b = b || (integer(j) < v.length && v.entries[j] == x);
+    return b.simplify();
+  }
+  z3::expr equal(const Vector& a, const Vector& b) {
+    auto out = a.length == b.length;
+    for (std::size_t j = 0; j < std::max(a.entries.size(), b.entries.size());
+         ++j)
+      out = out &&
+            z3::implies(integer(j) < a.length,
+                        at(a, integer(j), false) == at(b, integer(j), false));
+    return out.simplify();
+  }
+  z3::expr valid(const Vector& v, z3::expr n) {
+    auto out = v.length >= 0 && v.length <= n;
+    auto length = v.length.simplify();
+    auto bound = n.simplify();
+    if (length.is_numeral() && bound.is_numeral() &&
+        (length >= 0 && length <= integer(v.entries.size()))
+            .simplify()
+            .is_true()) {
+      auto count = length.get_numeral_uint64();
+      bool concrete = true, unique = true;
+      std::set<unsigned> seen;
+      for (std::size_t i = 0; i < count; ++i) {
+        auto entry = v.entries[i].simplify();
+        concrete &= entry.is_numeral();
+        unique &= seen.insert(entry.id()).second;
+        out = out && entry >= 0 && entry < n;
+      }
+      if (concrete) return (out && ctx.bool_val(unique)).simplify();
+    }
+    for (std::size_t i = 0; i < v.entries.size(); ++i) {
+      auto active = integer(i) < v.length;
+      out = out && z3::implies(active, v.entries[i] >= 0 && v.entries[i] < n);
+      for (std::size_t j = 0; j < i; ++j)
+        out = out && z3::implies(active, v.entries[i] != v.entries[j]);
+    }
+    return out.simplify();
+  }
+  using Environment = std::map<std::string, Vector>;
+  std::map<std::tuple<std::size_t, std::size_t, std::string>, Value>
+      concrete_cache;
+  std::map<std::pair<std::size_t, std::size_t>, Value> metadata_cache;
+  Value eval(std::size_t node, std::size_t id, const Environment& env = {}) {
+    const auto key = std::pair(node, id);
+    if (generating && env.empty()) {
+      if (metadata_cache.contains(key)) return metadata_cache.at(key);
+      auto value = evaluate(node, id, env);
+      metadata_cache.emplace(key, value);
+      return value;
+    }
+    std::string environment;
+    for (auto& [name, v] : env) {
+      environment += std::to_string(name.size()) + ":" + name + ":" +
+                     std::to_string(v.length.id()) + ":";
+      for (auto& x : v.entries) environment += std::to_string(x.id()) + ",";
+      environment += ";";
+    }
+    auto concrete_key = std::tuple(node, id, environment);
+    if (concrete_cache.contains(concrete_key))
+      return concrete_cache.at(concrete_key);
+    auto value = evaluate(node, id, env);
+    if (concrete_cache.size() > 20000) throw Limit("expression cache limit");
+    concrete_cache.emplace(concrete_key, value);
+    return value;
+  }
+  Value evaluate(std::size_t node, std::size_t id, const Environment& env) {
+    tick();
+    const auto& n = plan.nodes.at(node);
+    const auto& e = n.expressions.at(id);
+    auto arg = [&](std::size_t i) { return eval(node, e.args.at(i), env); };
+    if (e.args.empty()) {
+      if (env.contains(e.op)) return Value(env.at(e.op));
+      if (e.op == "true" || e.op == "false")
+        return Value(ctx.bool_val(e.op == "true"));
+      if (e.op.starts_with('a'))
+        return Value(attrs.at(node).at(std::stoul(e.op.substr(1))));
+      if (!e.op.empty() &&
+          e.op.find_first_not_of("0123456789") == std::string::npos)
+        return Value(ctx.int_val(e.op.c_str()), std::stoull(e.op));
+      if (e.op == "list") return Value(literal({}));
+      throw Limit("unbound metadata name: " + e.op);
+    }
+    if (e.op == "shape" || e.op == "rank") {
+      auto tensor = n.expressions.at(e.args[0]).op;
+      if (!tensor.starts_with('t')) throw Limit("shape requires an operand");
+      auto v = shapes.at(n.inputs.at(std::stoul(tensor.substr(1))));
+      return e.op == "shape" ? Value(v) : Value(v.length, v.entries.size());
+    }
+    if (e.op == "index_space") return arg(0);
+    if (e.op == "len") {
+      auto v = vector(arg(0));
+      return Value(v.length, v.entries.size());
+    }
+    if (e.op == "list") {
+      if (e.args.size() > 256) throw Limit("vector capacity");
+      Vector v{integer(e.args.size()), {}};
+      for (std::size_t i = 0; i < e.args.size(); ++i)
+        v.entries.push_back(arg(i).scalar);
+      return Value(v);
+    }
+    if (e.op == "range") {
+      auto n = arg(0);
+      if (!n.upper || *n.upper > 256)
+        throw Limit("range lacks a practical finite bound");
+      require(n.scalar >= 0 && n.scalar <= integer(*n.upper));
+      Vector v{n.scalar, {}};
+      for (std::size_t i = 0; i < *n.upper; ++i)
+        v.entries.push_back(integer(i));
+      return Value(v);
+    }
+    if (e.op == "index") return Value(at(vector(arg(0)), arg(1).scalar));
+    if (e.op == "gather") {
+      auto v = vector(arg(0)), a = vector(arg(1));
+      Vector out{a.length, {}};
+      for (std::size_t i = 0; i < a.entries.size(); ++i) {
+        require(z3::implies(integer(i) < a.length,
+                            a.entries[i] >= 0 && a.entries[i] < v.length));
+        out.entries.push_back(at(v, a.entries[i], false));
+      }
+      return Value(out);
+    }
+    if (e.op == "exclude") {
+      auto v = vector(arg(0)), a = vector(arg(1));
+      std::vector<z3::expr> positions, keep;
+      auto length = integer(0);
+      for (std::size_t i = 0; i < v.entries.size(); ++i) {
+        positions.push_back(length);
+        // Match the metadata builtin: remove selected values, preserving order.
+        keep.push_back(integer(i) < v.length && !contains(a, v.entries[i]));
+        length = length + z3::ite(keep.back(), integer(1), integer(0));
+      }
+      Vector out{length.simplify(), {}};
+      for (std::size_t j = 0; j < v.entries.size(); ++j) {
+        auto x = integer(0);
+        for (std::size_t i = 0; i < v.entries.size(); ++i)
+          x = z3::ite(keep[i] && positions[i] == integer(j), v.entries[i], x);
+        out.entries.push_back(x.simplify());
+      }
+      return Value(out);
+    }
+    if (e.op == "concat") {
+      Vector out = vector(arg(0));
+      for (std::size_t j = 1; j < e.args.size(); ++j) {
+        auto v = vector(arg(j));
+        if (out.entries.size() + v.entries.size() > 256)
+          throw Limit("vector capacity");
+        Vector next{(out.length + v.length).simplify(), {}};
+        for (std::size_t i = 0; i < out.entries.size() + v.entries.size(); ++i)
+          next.entries.push_back(z3::ite(integer(i) < out.length,
+                                         at(out, integer(i), false),
+                                         at(v, integer(i) - out.length, false))
+                                     .simplify());
+        out = next;
+      }
+      return Value(out);
+    }
+    if (e.op == "take" || e.op == "slice") {
+      auto v = vector(arg(0));
+      auto start = arg(1).scalar, count = arg(2).scalar;
+      require(start >= 0 && count >= 0 && start + count <= v.length);
+      Vector out{count, {}};
+      for (std::size_t i = 0; i < v.entries.size(); ++i)
+        out.entries.push_back(at(v, start + integer(i), false));
+      return Value(out);
+    }
+    if (e.op == "scatter") {
+      auto size = arg(0);
+      auto axes = vector(arg(1)), values = vector(arg(2));
+      if (!size.upper || *size.upper > 256)
+        throw Limit("scatter lacks a finite bound");
+      require(valid(axes, size.scalar) && axes.length == size.scalar &&
+              values.length == axes.length);
+      Vector out{size.scalar, {}};
+      for (std::size_t i = 0; i < *size.upper; ++i) {
+        auto x = integer(0);
+        for (std::size_t j = 0; j < axes.entries.size(); ++j)
+          x = z3::ite(integer(j) < axes.length && axes.entries[j] == integer(i),
+                      at(values, integer(j), false), x);
+        out.entries.push_back(x.simplify());
+      }
+      return Value(out);
+    }
+    if (e.op == "is_valid_axis_list")
+      return Value(valid(vector(arg(0)), arg(1).scalar));
+    if (e.op == "is_disjoint") {
+      auto a = vector(arg(0)), b = vector(arg(1));
+      auto out = ctx.bool_val(true);
+      for (std::size_t i = 0; i < a.entries.size(); ++i)
+        out = out &&
+              z3::implies(integer(i) < a.length, !contains(b, a.entries[i]));
+      return Value(out.simplify());
+    }
+    if (e.op == "if") {
+      auto c = arg(0).scalar.simplify();
+      // Branch-local legality cannot be flattened into unconditional
+      // assertions.
+      if (c.is_true()) return arg(1);
+      if (c.is_false()) return arg(2);
+      throw Limit("symbolic conditional requires guarded lowering");
+    }
+    auto a = arg(0);
+    if (e.op == "unary:!") return Value(!a.scalar);
+    if (e.op == "unary:+") return a;
+    if (e.op == "unary:-") return Value(checked(-a.scalar));
+    if (e.op == "&&" || e.op == "||") {
+      auto condition = a.scalar.simplify();
+      if (!condition.is_true() && !condition.is_false())
+        throw Limit(
+            "symbolic short-circuit metadata requires guarded lowering");
+      if ((e.op == "&&" && condition.is_false()) ||
+          (e.op == "||" && condition.is_true()))
+        return Value(condition);
+      return arg(1);
+    }
+    auto b = arg(1);
+    if (e.op == "==" || e.op == "!=") {
+      auto q = a.vector && b.vector ? equal(*a.vector, *b.vector)
+                                    : a.scalar == b.scalar;
+      return Value(e.op == "==" ? q : !q);
+    }
+    if (e.op == "+") {
+      std::optional<std::size_t> upper;
+      if (a.upper && b.upper) {
+        if (*a.upper > std::numeric_limits<std::size_t>::max() - *b.upper)
+          throw Limit("metadata capacity overflow");
+        upper = *a.upper + *b.upper;
+      }
+      return Value(checked(a.scalar + b.scalar), upper);
+    }
+    if (e.op == "-") return Value(checked(a.scalar - b.scalar));
+    if (e.op == "*") return Value(checked(a.scalar * b.scalar));
+    if (e.op == "/" || e.op == "%") {
+      require(b.scalar != 0);
+      auto magnitude = z3::ite(a.scalar < 0, -a.scalar, a.scalar) /
+                       z3::ite(b.scalar < 0, -b.scalar, b.scalar);
+      auto quotient =
+          z3::ite((a.scalar < 0) != (b.scalar < 0), -magnitude, magnitude);
+      return Value(
+          checked(e.op == "/" ? quotient : a.scalar - b.scalar * quotient));
+    }
+    if (e.op == "<") return Value(a.scalar < b.scalar);
+    if (e.op == "<=") return Value(a.scalar <= b.scalar);
+    if (e.op == ">") return Value(a.scalar > b.scalar);
+    if (e.op == ">=") return Value(a.scalar >= b.scalar);
+    throw Limit("unsupported primitive: " + e.op);
+  }
+  List concrete(const Vector& v, const z3::model& m) {
+    auto size = m.eval(v.length, true).get_numeral_uint64();
+    if (size > v.entries.size()) throw Illegal{};
+    List out;
+    for (std::size_t i = 0; i < size; ++i)
+      out.push_back(m.eval(v.entries[i], true).get_numeral_uint64());
+    return out;
+  }
+  // Polynomial over independent tensor entries. Monomials are sorted multisets
+  // of (capture, concrete coordinates); coefficients are exact Z3 rationals.
+  using Monomial = std::vector<List>;
+  using Polynomial = std::map<Monomial, z3::expr>;
+  struct Computation {
+    Polynomial polynomial;
+    std::string trace;
+  };
+  void accumulate(Polynomial& out, const Monomial& key, z3::expr coefficient) {
+    auto i = out.find(key);
+    if (i != out.end()) coefficient = coefficient + i->second;
+    coefficient = coefficient.simplify();
+    if (coefficient.to_string() == "0" || coefficient.to_string() == "0.0")
+      out.erase(key);
+    else
+      out.insert_or_assign(key, coefficient);
+    if (out.size() > 4096) throw Limit("polynomial term limit");
+  }
+  List constants(const Vector& v) {
+    auto len = v.length.simplify().get_numeral_uint64();
+    if (len > v.entries.size()) throw Illegal{};
+    List out;
+    for (std::size_t i = 0; i < len; ++i)
+      out.push_back(v.entries[i].simplify().get_numeral_uint64());
+    return out;
+  }
+  Computation expand(std::size_t id, const List& output) {
+    tick();
+    const auto& n = plan.nodes.at(id);
+    auto dims = constants(shapes[id]);
+    if (output.size() != dims.size()) throw Illegal{};
+    for (std::size_t i = 0; i < dims.size(); ++i)
+      if (output[i] >= dims[i]) throw Illegal{};
+    if (n.capture >= 0) {
+      List entry{static_cast<std::uint64_t>(n.capture)};
+      entry.insert(entry.end(), output.begin(), output.end());
+      std::string trace = "read:";
+      for (auto v : entry) trace += std::to_string(v) + ",";
+      return {{{Monomial{entry}, ctx.real_val(1)}}, trace};
+    }
+    Environment env{{"o", literal(output)}};
+    return scalar(id, n.root, env);
+  }
+  Computation scalar(std::size_t node, std::size_t id, Environment& env) {
+    tick();
+    const auto& n = plan.nodes[node];
+    const auto& e = n.expressions[id];
+    if (e.op == "read") {
+      auto t = n.expressions[e.args[0]].op;
+      auto child = n.inputs.at(std::stoul(t.substr(1)));
+      return expand(child, constants(vector(eval(node, e.args[1], env))));
+    }
+    if (e.op.starts_with("sum:")) {
+      auto dims = constants(vector(eval(node, e.args[0], env)));
+      List index(dims.size());
+      Computation out{{}, "sum("};
+      for (auto d : dims) out.trace += std::to_string(d) + ",";
+      out.trace += ")[";
+      auto name = e.op.substr(4);
+      if (dims.empty()) {
+        env.insert_or_assign(name, literal({}));
+        auto body = scalar(node, e.args[1], env);
+        env.erase(name);
+        return body;
+      }
+      auto saved =
+          env.find(name) == env.end() ? std::optional<Vector>{} : env.at(name);
+      std::function<void(std::size_t)> loop = [&](std::size_t axis) {
+        tick();
+        if (axis < dims.size()) {
+          for (std::uint64_t i = 0; i < dims[axis]; ++i) {
+            index[axis] = i;
+            loop(axis + 1);
+          }
+          return;
+        }
+        env.insert_or_assign(name, literal(index));
+        auto body = scalar(node, e.args[1], env);
+        for (auto& [k, c] : body.polynomial) accumulate(out.polynomial, k, c);
+        out.trace += body.trace + ";";
+        if (out.trace.size() > 1000000) throw Limit("trace limit");
+      };
+      loop(0);
+      if (saved)
+        env.insert_or_assign(name, *saved);
+      else
+        env.erase(name);
+      out.trace += "]";
+      return out;
+    }
+    if (e.op == "if") {
+      auto c = eval(node, e.args[0], env).scalar.simplify();
+      if (!c.is_true() && !c.is_false())
+        throw Limit("value-dependent condition");
+      return scalar(node, e.args[c.is_true() ? 1 : 2], env);
+    }
+    if (e.args.empty() &&
+        e.op.find_first_not_of("0123456789") == std::string::npos)
+      return {{{Monomial{}, ctx.real_val(e.op.c_str())}}, e.op};
+    if (e.op == "unary:+") return scalar(node, e.args[0], env);
+    if (e.op == "unary:-") {
+      auto a = scalar(node, e.args[0], env);
+      for (auto& [k, c] : a.polynomial) c = (-c).simplify();
+      a.trace = "neg(" + a.trace + ")";
+      return a;
+    }
+    auto a = scalar(node, e.args.at(0), env),
+         b = scalar(node, e.args.at(1), env);
+    Computation out{{}, e.op + "(" + a.trace + "," + b.trace + ")"};
+    if (e.op == "+" || e.op == "-") {
+      out.polynomial = a.polynomial;
+      for (auto& [k, c] : b.polynomial)
+        accumulate(out.polynomial, k, e.op == "+" ? c : -c);
+    } else if (e.op == "*") {
+      for (auto& [x, c] : a.polynomial)
+        for (auto& [y, d] : b.polynomial) {
+          tick();
+          auto key = x;
+          key.insert(key.end(), y.begin(), y.end());
+          std::sort(key.begin(), key.end());
+          accumulate(out.polynomial, key, c * d);
+        }
+    } else
+      throw Limit("scalar division and nonpolynomial arithmetic unsupported");
+    return out;
+  }
+  struct Factor {
+    std::size_t capture;
+    List coordinates;
+  };
+  struct IndexedTerm {
+    std::vector<Factor> factors;
+    List bound;
+    z3::expr coefficient;
+  };
+  using Indexed = std::vector<IndexedTerm>;
+  List coordinate_dims;
+  Vector coordinates(const List& ids) {
+    Vector v{integer(ids.size()), {}};
+    for (auto id : ids)
+      v.entries.push_back(
+          ctx.int_const(("coord_" + std::to_string(id)).c_str()));
+    return v;
+  }
+  Indexed indexed(std::size_t node, const Vector& output) {
+    tick();
+    const auto& n = plan.nodes[node];
+    auto dims = constants(shapes[node]);
+    if (output.entries.size() != dims.size()) throw Illegal{};
+    if (n.capture >= 0) {
+      Factor f{static_cast<std::size_t>(n.capture), {}};
+      for (std::size_t i = 0; i < dims.size(); ++i) {
+        auto c = output.entries[i].simplify();
+        if (c.is_numeral()) {
+          auto k = c.get_numeral_uint64();
+          if (k >= dims[i]) throw Illegal{};
+          // High bit distinguishes fixed positions from coordinate identities.
+          if (k >= (std::uint64_t(1) << 63)) throw Limit("coordinate capacity");
+          f.coordinates.push_back(k | (std::uint64_t(1) << 63));
+        } else {
+          auto name = c.to_string();
+          if (!name.starts_with("coord_"))
+            throw Limit("index arithmetic needs finite verification");
+          auto id = std::stoull(name.substr(6));
+          if (id >= coordinate_dims.size() || coordinate_dims[id] != dims[i])
+            throw Limit("coordinate domain mismatch");
+          f.coordinates.push_back(dims[i] == 1 ? (std::uint64_t(1) << 63) : id);
+        }
+      }
+      return {{{f}, {}, ctx.real_val(1)}};
+    }
+    Environment env{{"o", output}};
+    return indexedScalar(node, n.root, env);
+  }
+  Indexed indexedScalar(std::size_t node, std::size_t id, Environment& env) {
+    tick();
+    const auto& n = plan.nodes[node];
+    const auto& e = n.expressions[id];
+    if (e.op == "read") {
+      auto operand = std::stoul(n.expressions[e.args[0]].op.substr(1));
+      auto out = vector(eval(node, e.args[1], env));
+      auto count = out.length.simplify().get_numeral_uint64();
+      if (count > out.entries.size()) throw Illegal{};
+      out.entries.erase(out.entries.begin() + count, out.entries.end());
+      return indexed(n.inputs.at(operand), out);
+    }
+    if (e.op.starts_with("sum:")) {
+      auto dims = constants(vector(eval(node, e.args[0], env)));
+      if (std::find(dims.begin(), dims.end(), 0) != dims.end()) return {};
+      List bound;
+      for (auto dim : dims) {
+        bound.push_back(coordinate_dims.size());
+        coordinate_dims.push_back(dim);
+      }
+      auto name = e.op.substr(4);
+      env.insert_or_assign(name, coordinates(bound));
+      auto out = indexedScalar(node, e.args[1], env);
+      env.erase(name);
+      for (auto& term : out)
+        term.bound.insert(term.bound.end(), bound.begin(), bound.end());
+      return out;
+    }
+    if (e.op == "if") {
+      auto c = eval(node, e.args[0], env).scalar.simplify();
+      if (!c.is_true() && !c.is_false())
+        throw Limit("symbolic index predicate needs finite verification");
+      return indexedScalar(node, e.args[c.is_true() ? 1 : 2], env);
+    }
+    if (e.args.empty() &&
+        e.op.find_first_not_of("0123456789") == std::string::npos)
+      return {{{}, {}, ctx.real_val(e.op.c_str())}};
+    auto a = indexedScalar(node, e.args.at(0), env);
+    if (e.op == "unary:+") return a;
+    if (e.op == "unary:-") {
+      for (auto& t : a) t.coefficient = -t.coefficient;
+      return a;
+    }
+    auto b = indexedScalar(node, e.args.at(1), env);
+    if (e.op == "+" || e.op == "-") {
+      if (e.op == "-")
+        for (auto& t : b) t.coefficient = -t.coefficient;
+      a.insert(a.end(), b.begin(), b.end());
+    } else if (e.op == "*") {
+      Indexed out;
+      for (const auto& x : a)
+        for (const auto& y : b) {
+          tick();
+          auto t = x;
+          t.factors.insert(t.factors.end(), y.factors.begin(), y.factors.end());
+          t.bound.insert(t.bound.end(), y.bound.begin(), y.bound.end());
+          t.coefficient = t.coefficient * y.coefficient;
+          out.push_back(t);
+          if (out.size() > 4096) throw Limit("indexed polynomial term limit");
+        }
+      a = std::move(out);
+    } else
+      throw Limit("unsupported scalar expression");
+    if (a.size() > 4096) throw Limit("indexed polynomial term limit");
+    return a;
+  }
+  std::map<List, z3::expr> normalized(std::size_t root) {
+    coordinate_dims = constants(shapes[root]);
+    List output(coordinate_dims.size());
+    std::iota(output.begin(), output.end(), 0);
+    auto terms = indexed(root, coordinates(output));
+    std::map<List, z3::expr> result;
+    for (auto term : terms) {
+      std::sort(
+          term.factors.begin(), term.factors.end(),
+          [](const auto& a, const auto& b) {
+            return a.capture < b.capture ||
+                   (a.capture == b.capture && a.coordinates < b.coordinates);
+          });
+      List best;
+      bool first = true;
+      z3::expr best_coefficient = term.coefficient;
+      std::function<void(std::size_t)> visit = [&](std::size_t begin) {
+        tick();
+        if (begin < term.factors.size()) {
+          auto end = begin + 1;
+          while (end < term.factors.size() &&
+                 term.factors[end].capture == term.factors[begin].capture)
+            ++end;
+          do {
+            visit(end);
+          } while (std::next_permutation(term.factors.begin() + begin,
+                                         term.factors.begin() + end,
+                                         [](const auto& a, const auto& b) {
+                                           return a.coordinates < b.coordinates;
+                                         }));
+          return;
+        }
+        std::map<std::uint64_t, std::uint64_t> names;
+        List key{term.factors.size()};
+        for (auto& f : term.factors) {
+          key.push_back(f.capture);
+          key.push_back(f.coordinates.size());
+          for (auto c : f.coordinates) {
+            if (c >> 63) {
+              key.push_back(2);
+              key.push_back(c & ~(std::uint64_t(1) << 63));
+            } else if (c < output.size()) {
+              key.push_back(0);
+              key.push_back(c);
+            } else {
+              if (std::find(term.bound.begin(), term.bound.end(), c) ==
+                  term.bound.end())
+                throw Limit("unbound coordinate");
+              auto [i, inserted] = names.emplace(c, names.size());
+              key.push_back(1);
+              key.push_back(i->second);
+              key.push_back(coordinate_dims.at(c));
+            }
+          }
+        }
+        auto coefficient = term.coefficient;
+        for (auto b : term.bound)
+          if (!names.contains(b))
+            coefficient = coefficient * integer(coordinate_dims[b]);
+        if (first || key < best) {
+          best = key;
+          first = false;
+          best_coefficient = coefficient;
+        }
+      };
+      visit(0);
+      auto i = result.find(best);
+      if (i != result.end()) best_coefficient = best_coefficient + i->second;
+      best_coefficient = best_coefficient.simplify();
+      if ((best_coefficient == 0).simplify().is_true())
+        result.erase(best);
+      else
+        result.insert_or_assign(best, best_coefficient);
+    }
+    return result;
+  }
+  bool indexedEqual() {
+    if (!plan.algebraic) return false;
+    const auto a = normalized(plan.source_root), b = normalized(plan.rhs_root);
+    if (a.size() != b.size()) return false;
+    auto x = a.begin(), y = b.begin();
+    for (; x != a.end(); ++x, ++y)
+      if (x->first != y->first ||
+          !(x->second == y->second).simplify().is_true())
+        return false;
+    return true;
+  }
+  bool verify() {
+    auto dims = constants(shapes[plan.source_root]);
+    if (dims != constants(shapes[plan.rhs_root])) return false;
+    if (std::find(dims.begin(), dims.end(), 0) != dims.end()) return true;
+    try {
+      if (indexedEqual()) return true;
+    } catch (const Limit&) {
+      // Index isomorphism is only sufficient. A failed match is not invalid.
+    }
+    List index(dims.size());
+    bool okay = true;
+    std::function<void(std::size_t)> visit = [&](std::size_t axis) {
+      tick();
+      if (!okay) return;
+      if (axis < dims.size()) {
+        for (std::uint64_t i = 0; i < dims[axis] && okay; ++i) {
+          index[axis] = i;
+          visit(axis + 1);
+        }
+        return;
+      }
+      auto a = expand(plan.source_root, index),
+           b = expand(plan.rhs_root, index);
+      if (!plan.algebraic) {
+        okay = a.trace == b.trace;
+        return;
+      }
+      if (a.polynomial.size() != b.polynomial.size()) {
+        okay = false;
+        return;
+      }
+      auto x = a.polynomial.begin(), y = b.polynomial.begin();
+      for (; x != a.polynomial.end(); ++x, ++y)
+        if (x->first != y->first ||
+            !(x->second == y->second).simplify().is_true()) {
+          okay = false;
+          break;
+        }
+    };
+    visit(0);
+    return okay;
+  }
+  bool sameProgram(const Node& a, const Node& b) {
+    if (a.capture >= 0 || b.capture >= 0 || a.root != b.root ||
+        a.shape != b.shape || a.assertions != b.assertions ||
+        a.expressions.size() != b.expressions.size() ||
+        a.fields.size() != b.fields.size())
+      return false;
+    for (std::size_t i = 0; i < a.expressions.size(); ++i)
+      if (a.expressions[i].op != b.expressions[i].op ||
+          a.expressions[i].args != b.expressions[i].args)
+        return false;
+    return true;
+  }
+  Solution witness() {
+    std::vector<List> out;
+    for (std::size_t i = 0; i < attrs.size(); ++i)
+      for (std::size_t j = 0; j < attrs[i].size(); ++j) {
+        auto f = plan.nodes[i].fields[j].output;
+        if (out.size() <= f) out.resize(f + 1);
+        out[f] = constants(attrs[i][j]);
+      }
+    return {Status::Found, out, "exact verification succeeded"};
+  }
+  // Instantiate the existing generic source-copy/identity preference first.
+  // All primitive constraints and tensor equivalence must still hold. This
+  // avoids constructing padded symbolic vectors for an already valid witness.
+  bool preferredCandidate() {
+    generating = false;
+    std::map<std::size_t, Vector> shared;
+    for (std::size_t id = 0; id < plan.nodes.size(); ++id) {
+      tick();
+      const auto& n = plan.nodes[id];
+      attrs.emplace_back();
+      if (n.capture >= 0) {
+        shapes.push_back(literal(captures.at(n.capture)));
+        continue;
+      }
+      for (auto& f : n.fields)
+        attrs.back().push_back(f.known >= 0   ? literal(known.at(f.known))
+                               : f.known < -1 ? literal(pinned.at(-2 - f.known))
+                                              : literal({}));
+      for (std::size_t f = 0; f < n.fields.size(); ++f) {
+        if (n.fields[f].known != -1) continue;
+        if (shared.contains(n.fields[f].output)) {
+          attrs[id][f] = shared.at(n.fields[f].output);
+          concrete_cache.clear();
+          continue;
+        }
+        bool copied = false;
+        for (std::size_t source = 0; source < plan.source_end && source < id;
+             ++source)
+          if (sameProgram(n, plan.nodes[source])) {
+            attrs[id][f] = attrs[source][f];
+            copied = true;
+            break;
+          }
+        if (!copied) {
+          auto size = eval(id, n.fields[f].bound)
+                          .scalar.simplify()
+                          .get_numeral_uint64();
+          if (size > 32) throw Limit("attribute domain capacity");
+          List identity(size);
+          std::iota(identity.begin(), identity.end(), 0);
+          attrs[id][f] = literal(identity);
+        }
+        shared.emplace(n.fields[f].output, attrs[id][f]);
+        concrete_cache.clear();
+      }
+      for (auto a : n.assertions) require(eval(id, a).scalar);
+      shapes.push_back(literal(constants(vector(eval(id, n.shape)))));
+    }
+    return verify();
+  }
+  Solution run() {
+    try {
+      if (preferredCandidate()) return witness();
+    } catch (const Illegal&) {
+      // A preference can be illegal; it never restricts the solver domain.
+    } catch (const Limit&) {
+      // An unsupported preference must not be treated as impossibility.
+    }
+    generating = true;
+    shapes.clear();
+    attrs.clear();
+    metadata_cache.clear();
+    concrete_cache.clear();
+    for (std::size_t id = 0; id < plan.nodes.size(); ++id) {
+      if (id == plan.source_end && solver.check() != z3::sat)
+        throw Limit("illegal or undecidable source metadata");
+      const auto& n = plan.nodes[id];
+      attrs.emplace_back();
+      if (n.capture >= 0) {
+        shapes.push_back(literal(captures.at(n.capture)));
+        continue;
+      }
+      // Known fields are installed before unknown domain expressions are read.
+      for (const auto& f : n.fields)
+        attrs.back().push_back(f.known >= 0   ? literal(known.at(f.known))
+                               : f.known < -1 ? literal(pinned.at(-2 - f.known))
+                                              : literal({}));
+      std::set<std::size_t> initialized, active;
+      std::function<void(std::size_t)> install = [&](std::size_t j) {
+        const auto& f = n.fields[j];
+        if (f.known != -1 || initialized.contains(j)) return;
+        if (!active.insert(j).second)
+          throw Limit("cyclic attribute domain dependency");
+        if (variables.contains(f.output)) {
+          attrs[id][j] = variables.at(f.output);
+          metadata_cache.clear();
+          initialized.insert(j);
+          active.erase(j);
+          return;
+        }
+        std::set<std::size_t> visited;
+        std::function<void(std::size_t)> dependencies = [&](std::size_t e) {
+          if (!visited.insert(e).second) return;
+          const auto& expr = n.expressions.at(e);
+          if (expr.args.empty() && expr.op.starts_with('a'))
+            install(std::stoul(expr.op.substr(1)));
+          for (auto arg : expr.args) dependencies(arg);
+        };
+        dependencies(f.bound);
+        metadata_cache.clear();
+        auto bound = eval(id, f.bound);
+        if (!bound.upper || *bound.upper > 32)
+          throw Limit("attribute domain bound exceeds supported capacity");
+        Vector v{ctx.int_const(("len_" + std::to_string(f.output)).c_str()),
+                 {}};
+        for (std::size_t k = 0; k < *bound.upper; ++k)
+          v.entries.push_back(ctx.int_const(
+              ("axis_" + std::to_string(f.output) + "_" + std::to_string(k))
+                  .c_str()));
+        require(v.length >= 0 && v.length <= integer(v.entries.size()));
+        for (std::size_t k = 0; k < v.entries.size(); ++k)
+          require(z3::implies(integer(k) >= v.length, v.entries[k] == 0));
+        require(valid(v, bound.scalar));
+        for (std::size_t k = 0; k < v.entries.size(); ++k)
+          require(z3::implies(
+              integer(k) < v.length,
+              v.entries[k] <=
+                  integer(std::numeric_limits<std::uint64_t>::max())));
+        variables.emplace(f.output, v);
+        attrs[id][j] = v;
+        metadata_cache.clear();
+        initialized.insert(j);
+        active.erase(j);
+      };
+      for (std::size_t j = 0; j < n.fields.size(); ++j) install(j);
+      for (auto a : n.assertions) require(eval(id, a).scalar);
+      shapes.push_back(vector(eval(id, n.shape)));
+      auto length = shapes.back().length.simplify();
+      if (length.is_numeral()) {
+        auto size = length.get_numeral_uint64();
+        if (size > shapes.back().entries.size()) throw Illegal{};
+        shapes.back().entries.erase(shapes.back().entries.begin() + size,
+                                    shapes.back().entries.end());
+      }
+      for (std::size_t k = 0; k < shapes.back().entries.size(); ++k)
+        require(z3::implies(
+            integer(k) < shapes.back().length,
+            shapes.back().entries[k] >= 0 &&
+                shapes.back().entries[k] <=
+                    integer(std::numeric_limits<std::uint64_t>::max())));
+    }
+    if (plan.nodes.size() == plan.source_end && solver.check() != z3::sat)
+      throw Limit("illegal or undecidable source metadata");
+    require(equal(shapes[plan.source_root], shapes[plan.rhs_root]));
+    auto symbolic_shapes = shapes;
+    auto symbolic_attrs = attrs;
+    // Prefer attribute-independent copies of source fields when they satisfy
+    // the generated constraints. This changes candidate order, never proof.
+    solver.push();
+    for (auto& [output, v] : variables) {
+      bool suggested = false;
+      for (std::size_t i = plan.source_end; i < plan.nodes.size() && !suggested;
+           ++i)
+        for (std::size_t f = 0; f < plan.nodes[i].fields.size() && !suggested;
+             ++f)
+          if (plan.nodes[i].fields[f].output == output)
+            for (std::size_t s = 0; s < plan.source_end && !suggested; ++s)
+              if (plan.nodes[s].root == plan.nodes[i].root &&
+                  plan.nodes[s].expressions.size() ==
+                      plan.nodes[i].expressions.size() &&
+                  f < attrs[s].size()) {
+                bool same = true;
+                for (std::size_t e = 0; e < plan.nodes[s].expressions.size();
+                     ++e)
+                  same &= plan.nodes[s].expressions[e].op ==
+                              plan.nodes[i].expressions[e].op &&
+                          plan.nodes[s].expressions[e].args ==
+                              plan.nodes[i].expressions[e].args;
+                if (same) {
+                  solver.add(equal(v, attrs[s][f]));
+                  suggested = true;
+                }
+              }
+      if (!suggested) {
+        solver.add(v.length == integer(v.entries.size()));
+        for (std::size_t k = 0; k < v.entries.size(); ++k)
+          solver.add(v.entries[k] == integer(k));
+      }
+    }
+    bool preference = true, inconclusive = false;
+    while (true) {
+      tick();
+      const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            deadline - std::chrono::steady_clock::now())
+                            .count();
+      solver.set("timeout",
+                 static_cast<unsigned>(std::max<std::int64_t>(1, left)));
+      auto check = solver.check();
+      if (check == z3::unknown) throw Limit(solver.reason_unknown());
+      if (check == z3::unsat) {
+        if (preference) {
+          solver.pop();
+          preference = false;
+          continue;
+        }
+        return {
+            plan.algebraic && !inconclusive ? Status::Invalid : Status::Unknown,
+            {},
+            "no verified attribute assignment"};
+      }
+      auto model = solver.get_model();
+      generating = false;
+      for (std::size_t i = 0; i < shapes.size(); ++i)
+        shapes[i] = literal(concrete(symbolic_shapes[i], model));
+      for (std::size_t i = 0; i < attrs.size(); ++i)
+        for (std::size_t j = 0; j < attrs[i].size(); ++j)
+          attrs[i][j] = literal(concrete(symbolic_attrs[i][j], model));
+      concrete_cache.clear();
+      bool valid_candidate = false;
+      try {
+        valid_candidate = verify();
+      } catch (const Illegal&) {
+        inconclusive = true;
+      }
+      if (valid_candidate) return witness();
+      // Exclude precisely this joint candidate, preserving all other models.
+      auto block = ctx.bool_val(false);
+      for (auto& [output, v] : variables) {
+        block = block || v.length != model.eval(v.length, true);
+        for (auto& x : v.entries) block = block || x != model.eval(x, true);
+      }
+      shapes = symbolic_shapes;
+      attrs = symbolic_attrs;
+      generating = true;
+      if (preference) {
+        solver.pop();
+        preference = false;
+      }
+      solver.add(block);
+    }
+  }
+};
+void writeNumbers(std::ostream& out, const auto& xs) {
+  out << xs.size() << ' ';
+  for (auto x : xs) out << x << ' ';
+}
+std::vector<std::size_t> readNumbers(std::istream& in) {
+  std::size_t n;
+  if (!(in >> n) || n > 1000000) throw Limit("malformed request");
+  std::vector<std::size_t> xs(n);
+  for (auto& x : xs)
+    if (!(in >> x)) throw Limit("malformed request");
+  return xs;
+}
+}  // namespace
+Solution solve(const inference::SemanticPlan& p,
+               const std::vector<List>& shapes, const std::vector<List>& known,
+               const std::vector<List>& pinned, std::size_t budget) {
+  try {
+    return Engine(p, shapes, known, pinned, budget).run();
+  } catch (const Limit& e) {
+    return {Status::Unknown, {}, e.what()};
+  } catch (const Illegal&) {
+    return {
+        Status::Unknown, {}, "unsupported or illegal source/shape metadata"};
+  } catch (const z3::exception& e) {
+    return {Status::Unknown, {}, e.msg()};
+  } catch (const std::exception& e) {
+    return {Status::Unknown, {}, e.what()};
+  }
+}
+std::string encodePlan(const inference::SemanticPlan& p) {
+  std::ostringstream out;
+  out << p.source_root << ' ' << p.rhs_root << ' ' << p.source_end << ' '
+      << p.algebraic << ' ' << p.timeout_ms << ' ' << p.nodes.size() << ' ';
+  for (auto& n : p.nodes) {
+    out << n.capture << ' ';
+    writeNumbers(out, n.inputs);
+    out << n.root << ' ' << n.shape << ' ';
+    writeNumbers(out, n.assertions);
+    out << n.fields.size() << ' ';
+    for (auto& f : n.fields)
+      out << f.known << ' ' << f.output << ' ' << f.bound << ' ';
+    out << n.expressions.size() << ' ';
+    for (auto& e : n.expressions) {
+      out << std::quoted(e.op) << ' ';
+      writeNumbers(out, e.args);
+    }
+  }
+  return out.str();
+}
+std::string solveRequest(const std::string& request) {
+  try {
+    std::istringstream in(request);
+    inference::SemanticPlan p;
+    std::size_t count;
+    if (!(in >> p.source_root >> p.rhs_root >> p.source_end >> p.algebraic >>
+          p.timeout_ms >> count) ||
+        count > 10000)
+      throw Limit("malformed plan");
+    p.nodes.resize(count);
+    for (auto& n : p.nodes) {
+      in >> n.capture;
+      n.inputs = readNumbers(in);
+      in >> n.root >> n.shape;
+      n.assertions = readNumbers(in);
+      in >> count;
+      if (count > 10000) throw Limit("malformed fields");
+      n.fields.resize(count);
+      for (auto& f : n.fields) in >> f.known >> f.output >> f.bound;
+      in >> count;
+      if (count > 100000) throw Limit("malformed expressions");
+      n.expressions.resize(count);
+      for (auto& e : n.expressions) {
+        in >> std::quoted(e.op);
+        e.args = readNumbers(in);
+      }
+    }
+    auto lists = [&]() {
+      in >> count;
+      if (count > 100000) throw Limit("malformed lists");
+      std::vector<List> out;
+      for (std::size_t i = 0, size = count; i < size; ++i) {
+        auto xs = readNumbers(in);
+        out.emplace_back(xs.begin(), xs.end());
+      }
+      return out;
+    };
+    auto shapes = lists(), known = lists(), pins = lists();
+    if (!in) throw Limit("malformed metadata");
+    auto result = solve(p, shapes, known, pins);
+    std::ostringstream out;
+    out << (result.status == Status::Found     ? 0
+            : result.status == Status::Invalid ? 1
+                                               : 2)
+        << ' ';
+    out << result.fields.size() << ' ';
+    for (auto& f : result.fields) writeNumbers(out, f);
+    return out.str();
+  } catch (...) {
+    return "2 0 ";
+  }
+}
+}  // namespace tepl::core::semantics

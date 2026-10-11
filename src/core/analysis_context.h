@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "src/ast/ast.h"
+#include "src/core/analyze.h"
 #include "src/core/diagnostic.h"
 #include "src/core/ir.h"
 #include "src/core/resolution/file_scope.h"
@@ -16,11 +17,13 @@ namespace tepl::core::detail {
 
 // Program-wide state. Expanded trees and mutable rule symbols belong to rule/.
 struct AnalysisContext {
-  explicit AnalysisContext(const ast::Program& input)
-      : input(input), types(diagnostics) {}
+  explicit AnalysisContext(const ast::Program& input,
+                           AnalysisOptions options = {})
+      : input(input), options(options), types(diagnostics) {}
   AnalysisContext(const AnalysisContext&) = delete;
   AnalysisContext& operator=(const AnalysisContext&) = delete;
   const ast::Program& input;
+  AnalysisOptions options;
   Program output;
   std::vector<Diagnostic> diagnostics;
   std::map<std::string, FileScope> scopes;

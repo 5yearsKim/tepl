@@ -49,6 +49,9 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
       if (count > 1) op.duplicate_properties.push_back(property);
     };
     duplicate(properties->dtypeProperty().size(), "dtype");
+    if (properties->semanticsProperty())
+      op.semantics = std::any_cast<ast::SemanticDefinition>(
+          visit(properties->semanticsProperty()));
     duplicate(properties->attrsProperty().size(), "attrs");
     duplicate(properties->aliasProperty().size(), "alias");
     if (!properties->dtypeProperty().empty()) {

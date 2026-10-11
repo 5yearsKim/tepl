@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "src/core/inference/check.h"
 #include "src/core/rule/check_context.h"
 #include "src/core/rule/declarations.h"
 #include "src/core/rule/descriptors.h"
@@ -43,6 +44,8 @@ std::optional<Rule> check(AnalysisContext& analysis,
   if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
   analysis.types.unify(context.rule.lhs->type, context.rule.rhs->type,
                        input.origin);
+  if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
+  inference::infer(analysis, context.rule);
   if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
   return std::move(context.rule);
 }

@@ -46,7 +46,8 @@ std::vector<Id> ids(const std::set<std::size_t>& values) {
 
 RulePlan planRule(const core::Rule& rule) {
   RulePlan plan;
-  plan.requires_tensor_info = !rule.constraints.empty();
+  plan.requires_tensor_info =
+      !rule.constraints.empty() || rule.inference.has_value();
   std::set<std::size_t> hosts;
   bool early = true;
   for (const auto& condition : rule.conditions) {

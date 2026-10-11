@@ -62,8 +62,9 @@ variadicOperand
     ;
 
 opProperties
-    : (aliasProperty | attrsProperty | dtypeProperty)+ shapeProperty?
-    | shapeProperty
+    : (aliasProperty | attrsProperty | dtypeProperty)+ shapeProperty? semanticsProperty?
+    | shapeProperty semanticsProperty?
+    | semanticsProperty
     ;
 
 // Dtype is contextual; legacy colon policies are no longer accepted.
@@ -161,6 +162,75 @@ shapePrimary
 
 shapeArguments
     : shapeExpr (',' shapeExpr)*
+    ;
+
+semanticsProperty
+    : {getCurrentToken()->getText() == "semantics"}? ID '(' ID ')'
+      '{' semanticLet* YIELD semanticExpr ';' '}'
+    ;
+semanticLet
+    : LET ID '=' semanticExpr ';'
+    ;
+semanticExpr
+    : IF semanticExpr THEN semanticExpr ELSE semanticExpr # SemanticConditionalExpr
+    | semanticLogicalOr                            # SemanticSimpleExpr
+    ;
+
+semanticLogicalOr
+    : semanticLogicalAnd ('||' semanticLogicalAnd)*
+    ;
+
+semanticLogicalAnd
+    : semanticEquality ('&&' semanticEquality)*
+    ;
+
+semanticEquality
+    : semanticComparison (('==' | '!=') semanticComparison)?
+    ;
+
+semanticComparison
+    : semanticAdditive (('<' | '<=' | '>' | '>=') semanticAdditive)?
+    ;
+
+semanticAdditive
+    : semanticMultiplicative (('+' | '-') semanticMultiplicative)*
+    ;
+
+semanticMultiplicative
+    : semanticUnary (('*' | '/' | '%') semanticUnary)*
+    ;
+
+semanticUnary
+    : ('!' | '+' | '-') semanticUnary
+    | semanticPostfix
+    ;
+
+semanticPostfix
+    : semanticPrimary semanticSuffix*
+    ;
+
+semanticSuffix
+    : '.' ID                 # SemanticFieldSuffix
+    | '[' semanticExpr ']'      # SemanticIndexSuffix
+    ;
+
+semanticPrimary
+    : {getCurrentToken()->getText() == "sum"}? ID '(' ID IN semanticExpr ')'
+      '{' semanticLet* semanticExpr '}'               # SemanticSumPrimary
+    | ID '(' semanticArguments? ')'                      # SemanticCallPrimary
+    | ID                                              # SemanticNamePrimary
+    | ATTRS                                           # SemanticAttrsPrimary
+    | INT                                             # SemanticIntegerPrimary
+    | TRUE                                            # SemanticTruePrimary
+    | FALSE                                           # SemanticFalsePrimary
+    | '(' semanticExpr ')'                               # SemanticGroupPrimary
+    | '[' ']'                                         # SemanticEmptyListPrimary
+    | '[' semanticExpr (',' semanticExpr)* ']'               # SemanticListPrimary
+    | '[' semanticExpr FOR ID IN semanticExpr ']'            # SemanticComprehensionPrimary
+    ;
+
+semanticArguments
+    : semanticExpr (',' semanticExpr)*
     ;
 
 aliasProperty
@@ -322,6 +392,11 @@ binding
 
 attribute
     : '[' attrRef ']'
+    | '[' {getCurrentToken()->getText() == "auto"}? ID (',' autoField)* ']'
+    ;
+
+autoField
+    : ID '=' (attrRef '.' ID | concreteValue)
     ;
 
 attrRef

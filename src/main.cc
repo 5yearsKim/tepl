@@ -63,6 +63,16 @@ int main(int argc, char** argv) {
       "Format output with rustfmt or clang-format (default: on)");
   generate->add_option("--cpp-namespace", generation_options.cpp_namespace,
                        "Namespace for generated C++ (default: tepl_generated)");
+  std::string semantic_policy = "strict";
+  unsigned solver_timeout = 1000;
+  for (auto* command : {check, generate}) {
+    command
+        ->add_option("--semantic-policy", semantic_policy,
+                     "Arithmetic proof policy (strict or algebraic)")
+        ->check(CLI::IsMember({"strict", "algebraic"}));
+    command->add_option("--solver-timeout-ms", solver_timeout,
+                        "Compile-time SMT timeout");
+  }
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& error) {
@@ -122,7 +132,11 @@ int main(int argc, char** argv) {
     return 1;
   }
   if (*check || *generate) {
-    auto analyzed = tepl::core::analyze(*result.program);
+    auto analyzed = tepl::core::analyze(
+        *result.program,
+        {semantic_policy == "algebraic" ? tepl::core::SemanticPolicy::kAlgebraic
+                                        : tepl::core::SemanticPolicy::kStrict,
+         solver_timeout});
     for (const auto& diagnostic : analyzed.diagnostics) {
       const auto print_location = [](const tepl::SourceLocation& at) {
         std::cerr << at.source_name << ':' << at.span.begin.line << ':'

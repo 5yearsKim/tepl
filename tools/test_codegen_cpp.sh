@@ -8,6 +8,8 @@ if [[ $# == 0 ]]; then
 else
     compiler="$1"
 fi
+bazel build //src/core:libtepl_semantic_runtime.so
+export TEPL_SEMANTIC_RUNTIME="$project_root/bazel-bin/src/core/libtepl_semantic_runtime.so"
 work_directory="$(mktemp -d "${TMPDIR:-/tmp}/tepl-codegen-cpp.XXXXXX")"
 trap 'rm -rf "$work_directory"' EXIT
 revision=0c28bd5050b85ed10e915b5348c27f760ed31ae5
@@ -20,7 +22,7 @@ fi
 eggc_source="$(cd "$eggc_source" && pwd)"
 test -f "$eggc_source/include/eggc/all.hpp"
 cxx="${CXX:-c++}"
-fixtures=(dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty structural concrete_graphs)
+fixtures=(semantic semantic_general dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty structural concrete_graphs)
 # Optional fixture arguments allow focused reruns after a failing integration.
 if [[ $# -gt 1 ]]; then fixtures=("${@:2}"); fi
 for fixture in "${fixtures[@]}"; do
@@ -56,8 +58,10 @@ for fixture in "${fixtures[@]}"; do
             input="$application"
             ;;
     esac
-    "$compiler" generate "$input" --target cpp --no-format --out "$application/ir"
-    "$compiler" generate "$input" --target cpp --no-format --out "$application/ir" --check
+    semantic_flags=()
+    if [[ "$fixture" == semantic || "$fixture" == semantic_general ]]; then semantic_flags=(--semantic-policy algebraic --solver-timeout-ms 10000); fi
+    "$compiler" generate "$input" "${semantic_flags[@]}" --target cpp --no-format --out "$application/ir"
+    "$compiler" generate "$input" "${semantic_flags[@]}" --target cpp --no-format --out "$application/ir" --check
     if [[ "$fixture" == empty ]]; then
         printf '#include "ir/generated.h"\nint main() {}\n' > "$application/test.cc"
         "$cxx" -std=c++20 -I"$application" -I"$eggc_source/include" "$application/test.cc" -o "$application/test"

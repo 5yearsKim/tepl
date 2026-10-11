@@ -9,7 +9,9 @@
 #include <vector>
 
 #include "src/core/ids.h"
+#include "src/core/inference/ir.h"
 #include "src/core/metadata/ir.h"
+#include "src/core/semantics/ir.h"
 #include "src/core/type/types.h"
 #include "src/operators.h"
 #include "src/source.h"
@@ -51,6 +53,7 @@ struct Operation {
   SourceOrigin origin;
   std::optional<metadata::Program> shape;
   std::optional<metadata::Program> dtype;
+  std::optional<semantics::Program> semantics;
 };
 
 struct HostFunction {
@@ -80,7 +83,7 @@ struct DimensionSymbol {
 struct Descriptor {
   DescriptorId id;
   std::string name;
-  enum class Kind { kCaptured, kDerived } kind;
+  enum class Kind { kCaptured, kDerived, kInferred } kind;
   TypeId type;
   SourceOrigin origin;
 };
@@ -222,6 +225,8 @@ struct Rule {
   std::vector<Derivation> derivations;
   BuildExprPtr rhs;
   std::vector<DTypeVariable> dtypes;
+  std::vector<inference::Hole> attribute_holes;
+  std::optional<inference::Program> inference;
 };
 
 // Checked concrete graphs are topologically ordered DAGs, not rewrite patterns.

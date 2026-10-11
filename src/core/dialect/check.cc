@@ -7,6 +7,7 @@
 #include "src/core/dialect/attributes.h"
 #include "src/core/metadata/check.h"
 #include "src/core/resolution/source.h"
+#include "src/core/semantics/check.h"
 
 namespace tepl::core::detail {
 
@@ -59,6 +60,9 @@ void registerOperation(AnalysisContext& context, TypeId tensor,
     value.dtype =
         metadata::check(context, value, *op.dtype_definition,
                         dialect.source_name, metadata::ProgramKind::DType);
+  if (op.semantics)
+    value.semantics =
+        semantics::check(context, value, *op.semantics, dialect.source_name);
   context.output.operations.push_back(std::move(value));
   const auto addName = [&](const std::string& name) {
     if (!names.emplace(name, id).second)

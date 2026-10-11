@@ -226,5 +226,6 @@ inline Integer integer(::std::string_view text) {
   }
   return result;
 }
+
 }  // namespace common
 }  // namespace @TEPL_NAMESPACE@::builtins

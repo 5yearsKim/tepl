@@ -10,8 +10,9 @@
 
 namespace tepl::core {
 
-AnalysisResult analyze(const ast::Program& input) {
-  detail::AnalysisContext context(input);
+AnalysisResult analyze(const ast::Program& input,
+                       const AnalysisOptions& options) {
+  detail::AnalysisContext context(input, options);
   detail::resolve(context);
   if (context.diagnostics.empty()) {
     for (const auto& rule : input.rules) {

@@ -1,5 +1,6 @@
 #include "src/core/print.h"
 
+#include <algorithm>
 #include <functional>
 #include <iomanip>
 #include <sstream>
@@ -29,6 +30,10 @@ class Printer {
       out_ << '\n';
       if (op.dtype) metadata::print(out_, *op.dtype, program_);
       if (op.shape) metadata::print(out_, *op.shape, program_);
+      if (op.semantics)
+        out_ << "    semantics ["
+             << "element"
+             << "]: " << semantics::format(*op.semantics->result) << "\n";
     }
     for (const auto& schema : program_.attribute_schemas) {
       out_ << "  attr_schema #" << schema.id.value << ' ' << schema.dialect
@@ -236,8 +241,9 @@ class Printer {
     for (const auto& descriptor : rule.descriptors)
       out_ << "    descriptor @#" << descriptor.id.value << ' '
            << descriptor.name << ": " << type(descriptor.type)
-           << (descriptor.kind == Descriptor::Kind::kCaptured ? " captured"
-                                                              : " derived")
+           << (descriptor.kind == Descriptor::Kind::kCaptured   ? " captured"
+               : descriptor.kind == Descriptor::Kind::kInferred ? " inferred"
+                                                                : " derived")
            << '\n';
     for (const auto& constraint : rule.constraints) {
       out_ << "    constraint #" << constraint.capture.value << " dtype=";
@@ -273,6 +279,15 @@ class Printer {
       out_ << "    derive @#" << derivation.target.value << " = ";
       expression(*derivation.value);
       out_ << '\n';
+    }
+    if (rule.inference) {
+      out_ << "    auto: selection=" << rule.inference->selection
+           << " multiplicity=" << rule.inference->multiplicity
+           << " coverage=" << rule.inference->coverage
+           << " guards=" << (bool(rule.inference->semantic)) << "\n";
+      out_ << "      proof-method: semantic-constraints-z3\n";
+      for (const auto& step : rule.inference->proof)
+        out_ << "      proof: " << step << "\n";
     }
     out_ << "    replacement: ";
     build(*rule.rhs);

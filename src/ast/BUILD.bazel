@@ -16,6 +16,7 @@ cc_library(
         "builder_graph.cc",
         "builder_rule.cc",
         "builder_shape.cc",
+        "builder_semantics.cc",
     ],
     hdrs = [
         "builder.h",
