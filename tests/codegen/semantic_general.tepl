@@ -129,9 +129,55 @@ dialect TensorLang {
             yield s * s;
         }
     }
+    op unit_sum(input: tensor) -> tensor {
+        dtype(t) { yield t; }
+        shape(s) { yield s; }
+        semantics(i) { yield sum(k in index_space([1])) { read(input, i) }; }
+    }
+    op unused_sum(input: tensor) -> tensor {
+        attrs: Reduction;
+        dtype(t) { yield t; }
+        shape(s) { assert is_valid_axis_list(attrs.reduced, len(s)); yield s; }
+        semantics(i) {
+            yield sum(k in index_space(gather(shape(input), attrs.reduced))) { read(input, i) };
+        }
+    }
+    op twice_fold(input: tensor) -> tensor {
+        attrs: Reduction;
+        dtype(t) { yield t; }
+        shape(s) {
+            assert is_valid_axis_list(attrs.reduced, len(s));
+            yield gather(s, exclude(range(len(s)), attrs.reduced));
+        }
+        semantics(i) {
+            let f = exclude(range(rank(input)), attrs.reduced);
+            yield sum(k in index_space(gather(shape(input), attrs.reduced))) {
+                read(input, scatter(rank(input), concat(f, attrs.reduced), concat(i, k)))
+            } + sum(j in index_space(gather(shape(input), attrs.reduced))) {
+                read(input, scatter(rank(input), concat(f, attrs.reduced), concat(i, j)))
+            };
+        }
+    }
+    op double_fold(input: tensor) -> tensor {
+        attrs: Reduction;
+        dtype(t) { yield t; }
+        shape(s) {
+            assert is_valid_axis_list(attrs.reduced, len(s));
+            yield gather(s, exclude(range(len(s)), attrs.reduced));
+        }
+        semantics(i) {
+            let f = exclude(range(rank(input)), attrs.reduced);
+            yield 2 * sum(k in index_space(gather(shape(input), attrs.reduced))) {
+                read(input, scatter(rank(input), concat(f, attrs.reduced), concat(i, k)))
+            };
+        }
+    }
 }
 
-use TensorLang::{dot,transpose,add,fold,squared_sum};
+use TensorLang::{dot,transpose,add,fold,squared_sum,unit_sum,unused_sum,twice_fold,double_fold};
+rule singleton_reduction { (unit_sum X) => (transpose[auto] X) }
+rule dynamic_singleton { X => (unused_sum[auto,reduced=[0]] (transpose[auto] X)) }
+rule alpha_equivalent_terms { (twice_fold[@a] X) => (transpose[auto] (double_fold[@a] X)) }
 rule identity { (dot[@d] A B) => (dot[auto] (transpose[auto] A) B) }
 rule cycle { (dot[@d] A B) => (dot[auto] (transpose[auto, permutation=[1,2,0]] A) B) }
 rule distribute { (dot[@d] (add A B) C) => (add (dot[auto] A C) (dot[auto] B C)) }

@@ -285,7 +285,8 @@ class Printer {
            << " multiplicity=" << rule.inference->multiplicity
            << " coverage=" << rule.inference->coverage
            << " guards=" << (bool(rule.inference->semantic)) << "\n";
-      out_ << "      proof-method: semantic-constraints-z3\n";
+      out_ << "      proof-method: "
+              "ordered-contract-or-compiled-semantic-constraints-z3\n";
       for (const auto& step : rule.inference->proof)
         out_ << "      proof: " << step << "\n";
     }

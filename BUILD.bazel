@@ -58,6 +58,13 @@ cc_binary(
 # Utility tools
 #####################
 
+cc_binary(
+    name = "semantic_benchmark",
+    srcs = ["tools/semantic_benchmark.cc"],
+    data = ["examples/semantic/dialects/tensor.tepl"],
+    deps = [":frontend", "//src/core:analysis", "//src/core:semantic_solver", "@z3//:z3", "@rules_cc//cc/runfiles"],
+)
+
 sh_binary(
     name = "format",
     srcs = ["tools/format.sh"],

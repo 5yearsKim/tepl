@@ -15,6 +15,9 @@
 #include <stdexcept>
 #include <tuple>
 
+#include "src/core/semantics/constraint_match.h"
+#include "src/core/semantics/ordered.h"
+
 namespace tepl::core::semantics {
 namespace {
 using Node = inference::SemanticNode;
@@ -22,6 +25,21 @@ struct Limit : std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 struct Illegal {};
+struct Timer {
+  double* destination;
+  std::chrono::steady_clock::time_point start =
+      std::chrono::steady_clock::now();
+  explicit Timer(double& out) : destination(&out) {}
+  void stop() {
+    if (destination) {
+      *destination += std::chrono::duration<double, std::milli>(
+                          std::chrono::steady_clock::now() - start)
+                          .count();
+      destination = nullptr;
+    }
+  }
+  ~Timer() { stop(); }
+};
 struct Vector {
   z3::expr length;
   std::vector<z3::expr> entries;
@@ -42,6 +60,8 @@ struct Engine {
   z3::context ctx;
   z3::solver solver{ctx};
   std::size_t budget;
+  const SolveOptions& options;
+  SolveStatistics& statistics;
   std::chrono::steady_clock::time_point deadline;
   std::vector<Vector> shapes;
   std::vector<std::vector<Vector>> attrs;
@@ -49,20 +69,41 @@ struct Engine {
   bool generating = true;
   Engine(const inference::SemanticPlan& p, const std::vector<List>& s,
          const std::vector<List>& k, const std::vector<List>& pins,
-         std::size_t b)
+         std::size_t b, const SolveOptions& opts, SolveStatistics& stats)
       : plan(p),
         captures(s),
         known(k),
         pinned(pins),
         budget(b),
+        options(opts),
+        statistics(stats),
         deadline(std::chrono::steady_clock::now() +
                  std::chrono::milliseconds(p.timeout_ms)) {
     solver.set("timeout", p.timeout_ms);
+    solver.set("random_seed", options.random_seed);
   }
   void tick() {
     if (!budget || std::chrono::steady_clock::now() >= deadline)
       throw Limit("resource limit");
     --budget;
+  }
+  z3::check_result checkSolver() {
+    tick();
+    const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          deadline - std::chrono::steady_clock::now())
+                          .count();
+    solver.set("timeout",
+               static_cast<unsigned>(std::max<std::int64_t>(1, left)));
+    ++statistics.solver_calls;
+    Timer timer(statistics.z3_ms);
+    return solver.check();
+  }
+  bool verifyMeasured() {
+    ++statistics.candidates;
+    Timer timer(statistics.verification_ms);
+    auto result = verify();
+    if (!result) ++statistics.rejected_candidates;
+    return result;
   }
   z3::expr integer(std::uint64_t n) {
     return ctx.int_val(std::to_string(n).c_str());
@@ -192,11 +233,20 @@ struct Engine {
   }
   Value evaluate(std::size_t node, std::size_t id, const Environment& env) {
     tick();
-    const auto& n = plan.nodes.at(node);
-    const auto& e = n.expressions.at(id);
+    const auto& expressions = node == plan.nodes.size()
+                                  ? plan.constraints.expressions
+                                  : plan.nodes.at(node).expressions;
+    const auto& e = expressions.at(id);
     auto arg = [&](std::size_t i) { return eval(node, e.args.at(i), env); };
     if (e.args.empty()) {
       if (env.contains(e.op)) return Value(env.at(e.op));
+      if (e.op.starts_with("@shape:"))
+        return Value(shapes.at(std::stoul(e.op.substr(7))));
+      if (e.op.starts_with("@attr:")) {
+        auto colon = e.op.find(':', 6);
+        return Value(attrs.at(std::stoul(e.op.substr(6, colon - 6)))
+                         .at(std::stoul(e.op.substr(colon + 1))));
+      }
       if (e.op == "true" || e.op == "false")
         return Value(ctx.bool_val(e.op == "true"));
       if (e.op.starts_with('a'))
@@ -208,6 +258,7 @@ struct Engine {
       throw Limit("unbound metadata name: " + e.op);
     }
     if (e.op == "shape" || e.op == "rank") {
+      const auto& n = plan.nodes.at(node);
       auto tensor = n.expressions.at(e.args[0]).op;
       if (!tensor.starts_with('t')) throw Limit("shape requires an operand");
       auto v = shapes.at(n.inputs.at(std::stoul(tensor.substr(1))));
@@ -770,6 +821,9 @@ struct Engine {
       }
     return {Status::Found, out, "exact verification succeeded"};
   }
+  [[noreturn]] void constraintLimit(const std::string& reason) {
+    throw Limit(reason);
+  }
   // Instantiate the existing generic source-copy/identity preference first.
   // All primitive constraints and tensor equivalence must still hold. This
   // avoids constructing padded symbolic vectors for an already valid witness.
@@ -818,11 +872,19 @@ struct Engine {
       for (auto a : n.assertions) require(eval(id, a).scalar);
       shapes.push_back(literal(constants(vector(eval(id, n.shape)))));
     }
-    return verify();
+    return verifyMeasured();
   }
   Solution run() {
+    if (options.semantic_constraints && !plan.constraints.available) {
+      statistics.constraint_fallback = true;
+      statistics.fallback_reason = plan.constraints.reason;
+    }
     try {
-      if (preferredCandidate()) return witness();
+      if (options.preferred_candidate &&
+          (!options.semantic_constraints || !plan.constraints.available)) {
+        statistics.preferred_attempted = true;
+        if (preferredCandidate()) return witness();
+      }
     } catch (const Illegal&) {
       // A preference can be illegal; it never restricts the solver domain.
     } catch (const Limit&) {
@@ -833,8 +895,9 @@ struct Engine {
     attrs.clear();
     metadata_cache.clear();
     concrete_cache.clear();
+    Timer metadata_timer(statistics.metadata_ms);
     for (std::size_t id = 0; id < plan.nodes.size(); ++id) {
-      if (id == plan.source_end && solver.check() != z3::sat)
+      if (id == plan.source_end && checkSolver() != z3::sat)
         throw Limit("illegal or undecidable source metadata");
       const auto& n = plan.nodes[id];
       attrs.emplace_back();
@@ -873,8 +936,11 @@ struct Engine {
         auto bound = eval(id, f.bound);
         if (!bound.upper || *bound.upper > 32)
           throw Limit("attribute domain bound exceeds supported capacity");
-        Vector v{ctx.int_const(("len_" + std::to_string(f.output)).c_str()),
-                 {}};
+        Vector v{
+            *bound.upper == 0
+                ? integer(0)
+                : ctx.int_const(("len_" + std::to_string(f.output)).c_str()),
+            {}};
         for (std::size_t k = 0; k < *bound.upper; ++k)
           v.entries.push_back(ctx.int_const(
               ("axis_" + std::to_string(f.output) + "_" + std::to_string(k))
@@ -911,58 +977,43 @@ struct Engine {
                 shapes.back().entries[k] <=
                     integer(std::numeric_limits<std::uint64_t>::max())));
     }
-    if (plan.nodes.size() == plan.source_end && solver.check() != z3::sat)
+    if (plan.nodes.size() == plan.source_end && checkSolver() != z3::sat)
       throw Limit("illegal or undecidable source metadata");
     require(equal(shapes[plan.source_root], shapes[plan.rhs_root]));
     auto symbolic_shapes = shapes;
     auto symbolic_attrs = attrs;
-    // Prefer attribute-independent copies of source fields when they satisfy
-    // the generated constraints. This changes candidate order, never proof.
-    solver.push();
-    for (auto& [output, v] : variables) {
-      bool suggested = false;
-      for (std::size_t i = plan.source_end; i < plan.nodes.size() && !suggested;
-           ++i)
-        for (std::size_t f = 0; f < plan.nodes[i].fields.size() && !suggested;
-             ++f)
-          if (plan.nodes[i].fields[f].output == output)
-            for (std::size_t s = 0; s < plan.source_end && !suggested; ++s)
-              if (plan.nodes[s].root == plan.nodes[i].root &&
-                  plan.nodes[s].expressions.size() ==
-                      plan.nodes[i].expressions.size() &&
-                  f < attrs[s].size()) {
-                bool same = true;
-                for (std::size_t e = 0; e < plan.nodes[s].expressions.size();
-                     ++e)
-                  same &= plan.nodes[s].expressions[e].op ==
-                              plan.nodes[i].expressions[e].op &&
-                          plan.nodes[s].expressions[e].args ==
-                              plan.nodes[i].expressions[e].args;
-                if (same) {
-                  solver.add(equal(v, attrs[s][f]));
-                  suggested = true;
-                }
-              }
-      if (!suggested) {
-        solver.add(v.length == integer(v.entries.size()));
-        for (std::size_t k = 0; k < v.entries.size(); ++k)
-          solver.add(v.entries[k] == integer(k));
+    metadata_timer.stop();
+    bool compiled = false;
+    if (options.semantic_constraints && plan.constraints.available &&
+        plan.algebraic) {
+      statistics.constraint_attempted = true;
+      Timer timer(statistics.constraints_ms);
+      solver.push();
+      try {
+        detail::ConstraintMatcher<Engine>{*this}.instantiate();
+        compiled = true;
+      } catch (const Limit& e) {
+        solver.pop();
+        statistics.constraint_fallback = true;
+        statistics.fallback_reason = e.what();
+        metadata_cache.clear();
+        concrete_cache.clear();
       }
     }
-    bool preference = true, inconclusive = false;
+    bool inconclusive = false;
     while (true) {
       tick();
-      const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            deadline - std::chrono::steady_clock::now())
-                            .count();
-      solver.set("timeout",
-                 static_cast<unsigned>(std::max<std::int64_t>(1, left)));
-      auto check = solver.check();
+      auto check = checkSolver();
       if (check == z3::unknown) throw Limit(solver.reason_unknown());
       if (check == z3::unsat) {
-        if (preference) {
+        if (compiled) {
           solver.pop();
-          preference = false;
+          compiled = false;
+          statistics.constraint_fallback = true;
+          statistics.fallback_reason = "sufficient constraints exhausted";
+          // Sufficient matching constraints cannot justify impossibility.
+          metadata_cache.clear();
+          concrete_cache.clear();
           continue;
         }
         return {
@@ -970,6 +1021,9 @@ struct Engine {
             {},
             "no verified attribute assignment"};
       }
+      if (options.max_candidates &&
+          statistics.candidates >= options.max_candidates)
+        throw Limit("candidate limit");
       auto model = solver.get_model();
       generating = false;
       for (std::size_t i = 0; i < shapes.size(); ++i)
@@ -980,11 +1034,20 @@ struct Engine {
       concrete_cache.clear();
       bool valid_candidate = false;
       try {
-        valid_candidate = verify();
+        valid_candidate = verifyMeasured();
       } catch (const Illegal&) {
+        ++statistics.rejected_candidates;
         inconclusive = true;
       }
-      if (valid_candidate) return witness();
+      if (valid_candidate) {
+        auto out = witness();
+        if (compiled) {
+          out.method = "constraints-z3";
+          out.reason =
+              "compiled semantic constraints and exact verification succeeded";
+        }
+        return out;
+      }
       // Exclude precisely this joint candidate, preserving all other models.
       auto block = ctx.bool_val(false);
       for (auto& [output, v] : variables) {
@@ -994,10 +1057,7 @@ struct Engine {
       shapes = symbolic_shapes;
       attrs = symbolic_attrs;
       generating = true;
-      if (preference) {
-        solver.pop();
-        preference = false;
-      }
+      metadata_cache.clear();
       solver.add(block);
     }
   }
@@ -1018,23 +1078,71 @@ std::vector<std::size_t> readNumbers(std::istream& in) {
 Solution solve(const inference::SemanticPlan& p,
                const std::vector<List>& shapes, const std::vector<List>& known,
                const std::vector<List>& pinned, std::size_t budget) {
+  const auto began = std::chrono::steady_clock::now();
+  const auto ordered = std::chrono::steady_clock::now();
+  auto direct = solveOrdered(p, shapes, known, pinned, budget);
+  const auto ordered_ms = std::chrono::duration<double, std::milli>(
+                              std::chrono::steady_clock::now() - ordered)
+                              .count();
+  if (auto result = std::move(direct)) {
+    result->statistics.ordered_ms = ordered_ms;
+    result->statistics.total_ms = std::chrono::duration<double, std::milli>(
+                                      std::chrono::steady_clock::now() - began)
+                                      .count();
+    return std::move(*result);
+  }
+  auto remaining = std::chrono::milliseconds(p.timeout_ms) -
+                   (std::chrono::steady_clock::now() - began);
+  if (remaining <= std::chrono::steady_clock::duration::zero()) {
+    Solution result{
+        Status::Unknown, {}, "contract admission exhausted timeout"};
+    result.statistics.ordered_ms = ordered_ms;
+    result.statistics.total_ms = std::chrono::duration<double, std::milli>(
+                                     std::chrono::steady_clock::now() - began)
+                                     .count();
+    return result;
+  }
+  auto fallback = p;
+  fallback.timeout_ms = std::max<std::int64_t>(
+      1,
+      std::chrono::duration_cast<std::chrono::milliseconds>(remaining).count());
+  auto result = solveGeneric(fallback, shapes, known, pinned, budget);
+  result.statistics.ordered_ms = ordered_ms;
+  result.statistics.total_ms = std::chrono::duration<double, std::milli>(
+                                   std::chrono::steady_clock::now() - began)
+                                   .count();
+  return result;
+}
+Solution solveGeneric(const inference::SemanticPlan& p,
+                      const std::vector<List>& shapes,
+                      const std::vector<List>& known,
+                      const std::vector<List>& pinned, std::size_t budget,
+                      const SolveOptions& options) {
+  SolveStatistics statistics;
+  Timer timer(statistics.total_ms);
+  Solution result;
   try {
-    return Engine(p, shapes, known, pinned, budget).run();
+    result =
+        Engine(p, shapes, known, pinned, budget, options, statistics).run();
   } catch (const Limit& e) {
-    return {Status::Unknown, {}, e.what()};
+    result = {Status::Unknown, {}, e.what()};
   } catch (const Illegal&) {
-    return {
+    result = {
         Status::Unknown, {}, "unsupported or illegal source/shape metadata"};
   } catch (const z3::exception& e) {
-    return {Status::Unknown, {}, e.msg()};
+    result = {Status::Unknown, {}, e.msg()};
   } catch (const std::exception& e) {
-    return {Status::Unknown, {}, e.what()};
+    result = {Status::Unknown, {}, e.what()};
   }
+  timer.stop();
+  result.statistics = std::move(statistics);
+  return result;
 }
 std::string encodePlan(const inference::SemanticPlan& p) {
   std::ostringstream out;
-  out << p.source_root << ' ' << p.rhs_root << ' ' << p.source_end << ' '
-      << p.algebraic << ' ' << p.timeout_ms << ' ' << p.nodes.size() << ' ';
+  out << "tepl-constraints-2 " << p.source_root << ' ' << p.rhs_root << ' '
+      << p.source_end << ' ' << p.algebraic << ' ' << p.timeout_ms << ' '
+      << p.nodes.size() << ' ';
   for (auto& n : p.nodes) {
     out << n.capture << ' ';
     writeNumbers(out, n.inputs);
@@ -1049,6 +1157,25 @@ std::string encodePlan(const inference::SemanticPlan& p) {
       writeNumbers(out, e.args);
     }
   }
+  const auto& c = p.constraints;
+  out << c.available << ' ' << std::quoted(c.reason) << ' '
+      << c.expressions.size() << ' ';
+  for (auto& e : c.expressions) {
+    out << std::quoted(e.op) << ' ';
+    writeNumbers(out, e.args);
+  }
+  writeNumbers(out, c.domains);
+  for (auto* terms : {&c.lhs, &c.rhs}) {
+    out << terms->size() << ' ';
+    for (auto& t : *terms) {
+      out << t.coefficient << ' ';
+      writeNumbers(out, t.reductions);
+      writeNumbers(out, t.unused_reductions);
+      out << t.reads.size() << ' ';
+      for (auto& read : t.reads)
+        out << read.capture << ' ' << read.indices << ' ';
+    }
+  }
   return out.str();
 }
 std::string solveRequest(const std::string& request) {
@@ -1056,6 +1183,9 @@ std::string solveRequest(const std::string& request) {
     std::istringstream in(request);
     inference::SemanticPlan p;
     std::size_t count;
+    std::string version;
+    if (!(in >> version) || version != "tepl-constraints-2")
+      throw Limit("unsupported constraint plan format");
     if (!(in >> p.source_root >> p.rhs_root >> p.source_end >> p.algebraic >>
           p.timeout_ms >> count) ||
         count > 10000)
@@ -1078,6 +1208,45 @@ std::string solveRequest(const std::string& request) {
         e.args = readNumbers(in);
       }
     }
+    auto& c = p.constraints;
+    in >> c.available >> std::quoted(c.reason) >> count;
+    if (!in || count > 10000) throw Limit("malformed constraint expressions");
+    c.expressions.resize(count);
+    for (std::size_t i = 0; i < c.expressions.size(); ++i) {
+      auto& e = c.expressions[i];
+      in >> std::quoted(e.op);
+      e.args = readNumbers(in);
+      for (auto arg : e.args)
+        if (arg >= i) throw Limit("constraint expressions must be a DAG");
+    }
+    c.domains = readNumbers(in);
+    for (auto domain : c.domains)
+      if (domain >= c.expressions.size())
+        throw Limit("malformed reduction domain");
+    for (auto* terms : {&c.lhs, &c.rhs}) {
+      in >> count;
+      if (!in || count > 64) throw Limit("malformed constraint terms");
+      terms->resize(count);
+      for (auto& t : *terms) {
+        in >> t.coefficient;
+        t.reductions = readNumbers(in);
+        for (auto b : t.reductions)
+          if (b >= c.domains.size()) throw Limit("malformed reduction binder");
+        t.unused_reductions = readNumbers(in);
+        for (auto b : t.unused_reductions)
+          if (std::find(t.reductions.begin(), t.reductions.end(), b) ==
+              t.reductions.end())
+            throw Limit("malformed unused reduction");
+        in >> count;
+        if (!in || count > 10000) throw Limit("malformed tensor reads");
+        t.reads.resize(count);
+        for (auto& r : t.reads) {
+          in >> r.capture >> r.indices;
+          if (r.indices >= c.expressions.size())
+            throw Limit("malformed access map");
+        }
+      }
+    }
     auto lists = [&]() {
       in >> count;
       if (count > 100000) throw Limit("malformed lists");
@@ -1098,6 +1267,15 @@ std::string solveRequest(const std::string& request) {
         << ' ';
     out << result.fields.size() << ' ';
     for (auto& f : result.fields) writeNumbers(out, f);
+    // Rust exposes the selected inference path and the diagnostic.
+    out << result.method << ' ';
+    if (result.reason.empty())
+      out << '-';
+    else {
+      constexpr char hex[] = "0123456789abcdef";
+      for (unsigned char c : result.reason) out << hex[c >> 4] << hex[c & 15];
+    }
+    out << ' ';
     return out.str();
   } catch (...) {
     return "2 0 ";

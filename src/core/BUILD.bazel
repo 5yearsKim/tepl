@@ -50,6 +50,14 @@ cc_library(
 )
 
 cc_library(
+    name = "constraint_generation",
+    srcs = ["inference/constraints.cc", "inference/constraint_normalize.cc"],
+    hdrs = ["inference/constraints.h", "inference/constraint_normalize.h"],
+    deps = [":ir"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "analysis",
     srcs = [
         "analysis_context.cc",
@@ -109,6 +117,7 @@ cc_library(
         "//:source",
         "//src/ast:ast",
         ":semantic_solver",
+        ":constraint_generation",
     ],
 )
 
@@ -122,8 +131,8 @@ cc_library(
 
 cc_library(
     name = "semantic_solver",
-    srcs = ["semantics/solver.cc"],
-    hdrs = ["semantics/solver.h"],
+    srcs = ["semantics/solver.cc", "semantics/ordered.cc"],
+    hdrs = ["semantics/solver.h", "semantics/ordered.h", "semantics/constraint_match.h"],
     deps = [":ir", ":z3_solver"],
     visibility = ["//visibility:public"],
 )

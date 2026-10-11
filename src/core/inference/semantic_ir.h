@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,31 @@ struct KnownField {
   AttributeSchemaId schema;
   std::size_t field;
 };
+struct ConstraintRead {
+  std::size_t capture = 0;
+  std::size_t indices = 0;
+};
+struct ConstraintTerm {
+  std::int64_t coefficient = 1;
+  std::vector<std::size_t> reductions;
+  std::vector<ConstraintRead> reads;
+  // Subset of reductions whose coordinates occur in no access expression.
+  // Match-time constraints may eliminate them only for one-point domains.
+  std::vector<std::size_t> unused_reductions;
+};
+// A compiled sufficient condition for semantic equality. Vector lengths and
+// domains remain symbolic until a match. Failed matching is never an
+// impossibility proof; the original semantics remain available for
+// verification.
+struct ConstraintPlan {
+  bool available = false;
+  std::string reason;
+  // @shape:N / @attr:N:F reference metadata. @output / @bound:N reference
+  // coordinate vectors; binder identities are globally unique in this plan.
+  std::vector<SemanticExpr> expressions;
+  std::vector<std::size_t> domains;
+  std::vector<ConstraintTerm> lhs, rhs;
+};
 struct SemanticPlan {
   std::vector<CaptureId> captures;
   std::vector<SemanticNode> nodes;
@@ -37,5 +63,6 @@ struct SemanticPlan {
   std::size_t source_root = 0, rhs_root = 0, source_end = 0;
   bool algebraic = false;
   unsigned timeout_ms = 1000;
+  ConstraintPlan constraints;
 };
 }  // namespace tepl::core::inference

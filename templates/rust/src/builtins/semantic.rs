@@ -9,9 +9,18 @@ pub enum Status {
     Invalid,
     Unknown,
 }
+#[derive(Debug, PartialEq, Eq)]
+pub enum Method {
+    Ordered,
+    ConstraintsZ3,
+    Z3,
+    Unavailable,
+}
 pub struct Solution {
     pub status: Status,
     pub fields: Vec<List>,
+    pub method: Method,
+    pub reason: String,
 }
 #[cfg(unix)]
 unsafe extern "C" {
@@ -53,6 +62,8 @@ pub fn solve(plan: &str, shapes: &[List], known: &[List], pinned: &[List]) -> So
     let unknown = || Solution {
         status: Status::Unknown,
         fields: vec![],
+        method: Method::Unavailable,
+        reason: "semantic runtime unavailable or malformed response".into(),
     };
     let Some(solver) = solver() else {
         return unknown();
@@ -98,6 +109,33 @@ pub fn solve(plan: &str, shapes: &[List], known: &[List], pinned: &[List]) -> So
         }
         fields.push(list);
     }
+    let method = match tokens.next() {
+        Some("ordered") => Method::Ordered,
+        Some("constraints-z3") => Method::ConstraintsZ3,
+        Some("z3") => Method::Z3,
+        _ => return unknown(),
+    };
+    let reason = match tokens.next() {
+        Some("-") => String::new(),
+        None => return unknown(),
+        Some(encoded) => {
+            if encoded.len() > 65536 || encoded.len() % 2 != 0 {
+                return unknown();
+            }
+            let mut bytes = Vec::new();
+            for pair in encoded.as_bytes().chunks_exact(2) {
+                let digit = |c: u8| (c as char).to_digit(16);
+                let (Some(a), Some(b)) = (digit(pair[0]), digit(pair[1])) else {
+                    return unknown();
+                };
+                bytes.push((a * 16 + b) as u8);
+            }
+            let Ok(reason) = String::from_utf8(bytes) else {
+                return unknown();
+            };
+            reason
+        }
+    };
     Solution {
         status: match status {
             "0" => Status::Found,
@@ -105,6 +143,8 @@ pub fn solve(plan: &str, shapes: &[List], known: &[List], pinned: &[List]) -> So
             _ => Status::Unknown,
         },
         fields,
+        method,
+        reason,
     }
 }
 pub fn construct(

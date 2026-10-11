@@ -1,0 +1,15 @@
+{
+  "stage": "after extensions",
+  "utc": "2026-10-11T17:17:15.977463+00:00",
+  "command": "bazel build -c opt //:semantic_benchmark; bazel-bin/semantic_benchmark --repeats 3 --warmup 1 --timeout-ms 500",
+  "sha256": {
+    "src/core/inference/constraints.cc": "62a96ada10987702d337f43d8fb1d3616d933c31cf8891136ce0a3df1c899c69",
+    "src/core/inference/constraint_normalize.cc": "1ea891d0d9f5df323749e8263e37370bfe7df8def211b76594cb7dfe2195416c",
+    "src/core/inference/constraint_normalize.h": "4f736d4e4942d9031e1b169d4f7eadb89a5fedc1e43f7085e3f2f6689d9db271",
+    "src/core/inference/semantic_ir.h": "de04afbd1a3d0a88d6e6e39edd939694cf7b0b28dee5a61a55a441fb9b64b2b9",
+    "src/core/semantics/solver.cc": "1430442b93cff3d750a5851d455cb6a4e80826a0d3e2a973d6429407ed12361f",
+    "src/core/semantics/solver.h": "0dd59618f562a2de193f352530e8ef923d2bc400054c9f81866e6459373a4c8f",
+    "src/core/semantics/constraint_match.h": "64c0da85ef228c523a1bd7d70c46c38727b17ddbe26bd1e5b84a501fa49c611c",
+    "tools/semantic_benchmark.cc": "dd116169aed0b00eae35c9b3000122332561fef3f1764187faeef11cf51bb52d"
+  }
+}

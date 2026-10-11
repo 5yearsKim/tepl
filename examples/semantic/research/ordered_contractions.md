@@ -2,7 +2,14 @@
 
 **Status:** research draft, October 10, 2026. This note develops a hand proof and
 a standalone exhaustive small-model experiment. It is not a proof-assistant
-development, a novelty claim, or functionality added to TEPL's compiler.
+development or a novelty claim.
+
+**Implementation update, October 11, 2026:** TEPL now has a conservative
+primitive-IR contract extractor and an instance constructor with independently
+checked network witnesses and ordering obstructions in `src/core/semantics/ordered.*`.
+Generated Rust applications invoke it through the existing native runtime. The
+two-axis compile-time coverage check is not implemented. This engineering work
+does not replace independent review of the mathematical proof.
 
 ## Proposed paper contribution
 
@@ -30,7 +37,8 @@ Three consequences form a coherent paper contribution:
 The mathematical result is about ordered contraction semantics. A further
 systems contribution would extract this semantic contract from user-defined
 operations instead of dispatching on their names. That extraction is not
-implemented or proved here.
+partially implemented by the normal-form certifier described in the
+[README](../README.md). A general extraction procedure is not proved here.
 
 ## 1. Exact domain
 
@@ -389,8 +397,8 @@ For a strong paper, the next work should be:
    subsequence-construction, and restriction proofs.
 2. Define a semantic contract for the admitted operations and prove a generic
    lowering from TEPL's element/index semantics into that contract.
-3. Implement construction and small certificates in the compiler, separately
-   checking the certificates before applying a rewrite.
+3. Audit the implemented normal-form extraction, constructor, and separate
+   certificate checks. Extend them only with sound admission proofs.
 4. Evaluate against exhaustive search and the current generic engine on
    arbitrary-rank contractions, transposes, deliberate order failures, and
    renamed/custom-defined operators with the same semantic contract.
@@ -439,5 +447,6 @@ unrealizable contraction tree. A prototype compares the structural procedure
 with exhaustive attribute enumeration on small instances. General semantic
 lowering and extensions to additive expressions remain future work.
 
-This abstract describes the draft mathematical development, not a completed
-TEPL implementation or an independently reviewed publication result.
+This abstract describes the draft mathematical development. The instance path
+now has a restricted TEPL implementation; universal coverage and an independently
+reviewed publication result remain future work.

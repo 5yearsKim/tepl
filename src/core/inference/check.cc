@@ -6,6 +6,8 @@
 #include <stdexcept>
 
 #include "src/core/analysis_context.h"
+#include "src/core/inference/constraints.h"
+#include "src/core/semantics/ordered.h"
 #include "src/core/semantics/solver.h"
 
 namespace tepl::core::inference {
@@ -182,9 +184,12 @@ struct Builder {
       fail("unknown: shape comprehensions are outside the constraint fragment");
     };
     for (const auto& s : o.shape->statements) {
-      if (auto l = std::get_if<metadata::Let>(&s.value))
-        symbols[l->symbol.value] = metadata(metadata, *l->value);
-      else
+      if (auto l = std::get_if<metadata::Let>(&s.value)) {
+        auto value = metadata(metadata, *l->value);
+        symbols[l->symbol.value] = value;
+        // A let can impose legality even when its result is unused.
+        n.assertions.push_back(emit("==", {value, value}));
+      } else
         n.assertions.push_back(
             metadata(metadata, *std::get<metadata::Assert>(s.value).condition));
     }
@@ -268,16 +273,31 @@ struct Builder {
     plan.algebraic =
         context.options.semantic_policy == SemanticPolicy::kAlgebraic;
     plan.timeout_ms = context.options.solver_timeout_ms;
-    result.selection = "deterministic-solver";
+    plan.constraints = compileConstraints(plan);
+    result.selection = "deterministic-witness";
     result.coverage = "match-guarded";
     result.proof = {
-        "primitive shape constraints -> Z3 -> exact entry polynomial "
-        "verification",
-        "invalid means exhaustive solver exclusion at fixed metadata; timeouts "
-        "are unknown",
+        "checked ordered construction; otherwise compiled semantic constraints "
+        "-> Z3 -> exact verification, with unrestricted metadata-search fallback",
+        "invalid means a checked ordering obstruction or exhaustive solver "
+        "exclusion at fixed metadata; timeouts are unknown",
         "universal arbitrary-rank coverage is not claimed",
         "algebraic uses exact rational arithmetic; strict compares expanded "
         "evaluation traces"};
+    std::size_t certified = 0, operations = 0;
+    for (auto& n : plan.nodes) {
+      if (n.capture >= 0) continue;
+      ++operations;
+      certified += bool(semantics::extractOrderedContract(n));
+    }
+    result.proof.push_back(
+        "compiled semantic constraints: " +
+        std::string(plan.constraints.available ? "sufficient; " : "fallback; ") +
+        plan.constraints.reason);
+    result.proof.push_back(
+        "ordered semantic contracts: " + std::to_string(certified) + "/" +
+        std::to_string(operations) +
+        "; eligible algebraic matches use structural inference");
     result.semantic = std::move(plan);
     return std::move(result);
   }

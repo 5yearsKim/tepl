@@ -435,3 +435,157 @@ fn bound_intermediate_keeps_its_semantics() {
         .unwrap();
     assert_eq!(g.find(root), g.find(expected));
 }
+
+#[test]
+fn structural_inference_handles_reordered_rank_100_axes() {
+    let batch_rank = 98u64;
+    let mut a_shape = vec![2; batch_rank as usize];
+    a_shape.extend([3, 4]);
+    let mut b_shape = vec![2; batch_rank as usize + 1];
+    b_shape[0] = 5;
+    b_shape.push(4);
+    let mut c_shape = vec![2; batch_rank as usize + 1];
+    c_shape[0] = 5;
+    c_shape.push(6);
+    let mut bindings = TensorBindingTable::default();
+    for (name, shape) in [("a", a_shape), ("b", b_shape), ("c", c_shape)] {
+        bindings
+            .register_symbol(
+                name,
+                TensorInfo {
+                    shape,
+                    dtype: DType::F32,
+                },
+            )
+            .unwrap();
+    }
+    let mut g = EGraph::new(TensorAnalysis::new(bindings));
+    let a = g.add(OpNode::input("a"));
+    let b = g.add(OpNode::input("b"));
+    let c = g.add(OpNode::input("c"));
+    let batch: Vec<u64> = (0..batch_rank).collect();
+    let shifted: Vec<u64> = (1..=batch_rank).collect();
+    let ab = g.add(dot(
+        vec![99],
+        vec![99],
+        batch.clone(),
+        shifted.clone(),
+        a,
+        b,
+    ));
+    let root = g.add(dot(
+        vec![99],
+        vec![0],
+        batch.clone(),
+        shifted.clone(),
+        ab,
+        c,
+    ));
+    g.rebuild();
+    let rule = rule_associate::build(()).unwrap();
+    let matched = rule.search(&g);
+    assert!(!rule.apply(&mut g, &matched).is_empty());
+    g.rebuild();
+    let bc = g
+        .lookup(dot(vec![0], vec![0], shifted.clone(), shifted, b, c))
+        .unwrap();
+    let result = g
+        .lookup(dot(vec![99], vec![98], batch.clone(), batch, a, bc))
+        .unwrap();
+    assert_eq!(g.find(root), g.find(result));
+}
+
+#[test]
+fn two_axis_order_obstruction_declines_without_mutation() {
+    let mut bindings = TensorBindingTable::default();
+    for name in ["a", "b", "c"] {
+        bindings
+            .register_symbol(
+                name,
+                TensorInfo {
+                    shape: vec![2],
+                    dtype: DType::F32,
+                },
+            )
+            .unwrap();
+    }
+    let mut g = EGraph::new(TensorAnalysis::new(bindings));
+    let a = g.add(OpNode::input("a"));
+    let b = g.add(OpNode::input("b"));
+    let c = g.add(OpNode::input("c"));
+    let ab = g.add(dot(vec![], vec![], vec![], vec![], a, b));
+    g.add(dot(vec![], vec![], vec![1], vec![0], ab, c));
+    g.rebuild();
+    let rule = rule_associate::build(()).unwrap();
+    let matched = rule.search(&g);
+    assert!(!matched.is_empty());
+    let before = g.total_size();
+    assert!(rule.apply(&mut g, &matched).is_empty());
+    assert_eq!(g.total_size(), before);
+}
+
+#[test]
+fn singleton_reduction_constructs_identity_transpose() {
+    let (mut g, a, _) = graph(vec![2, 3], vec![2, 3]);
+    let root = g.add(OpNode::new(Op::UnitSum, OpAttrs::None, vec![a]).unwrap());
+    g.rebuild();
+    let rule = rule_singleton_reduction::build(()).unwrap();
+    let matches = rule.search(&g);
+    assert!(!rule.apply(&mut g, &matches).is_empty());
+    g.rebuild();
+    let output = g
+        .lookup(
+            OpNode::new(
+                Op::Transpose,
+                OpAttrs::TransposeAttrs {
+                    permutation: vec![0, 1],
+                },
+                vec![a],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(g.find(root), g.find(output));
+}
+
+#[test]
+fn dynamic_singleton_guard_preserves_nonunit_matches() {
+    for (extent, succeeds) in [(1, true), (2, false)] {
+        let (mut g, _, _) = graph(vec![extent, 3], vec![extent, 3]);
+        let rule = rule_dynamic_singleton::build(()).unwrap();
+        let matches = rule.search(&g);
+        let before = g.total_size();
+        assert_eq!(!rule.apply(&mut g, &matches).is_empty(), succeeds);
+        if !succeeds {
+            assert_eq!(g.total_size(), before);
+        }
+    }
+}
+
+#[test]
+fn equivalent_reduction_binders_combine_coefficients() {
+    let (mut g, a, _) = graph(vec![2, 3], vec![2, 3]);
+    let attrs = OpAttrs::Reduction { reduced: vec![1] };
+    let root = g.add(OpNode::new(Op::TwiceFold, attrs.clone(), vec![a]).unwrap());
+    g.rebuild();
+    let rule = rule_alpha_equivalent_terms::build(()).unwrap();
+    let matches = rule.search(&g);
+    assert!(!rule.apply(&mut g, &matches).is_empty());
+    g.rebuild();
+    let folded = g
+        .lookup(OpNode::new(Op::DoubleFold, attrs, vec![a]).unwrap())
+        .unwrap();
+    let output = g
+        .lookup(
+            OpNode::new(
+                Op::Transpose,
+                OpAttrs::TransposeAttrs {
+                    permutation: vec![0],
+                },
+                vec![folded],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(g.find(root), g.find(output));
+}

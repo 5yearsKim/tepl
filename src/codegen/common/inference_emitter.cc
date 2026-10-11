@@ -144,9 +144,11 @@ struct Emitter {
       text += c;
     }
     text += '"';
-    auto call = prefix + "construct(" + text + "," + lists(shapes) + "," +
-                lists(known) + "," + lists(pinned) + ")";
+    auto call = prefix + "construct(" +
+                (syntax.rust ? "AUTO_CONSTRAINT_PLAN" : text) + "," +
+                lists(shapes) + "," + lists(known) + "," + lists(pinned) + ")";
     auto out = flush();
+    if (syntax.rust) out += "const AUTO_CONSTRAINT_PLAN: &str = " + text + ";\n";
     out += "if (!" + runtime() + "::dtype::is_numeric(" + dtypes.at(0) + ")";
     for (std::size_t i = 1; i < dtypes.size(); ++i)
       out += " || (" + dtypes[i] + ") != (" + dtypes[0] + ")";
