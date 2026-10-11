@@ -59,9 +59,11 @@ resolved shape + semantics expressions
 at match time:
     → certified ordered-contraction fragment?
         yes: construct attributes and check network/certificate
-        no: instantiate metadata + semantic constraints in Z3
+        no: propagate finite axis domains using the compiled primitive DAG
+            → fully determined attributes? verify directly
+            → otherwise: instantiate residual metadata + semantic constraints in Z3
             → candidate → exact equivalence check
-            → if sufficient constraints fail: unrestricted metadata search
+            → if sufficient constraints fail: rebuild unrestricted metadata search
     → construct RHS only after verification
 ```
 
@@ -113,13 +115,53 @@ a length variable and bounded integer entries, with range and distinctness
 constraints. Other assertions constrain lengths, extents, and axis relationships.
 Intermediate output shapes and final output order are constrained as well.
 
-The generic solver uses Z3 models rather than enumerating permutations in
+The residual solver uses Z3 models rather than enumerating permutations in
 application code. When no compiled semantic plan is available, a source-field
 copy or identity ordering is tried first, checking legality and equivalence
 before acceptance. Otherwise, the compiled constraints guide the first search.
 If a candidate fails verification, the solver excludes that exact joint
 assignment and requests another model. The unrestricted fallback can still
 inspect many assignments.
+
+### Axis propagation before SMT
+
+The compiled expression DAG also supplies a propagation program. At match time,
+`axis_domains.cc` interprets `gather`, `scatter`, `concat`, `take`/`slice`, `exclude`,
+and primitive metadata relationships as finite-domain constraints. A work list
+propagates changes until no domain shrinks. Domains track list lengths separately
+from active entries; optional padded entries do not force an axis assignment.
+
+Known LHS coordinates label output and reduction indices. Corresponding RHS reads
+restrict where those labels can occur. Range, disjointness, and distinctness
+constraints propagate the restrictions to attributes. A prefix whose available
+values cannot supply distinct entries limits the list length. Shared fields use
+the same domains, and all uniquely paired terms constrain those domains jointly.
+No operation or attribute names participate.
+
+Forced entries become constants. Inactive tails disappear. Z3 receives only
+unresolved lengths and entries, with narrowed domains. Concrete vector operations
+are folded, and simple symbolic lookups use their remaining position domains.
+When every attribute is determined, the existing legality and equivalence verifier
+runs directly without an SMT search. The Rust method remains `ConstraintsZ3`;
+its reason identifies direct propagation, and native statistics record zero
+solver calls.
+
+Propagation currently requires unique term correspondence and distinct captures
+within each term. Ambiguous term matching, repeated captures, optional unused RHS
+reductions, guarded metadata, and unsupported arithmetic retain the ordinary
+matcher. Equal extents never justify merging axes. This pass neither searches
+permutations nor chooses one representative of an unproved symmetry.
+
+Its restrictions belong to the **sufficient matcher**. A contradiction does not
+prove semantic impossibility. If reduced matching is exhausted or a concrete
+propagated candidate fails verification, the solver rebuilds unrestricted metadata
+with none of those restrictions. Time and work budgets carry across attempts.
+This preserves the existing fallback and `Unknown` behavior.
+
+Generic tests cover ranks 100 and 200 for permutations and distribution. Benchmarks
+also cover association and LoRA with one high-rank operand and matrix weights.
+These successes do not guarantee every highly batched or ambiguous rank-100 case.
+See [axis propagation measurements](benchmarks/AXIS_PROPAGATION.md).
 
 The verifier recursively substitutes intermediate tensor reads, expands scalar
 addition and multiplication, and compares polynomials over independent input
@@ -135,6 +177,7 @@ The implementation is shared between the compiler and both generated backends:
 - `src/core/inference/constraints.*`, `constraint_normalize.*`: compile-time composition and term normalization.
 - `src/core/semantics/solver.cc`: primitive constraints, Z3, and equivalence checks.
 - `src/core/semantics/constraint_match.h`: term, factor-occurrence, and reduction matching constraints.
+- `src/core/semantics/axis_domains.*`: finite-domain propagation before SMT allocation.
 - `src/core/semantics/ordered.*`: contract extraction, construction, certificate checks.
 - `src/core/semantics/runtime.cc`: versioned native ABI.
 - `templates/{rust,cpp}/src/builtins/semantic.*`: generated runtime adapters.
@@ -181,8 +224,7 @@ checker verifies a two-axis ordering obstruction at a dot or input leaf. This
 rejects every RHS assignment in the admitted fragment. Adding an unrestricted
 root transpose repairs ordering failures in that fragment.
 
-Resource exhaustion remains `Unknown`. The generic list-allocation limit of 32
-does not apply to this path; it has a total input-axis limit of 100,000, tree depth
+Resource exhaustion remains `Unknown`. This path has a total input-axis limit of 100,000, tree depth
 limit of 256, and the configured time/work budget. These are implementation
 limits, not a mathematical rank bound. Construction cost is polynomial in tree
 size and axis count; no tight complexity bound is claimed.
@@ -259,10 +301,13 @@ shape constraints to produce such a diagnostic.
 auto rule reports `coverage=match-guarded`; some or all matches can fail. Checking
 small ranks does not establish a theorem for higher ranks.
 
-The generic solver's rank representation has practical resource limits:
-symbolic unknown axis-list allocations currently have capacity at most 32, index/shape vector capacity
-at most 256, and polynomials at most 4096 terms. The solver timeout covers
-constraint construction and verification as well as Z3. Exceeding a limit means
+The generic solver has separate limits for vector capacity and unresolved
+attribute variables: 4096 vector entries and 512 symbolic attribute variables by
+default, configurable through native `SolveOptions`. Forced entries do not count
+as symbolic variables. Propagation also bounds stored domains and relational work;
+its materialized uncertainty intervals contain at most 8193 values. Polynomials
+remain limited to 4096 terms. The timeout covers propagation, constraint
+construction, and verification as well as Z3. Exceeding a resource limit means
 unknown, never a mathematical rank counterexample.
 
 ## Measuring constraint generation

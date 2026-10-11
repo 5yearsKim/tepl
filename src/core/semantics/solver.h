@@ -12,6 +12,13 @@ enum class Status { Found, Invalid, Unknown };
 struct SolveStatistics {
   double total_ms = 0, metadata_ms = 0, constraints_ms = 0;
   double z3_ms = 0, verification_ms = 0, ordered_ms = 0;
+  double propagation_ms = 0;
+  std::size_t original_axis_entries = 0, forced_axis_entries = 0;
+  std::size_t residual_axis_entries = 0, symbolic_axis_variables = 0;
+  std::size_t propagation_instructions = 0;
+  bool propagation_attempted = false, propagation_applied = false;
+  bool propagation_direct = false, propagation_fallback = false;
+  std::string propagation_reason;
   std::size_t solver_calls = 0, candidates = 0, rejected_candidates = 0;
   bool constraint_attempted = false, constraint_fallback = false;
   bool preferred_attempted = false;
@@ -20,6 +27,11 @@ struct SolveStatistics {
 struct SolveOptions {
   bool semantic_constraints = true;
   bool preferred_candidate = true;
+  bool axis_propagation = true;
+  // Account for allocated vectors and unresolved attribute variables
+  // separately.
+  std::size_t max_vector_capacity = 4096;
+  std::size_t max_symbolic_axis_variables = 512;
   unsigned random_seed = 0;
   // Zero means no candidate-count limit beyond the time/work budget.
   std::size_t max_candidates = 0;

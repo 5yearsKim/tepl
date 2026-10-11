@@ -229,7 +229,8 @@ int main(int argc, char** argv) {
       }
     auto measured = solve(plan(alpha), {{2, 3}}, {{1}, {1}});
     check(
-        measured.statistics.solver_calls >= 2 &&
+        (measured.statistics.solver_calls >= 2 ||
+         measured.statistics.propagation_direct) &&
             measured.statistics.candidates >= 1 &&
             measured.statistics.total_ms >= measured.statistics.verification_ms,
         "solver metrics cover compilation-guided inference");

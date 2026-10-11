@@ -1,0 +1,33 @@
+{
+  "cpu": "Intel(R) Core(TM) Ultra 7 155H",
+  "system": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43",
+  "z3": "4.15.2.0",
+  "compiler": "15.2.0",
+  "build_mode": "optimized",
+  "binary_sha256": "51c11f3207ca60c68527f2d0eda1b78ab99be4f4134f7026c73f43a4d080153b",
+  "source_sha256": {
+    "src/core/semantics/axis_domains.cc": "d43f68b22139f4e8bc691760e61987d98bf8dbce0c09f6ca5984f98c74ccae66",
+    "src/core/semantics/axis_domains.h": "b1592dde4f6cf93a7b06ba5873742204d3934ed9436bad2c58e002c3f7b7f0f0",
+    "src/core/semantics/solver.cc": "de727fff002713a4a5bc5bb7e42af54a4a0dd1d01347ea80cc76e06543e873ef",
+    "src/core/semantics/solver.h": "78d6e4750572ed0bc5c7d0d76c228c79699dc3d61a1d5cffe5b205a1a5562360",
+    "src/core/semantics/constraint_match.h": "e60298206039ee6ee4c2c85d0f391d968a0f1128af5a56432cc2c8c33382dbc8",
+    "src/core/inference/constraints.cc": "62a96ada10987702d337f43d8fb1d3616d933c31cf8891136ce0a3df1c899c69",
+    "src/core/inference/semantic_ir.h": "df82fd2666ecb4a4bfa7ad37b72a57197d6e5b84cbe1b1f4766582f5ad33f195",
+    "tools/semantic_benchmark.cc": "8d35417c4f8bac68bb8348e7e8e97d416b65e52d7cd9337cf363d103efba6b5e",
+    "examples/semantic/dialects/tensor.tepl": "bb5864a67aca75199c4b86d703b09d96ef4a3e7180032a3bb9ad6a6d06facce3"
+  },
+  "repeats": 3,
+  "warmup": 1,
+  "timeout_ms": 2000,
+  "budget": 10000000,
+  "seed": 0,
+  "max_candidates": 64,
+  "modes": [
+    "compiled",
+    "unreduced"
+  ],
+  "csv_sha256": {
+    "axis_propagation.csv": "ed29408af3778f56669e1a0467db22b7969fd1606921a422a1021d0ac1a0ecc8",
+    "axis_unreduced.csv": "8549cacb05b8f1e84a5ab29a50b279924c2b4a469baae9c3c56f6ca4af6ff56e"
+  }
+}

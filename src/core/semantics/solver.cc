@@ -15,6 +15,7 @@
 #include <stdexcept>
 #include <tuple>
 
+#include "src/core/semantics/axis_domains.h"
 #include "src/core/semantics/constraint_match.h"
 #include "src/core/semantics/ordered.h"
 
@@ -25,6 +26,7 @@ struct Limit : std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 struct Illegal {};
+struct RetryUnrestricted {};
 struct Timer {
   double* destination;
   std::chrono::steady_clock::time_point start =
@@ -62,14 +64,18 @@ struct Engine {
   std::size_t budget;
   const SolveOptions& options;
   SolveStatistics& statistics;
+  const AxisPropagation* propagated;
+  std::size_t symbolic_axes = 0;
   std::chrono::steady_clock::time_point deadline;
   std::vector<Vector> shapes;
   std::vector<std::vector<Vector>> attrs;
   std::map<std::size_t, Vector> variables;
+  std::map<unsigned, List> index_domains;
   bool generating = true;
   Engine(const inference::SemanticPlan& p, const std::vector<List>& s,
          const std::vector<List>& k, const std::vector<List>& pins,
-         std::size_t b, const SolveOptions& opts, SolveStatistics& stats)
+         std::size_t b, const SolveOptions& opts, SolveStatistics& stats,
+         const AxisPropagation* domains = nullptr)
       : plan(p),
         captures(s),
         known(k),
@@ -77,6 +83,7 @@ struct Engine {
         budget(b),
         options(opts),
         statistics(stats),
+        propagated(domains),
         deadline(std::chrono::steady_clock::now() +
                  std::chrono::milliseconds(p.timeout_ms)) {
     solver.set("timeout", p.timeout_ms);
@@ -109,7 +116,7 @@ struct Engine {
     return ctx.int_val(std::to_string(n).c_str());
   }
   Vector literal(const List& xs) {
-    if (xs.size() > 256) throw Limit("vector capacity");
+    if (xs.size() > options.max_vector_capacity) throw Limit("vector capacity");
     Vector v{integer(xs.size()), {}};
     for (auto x : xs) v.entries.push_back(integer(x));
     return v;
@@ -130,7 +137,14 @@ struct Engine {
   }
   Vector vector(const Value& v) {
     if (!v.vector) throw Limit("vector required");
-    return *v.vector;
+    auto out = *v.vector;
+    auto length = out.length.simplify();
+    if (length.is_numeral()) {
+      auto n = length.get_numeral_uint64();
+      if (n > out.entries.size()) throw Illegal{};
+      out.entries.resize(n, integer(0));
+    }
+    return out;
   }
   z3::expr at(const Vector& v, const z3::expr& i, bool checked = true) {
     if (checked) require(i >= 0 && i < v.length);
@@ -143,8 +157,15 @@ struct Engine {
       return v.entries.at(position.get_numeral_uint64());
     }
     auto x = integer(0);
-    for (std::size_t j = v.entries.size(); j-- > 0;)
-      x = z3::ite(i == integer(j), v.entries[j], x);
+    if (auto domain = index_domains.find(position.id());
+        domain != index_domains.end()) {
+      for (auto it = domain->second.rbegin(); it != domain->second.rend(); ++it)
+        if (*it < v.entries.size())
+          x = z3::ite(position == integer(*it), v.entries[*it], x);
+    } else {
+      for (std::size_t j = v.entries.size(); j-- > 0;)
+        x = z3::ite(position == integer(j), v.entries[j], x);
+    }
     return x.simplify();
   }
   z3::expr contains(const Vector& v, z3::expr x) {
@@ -196,12 +217,14 @@ struct Engine {
       }
       if (concrete) return (out && ctx.bool_val(unique)).simplify();
     }
+    z3::expr_vector distinct(ctx);
     for (std::size_t i = 0; i < v.entries.size(); ++i) {
       auto active = integer(i) < v.length;
       out = out && z3::implies(active, v.entries[i] >= 0 && v.entries[i] < n);
-      for (std::size_t j = 0; j < i; ++j)
-        out = out && z3::implies(active, v.entries[i] != v.entries[j]);
+      // Inactive slots receive different sentinels outside the active range.
+      distinct.push_back(z3::ite(active, v.entries[i], n + integer(i)));
     }
+    if (distinct.size() > 1) out = out && z3::distinct(distinct);
     return out.simplify();
   }
   using Environment = std::map<std::string, Vector>;
@@ -270,7 +293,8 @@ struct Engine {
       return Value(v.length, v.entries.size());
     }
     if (e.op == "list") {
-      if (e.args.size() > 256) throw Limit("vector capacity");
+      if (e.args.size() > options.max_vector_capacity)
+        throw Limit("vector capacity");
       Vector v{integer(e.args.size()), {}};
       for (std::size_t i = 0; i < e.args.size(); ++i)
         v.entries.push_back(arg(i).scalar);
@@ -278,7 +302,7 @@ struct Engine {
     }
     if (e.op == "range") {
       auto n = arg(0);
-      if (!n.upper || *n.upper > 256)
+      if (!n.upper || *n.upper > options.max_vector_capacity)
         throw Limit("range lacks a practical finite bound");
       require(n.scalar >= 0 && n.scalar <= integer(*n.upper));
       Vector v{n.scalar, {}};
@@ -299,9 +323,22 @@ struct Engine {
     }
     if (e.op == "exclude") {
       auto v = vector(arg(0)), a = vector(arg(1));
+      auto all_concrete = [](const Vector& x) {
+        return x.length.simplify().is_numeral() &&
+               std::all_of(x.entries.begin(), x.entries.end(), [](auto& entry) {
+                 return entry.simplify().is_numeral();
+               });
+      };
+      if (all_concrete(v) && all_concrete(a)) {
+        auto values = constants(v), removed = constants(a);
+        std::set<std::uint64_t> selected(removed.begin(), removed.end());
+        std::erase_if(values, [&](auto x) { return selected.contains(x); });
+        return Value(literal(values));
+      }
       std::vector<z3::expr> positions, keep;
       auto length = integer(0);
       for (std::size_t i = 0; i < v.entries.size(); ++i) {
+        tick();
         positions.push_back(length);
         // Match the metadata builtin: remove selected values, preserving order.
         keep.push_back(integer(i) < v.length && !contains(a, v.entries[i]));
@@ -309,6 +346,7 @@ struct Engine {
       }
       Vector out{length.simplify(), {}};
       for (std::size_t j = 0; j < v.entries.size(); ++j) {
+        tick();
         auto x = integer(0);
         for (std::size_t i = 0; i < v.entries.size(); ++i)
           x = z3::ite(keep[i] && positions[i] == integer(j), v.entries[i], x);
@@ -320,8 +358,15 @@ struct Engine {
       Vector out = vector(arg(0));
       for (std::size_t j = 1; j < e.args.size(); ++j) {
         auto v = vector(arg(j));
-        if (out.entries.size() + v.entries.size() > 256)
+        if (out.entries.size() + v.entries.size() > options.max_vector_capacity)
           throw Limit("vector capacity");
+        if (out.length.simplify().is_numeral() &&
+            v.length.simplify().is_numeral()) {
+          out.entries.insert(out.entries.end(), v.entries.begin(),
+                             v.entries.end());
+          out.length = (out.length + v.length).simplify();
+          continue;
+        }
         Vector next{(out.length + v.length).simplify(), {}};
         for (std::size_t i = 0; i < out.entries.size() + v.entries.size(); ++i)
           next.entries.push_back(z3::ite(integer(i) < out.length,
@@ -344,12 +389,27 @@ struct Engine {
     if (e.op == "scatter") {
       auto size = arg(0);
       auto axes = vector(arg(1)), values = vector(arg(2));
-      if (!size.upper || *size.upper > 256)
+      if (!size.upper || *size.upper > options.max_vector_capacity)
         throw Limit("scatter lacks a finite bound");
       require(valid(axes, size.scalar) && axes.length == size.scalar &&
               values.length == axes.length);
       Vector out{size.scalar, {}};
+      if (size.scalar.simplify().is_numeral() &&
+          axes.length.simplify().is_numeral() &&
+          std::all_of(
+              axes.entries.begin(), axes.entries.end(),
+              [](auto& entry) { return entry.simplify().is_numeral(); })) {
+        auto count = size.scalar.simplify().get_numeral_uint64();
+        out.entries.resize(count, integer(0));
+        for (std::size_t j = 0; j < axes.entries.size(); ++j) {
+          auto position = axes.entries[j].simplify().get_numeral_uint64();
+          if (position >= count) throw Illegal{};
+          out.entries[position] = at(values, integer(j), false);
+        }
+        return Value(out);
+      }
       for (std::size_t i = 0; i < *size.upper; ++i) {
+        tick();
         auto x = integer(0);
         for (std::size_t j = 0; j < axes.entries.size(); ++j)
           x = z3::ite(integer(j) < axes.length && axes.entries[j] == integer(i),
@@ -861,7 +921,8 @@ struct Engine {
           auto size = eval(id, n.fields[f].bound)
                           .scalar.simplify()
                           .get_numeral_uint64();
-          if (size > 32) throw Limit("attribute domain capacity");
+          if (size > options.max_vector_capacity)
+            throw Limit("attribute domain capacity");
           List identity(size);
           std::iota(identity.begin(), identity.end(), 0);
           attrs[id][f] = literal(identity);
@@ -875,6 +936,44 @@ struct Engine {
     return verifyMeasured();
   }
   Solution run() {
+    if (propagated && propagated->residual_entries == 0 &&
+        std::all_of(
+            propagated->fields.begin(), propagated->fields.end(),
+            [](const auto& item) { return item.second.lengths.size() == 1; })) {
+      generating = false;
+      for (std::size_t id = 0; id < plan.nodes.size(); ++id) {
+        tick();
+        const auto& n = plan.nodes[id];
+        attrs.emplace_back();
+        if (n.capture >= 0) {
+          shapes.push_back(literal(captures.at(n.capture)));
+          continue;
+        }
+        for (const auto& f : n.fields) {
+          if (f.known != -1) {
+            attrs.back().push_back(literal(
+                f.known >= 0 ? known.at(f.known) : pinned.at(-2 - f.known)));
+          } else {
+            List xs;
+            for (const auto& entry : propagated->fields.at(f.output).entries)
+              xs.push_back(entry.at(0));
+            attrs.back().push_back(literal(xs));
+          }
+        }
+        for (auto a : n.assertions) require(eval(id, a).scalar);
+        shapes.push_back(literal(constants(vector(eval(id, n.shape)))));
+      }
+      if (!verifyMeasured()) throw RetryUnrestricted{};
+      statistics.propagation_direct = true;
+      statistics.constraint_attempted = true;
+      auto out = witness();
+      out.method =
+          "constraints-z3";  // Keep the public inference method stable.
+      out.reason =
+          "axis propagation and exact verification succeeded without SMT "
+          "search";
+      return out;
+    }
     if (options.semantic_constraints && !plan.constraints.available) {
       statistics.constraint_fallback = true;
       statistics.fallback_reason = plan.constraints.reason;
@@ -934,17 +1033,41 @@ struct Engine {
         dependencies(f.bound);
         metadata_cache.clear();
         auto bound = eval(id, f.bound);
-        if (!bound.upper || *bound.upper > 32)
+        if (!bound.upper || *bound.upper > options.max_vector_capacity)
           throw Limit("attribute domain bound exceeds supported capacity");
-        Vector v{
-            *bound.upper == 0
-                ? integer(0)
-                : ctx.int_const(("len_" + std::to_string(f.output)).c_str()),
-            {}};
-        for (std::size_t k = 0; k < *bound.upper; ++k)
-          v.entries.push_back(ctx.int_const(
-              ("axis_" + std::to_string(f.output) + "_" + std::to_string(k))
-                  .c_str()));
+        const AxisDomain* domain =
+            propagated ? &propagated->fields.at(f.output) : nullptr;
+        auto capacity = domain ? domain->entries.size() : *bound.upper;
+        auto choose = [&](const std::string& name, const List* allowed) {
+          if (allowed && allowed->size() == 1) return integer(allowed->front());
+          if (++symbolic_axes > options.max_symbolic_axis_variables)
+            throw Limit("unresolved attribute variable budget");
+          ++statistics.symbolic_axis_variables;
+          auto x = ctx.int_const(name.c_str());
+          if (allowed) {
+            index_domains.emplace(x.id(), *allowed);
+            auto condition = ctx.bool_val(false);
+            for (auto n : *allowed) condition = condition || x == integer(n);
+            require(condition);
+          }
+          return x;
+        };
+        Vector v{capacity == 0 ? integer(0)
+                               : choose("len_" + std::to_string(f.output),
+                                        domain ? &domain->lengths : nullptr),
+                 {}};
+        for (std::size_t k = 0; k < capacity; ++k) {
+          auto name =
+              "axis_" + std::to_string(f.output) + "_" + std::to_string(k);
+          auto minimum_length = domain ? domain->lengths.front() : 0;
+          // Domain entries constrain active slots only. Use an explicit
+          // inactive zero rather than restricting a padded variable to its
+          // active domain.
+          auto entry = choose(name, domain ? &domain->entries[k] : nullptr);
+          if (domain && k >= minimum_length)
+            entry = z3::ite(integer(k) < v.length, entry, integer(0));
+          v.entries.push_back(entry);
+        }
         require(v.length >= 0 && v.length <= integer(v.entries.size()));
         for (std::size_t k = 0; k < v.entries.size(); ++k)
           require(z3::implies(integer(k) >= v.length, v.entries[k] == 0));
@@ -1007,6 +1130,7 @@ struct Engine {
       if (check == z3::unknown) throw Limit(solver.reason_unknown());
       if (check == z3::unsat) {
         if (compiled) {
+          if (propagated) throw RetryUnrestricted{};
           solver.pop();
           compiled = false;
           statistics.constraint_fallback = true;
@@ -1016,6 +1140,7 @@ struct Engine {
           concrete_cache.clear();
           continue;
         }
+        if (propagated) throw RetryUnrestricted{};
         return {
             plan.algebraic && !inconclusive ? Status::Invalid : Status::Unknown,
             {},
@@ -1122,8 +1247,62 @@ Solution solveGeneric(const inference::SemanticPlan& p,
   Timer timer(statistics.total_ms);
   Solution result;
   try {
-    result =
-        Engine(p, shapes, known, pinned, budget, options, statistics).run();
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(p.timeout_ms);
+    AxisPropagation domains;
+    if (options.axis_propagation && options.semantic_constraints &&
+        p.constraints.available && p.algebraic) {
+      statistics.propagation_attempted = true;
+      Timer propagation_timer(statistics.propagation_ms);
+      domains = propagateAxes(p, shapes, known, pinned, [&] {
+        if (!budget || std::chrono::steady_clock::now() >= deadline)
+          throw Limit("axis propagation resource limit");
+        --budget;
+      });
+      statistics.propagation_reason = domains.reason;
+      statistics.propagation_applied = domains.available;
+      statistics.original_axis_entries = domains.original_entries;
+      statistics.forced_axis_entries = domains.forced_entries;
+      statistics.residual_axis_entries = domains.residual_entries;
+      statistics.propagation_instructions = domains.instructions;
+    }
+    auto attempt = [&](const AxisPropagation* reduced) {
+      auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           deadline - std::chrono::steady_clock::now())
+                           .count();
+      if (remaining <= 0) throw Limit("resource limit");
+      auto current = p;
+      current.timeout_ms = remaining;
+      Engine engine(current, shapes, known, pinned, budget, options, statistics,
+                    reduced);
+      try {
+        auto answer = engine.run();
+        budget = engine.budget;
+        return answer;
+      } catch (...) {
+        budget = engine.budget;
+        throw;
+      }
+    };
+    if (domains.available) {
+      try {
+        result = attempt(&domains);
+      } catch (const RetryUnrestricted&) {
+        statistics.propagation_fallback = true;
+        statistics.propagation_reason =
+            "reduced sufficient constraints exhausted; rebuilt unrestricted "
+            "metadata";
+        result = attempt(nullptr);
+      } catch (const Illegal&) {
+        statistics.propagation_fallback = true;
+        statistics.propagation_reason =
+            "propagated candidate failed legality; rebuilt unrestricted "
+            "metadata";
+        result = attempt(nullptr);
+      }
+    } else {
+      result = attempt(nullptr);
+    }
   } catch (const Limit& e) {
     result = {Status::Unknown, {}, e.what()};
   } catch (const Illegal&) {

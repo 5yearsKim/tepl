@@ -72,6 +72,31 @@ use Benchmark::{unused,twice,four,unit};
 )";
 std::vector<Case> cases() {
   std::vector<Case> out;
+  for (std::size_t rank : {10, 32, 100, 200}) {
+    List shape(rank, 2), permutation(rank);
+    std::iota(permutation.rbegin(), permutation.rend(), 0);
+    const auto suffix = "_r" + std::to_string(rank);
+    out.push_back({"axis_permutation" + suffix,
+                   "rule r { (transpose[@p] X) => (transpose[auto] X) }",
+                   {shape},
+                   {permutation}});
+    out.push_back({"axis_distribution" + suffix,
+                   "rule r { (dot[@d] (add A B) C) => (add (dot[auto] A C) "
+                   "(dot[auto] B C)) }",
+                   {shape, shape, {2, 3}},
+                   {{rank - 1}, {0}, {}, {}}});
+    std::vector<List> both{{rank - 1}, {0}, {}, {}, {rank - 1}, {0}, {}, {}};
+    out.push_back({"axis_association" + suffix,
+                   "rule r { (dot[@o] (dot[@i] A B) C) => (dot[auto] A "
+                   "(dot[auto] B C)) }",
+                   {shape, {2, 3}, {3, 4}},
+                   both});
+    out.push_back({"axis_lora" + suffix,
+                   "rule r { (dot[@o] X (add W (dot[@i] A B))) => (add "
+                   "(dot[auto] X W) (dot[auto] (dot[auto] X A) B)) }",
+                   {shape, {2, 3}, {2, 2}, {2, 3}},
+                   {{1}, {0}, {}, {}, {rank - 1}, {0}, {}, {}}});
+  }
   for (std::size_t rank : {2, 3, 5}) {
     List batch(rank - 2);
     std::iota(batch.begin(), batch.end(), 0);
@@ -185,7 +210,8 @@ int main(int argc, char** argv) {
         std::cerr
             << "semantic_benchmark [--repeats N] [--warmup N] [--timeout-ms N] "
                "[--budget N] [--max-candidates N] [--seed N] [--filter TEXT] "
-               "[--mode all|metadata|compiled|production]\nCSV is written to "
+               "[--mode all|metadata|unreduced|compiled|production]\nCSV is "
+               "written to "
                "stdout.\n";
         return 0;
       }
@@ -211,8 +237,8 @@ int main(int argc, char** argv) {
         throw std::runtime_error("unknown option: " + arg);
     }
     if (!repeats || !timeout || !budget ||
-        (mode != "all" && mode != "metadata" && mode != "compiled" &&
-         mode != "production"))
+        (mode != "all" && mode != "metadata" && mode != "unreduced" &&
+         mode != "compiled" && mode != "production"))
       throw std::runtime_error("invalid benchmark settings");
     std::string error;
     auto runfiles = std::unique_ptr<rules_cc::cc::runfiles::Runfiles>(
@@ -227,12 +253,17 @@ int main(int argc, char** argv) {
       double compile_ms;
     };
     std::map<std::string, Compiled> cache;
-    std::cout << "case,mode,repeat,shapes,known,pins,compile_ms,total_ms,"
-                 "metadata_ms,constraints_ms,z3_ms,verification_ms,ordered_ms,"
-                 "solver_calls,candidates,rejected_candidates,constraint_"
-                 "attempted,fallback,status,method,reason,fallback_reason,"
-                 "timeout_ms,budget,max_candidates,seed,z3_version,compiler,"
-                 "build_mode,preferred_attempted,plan_available\n";
+    std::cout
+        << "case,mode,repeat,shapes,known,pins,compile_ms,total_ms,"
+           "metadata_ms,constraints_ms,z3_ms,verification_ms,ordered_ms,"
+           "solver_calls,candidates,rejected_candidates,constraint_"
+           "attempted,fallback,status,method,reason,fallback_reason,"
+           "timeout_ms,budget,max_candidates,seed,z3_version,compiler,"
+           "build_mode,preferred_attempted,plan_available,propagation_ms,"
+           "original_axis_entries,forced_axis_entries,residual_axis_entries,"
+           "symbolic_axis_variables,propagation_instructions,propagation_"
+           "applied,"
+           "propagation_direct,propagation_fallback,propagation_reason\n";
     std::cout << std::fixed << std::setprecision(6);
     std::size_t selected = 0;
     for (auto& c : cases()) {
@@ -256,10 +287,12 @@ int main(int argc, char** argv) {
         cache.emplace(c.rule, Compiled{std::move(p), elapsed});
       }
       const auto& compiled = cache.at(c.rule);
-      for (std::string selected_mode : {"metadata", "compiled", "production"}) {
+      for (std::string selected_mode :
+           {"metadata", "unreduced", "compiled", "production"}) {
         if (mode != "all" && mode != selected_mode) continue;
         SolveOptions options;
         options.semantic_constraints = selected_mode != "metadata";
+        options.axis_propagation = selected_mode == "compiled";
         options.preferred_candidate = false;
         options.random_seed = seed;
         options.max_candidates = max_candidates;
@@ -292,7 +325,14 @@ int main(int argc, char** argv) {
                     << ',' << (selected_mode == "production" ? 0 : seed) << ','
                     << quote(Z3_get_full_version()) << ',' << quote(__VERSION__)
                     << ',' << build_mode << ',' << t.preferred_attempted << ','
-                    << compiled.plan.constraints.available << '\n';
+                    << compiled.plan.constraints.available << ','
+                    << t.propagation_ms << ',' << t.original_axis_entries << ','
+                    << t.forced_axis_entries << ',' << t.residual_axis_entries
+                    << ',' << t.symbolic_axis_variables << ','
+                    << t.propagation_instructions << ','
+                    << t.propagation_applied << ',' << t.propagation_direct
+                    << ',' << t.propagation_fallback << ','
+                    << quote(t.propagation_reason) << '\n';
         }
       }
     }

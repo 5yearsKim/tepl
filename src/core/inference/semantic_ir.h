@@ -52,6 +52,9 @@ struct ConstraintPlan {
   std::string reason;
   // @shape:N / @attr:N:F reference metadata. @output / @bound:N reference
   // coordinate vectors; binder identities are globally unique in this plan.
+  // This primitive DAG is also the propagation program: the runtime interprets
+  // routing instructions as finite-domain relations before allocating SMT
+  // variables. There is no separate operation-name classifier or rank expansion.
   std::vector<SemanticExpr> expressions;
   std::vector<std::size_t> domains;
   std::vector<ConstraintTerm> lhs, rhs;

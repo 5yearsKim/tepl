@@ -75,7 +75,8 @@ struct ConstraintMatcher {
       capacity += dims.entries.size();
       right_dims.push_back(std::move(dims));
     }
-    if (capacity > 256) e.constraintLimit("constraint reduction capacity");
+    if (capacity > e.options.max_vector_capacity)
+      e.constraintLimit("constraint reduction capacity");
     Vector permutation{count.simplify(), {}};
     for (std::size_t i = 0; i < capacity; ++i)
       permutation.entries.push_back(e.ctx.int_const(

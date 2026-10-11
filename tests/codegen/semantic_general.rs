@@ -96,6 +96,49 @@ fn arbitrary_rank_and_multiple_axes() {
     assert!(!rule.apply(&mut g, &found).is_empty());
 }
 #[test]
+fn rank_100_distribution_uses_generic_semantic_inference() {
+    let rank = 100usize;
+    let mut bindings = TensorBindingTable::default();
+    for (name, shape) in [
+        ("a", vec![2; rank]),
+        ("b", vec![2; rank]),
+        ("c", vec![2, 3]),
+    ] {
+        bindings
+            .register_symbol(
+                name,
+                TensorInfo {
+                    shape,
+                    dtype: DType::F32,
+                },
+            )
+            .unwrap();
+    }
+    let mut g = EGraph::new(TensorAnalysis::new(bindings));
+    let a = g.add(OpNode::input("a"));
+    let b = g.add(OpNode::input("b"));
+    let c = g.add(OpNode::input("c"));
+    let sum = g.add(OpNode::new(Op::Add, OpAttrs::None, vec![a, b]).unwrap());
+    let root = g.add(dot(vec![99], vec![0], vec![], vec![], sum, c));
+    g.rebuild();
+    let rule = rule_distribute::build(()).unwrap();
+    let matches = rule.search(&g);
+    assert!(!rule.apply(&mut g, &matches).is_empty());
+    g.rebuild();
+    let ac = g
+        .lookup(dot(vec![99], vec![0], vec![], vec![], a, c))
+        .unwrap();
+    let bc = g
+        .lookup(dot(vec![99], vec![0], vec![], vec![], b, c))
+        .unwrap();
+    let expected = g
+        .lookup(OpNode::new(Op::Add, OpAttrs::None, vec![ac, bc]).unwrap())
+        .unwrap();
+    assert_eq!(g.find(root), g.find(expected));
+    assert_eq!(g[root].data.info().unwrap().shape.len(), rank);
+}
+
+#[test]
 fn algebraic_distribution_and_association() {
     let mut bindings = TensorBindingTable::default();
     for (name, shape) in [("a", vec![2, 3]), ("b", vec![2, 3]), ("c", vec![3, 4])] {

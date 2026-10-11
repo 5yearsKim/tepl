@@ -67,6 +67,17 @@ The [README](README.md) documents current behavior and limitations.
     and compiled-constraint modes with ordered inference and preferences disabled.
     Also measure production dispatch. Compile rules once, export CSV, and retain
     unknown/invalid outcomes and fallback reasons in the before/after report.
+11. **Axis-domain preprocessing.** Reuse the serialized primitive DAG as a
+    propagation program. Bind source metadata, introduce domains for attribute
+    lengths and active entries, and propagate routing, range, disjointness,
+    equality, and distinct-prefix cardinality constraints before allocating Z3
+    variables. Preserve shared attributes across all uniquely matched terms.
+    Leave ambiguous term/factor matching and unsupported metadata to the existing
+    matcher. Fold concrete vectors and emit constants or narrowed residual SMT
+    variables. Verify fully forced witnesses directly. Rebuild unrestricted
+    metadata after sufficient constraints fail; preserve the remaining time/work
+    budget. Replace the rank-32 allocation cap with separate vector/uncertainty
+    budgets. No DSL or wire-format change is required.
 
 ## File ownership
 
@@ -78,6 +89,7 @@ The [README](README.md) documents current behavior and limitations.
 | Compile-time semantic constraints | `src/core/inference/constraints.*` |
 | Term normalization and unused binders | `src/core/inference/constraint_normalize.*` |
 | Constraint instantiation | `src/core/semantics/constraint_match.h` |
+| Axis-domain propagation | `src/core/semantics/axis_domains.*` |
 | Primitive constraints and proof | `src/core/semantics/solver.*` |
 | Ordered semantic contracts and certificates | `src/core/semantics/ordered.*` |
 | Shared runtime ABI | `src/core/semantics/runtime.cc`, Bazel `//src/core:libtepl_semantic_runtime.so` |
@@ -86,6 +98,7 @@ The [README](README.md) documents current behavior and limitations.
 | Example language | `dialects/tensor.tepl` |
 | Regression coverage | `tests/constraint_plan_test.cc`, `tests/semantic_test.cc`, `tests/ordered_test.cc`, `tests/codegen/semantic*`, integration scripts |
 | Extension regression coverage | `tests/constraint_extensions_test.cc` |
+| Propagation regression coverage | `tests/axis_domains_test.cc`, Rust rank-100 distribution |
 | Performance measurements | `tools/semantic_benchmark.cc`, `tools/summarize_semantic_benchmark.py`, `benchmarks/` |
 
 ## Acceptance checks

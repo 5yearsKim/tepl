@@ -2,6 +2,15 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_test(
+    name = "axis_domains_test",
+    size = "small",
+    srcs = ["axis_domains_test.cc"],
+    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
+    data = ["//:examples/semantic/dialects/tensor.tepl"],
+    deps = ["//:frontend", "//src/core:analysis", "//src/core:semantic_solver", "@rules_cc//cc/runfiles"],
+)
+
+cc_test(
     name = "constraint_extensions_test",
     size = "small",
     srcs = ["constraint_extensions_test.cc"],

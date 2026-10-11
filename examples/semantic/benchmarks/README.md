@@ -27,6 +27,20 @@ preferences. They use identical Z3 seeds, time/work budgets, and candidate limit
 preferences. Its seed stays at the production default of zero, and it has no
 additional candidate-count limit. CSV rows record the actual settings.
 
+`compiled` now enables axis-domain propagation. `unreduced` uses the same compiled
+semantic matcher with propagation disabled. Both disable ordered construction and
+preferences. Use these modes to isolate preprocessing rather than comparing it
+against metadata-only search. [AXIS_PROPAGATION.md](AXIS_PROPAGATION.md) records
+rank 10, 32, 100, and 200 measurements, including native propagation and residual
+variable counters. The plan and runtime request format remain unchanged.
+
+```sh
+bazel-bin/semantic_benchmark --mode compiled --filter axis_ \
+  --repeats 3 --warmup 1 --timeout-ms 2000 --budget 10000000 > /tmp/reduced.csv
+bazel-bin/semantic_benchmark --mode unreduced --filter axis_ \
+  --repeats 3 --warmup 1 --timeout-ms 2000 --budget 10000000 > /tmp/unreduced.csv
+```
+
 ```sh
 bazel-bin/semantic_benchmark --mode compiled --filter lora \
   --repeats 5 --warmup 2 --timeout-ms 2000 --budget 1000000 \
