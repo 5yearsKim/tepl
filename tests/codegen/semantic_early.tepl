@@ -1,0 +1,63 @@
+from "../../examples/semantic/dialects/tensor.tepl" import TensorLang as t;
+use t::{add, dot, transpose};
+
+rule transpose_host {
+    (transpose[@src] X) => (transpose[@out] X)
+    where { $eligible(X); }
+    derive {
+        @mid = $copy_attrs(@src);
+        @out = $copy_attrs(@mid);
+    }
+}
+rule distribution_host {
+    (dot[@d] (add A B) C)
+    => (add (dot[@ac] A C) (dot[@bc] B C))
+    derive {
+        @ac = $copy_dot(@d);
+        @bc = $copy_dot(@ac);
+    }
+}
+rule dropped_operand {
+    X: [M, N]
+    Y: [M, N]
+    (add X Y) => X
+}
+rule guarded_false {
+    (add X Y) => X
+    where { $enabled(X); }
+}
+rule automatic_unsupported {
+    (transpose[@p] X) => (transpose[auto] X)
+}
+
+rule unreachable_dtype {
+    X: bool[...]
+    Y: bool[...]
+    (add X Y) => X
+}
+
+rule bound_intermediate_host {
+    let Y = (transpose[@src] X)
+    => (transpose[@copy] X)
+    where { $eligible(Y); }
+    derive { @copy = $copy_attrs(@src); }
+}
+
+dialect Custom {
+    op pick_left(x:tensor, y:tensor)->tensor {
+        dtype(a,b){yield a;}
+        shape(s,t){assert s==t; yield s;}
+        semantics(i){yield read(y,i);}
+    }
+}
+use Custom::{pick_left};
+rule dtype_mismatch {
+    X: f32[...]
+    Y: i32[...]
+    (pick_left X Y) => Y
+}
+rule unreachable_mixed_dtype {
+    X: f32[...]
+    Y: i32[...]
+    (add X Y) => X
+}

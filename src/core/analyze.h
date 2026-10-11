@@ -16,6 +16,8 @@ enum class SemanticPolicy { kStrict, kAlgebraic };
 struct AnalysisOptions {
   SemanticPolicy semantic_policy = SemanticPolicy::kStrict;
   unsigned solver_timeout_ms = 1000;
+  // Optional ideal-arithmetic rejection on small concrete metadata.
+  bool verify_small = false;
 };
 
 struct AnalysisResult {

@@ -38,7 +38,7 @@ TOML
     printf 'pub mod ir;\n' > "$application/src/lib.rs"
 }
 
-for source in semantic semantic_general dtype early_where names builtins analysis custom empty dialect_only literal_root structural concrete_graphs; do
+for source in semantic semantic_general semantic_early dtype early_where names builtins analysis custom empty dialect_only literal_root structural concrete_graphs; do
     crate="$work_directory/$source"
     prepare_application "$crate"
     input="$project_root/tests/codegen/$source.tepl"
@@ -59,7 +59,7 @@ for source in semantic semantic_general dtype early_where names builtins analysi
         printf 'pub mod generated;\n' > "$crate/src/components/mod.rs"
     fi
     semantic_flags=()
-    if [[ "$source" == semantic || "$source" == semantic_general ]]; then semantic_flags=(--semantic-policy algebraic --solver-timeout-ms 10000); fi
+    if [[ "$source" == semantic || "$source" == semantic_general || "$source" == semantic_early ]]; then semantic_flags=(--semantic-policy algebraic --solver-timeout-ms 10000); fi
     "$compiler" generate "$input" "${semantic_flags[@]}" --target rust --out "$module_out"
     if [[ "$source" == empty ]]; then
         cargo check --offline --manifest-path "$crate/Cargo.toml"

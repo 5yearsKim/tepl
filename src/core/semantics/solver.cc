@@ -17,6 +17,7 @@
 
 #include "src/core/semantics/axis_domains.h"
 #include "src/core/semantics/constraint_match.h"
+#include "src/core/semantics/early_verification.h"
 #include "src/core/semantics/ordered.h"
 
 namespace tepl::core::semantics {
@@ -935,68 +936,9 @@ struct Engine {
     }
     return verifyMeasured();
   }
-  Solution run() {
-    if (propagated && propagated->residual_entries == 0 &&
-        std::all_of(
-            propagated->fields.begin(), propagated->fields.end(),
-            [](const auto& item) { return item.second.lengths.size() == 1; })) {
-      generating = false;
-      for (std::size_t id = 0; id < plan.nodes.size(); ++id) {
-        tick();
-        const auto& n = plan.nodes[id];
-        attrs.emplace_back();
-        if (n.capture >= 0) {
-          shapes.push_back(literal(captures.at(n.capture)));
-          continue;
-        }
-        for (const auto& f : n.fields) {
-          if (f.known != -1) {
-            attrs.back().push_back(literal(
-                f.known >= 0 ? known.at(f.known) : pinned.at(-2 - f.known)));
-          } else {
-            List xs;
-            for (const auto& entry : propagated->fields.at(f.output).entries)
-              xs.push_back(entry.at(0));
-            attrs.back().push_back(literal(xs));
-          }
-        }
-        for (auto a : n.assertions) require(eval(id, a).scalar);
-        shapes.push_back(literal(constants(vector(eval(id, n.shape)))));
-      }
-      if (!verifyMeasured()) throw RetryUnrestricted{};
-      statistics.propagation_direct = true;
-      statistics.constraint_attempted = true;
-      auto out = witness();
-      out.method =
-          "constraints-z3";  // Keep the public inference method stable.
-      out.reason =
-          "axis propagation and exact verification succeeded without SMT "
-          "search";
-      return out;
-    }
-    if (options.semantic_constraints && !plan.constraints.available) {
-      statistics.constraint_fallback = true;
-      statistics.fallback_reason = plan.constraints.reason;
-    }
-    try {
-      if (options.preferred_candidate &&
-          (!options.semantic_constraints || !plan.constraints.available)) {
-        statistics.preferred_attempted = true;
-        if (preferredCandidate()) return witness();
-      }
-    } catch (const Illegal&) {
-      // A preference can be illegal; it never restricts the solver domain.
-    } catch (const Limit&) {
-      // An unsupported preference must not be treated as impossibility.
-    }
-    generating = true;
-    shapes.clear();
-    attrs.clear();
-    metadata_cache.clear();
-    concrete_cache.clear();
-    Timer metadata_timer(statistics.metadata_ms);
-    for (std::size_t id = 0; id < plan.nodes.size(); ++id) {
-      if (id == plan.source_end && checkSolver() != z3::sat)
+  void initializeMetadata(std::size_t count, bool check_source = false) {
+    for (std::size_t id = 0; id < count; ++id) {
+      if (check_source && id == plan.source_end && checkSolver() != z3::sat)
         throw Limit("illegal or undecidable source metadata");
       const auto& n = plan.nodes[id];
       attrs.emplace_back();
@@ -1100,6 +1042,68 @@ struct Engine {
                 shapes.back().entries[k] <=
                     integer(std::numeric_limits<std::uint64_t>::max())));
     }
+  }
+  Solution run() {
+    if (propagated && propagated->residual_entries == 0 &&
+        std::all_of(
+            propagated->fields.begin(), propagated->fields.end(),
+            [](const auto& item) { return item.second.lengths.size() == 1; })) {
+      generating = false;
+      for (std::size_t id = 0; id < plan.nodes.size(); ++id) {
+        tick();
+        const auto& n = plan.nodes[id];
+        attrs.emplace_back();
+        if (n.capture >= 0) {
+          shapes.push_back(literal(captures.at(n.capture)));
+          continue;
+        }
+        for (const auto& f : n.fields) {
+          if (f.known != -1) {
+            attrs.back().push_back(literal(
+                f.known >= 0 ? known.at(f.known) : pinned.at(-2 - f.known)));
+          } else {
+            List xs;
+            for (const auto& entry : propagated->fields.at(f.output).entries)
+              xs.push_back(entry.at(0));
+            attrs.back().push_back(literal(xs));
+          }
+        }
+        for (auto a : n.assertions) require(eval(id, a).scalar);
+        shapes.push_back(literal(constants(vector(eval(id, n.shape)))));
+      }
+      if (!verifyMeasured()) throw RetryUnrestricted{};
+      statistics.propagation_direct = true;
+      statistics.constraint_attempted = true;
+      auto out = witness();
+      out.method =
+          "constraints-z3";  // Keep the public inference method stable.
+      out.reason =
+          "axis propagation and exact verification succeeded without SMT "
+          "search";
+      return out;
+    }
+    if (options.semantic_constraints && !plan.constraints.available) {
+      statistics.constraint_fallback = true;
+      statistics.fallback_reason = plan.constraints.reason;
+    }
+    try {
+      if (options.preferred_candidate &&
+          (!options.semantic_constraints || !plan.constraints.available)) {
+        statistics.preferred_attempted = true;
+        if (preferredCandidate()) return witness();
+      }
+    } catch (const Illegal&) {
+      // A preference can be illegal; it never restricts the solver domain.
+    } catch (const Limit&) {
+      // An unsupported preference must not be treated as impossibility.
+    }
+    generating = true;
+    shapes.clear();
+    attrs.clear();
+    metadata_cache.clear();
+    concrete_cache.clear();
+    Timer metadata_timer(statistics.metadata_ms);
+    initializeMetadata(plan.nodes.size(), true);
     if (plan.nodes.size() == plan.source_end && checkSolver() != z3::sat)
       throw Limit("illegal or undecidable source metadata");
     require(equal(shapes[plan.source_root], shapes[plan.rhs_root]));
@@ -1199,6 +1203,77 @@ std::vector<std::size_t> readNumbers(std::istream& in) {
     if (!(in >> x)) throw Limit("malformed request");
   return xs;
 }
+inference::SemanticPlan readPlan(std::istream& in) {
+  inference::SemanticPlan p;
+  std::size_t count;
+  std::string version;
+  if (!(in >> version) || version != "tepl-constraints-2")
+    throw Limit("unsupported constraint plan format");
+  if (!(in >> p.source_root >> p.rhs_root >> p.source_end >> p.algebraic >>
+        p.timeout_ms >> count) ||
+      count > 10000)
+    throw Limit("malformed plan");
+  p.nodes.resize(count);
+  for (auto& n : p.nodes) {
+    in >> n.capture;
+    n.inputs = readNumbers(in);
+    in >> n.root >> n.shape;
+    n.assertions = readNumbers(in);
+    in >> count;
+    if (count > 10000) throw Limit("malformed fields");
+    n.fields.resize(count);
+    for (auto& f : n.fields) in >> f.known >> f.output >> f.bound;
+    in >> count;
+    if (count > 100000) throw Limit("malformed expressions");
+    n.expressions.resize(count);
+    for (auto& e : n.expressions) {
+      in >> std::quoted(e.op);
+      e.args = readNumbers(in);
+    }
+  }
+  auto& c = p.constraints;
+  in >> c.available >> std::quoted(c.reason) >> count;
+  if (!in || count > 10000) throw Limit("malformed constraint expressions");
+  c.expressions.resize(count);
+  for (std::size_t i = 0; i < c.expressions.size(); ++i) {
+    auto& e = c.expressions[i];
+    in >> std::quoted(e.op);
+    e.args = readNumbers(in);
+    for (auto arg : e.args)
+      if (arg >= i) throw Limit("constraint expressions must be a DAG");
+  }
+  c.domains = readNumbers(in);
+  for (auto domain : c.domains)
+    if (domain >= c.expressions.size())
+      throw Limit("malformed reduction domain");
+  for (auto* terms : {&c.lhs, &c.rhs}) {
+    in >> count;
+    if (!in || count > 64) throw Limit("malformed constraint terms");
+    terms->resize(count);
+    for (auto& t : *terms) {
+      in >> t.coefficient;
+      t.reductions = readNumbers(in);
+      for (auto b : t.reductions)
+        if (b >= c.domains.size()) throw Limit("malformed reduction binder");
+      t.unused_reductions = readNumbers(in);
+      for (auto b : t.unused_reductions)
+        if (std::find(t.reductions.begin(), t.reductions.end(), b) ==
+            t.reductions.end())
+          throw Limit("malformed unused reduction");
+      in >> count;
+      if (!in || count > 10000) throw Limit("malformed tensor reads");
+      t.reads.resize(count);
+      for (auto& r : t.reads) {
+        in >> r.capture >> r.indices;
+        if (r.indices >= c.expressions.size())
+          throw Limit("malformed access map");
+      }
+    }
+  }
+  if (!in) throw Limit("malformed plan");
+  return p;
+}
+#include "src/core/semantics/early_verification.inc"
 }  // namespace
 Solution solve(const inference::SemanticPlan& p,
                const std::vector<List>& shapes, const std::vector<List>& known,
@@ -1360,72 +1435,8 @@ std::string encodePlan(const inference::SemanticPlan& p) {
 std::string solveRequest(const std::string& request) {
   try {
     std::istringstream in(request);
-    inference::SemanticPlan p;
+    auto p = readPlan(in);
     std::size_t count;
-    std::string version;
-    if (!(in >> version) || version != "tepl-constraints-2")
-      throw Limit("unsupported constraint plan format");
-    if (!(in >> p.source_root >> p.rhs_root >> p.source_end >> p.algebraic >>
-          p.timeout_ms >> count) ||
-        count > 10000)
-      throw Limit("malformed plan");
-    p.nodes.resize(count);
-    for (auto& n : p.nodes) {
-      in >> n.capture;
-      n.inputs = readNumbers(in);
-      in >> n.root >> n.shape;
-      n.assertions = readNumbers(in);
-      in >> count;
-      if (count > 10000) throw Limit("malformed fields");
-      n.fields.resize(count);
-      for (auto& f : n.fields) in >> f.known >> f.output >> f.bound;
-      in >> count;
-      if (count > 100000) throw Limit("malformed expressions");
-      n.expressions.resize(count);
-      for (auto& e : n.expressions) {
-        in >> std::quoted(e.op);
-        e.args = readNumbers(in);
-      }
-    }
-    auto& c = p.constraints;
-    in >> c.available >> std::quoted(c.reason) >> count;
-    if (!in || count > 10000) throw Limit("malformed constraint expressions");
-    c.expressions.resize(count);
-    for (std::size_t i = 0; i < c.expressions.size(); ++i) {
-      auto& e = c.expressions[i];
-      in >> std::quoted(e.op);
-      e.args = readNumbers(in);
-      for (auto arg : e.args)
-        if (arg >= i) throw Limit("constraint expressions must be a DAG");
-    }
-    c.domains = readNumbers(in);
-    for (auto domain : c.domains)
-      if (domain >= c.expressions.size())
-        throw Limit("malformed reduction domain");
-    for (auto* terms : {&c.lhs, &c.rhs}) {
-      in >> count;
-      if (!in || count > 64) throw Limit("malformed constraint terms");
-      terms->resize(count);
-      for (auto& t : *terms) {
-        in >> t.coefficient;
-        t.reductions = readNumbers(in);
-        for (auto b : t.reductions)
-          if (b >= c.domains.size()) throw Limit("malformed reduction binder");
-        t.unused_reductions = readNumbers(in);
-        for (auto b : t.unused_reductions)
-          if (std::find(t.reductions.begin(), t.reductions.end(), b) ==
-              t.reductions.end())
-            throw Limit("malformed unused reduction");
-        in >> count;
-        if (!in || count > 10000) throw Limit("malformed tensor reads");
-        t.reads.resize(count);
-        for (auto& r : t.reads) {
-          in >> r.capture >> r.indices;
-          if (r.indices >= c.expressions.size())
-            throw Limit("malformed access map");
-        }
-      }
-    }
     auto lists = [&]() {
       in >> count;
       if (count > 100000) throw Limit("malformed lists");
@@ -1458,6 +1469,173 @@ std::string solveRequest(const std::string& request) {
     return out.str();
   } catch (...) {
     return "2 0 ";
+  }
+}
+}  // namespace tepl::core::semantics
+
+namespace tepl::core::semantics {
+MetadataSample sampleMetadata(const inference::SemanticPlan& p,
+                              const std::vector<List>& shapes,
+                              const std::vector<std::vector<List>>& blocked,
+                              std::size_t budget) {
+  try {
+    auto source = p;
+    if (source.source_end > source.nodes.size())
+      throw Limit("invalid source boundary");
+    source.nodes.resize(source.source_end);
+    std::size_t count = 0;
+    for (auto& n : p.nodes)
+      for (auto& f : n.fields)
+        if (f.known >= 0) count = std::max(count, std::size_t(f.known + 1));
+    for (auto& n : source.nodes)
+      for (auto& f : n.fields) {
+        if (f.known < 0 || f.bound >= n.expressions.size())
+          throw Limit("source sampling requires bounded index[] attributes");
+        f.known = -1;
+      }
+    const std::vector<List> empty;
+    SolveOptions options;
+    SolveStatistics statistics;
+    EarlyEngine engine(source, shapes, empty, empty, budget, options,
+                       statistics);
+    engine.initializeMetadata(source.nodes.size());
+    for (auto& assignment : blocked) {
+      if (assignment.size() != count) throw Limit("malformed blocked sample");
+      auto different = engine.ctx.bool_val(false);
+      for (std::size_t id = 0; id < source.nodes.size(); ++id)
+        for (std::size_t f = 0; f < source.nodes[id].fields.size(); ++f)
+          different =
+              different ||
+              !engine.equal(
+                  engine.attrs[id][f],
+                  engine.literal(assignment.at(p.nodes[id].fields[f].known)));
+      engine.solver.add(different);
+    }
+    auto status = engine.checkSolver();
+    if (status == z3::unknown) throw Limit(engine.solver.reason_unknown());
+    if (status == z3::unsat)
+      return {Status::Invalid, {}, {}, "source attribute domain exhausted"};
+    auto model = engine.solver.get_model();
+    MetadataSample result;
+    result.status = Status::Found;
+    result.known.resize(count);
+    std::map<std::size_t, List> fields;
+    for (std::size_t id = 0; id < source.nodes.size(); ++id) {
+      result.node_shapes.push_back(engine.concrete(engine.shapes[id], model));
+      for (std::size_t f = 0; f < source.nodes[id].fields.size(); ++f)
+        fields[p.nodes[id].fields[f].output] =
+            engine.concrete(engine.attrs[id][f], model);
+    }
+    // Captured descriptors reused on the RHS refer to the same assignment.
+    for (auto& n : p.nodes)
+      for (auto& f : n.fields)
+        if (f.known >= 0 && fields.contains(f.output))
+          result.known[f.known] = fields.at(f.output);
+    return result;
+  } catch (const std::exception& e) {
+    return {Status::Unknown, {}, {}, e.what()};
+  } catch (...) {
+    return {Status::Unknown, {}, {}, "unsupported source metadata"};
+  }
+}
+VerificationResult verifySparse(const inference::SemanticPlan& p,
+                                const std::vector<List>& shapes,
+                                const std::vector<List>& known,
+                                const std::vector<List>& pinned,
+                                std::size_t budget, std::size_t max_degree) {
+  try {
+    std::map<std::size_t, List> shared;
+    for (const auto& node : p.nodes)
+      for (const auto& field : node.fields) {
+        if (field.known == -1)
+          throw Limit("early verification requires explicit attributes");
+        const auto& value = field.known >= 0 ? known.at(field.known)
+                                             : pinned.at(-2 - field.known);
+        if (shared.contains(field.output) && shared.at(field.output) != value)
+          throw Limit("inconsistent shared attribute binding");
+        shared[field.output] = value;
+      }
+    SolveOptions options;
+    SolveStatistics statistics;
+    EarlyEngine engine(p, shapes, known, pinned, budget, options, statistics);
+    return engine.verify(max_degree);
+  } catch (const std::exception& e) {
+    VerificationResult out;
+    out.reason = e.what();
+    return out;
+  } catch (...) {
+    VerificationResult out;
+    out.reason = "unsupported or illegal semantic indexing";
+    return out;
+  }
+}
+std::string verificationRequest(const std::string& request) {
+  try {
+    std::istringstream in(request);
+    std::string operation;
+    std::size_t budget, degree;
+    unsigned timeout;
+    if (!(in >> operation >> timeout >> budget >> degree) ||
+        (operation != "sample-v1" && operation != "sparse-v1") || degree > 64 ||
+        !timeout || timeout > 60000 || budget > 10000000)
+      throw Limit("malformed verification request");
+    auto p = readPlan(in);
+    p.timeout_ms = timeout;
+    auto readLists = [&]() {
+      std::size_t count;
+      if (!(in >> count) || count > 10000) throw Limit("malformed lists");
+      std::vector<List> xs;
+      for (std::size_t i = 0; i < count; ++i) {
+        auto list = readNumbers(in);
+        xs.emplace_back(list.begin(), list.end());
+      }
+      return xs;
+    };
+    auto shapes = readLists();
+    std::ostringstream out;
+    auto hex = [&](const std::string& text) {
+      if (text.empty()) {
+        out << "- ";
+        return;
+      }
+      constexpr char digits[] = "0123456789abcdef";
+      for (unsigned char c : text) out << digits[c >> 4] << digits[c & 15];
+      out << ' ';
+    };
+    auto writeLists = [&](const std::vector<List>& xs) {
+      out << xs.size() << ' ';
+      for (auto& x : xs) writeNumbers(out, x);
+    };
+    if (operation == "sample-v1") {
+      std::size_t count;
+      if (!(in >> count) || count > 10000)
+        throw Limit("malformed blocked samples");
+      std::vector<std::vector<List>> blocked;
+      for (std::size_t i = 0; i < count; ++i) blocked.push_back(readLists());
+      if (!in) throw Limit("malformed sample request");
+      auto result = sampleMetadata(p, shapes, blocked, budget);
+      out << static_cast<int>(result.status) << ' ';
+      writeLists(result.known);
+      writeLists(result.node_shapes);
+      hex(result.reason);
+    } else {
+      auto known = readLists(), pinned = readLists();
+      if (!in) throw Limit("malformed sparse request");
+      auto result = verifySparse(p, shapes, known, pinned, budget, degree);
+      out << static_cast<int>(result.status) << ' ' << result.degree << ' ';
+      writeNumbers(out, result.output);
+      out << result.entries.size() << ' ';
+      for (auto& entry : result.entries) {
+        out << entry.capture << ' ' << entry.value << ' ';
+        writeNumbers(out, entry.coordinates);
+      }
+      hex(result.lhs_value);
+      hex(result.rhs_value);
+      hex(result.reason);
+    }
+    return out.str();
+  } catch (...) {
+    return "";  // The adapter treats malformed/unavailable replies as unknown.
   }
 }
 }  // namespace tepl::core::semantics

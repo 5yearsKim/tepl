@@ -132,6 +132,27 @@ The [README](README.md) documents current behavior and limitations.
   pairings of three one-axis inputs in the reassociation test.
 - Ordinary TEPL parser, metadata, analysis, and code-generation tests still pass.
 
+## Implemented: explicit-rule early rejection
+
+- Derive polynomial-degree bounds from composed primitive semantics.
+- Sample bounded source axis-list attributes using LHS legality only; preserve
+  shared descriptors and block exact previous assignments.
+- Search at most `D` distinct nonzero input entries with values in `1..D`.
+- Expand small reduction/output domains with time and work limits.
+- Reuse exact semantic normalization to discharge easy valid cases; failed
+  normalization remains inconclusive.
+- Confirm sparse SAT witnesses with the independent polynomial evaluator.
+- Add optional compiler `--verify-small` rejection for unconstrained explicit
+  rules, with shape/attribute/value diagnostics.
+- Generate Rust validation entry points using actual host guards and derivations,
+  source metadata programs, declarations, and RHS metadata checks.
+- Report confirmed counterexamples, bounded success, skipped samples, and unknown
+  cases without claiming arbitrary-rank coverage.
+
+See [usage and current limits](research/early_verification.md). The initial
+implementation does not synthesize `auto`, symbolically execute host functions,
+or eliminate large reduction domains. Those remain separate extensions.
+
 ## Remaining extensions
 
 These are separate follow-ups, not claims about the current compiler:

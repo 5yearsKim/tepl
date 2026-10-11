@@ -7,6 +7,7 @@
 
 #include "src/core/analysis_context.h"
 #include "src/core/inference/constraints.h"
+#include "src/core/semantics/early_verification.h"
 #include "src/core/semantics/ordered.h"
 #include "src/core/semantics/solver.h"
 
@@ -278,7 +279,8 @@ struct Builder {
     result.coverage = "match-guarded";
     result.proof = {
         "checked ordered construction; otherwise compiled semantic constraints "
-        "-> Z3 -> exact verification, with unrestricted metadata-search fallback",
+        "-> Z3 -> exact verification, with unrestricted metadata-search "
+        "fallback",
         "invalid means a checked ordering obstruction or exhaustive solver "
         "exclusion at fixed metadata; timeouts are unknown",
         "universal arbitrary-rank coverage is not claimed",
@@ -290,10 +292,11 @@ struct Builder {
       ++operations;
       certified += bool(semantics::extractOrderedContract(n));
     }
-    result.proof.push_back(
-        "compiled semantic constraints: " +
-        std::string(plan.constraints.available ? "sufficient; " : "fallback; ") +
-        plan.constraints.reason);
+    result.proof.push_back("compiled semantic constraints: " +
+                           std::string(plan.constraints.available
+                                           ? "sufficient; "
+                                           : "fallback; ") +
+                           plan.constraints.reason);
     result.proof.push_back(
         "ordered semantic contracts: " + std::to_string(certified) + "/" +
         std::to_string(operations) +
@@ -347,6 +350,64 @@ void infer(detail::AnalysisContext& context, Rule& rule) {
                          "counterexample to unconditional rewrite");
           return;
         }
+      }
+    }
+    if (context.options.verify_small && !automatic) {
+      if (!rule.conditions.empty() || !rule.derivations.empty() ||
+          !rule.constraints.empty()) {
+        result.proof.push_back(
+            "early sparse verification deferred to Rust verify_small: rule "
+            "conditions, declarations, or host derivations must execute");
+      } else {
+        auto probe = *result.semantic;
+        probe.timeout_ms = std::min(probe.timeout_ms, 100u);
+        std::size_t checked = 0;
+        bool rejected = false;
+        for (const semantics::List& shape :
+             std::vector<semantics::List>{{}, {2}, {2, 2}, {2, 3}}) {
+          std::vector<semantics::List> shapes(probe.captures.size(), shape);
+          std::vector<std::vector<semantics::List>> blocked;
+          for (std::size_t attempt = 0; attempt < 8; ++attempt) {
+            auto sample = semantics::sampleMetadata(probe, shapes, blocked);
+            if (sample.status != semantics::Status::Found) break;
+            blocked.push_back(sample.known);
+            auto counter = semantics::verifySparse(probe, shapes, sample.known);
+            if (counter.status ==
+                semantics::VerificationStatus::Counterexample) {
+              std::string witness =
+                  "early sparse counterexample: " + counter.reason;
+              auto list = [](const semantics::List& xs) {
+                std::string out = "[";
+                for (auto x : xs) out += std::to_string(x) + ",";
+                return out + "]";
+              };
+              witness += "; input shapes=";
+              for (auto& s : shapes) witness += list(s);
+              witness += "; attributes=";
+              for (auto& a : sample.known) witness += list(a);
+              for (auto& entry : counter.entries)
+                witness +=
+                    "; " +
+                    rule.captures.at(probe.captures.at(entry.capture).value)
+                        .name +
+                    list(entry.coordinates) + "=" + std::to_string(entry.value);
+              if (!counter.lhs_value.empty())
+                witness += "; output=" + list(counter.output) +
+                           "; LHS=" + counter.lhs_value +
+                           "; RHS=" + counter.rhs_value;
+              context.report(rule.origin, witness);
+              rejected = true;
+              break;
+            }
+            checked += counter.status ==
+                       semantics::VerificationStatus::NoCounterexample;
+          }
+          if (rejected) return;
+        }
+        result.proof.push_back(
+            "early sparse verification: " + std::to_string(checked) +
+            " concrete metadata configurations checked; untested metadata and "
+            "higher ranks remain unverified");
       }
     }
     rule.inference = std::move(result);

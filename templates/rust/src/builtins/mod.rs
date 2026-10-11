@@ -1,6 +1,7 @@
 //! Pure TEPL builtin implementations shared by generated expression evaluators.
 pub mod common;
 pub mod semantic;
+pub mod verification;
 pub mod dtype;
 mod error;
 pub mod shape;

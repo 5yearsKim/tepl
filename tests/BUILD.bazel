@@ -223,3 +223,12 @@ cc_test(
     srcs = ["graph_test.cc"],
     deps = ["//:frontend", "//src/codegen:codegen", "//src/core:analysis"],
 )
+
+cc_test(
+    name = "early_verification_test",
+    size = "small",
+    srcs = ["early_verification_test.cc"],
+    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
+    data = ["//:examples/semantic/dialects/tensor.tepl"],
+    deps = ["//:frontend", "//src/core:analysis", "//src/core:semantic_solver", "@rules_cc//cc/runfiles"],
+)

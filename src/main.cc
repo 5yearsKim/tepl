@@ -65,7 +65,11 @@ int main(int argc, char** argv) {
                        "Namespace for generated C++ (default: tepl_generated)");
   std::string semantic_policy = "strict";
   unsigned solver_timeout = 1000;
+  bool verify_small = false;
   for (auto* command : {check, generate}) {
+    command->add_flag("--verify-small", verify_small,
+                      "Reject explicit rules with small sparse counterexamples "
+                      "(ideal arithmetic)");
     command
         ->add_option("--semantic-policy", semantic_policy,
                      "Arithmetic proof policy (strict or algebraic)")
@@ -136,7 +140,7 @@ int main(int argc, char** argv) {
         *result.program,
         {semantic_policy == "algebraic" ? tepl::core::SemanticPolicy::kAlgebraic
                                         : tepl::core::SemanticPolicy::kStrict,
-         solver_timeout});
+         solver_timeout, verify_small});
     for (const auto& diagnostic : analyzed.diagnostics) {
       const auto print_location = [](const tepl::SourceLocation& at) {
         std::cerr << at.source_name << ':' << at.span.begin.line << ':'

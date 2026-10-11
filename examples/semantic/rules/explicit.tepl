@@ -1,0 +1,19 @@
+from "../dialects/tensor.tepl" import TensorLang as t;
+use t::{add, dot, transpose};
+
+// Explicit attributes: --verify-small can test this rule inside the compiler.
+rule distribute_explicit {
+    (dot[@d] (add A B) C)
+    =>
+    (add (dot[@d] A C) (dot[@d] B C))
+}
+
+// The generated Rust verify_small entry point runs the actual host derivation.
+rule transpose_host_copy {
+    (transpose[@p] X)
+    =>
+    (transpose[@copy] X)
+    derive {
+        @copy = $copy_permutation(@p);
+    }
+}

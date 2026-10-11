@@ -132,7 +132,7 @@ cc_library(
 cc_library(
     name = "semantic_solver",
     srcs = ["semantics/solver.cc", "semantics/ordered.cc", "semantics/axis_domains.cc"],
-    hdrs = ["semantics/solver.h", "semantics/ordered.h", "semantics/constraint_match.h", "semantics/axis_domains.h"],
+    hdrs = ["semantics/solver.h", "semantics/ordered.h", "semantics/constraint_match.h", "semantics/axis_domains.h", "semantics/early_verification.h", "semantics/early_verification.inc"],
     deps = [":ir", ":z3_solver"],
     visibility = ["//visibility:public"],
 )

@@ -297,6 +297,15 @@ attribute-free rule when its scalar instance has an exact counterexample. For
 example, `(add X Y) => X` is rejected. It does not ignore user guards or declared
 shape constraints to produce such a diagnostic.
 
+For explicit-attribute rules, `check` and `generate` also offer `--verify-small`.
+It searches small legal configurations and rejects confirmed sparse witnesses.
+Rules with guards, declarations, or host derivations use generated Rust
+`rule_NAME::verify_small(&functions, &options)` in a build/test validation step.
+The harness executes the actual host functions before checking their returned
+attributes. See [bounded early rejection](research/early_verification.md) for
+commands, result meanings, and limits, and [explicit rules](rules/explicit.tepl)
+for examples. A passed bounded check does not prove higher-rank validity.
+
 **There is no generic compile-time arbitrary-rank coverage proof.** A compiled
 auto rule reports `coverage=match-guarded`; some or all matches can fail. Checking
 small ranks does not establish a theorem for higher ranks.

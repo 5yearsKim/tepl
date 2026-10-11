@@ -1,8 +1,10 @@
 # Sparse counterexamples for compile-time attribute rejection
 
-**Status:** research proposal, October 11, 2026. This note describes a proposed
-extension to TEPL, not an implemented compile-time checker. The proofs assume
-ideal mathematical arithmetic. They are not a claim of research novelty.
+**Status:** theorem and research proposal, October 11, 2026. A bounded
+[explicit-attribute early checker](early_verification.md) now implements degree
+analysis, sparse Z3 queries, confirmed witnesses, and Rust host-function
+validation. The `auto` synthesis/rejection loop proposed below is not implemented.
+The proofs assume ideal mathematical arithmetic and do not claim research novelty.
 
 ## Goal
 

@@ -476,3 +476,21 @@ printf 'graph scalar { yield 1; }\n' > "$graph_project/graphs/nested.tepl"
 check_exit 1 generate "$graph_project" --out "${TEST_TMPDIR}/graph_file_directory"
 grep -Fq 'graph file/directory module collision' "$output"
 test ! -e "${TEST_TMPDIR}/graph_file_directory"
+
+# Sparse early rejection exposes a rank-two failure with explicit attributes.
+sparse_rule="${TEST_TMPDIR}/sparse.tepl"
+cat > "$sparse_rule" <<'TEPL'
+dialect D {
+  op shuffle(x:tensor)->tensor {
+    attrs { axes:index[]; }
+    dtype(t){yield t;}
+    shape(s){assert is_valid_axis_list(attrs.axes,len(s)); assert len(attrs.axes)==len(s); yield gather(s,attrs.axes);}
+    semantics(i){yield read(x,scatter(rank(x),attrs.axes,i));}
+  }
+}
+rule wrong { (shuffle[@p] X) => X }
+TEPL
+check_exit 0 check "$sparse_rule"
+check_exit 1 check "$sparse_rule" --verify-small
+grep -Fq 'early sparse counterexample' "$output"
+grep -Fq 'LHS=' "$output"

@@ -7,6 +7,7 @@
 #include "src/codegen/rust/code_writer.h"
 #include "src/codegen/rust/expression_emitter.h"
 #include "src/codegen/rust/paths.h"
+#include "src/codegen/rust/verification_emitter.h"
 
 namespace tepl::codegen::rust {
 namespace {
@@ -166,6 +167,7 @@ void emitRule(CodeWriter& out, const core::Program& program,
   }
   out.line("])");
   out.close();
+  emitVerification(out, program, rule, names, root);
   for (std::size_t i = 0; i < plan.early_conditions.size(); ++i) {
     out.open(
         "fn condition_" + std::to_string(i) +
