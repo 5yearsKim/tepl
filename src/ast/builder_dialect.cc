@@ -77,6 +77,8 @@ std::any AstBuilder::visitOpDecl(Parser::OpDeclContext* context) {
     if (auto* shape = properties->shapeProperty())
       op.shape_definition =
           std::any_cast<ast::MetadataDefinition>(visit(shape));
+    if (auto* axes = properties->axesProperty())
+      op.axes = std::any_cast<ast::AxisDefinition>(visit(axes));
     if (!properties->aliasProperty().empty())
       op.alias = properties->aliasProperty().front()->ID()->getText();
     if (!properties->attrsProperty().empty()) {

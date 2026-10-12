@@ -34,6 +34,8 @@ class Printer {
         out_ << "    semantics ["
              << "element"
              << "]: " << semantics::format(*op.semantics->result) << "\n";
+      if (op.index_semantics)
+        out_ << index_semantics::format(*op.index_semantics);
     }
     for (const auto& schema : program_.attribute_schemas) {
       out_ << "  attr_schema #" << schema.id.value << ' ' << schema.dialect
@@ -290,6 +292,8 @@ class Printer {
       for (const auto& step : rule.inference->proof)
         out_ << "      proof: " << step << "\n";
     }
+    if (rule.index_inference)
+      out_ << index_semantics::format(*rule.index_inference);
     out_ << "    replacement: ";
     build(*rule.rhs);
     out_ << '\n';

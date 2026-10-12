@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "src/core/index_semantics/check.h"
 #include "src/core/inference/check.h"
 #include "src/core/rule/check_context.h"
 #include "src/core/rule/declarations.h"
@@ -45,7 +46,8 @@ std::optional<Rule> check(AnalysisContext& analysis,
   analysis.types.unify(context.rule.lhs->type, context.rule.rhs->type,
                        input.origin);
   if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
-  inference::infer(analysis, context.rule);
+  if (!index_semantics::compile(analysis, context.rule))
+    inference::infer(analysis, context.rule);
   if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
   return std::move(context.rule);
 }

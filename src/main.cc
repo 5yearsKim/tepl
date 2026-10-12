@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -11,6 +12,7 @@
 #include "src/core/analyze.h"
 #include "src/core/print.h"
 #include "src/imports.h"
+#include "src/index_check.h"
 #include "src/parse.h"
 #include "src/support/init.h"
 
@@ -66,6 +68,9 @@ int main(int argc, char** argv) {
   std::string semantic_policy = "strict";
   unsigned solver_timeout = 1000;
   bool verify_small = false;
+  std::string index_rule;
+  check->add_option("--index-rule", index_rule,
+                    "Select an index-semantic rule for compile-time proof");
   for (auto* command : {check, generate}) {
     command->add_flag("--verify-small", verify_small,
                       "Reject explicit rules with small sparse counterexamples "
@@ -81,6 +86,20 @@ int main(int argc, char** argv) {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& error) {
     return app.exit(error) == 0 ? 0 : 2;
+  }
+
+  // bazel run starts in the binary's runfiles directory. User paths belong to
+  // the directory where bazel was invoked, including relative output paths.
+  if (const auto* working_directory = std::getenv("BUILD_WORKING_DIRECTORY")) {
+    if (*working_directory) {
+      try {
+        std::filesystem::current_path(working_directory);
+      } catch (const std::filesystem::filesystem_error& error) {
+        std::cerr << "cannot use invocation directory: " << error.what()
+                  << '\n';
+        return 2;
+      }
+    }
   }
 
   if (*init) {
@@ -160,8 +179,17 @@ int main(int argc, char** argv) {
     }
     if (!analyzed.ok()) return 1;
     if (*check) {
-      std::cout << tepl::core::formatProgram(*analyzed.program);
-      return 0;
+      if (index_rule.empty())
+        std::cout << tepl::core::formatProgram(*analyzed.program);
+      return tepl::checkIndexRules(*analyzed.program, index_rule, std::cout);
+    }
+    for (const auto& operation : analyzed.program->operations) {
+      if (operation.index_semantics) {
+        std::cerr << "index semantics currently supports compiler-side check "
+                     "and inference; "
+                     "code generation is not implemented\n";
+        return 1;
+      }
     }
     generation_options.target = target == "rust" ? tepl::codegen::Target::kRust
                                 : target == "cpp"

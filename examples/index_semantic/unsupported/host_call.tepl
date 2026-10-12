@@ -1,0 +1,12 @@
+from "../dialects/tensor.tepl" import TensorLang as t;
+use t::{transpose};
+
+// Expected unknown: the compiler has no semantic contract for this host call.
+rule transpose_host_copy {
+    (transpose[@p] X)
+    =>
+    (transpose[@copy] X)
+    derive {
+        @copy = $copy_permutation(@p);
+    }
+}

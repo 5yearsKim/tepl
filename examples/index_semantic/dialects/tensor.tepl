@@ -1,0 +1,167 @@
+// Index-semantic IR for compiler-side graph lowering and attribute inference.
+// Rule compilation synthesizes symbolic attribute constructors and checks a
+// bounded algebraic fragment without concrete metadata. Generated Rust/C++
+// execution is not implemented; see ../README.md.
+//
+// Axis groups and mappings
+// ------------------------
+// bind G { operand: positions, ... }; creates a fresh ordered logical axis
+// group and registers its operand mappings for use in semantics.
+// Example: bind G { lhs: [2, 0], rhs: [1, 3] };
+//     G[0] <-> lhs axis 2 <-> rhs axis 1
+//     G[1] <-> lhs axis 0 <-> rhs axis 3
+// Corresponding positions must have equal extents. Equal extents alone never
+// identify logical axes: sharing a group explicitly establishes that identity.
+//
+// Each group stores ordered axis identities and extents. Each operand binding
+// stores the equally long ordered list of physical positions. Group lengths
+// may be symbolic; groups can be empty and are never flattened into one axis.
+// Members remain individually selectable, so later operations may split groups.
+// Batching/contraction/free are local roles, not permanent types of an axis.
+//
+// Generic checks supplied by the axes block:
+//   * Each position list is distinct and in range for its operand.
+//   * Bindings within one group have equal lengths and corresponding extents.
+//   * Across groups, every input dimension is bound exactly once.
+// These checks are legality constraints, retained through algebraic rewriting.
+//
+// bind names and their operand mappings are available in semantics; let locals
+// remain local to the axes block. No semantics parameter list is needed.
+// axes yields the ordered output-axis sequence; semantics yields the value
+// expression. The compiler pairs these results into the tensor meaning.
+// The output sequence lists every free logical axis of the expression once.
+// Its extents determine the output shape; there is no separate shape block.
+// `++` concatenates ordered sequences.
+// all_axes(t) = [0, ..., rank(t)-1]; ordered_complement(S, T) removes T from S
+// while preserving S's order. permute(S, p)[i] = S[p[i]].
+//
+// Algebraic graph
+// ---------------
+// Operand references inside semantics use the mappings registered by bind.
+// Add and Product add/multiply scalar values at a logical coordinate assignment;
+// Product shares common coordinates and retains independent coordinates.
+// Reduce(G, e) binds G and sums e over the Cartesian product of G's domains.
+// Reduce([], e) = e. A domain with any zero extent has sum zero.
+// This describes a value and its interface, not storage allocation. Operation
+// operands and attrs are visible in both blocks.
+//
+// Composition connects producer output positions to consumer operand positions,
+// renaming free logical axes and freshening internal reduction binders as needed.
+// Input tensor identities and repeated occurrences are preserved. Transpose
+// changes the ordered interface without adding an arithmetic node.
+//
+// For RHS auto attributes, position sequences and group lengths remain symbolic.
+// Matching generates constraints on these bindings, together with legality and
+// ordered-output equality. This representation alone does not establish a
+// complete matching algorithm or uniqueness of inferred attributes.
+//
+// Arithmetic below is ideal mathematical arithmetic. Dtype legality is separate
+// from permission to use associativity, distributivity, or reduction reordering;
+// a numerical policy must justify those transformations for the target execution.
+dialect TensorLang {
+    // Elementwise addition with identical shapes; no broadcasting.
+    op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) };
+            yield S;
+        }
+        semantics {
+            yield Add(lhs, rhs);
+        }
+    }
+
+    op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+        // TEPL shorthand, not a separate StableHLO dot operation.
+        alias: dot;
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        attrs {
+            // Flattened fields of StableHLO dot_dimension_numbers.
+            lhs_contracting_dimensions: index[];
+            rhs_contracting_dimensions: index[];
+            lhs_batching_dimensions: index[];
+            rhs_batching_dimensions: index[];
+        }
+        axes {
+            let lb = attrs.lhs_batching_dimensions;
+            let rb = attrs.rhs_batching_dimensions;
+            let lc = attrs.lhs_contracting_dimensions;
+            let rc = attrs.rhs_contracting_dimensions;
+
+            let lf = ordered_complement(all_axes(lhs), lb ++ lc);
+            let rf = ordered_complement(all_axes(rhs), rb ++ rc);
+
+            bind B { lhs: lb, rhs: rb };
+            bind K { lhs: lc, rhs: rc };
+            bind I { lhs: lf };
+            bind J { rhs: rf };
+
+            // Generic partition checks reject batch/contraction overlap.
+            // Shared-group checks enforce paired lengths and extents.
+            yield B ++ I ++ J;
+        }
+        semantics {
+            yield Reduce(K, Product(lhs, rhs));
+        }
+
+        // Example: lhs [i, k0, b, k1], rhs [k1, j, k0, b].
+        // Group       lhs positions    rhs positions    output positions
+        // B = [b]         [2]              [3]                 [0]
+        // K = [k0,k1]     [1,3]            [2,0]                --
+        // I = [i]         [0]              --                  [1]
+        // J = [j]         --               [1]                 [2]
+        // out[b,i,j] = sum(k0,k1) lhs[i,k0,b,k1] * rhs[k1,j,k0,b].
+    }
+
+    op transpose(input: tensor) -> tensor {
+        attrs {
+            permutation: index[];
+        }
+        dtype(t) {
+            yield t;
+        }
+        axes {
+            bind S { input: all_axes(input) };
+
+            assert is_valid_axis_list(attrs.permutation, rank(input));
+            assert len(attrs.permutation) == rank(input);
+            // Output axis i carries input axis permutation[i].
+            yield permute(S, attrs.permutation);
+        }
+        semantics {
+            yield input;
+        }
+    }
+
+    // Reduced axes are removed (keepdims = false). An empty dimensions list
+    // gives identity; selecting all dimensions gives a scalar, with output [].
+    op reduce_sum(input: tensor) -> tensor {
+        attrs {
+            dimensions: index[];
+        }
+        dtype(t) {
+            assert is_numeric(t);
+            yield t;
+        }
+        axes {
+            let reduced = attrs.dimensions;
+            let retained = ordered_complement(all_axes(input), reduced);
+
+            bind K { input: reduced };
+            bind F { input: retained };
+
+            yield F;
+        }
+        semantics {
+            yield Reduce(K, input);
+        }
+    }
+}

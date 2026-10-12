@@ -26,6 +26,8 @@ cc_library(
     srcs = [
         "builtins/catalog.cc",
         "semantics/ir.cc",
+        "index_semantics/ir.cc",
+        "index_semantics/print.cc",
         "metadata/types.cc",
         "type/literal.cc",
         "type/types.cc",
@@ -34,6 +36,7 @@ cc_library(
         "builtins/catalog.h",
         "ids.h",
         "semantics/ir.h",
+        "index_semantics/ir.h",
         "inference/ir.h",
         "inference/semantic_ir.h",
         "ir.h",
@@ -58,9 +61,20 @@ cc_library(
 )
 
 cc_library(
+    name = "index_proof",
+    srcs = ["index_semantics/expr.cc", "index_semantics/graph.cc", "index_semantics/normalize.cc", "index_semantics/routing.cc", "index_semantics/synthesize.cc", "index_semantics/verify.cc"],
+    hdrs = ["index_semantics/expr.h", "index_semantics/graph.h", "index_semantics/normalize.h", "index_semantics/routing.h", "index_semantics/synthesize.h", "index_semantics/verify.h"],
+    deps = [":ir"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "analysis",
     srcs = [
         "analysis_context.cc",
+        "index_semantics/check.cc",
+        "index_semantics/check.h",
+        "index_semantics/plan.cc",
         "semantics/check.cc",
         "semantics/check.h",
         "inference/check.cc",
@@ -116,6 +130,7 @@ cc_library(
         ":ir",
         "//:source",
         "//src/ast:ast",
+        ":index_proof",
         ":semantic_solver",
         ":constraint_generation",
     ],

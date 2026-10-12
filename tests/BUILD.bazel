@@ -2,6 +2,23 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_test(
+    name = "index_semantics_test",
+    size = "small",
+    srcs = ["index_semantics_test.cc", "index_reference_engine.cc", "index_reference.h", "index_constructor_eval.h"],
+    args = ["$(rlocationpath //:examples/index_semantic/dialects/tensor.tepl)"],
+    data = ["//:examples/index_semantic/dialects/tensor.tepl"],
+    deps = ["//:frontend", "//src/core:analysis", "//src/core:index_proof", "//src/core:print", "@rules_cc//cc/runfiles"],
+)
+
+sh_test(
+    name = "index_cli_test",
+    size = "small",
+    srcs = ["index_cli_test.sh"],
+    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/index_semantic/rules/algebraic.tepl)"],
+    data = ["//:tepl", "//:examples/index_semantic/rules/algebraic.tepl", "//:examples/index_semantic/dialects/tensor.tepl"],
+)
+
+cc_test(
     name = "axis_domains_test",
     size = "small",
     srcs = ["axis_domains_test.cc"],

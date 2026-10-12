@@ -1,0 +1,16 @@
+from "../dialects/tensor.tepl" import TensorLang as t;
+use t::{add, reduce_sum, transpose};
+
+// Exact-arithmetic reduction linearity; axes and domains are matched jointly.
+rule sum_distribute {
+    (reduce_sum[@d] (add A B))
+    =>
+    (add (reduce_sum[auto] A) (reduce_sum[auto] B))
+}
+
+// Permutations compose through ordered interfaces, with no arithmetic rewrite.
+rule transpose_compose {
+    (transpose[@outer] (transpose[@inner] A))
+    =>
+    (transpose[auto] A)
+}

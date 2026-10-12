@@ -16,6 +16,27 @@ ast::MetadataExprPtr makeMetadataExpr(const antlr4::ParserRuleContext* context,
 }
 }  // namespace
 
+std::any AstBuilder::visitAxesProperty(Parser::AxesPropertyContext* context) {
+  ast::AxisDefinition result;
+  result.span = getSpan(context);
+  for (auto* statement : context->axisStatement()) {
+    if (auto* metadata = statement->shapeStatement()) {
+      result.statements.push_back(
+          std::any_cast<ast::MetadataStatement>(visit(metadata)));
+    } else {
+      ast::AxisBind bind{getSpan(statement), statement->ID(1)->getText(), {}};
+      for (auto* binding : statement->axisBinding())
+        bind.bindings.push_back(
+            {getSpan(binding), binding->ID()->getText(),
+             std::any_cast<ast::MetadataExprPtr>(visit(binding->shapeExpr()))});
+      result.statements.push_back(std::move(bind));
+    }
+  }
+  result.output = std::any_cast<ast::MetadataExprPtr>(
+      visit(context->shapeYield()->shapeExpr()));
+  return result;
+}
+
 std::any AstBuilder::visitShapeProperty(Parser::ShapePropertyContext* context) {
   ast::MetadataDefinition definition;
   definition.span = getSpan(context);
@@ -76,10 +97,15 @@ ast::MetadataExprPtr AstBuilder::foldMetadataBinary(
     antlr4::ParserRuleContext* parent, const std::vector<Context*>& operands) {
   auto lhs = std::any_cast<ast::MetadataExprPtr>(visit(operands.front()));
   for (std::size_t index = 1; index < operands.size(); ++index) {
-    const auto op =
-        detail::binaryOperator(parent->children[2 * index - 1]->getText());
+    const auto spelling = parent->children[2 * index - 1]->getText();
     auto rhs = std::any_cast<ast::MetadataExprPtr>(visit(operands[index]));
     const ast::SourceSpan span{lhs->span.begin, rhs->span.end};
+    if (spelling == "++") {
+      lhs = std::make_shared<ast::MetadataExpr>(ast::MetadataExpr{
+          span, ast::MetadataCall{"concat", {std::move(lhs), std::move(rhs)}}});
+      continue;
+    }
+    const auto op = detail::binaryOperator(spelling);
     lhs = std::make_shared<ast::MetadataExpr>(ast::MetadataExpr{
         span, ast::MetadataBinary{op, std::move(lhs), std::move(rhs)}});
   }

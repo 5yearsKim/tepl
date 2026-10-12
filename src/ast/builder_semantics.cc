@@ -14,7 +14,8 @@ Ptr node(const antlr4::ParserRuleContext* ctx, E::Kind kind,
 }
 }  // namespace
 std::any AstBuilder::visitSemanticsProperty(P::SemanticsPropertyContext* ctx) {
-  ast::SemanticDefinition out{getSpan(ctx), ctx->ID(1)->getText(), {}, {}};
+  ast::SemanticDefinition out{
+      getSpan(ctx), ctx->ID().size() > 1 ? ctx->ID(1)->getText() : "", {}, {}};
   for (auto* let : ctx->semanticLet())
     out.locals.push_back({getSpan(let), let->ID()->getText(),
                           std::any_cast<Ptr>(visit(let->semanticExpr()))});

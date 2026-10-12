@@ -240,6 +240,22 @@ struct MetadataDefinition {
   MetadataYield result;
 };
 
+struct AxisBinding {
+  SourceSpan span;
+  std::string operand;
+  MetadataExprPtr positions;
+};
+struct AxisBind {
+  SourceSpan span;
+  std::string name;
+  std::vector<AxisBinding> bindings;
+};
+struct AxisDefinition {
+  SourceSpan span;
+  std::vector<std::variant<MetadataStatement, AxisBind>> statements;
+  MetadataExprPtr output;
+};
+
 // Semantics expressions own their scope and are separate from metadata
 // programs.
 struct SemanticExpr;
@@ -398,6 +414,7 @@ struct OpDecl {
   std::optional<MetadataDefinition> dtype_definition;
   std::vector<std::string> duplicate_properties;
   std::optional<SemanticDefinition> semantics;
+  std::optional<AxisDefinition> axes;
 };
 
 struct Dialect {

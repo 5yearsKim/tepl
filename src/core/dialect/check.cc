@@ -5,6 +5,7 @@
 
 #include "src/core/analysis_context.h"
 #include "src/core/dialect/attributes.h"
+#include "src/core/index_semantics/check.h"
 #include "src/core/metadata/check.h"
 #include "src/core/resolution/source.h"
 #include "src/core/semantics/check.h"
@@ -60,7 +61,13 @@ void registerOperation(AnalysisContext& context, TypeId tensor,
     value.dtype =
         metadata::check(context, value, *op.dtype_definition,
                         dialect.source_name, metadata::ProgramKind::DType);
-  if (op.semantics)
+  if (op.axes) {
+    if (!op.semantics)
+      context.report(at, "axes requires index semantics");
+    else
+      value.index_semantics = index_semantics::check(
+          context, value, *op.axes, *op.semantics, dialect.source_name);
+  } else if (op.semantics)
     value.semantics =
         semantics::check(context, value, *op.semantics, dialect.source_name);
   context.output.operations.push_back(std::move(value));

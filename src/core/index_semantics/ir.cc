@@ -1,0 +1,38 @@
+#include "src/core/index_semantics/ir.h"
+
+namespace tepl::core::index_semantics {
+const std::vector<Law>& laws() {
+  static const std::vector<Law> result{
+      {"add-associativity", "Add(Add(x,y),z) = Add(x,Add(y,z))",
+       "same free-axis interface; exact associative addition", true},
+      {"product-associativity",
+       "Product(Product(x,y),z) = Product(x,Product(y,z))",
+       "coordinate bindings preserved; exact associative multiplication", true},
+      {"commutative-matching",
+       "Add(x,y) = Add(y,x); Product(x,y) = Product(y,x)",
+       "bindings preserved; exact commutative arithmetic", true},
+      {"product-distributivity",
+       "Product(Add(x,y),z) -> Add(Product(x,z),Product(y,z))",
+       "Add operands aligned; bindings preserved; exact distributive "
+       "arithmetic",
+       true},
+      {"reduction-linearity",
+       "Reduce(K,Add(x,y)) -> Add(Reduce(K,x),Reduce(K,y))",
+       "same finite reduction domains; exact addition", true},
+      {"reduction-extraction",
+       "Product(Reduce(K,x),y) -> Reduce(K,Product(x,y))",
+       "K fresh and absent from free axes of y; finite value-independent "
+       "domains",
+       true},
+      {"reduction-composition", "Reduce(K,Reduce(J,x)) -> Reduce(K++J,x)",
+       "disjoint fresh binders; independent finite domains; exact addition",
+       true},
+      {"axis-alpha-renaming", "e[axes] = rename(e, corresponding_axes)",
+       "bijection preserves domains, output positions, and binder scopes",
+       false},
+      {"permutation-composition", "permute(permute(S,p),q) = permute(S,p[q])",
+       "p and q are full valid permutations of the same ordered interface",
+       false}};
+  return result;
+}
+}  // namespace tepl::core::index_semantics

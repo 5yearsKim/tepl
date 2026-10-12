@@ -62,9 +62,25 @@ variadicOperand
     ;
 
 opProperties
-    : (aliasProperty | attrsProperty | dtypeProperty)+ shapeProperty? semanticsProperty?
+    : (aliasProperty | attrsProperty | dtypeProperty)+ (shapeProperty | axesProperty)? semanticsProperty?
     | shapeProperty semanticsProperty?
+    | axesProperty semanticsProperty?
     | semanticsProperty
+    ;
+
+axesProperty
+    : {getCurrentToken()->getText() == "axes"}? ID
+      '{' axisStatement* shapeYield '}'
+    ;
+
+axisStatement
+    : shapeStatement
+    | {getCurrentToken()->getText() == "bind"}? ID ID
+      '{' axisBinding (',' axisBinding)* '}' ';'
+    ;
+
+axisBinding
+    : ID ':' shapeExpr
     ;
 
 // Dtype is contextual; legacy colon policies are no longer accepted.
@@ -126,7 +142,7 @@ shapeComparison
     ;
 
 shapeAdditive
-    : shapeMultiplicative (('+' | '-') shapeMultiplicative)*
+    : shapeMultiplicative (('+' | '-' | '++') shapeMultiplicative)*
     ;
 
 shapeMultiplicative
@@ -165,7 +181,7 @@ shapeArguments
     ;
 
 semanticsProperty
-    : {getCurrentToken()->getText() == "semantics"}? ID '(' ID ')'
+    : {getCurrentToken()->getText() == "semantics"}? ID ('(' ID ')')?
       '{' semanticLet* YIELD semanticExpr ';' '}'
     ;
 semanticLet

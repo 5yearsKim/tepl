@@ -385,6 +385,32 @@ std::string formatAst(const ast::Program& program) {
         printMetadataDefinition(out, *op.dtype_definition, "dtype");
       if (op.shape_definition)
         printMetadataDefinition(out, *op.shape_definition);
+      if (op.axes) {
+        out << "      axes\n";
+        for (const auto& statement : op.axes->statements) {
+          if (const auto* binding = std::get_if<ast::AxisBind>(&statement)) {
+            out << "        bind " << binding->name << '\n';
+            for (const auto& entry : binding->bindings) {
+              out << "          " << entry.operand << '\n';
+              printMetadataExpr(out, *entry.positions, 6);
+            }
+          } else {
+            const auto& metadata = std::get<ast::MetadataStatement>(statement);
+            if (const auto* local =
+                    std::get_if<ast::MetadataLet>(&metadata.value)) {
+              out << "        let " << local->name << '\n';
+              printMetadataExpr(out, *local->value, 5);
+            } else {
+              out << "        assert\n";
+              printMetadataExpr(
+                  out, *std::get<ast::MetadataAssert>(metadata.value).condition,
+                  5);
+            }
+          }
+        }
+        out << "        yield\n";
+        printMetadataExpr(out, *op.axes->output, 5);
+      }
       if (op.semantics) {
         out << "      semantics";
         if (!op.semantics->index.empty())

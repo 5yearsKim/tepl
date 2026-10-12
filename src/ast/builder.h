@@ -16,6 +16,8 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
                      std::string source_name);
 
  private:
+  std::any visitAxesProperty(
+      tepl_generated::TeplParser::AxesPropertyContext*) override;
   std::any visitSemanticsProperty(
       tepl_generated::TeplParser::SemanticsPropertyContext*) override;
   std::any visitSemanticConditionalExpr(
