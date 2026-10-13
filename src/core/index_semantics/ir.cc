@@ -44,6 +44,31 @@ const std::vector<Law>& laws() {
       {"permutation-composition", "permute(permute(S,p),q) = permute(S,p[q])",
        "p and q are full valid permutations of the same ordered interface",
        false},
+      {"ordered-axis-split",
+       "selected=S[p]; remaining=S[complement(range(len(S)),p)]",
+       "S distinct; p valid; selected retains p order; remaining retains S "
+       "order",
+       false},
+      {"axis-map-composition", "S[p][q] = S[gather(p,q)]",
+       "p and q valid in their respective coordinate spaces", false},
+      {"axis-map-restriction", "q[matched_positions(p,q)] = p",
+       "p and q distinct valid selectors into one frame; every coordinate "
+       "selected by p survives in q",
+       false},
+      {"ordered-view-equality", "same_set(A,B) implies A = B",
+       "A and B have strictly increasing position maps into the same "
+       "distinct coordinate frame",
+       false},
+      {"paired-axis-selection",
+       "p[membership_positions(p,q)] = q[matched_positions(p,q)]",
+       "p and q valid distinct selectors into the same interface; pair order "
+       "retained",
+       false},
+      {"ordered-partition-traversal",
+       "stable_select(concat(G1,...,Gn),p) = concat(select_each_block(p))",
+       "Gi form consecutive disjoint blocks; p follows physical interface "
+       "order",
+       false},
       {"physical-axis-order",
        "filter_axes(A,G) = gather(G,order_positions(positions(A,G)))",
        "A and G distinct; G subset of A; order_positions is the stable sorting "

@@ -26,6 +26,10 @@ void Context::represent(S a, S b) {
     return queries_.term_order[key(x)] = {dependency, weight};
   };
   auto category = [](const S& x) {
+    // Prefer executable shape/selector programs to opaque extent queries.
+    // Otherwise a derived shape witness can rename its own constructor back
+    // into the unresolved query and repeatedly expand it during composition.
+    if (callIs(x, "axis_extents")) return 3;
     if (x->kind == Symbol::Kind::Integer || x->kind == Symbol::Kind::Boolean ||
         (x->kind == Symbol::Kind::List && x->args.empty()))
       return 0;
@@ -34,9 +38,9 @@ void Context::represent(S a, S b) {
   // Source nodes are topologically ordered. Prefer producer metadata over a
   // downstream field, so routing prerequisites cannot feed their own lengths
   // back into producer selectors. No operation or attribute names participate.
-  if (std::tuple(order(a).first, category(a), order(a).second, key(a)) <
-      std::tuple(order(b).first, category(b), order(b).second, key(b)))
-    std::swap(a, b);
+  auto ao = std::tuple(order(a).first, category(a), order(a).second);
+  auto bo = std::tuple(order(b).first, category(b), order(b).second);
+  if (ao < bo || (ao == bo && symbolLess(a, b))) std::swap(a, b);
   facts_.representatives[key(a)] = b;
 }
 S Context::canonicalChildren(const S& s) {
@@ -55,6 +59,11 @@ void Context::invalidate() {
   queries_.evidence.clear();
   queries_.support.clear();
   queries_.positions.clear();
+  if (!active_sets_) {
+    sets_.reset();
+    set_expressions_.clear();
+    set_atoms_.clear();
+  }
 }
 void Context::learn(const S& fact) {
   if (truth(fact) || !facts_.keys.insert(key(fact)).second) return;
@@ -154,6 +163,18 @@ bool Context::deriveEvidence(const S& f) {
   return structuralEvidence(f, QueryMode::Evidence);
 }
 bool Context::structuralEvidence(const S& f, QueryMode mode) {
+  if (callIs(f, "==") && f->args[0]->sort == Symbol::Sort::Extents &&
+      f->args[1]->sort == Symbol::Sort::Extents) {
+    auto left = shape_witnesses_.find(key(f->args[0]));
+    auto right = shape_witnesses_.find(key(f->args[1]));
+    if (left != shape_witnesses_.end() && right != shape_witnesses_.end()) {
+      // Snapshot: proof queries must not iterate a table they can change.
+      auto a = left->second, b = right->second;
+      for (const auto& x : a)
+        for (const auto& y : b)
+          if (query(call("==", {x, y}), mode)) return true;
+    }
+  }
   if (callIs(f, "distinct_axes")) {
     auto a = f->args[0];
     if (a->kind == Symbol::Kind::AxisGroup || callIs(a, "empty_axes") ||
@@ -179,10 +200,11 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
   }
   if (callIs(f, "disjoint")) {
     auto a = canonical(f->args[0]), b = canonical(f->args[1]);
-    return independent(a, b) || partitionDisjoint(a, b);
+    return independent(a, b) || partitionDisjoint(a, b) || setEntails(f);
   }
   if (callIs(f, "same_set"))
-    return equal(support(f->args[0], mode), support(f->args[1], mode));
+    return equal(support(f->args[0], mode), support(f->args[1], mode)) ||
+           setEntails(f);
   if (callIs(f, "subset")) {
     auto a = support(f->args[0], mode), b = support(f->args[1], mode);
     if (equal(a, b) || callIs(a, "empty_axes")) return true;
@@ -200,9 +222,25 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
       for (const auto& part : b->args)
         if (query(call("subset", {a, part}), mode)) return true;
     }
+    return setEntails(f);
   }
   if (callIs(f, "axis_partition")) {
     auto p = f->args[0];
+    if (callIs(p, "concat"))
+      for (std::size_t i = 0; i < p->args.size(); ++i) {
+        const auto& remainder = p->args[i];
+        if (!callIs(remainder, "ordered_complement") ||
+            !equal(canonical(remainder->args[0]),
+                   canonical(call("range", {f->args[1]}))))
+          continue;
+        std::vector<S> selected;
+        for (std::size_t j = 0; j < p->args.size(); ++j)
+          if (i != j) selected.push_back(p->args[j]);
+        auto positions = canonical(call("concat", std::move(selected)));
+        if (equal(positions, canonical(remainder->args[1])) &&
+            query(call("is_valid_axis_list", {positions, f->args[1]}), mode))
+          return true;
+      }
     if (callIs(p, "order_positions"))
       return query(call("==", {call("len", {p->args[0]}), f->args[1]}), mode);
     if (facts_.permutations.contains(key(p)) &&
@@ -232,6 +270,8 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
       for (const auto& n : found->second)
         if (equal(canonical(n), canonical(f->args[1]))) return true;
     auto p = f->args[0], n = f->args[1];
+    if (p->kind == Symbol::Kind::List && p->args.empty() && nonnegative(n))
+      return true;
     if (auto block = positionBlock(p)) {
       auto end = canonical(call("+", {block->first, block->second}));
       auto bound = canonical(n);
@@ -257,6 +297,23 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
       }
     }
     if (callIs(p, "order_positions"))
+      return query(call("==", {call("len", {p->args[0]}), n}), mode);
+    if (callIs(p, "matched_positions")) {
+      // Matching a distinct list returns distinct positions in the second
+      // list. A selection retains its parent's bound, so use that established
+      // domain when the selected list has no separate premise yet.
+      auto root = p->args[0];
+      while (callIs(root, "gather")) root = root->args[0];
+      auto bounds = facts_.valid_selectors.find(key(root));
+      if (bounds == facts_.valid_selectors.end()) return false;
+      const auto domains = bounds->second;
+      for (const auto& domain : domains)
+        if (query(call("is_valid_axis_list", {p->args[0], domain}), mode) &&
+            query(call("==", {call("len", {p->args[1]}), n}), mode))
+          return true;
+      return false;
+    }
+    if (callIs(p, "membership_positions"))
       return query(call("==", {call("len", {p->args[0]}), n}), mode);
     if (callIs(p, "ordered_complement") &&
         equal(canonical(p->args[0]), canonical(call("range", {n}))))

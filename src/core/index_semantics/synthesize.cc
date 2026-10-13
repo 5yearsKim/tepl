@@ -50,11 +50,11 @@ struct Constructor {
             "multiple binding groups share an unresolved incidence class");
       S wanted;
       for (auto o : incidence)
-        wanted = wanted ? c.intersect(wanted, inputs[o].axes)
-                        : c.support(inputs[o].axes);
+        wanted = wanted ? c.intersect(wanted, inputs[o].interface.axes)
+                        : c.support(inputs[o].interface.axes);
       for (std::size_t o = 0; o < inputs.size(); ++o)
         if (!incidence.contains(o))
-          wanted = c.difference(wanted, inputs[o].axes);
+          wanted = c.difference(wanted, inputs[o].interface.axes);
       wanted = reduced.contains(g)
                    ? c.difference(wanted, match.boundaries.at(id))
                    : c.intersect(wanted, match.boundaries.at(id));
@@ -64,7 +64,10 @@ struct Constructor {
       for (const auto& b : group.bindings) {
         auto p = lowerer.metadata(*b.positions, n, inputs, groups);
         if (!containsHole(c.resolve(p))) {
-          order = c.select(inputs[b.operand].axes, p);
+          c.require(call("is_valid_axis_list",
+                         {p, call("len", {inputs[b.operand].interface.axes})}));
+          order = c.select(inputs[b.operand].interface.axes, p);
+          c.selectionFacts(inputs[b.operand].interface.axes, p, order);
           break;
         }
       }
@@ -72,13 +75,25 @@ struct Constructor {
         c.require(call("same_set", {order, wanted}));
       else {
         auto preferred = reduced.contains(g) ? reductions : source.axes;
-        order = call("concat", {c.filter(preferred, wanted),
-                                c.filter(inputs[*incidence.begin()].axes,
-                                         c.difference(wanted, preferred))});
+        order =
+            call("concat", {c.filter(preferred, wanted),
+                            c.filter(inputs[*incidence.begin()].interface.axes,
+                                     c.difference(wanted, preferred))});
       }
-      for (const auto& b : group.bindings)
-        assign(*b.positions, n, inputs, groups,
-               c.positions(inputs[b.operand].axes, order));
+      for (const auto& b : group.bindings) {
+        // Fixed selectors are checked by semantic lowering in their original
+        // form. Only unresolved selectors need inversion into attributes.
+        auto fixed =
+            c.resolve(lowerer.metadata(*b.positions, n, inputs, groups));
+        if (!containsHole(fixed)) continue;
+        auto positions = inputs[b.operand].interface.lookup(order);
+        if (!positions)
+          positions =
+              c.mappedPositions(inputs[b.operand].interface.axes, order);
+        if (!positions)
+          positions = c.positions(inputs[b.operand].interface.axes, order);
+        assign(*b.positions, n, inputs, groups, positions);
+      }
       groups.push_back(order);
     }
     // Generic inversion of output permutations. Preserve the source order at
@@ -100,12 +115,9 @@ struct Constructor {
       for (const auto& a : m.args) output(*a);
     };
     output(*n.definition->output);
-    auto begin = lowerer.obligations.size();
-    auto tensor = lowerer.operation(id, std::move(inputs));
-    for (std::size_t i = begin; i < lowerer.obligations.size(); ++i) {
-      c.require(lowerer.obligations[i]);
-    }
-    return tensor;
+    // Target lowering checks every obligation before publishing this node's
+    // maps. Rechecking after publication repeats proof work in a changed frame.
+    return lowerer.operation(id, std::move(inputs));
   }
 };
 }  // namespace
@@ -122,6 +134,7 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
     source.lower(plan.lhs);
     Lowerer composed{c};
     auto lhs = composed.lower(plan.lhs);
+    c.enableSetReasoning();
     auto lt = normalize(c, lhs.value, &candidate.rewrites);
     phase = "coordinate correspondence";
     auto rt = normalize(c, arithmeticSkeleton(plan, plan.rhs));

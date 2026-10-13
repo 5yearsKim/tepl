@@ -2,6 +2,13 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_test(
+    name = "axis_interface_test",
+    size = "small",
+    srcs = ["axis_interface_test.cc"],
+    deps = ["//src/core:index_proof"],
+)
+
+cc_test(
     name = "index_semantics_test",
     size = "small",
     srcs = ["index_semantics_test.cc", "index_reference_engine.cc", "index_reference.h", "index_constructor_eval.h"],

@@ -51,20 +51,20 @@ rule associate {
     => (dot[auto] A (dot[auto] B C))
     where {
         @d.lhs_batching_dimensions == @inner->B;
-        @d.lhs_contracting_dimensions == @inner->J;
     }
 }
 ```
 
-The first condition preserves the inner batch group. The second contracts the
-entire inner RHS-free group in its declared order. These sufficient conditions
-support arbitrary-length groups, including multiple batch and contraction
-axes. They do not claim to characterize every valid reassociation.
+The condition preserves the inner batch group. The outer contraction may
+select any subset of either free group, including unsorted or interleaved
+selections. Groups may contain multiple batch and contraction axes, and may be
+empty. This is a supported sufficient restriction, not a weakest-condition
+characterization of every valid reassociation.
 
-The compiler lowers the references to metadata expressions. For example,
-`@inner->J` becomes the positions after the batch and LHS-free groups. The
-condition then simplifies the consumer's contraction mapping to that exact
-producer group. RHS attributes are inferred and checked independently.
+The compiler lowers group references to metadata expressions. For example,
+`@inner->J` gives positions after the batch and LHS-free groups. Such a reference
+can still enforce whole-group routing, as in reverse reassociation and LoRA.
+RHS attributes are inferred and checked independently.
 
 References are allowed in `where` conditions and must identify a unique LHS
 operation occurrence. Unknown groups, groups absent from the output (such as a
@@ -129,6 +129,7 @@ TensorMeaning {
     shape: symbolic extent sequence
     dtype: symbolic dtype
     value: Read | Add | Product | Reduce
+    interface: ordered axes and established source-to-output position maps
 }
 ```
 
@@ -141,6 +142,32 @@ Axis identities, physical positions, and extents have separate expression sorts.
 Selection and transport can split a group without enumerating its members at
 compilation. `positions(interface, group)` derives attribute lists; a permuted
 interface produces inverse-permutation remapping.
+
+Selections use a generic ordered partition, independent of operation names:
+
+```text
+partition(parent, selected_positions) {
+    selected  = parent[selected_positions]
+    remaining = parent[complement(selected_positions)]
+    selected_positions, remaining_positions
+}
+```
+
+Selected axes retain selector order; remaining axes retain parent order. Splits
+are interned and materialized only when needed. A subgroup keeps its maps into
+both the selected interface and the original frame, including contraction
+pairings. Composing maps handles cascading reductions and contractions through
+the same mechanism.
+
+A constructed tensor publishes the maps of surviving source groups. To move a
+group into a selected view, the compiler first proves that the group survives,
+then restricts its parent map. Composing the restricted map back recovers the
+original positions. Lookup follows indexed origins with a breadth-first search
+and caches results; it does not invoke the theorem prover.
+
+Registered coordinate views retain their origin maps during normalization.
+Output-order proofs compare ordered decompositions and maps into a common
+frame. Equal axis sets alone cannot establish equal output order.
 
 The compiler records both directions of each established binding:
 
@@ -215,8 +242,10 @@ Renamed and structurally different operation definitions are tested.
 
 Coordinate construction and independent verification are bounded. The former
 fallback that invented routing guards has been removed. Compatible batched
-whole-group reassociation is covered by explicit conditions; general partial
-group routing and weakest-condition inference are outside the supported scope.
+forward reassociation supports partial selection across both free groups with
+an explicit batch-preservation condition. Reverse reassociation and LoRA retain
+their whole-group restrictions. Weakest-condition inference and completeness
+for arbitrary tensor compositions are outside the supported scope.
 Removing the conditions from the restricted examples causes verification to
 fail. A failure to prove a rule is not a counterexample to every possible RHS
 attribute assignment.

@@ -385,8 +385,7 @@ void symbolicTests() {
       "W) (dot[auto] (dot[auto] X A) B)) where { "
       "@outer.rhs_batching_dimensions == @inner->B; "
       "@outer.rhs_contracting_dimensions == @inner->I; }}");
-  expect(lora.proof.status == ProofStatus::Proved,
-         "LoRA composition supported with guard");
+  proved(lora);
   Metadata lm{{{2, 3}, {3, 4}, {3, 2}, {2, 4}},
               {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}};
   tepl::test::ConstructorEvaluator loraEval(lm, lora);
@@ -404,8 +403,7 @@ void symbolicTests() {
       "rule r { A: [K, M, N] (dot[@d] A B) => (dot[auto] (transpose[auto, "
       "permutation=[1,2,0]] A) B) where { @d.lhs_batching_dimensions == "
       "range(0); @d.lhs_contracting_dimensions == range(1); }}");
-  expect(cycle.proof.status == ProofStatus::Proved,
-         "fixed transpose produces rank/order guard");
+  proved(cycle);
   Metadata good{{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}};
   tepl::test::ConstructorEvaluator goodEval(good, cycle);
   expect(goodEval.applicable(),
@@ -530,7 +528,7 @@ void explicitConditionTests() {
     @d.lhs_batching_dimensions == @inner->B;
     @d.lhs_contracting_dimensions == @inner->I;
   }})");
-  expect(!wrong.ok(), "wrong group mapping does not prove reassociation");
+  expect(wrong.ok(), "whole lhs-free contraction also admits reassociation");
   rejected(
       association + " where { @d.lhs_contracting_dimensions == @inner->K; }}",
       "absent from the operation output");
@@ -584,6 +582,68 @@ void explicitConditionTests() {
                "(dot[auto] B C))}")
              .ok(),
          "unrestricted distribution remains accepted");
+}
+void partialAssociationTests() {
+  const std::string rule = R"(rule r {
+    (dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B C))
+    where { @d.lhs_batching_dimensions == @inner->B; }
+  })";
+  auto plan = symbolicPlan(rule);
+  proved(plan);
+  expect(synthesize(plan, 750000).status == ProofStatus::Proved,
+         "partial reassociation fits a bounded proof-work budget");
+  expect(verify(plan, plan.proof, 750000).status == ProofStatus::Proved,
+         "partial reassociation independently verifies within budget");
+  std::vector<Metadata> cases{
+      // Whole J, whole I, I-only partial, and no outer contraction.
+      {{{2, 3}, {3, 4}, {4, 2}},
+       {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}},
+      {{{2, 3}, {3, 4}, {2, 5}},
+       {{0, {{0}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}},
+      {{{2, 3, 2}, {2, 4}, {3, 2}},
+       {{0, {{1}, {0}, {}, {}}}, {1, {{2}, {0}, {}, {}}}}},
+      {{{2, 3}, {3, 4}, {5}}, {{0, {{}, {}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}},
+      // Mixed I/J contraction, interleaved paired selectors, shared batch.
+      {{{2, 2, 3, 2}, {2, 2, 3, 2}, {2, 3, 3, 2}},
+       {{0, {{3, 2}, {2, 1}, {0}, {0}}}, {1, {{3}, {1}, {0}, {0}}}}},
+      // Same routing with two batch dimensions.
+      {{{2, 2, 2, 3, 2}, {2, 2, 2, 3, 2}, {2, 2, 3, 3, 2}},
+       {{0, {{4, 3}, {3, 2}, {0, 1}, {0, 1}}},
+        {1, {{4}, {2}, {0, 1}, {0, 1}}}}},
+      // Multiple original contractions in an unsorted paired order.
+      {{{2, 3, 2, 2}, {2, 2, 3, 2}, {3, 2, 2}},
+       {{0, {{1, 0}, {0, 2}, {}, {}}}, {1, {{3, 2}, {0, 1}, {}, {}}}}},
+      // Empty reduction domains and rank-zero inputs.
+      {{{2, 0, 2}, {2, 3}, {0, 2}},
+       {{0, {{1}, {0}, {}, {}}}, {1, {{2}, {0}, {}, {}}}}},
+      {{{}, {}, {}}, {{0, {{}, {}, {}, {}}}, {1, {{}, {}, {}, {}}}}},
+  };
+  for (const auto& metadata : cases) {
+    tepl::test::ConstructorEvaluator evaluator(metadata, plan);
+    expect(evaluator.applicable(),
+           "legal partial routing satisfies batch guard");
+    auto attrs = evaluator.construct();
+    auto a = data(metadata.shapes[0], 1), b = data(metadata.shapes[1], 2),
+         c = data(metadata.shapes[2], 3);
+    equal(dot(dot(a, b, metadata.descriptors.at(1)), c,
+              metadata.descriptors.at(0)),
+          dot(a, dot(b, c, attrs.at(3)), attrs.at(2)));
+  }
+  auto corrupt = plan.proof;
+  corrupt.constructors.at(2)[0] = make(Symbol::Kind::List);
+  expect(verify(plan, corrupt).status == ProofStatus::Unknown,
+         "a corrupted outer contraction is rejected independently");
+  auto wrongPairing = plan.proof;
+  auto paired = wrongPairing.constructors.at(2)[1];
+  wrongPairing.constructors.at(2)[1] =
+      call("gather", {paired, call("order_positions", {paired})});
+  expect(verify(plan, wrongPairing).status == ProofStatus::Unknown,
+         "independent verification rejects altered contraction pair ordering");
+  auto definitions = replace(dialect, "dot_general", "contract");
+  definitions = replace(definitions, "alias: dot;", "alias: arbitrary;");
+  definitions = replace(definitions, "bind I", "bind LeftFree");
+  definitions = replace(definitions, "B ++ I ++ J", "B ++ LeftFree ++ J");
+  proved(symbolicPlan(replace(rule, "dot[", "arbitrary["), true, definitions));
 }
 void contextStateTests() {
   Plan plan;
@@ -812,6 +872,7 @@ int main(int argc, char** argv) {
     expect(!dialect.empty(), "read dialect");
     symbolicTests();
     explicitConditionTests();
+    partialAssociationTests();
     contextStateTests();
     axisAndMultiplyTests();
     const std::string distribute =

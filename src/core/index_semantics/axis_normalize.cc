@@ -5,6 +5,26 @@
 #include "src/core/index_semantics/context.h"
 
 namespace tepl::core::index_semantics {
+bool Context::orderedPositions(const S& p) const {
+  if (p->kind == Symbol::Kind::List) {
+    long previous = -1;
+    for (const auto& v : p->args) {
+      if (v->kind != Symbol::Kind::Integer) return false;
+      long next;
+      auto r = std::from_chars(v->name.data(), v->name.data() + v->name.size(),
+                               next);
+      if (r.ec != std::errc{} || next <= previous) return false;
+      previous = next;
+    }
+    return true;
+  }
+  if (callIs(p, "range") || callIs(p, "membership_positions")) return true;
+  if (callIs(p, "ordered_complement") || callIs(p, "offset_positions"))
+    return orderedPositions(p->args[0]);
+  if (callIs(p, "gather") || callIs(p, "matched_positions"))
+    return orderedPositions(p->args[0]) && orderedPositions(p->args[1]);
+  return false;
+}
 bool Context::nonnegative(const S& s) {
   auto n = canonical(s);
   if (callIs(n, "len")) return true;
@@ -88,6 +108,52 @@ S Context::complementBlocks(const S& universe, const S& excluded) {
   return call("ordered_complement", {universe, excluded});
 }
 S Context::sequenceEquality(const S& a, const S& b) {
+  // Two selections of the same distinct frame agree in order when both
+  // traverse that frame monotonically and contain the same coordinates.
+  if (a->sort == Symbol::Sort::Axes && b->sort == Symbol::Sort::Axes &&
+      setEntails(call("same_set", {a, b}))) {
+    std::set<std::string> visited;
+    const auto wiring = bindings_.wiring();
+    for (const auto& edge : wiring) {
+      if (!visited.insert(key(edge.interface)).second) continue;
+      auto pa = bindings_.lookup(edge.interface, a);
+      if (!pa || !orderedPositions(pa)) continue;
+      auto pb = bindings_.lookup(edge.interface, b);
+      if (pb && orderedPositions(pb) &&
+          evidence(call("distinct_axes", {edge.interface}))) {
+        note("ordered-view-equality");
+        return boolean(true);
+      }
+    }
+  }
+  if (a->sort == Symbol::Sort::Axes && b->sort == Symbol::Sort::Axes) {
+    auto left = bindings_.orderedParts(a), right = bindings_.orderedParts(b);
+    bool expanded =
+        !equal(call("concat", left), a) || !equal(call("concat", right), b);
+    if (expanded && left.size() == right.size()) {
+      bool matched = true;
+      for (std::size_t i = 0; i < left.size(); ++i)
+        if (!equal(left[i], right[i]) &&
+            !truth(canonical(call("==", {left[i], right[i]})))) {
+          matched = false;
+          break;
+        }
+      if (matched) return boolean(true);
+    }
+  }
+  // Compare composed views without erasing their partition provenance from
+  // the stored graph. Position expressions themselves already compose in the
+  // expression factory.
+  auto flatten = [](S x) {
+    if (!callIs(x, "gather")) return x;
+    auto base = x->args[0], p = x->args[1];
+    while (callIs(base, "gather")) {
+      p = call("gather", {base->args[1], p});
+      base = base->args[0];
+    }
+    return call("gather", {base, p});
+  };
+  if (equal(flatten(a), flatten(b))) return boolean(true);
   auto sequence = [](const S& x) {
     return x->sort == Symbol::Sort::Axes || x->sort == Symbol::Sort::Extents ||
            x->sort == Symbol::Sort::Positions;
@@ -147,6 +213,13 @@ S Context::canonical(const S& s) {
                        FailureKind::BudgetExceeded);
   auto found = facts_.representatives.find(key(s));
   if (found != facts_.representatives.end()) return canonical(found->second);
+  // Established coordinate views are graph nodes. Preserve their origin
+  // maps instead of re-expanding their expression spelling after scalar
+  // metadata aliases change. Scalar selectors still normalize independently.
+  if (s->sort == Symbol::Sort::Axes && bindings_.isView(s)) {
+    queries_.canonical[original] = s;
+    return s;
+  }
   std::vector<S> args;
   for (const auto& a : s->args) args.push_back(canonical(a));
   S out = s;
@@ -155,9 +228,19 @@ S Context::canonical(const S& s) {
       out = complementBlocks(args[0], args[1]);
     else if (s->name == "==")
       out = sequenceEquality(args[0], args[1]);
+    else if (s->name == "gather" && args[0]->kind == Symbol::Kind::List &&
+             equal(args[0], call("range", {call("len", {args[0]})})) &&
+             evidence(
+                 call("is_valid_axis_list", {args[1], call("len", {args[0]})})))
+      out = args[1];
+    else if (s->name == "gather" && args[1]->kind == Symbol::Kind::List &&
+             equal(args[1], canonical(call("range", {call("len", {args[0]})}))))
+      out = args[0];
     else if (s->name == "gather" && callIs(args[1], "range") &&
              evidence(call("==", {args[1]->args[0], call("len", {args[0]})})))
       out = args[0];
+    else if (s->name == "order_positions" && orderedPositions(args[0]))
+      out = call("range", {call("len", {args[0]})});
     else if (s->name == "gather")
       out = selectKnown(args[0], args[1], QueryMode::Evidence);
     else if (s->name == "filter_axes")
@@ -311,14 +394,33 @@ S Context::computeSupport(const S& a, QueryMode mode) {
     for (const auto& a : x->args) out.push_back(support(a, mode));
     return call("union_axes", std::move(out));
   }
+  if (callIs(x, "gather")) return simplifySet(x);
   return x;
 }
 S Context::intersect(const S& a, const S& b, QueryMode mode) {
   tick();
+  auto id = "intersection_axes:" + std::to_string(static_cast<int>(mode)) +
+            ":" + key(a) + ":" + key(b);
+  if (!queries_.active_set_operations.insert(id).second)
+    return call("intersection_axes", {a, b});
+  ActiveKey active{queries_.active_set_operations, id};
   auto x = support(a, mode), y = support(b, mode);
   if (equal(x, y)) return x;
   if (independent(x, y)) return call("empty_axes", {});
   if (partitionDisjoint(x, y)) return call("empty_axes", {});
+  if (setEntails(call("disjoint", {x, y}))) return call("empty_axes", {});
+  if (setEntails(call("subset", {x, y}))) return x;
+  if (setEntails(call("subset", {y, x}))) return y;
+  if (callIs(x, "union_axes") || callIs(x, "concat")) {
+    std::vector<S> out;
+    for (const auto& p : x->args) out.push_back(intersect(p, y, mode));
+    return call("union_axes", std::move(out));
+  }
+  if (callIs(y, "union_axes") || callIs(y, "concat")) {
+    std::vector<S> out;
+    for (const auto& p : y->args) out.push_back(intersect(x, p, mode));
+    return call("union_axes", std::move(out));
+  }
   if (!elementary(x) || !elementary(y)) {
     if (callIs(x, "intersection_axes") &&
         (equal(x->args[0], y) || equal(x->args[1], y)))
@@ -326,25 +428,24 @@ S Context::intersect(const S& a, const S& b, QueryMode mode) {
     if (callIs(y, "intersection_axes") &&
         (equal(y->args[0], x) || equal(y->args[1], x)))
       return y;
-    if (key(y) < key(x)) std::swap(x, y);
-    return call("intersection_axes", {x, y});
+    if (symbolLess(y, x)) std::swap(x, y);
+    return simplifySet(call("intersection_axes", {x, y}));
   }
-  if (callIs(x, "union_axes") || callIs(x, "concat")) {
-    std::vector<S> out;
-    for (const auto& p : x->args) out.push_back(intersect(p, y, mode));
-    return call("union_axes", std::move(out));
-  }
-  if (callIs(y, "union_axes") || callIs(y, "concat"))
-    return intersect(y, x, mode);
-  return call("intersection_axes", {x, y});
+  return simplifySet(call("intersection_axes", {x, y}));
 }
 S Context::difference(const S& a, const S& b, QueryMode mode) {
   tick();
+  auto id = "difference_axes:" + std::to_string(static_cast<int>(mode)) + ":" +
+            key(a) + ":" + key(b);
+  if (!queries_.active_set_operations.insert(id).second)
+    return call("difference_axes", {a, b});
+  ActiveKey active{queries_.active_set_operations, id};
   auto x = support(a, mode), y = support(b, mode);
   if (equal(x, y)) return call("empty_axes", {});
   if (independent(x, y)) return x;
   if (partitionDisjoint(x, y)) return x;
-  if (!elementary(x) || !elementary(y)) return call("difference_axes", {x, y});
+  if (setEntails(call("disjoint", {x, y}))) return x;
+  if (setEntails(call("subset", {x, y}))) return call("empty_axes", {});
   if (callIs(x, "union_axes") || callIs(x, "concat")) {
     std::vector<S> out;
     for (const auto& p : x->args) out.push_back(difference(p, y, mode));
@@ -355,11 +456,13 @@ S Context::difference(const S& a, const S& b, QueryMode mode) {
     for (const auto& p : y->args) out = difference(out, p, mode);
     return out;
   }
-  return call("difference_axes", {x, y});
+  return simplifySet(call("difference_axes", {x, y}));
 }
 S Context::filter(const S& order, const S& wanted, QueryMode mode) {
   tick();
   auto w = support(wanted, mode), o = canonical(order);
+  if (callIs(o, "filter_axes"))
+    return filter(o->args[0], intersect(o->args[1], w, mode), mode);
   if (equal(o, w)) return o;
   if (callIs(o, "unique_axes"))
     return call("unique_axes", {filter(o->args[0], w, mode)});
@@ -373,6 +476,7 @@ S Context::filter(const S& order, const S& wanted, QueryMode mode) {
   auto overlap = intersect(o, w, mode);
   if (callIs(overlap, "empty_axes")) return overlap;
   if (equal(overlap, support(o, mode))) return o;
+  w = overlap;
   auto p = positions(o, w, mode);
   if (callIs(p, "ordered_complement") || callIs(p, "range"))
     return select(o, p, mode);
@@ -383,6 +487,14 @@ S Context::filter(const S& order, const S& wanted, QueryMode mode) {
 }
 S Context::extents(const S& axes) {
   tick();
+  for (auto it = selected_extents_.rbegin(); it != selected_extents_.rend();
+       ++it) {
+    if (equal(axes, it->first)) return it->second;
+    if (callIs(axes, "filter_axes") && callIs(it->first, "filter_axes") &&
+        equal(axes->args[0], it->first->args[0]) &&
+        setEntails(call("same_set", {axes, it->first})))
+      return it->second;
+  }
   if (axes->kind == Symbol::Kind::AxisGroup) return axes->args[0];
   if (callIs(axes, "empty_axes")) return make(Symbol::Kind::List);
   if (callIs(axes, "concat")) {

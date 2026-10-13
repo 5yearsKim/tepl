@@ -65,6 +65,8 @@ cc_library(
     srcs = [
         "index_semantics/axis_bindings.cc",
         "index_semantics/axis_maps.cc",
+        "index_semantics/axis_sets.cc",
+        "index_semantics/axis_set_proof.cc",
         "index_semantics/axis_normalize.cc",
         "index_semantics/axis_theory.cc",
         "index_semantics/axis_transport.cc",
@@ -77,6 +79,7 @@ cc_library(
     ],
     hdrs = [
         "index_semantics/axis_bindings.h",
+        "index_semantics/axis_sets.h",
         "index_semantics/context.h",
         "index_semantics/expr.h",
         "index_semantics/graph.h",

@@ -10,6 +10,8 @@ S boolean(bool);
 S call(std::string, std::vector<S>);
 std::string key(const S&);
 bool equal(const S&, const S&);
+// Deterministic term order, independent of process-wide interning history.
+bool symbolLess(const S&, const S&);
 bool callIs(const S&, const std::string&);
 bool containsHole(const S&);
 bool truth(const S&);

@@ -173,6 +173,19 @@ TensorMeaning Lowerer::operation(std::size_t id,
     }
     if (!domain) throw ProofFailure("logical group has no operand domain");
     if (!anchors) {
+      // A consumer selects existing producer coordinates. Keep that view,
+      // including partial selections crossing group boundaries, rather than
+      // creating a new family and replacing the producer's entire frame.
+      bool producer_view = false;
+      for (const auto& b : n.definition->groups[g].bindings)
+        if (const auto& producer = context.plan.nodes[n.inputs[b.operand]];
+            producer.definition &&
+            inputs[b.operand].axes->kind != Symbol::Kind::AxisGroup) {
+          auto p = metadata(*b.positions, n, inputs, groups);
+          axes = context.select(inputs[b.operand].axes, p);
+          producer_view = true;
+          break;
+        }
       // A pure reindexing keeps the producer coordinate identities. Only its
       // ordered output interface changes; there is no new arithmetic binder.
       const auto& bindings = n.definition->groups[g].bindings;
@@ -183,11 +196,12 @@ TensorMeaning Lowerer::operation(std::size_t id,
                             bindings.size() == 1 && bindings[0].operand == 0 &&
                             bindings[0].positions->kind == Meta::Kind::Call &&
                             bindings[0].positions->name == "all_axes";
-      axes = identity_value ? inputs[0].axes
-                            : make(Symbol::Kind::AxisGroup,
-                                   "n" + std::to_string(id) + "." +
-                                       n.definition->groups[g].name,
-                                   id, g, {domain});
+      axes = producer_view    ? axes
+             : identity_value ? inputs[0].axes
+                              : make(Symbol::Kind::AxisGroup,
+                                     "n" + std::to_string(id) + "." +
+                                         n.definition->groups[g].name,
+                                     id, g, {domain});
     }
     if (!anchors) context.registerCoordinates(id, g, axes);
     for (const auto& b : n.definition->groups[g].bindings)
@@ -204,7 +218,20 @@ TensorMeaning Lowerer::operation(std::size_t id,
         call("axis_partition", {ps, call("len", {inputs[o].shape})}));
     if (!anchors) {
       context.learn(obligations.back());
+      S offset = integer(0);
+      for (const auto& coordinate : coordinates[o]) {
+        auto size = call("len", {coordinate});
+        context.bind(cs, coordinate,
+                     context.canonical(call("offset_positions",
+                                            {call("range", {size}), offset})));
+        offset = call("+", {offset, size});
+      }
       auto layout = call("gather", {cs, call("inverse", {ps})});
+      bool existing_view = true;
+      for (std::size_t g = 0; g < coordinates[o].size(); ++g)
+        existing_view &= equal(context.select(inputs[o].axes, positions[o][g]),
+                               coordinates[o][g]);
+      if (existing_view) layout = inputs[o].axes;
       context.partition(layout, coordinates[o], positions[o]);
       for (std::size_t g = 0; g < n.definition->groups.size(); ++g)
         for (const auto& b : n.definition->groups[g].bindings)
@@ -214,6 +241,7 @@ TensorMeaning Lowerer::operation(std::size_t id,
       context.cover(layout, cs);
       inputs[o].value = rename(inputs[o].value, inputs[o].axes, layout);
       inputs[o].axes = layout;
+      inputs[o].interface = context.tensorInterface(layout);
     }
   }
   for (const auto& a : n.definition->assertions)
@@ -242,7 +270,7 @@ TensorMeaning Lowerer::operation(std::size_t id,
     for (std::size_t i = obligation_begin; i < obligations.size(); ++i)
       context.require(obligations[i]);
     for (std::size_t o = 0; o < inputs.size(); ++o)
-      context.partition(inputs[o].axes, coordinates[o], positions[o]);
+      context.partition(inputs[o].axes, coordinates[o], positions[o], false);
   } else {
     for (std::size_t i = obligation_begin; i < obligations.size(); ++i)
       context.learn(obligations[i]);
@@ -258,17 +286,44 @@ TensorMeaning Lowerer::operation(std::size_t id,
     for (const auto& a : v.args) collect(*a);
   };
   collect(*n.definition->value);
+  // Output syntax is restricted to groups, concatenations and permutations.
+  // Reflect that syntax into maps directly instead of rediscovering it with
+  // general position lookup on deeply composed operand views.
+  using OutputMaps = std::pair<S, std::map<std::size_t, S>>;
+  std::function<OutputMaps(const Meta&)> outputMaps = [&](const Meta& m) {
+    if (m.kind == Meta::Kind::Group) {
+      auto size = call("len", {groups[m.index]});
+      return OutputMaps{size, {{m.index, call("range", {size})}}};
+    }
+    if (m.name == "permute") {
+      auto result = outputMaps(*m.args[0]);
+      auto p = metadata(*m.args[1], n, inputs, groups);
+      for (auto& [g, positions] : result.second)
+        positions = call("gather", {call("inverse", {p}), positions});
+      return result;
+    }
+    OutputMaps result{integer(0), {}};
+    for (const auto& a : m.args) {
+      auto part = outputMaps(*a);
+      for (const auto& [g, positions] : part.second)
+        result.second[g] = call("offset_positions", {positions, result.first});
+      result.first = call("+", {result.first, part.first});
+    }
+    return result;
+  };
+  auto output_mapping = outputMaps(*n.definition->output).second;
   std::vector<S> free_groups, output_positions;
   for (std::size_t g = 0; g < groups.size(); ++g)
     if (!reduced.contains(g)) {
       free_groups.push_back(groups[g]);
-      output_positions.push_back(context.positions(axes, groups[g]));
+      output_positions.push_back(context.canonical(output_mapping.at(g)));
     }
-  context.partition(axes, free_groups, output_positions);
+  context.partition(axes, free_groups, output_positions, !anchors);
   if (!anchors) {
     context.recordTensor(id, axes, groups);
   }
-  return {axes, shape, dt, body};
+  context.recordShape(axes, shape);
+  return {axes, shape, dt, body, context.tensorInterface(axes)};
 }
 TensorMeaning Lowerer::lower(std::size_t id) {
   context.tick();
@@ -281,7 +336,8 @@ TensorMeaning Lowerer::lower(std::size_t id) {
     if (!anchors) context.registerCoordinates(id, 0, axes);
     return {axes, shape, make(Symbol::Kind::DType, {}, n.capture->value),
             std::make_shared<Expr>(
-                Expr{Expr::Kind::Read, n.capture->value, id, axes, {}})};
+                Expr{Expr::Kind::Read, n.capture->value, id, axes, {}}),
+            context.tensorInterface(axes)};
   }
   std::vector<TensorMeaning> inputs;
   for (auto child : n.inputs) inputs.push_back(lower(child));

@@ -5,6 +5,7 @@
 #include <mutex>
 #include <numeric>
 #include <set>
+#include <tuple>
 
 namespace tepl::core::index_semantics {
 namespace {
@@ -77,6 +78,22 @@ std::string key(const S& s) {
   return s->structural_key.empty() ? intern(*s) : s->structural_key;
 }
 bool equal(const S& a, const S& b) { return key(a) == key(b); }
+bool symbolLess(const S& a, const S& b) {
+  if (equal(a, b)) return false;
+  auto header = [](const S& x) {
+    bool identity =
+        x->kind == Symbol::Kind::Field || x->kind == Symbol::Kind::Hole ||
+        x->kind == Symbol::Kind::Shape || x->kind == Symbol::Kind::DType ||
+        x->kind == Symbol::Kind::AxisGroup;
+    return std::tuple(x->kind, x->sort, identity ? x->owner : 0,
+                      identity ? x->index : 0,
+                      identity ? std::string{} : x->name);
+  };
+  if (header(a) != header(b)) return header(a) < header(b);
+  return std::lexicographical_compare(a->args.begin(), a->args.end(),
+                                      b->args.begin(), b->args.end(),
+                                      symbolLess);
+}
 bool callIs(const S& s, const std::string& name) {
   return s->kind == Symbol::Kind::Call && s->name == name;
 }
@@ -87,6 +104,22 @@ bool containsHole(const S& s) {
   return false;
 }
 S call(std::string name, std::vector<S> args) {
+  if (name == "len" && callIs(args[0], "matched_positions"))
+    return call("len", {call("membership_positions", args[0]->args)});
+  if (name == "membership_positions" || name == "matched_positions") {
+    if (args[0]->kind == Symbol::Kind::List &&
+        args[1]->kind == Symbol::Kind::List) {
+      std::vector<S> out;
+      for (std::size_t i = 0; i < args[0]->args.size(); ++i)
+        for (std::size_t j = 0; j < args[1]->args.size(); ++j)
+          if (equal(args[0]->args[i], args[1]->args[j])) {
+            out.push_back(integer(name == "membership_positions" ? i : j));
+            break;
+          }
+      return make(Symbol::Kind::List, {}, 0, 0, std::move(out));
+    }
+    if (equal(args[0], args[1])) return call("range", {call("len", {args[0]})});
+  }
   auto empty = [](const S& s) {
     return (s->kind == Symbol::Kind::List && s->args.empty()) ||
            callIs(s, "empty_axes");
@@ -364,7 +397,8 @@ S call(std::string name, std::vector<S> args) {
     // Preserve an extent lookup until the contextual theory can use
     // extents(A)[positions(A,B)] = extents(B).
     if (callIs(s, "gather") &&
-        !(s->sort == Symbol::Sort::Extents && callIs(p, "positions")))
+        !(s->sort == Symbol::Sort::Extents && callIs(p, "positions")) &&
+        s->sort != Symbol::Sort::Axes)
       return call("gather", {s->args[0], call("gather", {s->args[1], p})});
     if (p->kind == Symbol::Kind::List && p->args.empty()) return p;
   }

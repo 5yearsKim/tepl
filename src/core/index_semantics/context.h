@@ -4,6 +4,7 @@
 #include <tuple>
 
 #include "src/core/index_semantics/axis_bindings.h"
+#include "src/core/index_semantics/axis_sets.h"
 #include "src/core/index_semantics/proof_policy.h"
 
 namespace tepl::core::index_semantics {
@@ -36,8 +37,10 @@ class Context {
   void registerCoordinates(std::size_t node, std::size_t group, const S&);
   void recordInputs(std::size_t node, std::vector<S> shapes);
   void recordTensor(std::size_t node, const S& axes, std::vector<S> groups);
+  void recordShape(const S& axes, const S& shape);
   void assignAttribute(std::size_t descriptor, std::size_t field, const S&);
 
+  void enableSetReasoning() { sets_ready_ = true; }
   void tick();
   void sourceScope(std::size_t);
   void validateSource(const S&);
@@ -56,7 +59,11 @@ class Context {
   S positions(const S&, const S&, QueryMode = QueryMode::Entailment);
   S select(const S&, const S&, QueryMode = QueryMode::Entailment);
   void selectionFacts(const S&, const S&, const S&);
-  void partition(const S&, const std::vector<S>&, const std::vector<S>&);
+  void partition(const S&, const std::vector<S>&, const std::vector<S>&,
+                 bool refine = true);
+  AxisPartition split(const S& parent, const S& selector);
+  TensorAxisInterface tensorInterface(const S& axes) const;
+  S mappedPositions(const S& interface, const S& group) const;
   void bind(const S& interface, const S& group, const S& positions);
   void cover(const S& interface, const S& groups);
   void transportFrame(const S& from, const S& to);
@@ -66,6 +73,8 @@ class Context {
   S intersect(const S&, const S&, QueryMode = QueryMode::Entailment);
   S difference(const S&, const S&, QueryMode = QueryMode::Entailment);
   S filter(const S&, const S&, QueryMode = QueryMode::Entailment);
+  // Ordered views of an existing interface; these do not introduce identities.
+  S membershipPositions(const S&, const S&);
   S extents(const S&);
 
  private:
@@ -87,7 +96,7 @@ class Context {
     std::map<std::pair<QueryMode, std::string>, S> support;
     std::map<std::tuple<QueryMode, std::string, std::string>, S> positions;
     std::set<std::string> active_queries, active_canonical, active_support,
-        active_positions, active_premises;
+        active_positions, active_premises, active_set_operations;
     std::size_t start_budget = 0;
     std::map<std::string, std::pair<std::size_t, std::size_t>> term_order;
   } queries_;
@@ -101,6 +110,12 @@ class Context {
                 resolutions = 0;
   } counters;
   AxisBindings bindings_;
+  std::map<std::string, std::vector<S>> shape_witnesses_;
+  std::vector<std::pair<S, S>> selected_extents_;
+  std::unique_ptr<AxisSets> sets_;
+  std::map<std::string, AxisSets::Id> set_expressions_;
+  std::vector<S> set_atoms_;
+  bool active_sets_ = false, sets_ready_ = false;
   SourceCoordinates source_;
   std::map<const Symbol*, S> validated_scope_, validated_expressions_;
   std::vector<S> guards_;
@@ -125,9 +140,13 @@ class Context {
   S selectKnown(const S&, const S&, QueryMode);
   S computeSupport(const S&, QueryMode);
   S sequenceEquality(const S&, const S&);
+  bool orderedPositions(const S&) const;
   bool nonnegative(const S&);
   std::optional<std::pair<S, S>> positionBlock(const S&);
   S complementBlocks(const S&, const S&);
+  bool setEntails(const S&);
+  AxisSets::Id setExpression(const S&);
+  S simplifySet(const S&);
 };
 
 }  // namespace tepl::core::index_semantics

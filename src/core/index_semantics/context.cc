@@ -19,6 +19,18 @@ void Context::recordTensor(std::size_t node, const S& axes,
   source_.tensor_axes[node] = axes;
   source_.tensor_groups[node] = std::move(groups);
 }
+void Context::recordShape(const S& axes, const S& shape) {
+  // Called only for legal source nodes or after a target's extent check.
+  auto normalized = canonical(shape);
+  for (const auto& value : {shape, normalized}) {
+    auto& witnesses = shape_witnesses_[key(value)];
+    if (std::none_of(witnesses.begin(), witnesses.end(),
+                     [&](const S& old) { return equal(old, axes); }))
+      witnesses.push_back(axes);
+  }
+  queries_.evidence.clear();
+  queries_.entailment.clear();
+}
 void Context::assignAttribute(std::size_t descriptor, std::size_t field,
                               const S& value) {
   auto [found, added] =
@@ -95,6 +107,8 @@ void Context::wellFormed(const S& s) {
                                             "intersection_axes",
                                             "difference_axes",
                                             "positions",
+                                            "membership_positions",
+                                            "matched_positions",
                                             "same_set",
                                             "disjoint",
                                             "subset",
@@ -124,6 +138,11 @@ void Context::wellFormed(const S& s) {
     throw ProofFailure("undefined metadata operator: " + s->name);
   if (s->name == "empty_axes" && !s->args.empty())
     throw ProofFailure("invalid empty-axis constructor");
+  if (s->name == "membership_positions" || s->name == "matched_positions")
+    for (const auto& argument : s->args)
+      if (argument->sort != Symbol::Sort::Positions)
+        throw ProofFailure(
+            "paired position selection requires position sequences");
   if (s->name == "inverse")
     require(
         call("is_valid_axis_list", {s->args[0], call("len", {s->args[0]})}));

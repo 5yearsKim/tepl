@@ -31,6 +31,7 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
     source.lower(plan.lhs);
     Lowerer composed{c};
     auto lhs = composed.lower(plan.lhs);
+    c.enableSetReasoning();
     auto lt = normalize(c, lhs.value);
     for (const auto& [id, fields] : candidate.constructors)
       for (const auto& f : fields) c.wellFormed(f);
@@ -52,7 +53,6 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
     auto correspondence = correspond(c, lhs, lt, rt);
     Lowerer target{c, &correspondence.anchors};
     auto rhs = target.lower(plan.rhs);
-    for (const auto& f : target.obligations) c.require(f);
     auto checked = normalize(c, rhs.value);
     std::map<std::string, const Term*> left;
     for (const auto& t : lt) left[footprint(t)] = &t;

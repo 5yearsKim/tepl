@@ -145,6 +145,15 @@ struct ConstructorEvaluator {
           out.push_back(x);
       return out;
     }
+    if (n == "membership_positions" || n == "matched_positions") {
+      const auto& p = std::get<List>(args[0]);
+      const auto& q = std::get<List>(args[1]);
+      List out;
+      for (std::size_t i = 0; i < p.size(); ++i)
+        if (auto at = std::find(q.begin(), q.end(), p[i]); at != q.end())
+          out.push_back(n == "membership_positions" ? i : at - q.begin());
+      return out;
+    }
     if (n == "concat") {
       if (s.sort == Symbol::Sort::Axes) {
         Coordinates out;

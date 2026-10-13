@@ -13,6 +13,7 @@ struct Expr {
 struct TensorMeaning {
   S axes, shape, dtype;
   E value;
+  TensorAxisInterface interface;
 };
 struct Lowerer {
   Context& context;
