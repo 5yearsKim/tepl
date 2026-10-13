@@ -1,392 +1,358 @@
-# Element semantics and automatic attributes
+# Symbolic tensor semantics and attribute synthesis
 
-TensorLang uses the readable `semantics(out_idx)` DSL. The compiler lowers
-operation definitions into a shared expression IR and derives constraints from
-language primitives. It does not recognize operation names or particular
-rewrite trees.
+`tepl check` compiles a rewrite into attribute constructors and a checked
+semantic graph under the rule’s explicit conditions. No concrete shapes,
+attributes, or tensor values are supplied. Generated Rust/C++ execution remains
+outside this implementation.
 
-The earlier aligned-axis and ordered-network engines have been removed, together
-with the legacy operation-template classifier and handwritten rewrite handlers.
-The [implementation plan](IMPLEMENTATION_PLAN.md) records the implemented passes
-and remaining work. Semantic access constraints are compiled into a symbolic
-plan and instantiated at match time. The ordered-contraction constructor remains
-an optimization for a checked fragment. The research rank cutoff does not
-provide a compiler guarantee yet.
+## Run the checker
 
-## Define an operation once
+```sh
+bazel run //:tepl -- check examples/semantic/rules/algebraic.tepl \
+  --semantic-policy=algebraic --rule distribute
+```
 
-Shape contracts specify legal metadata. Element semantics specify computation.
-Both blocks are lowered into the same expression bytecode.
+Distribution returns `status=proved`. Both RHS descriptors copy the four source
+fields through expressions such as:
+
+```text
+lhs_contracting_dimensions = @d.lhs_contracting_dimensions
+additional-guard: true
+```
+
+Inspect guarded reassociation or transpose remapping:
+
+```sh
+bazel-bin/tepl check examples/semantic/rules/algebraic.tepl \
+  --semantic-policy=algebraic --rule associate
+bazel-bin/tepl check examples/semantic/rules/basic.tepl \
+  --semantic-policy=algebraic --rule transpose_dot_cycle
+```
+
+A proved rule exits 0. An unresolved proof fails analysis with a diagnostic and
+exits 1. Without a selector, all rules in the file are checked. `--rule`
+selects which rule receives semantic verification; syntax and name errors in
+the file are still diagnosed.
+
+The old `--input-shape` and `--known-attribute` flags have been removed. Concrete
+inference is retained only in test support; it is not a compiler fallback.
+
+## Declare conditions using output groups
+
+`@operation->Group` returns the ordered output-axis positions of a named
+logical group. The name is resolved from that operation's dialect definition;
+it is not a built-in batch or contraction keyword.
+
+For a dot whose output is `B ++ I ++ J`:
 
 ```tepl
-op add(lhs: tensor, rhs: tensor) -> tensor {
-    dtype(a, b) { assert a == b; assert is_numeric(a); yield a; }
-    shape(l, r) { assert l == r; yield l; }
-    semantics(out_idx) {
-        yield read(lhs, out_idx) + read(rhs, out_idx);
+rule associate {
+    (dot[@d] (dot[@inner] A B) C)
+    => (dot[auto] A (dot[auto] B C))
+    where {
+        @d.lhs_batching_dimensions == @inner->B;
     }
 }
 ```
 
-See [TensorLang](dialects/tensor.tepl) for `add`, `dot_general` (alias `dot`), and
-`transpose`. Dot attributes contain four dimension lists; precision and algorithm
-attributes are omitted.
+The condition preserves the inner batch group. The outer contraction may
+select any subset of either free group, including unsorted or interleaved
+selections. Groups may contain multiple batch and contraction axes, and may be
+empty. This is a supported sufficient restriction, not a weakest-condition
+characterization of every valid reassociation.
 
-Semantics are optional for ordinary TEPL rules. A rule using `auto` requires
-semantics and supported metadata contracts for every operation it expands.
-Missing definitions produce a compile-time diagnostic. Well-typed expressions
-outside the inference fragment produce an explicit unsupported/unknown result.
+The compiler lowers group references to metadata expressions. For example,
+`@inner->J` gives positions after the batch and LHS-free groups. Such a reference
+can still enforce whole-group routing, as in reverse reassociation and LoRA.
+RHS attributes are inferred and checked independently.
+
+References are allowed in `where` conditions and must identify a unique LHS
+operation occurrence. Unknown groups, groups absent from the output (such as a
+contracted `K`), and RHS-only references are errors. A group retains its declared
+coordinate order: for a transpose with group `S`, `@p->S` gives the inverse
+permutation, locating each original coordinate in the output. An empty output
+group yields an empty position list.
+
+Shape declarations constrain ranks and extents; they do not silently constrain
+dot attributes. Required `index[]` descriptor fields can be compared with group
+references and other index-list expressions in `where` conditions. Opaque host
+conditions are rejected by this checker because they supply no symbolic facts.
+
+Only declared conditions and LHS legality are proof assumptions. Missing facts
+produce errors; the compiler never adds applicability restrictions to a rule.
+A future generated matcher must check the declared conditions before applying
+it. The test metadata interpreter checks these conditions today; axis-semantic
+Rust/C++ generation is still unsupported.
+
+## Define operation semantics
 
 ```tepl
-rule transpose_dot_lhs {
-    (dot[@d] A B)
-    =>
-    (dot[auto] (transpose[auto] A) B)
+axes {
+    bind B { lhs: lb, rhs: rb };
+    bind K { lhs: lc, rhs: rc };
+    bind I { lhs: lf };
+    bind J { rhs: rf };
+    yield B ++ I ++ J;
+}
+semantics {
+    yield Reduce(K, Product(lhs, rhs));
 }
 ```
 
-Pins remain supported, including `transpose[auto, permutation = [1, 2, 0]]`.
-Fields outside the inferred `index[]` domain must be pinned or have an empty
-schema default, and must not participate in shape or element semantics.
+Each group is an arbitrary-length ordered sequence of logical coordinates.
+Its members have individual extents and explicit operand-position mappings.
+`bind K { lhs: [1,3], rhs: [2,0] };` connects `K[0]` to lhs position 1 and rhs
+position 2, and `K[1]` to lhs position 3 and rhs position 0.
 
-## Lowering and solving
+Equal extents never identify coordinates. Sharing a group explicitly connects
+them. Batch, contraction, and free are local roles derived from bindings and
+reductions, rather than permanent coordinate types.
 
-```text
-resolved shape + semantics expressions
-    → operation-independent expression bytecode
-    → compose reads, distribute products, compile symbolic constraint plan
-    → embed plan in generated Rust
-at match time:
-    → certified ordered-contraction fragment?
-        yes: construct attributes and check network/certificate
-        no: propagate finite axis domains using the compiled primitive DAG
-            → fully determined attributes? verify directly
-            → otherwise: instantiate residual metadata + semantic constraints in Z3
-            → candidate → exact equivalence check
-            → if sufficient constraints fail: rebuild unrestricted metadata search
-    → construct RHS only after verification
-```
+Legality includes distinct in-range position lists, paired extents, complete
+input partitions, dtype, and an ordered output containing every free coordinate
+once. Empty groups and zero extents are supported.
 
-The compile-time pass recursively substitutes intermediate reads and normalizes
-scalar sums and products. It combines structurally equal terms after renaming
-reduction binders, sorts factors, and removes zero coefficients. This comparison
-preserves reduction-domain order; it does not decide every equivalent program.
-Each additive term records its coefficient, reduction
-domains, and reads of captured tensors. Its access expressions reference symbolic
-output coordinates, reduction coordinates, shapes, and attribute fields. Vector
-lengths remain symbolic; compilation does not choose a rank or unroll axes.
+`bind` names are visible in `semantics`; ordinary `let` names remain private to
+`axes`. `axes` yields output order and thereby determines shape. `semantics`
+yields the scalar value expression at those coordinates.
 
-For example, `dot(add(A, B), C)` lowers to two terms, each with a reduction:
+See [TensorLang](dialects/tensor.tepl) for addition, elementwise multiplication,
+sum reduction, transpose, and generalized dot.
+
+## Composed coordinate graph
+
+Operation boundaries disappear during semantic lowering:
 
 ```text
-sum(k) read(A, [i,k]) * read(C, [k,j])
-sum(k) read(B, [i,k]) * read(C, [k,j])
+TensorMeaning {
+    axes:  ordered logical coordinate sequence
+    shape: symbolic extent sequence
+    dtype: symbolic dtype
+    value: Read | Add | Product | Reduce
+    interface: ordered axes and established source-to-output position maps
+}
 ```
 
-The distributed RHS lowers to the same two-term structure, with access maps
-depending on its unknown descriptors. At match time, Z3 chooses a bijection
-between terms and between their reduction coordinates. Corresponding reduction
-extents, coefficients, captures, and read-coordinate vectors must agree. Repeated
-reads of the same capture get a separate occurrence bijection. Their multiplicities
-are preserved, and every occurrence uses the same reduction renaming. All
-terms constrain the same attribute variables jointly. Coordinate labels denote
-identities, not sampled tensor entries. Operation and attribute names do not
-participate in this procedure.
+`Read` records a capture and its coordinates in physical dimension order.
+Composition connects producer output positions to consumer bindings,
+transports free coordinates, and preserves independent reduction scopes.
+Transpose changes the ordered interface while retaining the value expression.
 
-These are **sufficient constraints**, not a complete characterization of equality.
-An unused reduction over two points, for example, can equal twice its body without
-having a reduction bijection to that scalar multiplication. If this stage is unsatisfiable,
-its constraints and candidate exclusions are removed, and the existing generic
-solver searches the full metadata-legal domain. Resource exhaustion can still
-return unknown. A sufficient-plan failure never proves a rule invalid.
+Axis identities, physical positions, and extents have separate expression sorts.
+Selection and transport can split a group without enumerating its members at
+compilation. `positions(interface, group)` derives attribute lists; a permuted
+interface produces inverse-permutation remapping.
 
-Unused one-point reductions are supported. The compiler eliminates literal
-singleton domains, including the empty dimension vector whose index space has
-one point. For matched LHS metadata, it checks whether every extent is one.
-For symbolic RHS metadata, Z3 can choose to retain or eliminate an unused binder,
-but elimination requires every active extent to be one. A zero extent prevents
-elimination. Usage is checked conservatively from access-expression references;
-used singleton coordinates are not eliminated by this optimization.
+Selections use a generic ordered partition, independent of operation names:
 
-At match time, ranks, shapes, and captured descriptors are known. Each unknown
-`index[]` field needs an explicit shape assertion of the form
-`is_valid_axis_list(attrs.field, bound)`. That assertion supplies a finite domain:
-a length variable and bounded integer entries, with range and distinctness
-constraints. Other assertions constrain lengths, extents, and axis relationships.
-Intermediate output shapes and final output order are constrained as well.
+```text
+partition(parent, selected_positions) {
+    selected  = parent[selected_positions]
+    remaining = parent[complement(selected_positions)]
+    selected_positions, remaining_positions
+}
+```
 
-The residual solver uses Z3 models rather than enumerating permutations in
-application code. When no compiled semantic plan is available, a source-field
-copy or identity ordering is tried first, checking legality and equivalence
-before acceptance. Otherwise, the compiled constraints guide the first search.
-If a candidate fails verification, the solver excludes that exact joint
-assignment and requests another model. The unrestricted fallback can still
-inspect many assignments.
+Selected axes retain selector order; remaining axes retain parent order. Splits
+are interned and materialized only when needed. A subgroup keeps its maps into
+both the selected interface and the original frame, including contraction
+pairings. Composing maps handles cascading reductions and contractions through
+the same mechanism.
 
-### Axis propagation before SMT
+A constructed tensor publishes the maps of surviving source groups. To move a
+group into a selected view, the compiler first proves that the group survives,
+then restricts its parent map. Composing the restricted map back recovers the
+original positions. Lookup follows indexed origins with a breadth-first search
+and caches results; it does not invoke the theorem prover.
 
-The compiled expression DAG also supplies a propagation program. At match time,
-`axis_domains.cc` interprets `gather`, `scatter`, `concat`, `take`/`slice`, `exclude`,
-and primitive metadata relationships as finite-domain constraints. A work list
-propagates changes until no domain shrinks. Domains track list lengths separately
-from active entries; optional padded entries do not force an axis assignment.
+Registered coordinate views retain their origin maps during normalization.
+Output-order proofs compare ordered decompositions and maps into a common
+frame. Equal axis sets alone cannot establish equal output order.
 
-Known LHS coordinates label output and reduction indices. Corresponding RHS reads
-restrict where those labels can occur. Range, disjointness, and distinctness
-constraints propagate the restrictions to attributes. A prefix whose available
-values cannot supply distinct entries limits the list length. Shared fields use
-the same domains, and all uniquely paired terms constrain those domains jointly.
-No operation or attribute names participate.
+The compiler records both directions of each established binding:
 
-Forced entries become constants. Inactive tails disappear. Z3 receives only
-unresolved lengths and entries, with narrowed domains. Concrete vector operations
-are folded, and simple symbolic lookups use their remaining position domains.
-When every attribute is determined, the existing legality and equivalence verifier
-runs directly without an SMT search. The Rust method remains `ConstraintsZ3`;
-its reason identifies direct propagation, and native statistics record zero
-solver calls.
+```text
+positions(interface, group) = selector
+select(interface, selector) = group
+```
 
-Propagation currently requires unique term correspondence and distinct captures
-within each term. Ambiguous term matching, repeated captures, optional unused RHS
-reductions, guarded metadata, and unsupported arithmetic retain the ordinary
-matcher. Equal extents never justify merging axes. This pass neither searches
-permutations nor chooses one representative of an unproved symmetry.
+Complete partitions also record how to select a group in the interface's
+physical order. When a read views a producer through a validated permutation,
+composition transports the consumer partition into that read's table. Each
+operand use has its own coordinate map; sharing a tensor does not merge its
+different accesses.
 
-Its restrictions belong to the **sufficient matcher**. A contradiction does not
-prove semantic impossibility. If reduced matching is exhausted or a concrete
-propagated candidate fails verification, the solver rebuilds unrestricted metadata
-with none of those restrictions. Time and work budgets carry across attempts.
-This preserves the existing fallback and `Unknown` behavior.
+Map simplification consults indexed bindings and recorded legality evidence.
+It does not launch general entailment recursively. Position, support, and
+evidence results are cached until bindings or premises change. General
+entailment has a bounded attempt; unresolved obligations produce `Unknown` and
+prevent acceptance. Full permutation cancellation requires legality evidence;
+a partial axis list cannot justify cancellation.
 
-Generic tests cover ranks 100 and 200 for permutations and distribution. Benchmarks
-also cover association and LoRA with one high-rank operand and matrix weights.
-These successes do not guarantee every highly batched or ambiguous rank-100 case.
-See [axis propagation measurements](benchmarks/AXIS_PROPAGATION.md).
+The dump includes a coordinate frame, access maps, normalized computations,
+constructors, and guards. `m0`, `m1`, etc. are shared expression aliases. They
+describe a metadata DAG, not executable TEPL statements. Fresh coordinate
+identities are instantiated from metadata alone; they are not tensor element
+values or flattened dimensions.
 
-The verifier recursively substitutes intermediate tensor reads, expands scalar
-addition and multiplication, and compares polynomials over independent input
-entries. A faster sufficient check compares symbolic output and reduction
-coordinates, renaming bound coordinates consistently and preserving reduction
-cardinalities. If that check does not prove equality, finite entry-polynomial
-expansion checks the actual extents. Tensor values are never sampled.
+## Normalization and reconstruction
 
-The implementation is shared between the compiler and both generated backends:
+1. Lower the LHS and retain legality and supported declared rule conditions.
+2. Normalize both arithmetic graphs into sums of products with reduction domains.
+3. Match monomials by capture identity. The initial fragment requires unique
+   term correspondence and no repeated capture factors within a monomial.
+4. Derive each RHS intermediate's boundary: coordinates used inside that
+   intermediate that another factor or the final output also needs.
+5. Fit binding tables to that boundary. Operand incidence and reduction
+   membership determine candidate groups. Construct position lists and respect
+   fixed attributes and pins.
+6. Re-lower the original RHS in a separate verifier. Check accesses, reduction
+   domains, ordered axes, shape, dtype, legality, and partial-helper preconditions.
+7. Prove every obligation from LHS legality and explicit conditions. Reject an
+   unproved rule; candidate obligations cannot serve as their own assumptions.
 
-- `src/core/inference/check.cc`: rule composition, shape lowering, domain discovery.
-- `src/core/inference/semantic_ir.h`: portable expressions, normalized terms, and constraint plan.
-- `src/core/inference/constraints.*`, `constraint_normalize.*`: compile-time composition and term normalization.
-- `src/core/semantics/solver.cc`: primitive constraints, Z3, and equivalence checks.
-- `src/core/semantics/constraint_match.h`: term, factor-occurrence, and reduction matching constraints.
-- `src/core/semantics/axis_domains.*`: finite-domain propagation before SMT allocation.
-- `src/core/semantics/ordered.*`: contract extraction, construction, certificate checks.
-- `src/core/semantics/runtime.cc`: versioned native ABI.
-- `templates/{rust,cpp}/src/builtins/semantic.*`: generated runtime adapters.
+Laws include distributivity, reduction linearity, reduction extraction,
+reduction composition, associativity, commutative matching, and coordinate
+renaming. Extraction requires bound coordinates to be absent from the other
+factor. Domains must be finite and independent of tensor values. Structured
+rewrite steps record before/after expressions and side conditions.
 
-Rust code generation embeds a per-rule `AUTO_CONSTRAINT_PLAN` constant. The
-native request format is versioned as `tepl-constraints-2`; regenerate applications
-and use the corresponding runtime library after updating the compiler.
+Arithmetic normalization requires `--semantic-policy=algebraic`. These are ideal
+arithmetic semantics; the implementation does not establish floating-point
+reassociation safety. Transpose composition also works under strict policy.
+The rule being checked is never used as an algebraic axiom.
 
-## Structural inference for ordered contractions
+No operation names, rule names, attribute names, or supplied numeric examples
+participate in inference. Binding tables and primitives determine the analysis.
+Renamed and structurally different operation definitions are tested.
 
-The compiler extracts a contract from normalized primitive IR. It checks both
-coordinate routing and the exact shape assertions. A contraction contract has
-one read of each operand, their scalar product, a common reduction coordinate,
-and output coordinates ordered as batch, left free, right free. A permutation
-contract reads one operand through a complete `scatter` permutation.
+## Current coverage
 
-Admission does not use operation names, attribute names, or rewrite templates.
-Renamed fields and operations, swapped operand roles, commuted products, and
-consistently reordered scatter groups retain the same contract. The first
-certifier recognizes these normal forms; arbitrary equivalent programs can
-remain unrecognized and use the generic solver. Extra shape assertions, missing
-legality checks, or different scalar computations prevent admission.
-Lowering also preserves legality checks from shape `let` evaluations, including
-unused expressions that can fail through division, bounds, or overflow.
-
-At match time, the structural path requires:
-
-- Algebraic arithmetic and every physical dimension at least two; scalars are allowed.
-- The same distinct capture variables, used once on each side, in expression trees.
-- Certified contractions/permutations throughout the trees.
-- Independent, unrestricted RHS fields: four axis lists per contraction or one
-  permutation list. Pins, shared descriptors, and known RHS fields use the generic path.
-
-The LHS supplies a partition of input-axis ports into logical indices. For each
-RHS subtree, indices used outside that subtree or in the final output must stay
-live. Shared live indices become batches; shared indices whose use ends there
-are contracted. Required output subsequences determine the remaining layouts.
-The constructor translates these logical connections into concrete axis lists.
-It performs no SMT candidate search and never enumerates permutations.
-
-Before returning `Found`, a separate concrete evaluator checks shape legality,
-the exact port partition, and output order. Before returning `Invalid`, a separate
-checker verifies a two-axis ordering obstruction at a dot or input leaf. This
-rejects every RHS assignment in the admitted fragment. Adding an unrestricted
-root transpose repairs ordering failures in that fragment.
-
-Resource exhaustion remains `Unknown`. This path has a total input-axis limit of 100,000, tree depth
-limit of 256, and the configured time/work budget. These are implementation
-limits, not a mathematical rank bound. Construction cost is polynomial in tree
-size and axis count; no tight complexity bound is claimed.
-
-The Rust `semantic::solve` result exposes `method` (`Ordered`, `ConstraintsZ3`, `Z3`, or
-`Unavailable`) and `reason`. Invalid ordered results identify the RHS node and
-the conflicting logical axes. Normal generated rewrite application still
-declines failures before graph mutation. `ConstraintsZ3` identifies a witness
-found using the compiled sufficient constraints and checked by the verifier.
-
-Compile-time checking records how many operation definitions acquire contracts.
-It does **not** enable the two-axis universal-coverage theorem: exhaustive schema
-checking, source-attribute restrictions, and guard-preservation proofs remain
-separate work. See [the theorem draft](research/ordered_contractions.md).
-
-## Supported fragment
-
-| Layer | Supported |
+| Rule | Result under algebraic policy |
 | --- | --- |
-| Tensor structure | Fixed operand arity, nested operations, repeated captures, named intermediate bindings. |
-| Attributes | Nonoptional `index[]`, explicit finite axis-list bounds, literals and captured-field pins. |
-| Metadata and indexing | `shape`, `rank`, `len`, `range`, `gather`, `exclude`, `concat`, `take`/`slice`, `scatter`, lists, indexing, comparisons, integer arithmetic, axis validity and disjointness. |
-| Element computation | `read`, finite `sum(k in index_space(dims))`, `+`, `-`, `*`, unary signs, integer constant expressions as coefficients or elements. |
-| Conditions | Metadata/index conditions that become concrete during evaluation. Symbolic conditional or short-circuit metadata needs future guarded lowering. |
-| Dtypes | Numeric captures with a common dtype; operation dtype contracts forward an operand, optionally checking equality and numeric type. |
+| `distribute`, `distribute_explicit`, `sum_distribute` | Proved |
+| `transpose_compose` | Proved, including strict policy |
+| `merge_reductions`, `transpose_reduce` | Proved |
+| The four rules in [multiply.tepl](rules/multiply.tepl) | Proved |
+| `transpose_dot_lhs` | Proved; chooses an identity transpose witness |
+| `transpose_dot_cycle` | Proved with declared rank and contraction restrictions |
+| `absorb_transpose` | Proved with an explicit identity-permutation restriction |
+| `transpose_dot_swap` | Proved with the declared output-block permutation |
+| `associate`, `associate_reverse`, `lora` | Proved with explicit group-routing conditions |
 
-`exclude(v, selected)` follows the existing metadata builtin: it removes selected
-**values** while preserving order. For axis lists, use
-`exclude(range(rank(t)), selected_axes)`.
+Coordinate construction and independent verification are bounded. The former
+fallback that invented routing guards has been removed. Compatible batched
+forward reassociation supports partial selection across both free groups with
+an explicit batch-preservation condition. Reverse reassociation and LoRA retain
+their whole-group restrictions. Weakest-condition inference and completeness
+for arbitrary tensor compositions are outside the supported scope.
+Removing the conditions from the restricted examples causes verification to
+fail. A failure to prove a rule is not a counterexample to every possible RHS
+attribute assignment.
 
-`scatter(rank, axes, values)` requires complete coverage: axes are a permutation
-of all positions, and both vectors have the required length. Equal extents do not
-identify distinct coordinates.
+For internal profiling, set `TEPL_INDEX_PROFILE=1` when running the checker.
+It prints elapsed time and counters for each inference/verification context to
+stderr. Outer context times include any nested verification, so they should not
+be added together. Normal compiler output is unchanged.
 
-This supports the [example rules](rules/algebraic.tepl), general contractions,
-transposes, distribution, reassociation, LoRA, and user-defined reductions within
-the fragment. A rule can be expressible while some matches have no witness.
-The backend may also return unknown before finding one.
+The host-copy fixture is in [unsupported/host_call.tepl](unsupported/host_call.tepl).
+It remains unknown because `$copy_permutation` has no semantic contract. The
+compiler never assumes a host function's behavior from its name.
 
-The compiled semantic plan currently admits algebraic polynomials with rectangular
-reductions and pure coordinate routing through `gather`, `take`, indexing,
-`concat`, lists, and complete `scatter`. Products may use captures repeatedly;
-the constraint matcher supports at most 128 read occurrences per term.
-Coordinate arithmetic, constant input indexing, and strict arithmetic retain the
-original verifier/search path. Compilation limits include 64 additive terms,
-10,000 constraint expressions, and expansion depth 256. Exceeding these limits
-disables this optimization; it does not reject the rule.
+## Proof contract and limits
 
-Shape comprehensions, symbolic conditional shape programs, inferred non-list
-attributes, tensor-value-dependent branches, scalar division, and arbitrary
-nonpolynomial operators are outside this implementation. The parser/typechecker
-can accept some expressions that the proof engine cannot handle.
+For source metadata `p`, tensor values `X`, and constructor `f`:
 
-## Result meanings
+```text
+LegalLHS(p) AND DeclaredConditions(p)
+    => LegalRHS(p, f(p)) AND LHS(p, X) = RHS(p, f(p), X)
+```
 
-| Result | Meaning |
+Equality includes ordered output coordinates, shape, and dtype. Constructors
+and declared conditions depend only on source metadata. Inverse permutation and position
+lookup have explicit well-definedness obligations. A guard fails when a required
+partial metadata computation is undefined.
+
+- **Proved:** correctness follows from legality and declared conditions under
+  the selected arithmetic policy; no additional guard is introduced.
+- **Unknown:** the fragment, inversion, correspondence, or work budget did not
+  establish a result. Compilation rejects the rule without claiming impossibility.
+
+Exit codes are 0 for proved selected rules, 1 for rejected rules, and 2 for an
+unknown selector. Normal analysis rejects unproved semantic rules. Internal test
+inspection can retain unproved plans, but cannot mark them accepted.
+
+Supported tensor declarations and pure metadata conditions are imported.
+Unsupported conditions are diagnosed rather than silently ignored.
+Intermediate captured-computation shape declarations are currently omitted,
+so they cannot be relied upon to discharge a proof obligation.
+
+Required `index[]` fields, fixed operand arity, and the four scalar primitives
+form the initial operation fragment. Broadcasting, reshape, affine indexing,
+value-dependent domains, and general host semantics are deferred.
+
+## Implementation and verification
+
+The implementation lives in [`src/core/index_semantics`](../../src/core/index_semantics):
+
+| File | Responsibility |
 | --- | --- |
-| `Found` | The returned attributes satisfy operation legality, and equivalence has been checked for all tensor values at these metadata. |
-| `Invalid` | In algebraic mode, a checked ordering certificate or complete fixed-metadata exclusion proves no witness exists. |
-| `Unknown` | Unsupported reasoning, unavailable runtime, time/budget limits, or an inconclusive candidate prevents a conclusion. |
+| `ir.h`, `check.cc`, `plan.cc` | Definitions, templates, declared assumptions |
+| `expr.cc` | Immutable typed expressions and unconditional sequence identities |
+| `context.h`, `context.cc` | Private rule state, source scope, attribute assignment, guards |
+| `axis_bindings.cc` | Coordinate tables and their lookup indexes |
+| `axis_maps.cc`, `axis_transport.cc` | Position lookup, selection, producer-consumer map composition |
+| `axis_normalize.cc` | Evidence-based normalization and axis-set operations |
+| `axis_theory.cc` | Fact registration, shared structural laws, bounded entailment |
+| `proof_policy.h` | Named work limits and expected inference failures |
+| `graph.cc` | Generic composition into coordinate primitives |
+| `normalize.cc` | Arithmetic normalization and intermediate boundaries |
+| `synthesize.cc` | Constructors from required coordinates |
+| `verify.cc` | Independent re-lowering under declared conditions |
+| `print.cc` | Coordinate tables, shared expressions, diagnostics |
 
-A failed symbolic index comparison alone never proves invalid. A compiled
-semantic plan adds sufficient access-map conditions to metadata legality;
-every returned candidate still passes the independent equivalence verifier. Candidate
-selection does not claim a unique solution. An impossible match and an unknown
-match both leave the graph unchanged.
+Public APIs are `synthesize(plan)` and `verify(plan, proof)` in the corresponding
+headers. `Plan::proof` stores the compiler result. Neither API takes concrete
+metadata. Verification shares semantic lowering and sequence theory with
+synthesis, but does not trust inferred coordinate annotations or claimed status.
+This is a checked implementation, not a mechanically proved theorem.
 
-The compile-time checker also rejects an unconditional, unconstrained,
-attribute-free rule when its scalar instance has an exact counterexample. For
-example, `(add X Y) => X` is rejected. It does not ignore user guards or declared
-shape constraints to produce such a diagnostic.
+Normalization consults established evidence; bounded entailment is a separate
+query. A failed query means the property remains unestablished. Mapping and
+attribute updates invalidate their associated caches through `Context` methods.
+Transport uses indexed snapshots of the relevant interfaces, so it can add
+bindings safely while iterating. Position lookup retains a fallback for records
+whose expressions have acquired equivalent canonical forms.
 
-For explicit-attribute rules, `check` and `generate` also offer `--verify-small`.
-It searches small legal configurations and rejects confirmed sparse witnesses.
-Rules with guards, declarations, or host derivations use generated Rust
-`rule_NAME::verify_small(&functions, &options)` in a build/test validation step.
-The harness executes the actual host functions before checking their returned
-attributes. See [bounded early rejection](research/early_verification.md) for
-commands, result meanings, and limits, and [explicit rules](rules/explicit.tepl)
-for examples. A passed bounded check does not prove higher-rank validity.
+Expected unsupported cases, exhausted budgets, and invalid proof candidates
+produce `Unknown` with diagnostics. Unexpected implementation exceptions
+propagate instead of being classified as unsupported inference.
 
-**There is no generic compile-time arbitrary-rank coverage proof.** A compiled
-auto rule reports `coverage=match-guarded`; some or all matches can fail. Checking
-small ranks does not establish a theorem for higher ranks.
-
-The generic solver has separate limits for vector capacity and unresolved
-attribute variables: 4096 vector entries and 512 symbolic attribute variables by
-default, configurable through native `SolveOptions`. Forced entries do not count
-as symbolic variables. Propagation also bounds stored domains and relational work;
-its materialized uncertainty intervals contain at most 8193 values. Polynomials
-remain limited to 4096 terms. The timeout covers propagation, constraint
-construction, and verification as well as Z3. Exceeding a resource limit means
-unknown, never a mathematical rank counterexample.
-
-## Measuring constraint generation
-
-The native benchmark runs the solver used by generated Rust. It compares
-metadata-only search, compiled constraints with fallback, and normal production
-dispatch. The first two modes disable the ordered optimization and initial
-candidate preferences. Production retains those optimizations. All modes share
-the time and work budgets; controlled modes also have a configurable candidate
-limit. Exhausting a limit returns unknown.
+Tests independently interpret the metadata program and compare dense tensor
+results for matrices, multiple contracting axes, zero extents, transpose order,
+and reassociation. They also exercise corrupted constructors and unsupported
+cases. Concrete reference inference is confined to `tests/index_reference_*`.
 
 ```sh
-bazel build -c opt //:semantic_benchmark
-bazel-bin/semantic_benchmark --repeats 3 --warmup 1 --timeout-ms 500 > /tmp/semantic.csv
-python3 tools/summarize_semantic_benchmark.py before.csv /tmp/semantic.csv > /tmp/report.md
+bazel test //tests:semantic_test //tests:semantic_cli_test
 ```
 
-The CSV records shapes, known attributes, pins, compilation time, matching time,
-metadata/semantic construction time, Z3 time, verification time, solver calls,
-candidate counts, method, fallback reasons, limits, seed, and compiler/Z3 versions.
-Metadata construction time includes source-legality solver calls, so phase
-times overlap. These measurements exclude Rust graph matching and ABI serialization.
-Compilation is measured once per distinct rule and excluded from matching time.
+## Compiler migration
 
-Fixtures cover transpose, distribution, association, LoRA, multiple batch/reduction
-axes, repeated extents and captures, pins, empty/singleton domains, and impossible
-rewrites. Use `--filter`, `--mode`, `--budget`, `--max-candidates`, and `--seed`
-to control a run. Run without concurrent builds for useful timing comparisons.
-The [recorded report](benchmarks/REPORT.md) includes before/after CSVs and source
-fingerprints. Timing is informational; correctness tests do not assert speedups.
+This directory is the canonical semantic example suite. Operations define an
+`axes` interface and a value `semantics` expression. The compiler has one proof
+pipeline: lowering, coordinate composition, algebraic normalization, attribute
+construction, and independent verification. It does not search with Z3.
 
-## Numerical policy
+Legacy `semantics(out_idx)`, tensor reads, and explicit sum comprehensions are
+retired. `auto` requires supported axis semantics. Unproved rewrites must supply
+explicit conditions or change their equation; there is no solver fallback.
+`--rule` selects a rule. `--verify-small` and `--solver-timeout-ms` are retired.
+Shape/dtype programs and ordinary rules without semantic definitions remain
+supported.
 
-Use `--semantic-policy algebraic` for ideal exact arithmetic. This permits
-polynomial distribution and reassociation; it does not prove floating-point
-error bounds.
-
-The default `strict` policy requires identical expanded evaluation traces.
-Different traces remain unknown when no acceptable candidate is found. Trace
-comparison is a conservative semantic criterion, not an operational IEEE-754
-proof: dialect semantics do not specify rounding, reduction implementation,
-NaNs, or overflow behavior.
-
-## Build and run
-
-```sh
-bazel build //:tepl //src/core:libtepl_semantic_runtime.so
-bazel-bin/tepl check examples/semantic --semantic-policy algebraic
-bazel-bin/tepl generate examples/semantic --semantic-policy algebraic \
-  --target rust --out /tmp/tepl-semantic
-export TEPL_SEMANTIC_RUNTIME="$PWD/bazel-bin/src/core/libtepl_semantic_runtime.so"
-```
-
-Generated Rust and C++ applications load the same native library at match time.
-Set `TEPL_SEMANTIC_RUNTIME` before the first inference call, or install
-`libtepl_semantic_runtime.so` on the dynamic loader path. The library needs its
-matching Z3 shared dependency; preserve the Bazel runfiles/solib layout or package
-that dependency alongside a suitable loader configuration. No Rust Z3 crate or
-C++ Z3 headers are required by generated applications.
-
-The adapters currently support Unix dynamic loading. Other targets return
-unknown. Missing libraries also return unknown and decline the rewrite.
-Ordinary rules without semantic inference continue to work without the library.
-
-Validation commands:
-
-```sh
-bazel test //tests/...
-tools/test_codegen.sh
-tools/test_codegen_cpp.sh
-```
-
-The integration scripts build and configure the native runtime automatically.
+The existing generated-code runtime is isolated in
+[`src/legacy_semantics`](../../src/legacy_semantics/README.md). Its plan types and
+serialization are compatibility interfaces for the existing generators. The
+compiler does not populate those plans. New semantic constructors are not yet
+emitted into Rust or C++.

@@ -64,13 +64,13 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
         at);
     const auto& fields =
         context.analysis.output.attribute_schemas[schema->value].fields;
-    inference::Hole hole{id, *schema,
-                         std::vector<inference::ValuePtr>(fields.size())};
+    AttributeHole hole{id, *schema,
+                       std::vector<AttributePinPtr>(fields.size())};
     auto literal = [&](auto&& self, const ast::AutoField::Literal& input,
                        const AttributeField& field, std::size_t depth,
-                       bool optional) -> inference::ValuePtr {
+                       bool optional) -> AttributePinPtr {
       using L = ast::AutoField::Literal;
-      inference::Value value{inference::Value::Kind::kLiteral, input.text};
+      AttributePin value{AttributePin::Kind::kLiteral, input.text};
       value.string_literal = input.kind == L::Kind::kString;
       bool valid = false;
       if (optional && input.kind == L::Kind::kName && input.text == "none")
@@ -107,7 +107,7 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
             at, "invalid auto override for field '" + field.name + "'");
         return {};
       }
-      return std::make_shared<inference::Value>(std::move(value));
+      return std::make_shared<AttributePin>(std::move(value));
     };
     for (const auto& override : op.automatic->fields) {
       auto field =
@@ -156,12 +156,12 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
                       override.descriptor->name + "." + override.field + "'");
           continue;
         }
-        inference::Value value{inference::Value::Kind::kField};
+        AttributePin value{AttributePin::Kind::kField};
         value.descriptor = source->second;
         value.schema = *source_type->schema;
         value.field = input - source_fields.begin();
         hole.overrides[index] =
-            std::make_shared<inference::Value>(std::move(value));
+            std::make_shared<AttributePin>(std::move(value));
       }
     }
     context.rule.attribute_holes.push_back(std::move(hole));

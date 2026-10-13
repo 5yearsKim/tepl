@@ -4,7 +4,6 @@
 #include <utility>
 
 #include "src/core/index_semantics/check.h"
-#include "src/core/inference/check.h"
 #include "src/core/rule/check_context.h"
 #include "src/core/rule/declarations.h"
 #include "src/core/rule/descriptors.h"
@@ -64,10 +63,13 @@ std::optional<Rule> check(AnalysisContext& analysis,
     };
     for (const auto& e : context.rule.conditions)
       if (hasGroup(*e))
-        analysis.report(e->origin,
-                        "output-axis group reference requires index semantics");
-    if (analysis.diagnostics.size() == diagnostics_before)
-      inference::infer(analysis, context.rule);
+        analysis.report(
+            e->origin,
+            "output-axis group reference requires axes and semantics");
+    if (!context.rule.attribute_holes.empty())
+      analysis.report(
+          input.origin,
+          "auto requires operations with axes and semantics definitions");
   }
   if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
   return std::move(context.rule);

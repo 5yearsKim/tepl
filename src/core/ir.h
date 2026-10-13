@@ -10,10 +10,10 @@
 
 #include "src/core/ids.h"
 #include "src/core/index_semantics/ir.h"
-#include "src/core/inference/ir.h"
 #include "src/core/metadata/ir.h"
-#include "src/core/semantics/ir.h"
+#include "src/core/rule/attribute_holes.h"
 #include "src/core/type/types.h"
+#include "src/legacy_semantics/inference_ir.h"
 #include "src/operators.h"
 #include "src/source.h"
 
@@ -54,8 +54,7 @@ struct Operation {
   SourceOrigin origin;
   std::optional<metadata::Program> shape;
   std::optional<metadata::Program> dtype;
-  std::optional<semantics::Program> semantics;
-  std::shared_ptr<const index_semantics::Definition> index_semantics;
+  std::shared_ptr<const index_semantics::Definition> semantic_definition;
 };
 
 struct HostFunction {
@@ -233,9 +232,10 @@ struct Rule {
   std::vector<Derivation> derivations;
   BuildExprPtr rhs;
   std::vector<DTypeVariable> dtypes;
-  std::vector<inference::Hole> attribute_holes;
+  std::vector<AttributeHole> attribute_holes;
+  // Frozen codegen compatibility; compiler analysis does not populate this.
   std::optional<inference::Program> inference;
-  std::shared_ptr<const index_semantics::Plan> index_inference;
+  std::shared_ptr<const index_semantics::Plan> semantic_plan;
 };
 
 // Checked concrete graphs are topologically ordered DAGs, not rewrite patterns.

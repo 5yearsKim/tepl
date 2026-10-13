@@ -44,7 +44,7 @@ S AxisBindings::compose(const S& parent, const S& child) {
 }
 S AxisBindings::restrict(const S& group_positions,
                          const S& selected_positions) {
-  return call("matched_positions", {group_positions, selected_positions});
+  return matchPositions(group_positions, selected_positions).right_positions;
 }
 S AxisBindings::select(const S& parent, const S& selector) {
   if (auto existing = group(parent, selector)) return existing;

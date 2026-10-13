@@ -413,24 +413,13 @@ std::string formatAst(const ast::Program& program) {
       }
       if (op.semantics) {
         out << "      semantics";
-        if (!op.semantics->index.empty())
-          out << "(" << op.semantics->index << ")";
         out << "\n";
         auto expression = [&](auto&& self, const ast::SemanticExpr& e,
                               int depth) -> void {
           indent(out, depth);
           out << e.text << '\n';
-          for (const auto& local : e.locals) {
-            indent(out, depth + 1);
-            out << "let " << local.name << '\n';
-            self(self, *local.value, depth + 2);
-          }
           for (const auto& arg : e.arguments) self(self, *arg, depth + 1);
         };
-        for (const auto& local : op.semantics->locals) {
-          out << "        let " << local.name << '\n';
-          expression(expression, *local.value, 5);
-        }
         out << "        yield\n";
         expression(expression, *op.semantics->result, 5);
       }

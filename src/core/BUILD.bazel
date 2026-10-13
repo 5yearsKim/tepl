@@ -1,31 +1,16 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 
-# The pinned BCR package exports only libz3.so although its ELF SONAME is
-# libz3.so.4.15. Include the SONAME in Bazel's solib directory and runfiles.
-genrule(
-    name = "z3_soname",
-    srcs = ["@z3//:z3_dynamic"],
-    outs = ["libz3.so.4.15"],
-    cmd = "for file in $(locations @z3//:z3_dynamic); do case $$file in */libz3.so) cp $$file $@ ;; esac; done",
-)
-
-cc_import(
-    name = "z3_soname_import",
-    shared_library = ":z3_soname",
-)
-
 cc_library(
-    name = "z3_solver",
-    deps = ["@z3//:z3", ":z3_soname_import"],
+    name = "ids",
+    hdrs = ["ids.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
     name = "ir",
     srcs = [
         "builtins/catalog.cc",
-        "semantics/ir.cc",
         "index_semantics/ir.cc",
         "index_semantics/print.cc",
         "metadata/types.cc",
@@ -34,11 +19,8 @@ cc_library(
     ],
     hdrs = [
         "builtins/catalog.h",
-        "ids.h",
-        "semantics/ir.h",
         "index_semantics/ir.h",
-        "inference/ir.h",
-        "inference/semantic_ir.h",
+        "rule/attribute_holes.h",
         "ir.h",
         "metadata/ir.h",
         "metadata/types.h",
@@ -47,17 +29,11 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        ":ids",
+        "//src/legacy_semantics:plan",
         "//:operators",
         "//:source",
     ],
-)
-
-cc_library(
-    name = "constraint_generation",
-    srcs = ["inference/constraints.cc", "inference/constraint_normalize.cc"],
-    hdrs = ["inference/constraints.h", "inference/constraint_normalize.h"],
-    deps = [":ir"],
-    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -99,10 +75,6 @@ cc_library(
         "index_semantics/check.cc",
         "index_semantics/check.h",
         "index_semantics/plan.cc",
-        "semantics/check.cc",
-        "semantics/check.h",
-        "inference/check.cc",
-        "inference/check.h",
         "analysis_context.h",
         "analyze.cc",
         "graph/check.cc",
@@ -155,8 +127,6 @@ cc_library(
         "//:source",
         "//src/ast:ast",
         ":index_proof",
-        ":semantic_solver",
-        ":constraint_generation",
     ],
 )
 
@@ -168,17 +138,20 @@ cc_library(
     deps = [":ir"],
 )
 
+# Compatibility label/header used by unchanged code generators. Serialization
+# is pure and does not link the legacy solver or Z3 into the compiler binary.
 cc_library(
     name = "semantic_solver",
-    srcs = ["semantics/solver.cc", "semantics/ordered.cc", "semantics/axis_domains.cc"],
-    hdrs = ["semantics/solver.h", "semantics/ordered.h", "semantics/constraint_match.h", "semantics/axis_domains.h", "semantics/early_verification.h", "semantics/early_verification.inc"],
-    deps = [":ir", ":z3_solver"],
+    hdrs = ["semantics/solver.h"],
+    deps = ["//src/legacy_semantics:codec"],
     visibility = ["//visibility:public"],
 )
+
+# Preserve the library filename loaded by existing generated applications.
 cc_binary(
     name = "libtepl_semantic_runtime.so",
-    srcs = ["semantics/runtime.cc"],
-    deps = [":semantic_solver"],
+    srcs = ["//src/legacy_semantics:runtime.cc"],
+    deps = ["//src/legacy_semantics:solver"],
     linkshared = True,
     visibility = ["//visibility:public"],
 )

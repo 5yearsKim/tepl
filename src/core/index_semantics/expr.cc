@@ -405,6 +405,10 @@ S call(std::string name, std::vector<S> args) {
   if (name == "==" && equal(args[0], args[1])) return boolean(true);
   return make(Symbol::Kind::Call, std::move(name), 0, 0, std::move(args));
 }
+PositionMatch matchPositions(const S& left, const S& right) {
+  return {call("membership_positions", {left, right}),
+          call("matched_positions", {left, right})};
+}
 bool truth(const S& s) {
   return s->kind == Symbol::Kind::Boolean && s->name == "true";
 }

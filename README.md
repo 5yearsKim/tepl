@@ -176,6 +176,11 @@ Read the [TEPL rule](examples/sample/rules/lora.tepl) or reproduce the result fr
 cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
 ```
 
+The [semantic examples](examples/semantic/README.md) show compiler-side proof
+and symbolic RHS attribute synthesis from user-defined axis semantics. These
+constructors are checked without concrete tensor metadata; their Rust/C++ code
+generation is a separate step that is not yet implemented.
+
 ## 🚀 Quick start
 
 Try it from the repository root:

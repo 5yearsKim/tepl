@@ -12,8 +12,8 @@
 #include "src/core/analyze.h"
 #include "src/core/print.h"
 #include "src/imports.h"
-#include "src/index_check.h"
 #include "src/parse.h"
+#include "src/semantic_check.h"
 #include "src/support/init.h"
 
 int main(int argc, char** argv) {
@@ -66,21 +66,14 @@ int main(int argc, char** argv) {
   generate->add_option("--cpp-namespace", generation_options.cpp_namespace,
                        "Namespace for generated C++ (default: tepl_generated)");
   std::string semantic_policy = "strict";
-  unsigned solver_timeout = 1000;
-  bool verify_small = false;
-  std::string index_rule;
-  check->add_option("--index-rule", index_rule,
-                    "Select an index-semantic rule for compile-time proof");
+  std::string semantic_rule;
+  check->add_option("--rule", semantic_rule,
+                    "Select a semantic rule for compile-time proof");
   for (auto* command : {check, generate}) {
-    command->add_flag("--verify-small", verify_small,
-                      "Reject explicit rules with small sparse counterexamples "
-                      "(ideal arithmetic)");
     command
         ->add_option("--semantic-policy", semantic_policy,
                      "Arithmetic proof policy (strict or algebraic)")
         ->check(CLI::IsMember({"strict", "algebraic"}));
-    command->add_option("--solver-timeout-ms", solver_timeout,
-                        "Compile-time SMT timeout");
   }
   try {
     app.parse(argc, argv);
@@ -159,7 +152,7 @@ int main(int argc, char** argv) {
         *result.program,
         {semantic_policy == "algebraic" ? tepl::core::SemanticPolicy::kAlgebraic
                                         : tepl::core::SemanticPolicy::kStrict,
-         solver_timeout, verify_small, false, index_rule});
+         false, semantic_rule});
     for (const auto& diagnostic : analyzed.diagnostics) {
       const auto print_location = [](const tepl::SourceLocation& at) {
         std::cerr << at.source_name << ':' << at.span.begin.line << ':'
@@ -179,13 +172,14 @@ int main(int argc, char** argv) {
     }
     if (!analyzed.ok()) return 1;
     if (*check) {
-      if (index_rule.empty())
+      if (semantic_rule.empty())
         std::cout << tepl::core::formatProgram(*analyzed.program);
-      return tepl::checkIndexRules(*analyzed.program, index_rule, std::cout);
+      return tepl::checkSemanticRules(*analyzed.program, semantic_rule,
+                                      std::cout);
     }
     for (const auto& operation : analyzed.program->operations) {
-      if (operation.index_semantics) {
-        std::cerr << "index semantics currently supports compiler-side check "
+      if (operation.semantic_definition) {
+        std::cerr << "axis semantics currently supports compiler-side check "
                      "and inference; "
                      "code generation is not implemented\n";
         return 1;

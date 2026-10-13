@@ -22,10 +22,15 @@ fi
 eggc_source="$(cd "$eggc_source" && pwd)"
 test -f "$eggc_source/include/eggc/all.hpp"
 cxx="${CXX:-c++}"
-fixtures=(semantic semantic_general dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty structural concrete_graphs)
+# Historical semantic fixtures use retired compiler syntax; see tests/codegen/legacy_semantics/README.md.
+fixtures=(dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty structural concrete_graphs)
 # Optional fixture arguments allow focused reruns after a failing integration.
 if [[ $# -gt 1 ]]; then fixtures=("${@:2}"); fi
 for fixture in "${fixtures[@]}"; do
+    if [[ "$fixture" == semantic || "$fixture" == semantic_general ]]; then
+        printf 'Legacy semantic fixture regeneration is retired; see tests/codegen/legacy_semantics/README.md\n' >&2
+        exit 2
+    fi
     fixture_flags=()
     if [[ "$fixture" == concrete_graphs ]]; then fixture_flags=(-DTEPL_TEST_NESTED_GRAPHS); fi
     application="$work_directory/$fixture"
@@ -58,10 +63,8 @@ for fixture in "${fixtures[@]}"; do
             input="$application"
             ;;
     esac
-    semantic_flags=()
-    if [[ "$fixture" == semantic || "$fixture" == semantic_general ]]; then semantic_flags=(--semantic-policy algebraic --solver-timeout-ms 10000); fi
-    "$compiler" generate "$input" "${semantic_flags[@]}" --target cpp --no-format --out "$application/ir"
-    "$compiler" generate "$input" "${semantic_flags[@]}" --target cpp --no-format --out "$application/ir" --check
+    "$compiler" generate "$input" --target cpp --no-format --out "$application/ir"
+    "$compiler" generate "$input" --target cpp --no-format --out "$application/ir" --check
     if [[ "$fixture" == empty ]]; then
         printf '#include "ir/generated.h"\nint main() {}\n' > "$application/test.cc"
         "$cxx" -std=c++20 -I"$application" -I"$eggc_source/include" "$application/test.cc" -o "$application/test"

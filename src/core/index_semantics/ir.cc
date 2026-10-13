@@ -60,7 +60,7 @@ const std::vector<Law>& laws() {
        "distinct coordinate frame",
        false},
       {"paired-axis-selection",
-       "p[membership_positions(p,q)] = q[matched_positions(p,q)]",
+       "match_positions(p,q) = {left,right}; p[left] = q[right]",
        "p and q valid distinct selectors into the same interface; pair order "
        "retained",
        false},

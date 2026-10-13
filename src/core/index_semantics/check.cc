@@ -141,7 +141,7 @@ struct Checker {
       return node(Value::Kind::Operand, operands.at(expr.text));
     }
     if (expr.kind != ast::SemanticExpr::Kind::kCall)
-      fail("index semantics expects Operand, Add, Product, or Reduce");
+      fail("axis semantics expects Operand, Add, Product, or Reduce");
     if (expr.text == "Reduce") {
       if (expr.arguments.size() != 2) fail("Reduce requires group and value");
       const auto& g = *expr.arguments[0];
@@ -197,8 +197,6 @@ struct Checker {
   }
   Definition run(const ast::AxisDefinition& axes,
                  const ast::SemanticDefinition& sem) {
-    if (!sem.index.empty() || !sem.locals.empty())
-      fail("index semantics uses a parameterless primitive expression");
     if (operation.shape)
       fail("index axes derive shape; a separate shape block is not allowed");
     for (std::size_t i = 0; i < operation.operands.size(); ++i) {
@@ -214,7 +212,7 @@ struct Checker {
         const auto& f = schema.fields[i];
         if (f.type != "index" || f.list_depth != 1 || f.optional)
           fail(
-              "initial index semantics supports required index[] attributes "
+              "initial axis semantics supports required index[] attributes "
               "only");
         fields[f.name] = i;
         result.fields.push_back(f.name);
@@ -279,7 +277,7 @@ std::shared_ptr<const Definition> check(
   try {
     return std::make_shared<Definition>(checker.run(axes, semantics));
   } catch (const std::runtime_error& e) {
-    context.report(checker.at, std::string("index semantics: ") + e.what());
+    context.report(checker.at, std::string("axis semantics: ") + e.what());
     return {};
   }
 }

@@ -1,4 +1,4 @@
-from "../../examples/semantic/dialects/tensor.tepl" import TensorLang as t;
+from "legacy_semantics/tensor.tepl" import TensorLang as t;
 use t::{add, dot, transpose};
 
 rule transpose_host {

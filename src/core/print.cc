@@ -30,12 +30,8 @@ class Printer {
       out_ << '\n';
       if (op.dtype) metadata::print(out_, *op.dtype, program_);
       if (op.shape) metadata::print(out_, *op.shape, program_);
-      if (op.semantics)
-        out_ << "    semantics ["
-             << "element"
-             << "]: " << semantics::format(*op.semantics->result) << "\n";
-      if (op.index_semantics)
-        out_ << index_semantics::format(*op.index_semantics);
+      if (op.semantic_definition)
+        out_ << index_semantics::format(*op.semantic_definition);
     }
     for (const auto& schema : program_.attribute_schemas) {
       out_ << "  attr_schema #" << schema.id.value << ' ' << schema.dialect
@@ -285,18 +281,8 @@ class Printer {
       expression(*derivation.value);
       out_ << '\n';
     }
-    if (rule.inference) {
-      out_ << "    auto: selection=" << rule.inference->selection
-           << " multiplicity=" << rule.inference->multiplicity
-           << " coverage=" << rule.inference->coverage
-           << " guards=" << (bool(rule.inference->semantic)) << "\n";
-      out_ << "      proof-method: "
-              "ordered-contract-or-compiled-semantic-constraints-z3\n";
-      for (const auto& step : rule.inference->proof)
-        out_ << "      proof: " << step << "\n";
-    }
-    if (rule.index_inference)
-      out_ << index_semantics::format(*rule.index_inference);
+    if (rule.semantic_plan)
+      out_ << index_semantics::format(*rule.semantic_plan);
     out_ << "    replacement: ";
     build(*rule.rhs);
     out_ << '\n';

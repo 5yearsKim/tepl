@@ -16,7 +16,7 @@ S Context::mappedPositions(const S& interface, const S& group) const {
   return bindings_.lookup(interface, group);
 }
 S Context::membershipPositions(const S& p, const S& q) {
-  return call("membership_positions", {p, q});
+  return matchPositions(p, q).left_positions;
 }
 void Context::bind(const S& interface, const S& group, const S& p) {
   if (bindings_.bind(interface, group, p)) invalidate();
@@ -105,7 +105,7 @@ void Context::partition(const S& interface, const std::vector<S>& groups,
         auto view = call("gather", {left, slots});
         ordered_parts.push_back(view);
         auto paired =
-            call("matched_positions", {selectors[i], old.selectors[j]});
+            matchPositions(selectors[i], old.selectors[j]).right_positions;
         if (bindings_.overlap(left, right, view, slots, paired)) invalidate();
         note("ordered-axis-split");
         note("paired-axis-selection");

@@ -9,65 +9,20 @@ cc_test(
 )
 
 cc_test(
-    name = "index_semantics_test",
+    name = "semantic_test",
     size = "small",
-    srcs = ["index_semantics_test.cc", "index_reference_engine.cc", "index_reference.h", "index_constructor_eval.h"],
-    args = ["$(rlocationpath //:examples/index_semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/index_semantic/dialects/tensor.tepl"],
+    srcs = ["semantic_test.cc", "index_reference_engine.cc", "index_reference.h", "index_constructor_eval.h"],
+    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
+    data = ["//:examples/semantic/dialects/tensor.tepl"],
     deps = ["//:frontend", "//src/core:analysis", "//src/core:index_proof", "//src/core:print", "@rules_cc//cc/runfiles"],
 )
 
 sh_test(
-    name = "index_cli_test",
+    name = "semantic_cli_test",
     size = "small",
-    srcs = ["index_cli_test.sh"],
-    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/index_semantic/rules/algebraic.tepl)"],
-    data = ["//:tepl", "//:examples/index_semantic/rules/algebraic.tepl", "//:examples/index_semantic/dialects/tensor.tepl"],
-)
-
-cc_test(
-    name = "axis_domains_test",
-    size = "small",
-    srcs = ["axis_domains_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/core:semantic_solver", "@rules_cc//cc/runfiles"],
-)
-
-cc_test(
-    name = "constraint_extensions_test",
-    size = "small",
-    srcs = ["constraint_extensions_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/core:semantic_solver", "@rules_cc//cc/runfiles"],
-)
-
-cc_test(
-    name = "constraint_plan_test",
-    size = "small",
-    srcs = ["constraint_plan_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/core:semantic_solver", "//src/codegen:codegen", "@rules_cc//cc/runfiles"],
-)
-
-cc_test(
-    name = "ordered_test",
-    size = "small",
-    srcs = ["ordered_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/core:semantic_solver", "@rules_cc//cc/runfiles"],
-)
-
-cc_test(
-    name = "semantic_test",
-    size = "small",
-    srcs = ["semantic_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/ast:ast", "//src/core:analysis", "//src/core:semantic_solver", "//src/core:print", "//src/codegen:codegen", "@rules_cc//cc/runfiles"],
+    srcs = ["semantic_cli_test.sh"],
+    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/rules/algebraic.tepl)"],
+    data = ["//:tepl", "//:examples/semantic/rules/algebraic.tepl", "//:examples/semantic/dialects/tensor.tepl"],
 )
 
 cc_test(
@@ -248,11 +203,10 @@ cc_test(
     deps = ["//:frontend", "//src/codegen:codegen", "//src/core:analysis"],
 )
 
+
 cc_test(
-    name = "early_verification_test",
+    name = "legacy_semantic_runtime_test",
     size = "small",
-    srcs = ["early_verification_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/core:semantic_solver", "@rules_cc//cc/runfiles"],
+    srcs = ["legacy_semantic_runtime_test.cc"],
+    deps = ["//src/legacy_semantics:solver"],
 )

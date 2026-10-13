@@ -1,0 +1,38 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
+
+exports_files(["runtime.cc"])
+
+cc_library(
+    name = "plan",
+    hdrs = ["plan.h", "inference_ir.h"],
+    deps = ["//src/core:ids"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "codec",
+    srcs = ["codec.cc"],
+    hdrs = ["codec.h"],
+    deps = [":plan"],
+    visibility = ["//visibility:public"],
+)
+
+# Only the frozen generated-code runtime requires Z3.
+genrule(
+    name = "z3_soname",
+    srcs = ["@z3//:z3_dynamic"],
+    outs = ["libz3.so.4.15"],
+    cmd = "for file in $(locations @z3//:z3_dynamic); do case $$file in */libz3.so) cp $$file $@ ;; esac; done",
+)
+cc_import(
+    name = "z3_soname_import",
+    shared_library = ":z3_soname",
+)
+cc_library(
+    name = "solver",
+    srcs = ["solver.cc", "ordered.cc", "axis_domains.cc"],
+    hdrs = ["solver.h", "ordered.h", "constraint_match.h", "axis_domains.h", "early_verification.h", "early_verification.inc"],
+    deps = [":codec", ":plan", ":z3_soname_import", "@z3//:z3"],
+    visibility = ["//visibility:public"],
+)

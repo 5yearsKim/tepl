@@ -147,7 +147,7 @@ Each concrete rule becomes `generated::rules::FILE::rule_NAME` with:
 - `verify_small(&functions, &options)`: bounded sparse early rejection using the
   actual host guards and derivations; returns unknown outside its supported
   explicit-attribute fragment. See
-  [early verification](../../examples/semantic/research/early_verification.md).
+  [early verification](../../examples/research/early_verification.md).
 - `pattern()` and `expression()`: structural match and replacement trees.
 - `constraints()`: shape/dtype restrictions indexed by capture, including inheritance.
 - `match_checks<N>()`: declarations and ordered pure condition evaluators using

@@ -20,52 +20,10 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
       tepl_generated::TeplParser::AxesPropertyContext*) override;
   std::any visitSemanticsProperty(
       tepl_generated::TeplParser::SemanticsPropertyContext*) override;
-  std::any visitSemanticConditionalExpr(
-      tepl_generated::TeplParser::SemanticConditionalExprContext*) override;
-  std::any visitSemanticSimpleExpr(
-      tepl_generated::TeplParser::SemanticSimpleExprContext*) override;
-  std::any visitSemanticLogicalOr(
-      tepl_generated::TeplParser::SemanticLogicalOrContext*) override;
-  std::any visitSemanticLogicalAnd(
-      tepl_generated::TeplParser::SemanticLogicalAndContext*) override;
-  std::any visitSemanticEquality(
-      tepl_generated::TeplParser::SemanticEqualityContext*) override;
-  std::any visitSemanticComparison(
-      tepl_generated::TeplParser::SemanticComparisonContext*) override;
-  std::any visitSemanticAdditive(
-      tepl_generated::TeplParser::SemanticAdditiveContext*) override;
-  std::any visitSemanticMultiplicative(
-      tepl_generated::TeplParser::SemanticMultiplicativeContext*) override;
-  std::any visitSemanticUnary(
-      tepl_generated::TeplParser::SemanticUnaryContext*) override;
-  std::any visitSemanticPostfix(
-      tepl_generated::TeplParser::SemanticPostfixContext*) override;
-  std::any visitSemanticCallPrimary(
-      tepl_generated::TeplParser::SemanticCallPrimaryContext*) override;
-  std::any visitSemanticNamePrimary(
-      tepl_generated::TeplParser::SemanticNamePrimaryContext*) override;
-  std::any visitSemanticAttrsPrimary(
-      tepl_generated::TeplParser::SemanticAttrsPrimaryContext*) override;
-  std::any visitSemanticIntegerPrimary(
-      tepl_generated::TeplParser::SemanticIntegerPrimaryContext*) override;
-  std::any visitSemanticTruePrimary(
-      tepl_generated::TeplParser::SemanticTruePrimaryContext*) override;
-  std::any visitSemanticFalsePrimary(
-      tepl_generated::TeplParser::SemanticFalsePrimaryContext*) override;
-  std::any visitSemanticGroupPrimary(
-      tepl_generated::TeplParser::SemanticGroupPrimaryContext*) override;
-  std::any visitSemanticEmptyListPrimary(
-      tepl_generated::TeplParser::SemanticEmptyListPrimaryContext*) override;
-  std::any visitSemanticListPrimary(
-      tepl_generated::TeplParser::SemanticListPrimaryContext*) override;
-  std::any visitSemanticComprehensionPrimary(
-      tepl_generated::TeplParser::SemanticComprehensionPrimaryContext*)
-      override;
-  std::any visitSemanticSumPrimary(
-      tepl_generated::TeplParser::SemanticSumPrimaryContext*) override;
-  template <typename Context>
-  ast::SemanticExprPtr foldSemantic(antlr4::ParserRuleContext*,
-                                    const std::vector<Context*>&);
+  std::any visitSemanticCallExpr(
+      tepl_generated::TeplParser::SemanticCallExprContext*) override;
+  std::any visitSemanticNameExpr(
+      tepl_generated::TeplParser::SemanticNameExprContext*) override;
   std::any visitProgram(tepl_generated::TeplParser::ProgramContext*) override;
   std::any visitImportDecl(
       tepl_generated::TeplParser::ImportDeclContext*) override;

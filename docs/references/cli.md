@@ -119,7 +119,25 @@ programs are type-checked here; evaluating them for concrete tensor metadata is
 the generated runtime's responsibility. Numerical rewrite legality also depends
 on the dialect and application semantics.
 
-The command takes one input and has no additional options beyond help.
+For operations with axis semantics, the checker also constructs RHS `auto`
+attributes and proves rewrite correctness under explicit conditions:
+
+```sh
+tepl check examples/semantic/rules/algebraic.tepl \
+  --semantic-policy=algebraic --rule associate
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--semantic-policy strict` | Default arithmetic policy; algebraic transformations require permission. |
+| `--semantic-policy algebraic` | Permit the supported exact-arithmetic algebraic laws. |
+| `--rule <name>` | Check and report one semantic rule in the input. |
+
+Without `--rule`, all semantic rules are checked. Missing conditions or
+unsupported proofs are errors. The previous `--index-rule`, `--verify-small`,
+and `--solver-timeout-ms` options are retired. See the
+[semantic examples](../../examples/semantic/README.md) for the supported fragment.
+Axis-semantic code generation is not yet implemented.
 
 ## `generate`
 

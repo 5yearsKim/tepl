@@ -88,7 +88,7 @@ struct Builder {
       const auto& n = plan.nodes[*operation];
       if (!n.definition)
         throw std::runtime_error(
-            "output-axis reference requires index semantics");
+            "output-axis reference requires axis semantics");
       for (std::size_t g = 0; g < n.definition->groups.size(); ++g) {
         if (n.definition->groups[g].name != ref.group) continue;
         bool present = false;
@@ -166,7 +166,7 @@ struct Builder {
       auto value = lower(*condition);
       if (!value) {
         context.report(condition->origin,
-                       "unsupported index-rule condition; expected a "
+                       "unsupported semantic-rule condition; expected a "
                        "compiler-readable metadata expression");
         throw std::runtime_error("cannot interpret declared condition");
       }
@@ -191,14 +191,14 @@ struct Builder {
                         std::vector<std::size_t> inputs,
                         const SourceOrigin& at) {
     const auto& op = context.output.operations.at(id.value);
-    if (!op.index_semantics)
-      throw std::runtime_error(
-          "operation '" + op.name +
-          "' lacks index semantics; mixed semantic styles unsupported");
+    if (!op.semantic_definition)
+      throw std::runtime_error("operation '" + op.name +
+                               "' lacks axis semantics; all operations in a "
+                               "semantic rule require axes and semantics");
     if (!op.dtype)
       throw std::runtime_error("index operation requires dtype contract");
     Instance n;
-    n.definition = op.index_semantics;
+    n.definition = op.semantic_definition;
     n.dtype = std::make_shared<metadata::Program>(*op.dtype);
     n.descriptor = descriptor;
     n.inputs = std::move(inputs);
@@ -211,14 +211,14 @@ struct Builder {
         const auto& v = h.overrides[f];
         if (!v) continue;
         Pin pin;
-        if (v->kind == inference::Value::Kind::kField) {
+        if (v->kind == AttributePin::Kind::kField) {
           pin.descriptor = v->descriptor;
           pin.field = v->field;
-        } else if (v->kind == inference::Value::Kind::kLiteral &&
+        } else if (v->kind == AttributePin::Kind::kLiteral &&
                    v->text == "list") {
           List values;
           for (const auto& element : v->arguments) {
-            if (element->kind != inference::Value::Kind::kLiteral)
+            if (element->kind != AttributePin::Kind::kLiteral)
               throw std::runtime_error("unsupported nonliteral auto pin");
             values.push_back(std::stoll(element->text));
           }
@@ -244,7 +244,7 @@ struct Builder {
                        p.origin);
     }
     throw std::runtime_error(
-        "initial index graphs support tensor captures and operation "
+        "semantic graphs support tensor captures and operation "
         "applications");
   }
   std::size_t target(const BuildExpr& p) {
@@ -257,7 +257,7 @@ struct Builder {
                        p.origin);
     }
     throw std::runtime_error(
-        "initial index graphs support captures and operation applications");
+        "semantic graphs support captures and operation applications");
   }
 };
 }  // namespace
@@ -265,16 +265,16 @@ bool compile(detail::AnalysisContext& context, Rule& rule) {
   bool uses = false;
   std::function<void(const Pattern&)> scan = [&](const Pattern& p) {
     if (const auto* op = std::get_if<MatchOperation>(&p.value)) {
-      uses |= bool(
-          context.output.operations.at(op->operation.value).index_semantics);
+      uses |= bool(context.output.operations.at(op->operation.value)
+                       .semantic_definition);
       for (const auto& c : op->operands) scan(*c);
     } else if (const auto* b = std::get_if<BindPattern>(&p.value))
       scan(*b->expression);
   };
   std::function<void(const BuildExpr&)> rhs = [&](const BuildExpr& p) {
     if (const auto* op = std::get_if<BuildOperation>(&p.value)) {
-      uses |= bool(
-          context.output.operations.at(op->operation.value).index_semantics);
+      uses |= bool(context.output.operations.at(op->operation.value)
+                       .semantic_definition);
       for (const auto& c : op->operands) rhs(*c);
     }
   };
@@ -298,19 +298,19 @@ bool compile(detail::AnalysisContext& context, Rule& rule) {
     for (const auto& d : rule.descriptors)
       b.plan.descriptor_names[d.id.value] = d.name;
     b.assumptions();
-    const bool selected = context.options.index_rule.empty() ||
-                          context.options.index_rule == rule.name;
+    const bool selected = context.options.semantic_rule.empty() ||
+                          context.options.semantic_rule == rule.name;
     if (selected) b.plan.proof = synthesize(b.plan);
-    if (selected && !context.options.inspect_index_rules &&
+    if (selected && !context.options.inspect_semantic_rules &&
         b.plan.proof.status != ProofStatus::Proved)
       context.report(rule.origin,
                      "cannot verify rule '" + rule.name +
                          "': " + b.plan.proof.reason +
                          ". Add an explicit where condition establishing the "
                          "unresolved requirement, or change the rewrite.");
-    rule.index_inference = std::make_shared<Plan>(std::move(b.plan));
+    rule.semantic_plan = std::make_shared<Plan>(std::move(b.plan));
   } catch (const std::runtime_error& e) {
-    context.report(rule.origin, std::string("index inference: ") + e.what());
+    context.report(rule.origin, std::string("semantic inference: ") + e.what());
   }
   return true;
 }

@@ -81,6 +81,31 @@ std::string format(const Plan& p) {
     return text;
   };
   std::map<std::string, std::string> aliases;
+  std::map<std::string, std::pair<bool, bool>> position_matches;
+  std::function<void(const Symbol&)> collect_matches = [&](const Symbol& s) {
+    if (s.kind == Symbol::Kind::Call && s.args.size() == 2 &&
+        (s.name == "membership_positions" || s.name == "matched_positions") &&
+        !s.args[0]->structuralKey().empty() &&
+        !s.args[1]->structuralKey().empty()) {
+      auto match_key =
+          s.args[0]->structuralKey() + ":" + s.args[1]->structuralKey();
+      auto& found = position_matches[match_key];
+      if (s.name == "membership_positions")
+        found.first = true;
+      else
+        found.second = true;
+    }
+    for (const auto& arg : s.args) collect_matches(*arg);
+  };
+  for (const auto& [_, fields] : p.proof.constructors)
+    for (const auto& field : fields) collect_matches(*field);
+  for (auto it = position_matches.begin(); it != position_matches.end();) {
+    if (!it->second.first || !it->second.second)
+      it = position_matches.erase(it);
+    else
+      ++it;
+  }
+  std::map<std::string, std::string> match_names;
   std::vector<std::pair<std::string, std::string>> declarations;
   std::function<std::string(const Symbol&)> render =
       [&](const Symbol& s) -> std::string {
@@ -88,6 +113,27 @@ std::string format(const Plan& p) {
       return label(s);
     auto id = s.structuralKey();
     if (!id.empty() && aliases.contains(id)) return aliases.at(id);
+    if (s.kind == Symbol::Kind::Call && s.args.size() == 2 &&
+        (s.name == "membership_positions" || s.name == "matched_positions") &&
+        !s.args[0]->structuralKey().empty() &&
+        !s.args[1]->structuralKey().empty()) {
+      auto match_key =
+          s.args[0]->structuralKey() + ":" + s.args[1]->structuralKey();
+      if (position_matches.contains(match_key)) {
+        auto found = match_names.find(match_key);
+        if (found == match_names.end()) {
+          auto name = "p" + std::to_string(match_names.size());
+          match_names.emplace(match_key, name);
+          declarations.emplace_back(name, "match_positions(" +
+                                              render(*s.args[0]) + ", " +
+                                              render(*s.args[1]) + ")");
+          found = match_names.find(match_key);
+        }
+        return found->second + (s.name == "membership_positions"
+                                    ? ".left_positions"
+                                    : ".right_positions");
+      }
+    }
     std::string text = s.kind == Symbol::Kind::List ? "[" : s.name + "(";
     for (std::size_t i = 0; i < s.args.size(); ++i) {
       if (i) text += ", ";
@@ -124,7 +170,7 @@ std::string format(const Plan& p) {
     return value(*node.definition->value);
   };
   std::ostringstream out;
-  out << "    index-inference: policy="
+  out << "    semantic-inference: policy="
       << (p.algebraic ? "algebraic" : "strict") << " status="
       << (p.proof.status == ProofStatus::Proved ? "proved" : "unknown") << '\n';
   out << "      lhs-graph: " << graph(p.lhs) << '\n';

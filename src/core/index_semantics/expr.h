@@ -8,6 +8,13 @@ S make(Symbol::Kind, std::string = {}, std::size_t = 0, std::size_t = 0,
 S integer(std::size_t);
 S boolean(bool);
 S call(std::string, std::vector<S>);
+// Match entries from left in left's order. The two position lists are a pair:
+// gather(left, left_positions) == gather(right, right_positions).
+struct PositionMatch {
+  S left_positions;
+  S right_positions;
+};
+PositionMatch matchPositions(const S& left, const S& right);
 std::string key(const S&);
 bool equal(const S&, const S&);
 // Deterministic term order, independent of process-wide interning history.

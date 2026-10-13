@@ -8,7 +8,6 @@
 #include "src/core/index_semantics/check.h"
 #include "src/core/metadata/check.h"
 #include "src/core/resolution/source.h"
-#include "src/core/semantics/check.h"
 
 namespace tepl::core::detail {
 
@@ -63,13 +62,14 @@ void registerOperation(AnalysisContext& context, TypeId tensor,
                         dialect.source_name, metadata::ProgramKind::DType);
   if (op.axes) {
     if (!op.semantics)
-      context.report(at, "axes requires index semantics");
+      context.report(at, "axes requires semantics");
     else
-      value.index_semantics = index_semantics::check(
+      value.semantic_definition = index_semantics::check(
           context, value, *op.axes, *op.semantics, dialect.source_name);
   } else if (op.semantics)
-    value.semantics =
-        semantics::check(context, value, *op.semantics, dialect.source_name);
+    context.report(at,
+                   "semantics requires an axes block; legacy element semantics "
+                   "is no longer supported");
   context.output.operations.push_back(std::move(value));
   const auto addName = [&](const std::string& name) {
     if (!names.emplace(name, id).second)

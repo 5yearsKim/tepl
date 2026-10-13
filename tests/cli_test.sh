@@ -477,20 +477,15 @@ check_exit 1 generate "$graph_project" --out "${TEST_TMPDIR}/graph_file_director
 grep -Fq 'graph file/directory module collision' "$output"
 test ! -e "${TEST_TMPDIR}/graph_file_directory"
 
-# Sparse early rejection exposes a rank-two failure with explicit attributes.
-sparse_rule="${TEST_TMPDIR}/sparse.tepl"
-cat > "$sparse_rule" <<'TEPL'
+# Legacy element semantics is rejected by the migrated frontend.
+legacy_rule="${TEST_TMPDIR}/legacy.tepl"
+cat > "$legacy_rule" <<'TEPL'
 dialect D {
-  op shuffle(x:tensor)->tensor {
-    attrs { axes:index[]; }
+  op identity(x:tensor)->tensor {
     dtype(t){yield t;}
-    shape(s){assert is_valid_axis_list(attrs.axes,len(s)); assert len(attrs.axes)==len(s); yield gather(s,attrs.axes);}
-    semantics(i){yield read(x,scatter(rank(x),attrs.axes,i));}
+    semantics(i){yield read(x,i);}
   }
 }
-rule wrong { (shuffle[@p] X) => X }
+rule old { (identity X) => X }
 TEPL
-check_exit 0 check "$sparse_rule"
-check_exit 1 check "$sparse_rule" --verify-small
-grep -Fq 'early sparse counterexample' "$output"
-grep -Fq 'LHS=' "$output"
+check_exit 1 check "$legacy_rule"
