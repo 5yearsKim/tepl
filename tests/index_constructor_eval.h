@@ -18,12 +18,17 @@ using Datum = std::variant<std::int64_t, bool, List, Coordinates, std::string>;
 struct ConstructorEvaluator {
   const Metadata& metadata;
   const RuleProof& proof;
+  std::vector<S> assumptions;
   std::map<const Symbol*, Datum> cache;
   std::map<std::pair<std::size_t, std::size_t>, SymbolPtr> groups;
   ConstructorEvaluator(const Metadata& m, const RuleProof& p)
       : metadata(m), proof(p) {
     for (const auto& g : p.axis_definitions)
       if (g->kind == Symbol::Kind::AxisGroup) groups[{g->owner, g->index}] = g;
+  }
+  ConstructorEvaluator(const Metadata& m, const Plan& p)
+      : ConstructorEvaluator(m, p.proof) {
+    assumptions = p.assumptions;
   }
   template <class T>
   static bool distinct(const std::vector<T>& xs) {
@@ -117,6 +122,15 @@ struct ConstructorEvaluator {
       List out(p.size());
       for (std::size_t i = 0; i < p.size(); ++i) out[p[i]] = i;
       return out;
+    }
+    if (n == "order_positions") {
+      auto positions = std::get<List>(args[0]);
+      List order(positions.size());
+      std::iota(order.begin(), order.end(), 0);
+      std::stable_sort(order.begin(), order.end(), [&](auto a, auto b) {
+        return positions[a] < positions[b];
+      });
+      return order;
     }
     if (n == "offset_positions") {
       auto p = std::get<List>(args[0]);
@@ -230,6 +244,8 @@ struct ConstructorEvaluator {
   }
   bool applicable() {
     try {
+      for (const auto& g : assumptions)
+        if (!std::get<bool>(eval(g))) return false;
       for (const auto& g : proof.guard)
         if (!std::get<bool>(eval(g))) return false;
       return true;

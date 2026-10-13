@@ -29,7 +29,7 @@ Terms normalize(Context& c, const E& e,
     std::vector<S> conditions;
     for (auto& t : left) {
       auto disjoint = call("disjoint", {t.reductions, e->axes});
-      c.require(disjoint);
+      c.require(disjoint, GuardKind::ReductionDomain);
       conditions.push_back(disjoint);
       t.reductions = call("concat", {e->axes, t.reductions});
     }
@@ -59,9 +59,9 @@ Terms normalize(Context& c, const E& e,
       auto r = call("disjoint",
                     {b.reductions, c.difference(readAxes(a), a.reductions)});
       auto disjoint = call("disjoint", {a.reductions, b.reductions});
-      c.require(q);
-      c.require(r);
-      c.require(disjoint);
+      c.require(q, GuardKind::ReductionDomain);
+      c.require(r, GuardKind::ReductionDomain);
+      c.require(disjoint, GuardKind::ReductionDomain);
       conditions.insert(conditions.end(), {q, r, disjoint});
       Term t{call("concat", {a.reductions, b.reductions}), a.reads};
       t.reads.insert(t.reads.end(), b.reads.begin(), b.reads.end());

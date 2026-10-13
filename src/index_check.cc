@@ -11,8 +11,14 @@ int checkIndexRules(const core::Program& program, const std::string& name,
       output << "IndexRule " << rule.name << '\n';
       output << core::index_semantics::format(*rule.index_inference);
     }
-    proved &= rule.index_inference->proof.status ==
-              core::index_semantics::ProofStatus::Proved;
+    const auto& proof = rule.index_inference->proof;
+    if (proof.status != core::index_semantics::ProofStatus::Proved) {
+      output << "error: cannot verify rule '" << rule.name
+             << "': " << proof.reason
+             << "\nAdd an explicit where condition that establishes the "
+                "unresolved requirement, or change the rewrite.\n";
+      proved = false;
+    }
   }
   if (!name.empty() && !selected) {
     output << "index rule: no index-semantic rule named '" << name << "'\n";

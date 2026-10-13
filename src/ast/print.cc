@@ -130,8 +130,8 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
         if constexpr (std::is_same_v<T, ast::NameRef>) {
           out << "name " << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::DescriptorField>) {
-          out << "field @" << value.descriptor.name << '.' << value.field
-              << '\n';
+          out << "field @" << value.descriptor.name
+              << (value.output_group ? "->" : ".") << value.field << '\n';
         } else if constexpr (std::is_same_v<T, ast::AttributeRef>) {
           out << "attribute @" << value.name << '\n';
         } else if constexpr (std::is_same_v<T, ast::IntegerLiteral>) {

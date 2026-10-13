@@ -153,6 +153,7 @@ struct BinaryExpr {
 struct DescriptorField {
   AttributeRef descriptor;
   std::string field;
+  bool output_group = false;
 };
 
 struct ConstraintExpr {

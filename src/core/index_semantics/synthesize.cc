@@ -4,7 +4,6 @@
 #include <functional>
 #include <stdexcept>
 
-#include "src/core/index_semantics/routing.h"
 #include "src/core/index_semantics/verify.h"
 
 namespace tepl::core::index_semantics {
@@ -111,24 +110,18 @@ struct Constructor {
 };
 }  // namespace
 namespace {
-enum class InferenceStrategy { General, WholeGroupRouting };
-RuleProof run(const Plan& plan, std::size_t max_work,
-              InferenceStrategy strategy, const std::vector<S>& seeds) {
-  // General coordinate inference is an initial bounded strategy. If its
-  // unresolved maps consume this allowance, try the existing constructive
-  // routing fragment; independent verification still gets the caller's budget.
-  const auto inference_work =
-      strategy == InferenceStrategy::General
-          ? std::min(max_work, ProofLimits::general_inference_work)
-          : max_work;
-  Context c{plan, inference_work};
+RuleProof run(const Plan& plan, std::size_t max_work) {
+  Context c{plan, max_work};
   RuleProof candidate;
   std::string phase = "source lowering";
   try {
     c.sourceScope(plan.lhs);
-    for (const auto& seed : seeds) c.require(seed);
     Lowerer source{c};
-    auto lhs = source.lower(plan.lhs);
+    // A second composition uses legality learned across the complete source,
+    // including shapes shared through pointwise consumers.
+    source.lower(plan.lhs);
+    Lowerer composed{c};
+    auto lhs = composed.lower(plan.lhs);
     auto lt = normalize(c, lhs.value, &candidate.rewrites);
     phase = "coordinate correspondence";
     auto rt = normalize(c, arithmeticSkeleton(plan, plan.rhs));
@@ -145,8 +138,9 @@ RuleProof run(const Plan& plan, std::size_t max_work,
     for (const auto& t : lt) left[footprint(t)] = &t;
     for (const auto& t : checked)
       c.require(
-          call("same_set", {left.at(footprint(t))->reductions, t.reductions}));
-    c.require(call("==", {lhs.axes, rhs.axes}));
+          call("same_set", {left.at(footprint(t))->reductions, t.reductions}),
+          GuardKind::ReductionDomain);
+    c.require(call("==", {lhs.axes, rhs.axes}), GuardKind::CoordinateOrder);
     c.require(call("==", {lhs.shape, rhs.shape}));
     c.require(call("==", {lhs.dtype, rhs.dtype}));
     for (const auto& n : plan.nodes)
@@ -162,7 +156,8 @@ RuleProof run(const Plan& plan, std::size_t max_work,
         }
       }
     candidate.guard = c.guards();
-    auto proof = completeGuard(plan, candidate, max_work);
+    candidate.guard_origins = c.guardOrigins();
+    auto proof = verify(plan, candidate, max_work);
     proof.rewrites = std::move(candidate.rewrites);
     return proof;
   } catch (const ProofFailure& e) {
@@ -174,23 +169,6 @@ RuleProof run(const Plan& plan, std::size_t max_work,
 }
 }  // namespace
 RuleProof synthesize(const Plan& plan, std::size_t max_work) {
-  auto general = run(plan, max_work, InferenceStrategy::General, {});
-  if (general.status != ProofStatus::Unknown || !plan.algebraic ||
-      max_work < ProofLimits::routing_min_work)
-    return general;
-  try {
-    auto guard = routingGuard(plan, max_work);
-    if (guard.empty()) return general;
-    auto routed =
-        run(plan, max_work, InferenceStrategy::WholeGroupRouting, guard);
-    if (routed.status != ProofStatus::Unknown)
-      routed.steps.insert(routed.steps.begin(),
-                          "routing: whole source groups; shared retained "
-                          "multiplicative groups empty");
-    return routed;
-  } catch (const ProofFailure& e) {
-    general.reason = std::string("source routing: ") + e.describe();
-    return general;
-  }
+  return run(plan, max_work);
 }
 }  // namespace tepl::core::index_semantics

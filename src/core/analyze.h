@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "src/core/diagnostic.h"
@@ -18,6 +19,11 @@ struct AnalysisOptions {
   unsigned solver_timeout_ms = 1000;
   // Optional ideal-arithmetic rejection on small concrete metadata.
   bool verify_small = false;
+  // Diagnostic/test inspection may retain unproved plans; it does not accept
+  // them as rewrite rules. Normal analysis rejects an unproved index rule.
+  bool inspect_index_rules = false;
+  // Limit index proof checking to this rule (the CLI's --index-rule selector).
+  std::string index_rule;
 };
 
 struct AnalysisResult {

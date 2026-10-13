@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
         *result.program,
         {semantic_policy == "algebraic" ? tepl::core::SemanticPolicy::kAlgebraic
                                         : tepl::core::SemanticPolicy::kStrict,
-         solver_timeout, verify_small});
+         solver_timeout, verify_small, false, index_rule});
     for (const auto& diagnostic : analyzed.diagnostics) {
       const auto print_location = [](const tepl::SourceLocation& at) {
         std::cerr << at.source_name << ':' << at.span.begin.line << ':'

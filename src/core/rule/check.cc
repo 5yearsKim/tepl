@@ -1,5 +1,6 @@
 #include "src/core/rule/check.h"
 
+#include <functional>
 #include <utility>
 
 #include "src/core/index_semantics/check.h"
@@ -46,8 +47,28 @@ std::optional<Rule> check(AnalysisContext& analysis,
   analysis.types.unify(context.rule.lhs->type, context.rule.rhs->type,
                        input.origin);
   if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
-  if (!index_semantics::compile(analysis, context.rule))
-    inference::infer(analysis, context.rule);
+  if (!index_semantics::compile(analysis, context.rule)) {
+    std::function<bool(const TypedExpr&)> hasGroup = [&](const TypedExpr& e) {
+      if (std::holds_alternative<OutputAxisGroupRef>(e.value)) return true;
+      if (auto b = std::get_if<BinaryExpr>(&e.value))
+        return hasGroup(*b->lhs) || hasGroup(*b->rhs);
+      if (auto u = std::get_if<UnaryExpr>(&e.value))
+        return hasGroup(*u->operand);
+      if (auto b = std::get_if<BuiltinCall>(&e.value))
+        for (const auto& a : b->arguments)
+          if (hasGroup(*a)) return true;
+      if (auto h = std::get_if<HostCall>(&e.value))
+        for (const auto& a : h->arguments)
+          if (hasGroup(*a)) return true;
+      return false;
+    };
+    for (const auto& e : context.rule.conditions)
+      if (hasGroup(*e))
+        analysis.report(e->origin,
+                        "output-axis group reference requires index semantics");
+    if (analysis.diagnostics.size() == diagnostics_before)
+      inference::infer(analysis, context.rule);
+  }
   if (analysis.diagnostics.size() != diagnostics_before) return std::nullopt;
   return std::move(context.rule);
 }

@@ -5,7 +5,7 @@
 namespace tepl::core::index_semantics {
 namespace {
 RuleProof check(const Plan& plan, const RuleProof& candidate,
-                std::size_t max_work, bool complete) {
+                std::size_t max_work) {
   Context c{plan, max_work};
   RuleProof proof;
   try {
@@ -25,20 +25,23 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
           c.assignAttribute(n.descriptor->value, f, found->second[f]);
         }
       }
-    for (const auto& g : candidate.guard) {
-      c.validateSource(g);
-      if (g->sort != Symbol::Sort::Boolean)
-        throw ProofFailure("applicability guard must be Boolean",
-                           FailureKind::InvalidCandidate);
-      c.require(g);
-    }
-    c.allowGuards(complete);
     Lowerer source{c};
-    auto lhs = source.lower(plan.lhs);
+    // A second composition uses legality learned across the complete source,
+    // including shapes shared through pointwise consumers.
+    source.lower(plan.lhs);
+    Lowerer composed{c};
+    auto lhs = composed.lower(plan.lhs);
     auto lt = normalize(c, lhs.value);
     for (const auto& [id, fields] : candidate.constructors)
       for (const auto& f : fields) c.wellFormed(f);
-    for (const auto& g : candidate.guard) c.wellFormed(g);
+    for (const auto& g : candidate.guard) {
+      c.validateSource(g);
+      if (g->sort != Symbol::Sort::Boolean)
+        throw ProofFailure("candidate obligation must be Boolean",
+                           FailureKind::InvalidCandidate);
+      c.wellFormed(g);
+      c.require(g);  // An obligation, never an additional premise.
+    }
     for (const auto& n : plan.nodes)
       if (n.automatic) {
         const auto& fields = candidate.constructors.at(n.descriptor->value);
@@ -55,24 +58,24 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
     for (const auto& t : lt) left[footprint(t)] = &t;
     for (const auto& t : checked) {
       c.require(
-          call("same_set", {left.at(footprint(t))->reductions, t.reductions}));
+          call("same_set", {left.at(footprint(t))->reductions, t.reductions}),
+          GuardKind::ReductionDomain);
       std::map<std::size_t, E> reads;
       for (const auto& r : left.at(footprint(t))->reads) reads[r->capture] = r;
       for (const auto& r : t.reads)
-        c.require(call("==", {reads.at(r->capture)->axes, r->axes}));
+        c.require(call("==", {reads.at(r->capture)->axes, r->axes}),
+                  GuardKind::CoordinateOrder);
     }
-    c.require(call("==", {lhs.axes, rhs.axes}));
+    c.require(call("==", {lhs.axes, rhs.axes}), GuardKind::CoordinateOrder);
     c.require(call("==", {lhs.shape, rhs.shape}));
     c.require(call("==", {lhs.dtype, rhs.dtype}));
     proof.constructors = candidate.constructors;
     proof.guard = c.guards();
-    proof.status =
-        proof.guard.empty() ? ProofStatus::Proved : ProofStatus::Conditional;
-    proof.reason = proof.guard.empty()
-                       ? "valid for all legal LHS metadata under the selected "
-                         "arithmetic policy"
-                       : "verified under a sufficient metadata-only guard; "
-                         "weakest guard not claimed";
+    proof.guard_origins = c.guardOrigins();
+    proof.status = ProofStatus::Proved;
+    proof.reason =
+        "valid for all legal LHS metadata satisfying the declared conditions "
+        "under the selected arithmetic policy";
     proof.steps = c.steps();
     proof.steps.push_back(
         "verified: capture access + reduction domains + ordered axes + shape + "
@@ -97,21 +100,6 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
 }
 }  // namespace
 RuleProof verify(const Plan& plan, const RuleProof& proof, std::size_t work) {
-  return check(plan, proof, work, false);
-}
-RuleProof completeGuard(const Plan& plan, const RuleProof& proof,
-                        std::size_t work) {
-  auto candidate = proof;
-  RuleProof checked;
-  // Well-definedness of generated conditions can expose further preconditions.
-  // Close that finite dependency set, then check the fixed guard independently.
-  for (std::size_t round = 0; round < ProofLimits::guard_rounds; ++round) {
-    candidate = check(plan, candidate, work, true);
-    if (candidate.status == ProofStatus::Unknown) return candidate;
-    checked = verify(plan, candidate, work);
-    if (checked.status != ProofStatus::Unknown) return checked;
-  }
-  checked.reason = "guard closure did not converge: " + checked.reason;
-  return checked;
+  return check(plan, proof, work);
 }
 }  // namespace tepl::core::index_semantics

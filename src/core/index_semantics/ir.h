@@ -116,12 +116,20 @@ struct Symbol {
   friend std::string key(const SymbolPtr&);
   std::string structural_key;
 };
-enum class ProofStatus { Proved, Conditional, Unknown };
+enum class ProofStatus { Proved, Unknown };
+enum class GuardKind { Legality, CoordinateOrder, ReductionDomain };
+const char* guardKindName(GuardKind);
 struct RuleProof {
   ProofStatus status = ProofStatus::Unknown;
   std::string reason;
   std::map<std::size_t, std::vector<SymbolPtr>> constructors;
   std::vector<SymbolPtr> guard;
+  struct GuardOrigin {
+    SymbolPtr condition;
+    GuardKind kind = GuardKind::Legality;
+  };
+  // Diagnostic provenance only; the verifier checks conditions independently.
+  std::vector<GuardOrigin> guard_origins;
   std::vector<std::string> steps;
   std::string lhs_normalized, rhs_normalized;
   struct RewriteStep {

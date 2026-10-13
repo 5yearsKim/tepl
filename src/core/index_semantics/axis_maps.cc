@@ -25,9 +25,17 @@ void Context::partition(const S& interface, const std::vector<S>& groups,
     std::vector<S> other;
     for (std::size_t j = 0; j < groups.size(); ++j)
       if (i != j) other.push_back(selectors[j]);
-    bind(interface, call("filter_axes", {interface, groups[i]}),
-         call("ordered_complement", {call("range", {call("len", {interface})}),
-                                     call("concat", std::move(other))}));
+    auto physical =
+        call("ordered_complement", {call("range", {call("len", {interface})}),
+                                    call("concat", std::move(other))});
+    bind(interface, call("filter_axes", {interface, groups[i]}), physical);
+    auto order = call("order_positions", {selectors[i]});
+    // A complete legal partition relates physical traversal to the declared
+    // paired order. The ordering permutation itself is always a bijection.
+    learn(call("==", {physical, call("gather", {selectors[i], order})}));
+    learn(call("==", {call("gather", {physical, call("inverse", {order})}),
+                      selectors[i]}));
+    bind(interface, call("gather", {groups[i], order}), physical);
     learn(call("==", {call("len", {groups[i]}), call("len", {selectors[i]})}));
     learn(call("is_valid_axis_list", {selectors[i], call("len", {interface})}));
     learn(call("distinct_axes", {groups[i]}));
@@ -133,6 +141,9 @@ void Context::selectionFacts(const S& a, const S& p, const S& result) {
 S Context::selectKnown(const S& x, const S& q, QueryMode mode) {
   tick();
   if (auto found = bindings_.group(x, q)) return canonical(found);
+  if (callIs(q, "range") &&
+      query(call("==", {q->args[0], call("len", {x})}), mode))
+    return x;
   auto permutation = [&](const S& p) {
     return query(call("axis_partition", {p, call("len", {p})}), mode);
   };
@@ -163,10 +174,20 @@ S Context::selectKnown(const S& x, const S& q, QueryMode mode) {
     for (const auto& part : q->args) groups.push_back(select(x, part, mode));
     return call("concat", std::move(groups));
   }
+  if (callIs(x, "concat") && q->kind == Symbol::Kind::List) {
+    auto offset = integer(0);
+    for (const auto& part : x->args) {
+      auto size = canonical(call("len", {part}));
+      if (equal(q, canonical(call("offset_positions",
+                                  {call("range", {size}), offset}))))
+        return part;
+      offset = canonical(call("+", {offset, size}));
+    }
+  }
   if (callIs(x, "concat") && callIs(q, "offset_positions")) {
     auto offset = integer(0);
     for (const auto& part : x->args) {
-      if (equal(q->args[1], offset) &&
+      if (equal(canonical(q->args[1]), canonical(offset)) &&
           query(call("is_valid_axis_list", {q->args[0], call("len", {part})}),
                 mode))
         return select(part, q->args[0], mode);

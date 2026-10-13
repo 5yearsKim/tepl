@@ -36,8 +36,10 @@ void Context::sourceScope(std::size_t id) {
   const auto& n = plan.nodes.at(id);
   source_.nodes.insert(id);
   if (n.capture) source_.captures.insert(n.capture->value);
-  if (n.descriptor && n.definition && !n.automatic)
+  if (n.descriptor && n.definition && !n.automatic) {
     source_.fields[n.descriptor->value] = n.definition->fields.size();
+    source_.field_nodes[n.descriptor->value] = id;
+  }
   for (auto child : n.inputs) sourceScope(child);
   if (id == plan.lhs)
     for (const auto& assumption : plan.assumptions) {
@@ -85,7 +87,7 @@ void Context::wellFormed(const S& s) {
   }
   static const std::set<std::string> unary{
       "len",           "range",        "inverse", "unique_axes",
-      "distinct_axes", "axis_extents", "!"};
+      "distinct_axes", "axis_extents", "!",       "order_positions"};
   static const std::set<std::string> binary{"gather",
                                             "offset_positions",
                                             "ordered_complement",
@@ -167,16 +169,16 @@ void Context::note(const std::string& law) {
   if (std::find(steps_.begin(), steps_.end(), "law: " + law) == steps_.end())
     steps_.push_back("law: " + law);
 }
-void Context::require(const S& f) {
+void Context::require(const S& f, GuardKind kind) {
   if (containsHole(f))
     throw ProofFailure("legality obligation contains an unresolved auto field");
   if (entails(f)) return;
-  if (!allow_guards_)
-    throw ProofFailure("supplied guard does not establish obligation: " +
-                       format(*f));
   auto c = canonical(f);
   guards_.push_back(c);
-  learn(c);
+  guard_origins_.push_back({c, kind});
+  // Failed obligations are diagnostic data. They never strengthen premises.
+  throw ProofFailure("declared conditions and LHS legality do not establish " +
+                     std::string(guardKindName(kind)) + ": " + format(*c));
 }
 S Context::resolve(const S& s) {
   ++counters.resolutions;

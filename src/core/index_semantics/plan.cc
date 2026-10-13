@@ -5,6 +5,7 @@
 
 #include "src/core/analysis_context.h"
 #include "src/core/index_semantics/check.h"
+#include "src/core/index_semantics/graph.h"
 #include "src/core/index_semantics/synthesize.h"
 
 namespace tepl::core::index_semantics {
@@ -64,11 +65,60 @@ struct Builder {
         }
       }
     }
+    std::unique_ptr<Context> coordinates;
+    auto outputPositions = [&](const OutputAxisGroupRef& ref) -> S {
+      if (!coordinates) {
+        coordinates = std::make_unique<Context>(plan, 1000000);
+        coordinates->sourceScope(plan.lhs);
+        Lowerer source{*coordinates};
+        source.lower(plan.lhs);
+      }
+      std::optional<std::size_t> operation;
+      for (auto id : coordinates->source().nodes)
+        if (plan.nodes[id].descriptor == ref.descriptor) {
+          if (operation)
+            throw std::runtime_error(
+                "ambiguous output-axis reference: descriptor names multiple "
+                "LHS operations");
+          operation = id;
+        }
+      if (!operation)
+        throw std::runtime_error(
+            "output-axis reference must name an LHS operation");
+      const auto& n = plan.nodes[*operation];
+      if (!n.definition)
+        throw std::runtime_error(
+            "output-axis reference requires index semantics");
+      for (std::size_t g = 0; g < n.definition->groups.size(); ++g) {
+        if (n.definition->groups[g].name != ref.group) continue;
+        bool present = false;
+        std::function<void(const Meta&)> visit = [&](const Meta& m) {
+          if (m.kind == Meta::Kind::Group && m.index == g) present = true;
+          // Only the sequence operand of permute contributes output groups.
+          auto count = m.kind == Meta::Kind::Call && m.name == "permute"
+                           ? std::size_t{1}
+                           : m.args.size();
+          for (std::size_t i = 0; i < count; ++i) visit(*m.args[i]);
+        };
+        visit(*n.definition->output);
+        if (!present)
+          throw std::runtime_error("axis group '" + ref.group +
+                                   "' is absent from the operation output");
+        auto result = coordinates->positions(
+            coordinates->source().tensor_axes.at(*operation),
+            coordinates->source().tensor_groups.at(*operation).at(g));
+        coordinates->validateSource(result);
+        return result;
+      }
+      throw std::runtime_error("unknown output-axis group '" + ref.group + "'");
+    };
     std::function<S(const TypedExpr&)> lower = [&](const TypedExpr& e) -> S {
       return std::visit(
           [&](const auto& v) -> S {
             using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, DescriptorFieldRef>) {
+            if constexpr (std::is_same_v<T, OutputAxisGroupRef>) {
+              return outputPositions(v);
+            } else if constexpr (std::is_same_v<T, DescriptorFieldRef>) {
               for (const auto& n : plan.nodes)
                 if (n.descriptor == v.descriptor && n.definition &&
                     !n.automatic)
@@ -103,15 +153,25 @@ struct Builder {
                 if (!x) return {};
                 args.push_back(x);
               }
-              return call(std::string(builtins::builtinName(v.builtin)),
+              return call(v.builtin == builtins::Builtin::kExclude
+                              ? "ordered_complement"
+                              : std::string(builtins::builtinName(v.builtin)),
                           std::move(args));
             } else
               return {};
           },
           e.value);
     };
-    for (const auto& condition : rule.conditions)
-      if (auto value = lower(*condition)) plan.assumptions.push_back(value);
+    for (const auto& condition : rule.conditions) {
+      auto value = lower(*condition);
+      if (!value) {
+        context.report(condition->origin,
+                       "unsupported index-rule condition; expected a "
+                       "compiler-readable metadata expression");
+        throw std::runtime_error("cannot interpret declared condition");
+      }
+      plan.assumptions.push_back(value);
+    }
   }
   std::size_t capture(CaptureId id, const SourceOrigin& at) {
     if (bindings.contains(id.value)) {
@@ -238,7 +298,16 @@ bool compile(detail::AnalysisContext& context, Rule& rule) {
     for (const auto& d : rule.descriptors)
       b.plan.descriptor_names[d.id.value] = d.name;
     b.assumptions();
-    b.plan.proof = synthesize(b.plan);
+    const bool selected = context.options.index_rule.empty() ||
+                          context.options.index_rule == rule.name;
+    if (selected) b.plan.proof = synthesize(b.plan);
+    if (selected && !context.options.inspect_index_rules &&
+        b.plan.proof.status != ProofStatus::Proved)
+      context.report(rule.origin,
+                     "cannot verify rule '" + rule.name +
+                         "': " + b.plan.proof.reason +
+                         ". Add an explicit where condition establishing the "
+                         "unresolved requirement, or change the rewrite.");
     rule.index_inference = std::make_shared<Plan>(std::move(b.plan));
   } catch (const std::runtime_error& e) {
     context.report(rule.origin, std::string("index inference: ") + e.what());

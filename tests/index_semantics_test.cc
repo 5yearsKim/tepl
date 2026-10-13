@@ -33,7 +33,8 @@ tepl::core::AnalysisResult analyze(const std::string& rule,
   expect(parsed.ok(), "fixture parses");
   return tepl::core::analyze(*parsed.program,
                              {algebraic ? tepl::core::SemanticPolicy::kAlgebraic
-                                        : tepl::core::SemanticPolicy::kStrict});
+                                        : tepl::core::SemanticPolicy::kStrict,
+                              1000, false, true});
 }
 Result run(const std::string& rule, Metadata m, Limits limits = {},
            std::string definitions = {}) {
@@ -191,7 +192,8 @@ void proved(const Plan& p) {
     std::cerr << p.proof.reason << '\n';
     for (const auto& g : p.proof.guard) std::cerr << format(*g) << '\n';
   }
-  expect(p.proof.status == ProofStatus::Proved, "expected metadata-free proof");
+  expect(p.proof.status == ProofStatus::Proved,
+         "expected proof under declared conditions");
   expect(p.proof.guard.empty(), "no extra metadata restrictions");
 }
 // Test-only specialization of the constructor expressions, independent of the
@@ -252,6 +254,13 @@ void symbolicTests() {
          "constructor must depend only on existing source metadata");
   expect(synthesize(p, 1).status == ProofStatus::Unknown,
          "symbolic work exhaustion is unknown");
+  auto redundant = p.proof;
+  auto numeric = call("is_numeric", {make(Symbol::Kind::DType, {}, 0)});
+  redundant.guard.push_back(numeric);
+  redundant.guard_origins.push_back({numeric, GuardKind::Legality});
+  auto simplified = verify(p, redundant);
+  expect(simplified.status == ProofStatus::Proved && simplified.guard.empty(),
+         "source legality discharges an injected redundant guard");
   expect(symbolicPlan(distribute, false).proof.status == ProofStatus::Unknown,
          "strict policy prevents arithmetic expansion");
 
@@ -309,40 +318,47 @@ void symbolicTests() {
   editedCopy.constructors.at(2)[0] = edited;
   expect(verify(composition, editedCopy).status == ProofStatus::Unknown,
          "copied-and-edited IR cannot spoof structural cache");
-  auto pinned = symbolicPlan(
+  auto unguardedPin = symbolicPlan(
       "rule r {(reduce_sum[@d] A) => (reduce_sum[auto, dimensions=[]] A)}");
-  expect(pinned.proof.status == ProofStatus::Conditional &&
-             !pinned.proof.guard.empty(),
-         "pinned field yields explicit sufficient guard");
-  expect(verify(pinned, pinned.proof).status == ProofStatus::Conditional,
-         "guarded proof replays independently");
-  auto missingGuard = pinned.proof;
-  missingGuard.guard.clear();
-  expect(verify(pinned, missingGuard).status == ProofStatus::Unknown,
-         "a required guard cannot justify its own removal");
+  expect(unguardedPin.proof.status == ProofStatus::Unknown,
+         "unrestricted pin rejected");
+  auto pinned = symbolicPlan(
+      "rule r {(reduce_sum[@d] A) => (reduce_sum[auto, dimensions=[]] A) where "
+      "{ @d.dimensions == range(0); }}");
+  proved(pinned);
+  auto withoutCondition = pinned;
+  withoutCondition.assumptions.clear();
+  auto forged = pinned.proof;
+  forged.guard = pinned.assumptions;
+  expect(verify(withoutCondition, forged).status == ProofStatus::Unknown,
+         "candidate guards cannot supply a missing user condition");
+  expect(symbolicPlan("rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A "
+                      "(dot[auto] B C))}")
+                 .proof.status == ProofStatus::Unknown,
+         "unguarded reassociation rejected");
   auto association = symbolicPlan(
       "rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B "
-      "C))}");
-  expect(association.proof.status == ProofStatus::Conditional,
+      "C)) where { @d.lhs_batching_dimensions == @inner->B; "
+      "@d.lhs_contracting_dimensions == @inner->J; }}");
+  expect(association.proof.status == ProofStatus::Proved,
          "reassociation has a checked routing guard");
   Metadata matrix{{{2, 3}, {3, 4}, {4, 5}},
                   {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}};
-  tepl::test::ConstructorEvaluator associationEval(matrix, association.proof);
+  tepl::test::ConstructorEvaluator associationEval(matrix, association);
   expect(associationEval.applicable(),
-         "ordinary matrices satisfy generated reassociation guard");
+         "ordinary matrices satisfy declared reassociation conditions");
   auto attrs = associationEval.construct();
   auto aa = data({2, 3}, 1), ab = data({3, 4}, 2), ac = data({4, 5}, 3);
   equal(
       dot(dot(aa, ab, matrix.descriptors.at(1)), ac, matrix.descriptors.at(0)),
       dot(aa, dot(ab, ac, attrs.at(3)), attrs.at(2)));
-  expect(
-      verify(association, association.proof).status == ProofStatus::Conditional,
-      "reassociation certificate independently verifies");
+  expect(verify(association, association.proof).status == ProofStatus::Proved,
+         "reassociation certificate independently verifies");
   for (bool zero : {false, true}) {
     Metadata multi{
         {{2, 2, 3, 2}, {2, zero ? 0 : 4, 2, 2}, {2, 3, zero ? 0 : 4}},
         {{0, {{2, 3}, {2, 0}, {}, {}}}, {1, {{1, 3}, {2, 0}, {}, {}}}}};
-    tepl::test::ConstructorEvaluator eval(multi, association.proof);
+    tepl::test::ConstructorEvaluator eval(multi, association);
     expect(eval.applicable(),
            "multiple-axis and zero-extent reassociation guard");
     auto constructed = eval.construct();
@@ -354,10 +370,11 @@ void symbolicTests() {
   }
   auto reverse = symbolicPlan(
       "rule r {(dot[@outer] A (dot[@inner] B C)) => (dot[auto] (dot[auto] A B) "
-      "C)}");
-  expect(reverse.proof.status == ProofStatus::Conditional,
+      "C) where { @outer.rhs_batching_dimensions == @inner->B; "
+      "@outer.rhs_contracting_dimensions == @inner->I; }}");
+  expect(reverse.proof.status == ProofStatus::Proved,
          "reverse association supported with guard");
-  tepl::test::ConstructorEvaluator reverseEval(matrix, reverse.proof);
+  tepl::test::ConstructorEvaluator reverseEval(matrix, reverse);
   expect(reverseEval.applicable(), "matrix reverse association guard");
   auto reverseAttrs = reverseEval.construct();
   equal(
@@ -365,12 +382,14 @@ void symbolicTests() {
       dot(dot(aa, ab, reverseAttrs.at(3)), ac, reverseAttrs.at(2)));
   auto lora = symbolicPlan(
       "rule r {(dot[@outer] X (add W (dot[@inner] A B))) => (add (dot[auto] X "
-      "W) (dot[auto] (dot[auto] X A) B))}");
-  expect(lora.proof.status == ProofStatus::Conditional,
+      "W) (dot[auto] (dot[auto] X A) B)) where { "
+      "@outer.rhs_batching_dimensions == @inner->B; "
+      "@outer.rhs_contracting_dimensions == @inner->I; }}");
+  expect(lora.proof.status == ProofStatus::Proved,
          "LoRA composition supported with guard");
   Metadata lm{{{2, 3}, {3, 4}, {3, 2}, {2, 4}},
               {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}};
-  tepl::test::ConstructorEvaluator loraEval(lm, lora.proof);
+  tepl::test::ConstructorEvaluator loraEval(lm, lora);
   expect(loraEval.applicable(), "ordinary LoRA matrices satisfy guard");
   auto la = loraEval.construct();
   auto lx = data(lm.shapes[0], 1), lw = data(lm.shapes[1], 2),
@@ -382,12 +401,13 @@ void symbolicTests() {
       "rule r {(dot[@d] A B) => (dot[auto] (transpose[auto] A) B)}");
   proved(trans);
   auto cycle = symbolicPlan(
-      "rule r {(dot[@d] A B) => (dot[auto] (transpose[auto, "
-      "permutation=[1,2,0]] A) B)}");
-  expect(cycle.proof.status == ProofStatus::Conditional,
+      "rule r { A: [K, M, N] (dot[@d] A B) => (dot[auto] (transpose[auto, "
+      "permutation=[1,2,0]] A) B) where { @d.lhs_batching_dimensions == "
+      "range(0); @d.lhs_contracting_dimensions == range(1); }}");
+  expect(cycle.proof.status == ProofStatus::Proved,
          "fixed transpose produces rank/order guard");
   Metadata good{{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}};
-  tepl::test::ConstructorEvaluator goodEval(good, cycle.proof);
+  tepl::test::ConstructorEvaluator goodEval(good, cycle);
   expect(goodEval.applicable(),
          "fixed transpose preserving free order is applicable");
   auto ca = goodEval.construct();
@@ -395,14 +415,44 @@ void symbolicTests() {
   equal(dot(ga, gb, good.descriptors.at(0)),
         dot(transpose(ga, ca.at(2)[0]), gb, ca.at(1)));
   Metadata bad{{{2, 4, 3}, {3, 5}}, {{0, {{2}, {0}, {}, {}}}}};
-  tepl::test::ConstructorEvaluator badEval(bad, cycle.proof);
+  tepl::test::ConstructorEvaluator badEval(bad, cycle);
   expect(!badEval.applicable(),
          "fixed transpose changing free order is rejected by guard");
   Metadata batched{{{2, 2, 3}, {2, 3, 4}, {2, 4, 5}},
                    {{0, {{2}, {1}, {0}, {0}}}, {1, {{2}, {1}, {0}, {0}}}}};
-  tepl::test::ConstructorEvaluator batchedEval(batched, association.proof);
-  expect(!batchedEval.applicable(),
-         "unbatched routing restriction is explicit");
+  tepl::test::ConstructorEvaluator batchedEval(batched, association);
+  expect(batchedEval.applicable(),
+         "compatible shared batch groups remain live");
+  auto ba = batchedEval.construct();
+  auto batchedA = data(batched.shapes[0], 1),
+       batchedB = data(batched.shapes[1], 2),
+       batchedC = data(batched.shapes[2], 3);
+  equal(dot(dot(batchedA, batchedB, batched.descriptors.at(1)), batchedC,
+            batched.descriptors.at(0)),
+        dot(batchedA, dot(batchedB, batchedC, ba.at(3)), ba.at(2)));
+  for (bool zero : {false, true}) {
+    auto k = zero ? 0 : 3;
+    Metadata grouped{{{2, 2, 2, k, 2}, {2, 2, 2, 3, 2, k}, {3, 2, 2, 2, 2}},
+                     {{0, {{3, 4}, {3, 0}, {0, 1}, {4, 2}}},
+                      {1, {{3, 0}, {5, 1}, {4, 1}, {4, 2}}}}};
+    tepl::test::ConstructorEvaluator eval(grouped, association);
+    expect(eval.applicable(),
+           "multiple batch groups and unsorted contracting axes");
+    auto attributes = eval.construct();
+    auto a = data(grouped.shapes[0], 1), b = data(grouped.shapes[1], 2),
+         c = data(grouped.shapes[2], 3);
+    equal(
+        dot(dot(a, b, grouped.descriptors.at(1)), c, grouped.descriptors.at(0)),
+        dot(a, dot(b, c, attributes.at(3)), attributes.at(2)));
+    expect(attributes.at(2)[1] == List({3, 2}),
+           "ordering permutation reconstructs paired contraction order");
+  }
+  Metadata incompatible{
+      {{2, 3, 2, 3}, {2, 3, 3, 4}, {3, 3, 4, 5}},
+      {{0, {{3}, {2}, {1}, {0}}}, {1, {{3}, {2}, {0, 1}, {0, 1}}}}};
+  tepl::test::ConstructorEvaluator incompatibleEval(incompatible, association);
+  expect(!incompatibleEval.applicable(),
+         "partial-group batch routing remains an explicit restriction");
 
   auto renamed = replace(dialect, "dot_general", "contract");
   renamed = replace(renamed, "alias: dot;", "alias: arbitrary;");
@@ -449,8 +499,91 @@ void symbolicTests() {
   )";
   auto guarded = symbolicPlan("rule r {(add A B) => (Restricted.sum A B)}",
                               true, dialect + restricted);
-  expect(guarded.proof.status == ProofStatus::Conditional,
-         "new RHS dtype requirement is an explicit guard");
+  expect(guarded.proof.status == ProofStatus::Unknown,
+         "undeclared RHS dtype requirement is rejected");
+}
+void explicitConditionTests() {
+  auto check = [&](const std::string& source) {
+    auto parsed = tepl::parse(dialect + source, "conditions.tepl");
+    for (const auto& d : parsed.diagnostics)
+      std::cerr << d.message << " in " << source << '\n';
+    expect(parsed.ok(), "condition fixture parses");
+    return tepl::core::analyze(*parsed.program,
+                               {tepl::core::SemanticPolicy::kAlgebraic});
+  };
+  auto rejected = [&](const std::string& source, const std::string& message) {
+    auto result = check(source);
+    expect(!result.ok(), "normal analysis rejects unverified rules");
+    for (const auto& d : result.diagnostics)
+      if (d.message.find(message) != std::string::npos) return;
+    throw std::runtime_error("missing rule diagnostic: " + message);
+  };
+  const std::string association =
+      "rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B C))";
+  rejected(association + "}", "cannot verify rule 'r'");
+  auto accepted = check(association + R"( where {
+    @d.lhs_batching_dimensions == @inner->B;
+    @d.lhs_contracting_dimensions == @inner->J;
+  }})");
+  expect(accepted.ok(), "declared group routing accepted by normal analysis");
+  auto wrong = check(association + R"( where {
+    @d.lhs_batching_dimensions == @inner->B;
+    @d.lhs_contracting_dimensions == @inner->I;
+  }})");
+  expect(!wrong.ok(), "wrong group mapping does not prove reassociation");
+  rejected(
+      association + " where { @d.lhs_contracting_dimensions == @inner->K; }}",
+      "absent from the operation output");
+  rejected(association +
+               " where { @d.lhs_contracting_dimensions == @inner->Missing; }}",
+           "unknown output-axis group");
+  rejected(
+      "rule r {(transpose[@p] A) => (transpose[@copy] A) derive { @copy = "
+      "@p->S; }}",
+      "only supported in where");
+  rejected(
+      "rule r {(transpose[@p] A) => (transpose[auto] A) where { $accept(@p); "
+      "}}",
+      "unsupported index-rule condition");
+  rejected(
+      "rule r {(dot[@d] A B) => (dot[@new] A B) where { len(@new->B) == 0; } "
+      "derive { @new = $copy(@d); }}",
+      "not available here");
+  rejected(
+      "rule r {(dot[@d] (dot[@d] A B) C) => (dot[auto] A (dot[auto] B C)) "
+      "where { len(@d->B) == 0; }}",
+      "ambiguous output-axis reference");
+
+  // Group names come from definitions, not a hard-coded B/I/J convention.
+  auto renamed = replace(dialect, "bind J", "bind RightFree");
+  renamed = replace(renamed, "B ++ I ++ J", "B ++ I ++ RightFree");
+  auto named = symbolicPlan(association + R"( where {
+    @d.lhs_batching_dimensions == @inner->B;
+    @d.lhs_contracting_dimensions == @inner->RightFree;
+  }})",
+                            true, renamed);
+  proved(named);
+
+  // The group follows its declared coordinate order through a permutation.
+  auto permutation = symbolicPlan(
+      "rule r {(transpose[@p] A) => (transpose[auto] A) where { @p.permutation "
+      "== @p->S; }}",
+      false);
+  proved(permutation);
+  Metadata cycle{{{2, 3, 4}}, {{0, {{2, 0, 1}}}}};
+  tepl::test::ConstructorEvaluator notInvolution(cycle, permutation);
+  expect(!notInvolution.applicable(),
+         "arrow denotes inverse positions, not output traversal order");
+  Metadata swap{{{2, 3}}, {{0, {{1, 0}}}}};
+  tepl::test::ConstructorEvaluator involution(swap, permutation);
+  expect(involution.applicable(),
+         "declared permutation condition evaluated independently");
+
+  // A guard is required only when legality alone cannot establish the rule.
+  expect(check("rule r {(dot[@d] (add A B) C) => (add (dot[auto] A C) "
+               "(dot[auto] B C))}")
+             .ok(),
+         "unrestricted distribution remains accepted");
 }
 void contextStateTests() {
   Plan plan;
@@ -563,11 +696,19 @@ void axisAndMultiplyTests() {
     undefined = true;
   }
   expect(undefined, "independent interpreter preserves undefined inverse");
-  theory.wellFormed(twice(r));
-  expect(!theory.guards().empty(), "partial inverse requires a real guard");
+  bool unproved = false;
+  try {
+    theory.wellFormed(twice(r));
+  } catch (const ProofFailure&) {
+    unproved = true;
+  }
+  expect(unproved && !theory.guards().empty(),
+         "partial inverse is rejected without an explicit condition");
+  expect(!theory.entails(call("axis_partition", {r, call("len", {r})})),
+         "failed obligation did not become an assumption");
   auto frame = make(Symbol::Kind::AxisGroup, "input0", 0, 0,
                     {make(Symbol::Kind::Shape, {}, 0)});
-  // Use a fresh context so the guard above cannot strengthen source legality.
+  // A fresh context must agree with the failed context on legality.
   Context lookup{move, 1000000};
   lookup.sourceScope(move.lhs);
   Lowerer lookupSource{lookup};
@@ -670,6 +811,7 @@ int main(int argc, char** argv) {
     dialect = {std::istreambuf_iterator<char>(input), {}};
     expect(!dialect.empty(), "read dialect");
     symbolicTests();
+    explicitConditionTests();
     contextStateTests();
     axisAndMultiplyTests();
     const std::string distribute =

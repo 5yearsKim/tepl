@@ -356,7 +356,9 @@ std::any AstBuilder::visitAttributePrimary(
   const ast::AttributeRef descriptor{context->attrRef()->ID()->getText()};
   if (context->ID())
     return makeConstraint(
-        context, ast::DescriptorField{descriptor, context->ID()->getText()});
+        context,
+        ast::DescriptorField{descriptor, context->ID()->getText(),
+                             context->children.at(1)->getText() == "->"});
   return makeConstraint(context, descriptor);
 }
 

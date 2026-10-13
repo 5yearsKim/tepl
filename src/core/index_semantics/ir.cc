@@ -1,6 +1,17 @@
 #include "src/core/index_semantics/ir.h"
 
 namespace tepl::core::index_semantics {
+const char* guardKindName(GuardKind kind) {
+  switch (kind) {
+    case GuardKind::Legality:
+      return "legality obligation";
+    case GuardKind::CoordinateOrder:
+      return "coordinate order";
+    case GuardKind::ReductionDomain:
+      return "reduction domain";
+  }
+  return "unresolved obligation";
+}
 const std::vector<Law>& laws() {
   static const std::vector<Law> result{
       {"add-associativity", "Add(Add(x,y),z) = Add(x,Add(y,z))",
@@ -32,6 +43,11 @@ const std::vector<Law>& laws() {
        false},
       {"permutation-composition", "permute(permute(S,p),q) = permute(S,p[q])",
        "p and q are full valid permutations of the same ordered interface",
+       false},
+      {"physical-axis-order",
+       "filter_axes(A,G) = gather(G,order_positions(positions(A,G)))",
+       "A and G distinct; G subset of A; order_positions is the stable sorting "
+       "permutation",
        false}};
   return result;
 }

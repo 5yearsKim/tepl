@@ -56,6 +56,19 @@ TypedExprPtr ExpressionChecker::lower(const ast::DescriptorField& field,
                                       std::optional<TypeId> expected) {
   auto descriptor = lower(field.descriptor, origin, {});
   if (!descriptor) return nullptr;
+  if (field.output_group) {
+    if (section_ != builtins::Context::kWhere) {
+      context_.report(origin,
+                      "output-axis group references are only supported in "
+                      "where conditions");
+      return nullptr;
+    }
+    return make(
+        origin, context_.types.concrete({TypeKind::kIndexList}, origin),
+        OutputAxisGroupRef{
+            std::get<DescriptorRef>(descriptor->value).descriptor, field.field},
+        expected);
+  }
   auto type = context_.types.known(descriptor->type);
   if (!type || !type->schema) {
     context_.report(
@@ -68,14 +81,18 @@ TypedExprPtr ExpressionChecker::lower(const ast::DescriptorField& field,
     const auto& attribute = schema.fields[i];
     if (attribute.name != field.field) continue;
     auto field_type = resolveType(attribute.type);
-    if (!field_type || attribute.optional || attribute.list_depth ||
+    if (!field_type || attribute.optional ||
+        (attribute.list_depth && !(attribute.list_depth == 1 &&
+                                   field_type->kind == TypeKind::kIndex)) ||
         field_type->kind == TypeKind::kTensor ||
         field_type->kind == TypeKind::kDescriptor) {
       context_.report(origin,
-                      "descriptor field is optional, a list, or opaque to rule "
+                      "descriptor field is optional, an unsupported list, or "
+                      "opaque to rule "
                       "expressions");
       return nullptr;
     }
+    if (attribute.list_depth) field_type = Type{TypeKind::kIndexList};
     return make(origin, context_.types.concrete(*field_type, origin),
                 DescriptorFieldRef{
                     std::get<DescriptorRef>(descriptor->value).descriptor,

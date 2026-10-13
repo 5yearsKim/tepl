@@ -109,6 +109,7 @@ std::string show(const E& e) {
 }
 E Lowerer::rename(const E& e, const S& from, const S& to) {
   context.tick();
+  if (equal(from, to)) return e;
   context.transportFrame(from, to);
   if (e->kind == Expr::Kind::Read) {
     auto axes = context.transportInterface(from, to, e->axes);
@@ -171,10 +172,23 @@ TensorMeaning Lowerer::operation(std::size_t id,
       positions[b.operand].push_back(p);
     }
     if (!domain) throw ProofFailure("logical group has no operand domain");
-    if (!anchors)
-      axes = make(Symbol::Kind::AxisGroup,
-                  "n" + std::to_string(id) + "." + n.definition->groups[g].name,
-                  id, g, {domain});
+    if (!anchors) {
+      // A pure reindexing keeps the producer coordinate identities. Only its
+      // ordered output interface changes; there is no new arithmetic binder.
+      const auto& bindings = n.definition->groups[g].bindings;
+      bool identity_value = n.definition->value->kind == Value::Kind::Operand &&
+                            n.definition->value->index == 0 &&
+                            inputs.size() == 1 &&
+                            n.definition->groups.size() == 1 &&
+                            bindings.size() == 1 && bindings[0].operand == 0 &&
+                            bindings[0].positions->kind == Meta::Kind::Call &&
+                            bindings[0].positions->name == "all_axes";
+      axes = identity_value ? inputs[0].axes
+                            : make(Symbol::Kind::AxisGroup,
+                                   "n" + std::to_string(id) + "." +
+                                       n.definition->groups[g].name,
+                                   id, g, {domain});
+    }
     if (!anchors) context.registerCoordinates(id, g, axes);
     for (const auto& b : n.definition->groups[g].bindings)
       coordinates[b.operand].push_back(axes);
@@ -223,6 +237,12 @@ TensorMeaning Lowerer::operation(std::size_t id,
   if (anchors) {
     obligations.push_back(call("same_set", {axes, freeAxes(body)}));
     obligations.push_back(call("==", {context.extents(axes), shape}));
+    // Publish geometry only after the current node's legality is established.
+    // Strict verification cannot introduce a premise while doing this.
+    for (std::size_t i = obligation_begin; i < obligations.size(); ++i)
+      context.require(obligations[i]);
+    for (std::size_t o = 0; o < inputs.size(); ++o)
+      context.partition(inputs[o].axes, coordinates[o], positions[o]);
   } else {
     for (std::size_t i = obligation_begin; i < obligations.size(); ++i)
       context.learn(obligations[i]);
@@ -232,6 +252,19 @@ TensorMeaning Lowerer::operation(std::size_t id,
     }
     context.learn(call("==", {context.extents(axes), shape}));
   }
+  std::set<std::size_t> reduced;
+  std::function<void(const Value&)> collect = [&](const Value& v) {
+    if (v.kind == Value::Kind::Reduce) reduced.insert(v.index);
+    for (const auto& a : v.args) collect(*a);
+  };
+  collect(*n.definition->value);
+  std::vector<S> free_groups, output_positions;
+  for (std::size_t g = 0; g < groups.size(); ++g)
+    if (!reduced.contains(g)) {
+      free_groups.push_back(groups[g]);
+      output_positions.push_back(context.positions(axes, groups[g]));
+    }
+  context.partition(axes, free_groups, output_positions);
   if (!anchors) {
     context.recordTensor(id, axes, groups);
   }

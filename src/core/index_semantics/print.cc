@@ -126,10 +126,7 @@ std::string format(const Plan& p) {
   std::ostringstream out;
   out << "    index-inference: policy="
       << (p.algebraic ? "algebraic" : "strict") << " status="
-      << (p.proof.status == ProofStatus::Proved        ? "proved"
-          : p.proof.status == ProofStatus::Conditional ? "conditional"
-                                                       : "unknown")
-      << '\n';
+      << (p.proof.status == ProofStatus::Proved ? "proved" : "unknown") << '\n';
   out << "      lhs-graph: " << graph(p.lhs) << '\n';
   out << "      rhs-graph: " << graph(p.rhs) << '\n';
   for (const auto& step : p.proof.steps) out << "      " << step << '\n';
@@ -147,12 +144,21 @@ std::string format(const Plan& p) {
       out << "        " << definition->fields.at(f) << " = "
           << render(*fields[f]) << '\n';
   }
+  out << "      declared-conditions:" << (p.assumptions.empty() ? " true" : "")
+      << '\n';
+  for (const auto& a : p.assumptions) out << "        " << render(*a) << '\n';
   out << "      additional-guard: "
       << (p.proof.status == ProofStatus::Unknown ? "unresolved"
           : p.proof.guard.empty()                ? "true"
                                                  : "")
       << '\n';
   for (const auto& g : p.proof.guard) out << "        " << render(*g) << '\n';
+  if (!p.proof.guard_origins.empty()) {
+    out << "      guard-origins (unresolved obligations):\n";
+    for (const auto& g : p.proof.guard_origins)
+      out << "        [" << guardKindName(g.kind) << "] "
+          << render(*g.condition) << '\n';
+  }
   out << "      reason: " << p.proof.reason << '\n';
   std::ostringstream bindings;
   if (!p.proof.axis_definitions.empty())

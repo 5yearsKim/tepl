@@ -194,6 +194,9 @@ class Printer {
           else if constexpr (std::is_same_v<T, DescriptorFieldRef>)
             out_ << "DescriptorField(@#" << value.descriptor.value << '.'
                  << value.field << ')';
+          else if constexpr (std::is_same_v<T, OutputAxisGroupRef>)
+            out_ << "OutputAxes(@#" << value.descriptor.value << "->"
+                 << value.group << ')';
           else if constexpr (std::is_same_v<T, NumericConstant>)
             out_ << value.spelling;
           else if constexpr (std::is_same_v<T, bool>)

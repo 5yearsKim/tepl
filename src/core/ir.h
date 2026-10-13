@@ -176,6 +176,12 @@ struct DescriptorFieldRef {
   std::size_t field;
 };
 
+// A reference to an operation occurrence, not merely its attribute schema.
+struct OutputAxisGroupRef {
+  DescriptorId descriptor;
+  std::string group;
+};
+
 struct NumericConstant {
   std::string spelling;
   bool decimal = false;
@@ -201,8 +207,8 @@ struct TypedExpr {
   SourceOrigin origin;
   TypeId type;
   std::variant<CaptureRef, DimensionRef, DescriptorRef, DescriptorFieldRef,
-               DTypeVariableRef, DType, NumericConstant, bool, HostCall,
-               BuiltinCall, UnaryExpr, BinaryExpr>
+               OutputAxisGroupRef, DTypeVariableRef, DType, NumericConstant,
+               bool, HostCall, BuiltinCall, UnaryExpr, BinaryExpr>
       value;
 };
 

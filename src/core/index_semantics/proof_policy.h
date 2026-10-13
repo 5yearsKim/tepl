@@ -15,8 +15,6 @@ struct ProofLimits {
   static constexpr std::size_t query_work = 2048;
   static constexpr std::size_t normalization_terms = 256;
   static constexpr std::size_t general_inference_work = 100000;
-  static constexpr std::size_t routing_min_work = 1000;
-  static constexpr std::size_t guard_rounds = 6;
 };
 
 enum class FailureKind { Unsupported, BudgetExceeded, InvalidCandidate };

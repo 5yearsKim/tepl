@@ -469,7 +469,7 @@ unary
 primary
     : (ID | hostFunctionRef) '(' arguments? ')' # CallPrimary
     | ID                                     # NamePrimary
-    | attrRef ('.' ID)?                      # AttributePrimary
+    | attrRef (('.' | '->') ID)?                      # AttributePrimary
     | INT                                    # IntegerPrimary
     | FLOAT                                  # FloatPrimary
     | TRUE                                   # TruePrimary

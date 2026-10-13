@@ -111,7 +111,8 @@ void TypeInference::checkRequirements() {
         break;
       case TypeRequirement::kEquality:
         valid = isNumeric(type->kind) || type->kind == TypeKind::kBool ||
-                type->kind == TypeKind::kDType;
+                type->kind == TypeKind::kDType ||
+                type->kind == TypeKind::kIndexList;
         break;
     }
     if (!valid)

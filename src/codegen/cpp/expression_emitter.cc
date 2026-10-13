@@ -1,5 +1,6 @@
 #include "src/codegen/cpp/expression_emitter.h"
 
+#include <stdexcept>
 #include <type_traits>
 
 #include "src/codegen/cpp/builtin_emitter.h"
@@ -48,6 +49,10 @@ std::string emitExpression(const core::Program& program, const Names& names,
         else if constexpr (std::is_same_v<T, core::DTypeVariableRef>)
           return runtime + "::require(dimensions.dtype(" +
                  std::to_string(value.variable.value) + "))";
+        else if constexpr (std::is_same_v<T, core::OutputAxisGroupRef>)
+          throw std::logic_error(
+              "output-axis references require index semantics; code generation "
+              "is unsupported");
         else if constexpr (std::is_same_v<T, core::DescriptorFieldRef>)
           return "([&]() { auto descriptor=" + runtime +
                  "::require(ctx.attrs(" +

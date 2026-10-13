@@ -1,6 +1,136 @@
+#include <algorithm>
+#include <charconv>
+#include <functional>
+
 #include "src/core/index_semantics/context.h"
 
 namespace tepl::core::index_semantics {
+bool Context::nonnegative(const S& s) {
+  auto n = canonical(s);
+  if (callIs(n, "len")) return true;
+  if (n->kind == Symbol::Kind::Integer) {
+    std::int64_t value;
+    auto parsed =
+        std::from_chars(n->name.data(), n->name.data() + n->name.size(), value);
+    return parsed.ec == std::errc{} && value >= 0;
+  }
+  if (callIs(n, "+")) return nonnegative(n->args[0]) && nonnegative(n->args[1]);
+  if (callIs(n, "-") && callIs(n->args[1], "len") &&
+      evidence(call("is_valid_axis_list", {n->args[1]->args[0], n->args[0]})))
+    return true;
+  // Factory simplifications may hide a sequence-length witness. All indexed
+  // source selectors are defined under legal LHS metadata.
+  for (const auto& [id, selector] : facts_.selectors)
+    if (equal(n, canonical(call("len", {selector})))) return true;
+  return false;
+}
+std::optional<std::pair<S, S>> Context::positionBlock(const S& p) {
+  if (callIs(p, "range") && nonnegative(p->args[0]))
+    return std::pair(integer(0), p->args[0]);
+  if (callIs(p, "offset_positions") && nonnegative(p->args[1]))
+    if (auto block = positionBlock(p->args[0]))
+      return std::pair(canonical(call("+", {p->args[1], block->first})),
+                       block->second);
+  auto size = canonical(call("len", {p}));
+  if (nonnegative(size) && evidence(call("axis_partition", {p, size})))
+    return std::pair(integer(0), size);
+  return {};
+}
+S Context::complementBlocks(const S& universe, const S& excluded) {
+  if (!callIs(universe, "range"))
+    return call("ordered_complement", {universe, excluded});
+  // Work with sets of whole intervals; keep sequence ordering outside a
+  // complement untouched. Symbolic interval endpoints must have witnesses.
+  std::vector<std::pair<S, S>> blocks;
+  auto parts =
+      callIs(excluded, "concat") ? excluded->args : std::vector<S>{excluded};
+  for (const auto& part : parts) {
+    auto block = positionBlock(part);
+    if (!block) return call("ordered_complement", {universe, excluded});
+    blocks.push_back(*block);
+  }
+  auto offset = integer(0);
+  // Merge adjacent intervals in whichever order they were declared.
+  while (!blocks.empty()) {
+    auto found = std::find_if(blocks.begin(), blocks.end(), [&](const auto& b) {
+      return equal(canonical(b.first), canonical(offset));
+    });
+    if (found == blocks.end()) break;
+    offset = canonical(call("+", {offset, found->second}));
+    blocks.erase(found);
+  }
+  // Recognize the remaining suffix/middle interval from a symbolic sum.
+  auto total = canonical(universe->args[0]);
+  std::vector<S> sizes;
+  std::function<void(const S&)> flatten = [&](const S& x) {
+    if (callIs(x, "+")) {
+      flatten(x->args[0]);
+      flatten(x->args[1]);
+    } else
+      sizes.push_back(x);
+  };
+  flatten(total);
+  for (std::size_t first = 0; first <= sizes.size(); ++first)
+    for (std::size_t last = first; last <= sizes.size(); ++last) {
+      auto sum = [&](std::size_t a, std::size_t b) {
+        auto out = integer(0);
+        for (auto i = a; i < b; ++i) out = call("+", {out, sizes[i]});
+        return canonical(out);
+      };
+      auto start = sum(0, first), size = sum(first, last), end = sum(0, last);
+      if (!equal(canonical(offset), start) || !nonnegative(size)) continue;
+      if (blocks.empty() && last == sizes.size())
+        return call("offset_positions", {call("range", {size}), start});
+      if (blocks.size() == 1 && equal(canonical(blocks[0].first), end) &&
+          equal(canonical(call("+", {end, blocks[0].second})), total))
+        return call("offset_positions", {call("range", {size}), start});
+    }
+  return call("ordered_complement", {universe, excluded});
+}
+S Context::sequenceEquality(const S& a, const S& b) {
+  auto sequence = [](const S& x) {
+    return x->sort == Symbol::Sort::Axes || x->sort == Symbol::Sort::Extents ||
+           x->sort == Symbol::Sort::Positions;
+  };
+  if (!sequence(a) || !sequence(b)) return call("==", {a, b});
+  auto left = callIs(a, "concat") ? a->args : std::vector<S>{a};
+  auto right = callIs(b, "concat") ? b->args : std::vector<S>{b};
+  std::size_t start = 0;
+  while (start < left.size() && start < right.size() &&
+         equal(left[start], right[start]))
+    ++start;
+  auto le = left.size(), re = right.size();
+  while (le > start && re > start && equal(left[le - 1], right[re - 1])) {
+    --le;
+    --re;
+  }
+  if (start || le != left.size()) {
+    auto sequence = [&](const std::vector<S>& parts, std::size_t end) {
+      if (start == end && a->sort == Symbol::Sort::Axes)
+        return call("empty_axes", {});
+      return call("concat",
+                  std::vector<S>(parts.begin() + start, parts.begin() + end));
+    };
+    return call("==", {sequence(left, le), sequence(right, re)});
+  }
+  auto injective = [&](const S& base, const S& p, const S& q) {
+    return base->sort == Symbol::Sort::Axes &&
+           evidence(call("distinct_axes", {base})) &&
+           evidence(call("is_valid_axis_list", {p, call("len", {base})})) &&
+           evidence(call("is_valid_axis_list", {q, call("len", {base})}));
+  };
+  if (callIs(a, "gather") && callIs(b, "gather") &&
+      equal(a->args[0], b->args[0]) &&
+      injective(a->args[0], a->args[1], b->args[1]))
+    return call("==", {a->args[1], b->args[1]});
+  if (callIs(a, "gather") && equal(a->args[0], b) &&
+      injective(b, a->args[1], call("range", {call("len", {b})})))
+    return call("==", {a->args[1], call("range", {call("len", {b})})});
+  if (callIs(b, "gather") && equal(b->args[0], a) &&
+      injective(a, b->args[1], call("range", {call("len", {a})})))
+    return call("==", {call("range", {call("len", {a})}), b->args[1]});
+  return call("==", {a, b});
+}
 S Context::canonical(const S& s) {
   ++counters.canonical;
   tick();
@@ -21,8 +151,12 @@ S Context::canonical(const S& s) {
   for (const auto& a : s->args) args.push_back(canonical(a));
   S out = s;
   if (s->kind == Symbol::Kind::Call) {
-    if (s->name == "gather" && callIs(args[1], "range") &&
-        evidence(call("==", {args[1]->args[0], call("len", {args[0]})})))
+    if (s->name == "ordered_complement")
+      out = complementBlocks(args[0], args[1]);
+    else if (s->name == "==")
+      out = sequenceEquality(args[0], args[1]);
+    else if (s->name == "gather" && callIs(args[1], "range") &&
+             evidence(call("==", {args[1]->args[0], call("len", {args[0]})})))
       out = args[0];
     else if (s->name == "gather")
       out = selectKnown(args[0], args[1], QueryMode::Evidence);
@@ -236,10 +370,15 @@ S Context::filter(const S& order, const S& wanted, QueryMode mode) {
   }
   if (independent(o, w) || callIs(w, "empty_axes"))
     return call("empty_axes", {});
-  if (equal(intersect(o, w, mode), support(o, mode))) return o;
+  auto overlap = intersect(o, w, mode);
+  if (callIs(overlap, "empty_axes")) return overlap;
+  if (equal(overlap, support(o, mode))) return o;
   auto p = positions(o, w, mode);
   if (callIs(p, "ordered_complement") || callIs(p, "range"))
     return select(o, p, mode);
+  if (!callIs(p, "positions") && query(call("distinct_axes", {w}), mode) &&
+      query(call("is_valid_axis_list", {p, call("len", {o})}), mode))
+    return select(w, call("order_positions", {p}), mode);
   return call("filter_axes", {o, w});
 }
 S Context::extents(const S& axes) {

@@ -5,6 +5,49 @@
 #include "src/core/index_semantics/context.h"
 
 namespace tepl::core::index_semantics {
+void Context::represent(S a, S b) {
+  if (equal(a, b)) return;
+  std::function<std::pair<std::size_t, std::size_t>(const S&)> order =
+      [&](const S& x) -> std::pair<std::size_t, std::size_t> {
+    auto found = queries_.term_order.find(key(x));
+    if (found != queries_.term_order.end()) return found->second;
+    tick();
+    std::size_t dependency = 0, weight = 1;
+    if (x->kind == Symbol::Kind::Field &&
+        source_.field_nodes.contains(x->owner))
+      dependency = source_.field_nodes.at(x->owner) + 1;
+    if (x->kind != Symbol::Kind::AxisGroup)
+      for (const auto& y : x->args) {
+        auto [d, w] = order(y);
+        dependency = std::max(dependency, d);
+        weight = std::min<std::size_t>(ProofLimits::general_inference_work,
+                                       weight + w);
+      }
+    return queries_.term_order[key(x)] = {dependency, weight};
+  };
+  auto category = [](const S& x) {
+    if (x->kind == Symbol::Kind::Integer || x->kind == Symbol::Kind::Boolean ||
+        (x->kind == Symbol::Kind::List && x->args.empty()))
+      return 0;
+    return x->args.empty() || x->kind == Symbol::Kind::AxisGroup ? 1 : 2;
+  };
+  // Source nodes are topologically ordered. Prefer producer metadata over a
+  // downstream field, so routing prerequisites cannot feed their own lengths
+  // back into producer selectors. No operation or attribute names participate.
+  if (std::tuple(order(a).first, category(a), order(a).second, key(a)) <
+      std::tuple(order(b).first, category(b), order(b).second, key(b)))
+    std::swap(a, b);
+  facts_.representatives[key(a)] = b;
+}
+S Context::canonicalChildren(const S& s) {
+  if (s->kind != Symbol::Kind::Call && s->kind != Symbol::Kind::List)
+    return canonical(s);
+  std::vector<S> args;
+  for (const auto& a : s->args) args.push_back(canonical(a));
+  return s->kind == Symbol::Kind::Call
+             ? call(s->name, std::move(args))
+             : make(s->kind, s->name, s->owner, s->index, std::move(args));
+}
 void Context::invalidate() {
   ++counters.invalidations;
   queries_.canonical.clear();
@@ -41,25 +84,14 @@ void Context::learn(const S& fact) {
   }
   if (callIs(f, "==")) {
     auto a = f->args[0], b = f->args[1];
-    auto ka = key(a), kb = key(b);
-    if (ka == kb) return;
-    std::function<std::size_t(const S&)> weight = [&](const S& x) {
-      if (x->kind == Symbol::Kind::AxisGroup) return std::size_t(1);
-      std::size_t n = 1;
-      for (const auto& y : x->args) n += weight(y);
-      return n;
-    };
-    auto category = [](const S& x) {
-      if (x->kind == Symbol::Kind::Integer ||
-          x->kind == Symbol::Kind::Boolean ||
-          (x->kind == Symbol::Kind::List && x->args.empty()))
-        return 0;
-      return x->args.empty() || x->kind == Symbol::Kind::AxisGroup ? 1 : 2;
-    };
-    if (std::tuple(category(a), weight(a), ka) <
-        std::tuple(category(b), weight(b), kb))
-      std::swap(a, b);
-    facts_.representatives[key(a)] = b;
+    // Sequence equality also establishes equal cardinality. The expression
+    // factory lowers len(gather(shape,p)) to len(p), so this implication must
+    // be registered before that lowering hides the paired-domain witness.
+    if (a->sort == b->sort &&
+        (a->sort == Symbol::Sort::Axes || a->sort == Symbol::Sort::Positions ||
+         a->sort == Symbol::Sort::Extents))
+      learn(call("==", {call("len", {a}), call("len", {b})}));
+    represent(canonicalChildren(a), canonicalChildren(b));
   } else
     return;
   invalidate();
@@ -68,6 +100,12 @@ void Context::learn(const S& fact) {
   facts_.normalized.clear();
   for (const auto& raw : facts_.raw) {
     ++counters.fact_comparisons;
+    if (callIs(raw, "==")) {
+      // Preserve congruence when a new fact changes children of an already
+      // recorded alias (for example, a selector containing a group length).
+      represent(canonicalChildren(raw->args[0]),
+                canonicalChildren(raw->args[1]));
+    }
     auto normalized = canonical(raw);
     facts_.normalized.insert(key(normalized));
     if (callIs(normalized, "axis_partition"))
@@ -165,6 +203,8 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
   }
   if (callIs(f, "axis_partition")) {
     auto p = f->args[0];
+    if (callIs(p, "order_positions"))
+      return query(call("==", {call("len", {p->args[0]}), f->args[1]}), mode);
     if (facts_.permutations.contains(key(p)) &&
         equal(canonical(call("len", {p})), canonical(f->args[1])))
       return true;
@@ -192,6 +232,32 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
       for (const auto& n : found->second)
         if (equal(canonical(n), canonical(f->args[1]))) return true;
     auto p = f->args[0], n = f->args[1];
+    if (auto block = positionBlock(p)) {
+      auto end = canonical(call("+", {block->first, block->second}));
+      auto bound = canonical(n);
+      if (equal(end, bound)) return true;
+      // A prefix/middle block in a sum of nonnegative axis-group sizes.
+      std::vector<S> summands;
+      std::function<void(const S&)> flatten = [&](const S& x) {
+        if (callIs(x, "+")) {
+          flatten(x->args[0]);
+          flatten(x->args[1]);
+        } else
+          summands.push_back(x);
+      };
+      flatten(bound);
+      auto prefix = integer(0);
+      for (std::size_t i = 0; i < summands.size(); ++i) {
+        prefix = canonical(call("+", {prefix, summands[i]}));
+        if (!equal(prefix, end)) continue;
+        bool valid = true;
+        for (std::size_t j = i + 1; j < summands.size(); ++j)
+          valid &= nonnegative(summands[j]);
+        if (valid) return true;
+      }
+    }
+    if (callIs(p, "order_positions"))
+      return query(call("==", {call("len", {p->args[0]}), n}), mode);
     if (callIs(p, "ordered_complement") &&
         equal(canonical(p->args[0]), canonical(call("range", {n}))))
       return true;

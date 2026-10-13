@@ -12,6 +12,7 @@ enum class QueryMode { Evidence, Entailment };
 
 struct SourceCoordinates {
   std::map<std::size_t, std::size_t> fields;
+  std::map<std::size_t, std::size_t> field_nodes;
   std::set<std::size_t> captures, nodes;
   std::map<std::pair<std::size_t, std::size_t>, S> groups;
   std::map<std::size_t, S> tensor_axes;
@@ -28,8 +29,10 @@ class Context {
   const Plan& plan;
   const SourceCoordinates& source() const { return source_; }
   const std::vector<S>& guards() const { return guards_; }
+  const std::vector<RuleProof::GuardOrigin>& guardOrigins() const {
+    return guard_origins_;
+  }
   const std::vector<std::string>& steps() const { return steps_; }
-  void allowGuards(bool allowed) { allow_guards_ = allowed; }
   void registerCoordinates(std::size_t node, std::size_t group, const S&);
   void recordInputs(std::size_t node, std::vector<S> shapes);
   void recordTensor(std::size_t node, const S& axes, std::vector<S> groups);
@@ -47,7 +50,7 @@ class Context {
   // False means unestablished, including a bounded attempt that ran out of
   // local work. It does not mean the proposition is mathematically false.
   bool entails(const S&);
-  void require(const S&);
+  void require(const S&, GuardKind = GuardKind::Legality);
   S resolve(const S&);
   S field(const Instance&, std::size_t);
   S positions(const S&, const S&, QueryMode = QueryMode::Entailment);
@@ -86,6 +89,7 @@ class Context {
     std::set<std::string> active_queries, active_canonical, active_support,
         active_positions, active_premises;
     std::size_t start_budget = 0;
+    std::map<std::string, std::pair<std::size_t, std::size_t>> term_order;
   } queries_;
   struct AttributeState {
     std::map<std::pair<std::size_t, std::size_t>, S> solutions;
@@ -100,13 +104,15 @@ class Context {
   SourceCoordinates source_;
   std::map<const Symbol*, S> validated_scope_, validated_expressions_;
   std::vector<S> guards_;
+  std::vector<RuleProof::GuardOrigin> guard_origins_;
   std::vector<std::string> steps_;
   std::size_t budget_;
-  bool allow_guards_ = true;
   std::chrono::steady_clock::time_point started_ =
       std::chrono::steady_clock::now();
 
   void invalidate();
+  void represent(S, S);
+  S canonicalChildren(const S&);
   bool established(const S&);
   bool deriveEvidence(const S&);
   bool structuralEvidence(const S&, QueryMode);
@@ -118,6 +124,10 @@ class Context {
   S lookupPositions(const S&, const S&, QueryMode);
   S selectKnown(const S&, const S&, QueryMode);
   S computeSupport(const S&, QueryMode);
+  S sequenceEquality(const S&, const S&);
+  bool nonnegative(const S&);
+  std::optional<std::pair<S, S>> positionBlock(const S&);
+  S complementBlocks(const S&, const S&);
 };
 
 }  // namespace tepl::core::index_semantics

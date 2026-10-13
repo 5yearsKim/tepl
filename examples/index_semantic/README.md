@@ -1,7 +1,7 @@
 # Symbolic tensor semantics and attribute synthesis
 
-`tepl check` compiles a rewrite into attribute constructors, a sufficient
-applicability guard, and a checked semantic graph. No concrete shapes,
+`tepl check` compiles a rewrite into attribute constructors and a checked
+semantic graph under the rule’s explicit conditions. No concrete shapes,
 attributes, or tensor values are supplied. Generated Rust/C++ execution remains
 outside this implementation.
 
@@ -29,12 +29,60 @@ bazel-bin/tepl check examples/index_semantic/rules/basic.tepl \
   --semantic-policy=algebraic --index-rule transpose_dot_cycle
 ```
 
-Conditional results exit 1 so they cannot be mistaken for unconditionally
-accepted rules. Their constructors and guards remain available for inspection.
-Without a selector, all rules in the file are checked.
+A proved rule exits 0. An unresolved proof fails analysis with a diagnostic and
+exits 1. Without a selector, all rules in the file are checked. `--index-rule`
+selects which rule receives semantic verification; syntax and name errors in
+the file are still diagnosed.
 
 The old `--input-shape` and `--known-attribute` flags have been removed. Concrete
 inference is retained only in test support; it is not a compiler fallback.
+
+## Declare conditions using output groups
+
+`@operation->Group` returns the ordered output-axis positions of a named
+logical group. The name is resolved from that operation's dialect definition;
+it is not a built-in batch or contraction keyword.
+
+For a dot whose output is `B ++ I ++ J`:
+
+```tepl
+rule associate {
+    (dot[@d] (dot[@inner] A B) C)
+    => (dot[auto] A (dot[auto] B C))
+    where {
+        @d.lhs_batching_dimensions == @inner->B;
+        @d.lhs_contracting_dimensions == @inner->J;
+    }
+}
+```
+
+The first condition preserves the inner batch group. The second contracts the
+entire inner RHS-free group in its declared order. These sufficient conditions
+support arbitrary-length groups, including multiple batch and contraction
+axes. They do not claim to characterize every valid reassociation.
+
+The compiler lowers the references to metadata expressions. For example,
+`@inner->J` becomes the positions after the batch and LHS-free groups. The
+condition then simplifies the consumer's contraction mapping to that exact
+producer group. RHS attributes are inferred and checked independently.
+
+References are allowed in `where` conditions and must identify a unique LHS
+operation occurrence. Unknown groups, groups absent from the output (such as a
+contracted `K`), and RHS-only references are errors. A group retains its declared
+coordinate order: for a transpose with group `S`, `@p->S` gives the inverse
+permutation, locating each original coordinate in the output. An empty output
+group yields an empty position list.
+
+Shape declarations constrain ranks and extents; they do not silently constrain
+dot attributes. Required `index[]` descriptor fields can be compared with group
+references and other index-list expressions in `where` conditions. Opaque host
+conditions are rejected by this checker because they supply no symbolic facts.
+
+Only declared conditions and LHS legality are proof assumptions. Missing facts
+produce errors; the compiler never adds applicability restrictions to a rule.
+A future generated matcher must check the declared conditions before applying
+it. The test metadata interpreter checks these conditions today; index-semantic
+Rust/C++ generation is still unsupported.
 
 ## Define operation semantics
 
@@ -110,8 +158,8 @@ different accesses.
 Map simplification consults indexed bindings and recorded legality evidence.
 It does not launch general entailment recursively. Position, support, and
 evidence results are cached until bindings or premises change. General
-entailment has a bounded attempt; unresolved expressions remain conditions or
-produce `Unknown`. Full permutation cancellation requires legality evidence;
+entailment has a bounded attempt; unresolved obligations produce `Unknown` and
+prevent acceptance. Full permutation cancellation requires legality evidence;
 a partial axis list cannot justify cancellation.
 
 The dump includes a coordinate frame, access maps, normalized computations,
@@ -133,8 +181,8 @@ values or flattened dimensions.
    fixed attributes and pins.
 6. Re-lower the original RHS in a separate verifier. Check accesses, reduction
    domains, ordered axes, shape, dtype, legality, and partial-helper preconditions.
-7. Discharge obligations or retain them in a sufficient guard. Close additional
-   guard preconditions before independently checking the fixed result.
+7. Prove every obligation from LHS legality and explicit conditions. Reject an
+   unproved rule; candidate obligations cannot serve as their own assumptions.
 
 Laws include distributivity, reduction linearity, reduction extraction,
 reduction composition, associativity, commutative matching, and coordinate
@@ -160,22 +208,18 @@ Renamed and structurally different operation definitions are tested.
 | `merge_reductions`, `transpose_reduce` | Proved |
 | The four rules in [multiply.tepl](rules/multiply.tepl) | Proved |
 | `transpose_dot_lhs` | Proved; chooses an identity transpose witness |
-| `transpose_dot_cycle` | Conditional; rank and coordinate-order obligations |
-| `absorb_transpose`, `transpose_dot_swap` | Conditional |
-| `associate`, `associate_reverse`, `lora` | Conditional; sufficient routing guards |
+| `transpose_dot_cycle` | Proved with declared rank and contraction restrictions |
+| `absorb_transpose` | Proved with an explicit identity-permutation restriction |
+| `transpose_dot_swap` | Proved with the declared output-block permutation |
+| `associate`, `associate_reverse`, `lora` | Proved with explicit group-routing conditions |
 
-General coordinate construction is bounded. If it cannot establish a result,
-the routing strategy selects a conservative fragment: shared retained
-multiplicative groups are empty, and consumer selectors route whole producer
-groups according to the capture sets needed by RHS intermediates. This supports
-unbatched contractions with arbitrary-length free and contracting groups.
-It does not establish unrestricted batched reassociation or the weakest
-condition for arbitrary partial-group routing.
-
-The initial general construction attempt uses at most 100,000 work units.
-Conservative routing and independent verification retain the caller's work
-budget. Guard closure is bounded; optional guard minimization does not rerun
-verification on the compilation path.
+Coordinate construction and independent verification are bounded. The former
+fallback that invented routing guards has been removed. Compatible batched
+whole-group reassociation is covered by explicit conditions; general partial
+group routing and weakest-condition inference are outside the supported scope.
+Removing the conditions from the restricted examples causes verification to
+fail. A failure to prove a rule is not a counterexample to every possible RHS
+attribute assignment.
 
 For internal profiling, set `TEPL_INDEX_PROFILE=1` when running the checker.
 It prints elapsed time and counters for each inference/verification context to
@@ -191,27 +235,28 @@ compiler never assumes a host function's behavior from its name.
 For source metadata `p`, tensor values `X`, and constructor `f`:
 
 ```text
-LegalLHS(p) AND DeclaredConditions(p) AND Guard(p)
+LegalLHS(p) AND DeclaredConditions(p)
     => LegalRHS(p, f(p)) AND LHS(p, X) = RHS(p, f(p), X)
 ```
 
 Equality includes ordered output coordinates, shape, and dtype. Constructors
-and guards depend only on source metadata. Inverse permutation and position
+and declared conditions depend only on source metadata. Inverse permutation and position
 lookup have explicit well-definedness obligations. A guard fails when a required
 partial metadata computation is undefined.
 
-- **Proved:** no additional guard remains under the selected arithmetic policy.
-- **Conditional:** constructors are verified under the sufficient printed guard.
+- **Proved:** correctness follows from legality and declared conditions under
+  the selected arithmetic policy; no additional guard is introduced.
 - **Unknown:** the fragment, inversion, correspondence, or work budget did not
-  establish a result. This does not prove impossibility.
+  establish a result. Compilation rejects the rule without claiming impossibility.
 
-Exit codes are 0 for proved selected rules, 1 for conditional/unknown results,
-and 2 for an unknown selector. Conditional does not establish satisfiability,
-uniqueness, completeness, or a weakest applicability condition.
+Exit codes are 0 for proved selected rules, 1 for rejected rules, and 2 for an
+unknown selector. Normal analysis rejects unproved index rules. Internal test
+inspection can retain unproved plans, but cannot mark them accepted.
 
 Supported tensor declarations and pure metadata conditions are imported.
-Unsupported conditions are omitted conservatively, making the proof obligation
-stronger. Intermediate captured-computation declarations are currently omitted.
+Unsupported conditions are diagnosed rather than silently ignored.
+Intermediate captured-computation shape declarations are currently omitted,
+so they cannot be relied upon to discharge a proof obligation.
 
 Required `index[]` fields, fixed operand arity, and the four scalar primitives
 form the initial operation fragment. Broadcasting, reshape, affine indexing,
@@ -233,9 +278,8 @@ The implementation lives in [`src/core/index_semantics`](../../src/core/index_se
 | `proof_policy.h` | Named work limits and expected inference failures |
 | `graph.cc` | Generic composition into coordinate primitives |
 | `normalize.cc` | Arithmetic normalization and intermediate boundaries |
-| `routing.cc` | Sufficient whole-group routing restrictions |
 | `synthesize.cc` | Constructors from required coordinates |
-| `verify.cc` | Independent re-lowering and fixed-guard verification |
+| `verify.cc` | Independent re-lowering under declared conditions |
 | `print.cc` | Coordinate tables, shared expressions, diagnostics |
 
 Public APIs are `synthesize(plan)` and `verify(plan, proof)` in the corresponding
