@@ -175,8 +175,60 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
           if (query(call("==", {x, y}), mode)) return true;
     }
   }
+  if (callIs(f, "is_valid_extents")) {
+    auto domain = canonical(f->args[0]);
+    if (domain->kind == Symbol::Kind::Shape) return true;
+    if (callIs(domain, "axis_extents")) {
+      auto valid = [&](auto&& self, const S& axes) -> bool {
+        if (axes->kind == Symbol::Kind::AxisGroup)
+          return query(call("is_valid_extents", {axes->args[0]}), mode);
+        if (callIs(axes, "empty_axes")) return true;
+        if (callIs(axes, "gather"))
+          return self(self, axes->args[0]) &&
+                 query(call("is_valid_axis_list",
+                            {axes->args[1], call("len", {axes->args[0]})}),
+                       mode);
+        if (callIs(axes, "filter_axes") || callIs(axes, "difference_axes") ||
+            callIs(axes, "intersection_axes"))
+          return self(self, axes->args[0]);
+        if (callIs(axes, "place_axes"))
+          return self(self, axes->args[0]) && self(self, axes->args[2]);
+        if (callIs(axes, "concat") || callIs(axes, "union_axes")) {
+          for (const auto& part : axes->args)
+            if (!self(self, part)) return false;
+          return true;
+        }
+        return false;
+      };
+      return valid(valid, domain->args[0]);
+    }
+    if (domain->kind == Symbol::Kind::List) {
+      for (const auto& n : domain->args)
+        if (!nonnegative(n)) return false;
+      return true;
+    }
+    if (callIs(domain, "concat")) {
+      for (const auto& part : domain->args)
+        if (!query(call("is_valid_extents", {part}), mode)) return false;
+      return true;
+    }
+    if (callIs(domain, "gather"))
+      return query(call("is_valid_extents", {domain->args[0]}), mode) &&
+             query(call("is_valid_axis_list",
+                        {domain->args[1], call("len", {domain->args[0]})}),
+                   mode);
+  }
   if (callIs(f, "distinct_axes")) {
     auto a = f->args[0];
+    if (callIs(a, "place_axes"))
+      return query(call("distinct_axes",
+                        {call("concat", {a->args[0], a->args[2]})}),
+                   mode) &&
+             query(call("is_valid_axis_list", {a->args[1], call("len", {a})}),
+                   mode) &&
+             query(call("==",
+                        {call("len", {a->args[1]}), call("len", {a->args[0]})}),
+                   mode);
     if (a->kind == Symbol::Kind::AxisGroup || callIs(a, "empty_axes") ||
         callIs(a, "unique_axes"))
       return true;

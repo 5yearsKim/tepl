@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -43,6 +44,7 @@ struct Group {
   std::string name;
   std::vector<Binding> bindings;
   SourceOrigin origin;
+  MetaPtr domain;  // Output-only groups have explicit extent sequences.
 };
 struct Value;
 using ValuePtr = std::shared_ptr<const Value>;
@@ -59,6 +61,7 @@ struct Definition {
   std::vector<MetaPtr> assertions;
   MetaPtr output;
   ValuePtr value;
+  std::set<std::size_t> extent_fields;
 };
 
 struct Pin {

@@ -390,6 +390,7 @@ std::string formatAst(const ast::Program& program) {
         for (const auto& statement : op.axes->statements) {
           if (const auto* binding = std::get_if<ast::AxisBind>(&statement)) {
             out << "        bind " << binding->name << '\n';
+            if (binding->domain) printMetadataExpr(out, *binding->domain, 5);
             for (const auto& entry : binding->bindings) {
               out << "          " << entry.operand << '\n';
               printMetadataExpr(out, *entry.positions, 6);

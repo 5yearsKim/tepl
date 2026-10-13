@@ -250,6 +250,7 @@ struct AxisBind {
   SourceSpan span;
   std::string name;
   std::vector<AxisBinding> bindings;
+  MetadataExprPtr domain;
 };
 struct AxisDefinition {
   SourceSpan span;

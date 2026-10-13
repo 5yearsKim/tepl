@@ -19,6 +19,7 @@ std::string show(const Terms&);
 struct Correspondence {
   std::map<std::size_t, S> anchors;
   std::map<std::size_t, S> boundaries;
+  std::map<std::size_t, S> interfaces;
 };
 Correspondence correspond(Context&, const TensorMeaning&, const Terms&,
                           const Terms&);

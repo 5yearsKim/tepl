@@ -38,6 +38,10 @@ std::string format(const Value& v, const Definition& d) {
 std::string format(const Definition& d) {
   std::ostringstream out;
   for (const auto& g : d.groups) {
+    if (g.domain) {
+      out << "    bind " << g.name << " = group(" << format(*g.domain) << ")\n";
+      continue;
+    }
     out << "    bind " << g.name << " { ";
     for (std::size_t i = 0; i < g.bindings.size(); ++i) {
       if (i) out << ", ";

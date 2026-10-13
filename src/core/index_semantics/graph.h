@@ -17,18 +17,23 @@ struct TensorMeaning {
   TensorAxisInterface interface;
   // Capture interfaces survive value cancellation and shape-only uses.
   std::map<std::size_t, S> occurrence_axes;
+  bool may_have_independent_axes = false;
 };
 struct Lowerer {
   Context& context;
   // In verification, leaves are expressed in a source-derived coordinate frame.
   const std::map<std::size_t, S>* anchors = nullptr;
   std::vector<S> obligations;
+  const std::map<std::size_t, S>* interfaces = nullptr;
   S metadata(const Meta&, const Instance&, const std::vector<TensorMeaning>&,
              const std::vector<S>&);
   S dtype(const Instance&, const std::vector<TensorMeaning>&);
   E rename(const E&, const S&, const S&);
   E value(const Value&, const std::vector<TensorMeaning>&,
           const std::vector<S>&);
+  std::map<std::size_t, S> outputPositions(const Meta&, const Instance&,
+                                           const std::vector<TensorMeaning>&,
+                                           const std::vector<S>&);
   TensorMeaning operation(std::size_t, std::vector<TensorMeaning>);
   TensorMeaning lower(std::size_t);
 };

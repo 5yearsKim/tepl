@@ -98,7 +98,11 @@ struct Builder {
           auto count = m.kind == Meta::Kind::Call && m.name == "permute"
                            ? std::size_t{1}
                            : m.args.size();
-          for (std::size_t i = 0; i < count; ++i) visit(*m.args[i]);
+          for (std::size_t i = 0; i < count; ++i) {
+            if (m.kind == Meta::Kind::Call && m.name == "place" && i == 1)
+              continue;
+            visit(*m.args[i]);
+          }
         };
         visit(*n.definition->output);
         if (!present)

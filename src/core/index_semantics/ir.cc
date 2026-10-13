@@ -14,6 +14,9 @@ const char* guardKindName(GuardKind kind) {
 }
 const std::vector<Law>& laws() {
   static const std::vector<Law> result{
+      {"axis-insertion", "place(S,positions(A,S),remaining(A,S)) = A",
+       "distinct coordinates; S subset of A; remaining axes retain A order",
+       false},
       {"constant-arithmetic",
        "a*(b*m) = (a*b)*m; Const(a)*Const(b) = Const(a*b)",
        "exact integer coefficients; checked overflow", true},

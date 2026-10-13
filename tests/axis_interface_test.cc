@@ -53,6 +53,10 @@ void maps() {
   auto ordered = call("concat", {split.selected, split.remaining});
   expect(bindings.orderedParts(ordered).size() == 2,
          "explicit ordered decomposition is reusable");
+  auto selected_from_concat = call("gather", {ordered, list({4, 0, 2})});
+  expect(equal(bindings.lookup(destination, selected_from_concat),
+               list({0, 1, 4})),
+         "selection from a composed ordered group reuses parent maps");
   auto p = list({3, 0, 4, 1}), q = list({1, 3, 2});
   auto a = call("gather", {p, call("membership_positions", {p, q})});
   auto b = call("gather", {q, call("matched_positions", {p, q})});

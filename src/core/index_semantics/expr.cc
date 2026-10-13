@@ -59,6 +59,8 @@ S make(Symbol::Kind k, std::string name, std::size_t owner, std::size_t index,
              name == "intersection_axes" || name == "replace_axes" ||
              name == "unique_axes")
       sort = args.empty() ? Symbol::Sort::Axes : args[0]->sort;
+    else if (name == "place_axes")
+      sort = Symbol::Sort::Axes;
     else if (name == "empty_axes")
       sort = Symbol::Sort::Axes;
     else if (name.starts_with("dtype_"))
@@ -254,6 +256,9 @@ S call(std::string name, std::vector<S> args) {
     if (xs.size() != args[0]->args.size())
       return call("unique_axes", {call("concat", std::move(xs))});
   }
+  if (name == "+" && callIs(args[1], "+"))
+    return call("+",
+                {call("+", {args[0], args[1]->args[0]}), args[1]->args[1]});
   if (name == "+" && args[0]->kind == Symbol::Kind::Integer &&
       args[0]->name == "0")
     return args[1];
@@ -302,6 +307,11 @@ S call(std::string name, std::vector<S> args) {
     }
   }
   if (name == "len" && callIs(args[0], "order_positions"))
+    return call("len", {args[0]->args[0]});
+  if (name == "len" && callIs(args[0], "place_axes"))
+    return call("+", {call("len", {args[0]->args[0]}),
+                      call("len", {args[0]->args[2]})});
+  if (name == "len" && callIs(args[0], "axis_extents"))
     return call("len", {args[0]->args[0]});
   if (name == "len" && args[0]->kind == Symbol::Kind::AxisGroup)
     return call("len", {args[0]->args[0]});

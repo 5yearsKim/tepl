@@ -80,3 +80,9 @@ scalars="$($compiler check "$3" --semantic-policy=algebraic)"
 [[ "$scalars" == *"law: additive-cancellation"* ]]
 if "$compiler" check "$3" --rule subtract_self > "$temporary_directory/error" 2>&1; then exit 1; fi
 grep -Fq 'arithmetic normalization requires algebraic policy' "$temporary_directory/error"
+
+# Broadcast mapping changes are structural and work under strict arithmetic.
+broadcasts="$($compiler check "$4")"
+[[ "$(printf '%s' "$broadcasts" | grep -c 'status=proved')" == 3 ]]
+[[ "$broadcasts" == *"dimensions = gather(@outer.dimensions, @inner.dimensions)"* ]]
+[[ "$broadcasts" == *"law: axis-insertion"* ]]

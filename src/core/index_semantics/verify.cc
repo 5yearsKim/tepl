@@ -19,7 +19,9 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
                              FailureKind::InvalidCandidate);
         for (std::size_t f = 0; f < found->second.size(); ++f) {
           c.validateSource(found->second[f]);
-          if (found->second[f]->sort != Symbol::Sort::Positions)
+          if (found->second[f]->sort != Symbol::Sort::Positions &&
+              !(n.definition->extent_fields.contains(f) &&
+                found->second[f]->sort == Symbol::Sort::Extents))
             throw ProofFailure("constructor must be a position sequence",
                                FailureKind::InvalidCandidate);
           c.assignAttribute(n.descriptor->value, f, found->second[f]);
@@ -52,6 +54,7 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
     auto rt = normalize(c, arithmeticSkeleton(plan, plan.rhs));
     auto correspondence = correspond(c, lhs, lt, rt);
     Lowerer target{c, &correspondence.anchors};
+    target.interfaces = &correspondence.interfaces;
     auto rhs = target.lower(plan.rhs);
     auto checked = normalize(c, rhs.value);
     auto simplified_lhs = collectTerms(c, lt);

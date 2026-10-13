@@ -262,6 +262,14 @@ Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
     for (auto child : n.inputs) fill(child);
   };
   fill(c.plan.rhs);
+  bool has_domains = false;
+  for (auto id : c.source().nodes)
+    if (const auto& definition = c.plan.nodes[id].definition)
+      for (const auto& group : definition->groups)
+        has_domains |= bool(group.domain);
+  auto independent_axes = has_domains
+                              ? c.difference(lhs.axes, freeAxes(lhs.value))
+                              : call("empty_axes", {});
   std::function<std::set<std::size_t>(std::size_t)> visit =
       [&](std::size_t id) {
         c.tick();
@@ -299,7 +307,19 @@ Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
             interfaces.push_back(result.anchors.at(leaf));
           boundary = call("union_axes", std::move(interfaces));
         }
+        if (has_domains && n.definition)
+          boundary = call("union_axes", {boundary, independent_axes});
         result.boundaries[id] = boundary;
+        std::vector<S> input_frames;
+        for (auto leaf : leaves)
+          input_frames.push_back(result.anchors.at(leaf));
+        result.interfaces[id] =
+            id == c.plan.rhs
+                ? lhs.axes
+                : call("concat",
+                       {c.filter(lhs.axes, boundary),
+                        c.filter(call("union_axes", std::move(input_frames)),
+                                 c.difference(boundary, lhs.axes))});
         return leaves;
       };
   visit(c.plan.rhs);

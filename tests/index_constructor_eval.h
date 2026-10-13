@@ -78,6 +78,29 @@ struct ConstructorEvaluator {
       throw std::runtime_error("unresolved constructor");
     const auto& n = s.name;
     if (n == "empty_axes") return Coordinates{};
+    if (n == "place_axes") {
+      auto left = std::get<Coordinates>(args[0]),
+           right = std::get<Coordinates>(args[2]);
+      auto positions = std::get<List>(args[1]);
+      if (!valid(positions, left.size() + right.size()) ||
+          positions.size() != left.size())
+        throw std::runtime_error("invalid axis placement");
+      Coordinates result(left.size() + right.size());
+      std::vector<bool> occupied(result.size());
+      for (std::size_t i = 0; i < left.size(); ++i) {
+        result[positions[i]] = left[i];
+        occupied[positions[i]] = true;
+      }
+      std::size_t next = 0;
+      for (std::size_t i = 0; i < result.size(); ++i)
+        if (!occupied[i]) result[i] = right[next++];
+      return result;
+    }
+    if (n == "is_valid_extents") {
+      auto domain = std::get<List>(args[0]);
+      return std::all_of(domain.begin(), domain.end(),
+                         [](auto n) { return n >= 0; });
+    }
     if (n == "len") return length(args[0]);
     if (n == "index")
       return std::get<List>(args[0]).at(std::get<std::int64_t>(args[1]));

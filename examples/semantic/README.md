@@ -291,7 +291,7 @@ so they cannot be relied upon to discharge a proof obligation.
 
 Required `index[]` fields, fixed operand arity, and the scalar primitives
 `Operand`, `Const`, `Add`, `Product`, and `Reduce`
-form the initial operation fragment. Broadcasting, reshape, affine indexing,
+form the initial operation fragment. Size-one expansion, reshape, affine indexing,
 value-dependent domains, and general host semantics are deferred.
 
 ## Constants and cancellation
@@ -325,6 +325,52 @@ Constant reductions retain their domains: `Reduce(K, Const(1))` counts the
 coordinates in K, and is not simplified to one. General ambiguous occurrence
 matching, symbolic cardinality simplification, and rational constants are not
 implemented. Arithmetic cancellation requires the algebraic policy.
+
+## Explicit broadcasting
+
+`broadcast_in_dim` (alias `broadcast`) inserts axes while preserving every
+existing dimension's extent. Its attributes are:
+
+- `dimensions`: input axis i maps to output position `dimensions[i]`.
+- `new_extents`: extents for unoccupied output positions, in increasing position order.
+
+For input shape `[2,3]`, `dimensions=[2,0]` and `new_extents=[5,7]` produce
+shape `[3,5,2,7]`. The mapping is a distinct, in-range injection and may reorder
+input axes. It does not expand an existing extent of one. This is TEPL's
+restricted definition, not a complete StableHLO broadcast implementation.
+
+The dialect uses generic axis primitives:
+
+```tepl
+axes {
+    bind S { input: all_axes(input) };
+    bind N = group(attrs.new_extents);
+    yield place(S, attrs.dimensions, N);
+}
+semantics { yield input; }
+```
+
+`group(extents)` declares fresh axes with explicit nonnegative extents, including
+zero. `place(S,p,N)` places S at positions p and fills the remaining positions
+with N in order. Output coordinates may be independent of the scalar value;
+that property propagates through consumers. Tensor operand alignment remains
+explicit, so ordinary `add` does not acquire implicit broadcasting.
+
+```sh
+bazel run //:tepl -- check examples/semantic/rules/broadcast.tepl --rule broadcast_compose
+```
+
+The three structural examples prove under strict policy. Composition constructs
+`dimensions = gather(@outer.dimensions, @inner.dimensions)`. New extents are
+collected and reordered using their positions in the final output. Transpose
+before or after broadcast also lowers to one inferred broadcast.
+
+RHS output-only coordinates are matched to the required interface by position.
+Equal extents alone never identify axes. A separate verifier reconstructs the
+RHS and checks mappings, domains, output order, shape, dtype, and legality.
+General synthesis with multiple output-only groups and arbitrary interface
+changes remains limited. Reducing an inserted axis retains a reduction in the
+semantic graph; the symbolic cardinality scaling law is deferred.
 
 ## Implementation and verification
 

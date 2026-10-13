@@ -279,6 +279,18 @@ S Context::selectKnown(const S& x, const S& q, QueryMode mode) {
   if (callIs(q, "range") &&
       query(call("==", {q->args[0], call("len", {x})}), mode))
     return x;
+  auto inserted = [&](auto&& self, const S& a) -> bool {
+    if (callIs(a, "place_axes")) return true;
+    if (callIs(a, "gather")) return self(self, a->args[0]);
+    return false;
+  };
+  if (inserted(inserted, x) && x->sort == Symbol::Sort::Axes &&
+      callIs(q, "ordered_complement") &&
+      equal(q->args[0], canonical(call("range", {call("len", {x})}))) &&
+      query(call("is_valid_axis_list", {q->args[1], call("len", {x})}), mode)) {
+    auto removed = select(x, q->args[1], mode);
+    return call("filter_axes", {x, difference(x, removed, mode)});
+  }
   auto permutation = [&](const S& p) {
     return query(call("axis_partition", {p, call("len", {p})}), mode);
   };
@@ -346,7 +358,7 @@ S Context::selectKnown(const S& x, const S& q, QueryMode mode) {
     if (equal(x, it->interface) && equal(q, canonical(it->positions)))
       return canonical(it->group);
   if (callIs(q, "positions") && equal(x, q->args[0])) return q->args[1];
-  if (callIs(q, "ordered_complement") &&
+  if (x->sort == Symbol::Sort::Axes && callIs(q, "ordered_complement") &&
       equal(q->args[0], canonical(call("range", {call("len", {x})}))) &&
       query(call("is_valid_axis_list", {q->args[1], call("len", {x})}), mode)) {
     auto removed = select(x, q->args[1], mode);

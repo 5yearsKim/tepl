@@ -108,6 +108,41 @@ S Context::complementBlocks(const S& universe, const S& excluded) {
   return call("ordered_complement", {universe, excluded});
 }
 S Context::sequenceEquality(const S& a, const S& b) {
+  for (const auto& [placed, interface] : {std::pair{a, b}, std::pair{b, a}}) {
+    if (!callIs(placed, "place_axes") || interface->sort != Symbol::Sort::Axes)
+      continue;
+    auto source = placed->args[0], selector = placed->args[1],
+         extra = placed->args[2];
+    if (!evidence(call("distinct_axes", {interface})) ||
+        !evidence(call("subset", {source, interface})) ||
+        !equal(canonical(selector),
+               canonical(positions(interface, source, QueryMode::Evidence))))
+      continue;
+    auto rest = call("ordered_complement",
+                     {call("range", {call("len", {interface})}), selector});
+    auto expected = select(interface, rest, QueryMode::Evidence);
+    auto extra_positions = positions(interface, extra, QueryMode::Evidence);
+    auto ordered_extra = orderedPositions(extra_positions);
+    if (callIs(extra_positions, "gather") &&
+        callIs(extra_positions->args[1], "order_positions") &&
+        equal(extra_positions->args[0], extra_positions->args[1]->args[0]))
+      ordered_extra =
+          evidence(call("is_valid_axis_list", {extra_positions->args[0],
+                                               call("len", {interface})})) ||
+          (callIs(extra, "gather") &&
+           evidence(call("distinct_axes", {extra->args[0]})) &&
+           evidence(call("subset", {extra->args[0], interface})) &&
+           mappedPositions(interface, extra->args[0]) &&
+           equal(extra_positions->args[0],
+                 mappedPositions(interface, extra->args[0])));
+    if (equal(canonical(extra), canonical(expected)) ||
+        (ordered_extra && evidence(call("same_set", {extra, expected})) &&
+         evidence(call("distinct_axes", {extra})))) {
+      note("axis-insertion");
+      return boolean(true);
+    }
+  }
+
   // Two selections of the same distinct frame agree in order when both
   // traverse that frame monotonically and contain the same coordinates.
   if (a->sort == Symbol::Sort::Axes && b->sort == Symbol::Sort::Axes &&
@@ -374,6 +409,8 @@ S Context::computeSupport(const S& a, QueryMode mode) {
     auto covered = canonical(found);
     if (!equal(x, covered)) return support(covered, mode);
   }
+  if (callIs(x, "place_axes"))
+    return support(call("concat", {x->args[0], x->args[2]}), mode);
   if (callIs(x, "unique_axes")) return support(x->args[0], mode);
   if (callIs(x, "difference_axes"))
     return difference(x->args[0], x->args[1], mode);
@@ -477,6 +514,12 @@ S Context::filter(const S& order, const S& wanted, QueryMode mode) {
   if (callIs(overlap, "empty_axes")) return overlap;
   if (equal(overlap, support(o, mode))) return o;
   w = overlap;
+  // A set union is not an ordered indexing base. When its components are
+  // disjoint, their concatenation is a valid coordinate sequence to reorder.
+  if (callIs(w, "union_axes")) {
+    auto sequence = call("concat", w->args);
+    if (query(call("distinct_axes", {sequence}), mode)) w = sequence;
+  }
   auto p = positions(o, w, mode);
   if (callIs(p, "ordered_complement") || callIs(p, "range"))
     return select(o, p, mode);
@@ -487,6 +530,34 @@ S Context::filter(const S& order, const S& wanted, QueryMode mode) {
 }
 S Context::extents(const S& axes) {
   tick();
+  if (callIs(axes, "filter_axes")) {
+    auto group = axes->args[1];
+    if (callIs(group, "union_axes")) group = call("concat", group->args);
+    // Reuse coordinate maps rather than expand whole-tensor shape gathers.
+    // Restrict this fast path to direct coordinate groups and their selections.
+    auto simple = [&](auto&& self, const S& x) -> bool {
+      if (callIs(x, "empty_axes")) return true;
+      if (x->kind == Symbol::Kind::AxisGroup) {
+        const auto& n = plan.nodes.at(x->owner);
+        return n.definition && x->index < n.definition->groups.size() &&
+               bool(n.definition->groups[x->index].domain);
+      }
+      if (callIs(x, "gather")) return self(self, x->args[0]);
+      if (callIs(x, "concat")) {
+        for (const auto& a : x->args)
+          if (!self(self, a)) return false;
+        return true;
+      }
+      return false;
+    };
+    if (simple(simple, group)) {
+      auto p = mappedPositions(axes->args[0], group);
+      if (p && evidence(call("distinct_axes", {group})) &&
+          evidence(call("subset", {group, axes->args[0]})))
+        return canonical(
+            call("gather", {extents(group), call("order_positions", {p})}));
+    }
+  }
   for (auto it = selected_extents_.rbegin(); it != selected_extents_.rend();
        ++it) {
     if (equal(axes, it->first)) return it->second;
@@ -496,6 +567,14 @@ S Context::extents(const S& axes) {
       return it->second;
   }
   if (axes->kind == Symbol::Kind::AxisGroup) return axes->args[0];
+  if (callIs(axes, "place_axes")) {
+    auto left = extents(axes->args[0]), right = extents(axes->args[2]);
+    auto rest = call("ordered_complement",
+                     {call("range", {call("len", {axes})}), axes->args[1]});
+    return call("gather",
+                {call("concat", {left, right}),
+                 call("inverse", {call("concat", {axes->args[1], rest})})});
+  }
   if (callIs(axes, "empty_axes")) return make(Symbol::Kind::List);
   if (callIs(axes, "concat")) {
     std::vector<S> out;

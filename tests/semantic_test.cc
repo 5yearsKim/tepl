@@ -464,9 +464,12 @@ void symbolicTests() {
   alternate = replace(alternate, "op add(", "op other_add(");
   alternate = replace(alternate, "op multiply(", "op other_multiply(");
   alternate = replace(alternate, "alias: mul;", "alias: other_mul;");
+  alternate =
+      replace(alternate, "alias: broadcast;", "alias: other_broadcast;");
   alternate = replace(alternate, "op transpose(", "op other_transpose(");
   alternate = replace(alternate, "op reduce_sum(", "op other_sum(");
-  for (const auto* name : {"negate", "subtract", "zero_like"})
+  for (const auto* name :
+       {"negate", "subtract", "zero_like", "broadcast_in_dim"})
     alternate = replace(alternate, std::string("op ") + name + "(",
                         std::string("op other_") + name + "(");
   alternate = replace(alternate, "alias: dot;", "alias: other;");
@@ -940,6 +943,151 @@ void scalarTests() {
   }
 }
 
+Dense broadcast(const Dense& input, const List& positions,
+                const List& extents) {
+  expect(positions.size() == input.shape.size(), "reference broadcast arity");
+  auto rank = input.shape.size() + extents.size();
+  expect(tepl::test::ConstructorEvaluator::valid(positions, rank),
+         "reference broadcast injection");
+  Dense out;
+  out.shape.resize(rank);
+  for (std::size_t i = 0; i < input.shape.size(); ++i)
+    out.shape[positions[i]] = input.shape[i];
+  auto added = remaining(rank, positions);
+  for (std::size_t i = 0; i < added.size(); ++i) {
+    expect(extents[i] >= 0, "reference broadcast extents");
+    out.shape[added[i]] = extents[i];
+  }
+  indices(out.shape, [&](const List& output) {
+    List index;
+    for (auto p : positions) index.push_back(output[p]);
+    out.values.push_back(input.at(index));
+  });
+  return out;
+}
+void broadcastTests() {
+  auto compose = symbolicPlan(
+      "rule r {(broadcast[@outer] (broadcast[@inner] A)) => (broadcast[auto] "
+      "A)}",
+      false);
+  auto after = symbolicPlan(
+      "rule r {(transpose[@p] (broadcast[@b] A)) => (broadcast[auto] A)}",
+      false);
+  auto before = symbolicPlan(
+      "rule r {(broadcast[@b] (transpose[@p] A)) => (broadcast[auto] A)}",
+      false);
+  auto triple = symbolicPlan(
+      "rule r {(broadcast[@outer] (broadcast[@middle] (broadcast[@inner] A))) "
+      "=> (broadcast[auto] A)}",
+      false);
+  proved(compose);
+  proved(after);
+  proved(before);
+  proved(triple);
+  proved(
+      symbolicPlan("rule r {(transpose[@p] (broadcast[@b] A)) => "
+                   "(transpose[auto] (broadcast[auto] A))}",
+                   false));
+  proved(
+      symbolicPlan("rule r {(add (broadcast[@b] A) (broadcast[@b] B)) => (add "
+                   "(broadcast[auto] A) (broadcast[auto] B))}"));
+  auto renamed = replace(dialect, "op broadcast_in_dim(", "op expand(");
+  renamed = replace(renamed, "alias: broadcast;", "alias: spread;");
+  renamed = replace(renamed, "new_extents", "added_sizes");
+  proved(symbolicPlan(
+      "rule r {(spread[@outer] (spread[@inner] A)) => (spread[auto] A)}", false,
+      renamed));
+  proved(
+      symbolicPlan("rule r {(broadcast[@b] (zero_like A)) => (zero_like "
+                   "(broadcast[auto] A))}"));
+  expect(symbolicPlan("rule r {(broadcast[@b] A) => A}", false).proof.status ==
+             ProofStatus::Unknown,
+         "broadcast cannot be discarded without an interface restriction");
+  auto corrupt = compose.proof;
+  corrupt.constructors.begin()->second[0] =
+      make(Symbol::Kind::List, {}, 0, 0, {integer(0), integer(0)});
+  expect(verify(compose, corrupt).status == ProofStatus::Unknown,
+         "independent verifier rejects non-injective broadcast mapping");
+  corrupt = compose.proof;
+  corrupt.constructors.begin()->second[1] =
+      make(Symbol::Kind::List, {}, 0, 0, {make(Symbol::Kind::Integer, "-1")});
+  expect(verify(compose, corrupt).status == ProofStatus::Unknown,
+         "independent verifier rejects negative extents");
+  error(
+      "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)}; bind "
+      "N=group(2); yield S++N;} semantics {yield x;}}}",
+      "incorrect axis expression type");
+  error(
+      "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)}; bind "
+      "N=shape(x); yield S++N;} semantics {yield x;}}}",
+      "group(extents)");
+  error(
+      "dialect D {op f(a:tensor,b:tensor)->tensor {axes {bind I "
+      "{a:all_axes(a)}; bind J {b:all_axes(b)}; yield I++J;} semantics {yield "
+      "Add(a,b);}}}",
+      "Add operands must have identical");
+  auto witness = [&](const Plan& plan, const Metadata& metadata,
+                     const Dense& lhs) {
+    tepl::test::ConstructorEvaluator eval(metadata, plan);
+    auto constructor = plan.proof.constructors.begin()->second;
+    auto dimensions = std::get<List>(eval.eval(constructor[0]));
+    auto extents = std::get<List>(eval.eval(constructor[1]));
+    auto rhs = broadcast(data(metadata.shapes[0], 1), dimensions, extents);
+    equal(lhs, rhs);
+    expect(eval.eval(plan.proof.lhs_axes) == eval.eval(plan.proof.rhs_axes),
+           "broadcast proof output coordinate ordering specializes correctly");
+  };
+  for (const List& shape : {List{}, List{2}, List{2, 3}, List{2, 2},
+                            List{2, 1, 3}, List{2, 0, 3}}) {
+    auto input = data(shape, 1);
+    for (const List& added :
+         {List{}, List{1}, List{4, 2}, List{2, 3}, List{0}}) {
+      auto rank = shape.size() + added.size();
+      List positions(shape.size());
+      // Interleave newly inserted axes with input axes, then reverse input
+      // order.
+      List slots(rank);
+      std::iota(slots.begin(), slots.end(), 0);
+      std::rotate(slots.begin(), slots.begin() + (rank ? rank / 2 : 0),
+                  slots.end());
+      std::copy_n(slots.begin(), shape.size(), positions.begin());
+      std::reverse(positions.begin(), positions.end());
+      auto first = broadcast(input, positions, added);
+      List permutation(rank);
+      std::iota(permutation.begin(), permutation.end(), 0);
+      std::reverse(permutation.begin(), permutation.end());
+      witness(after, {{shape}, {{0, {permutation}}, {1, {positions, added}}}},
+              transpose(first, permutation));
+      List input_permutation(shape.size());
+      std::iota(input_permutation.begin(), input_permutation.end(), 0);
+      std::reverse(input_permutation.begin(), input_permutation.end());
+      witness(before,
+              {{shape}, {{0, {positions, added}}, {1, {input_permutation}}}},
+              broadcast(transpose(input, input_permutation), positions, added));
+      auto second_added = List{2, 1};
+      List second_positions(rank);
+      std::iota(second_positions.begin(), second_positions.end(), 1);
+      std::reverse(second_positions.begin(), second_positions.end());
+      auto second = broadcast(first, second_positions, second_added);
+      witness(
+          compose,
+          {{shape},
+           {{0, {second_positions, second_added}}, {1, {positions, added}}}},
+          second);
+      List third_positions(second.shape.size());
+      std::iota(third_positions.begin(), third_positions.end(), 0);
+      std::reverse(third_positions.begin(), third_positions.end());
+      auto third = broadcast(second, third_positions, {2});
+      witness(triple,
+              {{shape},
+               {{0, {third_positions, {2}}},
+                {1, {second_positions, second_added}},
+                {2, {positions, added}}}},
+              third);
+    }
+  }
+}
+
 void axisAndMultiplyTests() {
   auto merge = symbolicPlan(
       "rule r {(reduce_sum[@outer] (reduce_sum[@inner] A)) => "
@@ -1096,6 +1244,7 @@ int main(int argc, char** argv) {
     contextStateTests();
     axisAndMultiplyTests();
     scalarTests();
+    broadcastTests();
     const std::string distribute =
         "rule r { (dot[@d] (add A B) C) => (add (dot[auto] A C) (dot[auto] B "
         "C)) }";

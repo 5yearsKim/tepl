@@ -89,6 +89,10 @@ S AxisBindings::lookup(
     decltype(id) value;
     ~Pop() { ids.erase(value); }
   } pop{active, id};
+  if (callIs(group, "gather") && callIs(group->args[0], "concat")) {
+    if (auto parent = lookup(interface, group->args[0], active))
+      return compose(parent, group->args[1]);
+  }
   if (callIs(group, "concat")) {
     std::vector<S> parts;
     for (const auto& g : group->args) {

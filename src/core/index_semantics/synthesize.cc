@@ -49,6 +49,18 @@ struct Constructor {
       if (!signatures.emplace(incidence, reduced.contains(g)).second)
         throw ProofFailure(
             "multiple binding groups share an unresolved incidence class");
+      if (group.domain) {
+        if (!incidence.empty())
+          throw ProofFailure("explicit domain groups cannot bind operands");
+        std::vector<S> operand_axes;
+        for (const auto& input : inputs) operand_axes.push_back(input.axes);
+        auto wanted = c.difference(match.boundaries.at(id),
+                                   call("union_axes", std::move(operand_axes)));
+        auto order = c.filter(match.interfaces.at(id), wanted);
+        assign(*group.domain, n, inputs, groups, c.extents(order));
+        groups.push_back(order);
+        continue;
+      }
       S wanted;
       for (auto o : incidence)
         wanted = wanted ? c.intersect(wanted, inputs[o].interface.axes)
@@ -101,6 +113,15 @@ struct Constructor {
     // the root and at internal reindexings with the same complete interface.
     std::function<void(const Meta&)> output = [&](const Meta& m) {
       if (m.kind != Meta::Kind::Call) return;
+      if (m.name == "place") {
+        auto left = lowerer.metadata(*m.args[0], n, inputs, groups);
+        auto right = lowerer.metadata(*m.args[2], n, inputs, groups);
+        auto desired = match.interfaces.at(id);
+        c.require(call("same_set", {call("concat", {left, right}), desired}));
+        auto p = lowerer.metadata(*m.args[1], n, inputs, groups);
+        if (containsHole(p))
+          assign(*m.args[1], n, inputs, groups, c.positions(desired, left));
+      }
       if (m.name == "permute") {
         auto p = lowerer.metadata(*m.args[1], n, inputs, groups);
         if (containsHole(p)) {
@@ -144,6 +165,7 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
     std::vector<S> all;
     for (const auto& t : lt) all.push_back(t.reductions);
     Lowerer target{c, &match.anchors};
+    target.interfaces = &match.interfaces;
     Constructor ctor{c, target, match, lhs,
                      call("unique_axes", {call("concat", std::move(all))})};
     auto rhs = ctor.build(plan.rhs);
@@ -160,7 +182,9 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
         for (std::size_t f = 0; f < n.definition->fields.size(); ++f) {
           auto value = c.canonical(c.field(n, f));
           c.validateSource(value);
-          if (value->sort != Symbol::Sort::Positions)
+          if (value->sort != Symbol::Sort::Positions &&
+              !(n.definition->extent_fields.contains(f) &&
+                value->sort == Symbol::Sort::Extents))
             throw ProofFailure(
                 "attribute constructor is not a position sequence");
           fields.push_back(value);

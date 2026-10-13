@@ -21,8 +21,8 @@ sh_test(
     name = "semantic_cli_test",
     size = "small",
     srcs = ["semantic_cli_test.sh"],
-    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/rules/algebraic.tepl)", "$(rootpath //:examples/semantic/rules/scalars.tepl)"],
-    data = ["//:tepl", "//:examples/semantic/rules/algebraic.tepl", "//:examples/semantic/rules/scalars.tepl", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/rules/algebraic.tepl)", "$(rootpath //:examples/semantic/rules/scalars.tepl)", "$(rootpath //:examples/semantic/rules/broadcast.tepl)"],
+    data = ["//:tepl", "//:examples/semantic/rules/algebraic.tepl", "//:examples/semantic/rules/scalars.tepl", "//:examples/semantic/rules/broadcast.tepl", "//:examples/semantic/dialects/tensor.tepl"],
 )
 
 cc_test(

@@ -29,6 +29,9 @@ std::any AstBuilder::visitAxesProperty(Parser::AxesPropertyContext* context) {
         bind.bindings.push_back(
             {getSpan(binding), binding->ID()->getText(),
              std::any_cast<ast::MetadataExprPtr>(visit(binding->shapeExpr()))});
+      if (statement->shapeExpr())
+        bind.domain =
+            std::any_cast<ast::MetadataExprPtr>(visit(statement->shapeExpr()));
       result.statements.push_back(std::move(bind));
     }
   }

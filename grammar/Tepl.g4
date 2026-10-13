@@ -76,7 +76,7 @@ axesProperty
 axisStatement
     : shapeStatement
     | {getCurrentToken()->getText() == "bind"}? ID ID
-      '{' axisBinding (',' axisBinding)* '}' ';'
+      ('{' axisBinding (',' axisBinding)* '}' | '=' shapeExpr) ';'
     ;
 
 axisBinding

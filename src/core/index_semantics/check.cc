@@ -45,6 +45,11 @@ struct Checker {
     if (name == "shape") return signature({Type::Operand}, Type::Positions);
     if (name == "ordered_complement")
       return signature({Type::Positions, Type::Positions}, Type::Positions);
+    if (name == "gather")
+      return signature({Type::Positions, Type::Positions}, Type::Positions);
+    if (name == "range") return signature({Type::Integer}, Type::Positions);
+    if (name == "place")
+      return signature({Type::Axes, Type::Positions, Type::Axes}, Type::Axes);
     if (name == "permute")
       return signature({Type::Axes, Type::Positions}, Type::Axes);
     if (name == "is_valid_axis_list")
@@ -210,10 +215,11 @@ struct Checker {
     if (m.kind == Meta::Kind::Group) return {m.index};
     std::set<std::size_t> out;
     if (m.kind != Meta::Kind::Call ||
-        (m.name != "concat" && m.name != "permute"))
+        (m.name != "concat" && m.name != "permute" && m.name != "place"))
       fail("output must be groups, concatenations, or permutations");
     auto count = m.name == "permute" ? std::size_t{1} : m.args.size();
     for (std::size_t i = 0; i < count; ++i) {
+      if (m.name == "place" && i == 1) continue;
       auto part = outputGroups(*m.args[i]);
       for (auto g : part)
         if (!out.insert(g).second) fail("output repeats a logical group");
@@ -263,6 +269,15 @@ struct Checker {
             operands.contains(b.name))
           fail("duplicate axes name '" + b.name + "'");
         Group g{b.name, {}, at};
+        if (b.domain) {
+          const auto* call = std::get_if<ast::MetadataCall>(&b.domain->value);
+          if (!call || call->callee != "group" || call->arguments.size() != 1)
+            fail("an output-only binding requires group(extents)");
+          g.domain = metadata(*call->arguments[0]);
+          type(g.domain, Type::Positions);
+          if (g.domain->kind == Meta::Kind::Attribute)
+            result.extent_fields.insert(g.domain->index);
+        }
         std::set<std::size_t> seen;
         for (const auto& binding : b.bindings) {
           at = detail::origin(source, binding.span);
@@ -293,8 +308,16 @@ struct Checker {
         fail(
             "output groups must be exactly the free groups of semantics; "
             "output contains a reduced group");
-    if (!constantValue(*result.value) && free(*result.value) != output)
-      fail("output groups must be exactly the free groups of semantics");
+    auto dependencies = free(*result.value);
+    for (auto g : dependencies)
+      if (!output.contains(g))
+        fail(
+            "output groups must be exactly the free groups of semantics; "
+            "missing a dependent group");
+    for (auto g : output)
+      if (!dependencies.contains(g) && !constantValue(*result.value) &&
+          !result.groups[g].domain)
+        fail("unused output groups require explicit extent domains");
     for (std::size_t o = 0; o < operation.operands.size(); ++o) {
       bool bound = false;
       for (const auto& g : result.groups)

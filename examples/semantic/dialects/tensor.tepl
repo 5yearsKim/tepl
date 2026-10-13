@@ -17,6 +17,8 @@
 // stores the equally long ordered list of physical positions. Group lengths
 // may be symbolic; groups can be empty and are never flattened into one axis.
 // Members remain individually selectable, so later operations may split groups.
+// bind N = group(extents) declares fresh axes without an operand binding.
+// place(S,p,N) puts S at positions p and fills the remaining positions with N.
 // Batching/contraction/free are local roles, not permanent types of an axis.
 //
 // Generic checks supplied by the axes block:
@@ -157,6 +159,24 @@ dialect TensorLang {
         // I = [i]         [0]              --                  [1]
         // J = [j]         --               [1]                 [2]
         // out[b,i,j] = sum(k0,k1) lhs[i,k0,b,k1] * rhs[k1,j,k0,b].
+    }
+
+    // Insert axes only. Existing dimensions retain their extents. The mapping
+    // is an ordered injection and may also reorder existing axes.
+    // new_extents follows the increasing order of unoccupied output positions.
+    op broadcast_in_dim(input: tensor) -> tensor {
+        alias: broadcast;
+        attrs {
+            dimensions: index[];
+            new_extents: index[];
+        }
+        dtype(t) { yield t; }
+        axes {
+            bind S { input: all_axes(input) };
+            bind N = group(attrs.new_extents);
+            yield place(S, attrs.dimensions, N);
+        }
+        semantics { yield input; }
     }
 
     op transpose(input: tensor) -> tensor {

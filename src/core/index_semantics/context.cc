@@ -97,9 +97,15 @@ void Context::wellFormed(const S& s) {
     validated_expressions_[s.get()] = s;
     return;
   }
-  static const std::set<std::string> unary{
-      "len",           "range",        "inverse", "unique_axes",
-      "distinct_axes", "axis_extents", "!",       "order_positions"};
+  static const std::set<std::string> unary{"len",
+                                           "range",
+                                           "inverse",
+                                           "unique_axes",
+                                           "distinct_axes",
+                                           "is_valid_extents",
+                                           "axis_extents",
+                                           "!",
+                                           "order_positions"};
   static const std::set<std::string> binary{"gather",
                                             "offset_positions",
                                             "ordered_complement",
@@ -126,7 +132,8 @@ void Context::wellFormed(const S& s) {
                                             ">=",
                                             "&&",
                                             "||"};
-  static const std::set<std::string> ternary{"replace_axes", "slice", "if"};
+  static const std::set<std::string> ternary{"replace_axes", "slice", "if",
+                                             "place_axes"};
   if ((unary.contains(s->name) && s->args.size() != 1) ||
       (binary.contains(s->name) && s->args.size() != 2) ||
       (ternary.contains(s->name) && s->args.size() != 3))
@@ -143,6 +150,11 @@ void Context::wellFormed(const S& s) {
       if (argument->sort != Symbol::Sort::Positions)
         throw ProofFailure(
             "paired position selection requires position sequences");
+  if (s->name == "place_axes") {
+    require(call("is_valid_axis_list", {s->args[1], call("len", {s})}));
+    require(call("==", {call("len", {s->args[1]}), call("len", {s->args[0]})}));
+    require(call("distinct_axes", {call("concat", {s->args[0], s->args[2]})}));
+  }
   if (s->name == "inverse")
     require(
         call("is_valid_axis_list", {s->args[0], call("len", {s->args[0]})}));

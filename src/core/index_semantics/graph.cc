@@ -19,6 +19,14 @@ S Lowerer::metadata(const Meta& m, const Instance& n,
   if (m.kind == Meta::Kind::List)
     return make(Symbol::Kind::List, {}, 0, 0, std::move(args));
   if (m.name == "shape") return args[0];
+  if (m.name == "place") {
+    if (args[0]->sort == Symbol::Sort::Axes) return call("place_axes", args);
+    auto base = call("concat", {args[0], args[2]});
+    auto rest = call("ordered_complement",
+                     {call("range", {call("len", {base})}), args[1]});
+    return context.canonical(call(
+        "gather", {base, call("inverse", {call("concat", {args[1], rest})})}));
+  }
   if (m.name == "rank") return call("len", args);
   if (m.name == "all_axes") return call("range", {call("len", args)});
   return context.canonical(
@@ -144,6 +152,51 @@ E Lowerer::value(const Value& v, const std::vector<TensorMeaning>& inputs,
   return expression(k, std::move(args),
                     v.kind == Value::Kind::Reduce ? groups.at(v.index) : S{});
 }
+std::map<std::size_t, S> Lowerer::outputPositions(
+    const Meta& output, const Instance& n,
+    const std::vector<TensorMeaning>& inputs, const std::vector<S>& groups) {
+  using OutputMaps = std::pair<S, std::map<std::size_t, S>>;
+  std::function<OutputMaps(const Meta&)> outputMaps = [&](const Meta& m) {
+    if (m.kind == Meta::Kind::Group) {
+      auto size = call("len", {groups[m.index]});
+      return OutputMaps{size, {{m.index, call("range", {size})}}};
+    }
+    if (m.name == "place") {
+      auto left = outputMaps(*m.args[0]), right = outputMaps(*m.args[2]);
+      auto p = metadata(*m.args[1], n, inputs, groups);
+      auto rest =
+          call("ordered_complement",
+               {call("range", {call("+", {left.first, right.first})}), p});
+      for (auto& [g, positions] : left.second)
+        positions = equal(positions, call("range", {left.first}))
+                        ? p
+                        : call("gather", {p, positions});
+      for (auto& [g, positions] : right.second)
+        positions = equal(positions, call("range", {right.first}))
+                        ? rest
+                        : call("gather", {rest, positions});
+      left.second.insert(right.second.begin(), right.second.end());
+      left.first = call("+", {left.first, right.first});
+      return left;
+    }
+    if (m.name == "permute") {
+      auto result = outputMaps(*m.args[0]);
+      auto p = metadata(*m.args[1], n, inputs, groups);
+      for (auto& [g, positions] : result.second)
+        positions = call("gather", {call("inverse", {p}), positions});
+      return result;
+    }
+    OutputMaps result{integer(0), {}};
+    for (const auto& a : m.args) {
+      auto part = outputMaps(*a);
+      for (const auto& [g, positions] : part.second)
+        result.second[g] = call("offset_positions", {positions, result.first});
+      result.first = call("+", {result.first, part.first});
+    }
+    return result;
+  };
+  return outputMaps(output).second;
+}
 TensorMeaning Lowerer::operation(std::size_t id,
                                  std::vector<TensorMeaning> inputs) {
   context.tick();
@@ -159,6 +212,10 @@ TensorMeaning Lowerer::operation(std::size_t id,
       coordinates(inputs.size());
   for (std::size_t g = 0; g < n.definition->groups.size(); ++g) {
     S domain, axes;
+    if (n.definition->groups[g].domain) {
+      domain = metadata(*n.definition->groups[g].domain, n, inputs, groups);
+      obligations.push_back(call("is_valid_extents", {domain}));
+    }
     for (const auto& b : n.definition->groups[g].bindings) {
       auto p = metadata(*b.positions, n, inputs, groups);
       auto d = call("gather", {inputs[b.operand].shape, p});
@@ -179,6 +236,8 @@ TensorMeaning Lowerer::operation(std::size_t id,
       positions[b.operand].push_back(p);
     }
     if (!domain) throw ProofFailure("logical group has no operand domain");
+    if (anchors && !axes)
+      axes = make(Symbol::Kind::AxisGroup, "target-domain", id, g, {domain});
     if (!anchors) {
       // A consumer selects existing producer coordinates. Keep that view,
       // including partial selections crossing group boundaries, rather than
@@ -215,6 +274,25 @@ TensorMeaning Lowerer::operation(std::size_t id,
       coordinates[b.operand].push_back(axes);
     groups.push_back(axes);
     domains.push_back(domain);
+  }
+  if (anchors) {
+    bool needs_interface = false;
+    for (const auto& g : n.definition->groups)
+      needs_interface |= bool(g.domain);
+    if (needs_interface) {
+      if (!interfaces || !interfaces->contains(id))
+        throw ProofFailure(
+            "output-only axes require an established output interface");
+      auto maps = outputPositions(*n.definition->output, n, inputs, groups);
+      for (std::size_t g = 0; g < groups.size(); ++g)
+        if (n.definition->groups[g].domain) {
+          if (!maps.contains(g))
+            throw ProofFailure("output-only group is absent from output");
+          groups[g] = context.select(interfaces->at(id), maps.at(g));
+          obligations.push_back(
+              call("==", {context.extents(groups[g]), domains[g]}));
+        }
+    }
   }
   if (!anchors)
     for (std::size_t i = obligation_begin; i < obligations.size(); ++i)
@@ -266,6 +344,16 @@ TensorMeaning Lowerer::operation(std::size_t id,
     obligations.push_back(metadata(*a, n, inputs, groups));
   std::function<void(const Meta&)> outputChecks = [&](const Meta& m) {
     if (m.kind != Meta::Kind::Call) return;
+    if (m.name == "place") {
+      auto left = metadata(*m.args[0], n, inputs, groups),
+           right = metadata(*m.args[2], n, inputs, groups);
+      auto p = metadata(*m.args[1], n, inputs, groups);
+      obligations.push_back(
+          call("is_valid_axis_list",
+               {p, call("+", {call("len", {left}), call("len", {right})})}));
+      obligations.push_back(
+          call("==", {call("len", {p}), call("len", {left})}));
+    }
     if (m.name == "permute") {
       auto p = metadata(*m.args[1], n, inputs, groups),
            size = call("len", {metadata(*m.args[0], n, inputs, groups)});
@@ -280,14 +368,19 @@ TensorMeaning Lowerer::operation(std::size_t id,
   auto dt = dtype(n, inputs);
   auto body = value(*n.definition->value, inputs, groups);
   obligations.push_back(call("distinct_axes", {axes}));
+  auto hasConstant = [&](auto&& self, const E& e) -> bool {
+    if (e->kind == Expr::Kind::Const) return true;
+    for (const auto& a : e->args)
+      if (self(self, a)) return true;
+    return false;
+  };
+  bool independent_output = hasConstant(hasConstant, body);
+  for (const auto& g : n.definition->groups)
+    independent_output |= bool(g.domain);
+  for (const auto& input : inputs)
+    independent_output |= input.may_have_independent_axes;
   if (anchors) {
-    auto hasConstant = [&](auto&& self, const E& e) -> bool {
-      if (e->kind == Expr::Kind::Const) return true;
-      for (const auto& a : e->args)
-        if (self(self, a)) return true;
-      return false;
-    };
-    obligations.push_back(hasConstant(hasConstant, body)
+    obligations.push_back(independent_output
                               ? call("subset", {freeAxes(body), axes})
                               : call("same_set", {axes, freeAxes(body)}));
     obligations.push_back(call("==", {context.extents(axes), shape}));
@@ -306,32 +399,8 @@ TensorMeaning Lowerer::operation(std::size_t id,
     }
     context.learn(call("==", {context.extents(axes), shape}));
   }
-  // Output syntax is restricted to groups, concatenations and permutations.
-  // Reflect that syntax into maps directly instead of rediscovering it with
-  // general position lookup on deeply composed operand views.
-  using OutputMaps = std::pair<S, std::map<std::size_t, S>>;
-  std::function<OutputMaps(const Meta&)> outputMaps = [&](const Meta& m) {
-    if (m.kind == Meta::Kind::Group) {
-      auto size = call("len", {groups[m.index]});
-      return OutputMaps{size, {{m.index, call("range", {size})}}};
-    }
-    if (m.name == "permute") {
-      auto result = outputMaps(*m.args[0]);
-      auto p = metadata(*m.args[1], n, inputs, groups);
-      for (auto& [g, positions] : result.second)
-        positions = call("gather", {call("inverse", {p}), positions});
-      return result;
-    }
-    OutputMaps result{integer(0), {}};
-    for (const auto& a : m.args) {
-      auto part = outputMaps(*a);
-      for (const auto& [g, positions] : part.second)
-        result.second[g] = call("offset_positions", {positions, result.first});
-      result.first = call("+", {result.first, part.first});
-    }
-    return result;
-  };
-  auto output_mapping = outputMaps(*n.definition->output).second;
+  auto output_mapping =
+      outputPositions(*n.definition->output, n, inputs, groups);
   std::vector<S> free_groups, output_positions;
   for (std::size_t g = 0; g < groups.size(); ++g)
     if (output_mapping.contains(g)) {
@@ -339,6 +408,17 @@ TensorMeaning Lowerer::operation(std::size_t id,
       output_positions.push_back(context.canonical(output_mapping.at(g)));
     }
   context.partition(axes, free_groups, output_positions, !anchors);
+  if (anchors && interfaces && interfaces->contains(id)) {
+    bool output_only = false;
+    for (const auto& group : n.definition->groups)
+      output_only |= bool(group.domain);
+    if (output_only) {
+      auto required = interfaces->at(id);
+      context.require(call("==", {axes, required}), GuardKind::CoordinateOrder);
+      context.bind(axes, required, call("range", {call("len", {required})}));
+      context.bind(required, axes, call("range", {call("len", {axes})}));
+    }
+  }
   if (!anchors) {
     context.recordTensor(id, axes, groups);
   }
@@ -352,7 +432,8 @@ TensorMeaning Lowerer::operation(std::size_t id,
           dt,
           body,
           context.tensorInterface(axes),
-          std::move(occurrence_axes)};
+          std::move(occurrence_axes),
+          independent_output};
 }
 TensorMeaning Lowerer::lower(std::size_t id) {
   context.tick();
