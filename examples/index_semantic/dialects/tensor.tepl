@@ -75,6 +75,23 @@ dialect TensorLang {
         }
     }
 
+    // Elementwise multiplication with identical shapes; no broadcasting.
+    op multiply(lhs: tensor, rhs: tensor) -> tensor {
+        alias: mul;
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) };
+            yield S;
+        }
+        semantics {
+            yield Product(lhs, rhs);
+        }
+    }
+
     op dot_general(lhs: tensor, rhs: tensor) -> tensor {
         // TEPL shorthand, not a separate StableHLO dot operation.
         alias: dot;

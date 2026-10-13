@@ -14,3 +14,14 @@ rule transpose_compose {
     =>
     (transpose[auto] A)
 }
+
+rule merge_reductions {
+    (reduce_sum[@outer] (reduce_sum[@inner] A))
+    => (reduce_sum[auto] A)
+}
+
+// A corrective output transpose preserves the order of the retained axes.
+rule transpose_reduce {
+    (reduce_sum[@r] (transpose[@p] A))
+    => (transpose[auto] (reduce_sum[auto] A))
+}

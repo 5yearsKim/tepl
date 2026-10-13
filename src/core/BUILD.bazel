@@ -62,8 +62,31 @@ cc_library(
 
 cc_library(
     name = "index_proof",
-    srcs = ["index_semantics/expr.cc", "index_semantics/graph.cc", "index_semantics/normalize.cc", "index_semantics/routing.cc", "index_semantics/synthesize.cc", "index_semantics/verify.cc"],
-    hdrs = ["index_semantics/expr.h", "index_semantics/graph.h", "index_semantics/normalize.h", "index_semantics/routing.h", "index_semantics/synthesize.h", "index_semantics/verify.h"],
+    srcs = [
+        "index_semantics/axis_bindings.cc",
+        "index_semantics/axis_maps.cc",
+        "index_semantics/axis_normalize.cc",
+        "index_semantics/axis_theory.cc",
+        "index_semantics/axis_transport.cc",
+        "index_semantics/context.cc",
+        "index_semantics/expr.cc",
+        "index_semantics/graph.cc",
+        "index_semantics/normalize.cc",
+        "index_semantics/routing.cc",
+        "index_semantics/synthesize.cc",
+        "index_semantics/verify.cc",
+    ],
+    hdrs = [
+        "index_semantics/axis_bindings.h",
+        "index_semantics/context.h",
+        "index_semantics/expr.h",
+        "index_semantics/graph.h",
+        "index_semantics/normalize.h",
+        "index_semantics/proof_policy.h",
+        "index_semantics/routing.h",
+        "index_semantics/synthesize.h",
+        "index_semantics/verify.h",
+    ],
     deps = [":ir"],
     visibility = ["//visibility:public"],
 )

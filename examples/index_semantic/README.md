@@ -68,7 +68,8 @@ once. Empty groups and zero extents are supported.
 `axes`. `axes` yields output order and thereby determines shape. `semantics`
 yields the scalar value expression at those coordinates.
 
-See [TensorLang](dialects/tensor.tepl) for the four initial operations.
+See [TensorLang](dialects/tensor.tepl) for addition, elementwise multiplication,
+sum reduction, transpose, and generalized dot.
 
 ## Composed coordinate graph
 
@@ -92,6 +93,26 @@ Axis identities, physical positions, and extents have separate expression sorts.
 Selection and transport can split a group without enumerating its members at
 compilation. `positions(interface, group)` derives attribute lists; a permuted
 interface produces inverse-permutation remapping.
+
+The compiler records both directions of each established binding:
+
+```text
+positions(interface, group) = selector
+select(interface, selector) = group
+```
+
+Complete partitions also record how to select a group in the interface's
+physical order. When a read views a producer through a validated permutation,
+composition transports the consumer partition into that read's table. Each
+operand use has its own coordinate map; sharing a tensor does not merge its
+different accesses.
+
+Map simplification consults indexed bindings and recorded legality evidence.
+It does not launch general entailment recursively. Position, support, and
+evidence results are cached until bindings or premises change. General
+entailment has a bounded attempt; unresolved expressions remain conditions or
+produce `Unknown`. Full permutation cancellation requires legality evidence;
+a partial axis list cannot justify cancellation.
 
 The dump includes a coordinate frame, access maps, normalized computations,
 constructors, and guards. `m0`, `m1`, etc. are shared expression aliases. They
@@ -136,8 +157,11 @@ Renamed and structurally different operation definitions are tested.
 | --- | --- |
 | `distribute`, `distribute_explicit`, `sum_distribute` | Proved |
 | `transpose_compose` | Proved, including strict policy |
+| `merge_reductions`, `transpose_reduce` | Proved |
+| The four rules in [multiply.tepl](rules/multiply.tepl) | Proved |
 | `transpose_dot_lhs` | Proved; chooses an identity transpose witness |
 | `transpose_dot_cycle` | Conditional; rank and coordinate-order obligations |
+| `absorb_transpose`, `transpose_dot_swap` | Conditional |
 | `associate`, `associate_reverse`, `lora` | Conditional; sufficient routing guards |
 
 General coordinate construction is bounded. If it cannot establish a result,
@@ -147,6 +171,16 @@ groups according to the capture sets needed by RHS intermediates. This supports
 unbatched contractions with arbitrary-length free and contracting groups.
 It does not establish unrestricted batched reassociation or the weakest
 condition for arbitrary partial-group routing.
+
+The initial general construction attempt uses at most 100,000 work units.
+Conservative routing and independent verification retain the caller's work
+budget. Guard closure is bounded; optional guard minimization does not rerun
+verification on the compilation path.
+
+For internal profiling, set `TEPL_INDEX_PROFILE=1` when running the checker.
+It prints elapsed time and counters for each inference/verification context to
+stderr. Outer context times include any nested verification, so they should not
+be added together. Normal compiler output is unchanged.
 
 The host-copy fixture is in [unsupported/host_call.tepl](unsupported/host_call.tepl).
 It remains unknown because `$copy_permutation` has no semantic contract. The
@@ -190,7 +224,13 @@ The implementation lives in [`src/core/index_semantics`](../../src/core/index_se
 | File | Responsibility |
 | --- | --- |
 | `ir.h`, `check.cc`, `plan.cc` | Definitions, templates, declared assumptions |
-| `expr.cc` | Typed expressions, sequence theory, source scope |
+| `expr.cc` | Immutable typed expressions and unconditional sequence identities |
+| `context.h`, `context.cc` | Private rule state, source scope, attribute assignment, guards |
+| `axis_bindings.cc` | Coordinate tables and their lookup indexes |
+| `axis_maps.cc`, `axis_transport.cc` | Position lookup, selection, producer-consumer map composition |
+| `axis_normalize.cc` | Evidence-based normalization and axis-set operations |
+| `axis_theory.cc` | Fact registration, shared structural laws, bounded entailment |
+| `proof_policy.h` | Named work limits and expected inference failures |
 | `graph.cc` | Generic composition into coordinate primitives |
 | `normalize.cc` | Arithmetic normalization and intermediate boundaries |
 | `routing.cc` | Sufficient whole-group routing restrictions |
@@ -203,6 +243,17 @@ headers. `Plan::proof` stores the compiler result. Neither API takes concrete
 metadata. Verification shares semantic lowering and sequence theory with
 synthesis, but does not trust inferred coordinate annotations or claimed status.
 This is a checked implementation, not a mechanically proved theorem.
+
+Normalization consults established evidence; bounded entailment is a separate
+query. A failed query means the property remains unestablished. Mapping and
+attribute updates invalidate their associated caches through `Context` methods.
+Transport uses indexed snapshots of the relevant interfaces, so it can add
+bindings safely while iterating. Position lookup retains a fallback for records
+whose expressions have acquired equivalent canonical forms.
+
+Expected unsupported cases, exhausted budgets, and invalid proof candidates
+produce `Unknown` with diagnostics. Unexpected implementation exceptions
+propagate instead of being classified as unsupported inference.
 
 Tests independently interpret the metadata program and compare dense tensor
 results for matrices, multiple contracting axes, zero extents, transpose order,

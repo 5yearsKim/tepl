@@ -67,7 +67,7 @@ std::vector<S> routingGuard(const Plan& p, std::size_t max_work) {
   Lowerer evaluator{c};
   // Restrict shared, retained multiplicative groups to empty sequences. This
   // selects an unbatched fragment without constraining free/contraction ranks.
-  for (auto id : c.source_nodes) {
+  for (auto id : c.source().nodes) {
     const auto& n = p.nodes[id];
     if (!n.definition || reductions(*n.definition->value).empty() ||
         !product(*n.definition->value))
@@ -83,14 +83,14 @@ std::vector<S> routingGuard(const Plan& p, std::size_t max_work) {
   }
   evaluator.lower(p.lhs);
   bool routed = false;
-  for (auto id : c.source_nodes) {
+  for (auto id : c.source().nodes) {
     const auto& n = p.nodes[id];
     if (!n.definition) continue;
     auto bound = reductions(*n.definition->value);
     if (bound.empty() || !product(*n.definition->value)) continue;
     std::vector<TensorMeaning> inputs;
     for (std::size_t o = 0; o < n.inputs.size(); ++o)
-      inputs.push_back({{}, c.input_shapes.at(id)[o], {}, {}});
+      inputs.push_back({{}, c.source().input_shapes.at(id)[o], {}, {}});
     for (std::size_t o = 0; o < n.inputs.size(); ++o) {
       auto found = producer(p, n.inputs[o]);
       if (!found) continue;
@@ -121,14 +121,14 @@ std::vector<S> routingGuard(const Plan& p, std::size_t max_work) {
       auto child_bound = reductions(*child.definition->value);
       for (std::size_t g = 0; g < child.definition->groups.size(); ++g) {
         if (child_bound.contains(g)) continue;
-        auto axes = c.tensor_groups.at(*found)[g];
+        auto axes = c.source().tensor_groups.at(*found)[g];
         if (callIs(axes, "empty_axes")) continue;
         Captures support;
         for (const auto& b : child.definition->groups[g].bindings) {
           auto xs = captures(p, child.inputs[b.operand]);
           support.insert(xs.begin(), xs.end());
         }
-        auto positions = c.positions(c.tensor_axes.at(*found), axes);
+        auto positions = c.positions(c.source().tensor_axes.at(*found), axes);
         (subset(support, *target) ? consumed : retained).push_back(positions);
       }
       if (consumed.empty() || retained.empty()) continue;
@@ -142,7 +142,7 @@ std::vector<S> routingGuard(const Plan& p, std::size_t max_work) {
             if (!eliminate && n.definition->groups[g].bindings.size() != 1)
               continue;
             auto actual = evaluator.metadata(*b.positions, n, inputs,
-                                             c.tensor_groups.at(id));
+                                             c.source().tensor_groups.at(id));
             c.require(call("==", {actual, eliminate ? contraction : free}));
             did = true;
           }
@@ -150,6 +150,6 @@ std::vector<S> routingGuard(const Plan& p, std::size_t max_work) {
     }
   }
   if (!routed) return {};
-  return c.guards;
+  return c.guards();
 }
 }  // namespace tepl::core::index_semantics

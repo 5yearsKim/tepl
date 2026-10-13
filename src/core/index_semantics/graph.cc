@@ -25,11 +25,10 @@ S Lowerer::metadata(const Meta& m, const Instance& n,
       call(m.name == "permute" ? "gather" : m.name, std::move(args)));
 }
 S Lowerer::dtype(const Instance& n, const std::vector<TensorMeaning>& inputs) {
-  if (!n.dtype) throw std::runtime_error("missing symbolic dtype contract");
+  if (!n.dtype) throw ProofFailure("missing symbolic dtype contract");
   std::map<std::size_t, S> symbols;
   for (const auto& p : n.dtype->parameters) {
-    if (p.variadic)
-      throw std::runtime_error("variadic dtype parameter unsupported");
+    if (p.variadic) throw ProofFailure("variadic dtype parameter unsupported");
     symbols[p.symbol.value] = inputs.at(p.operand).dtype;
   }
   std::function<S(const metadata::Expr&)> eval =
@@ -68,7 +67,7 @@ S Lowerer::dtype(const Instance& n, const std::vector<TensorMeaning>& inputs) {
             return call("if", {eval(*v.condition), eval(*v.then_value),
                                eval(*v.else_value)});
           else
-            throw std::runtime_error(
+            throw ProofFailure(
                 "dtype comprehension is outside symbolic proof fragment");
         },
         e.value);
@@ -110,18 +109,9 @@ std::string show(const E& e) {
 }
 E Lowerer::rename(const E& e, const S& from, const S& to) {
   context.tick();
+  context.transportFrame(from, to);
   if (e->kind == Expr::Kind::Read) {
-    auto axes = context.replace(e->axes, from, to);
-    auto relations = context.wiring;
-    for (const auto& w : relations)
-      if (equal(w.interface, e->axes))
-        context.bind(axes, context.replace(w.group, from, to), w.positions);
-    auto cover = context.covers.find(key(e->axes));
-    if (cover != context.covers.end()) {
-      auto transported = context.replace(cover->second, from, to);
-      if (!equal(transported, axes) || !context.covers.contains(key(axes)))
-        context.covers[key(axes)] = transported;
-    }
+    auto axes = context.transportInterface(from, to, e->axes);
     // These are consequences of legal source coordinate composition.
     obligations.push_back(call("distinct_axes", {axes}));
     obligations.push_back(call(
@@ -151,7 +141,9 @@ TensorMeaning Lowerer::operation(std::size_t id,
   context.tick();
   const auto obligation_begin = obligations.size();
   if (!anchors) {
-    for (const auto& in : inputs) context.input_shapes[id].push_back(in.shape);
+    std::vector<S> shapes;
+    for (const auto& in : inputs) shapes.push_back(in.shape);
+    context.recordInputs(id, std::move(shapes));
   }
   const auto& n = context.plan.nodes.at(id);
   std::vector<S> groups, domains;
@@ -170,6 +162,7 @@ TensorMeaning Lowerer::operation(std::size_t id,
         domain = d;
       if (anchors) {
         auto selection = context.select(inputs[b.operand].axes, p);
+        context.selectionFacts(inputs[b.operand].axes, p, selection);
         if (axes)
           obligations.push_back(call("==", {axes, selection}));
         else
@@ -177,13 +170,12 @@ TensorMeaning Lowerer::operation(std::size_t id,
       }
       positions[b.operand].push_back(p);
     }
-    if (!domain)
-      throw std::runtime_error("logical group has no operand domain");
+    if (!domain) throw ProofFailure("logical group has no operand domain");
     if (!anchors)
       axes = make(Symbol::Kind::AxisGroup,
                   "n" + std::to_string(id) + "." + n.definition->groups[g].name,
                   id, g, {domain});
-    if (!anchors) context.coordinate_groups[{id, g}] = axes;
+    if (!anchors) context.registerCoordinates(id, g, axes);
     for (const auto& b : n.definition->groups[g].bindings)
       coordinates[b.operand].push_back(axes);
     groups.push_back(axes);
@@ -197,13 +189,15 @@ TensorMeaning Lowerer::operation(std::size_t id,
     obligations.push_back(
         call("axis_partition", {ps, call("len", {inputs[o].shape})}));
     if (!anchors) {
+      context.learn(obligations.back());
       auto layout = call("gather", {cs, call("inverse", {ps})});
+      context.partition(layout, coordinates[o], positions[o]);
       for (std::size_t g = 0; g < n.definition->groups.size(); ++g)
         for (const auto& b : n.definition->groups[g].bindings)
           if (b.operand == o)
             context.bind(layout, groups[g],
                          metadata(*b.positions, n, inputs, groups));
-      context.covers[key(layout)] = cs;
+      context.cover(layout, cs);
       inputs[o].value = rename(inputs[o].value, inputs[o].axes, layout);
       inputs[o].axes = layout;
     }
@@ -239,8 +233,7 @@ TensorMeaning Lowerer::operation(std::size_t id,
     context.learn(call("==", {context.extents(axes), shape}));
   }
   if (!anchors) {
-    context.tensor_axes[id] = axes;
-    context.tensor_groups[id] = groups;
+    context.recordTensor(id, axes, groups);
   }
   return {axes, shape, dt, body};
 }
@@ -252,7 +245,7 @@ TensorMeaning Lowerer::lower(std::size_t id) {
     auto axes = anchors ? anchors->at(id)
                         : make(Symbol::Kind::AxisGroup,
                                "input" + std::to_string(id), id, 0, {shape});
-    if (!anchors) context.coordinate_groups[{id, 0}] = axes;
+    if (!anchors) context.registerCoordinates(id, 0, axes);
     return {axes, shape, make(Symbol::Kind::DType, {}, n.capture->value),
             std::make_shared<Expr>(
                 Expr{Expr::Kind::Read, n.capture->value, id, axes, {}})};

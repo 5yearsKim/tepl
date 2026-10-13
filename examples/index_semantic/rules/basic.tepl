@@ -14,3 +14,12 @@ rule transpose_dot_cycle {
     =>
     (dot[auto] (transpose[auto, permutation = [1, 2, 0]] A) B)
 }
+
+rule absorb_transpose {
+    (dot[@d] (transpose[@p] A) B) => (dot[auto] A B)
+}
+
+// Arbitrary output permutations need a guard for the swapped free-axis order.
+rule transpose_dot_swap {
+    (transpose[@p] (dot[@d] A B)) => (dot[auto] B A)
+}

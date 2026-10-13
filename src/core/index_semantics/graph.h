@@ -1,5 +1,5 @@
 #pragma once
-#include "src/core/index_semantics/expr.h"
+#include "src/core/index_semantics/context.h"
 
 namespace tepl::core::index_semantics {
 struct Expr;

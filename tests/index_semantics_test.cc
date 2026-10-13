@@ -110,6 +110,31 @@ Dense add(const Dense& a, const Dense& b) {
     out.values[i] += b.values[i];
   return out;
 }
+Dense multiply(const Dense& a, const Dense& b) {
+  expect(a.shape == b.shape, "reference multiply shapes");
+  auto out = a;
+  for (std::size_t i = 0; i < out.values.size(); ++i)
+    out.values[i] *= b.values[i];
+  return out;
+}
+Dense reduceSum(const Dense& input, const List& reduced) {
+  auto retained = remaining(input.shape.size(), reduced);
+  Dense output;
+  List domains;
+  for (auto axis : retained) output.shape.push_back(input.shape[axis]);
+  for (auto axis : reduced) domains.push_back(input.shape[axis]);
+  indices(output.shape, [&](const List& out) {
+    List in(input.shape.size());
+    for (std::size_t i = 0; i < retained.size(); ++i) in[retained[i]] = out[i];
+    std::int64_t value = 0;
+    indices(domains, [&](const List& k) {
+      for (std::size_t i = 0; i < reduced.size(); ++i) in[reduced[i]] = k[i];
+      value += input.at(in);
+    });
+    output.values.push_back(value);
+  });
+  return output;
+}
 Dense dot(const Dense& a, const Dense& b, const std::vector<List>& fields) {
   const auto& lc = fields[0];
   const auto& rc = fields[1];
@@ -233,9 +258,10 @@ void symbolicTests() {
   proved(symbolicPlan("rule r {(add A (add B C)) => (add (add A B) C)}"));
   auto commutative = symbolicPlan("rule r {(add A B) => (add B A)}");
   proved(commutative);
-  expect(std::find(commutative.proof.steps.begin(), commutative.proof.steps.end(),
-                   "law: commutative-matching") != commutative.proof.steps.end(),
-         "commutative correspondence records its algebraic law");
+  expect(
+      std::find(commutative.proof.steps.begin(), commutative.proof.steps.end(),
+                "law: commutative-matching") != commutative.proof.steps.end(),
+      "commutative correspondence records its algebraic law");
   expect(symbolicPlan("rule r {(add A B) => A}").proof.status ==
              ProofStatus::Unknown,
          "false algebraic rewrite is not proved");
@@ -290,6 +316,10 @@ void symbolicTests() {
          "pinned field yields explicit sufficient guard");
   expect(verify(pinned, pinned.proof).status == ProofStatus::Conditional,
          "guarded proof replays independently");
+  auto missingGuard = pinned.proof;
+  missingGuard.guard.clear();
+  expect(verify(pinned, missingGuard).status == ProofStatus::Unknown,
+         "a required guard cannot justify its own removal");
   auto association = symbolicPlan(
       "rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B "
       "C))}");
@@ -384,6 +414,8 @@ void symbolicTests() {
   auto alternate = replace(dialect, "dialect TensorLang", "dialect Alternate");
   alternate = replace(alternate, "op dot_general(", "op dot_variant(");
   alternate = replace(alternate, "op add(", "op other_add(");
+  alternate = replace(alternate, "op multiply(", "op other_multiply(");
+  alternate = replace(alternate, "alias: mul;", "alias: other_mul;");
   alternate = replace(alternate, "op transpose(", "op other_transpose(");
   alternate = replace(alternate, "op reduce_sum(", "op other_sum(");
   alternate = replace(alternate, "alias: dot;", "alias: other;");
@@ -420,6 +452,212 @@ void symbolicTests() {
   expect(guarded.proof.status == ProofStatus::Conditional,
          "new RHS dtype requirement is an explicit guard");
 }
+void contextStateTests() {
+  Plan plan;
+  Context c{plan, 100000};
+  auto domain = [](std::initializer_list<std::size_t> extents) {
+    std::vector<S> xs;
+    for (auto n : extents) xs.push_back(integer(n));
+    return make(Symbol::Kind::List, {}, 0, 0, std::move(xs));
+  };
+  auto frame = make(Symbol::Kind::AxisGroup, "frame", 0, 0, {domain({2, 3})});
+  auto i = make(Symbol::Kind::AxisGroup, "i", 1, 0, {domain({2})});
+  auto j = make(Symbol::Kind::AxisGroup, "j", 2, 0, {domain({3})});
+  expect(equal(c.support(frame), frame), "cache initial frame support");
+  c.cover(frame, call("concat", {i, j}));
+  expect(equal(c.support(frame), c.support(call("concat", {i, j}))),
+         "coverage registration invalidates cached support");
+  expect(callIs(c.positions(frame, j), "positions"),
+         "cache unresolved positions before binding registration");
+  auto selector = make(Symbol::Kind::List, {}, 0, 0, {integer(1)});
+  c.bind(frame, j, selector);
+  expect(equal(c.positions(frame, j), selector) &&
+             equal(c.select(frame, selector), j),
+         "binding registration updates both lookup directions and caches");
+
+  auto first = make(Symbol::Kind::Hole, {}, 0, 0);
+  auto second = make(Symbol::Kind::Hole, {}, 0, 1);
+  auto fields = call("concat", {first, second});
+  expect(containsHole(c.resolve(fields)),
+         "cache unresolved attribute expression");
+  c.assignAttribute(0, 0, selector);
+  expect(containsHole(c.resolve(fields)), "one attribute remains unresolved");
+  auto zero = make(Symbol::Kind::List, {}, 0, 0, {integer(0)});
+  c.assignAttribute(0, 1, zero);
+  expect(equal(c.resolve(fields), call("concat", {selector, zero})),
+         "attribute registration invalidates cached compound resolutions");
+  bool conflict = false;
+  try {
+    c.assignAttribute(0, 0, zero);
+  } catch (const ProofFailure& e) {
+    conflict = e.kind() == FailureKind::InvalidCandidate;
+  }
+  expect(conflict && equal(c.resolve(first), selector),
+         "conflicting assignments preserve the established constructor");
+
+  // Equal coordinate sets imply equal lengths, but deriving that implication
+  // belongs to entailment rather than evidence-only normalization.
+  Context queries{plan, 100000};
+  auto a = call("replace_axes", {frame, i, j});
+  auto b = call("replace_axes", {frame, j, i});
+  queries.learn(call("distinct_axes", {a}));
+  queries.learn(call("distinct_axes", {b}));
+  queries.learn(call("same_set", {a, b}));
+  auto lengths = call("==", {call("len", {a}), call("len", {b})});
+  expect(!queries.evidence(lengths),
+         "evidence lookup does not launch proof search");
+  auto selected = call("gather", {a, call("range", {call("len", {b})})});
+  expect(callIs(queries.canonical(selected), "gather"),
+         "normalization does not search for a missing length premise");
+  expect(queries.entails(lengths) && queries.evidence(lengths),
+         "successful entailment is visible after an earlier evidence miss");
+  expect(queries.guards().empty(), "proof queries do not assume missing facts");
+
+  auto exhausted = synthesize(plan, 0);
+  expect(exhausted.status == ProofStatus::Unknown &&
+             exhausted.reason.find("budget exhausted") != std::string::npos,
+         "budget exhaustion has a specific diagnostic");
+  bool internal_error = false;
+  try {
+    synthesize(plan,
+               1000);  // No source node: deliberately malformed internal IR.
+  } catch (const std::out_of_range&) {
+    internal_error = true;
+  }
+  expect(internal_error,
+         "internal errors are not reported as unsupported inference");
+}
+void axisAndMultiplyTests() {
+  auto merge = symbolicPlan(
+      "rule r {(reduce_sum[@outer] (reduce_sum[@inner] A)) => "
+      "(reduce_sum[auto] A)}");
+  proved(merge);
+  auto move = symbolicPlan(
+      "rule r {(reduce_sum[@r] (transpose[@p] A)) => "
+      "(transpose[auto] (reduce_sum[auto] A))}");
+  proved(move);
+  expect(synthesize(move, 50000).status == ProofStatus::Proved,
+         "transpose/reduction inference fits a bounded metadata budget");
+  expect(verify(move, move.proof, 50000).status == ProofStatus::Proved,
+         "independent map verification fits the same budget");
+  Context theory{move, 1000000};
+  theory.sourceScope(move.lhs);
+  Lowerer source{theory};
+  source.lower(move.lhs);
+  auto p = make(Symbol::Kind::Field, "permutation", 1, 0);
+  auto r = make(Symbol::Kind::Field, "dimensions", 0, 0);
+  auto twice = [](const S& x) {
+    return call("inverse", {call("inverse", {x})});
+  };
+  expect(equal(theory.canonical(twice(p)), p),
+         "source legality permits full permutation cancellation");
+  auto partial = theory.canonical(twice(r));
+  expect(!equal(partial, r),
+         "a partial axis list does not justify inverse cancellation");
+  Metadata partialMetadata{{{2, 3, 4}}, {{0, {{2}}}, {1, {{2, 0, 1}}}}};
+  tepl::test::ConstructorEvaluator partialEval(partialMetadata, move.proof);
+  bool undefined = false;
+  try {
+    partialEval.eval(partial);
+  } catch (const std::exception&) {
+    undefined = true;
+  }
+  expect(undefined, "independent interpreter preserves undefined inverse");
+  theory.wellFormed(twice(r));
+  expect(!theory.guards().empty(), "partial inverse requires a real guard");
+  auto frame = make(Symbol::Kind::AxisGroup, "input0", 0, 0,
+                    {make(Symbol::Kind::Shape, {}, 0)});
+  // Use a fresh context so the guard above cannot strengthen source legality.
+  Context lookup{move, 1000000};
+  lookup.sourceScope(move.lhs);
+  Lowerer lookupSource{lookup};
+  lookupSource.lower(move.lhs);
+  auto incomplete =
+      lookup.positions(call("gather", {frame, r}), call("gather", {frame, p}));
+  expect(callIs(incomplete, "positions"),
+         "partial interfaces retain an explicit position lookup");
+  Context aliases{move, 100000};
+  auto domain = make(Symbol::Kind::Shape, {}, 0);
+  auto x = make(Symbol::Kind::AxisGroup, "x", 0, 0, {domain});
+  auto y = make(Symbol::Kind::AxisGroup, "y", 1, 0, {domain});
+  aliases.learn(call("==", {x, y}));
+  expect(!aliases.entails(call("disjoint", {x, y})),
+         "coordinate aliases are not independent reduction identities");
+  proved(symbolicPlan("rule r {(mul (mul A B) C) => (mul A (mul B C))}"));
+  proved(
+      symbolicPlan("rule r {(mul (add A B) C) => (add (mul A C) (mul B C))}"));
+  proved(
+      symbolicPlan("rule r {(add (mul A C) (mul B C)) => (mul (add A B) C)}"));
+  auto trans = symbolicPlan(
+      "rule r {(transpose[@p] (mul A B)) => "
+      "(mul (transpose[auto] A) (transpose[auto] B))}");
+  proved(trans);
+  expect(symbolicPlan("rule r {(mul A B) => (add A B)}").proof.status ==
+             ProofStatus::Unknown,
+         "different scalar primitives are rejected");
+  expect(symbolicPlan("rule r {(mul (add A B) C) => (add (mul A C) B)}")
+                 .proof.status == ProofStatus::Unknown,
+         "incorrect distribution is rejected");
+  expect(symbolicPlan("rule r {(mul A B) => (mul B A)}", false).proof.status ==
+             ProofStatus::Unknown,
+         "multiplication commutativity requires algebraic policy");
+  auto renamed = replace(dialect, "op multiply(", "op scalar_product(");
+  renamed = replace(renamed, "alias: mul;", "alias: times;");
+  proved(
+      symbolicPlan("rule r {(times (add A B) C) => "
+                   "(add (times A C) (times B C))}",
+                   true, renamed));
+  // Specialize the same compiled constructors at different ranks, axis orders,
+  // and domains. No concrete metadata is used by the compiler.
+  for (const List& shape :
+       {List{}, List{2}, List{2, 3}, List{2, 1, 3, 2}, List{2, 0, 3, 2}}) {
+    auto rank = shape.size();
+    auto input = data(shape, 1), b = data(shape, 2), c = data(shape, 3);
+    equal(multiply(add(input, b), c), add(multiply(input, c), multiply(b, c)));
+    for (std::size_t mask = 0; mask < (std::size_t{1} << rank); ++mask) {
+      List inner, outer;
+      for (std::size_t axis = 0; axis < rank; ++axis)
+        if (mask & (std::size_t{1} << axis)) inner.push_back(axis);
+      std::reverse(inner.begin(), inner.end());
+      auto retained = remaining(rank, inner);
+      for (std::size_t axis = 0; axis < retained.size(); axis += 2)
+        outer.push_back(axis);
+      std::reverse(outer.begin(), outer.end());
+      Metadata m{{shape}, {{0, {outer}}, {1, {inner}}}};
+      tepl::test::ConstructorEvaluator eval(m, merge.proof);
+      expect(eval.applicable(), "merged reduction needs no extra guard");
+      auto fields = eval.construct();
+      equal(reduceSum(reduceSum(input, inner), outer),
+            reduceSum(input, fields.at(2)[0]));
+    }
+    List permutation(rank);
+    std::iota(permutation.begin(), permutation.end(), 0);
+    do {
+      Metadata tm{{shape, shape}, {{0, {permutation}}}};
+      tepl::test::ConstructorEvaluator transEval(tm, trans.proof);
+      auto tf = transEval.construct();
+      equal(transpose(multiply(input, b), permutation),
+            multiply(transpose(input, tf.at(1)[0]), transpose(b, tf.at(2)[0])));
+      for (std::size_t mask = 0; mask < (std::size_t{1} << rank); ++mask) {
+        List dims;
+        for (std::size_t axis = 0; axis < rank; ++axis)
+          if (mask & (std::size_t{1} << axis)) dims.push_back(axis);
+        std::reverse(dims.begin(), dims.end());
+        Metadata rm{{shape}, {{0, {dims}}, {1, {permutation}}}};
+        tepl::test::ConstructorEvaluator moveEval(rm, move.proof);
+        expect(moveEval.applicable(),
+               "transpose/reduction needs no extra guard");
+        auto f = moveEval.construct();
+        equal(reduceSum(transpose(input, permutation), dims),
+              transpose(reduceSum(input, f.at(3)[0]), f.at(2)[0]));
+      }
+    } while (std::next_permutation(permutation.begin(), permutation.end()));
+  }
+  auto bad = move.proof;
+  bad.constructors.at(3)[0] = make(Symbol::Kind::List);
+  expect(verify(move, bad).status == ProofStatus::Unknown,
+         "wrong reduction attribute is rejected");
+}
 }  // namespace
 int main(int argc, char** argv) {
   try {
@@ -432,6 +670,8 @@ int main(int argc, char** argv) {
     dialect = {std::istreambuf_iterator<char>(input), {}};
     expect(!dialect.empty(), "read dialect");
     symbolicTests();
+    contextStateTests();
+    axisAndMultiplyTests();
     const std::string distribute =
         "rule r { (dot[@d] (add A B) C) => (add (dot[auto] A C) (dot[auto] B "
         "C)) }";

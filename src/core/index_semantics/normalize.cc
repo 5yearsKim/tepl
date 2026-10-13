@@ -17,8 +17,7 @@ Terms normalize(Context& c, const E& e,
   c.tick();
   if (e->kind == Expr::Kind::Read) return {{call("empty_axes", {}), {e}}};
   if (!c.plan.algebraic)
-    throw std::runtime_error(
-        "arithmetic normalization requires algebraic policy");
+    throw ProofFailure("arithmetic normalization requires algebraic policy");
   auto record = [&](const std::string& law, const Terms& out,
                     std::vector<S> conditions = {}) {
     c.note(law);
@@ -47,8 +46,9 @@ Terms normalize(Context& c, const E& e,
       record("add-associativity", left);
     return left;
   }
-  if (left.size() > 256 / right.size())
-    throw std::runtime_error("normalization term limit exceeded");
+  if (left.size() > ProofLimits::normalization_terms / right.size())
+    throw ProofFailure("normalization term limit exceeded",
+                       FailureKind::BudgetExceeded);
   Terms out;
   std::vector<S> conditions;
   for (const auto& a : left)
@@ -107,19 +107,18 @@ Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
   std::map<std::string, const Term*> left;
   for (const auto& t : lt)
     if (!left.emplace(footprint(t), &t).second)
-      throw std::runtime_error(
-          "ambiguous additive correspondence is unsupported");
+      throw ProofFailure("ambiguous additive correspondence is unsupported");
   std::vector<std::pair<const Term*, const Term*>> pairs;
   std::set<std::string> seen;
   for (const auto& t : rt) {
     c.tick();
     auto k = footprint(t);
     if (!left.contains(k) || !seen.insert(k).second)
-      throw std::runtime_error("normalized tensor monomials differ");
+      throw ProofFailure("normalized tensor monomials differ");
     std::map<std::size_t, E> reads;
     for (const auto& r : left.at(k)->reads)
       if (!reads.emplace(r->capture, r).second)
-        throw std::runtime_error(
+        throw ProofFailure(
             "repeated tensor factors require occurrence matching "
             "(unsupported)");
     for (const auto& r : t.reads) {
@@ -134,7 +133,7 @@ Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
     pairs.emplace_back(left.at(k), &t);
   }
   if (seen.size() != left.size())
-    throw std::runtime_error("normalized tensor monomial counts differ");
+    throw ProofFailure("normalized tensor monomial counts differ");
   std::function<std::set<std::size_t>(std::size_t)> visit =
       [&](std::size_t id) {
         c.tick();
@@ -167,7 +166,7 @@ Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
             boundary = b;
         }
         if (!boundary)
-          throw std::runtime_error("RHS subtree has no semantic contribution");
+          throw ProofFailure("RHS subtree has no semantic contribution");
         result.boundaries[id] = boundary;
         return leaves;
       };

@@ -15,21 +15,24 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
         auto found = candidate.constructors.find(n.descriptor->value);
         if (found == candidate.constructors.end() ||
             found->second.size() != n.definition->fields.size())
-          throw std::runtime_error("missing or incorrectly sized constructor");
+          throw ProofFailure("missing or incorrectly sized constructor",
+                             FailureKind::InvalidCandidate);
         for (std::size_t f = 0; f < found->second.size(); ++f) {
           c.validateSource(found->second[f]);
           if (found->second[f]->sort != Symbol::Sort::Positions)
-            throw std::runtime_error("constructor must be a position sequence");
-          c.solutions[{n.descriptor->value, f}] = found->second[f];
+            throw ProofFailure("constructor must be a position sequence",
+                               FailureKind::InvalidCandidate);
+          c.assignAttribute(n.descriptor->value, f, found->second[f]);
         }
       }
     for (const auto& g : candidate.guard) {
       c.validateSource(g);
       if (g->sort != Symbol::Sort::Boolean)
-        throw std::runtime_error("applicability guard must be Boolean");
+        throw ProofFailure("applicability guard must be Boolean",
+                           FailureKind::InvalidCandidate);
       c.require(g);
     }
-    c.allow_guards = complete;
+    c.allowGuards(complete);
     Lowerer source{c};
     auto lhs = source.lower(plan.lhs);
     auto lt = normalize(c, lhs.value);
@@ -62,7 +65,7 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
     c.require(call("==", {lhs.shape, rhs.shape}));
     c.require(call("==", {lhs.dtype, rhs.dtype}));
     proof.constructors = candidate.constructors;
-    proof.guard = c.guards;
+    proof.guard = c.guards();
     proof.status =
         proof.guard.empty() ? ProofStatus::Proved : ProofStatus::Conditional;
     proof.reason = proof.guard.empty()
@@ -70,13 +73,13 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
                          "arithmetic policy"
                        : "verified under a sufficient metadata-only guard; "
                          "weakest guard not claimed";
-    proof.steps = c.steps;
+    proof.steps = c.steps();
     proof.steps.push_back(
         "verified: capture access + reduction domains + ordered axes + shape + "
         "dtype + legality");
     proof.lhs_normalized = show(lt);
     proof.rhs_normalized = show(checked);
-    for (const auto& [id, g] : c.coordinate_groups)
+    for (const auto& [id, g] : c.source().groups)
       proof.axis_definitions.push_back(g);
     for (const auto& t : lt)
       for (const auto& r : t.reads) proof.accesses[r->occurrence] = r->axes;
@@ -85,10 +88,10 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
     proof.lhs_axes = lhs.axes;
     proof.rhs_axes = rhs.axes;
     return proof;
-  } catch (const std::exception& e) {
+  } catch (const ProofFailure& e) {
     proof = RuleProof{};
-    proof.reason = e.what();
-    proof.steps = c.steps;
+    proof.reason = e.describe();
+    proof.steps = c.steps();
     return proof;
   }
 }
@@ -102,7 +105,7 @@ RuleProof completeGuard(const Plan& plan, const RuleProof& proof,
   RuleProof checked;
   // Well-definedness of generated conditions can expose further preconditions.
   // Close that finite dependency set, then check the fixed guard independently.
-  for (std::size_t round = 0; round < 6; ++round) {
+  for (std::size_t round = 0; round < ProofLimits::guard_rounds; ++round) {
     candidate = check(plan, candidate, work, true);
     if (candidate.status == ProofStatus::Unknown) return candidate;
     checked = verify(plan, candidate, work);

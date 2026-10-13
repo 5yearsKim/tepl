@@ -1,5 +1,6 @@
 #include "src/core/index_semantics/synthesize.h"
 
+#include <algorithm>
 #include <functional>
 #include <stdexcept>
 
@@ -19,10 +20,10 @@ struct Constructor {
               const std::vector<S>& groups, const S& value) {
     auto old = lowerer.metadata(m, n, inputs, groups);
     old = c.resolve(old);
-    if (old->kind == Symbol::Kind::Hole)
-      c.solutions[{old->owner, old->index}] = value;
-    else if (containsHole(old))
-      throw std::runtime_error(
+    if (old->kind == Symbol::Kind::Hole) {
+      c.assignAttribute(old->owner, old->index, value);
+    } else if (containsHole(old))
+      throw ProofFailure(
           "inverse metadata expression is outside constructive fragment");
     else
       c.require(call("==", {old, value}));
@@ -46,7 +47,7 @@ struct Constructor {
       std::set<std::size_t> incidence;
       for (const auto& b : group.bindings) incidence.insert(b.operand);
       if (!signatures.emplace(incidence, reduced.contains(g)).second)
-        throw std::runtime_error(
+        throw ProofFailure(
             "multiple binding groups share an unresolved incidence class");
       S wanted;
       for (auto o : incidence)
@@ -81,15 +82,18 @@ struct Constructor {
                c.positions(inputs[b.operand].axes, order));
       groups.push_back(order);
     }
-    // Generic inversion of output permutations. Internal unconstrained
-    // reindexings choose identity; the root must preserve ordered coordinates.
+    // Generic inversion of output permutations. Preserve the source order at
+    // the root and at internal reindexings with the same complete interface.
     std::function<void(const Meta&)> output = [&](const Meta& m) {
       if (m.kind != Meta::Kind::Call) return;
       if (m.name == "permute") {
         auto p = lowerer.metadata(*m.args[1], n, inputs, groups);
         if (containsHole(p)) {
           auto base = lowerer.metadata(*m.args[0], n, inputs, groups);
-          auto wanted = id == c.plan.rhs ? source.axes : base;
+          auto wanted = id == c.plan.rhs ||
+                                c.entails(call("same_set", {base, source.axes}))
+                            ? source.axes
+                            : base;
           c.require(call("same_set", {base, wanted}));
           assign(*m.args[1], n, inputs, groups, c.positions(base, wanted));
         }
@@ -107,9 +111,17 @@ struct Constructor {
 };
 }  // namespace
 namespace {
+enum class InferenceStrategy { General, WholeGroupRouting };
 RuleProof run(const Plan& plan, std::size_t max_work,
-              const std::vector<S>& seeds) {
-  Context c{plan, max_work};
+              InferenceStrategy strategy, const std::vector<S>& seeds) {
+  // General coordinate inference is an initial bounded strategy. If its
+  // unresolved maps consume this allowance, try the existing constructive
+  // routing fragment; independent verification still gets the caller's budget.
+  const auto inference_work =
+      strategy == InferenceStrategy::General
+          ? std::min(max_work, ProofLimits::general_inference_work)
+          : max_work;
+  Context c{plan, inference_work};
   RuleProof candidate;
   std::string phase = "source lowering";
   try {
@@ -141,42 +153,43 @@ RuleProof run(const Plan& plan, std::size_t max_work,
       if (n.automatic) {
         auto& fields = candidate.constructors[n.descriptor->value];
         for (std::size_t f = 0; f < n.definition->fields.size(); ++f) {
-          auto value = c.field(n, f);
+          auto value = c.canonical(c.field(n, f));
           c.validateSource(value);
           if (value->sort != Symbol::Sort::Positions)
-            throw std::runtime_error(
+            throw ProofFailure(
                 "attribute constructor is not a position sequence");
           fields.push_back(value);
         }
       }
-    candidate.guard = c.guards;
+    candidate.guard = c.guards();
     auto proof = completeGuard(plan, candidate, max_work);
     proof.rewrites = std::move(candidate.rewrites);
     return proof;
-  } catch (const std::exception& e) {
+  } catch (const ProofFailure& e) {
     RuleProof unknown;
-    unknown.reason = phase + ": " + e.what();
-    unknown.steps = c.steps;
+    unknown.reason = phase + ": " + e.describe();
+    unknown.steps = c.steps();
     return unknown;
   }
 }
 }  // namespace
 RuleProof synthesize(const Plan& plan, std::size_t max_work) {
-  auto general = run(plan, max_work, {});
+  auto general = run(plan, max_work, InferenceStrategy::General, {});
   if (general.status != ProofStatus::Unknown || !plan.algebraic ||
-      max_work < 1000)
+      max_work < ProofLimits::routing_min_work)
     return general;
   try {
     auto guard = routingGuard(plan, max_work);
     if (guard.empty()) return general;
-    auto routed = run(plan, max_work, guard);
+    auto routed =
+        run(plan, max_work, InferenceStrategy::WholeGroupRouting, guard);
     if (routed.status != ProofStatus::Unknown)
       routed.steps.insert(routed.steps.begin(),
                           "routing: whole source groups; shared retained "
                           "multiplicative groups empty");
     return routed;
-  } catch (const std::exception& e) {
-    general.reason = std::string("source routing: ") + e.what();
+  } catch (const ProofFailure& e) {
+    general.reason = std::string("source routing: ") + e.describe();
     return general;
   }
 }
