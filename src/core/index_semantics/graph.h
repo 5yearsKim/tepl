@@ -5,15 +5,18 @@ namespace tepl::core::index_semantics {
 struct Expr;
 using E = std::shared_ptr<const Expr>;
 struct Expr {
-  enum class Kind { Read, Add, Product, Reduce } kind;
+  enum class Kind { Read, Add, Product, Reduce, Const } kind;
   std::size_t capture = 0, occurrence = 0;
   S axes;  // Read: physical-dimension order. Reduce: bound coordinates.
   std::vector<E> args;
+  std::int64_t constant = 0;
 };
 struct TensorMeaning {
   S axes, shape, dtype;
   E value;
   TensorAxisInterface interface;
+  // Capture interfaces survive value cancellation and shape-only uses.
+  std::map<std::size_t, S> occurrence_axes;
 };
 struct Lowerer {
   Context& context;
@@ -30,6 +33,7 @@ struct Lowerer {
   TensorMeaning lower(std::size_t);
 };
 E expression(Expr::Kind, std::vector<E>, S = {});
+E constant(std::int64_t);
 S freeAxes(const E&);
 std::string show(const E&);
 E arithmeticSkeleton(const Plan&, std::size_t);

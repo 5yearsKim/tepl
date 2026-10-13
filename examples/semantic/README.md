@@ -128,8 +128,9 @@ TensorMeaning {
     axes:  ordered logical coordinate sequence
     shape: symbolic extent sequence
     dtype: symbolic dtype
-    value: Read | Add | Product | Reduce
+    value: Read | Const | Add | Product | Reduce
     interface: ordered axes and established source-to-output position maps
+    occurrence_axes: input occurrence interfaces, including unused values
 }
 ```
 
@@ -199,8 +200,9 @@ values or flattened dimensions.
 
 1. Lower the LHS and retain legality and supported declared rule conditions.
 2. Normalize both arithmetic graphs into sums of products with reduction domains.
-3. Match monomials by capture identity. The initial fragment requires unique
-   term correspondence and no repeated capture factors within a monomial.
+3. Match monomials by capture identity and establish access coordinates before
+   combining coefficients. Repeated captures are supported when their access
+   correspondence is unambiguous; general ambiguous matching remains deferred.
 4. Derive each RHS intermediate's boundary: coordinates used inside that
    intermediate that another factor or the final output also needs.
 5. Fit binding tables to that boundary. Operand incidence and reduction
@@ -287,9 +289,42 @@ Unsupported conditions are diagnosed rather than silently ignored.
 Intermediate captured-computation shape declarations are currently omitted,
 so they cannot be relied upon to discharge a proof obligation.
 
-Required `index[]` fields, fixed operand arity, and the four scalar primitives
+Required `index[]` fields, fixed operand arity, and the scalar primitives
+`Operand`, `Const`, `Add`, `Product`, and `Reduce`
 form the initial operation fragment. Broadcasting, reshape, affine indexing,
 value-dependent domains, and general host semantics are deferred.
+
+## Constants and cancellation
+
+`Const(n)` accepts a signed 64-bit integer literal. Constants are scalar values
+at the coordinates declared by the operation's axis interface. They do not
+supply a tensor shape. The dialect defines negation and subtraction using these
+primitives:
+
+```tepl
+semantics { yield Product(Const(-1), input); }
+semantics { yield Add(lhs, Product(Const(-1), rhs)); }
+```
+
+`zero_like(input)` uses its input's axes and dtype and yields `Const(0)`.
+Consequently, `subtract(A,A) => zero_like(A)` retains A's shape, including scalar
+and empty tensors. Unused operands remain part of legality checking.
+
+```sh
+bazel run //:tepl -- check examples/semantic/rules/scalars.tepl \
+  --semantic-policy=algebraic
+```
+
+Normalization keeps reads while finding coordinate correspondence. After RHS
+lowering, it combines coefficients only for proven identical access mappings
+and reduction domains. Equal tensor names alone do not justify cancellation.
+Repeated factors retain their multiplicity. Arithmetic overflow reports an
+unsupported proof instead of wrapping coefficients.
+
+Constant reductions retain their domains: `Reduce(K, Const(1))` counts the
+coordinates in K, and is not simplified to one. General ambiguous occurrence
+matching, symbolic cardinality simplification, and rational constants are not
+implemented. Arithmetic cancellation requires the algebraic policy.
 
 ## Implementation and verification
 

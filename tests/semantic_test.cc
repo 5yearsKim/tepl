@@ -466,6 +466,9 @@ void symbolicTests() {
   alternate = replace(alternate, "alias: mul;", "alias: other_mul;");
   alternate = replace(alternate, "op transpose(", "op other_transpose(");
   alternate = replace(alternate, "op reduce_sum(", "op other_sum(");
+  for (const auto* name : {"negate", "subtract", "zero_like"})
+    alternate = replace(alternate, std::string("op ") + name + "(",
+                        std::string("op other_") + name + "(");
   alternate = replace(alternate, "alias: dot;", "alias: other;");
   alternate = replace(
       alternate,
@@ -720,6 +723,223 @@ void contextStateTests() {
   expect(internal_error,
          "internal errors are not reported as unsupported inference");
 }
+Dense scale(Dense input, std::int64_t coefficient) {
+  for (auto& value : input.values) value *= coefficient;
+  return input;
+}
+void scalarTests() {
+  for (const auto* rule :
+       {"rule r {(negate (negate A)) => A}",
+        "rule r {(subtract A A) => (zero_like A)}",
+        "rule r {(subtract A (negate B)) => (add A B)}",
+        "rule r {(mul A (zero_like A)) => (zero_like A)}",
+        "rule r {(add A A) => (negate (negate (add A A)))}",
+        "rule r {(add (mul A A) (mul A A)) => (mul (add A A) A)}",
+        "rule r {(zero_like A) => (zero_like A)}",
+        "rule r {(transpose[@p] (zero_like A)) => (zero_like (transpose[auto] "
+        "A))}"})
+    proved(symbolicPlan(rule));
+  auto canceled = symbolicPlan("rule r {(subtract A A) => (zero_like A)}");
+  expect(canceled.proof.lhs_normalized == "Const(0)" &&
+             canceled.proof.rhs_normalized == "Const(0)",
+         "cancellation prints zero");
+  expect(canceled.proof.lhs_axes && canceled.proof.rhs_axes,
+         "zero retains an explicit tensor interface");
+  expect(std::any_of(canceled.proof.rewrites.begin(),
+                     canceled.proof.rewrites.end(),
+                     [](const RuleProof::RewriteStep& step) {
+                       return step.law == "additive-cancellation" &&
+                              step.after == "Const(0)";
+                     }),
+         "cancellation records an explicit graph transformation");
+  auto forged = canceled;
+  auto definition =
+      std::make_shared<Definition>(*forged.nodes[forged.rhs].definition);
+  definition->value =
+      std::make_shared<Value>(Value{Value::Kind::Const, 0, {}, {}, 1});
+  forged.nodes[forged.rhs].definition = definition;
+  expect(verify(forged, canceled.proof).status == ProofStatus::Unknown,
+         "independent verifier rejects a changed constant even with valid "
+         "interfaces");
+  for (const auto* rule :
+       {"rule r {(add A A) => A}", "rule r {(negate A) => A}",
+        "rule r {(subtract A B) => (zero_like A)}",
+        "rule r {(subtract (transpose[@p] A) A) => (zero_like A)}",
+        "rule r {(zero_like (reduce_sum[@r] A)) => (zero_like A)}",
+        "rule r {(mul A A) => A}"})
+    expect(symbolicPlan(rule).proof.status == ProofStatus::Unknown,
+           "incorrect coefficients, accesses, or interfaces rejected");
+  expect(symbolicPlan("rule r {(subtract A A) => (zero_like A)}", false)
+                 .proof.status == ProofStatus::Unknown,
+         "strict policy prohibits cancellation");
+
+  // Dialect definitions, rather than operation names, supply scalar algebra.
+  auto renamed = replace(dialect, "op negate(", "op flip(");
+  proved(symbolicPlan("rule r {(flip (flip A)) => A}", true, renamed));
+  auto restricted = dialect + R"(
+    dialect Restricted {
+      op only_float(x:tensor)->tensor {
+        dtype(t) { assert is_float(t); yield t; }
+        axes {bind S {x:all_axes(x)}; yield S;}
+        semantics {yield x;}
+      }
+    }
+  )";
+  expect(symbolicPlan(
+             "rule r {(subtract A A) => (zero_like (Restricted.only_float A))}",
+             true, restricted)
+                 .proof.status == ProofStatus::Unknown,
+         "unused RHS values do not erase operation legality checks");
+  auto extra = dialect + R"(
+    dialect Scalars {
+      op twice(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes { bind S {x:all_axes(x)}; yield S; }
+        semantics {yield Product(Const(+2),x);}
+      }
+      op ones(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes { bind S {x:all_axes(x)}; yield S; }
+        semantics {yield Const(1);}
+      }
+      op sum_ones(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes {bind K {x:all_axes(x)}; bind F {x:[]}; yield F;}
+        semantics {yield Reduce(K,Const(1));}
+      }
+      op scalar_one(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes {bind K {x:all_axes(x)}; bind F {x:[]}; yield F;}
+        semantics {yield Const(1);}
+      }
+      op five(x:tensor)->tensor {
+        dtype(t) {assert is_numeric(t); yield t;}
+        axes {bind S {x:all_axes(x)}; yield S;}
+        semantics {yield Const(5);}
+      }
+      op sum_constants(x:tensor)->tensor {
+        dtype(t) {assert is_numeric(t); yield t;}
+        axes {bind S {x:all_axes(x)}; yield S;}
+        semantics {yield Add(Const(2),Const(3));}
+      }
+      op min_constant(x:tensor)->tensor {
+        dtype(t) {assert is_numeric(t); yield t;}
+        axes {bind S {x:all_axes(x)}; yield S;}
+        semantics {yield Const(-9223372036854775808);}
+      }
+      op huge(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes {bind S {x:all_axes(x)}; yield S;}
+        semantics {yield Product(Const(9223372036854775807),x);}
+      }
+    }
+  )";
+  proved(symbolicPlan("rule r {(add A A) => (Scalars.twice A)}", true, extra));
+  proved(symbolicPlan("rule r {(Scalars.sum_constants A) => (Scalars.five A)}",
+                      true, extra));
+  proved(symbolicPlan(
+      "rule r {(Scalars.min_constant A) => (Scalars.min_constant A)}", true,
+      extra));
+  auto constantReduction = symbolicPlan(
+      "rule r {(Scalars.sum_ones A) => (Scalars.sum_ones A)}", true, extra);
+  proved(constantReduction);
+  expect(constantReduction.proof.lhs_normalized.find("Reduce(") !=
+             std::string::npos,
+         "constant reduction retains its domain");
+  expect(symbolicPlan("rule r {(Scalars.sum_ones A) => (Scalars.scalar_one A)}",
+                      true, extra)
+                 .proof.status == ProofStatus::Unknown,
+         "sum of one is not universally one");
+  auto overflow = symbolicPlan(
+      "rule r {(add (Scalars.huge A) (Scalars.huge A)) => (Scalars.huge A)}",
+      true, extra);
+  expect(overflow.proof.status == ProofStatus::Unknown &&
+             overflow.proof.reason.find("overflow") != std::string::npos,
+         "coefficient overflow is unsupported, never silently wrapped");
+  auto hugeProduct = symbolicPlan(
+      "rule r {(Scalars.huge (Scalars.huge A)) => A}", true, extra);
+  expect(hugeProduct.proof.status == ProofStatus::Unknown &&
+             hugeProduct.proof.reason.find("overflow") != std::string::npos,
+         "coefficient product overflow is checked");
+  error(replace(extra, "Const(+2)", "Const(9223372036854775808)"),
+        "outside the signed 64-bit range");
+  error(replace(extra, "Const(+2)", "Const(x)"), "signed integer literal");
+
+  found(run("rule r {(negate (negate A)) => A}", {{{2, 3}}, {}}));
+  expect(
+      run("rule r {(negate A) => A}", {{{2, 3}}, {}}).status == Status::Unknown,
+      "independent concrete verifier compares coefficients");
+  found(run("rule r {(dot[@d] (negate A) B) => (negate (dot[auto] A B))}",
+            {{{2, 3}, {3, 4}}, {{0, {{1}, {0}, {}, {}}}}}));
+  auto trans = symbolicPlan(
+      "rule r {(transpose[@p] (negate A)) => (negate (transpose[auto] A))}");
+  auto reduce = symbolicPlan(
+      "rule r {(reduce_sum[@r] (negate A)) => (negate (reduce_sum[auto] A))}");
+  auto contract = symbolicPlan(
+      "rule r {(dot[@d] (negate A) B) => (negate (dot[auto] A B))}");
+  proved(trans);
+  proved(reduce);
+  proved(contract);
+  for (const List& shape :
+       {List{}, List{2}, List{2, 3}, List{2, 1, 3, 2}, List{2, 0, 3}}) {
+    auto a = data(shape, 1), b = data(shape, 2);
+    auto zero = scale(a, 0);
+    auto ones = a;
+    for (auto& value : ones.values) value = 1;
+    List all(shape.size());
+    std::iota(all.begin(), all.end(), 0);
+    auto count = reduceSum(ones, all);
+    std::int64_t size = 1;
+    for (auto extent : shape) size *= extent;
+    expect(count.shape.empty() && count.values == List{size},
+           "constant reductions count domains, including zero extents");
+    equal(add(a, scale(a, -1)), zero);
+    equal(scale(scale(a, -1), -1), a);
+    equal(add(a, scale(b, -1)), scale(add(scale(a, -1), b), -1));
+    equal(add(multiply(a, a), multiply(a, a)), multiply(add(a, a), a));
+    Metadata metadata{{shape}, {{0, {{}}}}};
+    tepl::test::ConstructorEvaluator interfaceEval(metadata, canceled);
+    auto lhsAxes = std::get<tepl::test::Coordinates>(
+        interfaceEval.eval(canceled.proof.lhs_axes));
+    auto rhsAxes = std::get<tepl::test::Coordinates>(
+        interfaceEval.eval(canceled.proof.rhs_axes));
+    expect(lhsAxes == rhsAxes && lhsAxes.size() == shape.size(),
+           "zero interface specializes at arbitrary ranks");
+    List permutation(shape.size());
+    std::iota(permutation.begin(), permutation.end(), 0);
+    std::reverse(permutation.begin(), permutation.end());
+    metadata.descriptors[0] = {permutation};
+    tepl::test::ConstructorEvaluator transEval(metadata, trans);
+    auto p = std::get<List>(
+        transEval.eval(trans.proof.constructors.begin()->second[0]));
+    equal(transpose(scale(a, -1), permutation), scale(transpose(a, p), -1));
+    for (std::size_t mask = 0; mask < (std::size_t{1} << shape.size());
+         ++mask) {
+      List selected;
+      for (std::size_t axis = 0; axis < shape.size(); ++axis)
+        if (mask & (std::size_t{1} << axis)) selected.push_back(axis);
+      std::reverse(selected.begin(), selected.end());
+      metadata.descriptors[0] = {selected};
+      tepl::test::ConstructorEvaluator reduceEval(metadata, reduce);
+      auto r = std::get<List>(
+          reduceEval.eval(reduce.proof.constructors.begin()->second[0]));
+      equal(reduceSum(scale(a, -1), selected), scale(reduceSum(a, r), -1));
+    }
+  }
+  for (const auto& metadata : std::vector<Metadata>{
+           {{{2, 3}, {3, 4}}, {{0, {{1}, {0}, {}, {}}}}},
+           {{{2, 3, 2, 4}, {4, 5, 3, 2}}, {{0, {{1, 3}, {2, 0}, {2}, {3}}}}},
+           {{{2, 0}, {0, 4}}, {{0, {{1}, {0}, {}, {}}}}}}) {
+    tepl::test::ConstructorEvaluator eval(metadata, contract);
+    std::vector<List> fields;
+    for (const auto& f : contract.proof.constructors.begin()->second)
+      fields.push_back(std::get<List>(eval.eval(f)));
+    auto a = data(metadata.shapes[0], 1), b = data(metadata.shapes[1], 2);
+    equal(dot(scale(a, -1), b, metadata.descriptors.at(0)),
+          scale(dot(a, b, fields), -1));
+  }
+}
+
 void axisAndMultiplyTests() {
   auto merge = symbolicPlan(
       "rule r {(reduce_sum[@outer] (reduce_sum[@inner] A)) => "
@@ -875,6 +1095,7 @@ int main(int argc, char** argv) {
     partialAssociationTests();
     contextStateTests();
     axisAndMultiplyTests();
+    scalarTests();
     const std::string distribute =
         "rule r { (dot[@d] (add A B) C) => (add (dot[auto] A C) (dot[auto] B "
         "C)) }";

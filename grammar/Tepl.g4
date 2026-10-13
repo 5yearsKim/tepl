@@ -188,6 +188,7 @@ semanticsProperty
 semanticExpr
     : ID '(' semanticArguments? ')' # SemanticCallExpr
     | ID                            # SemanticNameExpr
+    | ('+' | '-')? INT              # SemanticIntegerExpr
     ;
 
 semanticArguments

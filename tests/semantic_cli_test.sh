@@ -72,3 +72,11 @@ grep -Fq 'auto requires operations with axes and semantics' "$temporary_director
 if "$compiler" generate "$rules" --semantic-policy=algebraic --out "$temporary_directory/generated" > "$temporary_directory/error" 2>&1; then exit 1; fi
 grep -Fq 'code generation is not implemented' "$temporary_directory/error"
 test ! -e "$temporary_directory/generated"
+
+# Scalar examples prove without concrete shapes; cancellation preserves output.
+scalars="$($compiler check "$3" --semantic-policy=algebraic)"
+[[ "$(printf '%s' "$scalars" | grep -c 'status=proved')" == 8 ]]
+[[ "$scalars" == *"lhs-normalized: Const(0)"* ]]
+[[ "$scalars" == *"law: additive-cancellation"* ]]
+if "$compiler" check "$3" --rule subtract_self > "$temporary_directory/error" 2>&1; then exit 1; fi
+grep -Fq 'arithmetic normalization requires algebraic policy' "$temporary_directory/error"

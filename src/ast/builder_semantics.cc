@@ -23,4 +23,9 @@ std::any AstBuilder::visitSemanticNameExpr(P::SemanticNameExprContext* ctx) {
   return std::make_shared<E>(
       E{detail::getSpan(ctx), E::Kind::kName, ctx->ID()->getText(), {}});
 }
+std::any AstBuilder::visitSemanticIntegerExpr(
+    P::SemanticIntegerExprContext* ctx) {
+  return std::make_shared<E>(
+      E{detail::getSpan(ctx), E::Kind::kInteger, ctx->getText(), {}});
+}
 }  // namespace tepl

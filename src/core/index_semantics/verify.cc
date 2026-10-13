@@ -54,18 +54,9 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
     Lowerer target{c, &correspondence.anchors};
     auto rhs = target.lower(plan.rhs);
     auto checked = normalize(c, rhs.value);
-    std::map<std::string, const Term*> left;
-    for (const auto& t : lt) left[footprint(t)] = &t;
-    for (const auto& t : checked) {
-      c.require(
-          call("same_set", {left.at(footprint(t))->reductions, t.reductions}),
-          GuardKind::ReductionDomain);
-      std::map<std::size_t, E> reads;
-      for (const auto& r : left.at(footprint(t))->reads) reads[r->capture] = r;
-      for (const auto& r : t.reads)
-        c.require(call("==", {reads.at(r->capture)->axes, r->axes}),
-                  GuardKind::CoordinateOrder);
-    }
+    auto simplified_lhs = collectTerms(c, lt);
+    auto simplified_rhs = collectTerms(c, checked);
+    equivalentTerms(c, simplified_lhs, simplified_rhs);
     c.require(call("==", {lhs.axes, rhs.axes}), GuardKind::CoordinateOrder);
     c.require(call("==", {lhs.shape, rhs.shape}));
     c.require(call("==", {lhs.dtype, rhs.dtype}));
@@ -80,8 +71,8 @@ RuleProof check(const Plan& plan, const RuleProof& candidate,
     proof.steps.push_back(
         "verified: capture access + reduction domains + ordered axes + shape + "
         "dtype + legality");
-    proof.lhs_normalized = show(lt);
-    proof.rhs_normalized = show(checked);
+    proof.lhs_normalized = show(simplified_lhs);
+    proof.rhs_normalized = show(simplified_rhs);
     for (const auto& [id, g] : c.source().groups)
       proof.axis_definitions.push_back(g);
     for (const auto& t : lt)

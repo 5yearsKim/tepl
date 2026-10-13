@@ -47,10 +47,11 @@ struct Group {
 struct Value;
 using ValuePtr = std::shared_ptr<const Value>;
 struct Value {
-  enum class Kind { Operand, Add, Product, Reduce } kind;
+  enum class Kind { Operand, Add, Product, Reduce, Const } kind;
   std::size_t index = 0;  // operand or reduction group
   std::vector<ValuePtr> args;
   SourceOrigin origin;
+  std::int64_t constant = 0;
 };
 struct Definition {
   std::vector<std::string> operands, fields;

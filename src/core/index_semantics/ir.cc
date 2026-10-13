@@ -14,6 +14,17 @@ const char* guardKindName(GuardKind kind) {
 }
 const std::vector<Law>& laws() {
   static const std::vector<Law> result{
+      {"constant-arithmetic",
+       "a*(b*m) = (a*b)*m; Const(a)*Const(b) = Const(a*b)",
+       "exact integer coefficients; checked overflow", true},
+      {"coefficient-combination", "a*m + b*m = (a+b)*m",
+       "identical tensor accesses and reduction domains; exact arithmetic",
+       true},
+      {"additive-cancellation", "a*m + (-a)*m = 0",
+       "identical tensor accesses and reduction domains; interface retained",
+       true},
+      {"zero-multiplication", "0*m = 0",
+       "exact arithmetic; interfaces and operation legality retained", true},
       {"add-associativity", "Add(Add(x,y),z) = Add(x,Add(y,z))",
        "same free-axis interface; exact associative addition", true},
       {"product-associativity",

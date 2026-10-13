@@ -33,6 +33,7 @@ struct Constructor {
     if (n.capture) return lowerer.lower(id);
     std::vector<TensorMeaning> inputs;
     for (auto child : n.inputs) inputs.push_back(build(child));
+    if (!n.automatic) return lowerer.operation(id, std::move(inputs));
     std::set<std::size_t> reduced;
     std::function<void(const Value&)> scan = [&](const Value& v) {
       if (v.kind == Value::Kind::Reduce) reduced.insert(v.index);
@@ -147,12 +148,9 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
                      call("unique_axes", {call("concat", std::move(all))})};
     auto rhs = ctor.build(plan.rhs);
     auto checked = normalize(c, rhs.value, &candidate.rewrites);
-    std::map<std::string, const Term*> left;
-    for (const auto& t : lt) left[footprint(t)] = &t;
-    for (const auto& t : checked)
-      c.require(
-          call("same_set", {left.at(footprint(t))->reductions, t.reductions}),
-          GuardKind::ReductionDomain);
+    auto simplified_lhs = collectTerms(c, lt, &candidate.rewrites);
+    auto simplified_rhs = collectTerms(c, checked, &candidate.rewrites);
+    equivalentTerms(c, simplified_lhs, simplified_rhs);
     c.require(call("==", {lhs.axes, rhs.axes}), GuardKind::CoordinateOrder);
     c.require(call("==", {lhs.shape, rhs.shape}));
     c.require(call("==", {lhs.dtype, rhs.dtype}));

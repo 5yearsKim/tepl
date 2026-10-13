@@ -28,10 +28,11 @@ struct Read {
   Axes axes;
 };
 struct Expr {
-  enum class Kind { Read, Add, Product, Reduce } kind;
+  enum class Kind { Read, Add, Product, Reduce, Const } kind;
   Read read{};
   Axes axes;
   std::vector<Ptr> args;
+  std::int64_t constant = 0;
 };
 struct Tensor {
   Axes axes;
@@ -40,6 +41,7 @@ struct Tensor {
 struct Term {
   Axes reductions;
   std::vector<Read> reads;
+  std::int64_t coefficient = 1;
 };
 using Terms = std::vector<Term>;
 using Datum = std::variant<std::int64_t, bool, List>;
@@ -72,6 +74,8 @@ std::string key(const Term& t) {
   return k;
 }
 std::string expression(const Ptr& e) {
+  if (e->kind == Expr::Kind::Const)
+    return "Const(" + std::to_string(e->constant) + ")";
   if (e->kind == Expr::Kind::Read)
     return "Input(#" + std::to_string(e->read.capture) + "," +
            list(e->read.axes) + ")";
@@ -230,6 +234,9 @@ struct Engine {
   Ptr value(const Value& v, const std::vector<Tensor>& inputs,
             const std::vector<Axes>& groups) {
     tick();
+    if (v.kind == Value::Kind::Const)
+      return std::make_shared<Expr>(
+          Expr{Expr::Kind::Const, {}, {}, {}, v.constant});
     if (v.kind == Value::Kind::Operand) return inputs.at(v.index).value;
     std::vector<Ptr> args;
     for (const auto& a : v.args) args.push_back(value(*a, inputs, groups));
@@ -242,14 +249,23 @@ struct Engine {
              v.kind == Value::Kind::Reduce ? groups.at(v.index) : Axes{},
              args});
   }
+  bool constantValue(const Ptr& e) {
+    if (e->kind == Expr::Kind::Const) return true;
+    if (e->kind == Expr::Kind::Read) return false;
+    for (const auto& a : e->args)
+      if (!constantValue(a)) return false;
+    return true;
+  }
   Set free(const Ptr& e) {
+    if (e->kind == Expr::Kind::Const) return {};
     if (e->kind == Expr::Kind::Read) return set(e->read.axes);
     auto out = free(e->args[0]);
     if (e->kind == Expr::Kind::Reduce) {
       for (auto a : e->axes) out.erase(a);
     } else {
       auto r = free(e->args[1]);
-      if (e->kind == Expr::Kind::Add && out != r)
+      if (e->kind == Expr::Kind::Add && out != r &&
+          !constantValue(e->args[0]) && !constantValue(e->args[1]))
         bad("Add coordinate interfaces differ");
       out.insert(r.begin(), r.end());
     }
@@ -257,6 +273,7 @@ struct Engine {
   }
   Ptr rename(const Ptr& e, std::map<Axis, Axis> map) {
     tick();
+    if (e->kind == Expr::Kind::Const) return e;
     if (e->kind == Expr::Kind::Read) {
       auto r = e->read;
       for (auto& a : r.axes)
@@ -282,7 +299,10 @@ struct Engine {
         bad("axis assertion failed: " + format(*a));
     auto out = std::get<List>(eval(*n.definition->output, n, inputs, groups));
     auto body = value(*n.definition->value, inputs, groups);
-    if (set(out).size() != out.size() || set(out) != free(body))
+    auto dependencies = free(body), interface = set(out);
+    if (interface.size() != out.size() ||
+        !std::includes(interface.begin(), interface.end(), dependencies.begin(),
+                       dependencies.end()))
       bad("output interface must list every free axis exactly once");
     return {out, body};
   }
@@ -349,6 +369,7 @@ struct Engine {
   Terms normalize(const Ptr& e) {
     tick();
     if (e->kind == Expr::Kind::Read) return {{{}, {e->read}}};
+    if (e->kind == Expr::Kind::Const) return {{{}, {}, e->constant}};
     auto l = normalize(e->args[0]);
     if (e->kind == Expr::Kind::Reduce) {
       if (l.size() > 1) note("reduction-linearity");
@@ -391,6 +412,9 @@ struct Engine {
             independent(a, b);
             independent(b, a);
             Term t = a;
+            if (__builtin_mul_overflow(a.coefficient, b.coefficient,
+                                       &t.coefficient))
+              throw Failure("reference coefficient overflow");
             t.reductions.insert(t.reductions.end(), b.reductions.begin(),
                                 b.reductions.end());
             if (set(t.reductions).size() != t.reductions.size())
@@ -651,7 +675,9 @@ struct Engine {
       auto k = key(t);
       if (!left.contains(k) || !seen.insert(k).second) return false;
       const auto& l = *left.at(k);
-      if (l.reductions.size() != t.reductions.size()) return false;
+      if (l.coefficient != t.coefficient ||
+          l.reductions.size() != t.reductions.size())
+        return false;
       auto map = outputs;
       auto range = used;
       auto lb = set(l.reductions), rb = set(t.reductions);

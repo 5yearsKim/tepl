@@ -86,7 +86,11 @@ E expression(Expr::Kind k, std::vector<E> args, S axes) {
   return std::make_shared<Expr>(
       Expr{k, 0, 0, std::move(axes), std::move(args)});
 }
+E constant(std::int64_t n) {
+  return std::make_shared<Expr>(Expr{Expr::Kind::Const, 0, 0, {}, {}, n});
+}
 S freeAxes(const E& e) {
+  if (e->kind == Expr::Kind::Const) return call("empty_axes", {});
   if (e->kind == Expr::Kind::Read) return e->axes;
   auto a = freeAxes(e->args[0]);
   if (e->kind == Expr::Kind::Reduce)
@@ -94,6 +98,8 @@ S freeAxes(const E& e) {
   return call("union_axes", {a, freeAxes(e->args[1])});
 }
 std::string show(const E& e) {
+  if (e->kind == Expr::Kind::Const)
+    return "Const(" + std::to_string(e->constant) + ")";
   if (e->kind == Expr::Kind::Read)
     return "Read(#" + std::to_string(e->capture) + ", access@" +
            std::to_string(e->occurrence) + ")";
@@ -109,7 +115,7 @@ std::string show(const E& e) {
 }
 E Lowerer::rename(const E& e, const S& from, const S& to) {
   context.tick();
-  if (equal(from, to)) return e;
+  if (e->kind == Expr::Kind::Const || equal(from, to)) return e;
   context.transportFrame(from, to);
   if (e->kind == Expr::Kind::Read) {
     auto axes = context.transportInterface(from, to, e->axes);
@@ -128,6 +134,7 @@ E Lowerer::rename(const E& e, const S& from, const S& to) {
 E Lowerer::value(const Value& v, const std::vector<TensorMeaning>& inputs,
                  const std::vector<S>& groups) {
   context.tick();
+  if (v.kind == Value::Kind::Const) return constant(v.constant);
   if (v.kind == Value::Kind::Operand) return inputs.at(v.index).value;
   std::vector<E> args;
   for (const auto& a : v.args) args.push_back(value(*a, inputs, groups));
@@ -239,7 +246,18 @@ TensorMeaning Lowerer::operation(std::size_t id,
             context.bind(layout, groups[g],
                          metadata(*b.positions, n, inputs, groups));
       context.cover(layout, cs);
+      context.transportFrame(inputs[o].axes, layout);
       inputs[o].value = rename(inputs[o].value, inputs[o].axes, layout);
+      std::map<std::size_t, S> accesses;
+      auto scan = [&](auto&& self, const E& e) -> void {
+        if (e->kind == Expr::Kind::Read) accesses[e->occurrence] = e->axes;
+        for (const auto& a : e->args) self(self, a);
+      };
+      scan(scan, inputs[o].value);
+      for (auto& [occurrence, axes] : inputs[o].occurrence_axes)
+        axes = accesses.contains(occurrence)
+                   ? accesses.at(occurrence)
+                   : context.transportInterface(inputs[o].axes, layout, axes);
       inputs[o].axes = layout;
       inputs[o].interface = context.tensorInterface(layout);
     }
@@ -263,7 +281,15 @@ TensorMeaning Lowerer::operation(std::size_t id,
   auto body = value(*n.definition->value, inputs, groups);
   obligations.push_back(call("distinct_axes", {axes}));
   if (anchors) {
-    obligations.push_back(call("same_set", {axes, freeAxes(body)}));
+    auto hasConstant = [&](auto&& self, const E& e) -> bool {
+      if (e->kind == Expr::Kind::Const) return true;
+      for (const auto& a : e->args)
+        if (self(self, a)) return true;
+      return false;
+    };
+    obligations.push_back(hasConstant(hasConstant, body)
+                              ? call("subset", {freeAxes(body), axes})
+                              : call("same_set", {axes, freeAxes(body)}));
     obligations.push_back(call("==", {context.extents(axes), shape}));
     // Publish geometry only after the current node's legality is established.
     // Strict verification cannot introduce a premise while doing this.
@@ -280,12 +306,6 @@ TensorMeaning Lowerer::operation(std::size_t id,
     }
     context.learn(call("==", {context.extents(axes), shape}));
   }
-  std::set<std::size_t> reduced;
-  std::function<void(const Value&)> collect = [&](const Value& v) {
-    if (v.kind == Value::Kind::Reduce) reduced.insert(v.index);
-    for (const auto& a : v.args) collect(*a);
-  };
-  collect(*n.definition->value);
   // Output syntax is restricted to groups, concatenations and permutations.
   // Reflect that syntax into maps directly instead of rediscovering it with
   // general position lookup on deeply composed operand views.
@@ -314,7 +334,7 @@ TensorMeaning Lowerer::operation(std::size_t id,
   auto output_mapping = outputMaps(*n.definition->output).second;
   std::vector<S> free_groups, output_positions;
   for (std::size_t g = 0; g < groups.size(); ++g)
-    if (!reduced.contains(g)) {
+    if (output_mapping.contains(g)) {
       free_groups.push_back(groups[g]);
       output_positions.push_back(context.canonical(output_mapping.at(g)));
     }
@@ -323,7 +343,16 @@ TensorMeaning Lowerer::operation(std::size_t id,
     context.recordTensor(id, axes, groups);
   }
   context.recordShape(axes, shape);
-  return {axes, shape, dt, body, context.tensorInterface(axes)};
+  std::map<std::size_t, S> occurrence_axes;
+  for (const auto& input : inputs)
+    occurrence_axes.insert(input.occurrence_axes.begin(),
+                           input.occurrence_axes.end());
+  return {axes,
+          shape,
+          dt,
+          body,
+          context.tensorInterface(axes),
+          std::move(occurrence_axes)};
 }
 TensorMeaning Lowerer::lower(std::size_t id) {
   context.tick();
@@ -334,10 +363,13 @@ TensorMeaning Lowerer::lower(std::size_t id) {
                         : make(Symbol::Kind::AxisGroup,
                                "input" + std::to_string(id), id, 0, {shape});
     if (!anchors) context.registerCoordinates(id, 0, axes);
-    return {axes, shape, make(Symbol::Kind::DType, {}, n.capture->value),
+    return {axes,
+            shape,
+            make(Symbol::Kind::DType, {}, n.capture->value),
             std::make_shared<Expr>(
                 Expr{Expr::Kind::Read, n.capture->value, id, axes, {}}),
-            context.tensorInterface(axes)};
+            context.tensorInterface(axes),
+            {{id, axes}}};
   }
   std::vector<TensorMeaning> inputs;
   for (auto child : n.inputs) inputs.push_back(lower(child));
@@ -351,6 +383,7 @@ E arithmeticSkeleton(const Plan& p, std::size_t id) {
   std::vector<E> inputs;
   for (auto child : n.inputs) inputs.push_back(arithmeticSkeleton(p, child));
   std::function<E(const Value&)> lower = [&](const Value& v) -> E {
+    if (v.kind == Value::Kind::Const) return constant(v.constant);
     if (v.kind == Value::Kind::Operand) return inputs.at(v.index);
     std::vector<E> args;
     for (const auto& a : v.args) args.push_back(lower(*a));

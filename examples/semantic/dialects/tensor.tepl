@@ -29,7 +29,8 @@
 // remain local to the axes block. No semantics parameter list is needed.
 // axes yields the ordered output-axis sequence; semantics yields the value
 // expression. The compiler pairs these results into the tensor meaning.
-// The output sequence lists every free logical axis of the expression once.
+// Output axes define the evaluation interface independently of value reads.
+// Tensor operands must align; scalar constants may be independent of axes.
 // Its extents determine the output shape; there is no separate shape block.
 // `++` concatenates ordered sequences.
 // all_axes(t) = [0, ..., rank(t)-1]; ordered_complement(S, T) removes T from S
@@ -38,6 +39,7 @@
 // Algebraic graph
 // ---------------
 // Operand references inside semantics use the mappings registered by bind.
+// Const(n) is an exact signed integer scalar; its value is independent of axes.
 // Add and Product add/multiply scalar values at a logical coordinate assignment;
 // Product shares common coordinates and retains independent coordinates.
 // Reduce(G, e) binds G and sums e over the Cartesian product of G's domains.
@@ -90,6 +92,25 @@ dialect TensorLang {
         semantics {
             yield Product(lhs, rhs);
         }
+    }
+
+    op negate(input: tensor) -> tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes { bind S { input: all_axes(input) }; yield S; }
+        semantics { yield Product(Const(-1), input); }
+    }
+
+    op subtract(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) { assert a == b; assert is_numeric(a); yield a; }
+        axes { bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) }; yield S; }
+        semantics { yield Add(lhs, Product(Const(-1), rhs)); }
+    }
+
+    // The input supplies axes and dtype; its element values are unused.
+    op zero_like(input: tensor) -> tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes { bind S { input: all_axes(input) }; yield S; }
+        semantics { yield Const(0); }
     }
 
     op dot_general(lhs: tensor, rhs: tensor) -> tensor {

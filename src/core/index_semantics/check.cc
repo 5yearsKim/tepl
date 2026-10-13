@@ -1,6 +1,7 @@
 #include "src/core/index_semantics/check.h"
 
 #include <algorithm>
+#include <charconv>
 #include <functional>
 #include <set>
 #include <stdexcept>
@@ -141,7 +142,21 @@ struct Checker {
       return node(Value::Kind::Operand, operands.at(expr.text));
     }
     if (expr.kind != ast::SemanticExpr::Kind::kCall)
-      fail("axis semantics expects Operand, Add, Product, or Reduce");
+      fail("axis semantics expects Operand, Const, Add, Product, or Reduce");
+    if (expr.text == "Const") {
+      if (expr.arguments.size() != 1 ||
+          expr.arguments[0]->kind != ast::SemanticExpr::Kind::kInteger)
+        fail("Const requires one signed integer literal");
+      auto text = expr.arguments[0]->text;
+      if (text.starts_with("+")) text.erase(0, 1);
+      std::int64_t number;
+      auto [end, ec] =
+          std::from_chars(text.data(), text.data() + text.size(), number);
+      if (ec != std::errc{} || end != text.data() + text.size())
+        fail("Const literal is outside the signed 64-bit range");
+      return std::make_shared<Value>(
+          Value{Value::Kind::Const, 0, {}, at, number});
+    }
     if (expr.text == "Reduce") {
       if (expr.arguments.size() != 2) fail("Reduce requires group and value");
       const auto& g = *expr.arguments[0];
@@ -160,7 +175,15 @@ struct Checker {
     return node(expr.text == "Add" ? Value::Kind::Add : Value::Kind::Product, 0,
                 {l, r});
   }
+  bool constantValue(const Value& v) {
+    if (v.kind == Value::Kind::Const) return true;
+    if (v.kind == Value::Kind::Operand) return false;
+    for (const auto& a : v.args)
+      if (!constantValue(*a)) return false;
+    return true;
+  }
   std::set<std::size_t> free(const Value& v) {
+    if (v.kind == Value::Kind::Const) return {};
     if (v.kind == Value::Kind::Operand) {
       std::set<std::size_t> out;
       for (std::size_t g = 0; g < result.groups.size(); ++g)
@@ -170,11 +193,13 @@ struct Checker {
     }
     auto out = free(*v.args[0]);
     if (v.kind == Value::Kind::Reduce) {
-      if (!out.erase(v.index)) fail("Reduce group is not free in its body");
+      if (!out.erase(v.index) && !constantValue(*v.args[0]))
+        fail("Reduce group is not free in its body");
       return out;
     }
     auto right = free(*v.args[1]);
-    if (v.kind == Value::Kind::Add && out != right)
+    if (v.kind == Value::Kind::Add && out != right &&
+        !constantValue(*v.args[0]) && !constantValue(*v.args[1]))
       fail(
           "Add operands must have identical free logical groups (no "
           "broadcasting)");
@@ -256,7 +281,19 @@ struct Checker {
     result.output = metadata(*axes.output);
     type(result.output, Type::Axes);
     result.value = value(*sem.result);
-    if (free(*result.value) != outputGroups(*result.output))
+    std::set<std::size_t> reduced;
+    auto scan = [&](auto&& self, const Value& v) -> void {
+      if (v.kind == Value::Kind::Reduce) reduced.insert(v.index);
+      for (const auto& a : v.args) self(self, *a);
+    };
+    scan(scan, *result.value);
+    auto output = outputGroups(*result.output);
+    for (auto g : reduced)
+      if (output.contains(g))
+        fail(
+            "output groups must be exactly the free groups of semantics; "
+            "output contains a reduced group");
+    if (!constantValue(*result.value) && free(*result.value) != output)
       fail("output groups must be exactly the free groups of semantics");
     for (std::size_t o = 0; o < operation.operands.size(); ++o) {
       bool bound = false;

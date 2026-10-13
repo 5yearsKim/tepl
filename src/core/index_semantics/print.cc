@@ -22,6 +22,8 @@ std::string format(const Meta& m) {
   return s + ")";
 }
 std::string format(const Value& v, const Definition& d) {
+  if (v.kind == Value::Kind::Const)
+    return "Const(" + std::to_string(v.constant) + ")";
   if (v.kind == Value::Kind::Operand) return d.operands.at(v.index);
   std::string s = v.kind == Value::Kind::Add       ? "Add("
                   : v.kind == Value::Kind::Product ? "Product("
@@ -151,6 +153,8 @@ std::string format(const Plan& p) {
     if (node.capture)
       return "Input(#" + std::to_string(node.capture->value) + ")";
     std::function<std::string(const Value&)> value = [&](const Value& v) {
+      if (v.kind == Value::Kind::Const)
+        return "Const(" + std::to_string(v.constant) + ")";
       if (v.kind == Value::Kind::Operand)
         return "align[n" + std::to_string(n) + ":" +
                node.definition->operands.at(v.index) + "](" +
