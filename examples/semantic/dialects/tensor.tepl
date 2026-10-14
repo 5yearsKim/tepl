@@ -24,7 +24,9 @@
 // Generic checks supplied by the axes block:
 //   * Each position list is distinct and in range for its operand.
 //   * Bindings within one group have equal lengths and corresponding extents.
-//   * Across groups, every input dimension is bound exactly once.
+//   * Implicit operands bind every input dimension exactly once.
+//   * Explicit Read operands may bind a disjoint subset (or none); each read
+//     supplies a full-rank coordinate tuple with checked lengths and bounds.
 // These checks are legality constraints, retained through algebraic rewriting.
 //
 // bind names and their operand mappings are available in semantics; let locals
@@ -45,6 +47,9 @@
 // Add and Product add/multiply scalar values at a logical coordinate assignment;
 // Product shares common coordinates and retains independent coordinates.
 // Reduce(G, e) binds G and sums e over the Cartesian product of G's domains.
+// Read(t, tuple) evaluates t at calculated integer coordinates. Coords(G)
+// returns G's coordinate tuple, IndexAdd is elementwise index addition, and
+// Concat joins coordinate tuples. These are separate from scalar arithmetic.
 // Reduce([], e) = e. A domain with any zero extent has sum zero.
 // This describes a value and its interface, not storage allocation. Operation
 // operands and attrs are visible in both blocks.
@@ -159,6 +164,54 @@ dialect TensorLang {
         // I = [i]         [0]              --                  [1]
         // J = [j]         --               [1]                 [2]
         // out[b,i,j] = sum(k0,k1) lhs[i,k0,b,k1] * rhs[k1,j,k0,b].
+    }
+
+    // Valid convolution (cross-correlation), positive strides/dilations, no padding.
+    // input [N, spatial..., C], kernel [kernel_spatial..., C, F].
+    // Spatial groups have arbitrary equal lengths, not a fixed 2D rank.
+    op convolution(input: tensor, kernel: tensor) -> tensor {
+        alias: conv;
+        attrs {
+            strides: index[];
+            dilations: index[];
+        }
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            assert rank(input) >= 3;
+            assert rank(kernel) == rank(input);
+            let spatial = ordered_complement(all_axes(input), [0, rank(input) - 1]);
+            let window = range(rank(kernel) - 2);
+            let input_sizes = gather(shape(input), spatial);
+            let window_sizes = gather(shape(kernel), window);
+            assert is_positive_extents(window_sizes);
+            assert len(attrs.strides) == len(spatial);
+            assert len(attrs.dilations) == len(spatial);
+            assert is_positive_extents(attrs.strides);
+            assert is_positive_extents(attrs.dilations);
+            let effective_window = offset_extents(
+                extent_mul(attrs.dilations, offset_extents(window_sizes, -1)), 1);
+            assert extent_le(effective_window, input_sizes);
+
+            bind N { input: [0] };
+            bind C { input: [rank(input) - 1], kernel: [rank(kernel) - 2] };
+            bind F { kernel: [rank(kernel) - 1] };
+            bind Window { kernel: window };
+            bind O = group(offset_extents(
+                extent_floor_div(extent_sub(input_sizes, effective_window), attrs.strides), 1));
+            yield N ++ O ++ F;
+        }
+        semantics {
+            yield Reduce(Window, Reduce(C,
+                Product(
+                    Read(input, Concat(Coords(N), IndexAdd(IndexScale(attrs.strides, Coords(O)), IndexScale(attrs.dilations, Coords(Window))), Coords(C))),
+                    kernel
+                )
+            ));
+        }
     }
 
     // Insert axes only. Existing dimensions retain their extents. The mapping

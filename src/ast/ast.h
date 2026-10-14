@@ -263,7 +263,7 @@ struct AxisDefinition {
 struct SemanticExpr;
 using SemanticExprPtr = std::shared_ptr<SemanticExpr>;
 struct SemanticExpr {
-  enum class Kind { kName, kCall, kInteger };
+  enum class Kind { kName, kCall, kInteger, kAttribute };
   SourceSpan span;
   Kind kind;
   std::string text;

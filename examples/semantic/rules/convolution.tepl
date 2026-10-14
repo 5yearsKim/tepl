@@ -1,0 +1,25 @@
+from "../dialects/tensor.tepl" import TensorLang as t;
+use t::{add, conv, transpose};
+
+rule convolution_distribute_input {
+  (conv[@c] (add A B) W) => (add (conv[auto] A W) (conv[auto] B W))
+}
+
+rule convolution_distribute_kernel {
+  (conv[@c] A (add U V)) => (add (conv[auto] A U) (conv[auto] A V))
+}
+
+// Calculated reads compose through an arbitrary input permutation.
+rule convolution_transposed_input {
+  (conv[@c] (transpose[@p] (add A B)) W)
+  =>
+  (add (conv[auto] (transpose[@p] A) W) (conv[auto] (transpose[@p] B) W))
+}
+
+// Nested coefficient inversion is outside direct matching; reuse known attributes.
+// The inner and outer spatial domains remain separate until substitution.
+rule convolution_nested_distribute {
+  (conv[@outer] (conv[@inner] (add A B) W) V)
+  =>
+  (add (conv[@outer] (conv[@inner] A W) V) (conv[@outer] (conv[@inner] B W) V))
+}

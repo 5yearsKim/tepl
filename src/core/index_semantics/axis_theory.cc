@@ -3,6 +3,7 @@
 #include <tuple>
 
 #include "src/core/index_semantics/context.h"
+#include "src/core/index_semantics/index_expr.h"
 
 namespace tepl::core::index_semantics {
 void Context::represent(S a, S b) {
@@ -163,6 +164,16 @@ bool Context::deriveEvidence(const S& f) {
   return structuralEvidence(f, QueryMode::Evidence);
 }
 bool Context::structuralEvidence(const S& f, QueryMode mode) {
+  if (callIs(f, "extent_le") &&
+      extentBoundArithmetic(*this, f->args[0], f->args[1], mode))
+    return true;
+  if (callIs(f, "is_valid_extents") && callIs(f->args[0], "offset_extents")) {
+    auto d = f->args[0];
+    if (d->args[1]->name == "1" && callIs(d->args[0], "extent_sub"))
+      return query(
+          call("extent_le", {d->args[0]->args[1], d->args[0]->args[0]}), mode);
+  }
+
   if (callIs(f, "==") && f->args[0]->sort == Symbol::Sort::Extents &&
       f->args[1]->sort == Symbol::Sort::Extents) {
     auto left = shape_witnesses_.find(key(f->args[0]));
@@ -177,6 +188,17 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
   }
   if (callIs(f, "is_valid_extents")) {
     auto domain = canonical(f->args[0]);
+    if (query(call("is_positive_extents", {domain}), mode)) return true;
+    if (callIs(domain, "extent_sub"))
+      return query(call("extent_le", {domain->args[1], domain->args[0]}), mode);
+    if (callIs(domain, "extent_floor_div"))
+      return query(call("is_valid_extents", {domain->args[0]}), mode) &&
+             query(call("is_positive_extents", {domain->args[1]}), mode);
+    if (callIs(domain, "extent_mul") || callIs(domain, "extent_add"))
+      return query(call("is_valid_extents", {domain->args[0]}), mode) &&
+             query(call("is_valid_extents", {domain->args[1]}), mode);
+    if (callIs(domain, "offset_extents") && nonnegative(domain->args[1]))
+      return query(call("is_valid_extents", {domain->args[0]}), mode);
     if (domain->kind == Symbol::Kind::Shape) return true;
     if (callIs(domain, "axis_extents")) {
       auto valid = [&](auto&& self, const S& axes) -> bool {

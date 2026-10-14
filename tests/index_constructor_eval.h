@@ -20,6 +20,9 @@ struct ConstructorEvaluator {
   const RuleProof& proof;
   std::vector<S> assumptions;
   std::map<const Symbol*, Datum> cache;
+  // Keep queried nodes alive: synthesized temporary expressions can otherwise
+  // reuse an address and collide with the pointer-keyed cache.
+  std::map<const Symbol*, S> retained;
   std::map<std::pair<std::size_t, std::size_t>, SymbolPtr> groups;
   ConstructorEvaluator(const Metadata& m, const RuleProof& p)
       : metadata(m), proof(p) {
@@ -50,6 +53,7 @@ struct ConstructorEvaluator {
     if (found != cache.end()) return found->second;
     auto value = compute(*s);
     cache[s.get()] = value;
+    retained[s.get()] = s;
     return value;
   }
   Datum compute(const Symbol& s) {
@@ -77,6 +81,40 @@ struct ConstructorEvaluator {
     if (s.kind != Symbol::Kind::Call)
       throw std::runtime_error("unresolved constructor");
     const auto& n = s.name;
+    if (n == "extent_add" || n == "extent_sub" || n == "extent_le" ||
+        n == "extent_mul" || n == "extent_floor_div") {
+      auto a = std::get<List>(args[0]), b = std::get<List>(args[1]);
+      if (a.size() != b.size())
+        throw std::runtime_error("extent tuple lengths differ");
+      List out;
+      bool less = true;
+      for (std::size_t i = 0; i < a.size(); ++i) {
+        if (n == "extent_floor_div") {
+          if (b[i] <= 0) throw std::runtime_error("nonpositive floor divisor");
+          // C++ integer division truncates; metadata floor division does not.
+          out.push_back(a[i] / b[i] - (a[i] % b[i] < 0 ? 1 : 0));
+        } else
+          out.push_back(n == "extent_mul"   ? a[i] * b[i]
+                        : n == "extent_sub" ? a[i] - b[i]
+                                            : a[i] + b[i]);
+        less &= a[i] <= b[i];
+      }
+      return n == "extent_le" ? Datum{less} : Datum{out};
+    }
+    if (n == "scale_extents") {
+      auto out = std::get<List>(args[0]);
+      for (auto& x : out) x *= std::get<std::int64_t>(args[1]);
+      return out;
+    }
+    if (n == "offset_extents") {
+      auto out = std::get<List>(args[0]);
+      for (auto& x : out) x += std::get<std::int64_t>(args[1]);
+      return out;
+    }
+    if (n == "is_positive_extents") {
+      auto a = std::get<List>(args[0]);
+      return std::all_of(a.begin(), a.end(), [](auto x) { return x > 0; });
+    }
     if (n == "empty_axes") return Coordinates{};
     if (n == "place_axes") {
       auto left = std::get<Coordinates>(args[0]),

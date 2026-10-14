@@ -7,6 +7,8 @@
 #include <set>
 #include <tuple>
 
+#include "src/core/index_semantics/proof_policy.h"
+
 namespace tepl::core::index_semantics {
 namespace {
 std::string intern(const Symbol& s) {
@@ -49,6 +51,12 @@ S make(Symbol::Kind k, std::string name, std::size_t owner, std::size_t index,
              name == "is_valid_axis_list" || name == "same_set" ||
              name == "disjoint" || name == "subset" || name.starts_with("is_"))
       sort = Symbol::Sort::Boolean;
+    else if (name == "extent_le")
+      sort = Symbol::Sort::Boolean;
+    else if (name == "extent_add" || name == "extent_sub" ||
+             name == "offset_extents" || name == "extent_mul" ||
+             name == "extent_floor_div" || name == "scale_extents")
+      sort = Symbol::Sort::Extents;
     else if (name == "axis_extents")
       sort = Symbol::Sort::Extents;
     else if (name == "distinct_axes")
@@ -153,6 +161,20 @@ S call(std::string name, std::vector<S> args) {
                         : __builtin_mul_overflow(*a, *b, &result)))
       return make(Symbol::Kind::Integer, std::to_string(result));
   }
+  // Fold offsets around a symbolic rank without reordering coordinates.
+  if (name == "+") {
+    for (std::size_t i = 0; i < 2; ++i) {
+      auto a = literal(args[i]);
+      auto x = args[1 - i];
+      if (a && callIs(x, "-")) {
+        auto b = literal(x->args[1]);
+        std::int64_t difference;
+        if (b && !__builtin_sub_overflow(*b, *a, &difference))
+          return call("-", {x->args[0], make(Symbol::Kind::Integer,
+                                             std::to_string(difference))});
+      }
+    }
+  }
   if (name == "concat" && !args.empty() &&
       std::all_of(args.begin(), args.end(),
                   [](const S& a) { return a->kind == Symbol::Kind::List; })) {
@@ -172,6 +194,9 @@ S call(std::string name, std::vector<S> args) {
     if (values.size() == args[1]->args.size())
       return make(Symbol::Kind::List, {}, 0, 0, std::move(values));
   }
+  if (name == "offset_positions" && args[0]->kind == Symbol::Kind::List &&
+      args[0]->args.size() == 1 && equal(args[0]->args[0], integer(0)))
+    return make(Symbol::Kind::List, {}, 0, 0, {args[1]});
   if (name == "offset_positions" && args[0]->kind == Symbol::Kind::List) {
     auto offset = literal(args[1]);
     std::vector<S> values;
@@ -269,6 +294,9 @@ S call(std::string name, std::vector<S> args) {
     return args[1]->args[0];
   if (name == "+" && callIs(args[0], "-") && equal(args[1], args[0]->args[1]))
     return args[0]->args[0];
+  if (name == "-" && args[1]->kind == Symbol::Kind::Integer &&
+      args[1]->name == "0")
+    return args[0];
   if (name == "-" && equal(args[0], args[1])) return integer(0);
   if (name == "len" && callIs(args[0], "offset_positions"))
     return call("len", {args[0]->args[0]});
@@ -306,11 +334,91 @@ S call(std::string name, std::vector<S> args) {
       }
     }
   }
+  if ((name == "extent_mul" || name == "extent_floor_div") &&
+      args[0]->kind == Symbol::Kind::List &&
+      args[1]->kind == Symbol::Kind::List &&
+      args[0]->args.size() == args[1]->args.size()) {
+    std::vector<S> out;
+    bool literals = true;
+    for (std::size_t i = 0; i < args[0]->args.size(); ++i) {
+      auto a = args[0]->args[i], b = args[1]->args[i];
+      if (a->kind != Symbol::Kind::Integer ||
+          b->kind != Symbol::Kind::Integer) {
+        literals = false;
+        break;
+      }
+      auto x = std::stoll(a->name), y = std::stoll(b->name);
+      std::int64_t n;
+      if (name == "extent_mul") {
+        if (__builtin_mul_overflow(x, y, &n))
+          throw ProofFailure("extent arithmetic overflow");
+      } else {
+        if (y <= 0)
+          throw ProofFailure("nonpositive floor divisor",
+                             FailureKind::InvalidCandidate);
+        n = x / y - (x % y < 0 ? 1 : 0);
+      }
+      out.push_back(make(Symbol::Kind::Integer, std::to_string(n)));
+    }
+    if (literals) return make(Symbol::Kind::List, {}, 0, 0, out);
+  }
+  if (name == "scale_extents" && args[1]->name == "1") return args[0];
+  if (name == "extent_mul") {
+    std::vector<S> factors;
+    auto collect = [&](auto&& self, const S& x) -> void {
+      if (callIs(x, "extent_mul")) {
+        self(self, x->args[0]);
+        self(self, x->args[1]);
+      } else
+        factors.push_back(x);
+    };
+    for (const auto& a : args) collect(collect, a);
+    std::sort(factors.begin(), factors.end(), symbolLess);
+    // Build directly: avoid recursively reflattening an already canonical
+    // product.
+    S product = factors[0];
+    for (std::size_t i = 1; i < factors.size(); ++i)
+      product =
+          make(Symbol::Kind::Call, "extent_mul", 0, 0, {product, factors[i]});
+    return product;
+  }
+  if (name == "offset_extents") {
+    if (args[1]->kind == Symbol::Kind::Integer && args[1]->name == "0")
+      return args[0];
+    if (callIs(args[0], "offset_extents"))
+      return call("offset_extents",
+                  {args[0]->args[0], call("+", {args[0]->args[1], args[1]})});
+    if (callIs(args[0], "concat")) {
+      std::vector<S> parts;
+      for (const auto& a : args[0]->args)
+        parts.push_back(call("offset_extents", {a, args[1]}));
+      return call("concat", parts);
+    }
+  }
+  if ((name == "extent_add" || name == "extent_mul") &&
+      symbolLess(args[1], args[0]))
+    std::swap(args[0], args[1]);
+  if (name == "gather" &&
+      (callIs(args[0], "extent_add") || callIs(args[0], "extent_sub") ||
+       callIs(args[0], "extent_mul") || callIs(args[0], "extent_floor_div")))
+    return call(args[0]->name, {call("gather", {args[0]->args[0], args[1]}),
+                                call("gather", {args[0]->args[1], args[1]})});
+  if (name == "gather" && callIs(args[0], "scale_extents"))
+    return call("scale_extents", {call("gather", {args[0]->args[0], args[1]}),
+                                  args[0]->args[1]});
+  if (name == "gather" && callIs(args[0], "offset_extents"))
+    return call("offset_extents", {call("gather", {args[0]->args[0], args[1]}),
+                                   args[0]->args[1]});
   if (name == "len" && callIs(args[0], "order_positions"))
     return call("len", {args[0]->args[0]});
   if (name == "len" && callIs(args[0], "place_axes"))
     return call("+", {call("len", {args[0]->args[0]}),
                       call("len", {args[0]->args[2]})});
+  if (name == "len" &&
+      (callIs(args[0], "extent_add") || callIs(args[0], "extent_sub") ||
+       callIs(args[0], "offset_extents") || callIs(args[0], "extent_mul") ||
+       callIs(args[0], "extent_floor_div") || callIs(args[0], "scale_extents")))
+    return call("len", {args[0]->args[0]});
   if (name == "len" && callIs(args[0], "axis_extents"))
     return call("len", {args[0]->args[0]});
   if (name == "len" && args[0]->kind == Symbol::Kind::AxisGroup)
@@ -394,6 +502,9 @@ S call(std::string name, std::vector<S> args) {
     if (callIs(s, "concat")) {
       auto offset = integer(0);
       for (const auto& part : s->args) {
+        if (p->kind == Symbol::Kind::List && p->args.size() == 1 &&
+            equal(call("len", {part}), integer(1)) && equal(p->args[0], offset))
+          return part;
         if (callIs(p, "range") && equal(offset, integer(0)) &&
             equal(p->args[0], call("len", {part})))
           return part;

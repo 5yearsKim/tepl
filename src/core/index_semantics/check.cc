@@ -40,6 +40,17 @@ struct Checker {
       for (auto t : inputs) type(args[i++], t);
       return make(Meta::Kind::Call, output, name, 0, args);
     };
+    if (name == "extent_add" || name == "extent_sub" || name == "extent_mul" ||
+        name == "extent_floor_div")
+      return signature({Type::Positions, Type::Positions}, Type::Positions);
+    if (name == "scale_extents")
+      return signature({Type::Positions, Type::Integer}, Type::Positions);
+    if (name == "offset_extents")
+      return signature({Type::Positions, Type::Integer}, Type::Positions);
+    if (name == "extent_le")
+      return signature({Type::Positions, Type::Positions}, Type::Boolean);
+    if (name == "is_positive_extents")
+      return signature({Type::Positions}, Type::Boolean);
     if (name == "all_axes") return signature({Type::Operand}, Type::Positions);
     if (name == "rank") return signature({Type::Operand}, Type::Integer);
     if (name == "shape") return signature({Type::Operand}, Type::Positions);
@@ -116,6 +127,13 @@ struct Checker {
             for (const auto& arg : v.arguments) args.push_back(metadata(*arg));
             at = detail::origin(source, expr.span);
             return call(v.callee, std::move(args));
+          } else if constexpr (std::is_same_v<T, ast::MetadataUnary>) {
+            auto x = metadata(*v.operand);
+            type(x, Type::Integer);
+            if (std::string(spelling(v.op)) == "-")
+              return call("-",
+                          {make(Meta::Kind::Integer, Type::Integer, "0"), x});
+            fail("unsupported unary axis expression");
           } else if constexpr (std::is_same_v<T, ast::MetadataBinary>) {
             auto l = metadata(*v.lhs), r = metadata(*v.rhs);
             at = detail::origin(source, expr.span);
@@ -135,6 +153,51 @@ struct Checker {
         },
         expr.value);
   }
+  IndexValuePtr indexValue(const ast::SemanticExpr& expr) {
+    at = detail::origin(source, expr.span);
+    if (expr.kind != ast::SemanticExpr::Kind::kCall)
+      fail("read indices require Coords, IndexAdd, or Concat");
+    if (expr.text == "IndexScale") {
+      if (expr.arguments.size() != 2 ||
+          expr.arguments[0]->kind != ast::SemanticExpr::Kind::kAttribute ||
+          !fields.contains(expr.arguments[0]->text))
+        fail("IndexScale requires an index[] attribute and a coordinate tuple");
+      auto name = expr.arguments[0]->text;
+      result.extent_fields.insert(fields.at(name));
+      auto scale =
+          make(Meta::Kind::Attribute, Type::Positions, name, fields.at(name));
+      return std::make_shared<IndexValue>(IndexValue{
+          IndexValue::Kind::Scale, 0, {indexValue(*expr.arguments[1])}, scale});
+    }
+    if (expr.text == "Coords") {
+      if (expr.arguments.size() != 1 ||
+          expr.arguments[0]->kind != ast::SemanticExpr::Kind::kName ||
+          !groups.contains(expr.arguments[0]->text))
+        fail("Coords requires an exported bind group");
+      return std::make_shared<IndexValue>(
+          IndexValue{IndexValue::Kind::Coordinates,
+                     groups.at(expr.arguments[0]->text),
+                     {}});
+    }
+    if ((expr.text != "IndexAdd" && expr.text != "Concat") ||
+        expr.arguments.size() < 2)
+      fail("unsupported coordinate primitive or arity: '" + expr.text + "'");
+    std::vector<IndexValuePtr> args;
+    for (const auto& a : expr.arguments) args.push_back(indexValue(*a));
+    return std::make_shared<IndexValue>(
+        IndexValue{expr.text == "IndexAdd" ? IndexValue::Kind::Add
+                                           : IndexValue::Kind::Concat,
+                   0, args});
+  }
+  std::set<std::size_t> indexGroups(const IndexValue& v) {
+    if (v.kind == IndexValue::Kind::Coordinates) return {v.group};
+    std::set<std::size_t> out;
+    for (const auto& a : v.args) {
+      auto part = indexGroups(*a);
+      out.insert(part.begin(), part.end());
+    }
+    return out;
+  }
   ValuePtr value(const ast::SemanticExpr& expr) {
     at = detail::origin(source, expr.span);
     auto node = [&](Value::Kind k, std::size_t index,
@@ -148,6 +211,19 @@ struct Checker {
     }
     if (expr.kind != ast::SemanticExpr::Kind::kCall)
       fail("axis semantics expects Operand, Const, Add, Product, or Reduce");
+    if (expr.text == "Read") {
+      if (expr.arguments.size() != 2 ||
+          expr.arguments[0]->kind != ast::SemanticExpr::Kind::kName ||
+          !operands.contains(expr.arguments[0]->text))
+        fail("Read requires an operand and a coordinate tuple");
+      auto access = indexValue(*expr.arguments[1]);
+      return std::make_shared<Value>(Value{Value::Kind::Read,
+                                           operands.at(expr.arguments[0]->text),
+                                           {},
+                                           at,
+                                           0,
+                                           access});
+    }
     if (expr.text == "Const") {
       if (expr.arguments.size() != 1 ||
           expr.arguments[0]->kind != ast::SemanticExpr::Kind::kInteger)
@@ -182,13 +258,15 @@ struct Checker {
   }
   bool constantValue(const Value& v) {
     if (v.kind == Value::Kind::Const) return true;
-    if (v.kind == Value::Kind::Operand) return false;
+    if (v.kind == Value::Kind::Operand || v.kind == Value::Kind::Read)
+      return false;
     for (const auto& a : v.args)
       if (!constantValue(*a)) return false;
     return true;
   }
   std::set<std::size_t> free(const Value& v) {
     if (v.kind == Value::Kind::Const) return {};
+    if (v.kind == Value::Kind::Read) return indexGroups(*v.access);
     if (v.kind == Value::Kind::Operand) {
       std::set<std::size_t> out;
       for (std::size_t g = 0; g < result.groups.size(); ++g)
@@ -296,9 +374,11 @@ struct Checker {
     result.output = metadata(*axes.output);
     type(result.output, Type::Axes);
     result.value = value(*sem.result);
-    std::set<std::size_t> reduced;
+    std::set<std::size_t> reduced, reads, implicit;
     auto scan = [&](auto&& self, const Value& v) -> void {
       if (v.kind == Value::Kind::Reduce) reduced.insert(v.index);
+      if (v.kind == Value::Kind::Read) reads.insert(v.index);
+      if (v.kind == Value::Kind::Operand) implicit.insert(v.index);
       for (const auto& a : v.args) self(self, *a);
     };
     scan(scan, *result.value);
@@ -322,7 +402,10 @@ struct Checker {
       bool bound = false;
       for (const auto& g : result.groups)
         for (const auto& b : g.bindings) bound |= b.operand == o;
-      if (!bound) fail("operand has no logical axis binding");
+      if (reads.contains(o) && implicit.contains(o))
+        fail("an operand cannot mix implicit and calculated reads");
+      if (!bound && !reads.contains(o))
+        fail("operand has no logical axis binding");
     }
     return result;
   }

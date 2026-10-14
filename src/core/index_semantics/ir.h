@@ -46,14 +46,24 @@ struct Group {
   SourceOrigin origin;
   MetaPtr domain;  // Output-only groups have explicit extent sequences.
 };
+// Definition-time coordinate tuples, separate from scalar tensor values.
+struct IndexValue;
+using IndexValuePtr = std::shared_ptr<const IndexValue>;
+struct IndexValue {
+  enum class Kind { Coordinates, Add, Concat, Scale } kind;
+  std::size_t group = 0;
+  std::vector<IndexValuePtr> args;
+  MetaPtr scale;  // Per-axis coefficients; independent of tensor values.
+};
 struct Value;
 using ValuePtr = std::shared_ptr<const Value>;
 struct Value {
-  enum class Kind { Operand, Add, Product, Reduce, Const } kind;
+  enum class Kind { Operand, Read, Add, Product, Reduce, Const } kind;
   std::size_t index = 0;  // operand or reduction group
   std::vector<ValuePtr> args;
   SourceOrigin origin;
   std::int64_t constant = 0;
+  IndexValuePtr access;
 };
 struct Definition {
   std::vector<std::string> operands, fields;
@@ -61,6 +71,8 @@ struct Definition {
   std::vector<MetaPtr> assertions;
   MetaPtr output;
   ValuePtr value;
+  // Numeric sequences may be constructed by extent arithmetic (domains or
+  // per-axis coordinate coefficients), rather than only position selectors.
   std::set<std::size_t> extent_fields;
 };
 

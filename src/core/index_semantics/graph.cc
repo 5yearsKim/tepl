@@ -18,6 +18,13 @@ S Lowerer::metadata(const Meta& m, const Instance& n,
   for (const auto& a : m.args) args.push_back(metadata(*a, n, inputs, groups));
   if (m.kind == Meta::Kind::List)
     return make(Symbol::Kind::List, {}, 0, 0, std::move(args));
+  if (m.name == "extent_add" || m.name == "extent_sub" ||
+      m.name == "extent_le" || m.name == "extent_mul" ||
+      m.name == "extent_floor_div")
+    obligations.push_back(
+        call("==", {call("len", {args[0]}), call("len", {args[1]})}));
+  if (m.name == "extent_floor_div")
+    obligations.push_back(call("is_positive_extents", {args[1]}));
   if (m.name == "shape") return args[0];
   if (m.name == "place") {
     if (args[0]->sort == Symbol::Sort::Axes) return call("place_axes", args);
@@ -99,7 +106,8 @@ E constant(std::int64_t n) {
 }
 S freeAxes(const E& e) {
   if (e->kind == Expr::Kind::Const) return call("empty_axes", {});
-  if (e->kind == Expr::Kind::Read) return e->axes;
+  if (e->kind == Expr::Kind::Read)
+    return e->access ? indexDependencies(e->access) : e->axes;
   auto a = freeAxes(e->args[0]);
   if (e->kind == Expr::Kind::Reduce)
     return call("difference_axes", {a, e->axes});
@@ -110,7 +118,8 @@ std::string show(const E& e) {
     return "Const(" + std::to_string(e->constant) + ")";
   if (e->kind == Expr::Kind::Read)
     return "Read(#" + std::to_string(e->capture) + ", access@" +
-           std::to_string(e->occurrence) + ")";
+           std::to_string(e->occurrence) +
+           (e->access ? ", " + showIndex(e->access) : "") + ")";
   std::string out = e->kind == Expr::Kind::Add       ? "Add("
                     : e->kind == Expr::Kind::Product ? "Product("
                                                      : "Reduce(";
@@ -133,19 +142,79 @@ E Lowerer::rename(const E& e, const S& from, const S& to) {
         "==",
         {context.extents(axes), make(Symbol::Kind::Shape, {}, e->capture)}));
     return std::make_shared<Expr>(
-        Expr{e->kind, e->capture, e->occurrence, axes, {}});
+        Expr{e->kind,
+             e->capture,
+             e->occurrence,
+             axes,
+             {},
+             0,
+             e->access ? indexRename(context, e->access, from, to) : I{}});
   }
   std::vector<E> args;
   for (const auto& a : e->args) args.push_back(rename(a, from, to));
   return expression(e->kind, std::move(args), e->axes);
 }
-E Lowerer::value(const Value& v, const std::vector<TensorMeaning>& inputs,
+I Lowerer::indexValue(const IndexValue& v, const Instance& n,
+                      const std::vector<TensorMeaning>& inputs,
+                      const std::vector<S>& groups) {
+  if (v.kind == IndexValue::Kind::Coordinates)
+    return coordinates(groups.at(v.group));
+  std::vector<I> args;
+  for (const auto& a : v.args)
+    args.push_back(indexValue(*a, n, inputs, groups));
+  if (v.kind == IndexValue::Kind::Scale) {
+    auto scale = metadata(*v.scale, n, inputs, groups);
+    obligations.push_back(
+        call("==", {call("len", {scale}), indexLength(args[0])}));
+    obligations.push_back(call("is_positive_extents", {scale}));
+    context.note("index-scale-normalization");
+    return indexScale(context, scale, args[0]);
+  }
+  if (v.kind == IndexValue::Kind::Concat) return indexConcat(args);
+  for (std::size_t i = 1; i < args.size(); ++i)
+    obligations.push_back(
+        call("==", {indexLength(args[0]), indexLength(args[i])}));
+  return indexAdd(args);
+}
+E Lowerer::evaluateAt(const E& e, const S& frame, const I& access) {
+  context.tick();
+  if (e->kind == Expr::Kind::Const) return e;
+  if (e->kind == Expr::Kind::Read) {
+    auto composed = indexSubstitute(
+        context, e->access ? e->access : coordinates(e->axes), frame, access);
+    return std::make_shared<Expr>(
+        Expr{e->kind, e->capture, e->occurrence, e->axes, {}, 0, composed});
+  }
+  if (e->kind == Expr::Kind::Reduce)
+    context.require(call("disjoint", {e->axes, indexDependencies(access)}),
+                    GuardKind::ReductionDomain);
+  std::vector<E> args;
+  for (const auto& a : e->args) args.push_back(evaluateAt(a, frame, access));
+  return expression(e->kind, args, e->axes);
+}
+E Lowerer::value(const Value& v, const Instance& n,
+                 const std::vector<TensorMeaning>& inputs,
                  const std::vector<S>& groups) {
   context.tick();
   if (v.kind == Value::Kind::Const) return constant(v.constant);
   if (v.kind == Value::Kind::Operand) return inputs.at(v.index).value;
+  if (v.kind == Value::Kind::Read) {
+    const auto& input = inputs.at(v.index);
+    auto access = indexValue(*v.access, n, inputs, groups);
+    context.note("index-add-normalization");
+    context.note("index-substitution");
+    obligations.push_back(
+        call("==", {indexLength(access), call("len", {input.shape})}));
+    // Coordinates have nonnegative domains; IndexAdd has positive coefficients.
+    // The maximal access must fit the input. This is legality, not equivalence.
+    obligations.push_back(call(
+        "extent_le", {indexUpperBound(context, access),
+                      call("offset_extents",
+                           {input.shape, make(Symbol::Kind::Integer, "-1")})}));
+    return evaluateAt(input.value, input.axes, access);
+  }
   std::vector<E> args;
-  for (const auto& a : v.args) args.push_back(value(*a, inputs, groups));
+  for (const auto& a : v.args) args.push_back(value(*a, n, inputs, groups));
   auto k = v.kind == Value::Kind::Add       ? Expr::Kind::Add
            : v.kind == Value::Kind::Product ? Expr::Kind::Product
                                             : Expr::Kind::Reduce;
@@ -207,6 +276,16 @@ TensorMeaning Lowerer::operation(std::size_t id,
     context.recordInputs(id, std::move(shapes));
   }
   const auto& n = context.plan.nodes.at(id);
+  std::set<std::size_t> explicit_reads, implicit_reads;
+  auto scanUses = [&](auto&& self, const Value& v) -> void {
+    if (v.kind == Value::Kind::Read) explicit_reads.insert(v.index);
+    if (v.kind == Value::Kind::Operand) implicit_reads.insert(v.index);
+    for (const auto& a : v.args) self(self, *a);
+  };
+  scanUses(scanUses, *n.definition->value);
+  for (auto o : explicit_reads)
+    if (implicit_reads.contains(o))
+      throw ProofFailure("an operand cannot mix implicit and calculated reads");
   std::vector<S> groups, domains;
   std::vector<std::vector<S>> positions(inputs.size()),
       coordinates(inputs.size());
@@ -275,6 +354,7 @@ TensorMeaning Lowerer::operation(std::size_t id,
     groups.push_back(axes);
     domains.push_back(domain);
   }
+  bool temporary_domain = false;
   if (anchors) {
     bool needs_interface = false;
     for (const auto& g : n.definition->groups)
@@ -288,9 +368,24 @@ TensorMeaning Lowerer::operation(std::size_t id,
         if (n.definition->groups[g].domain) {
           if (!maps.contains(g))
             throw ProofFailure("output-only group is absent from output");
-          groups[g] = context.select(interfaces->at(id), maps.at(g));
-          obligations.push_back(
-              call("==", {context.extents(groups[g]), domains[g]}));
+          auto projected = context.select(interfaces->at(id), maps.at(g));
+          // A computed-read producer can have coordinates eliminated by its
+          // consumer. Its local domain must not be confused with the final
+          // output domain. Fresh local coordinates disappear by substitution.
+          if (!explicit_reads.empty() && id != context.plan.rhs &&
+              !context.entails(
+                  call("==", {context.extents(projected), domains[g]}))) {
+            temporary_domain = true;
+            auto same_length = call(
+                "==", {call("len", {groups[g]}), call("len", {projected})});
+            context.require(same_length);
+            // Cache an established fact, never a new premise.
+            context.learn(same_length);
+          } else {
+            groups[g] = projected;
+            obligations.push_back(
+                call("==", {context.extents(groups[g]), domains[g]}));
+          }
         }
     }
   }
@@ -298,6 +393,16 @@ TensorMeaning Lowerer::operation(std::size_t id,
     for (std::size_t i = obligation_begin; i < obligations.size(); ++i)
       context.learn(obligations[i]);
   for (std::size_t o = 0; o < inputs.size(); ++o) {
+    if (explicit_reads.contains(o)) {
+      auto bound = call("concat", positions[o]);
+      auto rest = context.canonical(
+          call("ordered_complement",
+               {call("range", {call("len", {inputs[o].shape})}), bound}));
+      auto remaining = context.select(inputs[o].axes, rest);
+      context.selectionFacts(inputs[o].axes, rest, remaining);
+      positions[o].push_back(rest);
+      coordinates[o].push_back(remaining);
+    }
     auto ps = call("concat", positions[o]), cs = call("concat", coordinates[o]);
     obligations.push_back(
         call("axis_partition", {ps, call("len", {inputs[o].shape})}));
@@ -314,8 +419,13 @@ TensorMeaning Lowerer::operation(std::size_t id,
       auto layout = call("gather", {cs, call("inverse", {ps})});
       bool existing_view = true;
       for (std::size_t g = 0; g < coordinates[o].size(); ++g)
-        existing_view &= equal(context.select(inputs[o].axes, positions[o][g]),
-                               coordinates[o][g]);
+        existing_view &=
+            explicit_reads.contains(o)
+                ? context.entails(call(
+                      "==", {context.select(inputs[o].axes, positions[o][g]),
+                             coordinates[o][g]}))
+                : equal(context.select(inputs[o].axes, positions[o][g]),
+                        coordinates[o][g]);
       if (existing_view) layout = inputs[o].axes;
       context.partition(layout, coordinates[o], positions[o]);
       for (std::size_t g = 0; g < n.definition->groups.size(); ++g)
@@ -366,7 +476,7 @@ TensorMeaning Lowerer::operation(std::size_t id,
   auto axes = metadata(*n.definition->output, n, inputs, groups);
   auto shape = metadata(*n.definition->output, n, inputs, domains);
   auto dt = dtype(n, inputs);
-  auto body = value(*n.definition->value, inputs, groups);
+  auto body = value(*n.definition->value, n, inputs, groups);
   obligations.push_back(call("distinct_axes", {axes}));
   auto hasConstant = [&](auto&& self, const E& e) -> bool {
     if (e->kind == Expr::Kind::Const) return true;
@@ -412,7 +522,7 @@ TensorMeaning Lowerer::operation(std::size_t id,
     bool output_only = false;
     for (const auto& group : n.definition->groups)
       output_only |= bool(group.domain);
-    if (output_only) {
+    if (output_only && !temporary_domain) {
       auto required = interfaces->at(id);
       context.require(call("==", {axes, required}), GuardKind::CoordinateOrder);
       context.bind(axes, required, call("range", {call("len", {required})}));
@@ -465,7 +575,8 @@ E arithmeticSkeleton(const Plan& p, std::size_t id) {
   for (auto child : n.inputs) inputs.push_back(arithmeticSkeleton(p, child));
   std::function<E(const Value&)> lower = [&](const Value& v) -> E {
     if (v.kind == Value::Kind::Const) return constant(v.constant);
-    if (v.kind == Value::Kind::Operand) return inputs.at(v.index);
+    if (v.kind == Value::Kind::Operand || v.kind == Value::Kind::Read)
+      return inputs.at(v.index);
     std::vector<E> args;
     for (const auto& a : v.args) args.push_back(lower(*a));
     return expression(

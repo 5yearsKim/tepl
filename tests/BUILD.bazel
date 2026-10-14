@@ -2,6 +2,15 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_test(
+    name = "convolution_test",
+    size = "small",
+    srcs = ["convolution_test.cc", "index_constructor_eval.h", "index_reference.h"],
+    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
+    data = ["//:examples/semantic/dialects/tensor.tepl"],
+    deps = ["//:frontend", "//src/core:analysis", "//src/core:index_proof", "@rules_cc//cc/runfiles"],
+)
+
+cc_test(
     name = "axis_interface_test",
     size = "small",
     srcs = ["axis_interface_test.cc"],
@@ -21,8 +30,8 @@ sh_test(
     name = "semantic_cli_test",
     size = "small",
     srcs = ["semantic_cli_test.sh"],
-    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/rules/algebraic.tepl)", "$(rootpath //:examples/semantic/rules/scalars.tepl)", "$(rootpath //:examples/semantic/rules/broadcast.tepl)"],
-    data = ["//:tepl", "//:examples/semantic/rules/algebraic.tepl", "//:examples/semantic/rules/scalars.tepl", "//:examples/semantic/rules/broadcast.tepl", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/rules/algebraic.tepl)", "$(rootpath //:examples/semantic/rules/scalars.tepl)", "$(rootpath //:examples/semantic/rules/broadcast.tepl)", "$(rootpath //:examples/semantic/rules/convolution.tepl)"],
+    data = ["//:tepl", "//:examples/semantic/rules/algebraic.tepl", "//:examples/semantic/rules/scalars.tepl", "//:examples/semantic/rules/broadcast.tepl", "//:examples/semantic/rules/convolution.tepl", "//:examples/semantic/dialects/tensor.tepl"],
 )
 
 cc_test(

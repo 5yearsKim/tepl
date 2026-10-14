@@ -26,7 +26,10 @@ bool sameMonomial(Context& c, const Term& a, const Term& b) {
     bool found = false;
     for (std::size_t i = 0; i < b.reads.size(); ++i) {
       if (used[i] || r->capture != b.reads[i]->capture) continue;
-      if (c.entails(call("==", {r->axes, b.reads[i]->axes}))) {
+      auto left_access = r->access ? r->access : coordinates(r->axes);
+      auto right_access = b.reads[i]->access ? b.reads[i]->access
+                                             : coordinates(b.reads[i]->axes);
+      if (equalIndex(c, left_access, right_access)) {
         used[i] = true;
         found = true;
         break;
@@ -38,7 +41,7 @@ bool sameMonomial(Context& c, const Term& a, const Term& b) {
 }
 S readAxes(const Term& t) {
   std::vector<S> xs;
-  for (const auto& r : t.reads) xs.push_back(r->axes);
+  for (const auto& r : t.reads) xs.push_back(freeAxes(r));
   return call("union_axes", std::move(xs));
 }
 }  // namespace
@@ -211,8 +214,11 @@ Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
   auto bindReads = [&](const std::vector<E>& reads, const Term& target) {
     std::map<std::size_t, S> axes;
     for (const auto& r : reads) {
-      auto [it, inserted] = axes.emplace(r->capture, r->axes);
-      if (!inserted && !c.entails(call("==", {it->second, r->axes})))
+      auto frame = r->access && r->access->kind == IndexExpr::Kind::Coordinates
+                       ? r->access->axes
+                       : r->axes;
+      auto [it, inserted] = axes.emplace(r->capture, frame);
+      if (!inserted && !c.entails(call("==", {it->second, frame})))
         throw ProofFailure(
             "ambiguous tensor access correspondence is unsupported");
     }
@@ -289,8 +295,13 @@ Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
           for (const auto& r : target->reads) {
             bool local = leaves.contains(r->occurrence);
             active |= local;
-            (local ? inside : outside)
-                .push_back(result.anchors.at(r->occurrence));
+            S dependencies = result.anchors.at(r->occurrence);
+            for (const auto& sr : source->reads)
+              if (sr->capture == r->capture && sr->access) {
+                dependencies = freeAxes(sr);
+                break;
+              }
+            (local ? inside : outside).push_back(dependencies);
           }
           if (!active) continue;
           auto b = c.intersect(

@@ -418,6 +418,7 @@ std::string formatAst(const ast::Program& program) {
         auto expression = [&](auto&& self, const ast::SemanticExpr& e,
                               int depth) -> void {
           indent(out, depth);
+          if (e.kind == ast::SemanticExpr::Kind::kAttribute) out << "attrs.";
           out << e.text << '\n';
           for (const auto& arg : e.arguments) self(self, *arg, depth + 1);
         };

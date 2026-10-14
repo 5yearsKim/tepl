@@ -24,6 +24,8 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
       tepl_generated::TeplParser::SemanticCallExprContext*) override;
   std::any visitSemanticIntegerExpr(
       tepl_generated::TeplParser::SemanticIntegerExprContext*) override;
+  std::any visitSemanticAttributeExpr(
+      tepl_generated::TeplParser::SemanticAttributeExprContext*) override;
   std::any visitSemanticNameExpr(
       tepl_generated::TeplParser::SemanticNameExprContext*) override;
   std::any visitProgram(tepl_generated::TeplParser::ProgramContext*) override;

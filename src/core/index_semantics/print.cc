@@ -25,6 +25,24 @@ std::string format(const Value& v, const Definition& d) {
   if (v.kind == Value::Kind::Const)
     return "Const(" + std::to_string(v.constant) + ")";
   if (v.kind == Value::Kind::Operand) return d.operands.at(v.index);
+  if (v.kind == Value::Kind::Read) {
+    std::function<std::string(const IndexValue&)> index =
+        [&](const IndexValue& a) {
+          if (a.kind == IndexValue::Kind::Coordinates)
+            return "Coords(" + d.groups.at(a.group).name + ")";
+          if (a.kind == IndexValue::Kind::Scale)
+            return "IndexScale(" + format(*a.scale) + ", " + index(*a.args[0]) +
+                   ")";
+          std::string text =
+              a.kind == IndexValue::Kind::Add ? "IndexAdd(" : "Concat(";
+          for (std::size_t i = 0; i < a.args.size(); ++i) {
+            if (i) text += ", ";
+            text += index(*a.args[i]);
+          }
+          return text + ")";
+        };
+    return "Read(" + d.operands.at(v.index) + ", " + index(*v.access) + ")";
+  }
   std::string s = v.kind == Value::Kind::Add       ? "Add("
                   : v.kind == Value::Kind::Product ? "Product("
                                                    : "Reduce(";
@@ -159,6 +177,9 @@ std::string format(const Plan& p) {
     std::function<std::string(const Value&)> value = [&](const Value& v) {
       if (v.kind == Value::Kind::Const)
         return "Const(" + std::to_string(v.constant) + ")";
+      if (v.kind == Value::Kind::Read)
+        return format(v, *node.definition) + " over " +
+               graph(node.inputs.at(v.index));
       if (v.kind == Value::Kind::Operand)
         return "align[n" + std::to_string(n) + ":" +
                node.definition->operands.at(v.index) + "](" +

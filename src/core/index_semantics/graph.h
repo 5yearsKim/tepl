@@ -1,5 +1,6 @@
 #pragma once
 #include "src/core/index_semantics/context.h"
+#include "src/core/index_semantics/index_expr.h"
 
 namespace tepl::core::index_semantics {
 struct Expr;
@@ -10,6 +11,7 @@ struct Expr {
   S axes;  // Read: physical-dimension order. Reduce: bound coordinates.
   std::vector<E> args;
   std::int64_t constant = 0;
+  I access;  // Optional calculated read; axes remains the capture interface.
 };
 struct TensorMeaning {
   S axes, shape, dtype;
@@ -29,7 +31,10 @@ struct Lowerer {
              const std::vector<S>&);
   S dtype(const Instance&, const std::vector<TensorMeaning>&);
   E rename(const E&, const S&, const S&);
-  E value(const Value&, const std::vector<TensorMeaning>&,
+  E evaluateAt(const E&, const S& frame, const I& access);
+  I indexValue(const IndexValue&, const Instance&,
+               const std::vector<TensorMeaning>&, const std::vector<S>&);
+  E value(const Value&, const Instance&, const std::vector<TensorMeaning>&,
           const std::vector<S>&);
   std::map<std::size_t, S> outputPositions(const Meta&, const Instance&,
                                            const std::vector<TensorMeaning>&,

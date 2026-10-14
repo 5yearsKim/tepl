@@ -4,6 +4,7 @@
 #include <functional>
 #include <stdexcept>
 
+#include "src/core/index_semantics/index_inference.h"
 #include "src/core/index_semantics/verify.h"
 
 namespace tepl::core::index_semantics {
@@ -14,6 +15,78 @@ struct Constructor {
   const Correspondence& match;
   const TensorMeaning& source;
   S reductions;
+  const Terms& source_terms;
+  bool unresolvedScales(const Instance& n) {
+    bool found = false;
+    auto indices = [&](auto&& self, const IndexValue& v) -> void {
+      if (v.scale && v.scale->kind == Meta::Kind::Attribute)
+        found |= containsHole(c.field(n, v.scale->index));
+      for (const auto& a : v.args) self(self, *a);
+    };
+    auto values = [&](auto&& self, const Value& v) -> void {
+      if (v.access) indices(indices, *v.access);
+      for (const auto& a : v.args) self(self, *a);
+    };
+    values(values, *n.definition->value);
+    return found;
+  }
+  void inferCoefficients(const Instance& n,
+                         const std::vector<TensorMeaning>& inputs,
+                         const std::vector<S>& groups) {
+    IndexAssignments inferred;
+    auto merge = [&](IndexAssignments& into, const IndexAssignments& values) {
+      for (const auto& [id, value] : values) {
+        auto [old, added] = into.emplace(id, value);
+        if (!added && !equalExtentArithmetic(c, old->second, value))
+          throw ProofFailure(
+              "ambiguous or conflicting calculated-read coefficient "
+              "constructors");
+      }
+    };
+    auto read = [&](const E& pattern) {
+      std::optional<IndexAssignments> solution;
+      for (const auto& term : source_terms)
+        for (const auto& actual : term.reads) {
+          c.tick();
+          if (actual->capture != pattern->capture) continue;
+          auto candidate = matchIndexCoefficients(
+              c, pattern->access ? pattern->access : coordinates(pattern->axes),
+              actual->access ? actual->access : coordinates(actual->axes));
+          if (!candidate) continue;
+          if (!solution)
+            solution = *candidate;
+          else
+            merge(*solution, *candidate);
+        }
+      if (!solution)
+        throw ProofFailure(
+            "no scoped coordinate match for calculated-read coefficients; "
+            "composed or inverse inference may be required");
+      merge(inferred, *solution);
+    };
+    auto captures = [&](auto&& self, const E& e) -> void {
+      if (e->kind == Expr::Kind::Read) read(e);
+      for (const auto& a : e->args) self(self, a);
+    };
+    auto values = [&](auto&& self, const Value& v) -> void {
+      if (v.kind == Value::Kind::Read) {
+        auto indices = lowerer.indexValue(*v.access, n, inputs, groups);
+        // Compose through an already constructed input, including reindexings.
+        // Only proposals are produced here; final lowering checks every domain.
+        auto expression = lowerer.evaluateAt(inputs[v.index].value,
+                                             inputs[v.index].axes, indices);
+        captures(captures, expression);
+      }
+      for (const auto& a : v.args) self(self, *a);
+    };
+    values(values, *n.definition->value);
+    if (inferred.empty())
+      throw ProofFailure(
+          "calculated reads provide no direct coefficient constructor");
+    for (const auto& [id, value] : inferred)
+      c.assignAttribute(id.first, id.second, value);
+    c.note("index-coefficient-matching");
+  }
   void assign(const Meta& m, const Instance& n,
               const std::vector<TensorMeaning>& inputs,
               const std::vector<S>& groups, const S& value) {
@@ -40,6 +113,9 @@ struct Constructor {
       for (const auto& a : v.args) scan(*a);
     };
     scan(*n.definition->value);
+    const auto trial_obligations = lowerer.obligations.size();
+    const bool infer_scales = unresolvedScales(n);
+    std::vector<std::size_t> deferred_domains;
     std::set<std::pair<std::set<std::size_t>, bool>> signatures;
     std::vector<S> groups;
     for (std::size_t g = 0; g < n.definition->groups.size(); ++g) {
@@ -57,7 +133,11 @@ struct Constructor {
         auto wanted = c.difference(match.boundaries.at(id),
                                    call("union_axes", std::move(operand_axes)));
         auto order = c.filter(match.interfaces.at(id), wanted);
-        assign(*group.domain, n, inputs, groups, c.extents(order));
+        auto domain = lowerer.metadata(*group.domain, n, inputs, groups);
+        if (infer_scales && containsHole(c.resolve(domain)))
+          deferred_domains.push_back(g);
+        else
+          assign(*group.domain, n, inputs, groups, c.extents(order));
         groups.push_back(order);
         continue;
       }
@@ -109,6 +189,12 @@ struct Constructor {
       }
       groups.push_back(order);
     }
+    if (infer_scales) {
+      inferCoefficients(n, inputs, groups);
+      for (auto g : deferred_domains)
+        assign(*n.definition->groups[g].domain, n, inputs, groups,
+               c.extents(groups[g]));
+    }
     // Generic inversion of output permutations. Preserve the source order at
     // the root and at internal reindexings with the same complete interface.
     std::function<void(const Meta&)> output = [&](const Meta& m) {
@@ -139,6 +225,9 @@ struct Constructor {
     output(*n.definition->output);
     // Target lowering checks every obligation before publishing this node's
     // maps. Rechecking after publication repeats proof work in a changed frame.
+    // Trial metadata lowering can contain holes. The completed operation is
+    // lowered afresh and checks its own obligations, without trial premises.
+    lowerer.obligations.resize(trial_obligations);
     return lowerer.operation(id, std::move(inputs));
   }
 };
@@ -166,8 +255,12 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
     for (const auto& t : lt) all.push_back(t.reductions);
     Lowerer target{c, &match.anchors};
     target.interfaces = &match.interfaces;
-    Constructor ctor{c, target, match, lhs,
-                     call("unique_axes", {call("concat", std::move(all))})};
+    Constructor ctor{c,
+                     target,
+                     match,
+                     lhs,
+                     call("unique_axes", {call("concat", std::move(all))}),
+                     lt};
     auto rhs = ctor.build(plan.rhs);
     auto checked = normalize(c, rhs.value, &candidate.rewrites);
     auto simplified_lhs = collectTerms(c, lt, &candidate.rewrites);
@@ -193,6 +286,14 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
     candidate.guard = c.guards();
     candidate.guard_origins = c.guardOrigins();
     auto proof = verify(plan, candidate, max_work);
+    // Construction provenance is diagnostic only. Verification above used a
+    // fresh context and checked the completed accesses and domains
+    // independently.
+    const std::string coefficient_law = "law: index-coefficient-matching";
+    if (proof.status == ProofStatus::Proved &&
+        std::find(c.steps().begin(), c.steps().end(), coefficient_law) !=
+            c.steps().end())
+      proof.steps.push_back(coefficient_law);
     proof.rewrites = std::move(candidate.rewrites);
     return proof;
   } catch (const ProofFailure& e) {

@@ -86,3 +86,19 @@ broadcasts="$($compiler check "$4")"
 [[ "$(printf '%s' "$broadcasts" | grep -c 'status=proved')" == 3 ]]
 [[ "$broadcasts" == *"dimensions = gather(@outer.dimensions, @inner.dimensions)"* ]]
 [[ "$broadcasts" == *"law: axis-insertion"* ]]
+
+# Convolution uses calculated reads and symbolic spatial rank.
+convolutions="$($compiler check "$5" --semantic-policy=algebraic)"
+[[ "$(printf '%s' "$convolutions" | grep -c 'status=proved')" == 4 ]]
+[[ "$convolutions" == *"index_add("* ]]
+[[ "$convolutions" == *"law: index-substitution"* ]]
+[[ "$convolutions" == *"law: index-scale-normalization"* ]]
+[[ "$convolutions" == *"law: index-coefficient-matching"* ]]
+[[ "$convolutions" == *"strides = @c.strides"* ]]
+[[ "$convolutions" == *"dilations = @c.dilations"* ]]
+[[ "$convolutions" == *"law: extent-floor-bound"* ]]
+[[ "$convolutions" == *"index_weighted("* ]]
+[[ "$convolutions" == *"extent_floor_div("* ]]
+[[ "$convolutions" == *"additional-guard: true"* ]]
+if "$compiler" check "$5" --rule convolution_distribute_input > "$temporary_directory/error" 2>&1; then exit 1; fi
+grep -Fq 'arithmetic normalization requires algebraic policy' "$temporary_directory/error"

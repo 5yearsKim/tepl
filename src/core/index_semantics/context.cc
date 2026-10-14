@@ -103,10 +103,18 @@ void Context::wellFormed(const S& s) {
                                            "unique_axes",
                                            "distinct_axes",
                                            "is_valid_extents",
+                                           "is_positive_extents",
                                            "axis_extents",
                                            "!",
                                            "order_positions"};
-  static const std::set<std::string> binary{"gather",
+  static const std::set<std::string> binary{"extent_mul",
+                                            "extent_floor_div",
+                                            "scale_extents",
+                                            "extent_add",
+                                            "extent_sub",
+                                            "offset_extents",
+                                            "extent_le",
+                                            "gather",
                                             "offset_positions",
                                             "ordered_complement",
                                             "filter_axes",
@@ -143,6 +151,12 @@ void Context::wellFormed(const S& s) {
       s->name != "union_axes" && s->name != "empty_axes" &&
       !s->name.starts_with("dtype_") && !builtins::resolveBuiltin(s->name))
     throw ProofFailure("undefined metadata operator: " + s->name);
+  if (s->name == "extent_add" || s->name == "extent_sub" ||
+      s->name == "extent_le" || s->name == "extent_mul" ||
+      s->name == "extent_floor_div")
+    require(call("==", {call("len", {s->args[0]}), call("len", {s->args[1]})}));
+  if (s->name == "extent_floor_div")
+    require(call("is_positive_extents", {s->args[1]}));
   if (s->name == "empty_axes" && !s->args.empty())
     throw ProofFailure("invalid empty-axis constructor");
   if (s->name == "membership_positions" || s->name == "matched_positions")

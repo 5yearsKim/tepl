@@ -14,6 +14,20 @@ const char* guardKindName(GuardKind kind) {
 }
 const std::vector<Law>& laws() {
   static const std::vector<Law> result{
+      {"index-add-normalization", "(a+b)+c = a+(c+b); a+a = 2*a",
+       "integer coordinates; paired tuple lengths; scoped identities", false},
+      {"index-scale-normalization", "a*(b*x)=(a*b)*x; a*(x+y)=a*x+a*y",
+       "positive per-axis integer scales; equal tuple lengths", false},
+      {"extent-floor-bound", "s * floor(q/s) <= q",
+       "paired tuple lengths; nonnegative q; positive s", false},
+      {"index-coefficient-matching",
+       "a*x = b*x gives the sufficient constructor a:=b",
+       "matched scoped coordinate bases; whole coefficient holes; independent "
+       "verification",
+       false},
+      {"index-substitution",
+       "Read(producer, q) = producer[output coordinates := q]",
+       "capture-avoiding substitution; valid access domains", false},
       {"axis-insertion", "place(S,positions(A,S),remaining(A,S)) = A",
        "distinct coordinates; S subset of A; remaining axes retain A order",
        false},

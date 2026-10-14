@@ -19,6 +19,11 @@ std::any AstBuilder::visitSemanticCallExpr(P::SemanticCallExprContext* ctx) {
   return std::make_shared<E>(E{detail::getSpan(ctx), E::Kind::kCall,
                                ctx->ID()->getText(), std::move(args)});
 }
+std::any AstBuilder::visitSemanticAttributeExpr(
+    P::SemanticAttributeExprContext* ctx) {
+  return std::make_shared<E>(
+      E{detail::getSpan(ctx), E::Kind::kAttribute, ctx->ID()->getText(), {}});
+}
 std::any AstBuilder::visitSemanticNameExpr(P::SemanticNameExprContext* ctx) {
   return std::make_shared<E>(
       E{detail::getSpan(ctx), E::Kind::kName, ctx->ID()->getText(), {}});

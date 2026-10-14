@@ -134,7 +134,9 @@ TensorMeaning {
 }
 ```
 
-`Read` records a capture and its coordinates in physical dimension order.
+`Read` records a capture interface in physical dimension order and an optional
+calculated access expression. Capture interfaces establish correspondence;
+calculated accesses determine which elements are read.
 Composition connects producer output positions to consumer bindings,
 transports free coordinates, and preserves independent reduction scopes.
 Transpose changes the ordered interface while retaining the value expression.
@@ -290,8 +292,9 @@ Intermediate captured-computation shape declarations are currently omitted,
 so they cannot be relied upon to discharge a proof obligation.
 
 Required `index[]` fields, fixed operand arity, and the scalar primitives
-`Operand`, `Const`, `Add`, `Product`, and `Reduce`
-form the initial operation fragment. Size-one expansion, reshape, affine indexing,
+`Operand`, `Read`, `Const`, `Add`, `Product`, and `Reduce`
+form the operation fragment. Calculated reads support addition of coordinate
+tuples. Size-one expansion, reshape, general affine access inversion,
 value-dependent domains, and general host semantics are deferred.
 
 ## Constants and cancellation
@@ -372,6 +375,110 @@ General synthesis with multiple output-only groups and arbitrary interface
 changes remains limited. Reducing an inserted axis retains a reduction in the
 semantic graph; the symbolic cardinality scaling law is deferred.
 
+## Convolution and calculated reads
+
+The dialect defines `convolution`, with alias `conv`, for arbitrary spatial
+rank with at least one spatial dimension. It uses this layout:
+
+```text
+input:  [N, spatial..., C]
+kernel: [kernel_spatial..., C, F]
+output: [N, output_spatial..., F]
+```
+
+This is valid convolution in the deep-learning convention (cross-correlation):
+no padding, no channel grouping, and no kernel reversal. The required
+`strides` and `dilations` attributes contain one positive integer per spatial
+axis. For each spatial dimension:
+
+```text
+effective_kernel = dilation * (kernel_size - 1) + 1
+output_size = floor((input_size - effective_kernel) / stride) + 1
+```
+
+Each kernel extent is positive, and the effective kernel must fit inside the
+input. Empty batches, input channels, and output channels are supported.
+Use lists of ones for the previous stride-1, undilated behavior.
+
+The spatial groups `O` and `Window` are arbitrary-length sequences. They are
+not flattened. The semantic read is:
+
+```tepl
+Read(input,
+    Concat(Coords(N),
+        IndexAdd(IndexScale(attrs.strides, Coords(O)),
+                 IndexScale(attrs.dilations, Coords(Window))),
+        Coords(C))
+)
+```
+
+`Coords(G)` is the current integer coordinate tuple of group G. `IndexAdd`
+adds paired coordinates elementwise. `IndexScale(attrs.field, tuple)` multiplies
+each coordinate by the corresponding attribute member. `Concat` joins tuples
+in physical input-dimension order. For 2D, the read is
+`input[n, sh*h+dh*r, sw*w+dw*s, c]`.
+
+These are typed index expressions, separate from scalar `Add` and `Product`.
+An operand with explicit `Read` may have partial or no direct axis bindings;
+its reads must supply its full physical rank. Mixing implicit operand reads
+with explicit reads of the same operand is rejected. Index sums require equal
+tuple lengths. Access bounds are operation-legality obligations.
+
+`extent_add(a,b)` and `extent_sub(a,b)` perform paired extent arithmetic;
+`extent_mul(a,b)` multiplies paired members, and `extent_floor_div(a,b)`
+performs elementwise mathematical floor division with positive divisors.
+`offset_extents(a,n)` adds a scalar integer offset to each extent;
+`scale_extents(a,n)` multiplies each member by a scalar integer.
+`extent_le(a,b)` compares all paired extents, and `is_positive_extents(a)`
+requires every member to be positive. Their tuple lengths must agree.
+
+Composition substitutes calculated coordinates into producer values while
+preserving reduction scopes. Addition of indices is flattened, sorted by scoped
+identities, and combines repeated coordinates into integer coefficients.
+Scaling distributes over coordinate sums and composes by multiplying per-axis
+coefficients. Bounds use `s * floor(q/s) <= q` for nonnegative `q` and positive
+`s`; this is a generic arithmetic law, independent of operation names.
+The verifier compares calculated accesses as well as reduction domains and
+ordered output interfaces. Equal extents alone never identify coordinates.
+Nested computed-read producers can retain fresh intermediate domains until
+substitution eliminates their local output coordinates.
+
+Check input distribution, kernel distribution, transpose composition, and
+nested convolution distribution:
+
+```sh
+bazel run //:tepl -- check examples/semantic/rules/convolution.tepl \
+  --semantic-policy=algebraic
+```
+
+These four examples require no concrete metadata and introduce no additional
+applicability guards. Input distribution, kernel distribution, and transpose
+composition use `conv[auto]`. The compiler matches scoped coordinate bases in
+calculated reads and constructs both RHS coefficients from the LHS attributes:
+
+```text
+strides   = @c.strides
+dilations = @c.dilations
+```
+
+This mechanism uses the semantic IR, not convolution names or attribute names.
+It solves whole per-axis coefficient holes by direct matching. Constructed
+values are reusable metadata expressions; no concrete shapes or attribute
+values are required. Matching supplies sufficient constructors and does not
+claim to characterize every possible attribute assignment.
+
+Output-domain checks run after coefficient construction. The independent
+verifier lowers the completed RHS afresh and checks actual accesses, domains,
+ordered interfaces, dtype, and legality. Trial matches add no proof premises.
+Conflicting equations, ambiguous coordinate matches, and inverse or coupled
+coefficient equations are rejected as unproved.
+
+Nested convolution distribution still reuses `@inner` and `@outer`: general
+inversion of composed coefficients and intermediate-domain correspondence
+remain outside direct matching. Padding and configurable layouts remain
+deferred. General calculated-access matching is bounded and incomplete;
+an unestablished proof is rejected. Code generation remains unsupported.
+
 ## Implementation and verification
 
 The implementation lives in [`src/core/index_semantics`](../../src/core/index_semantics):
@@ -387,6 +494,8 @@ The implementation lives in [`src/core/index_semantics`](../../src/core/index_se
 | `axis_theory.cc` | Fact registration, shared structural laws, bounded entailment |
 | `proof_policy.h` | Named work limits and expected inference failures |
 | `graph.cc` | Generic composition into coordinate primitives |
+| `index_expr.h`, `index_expr.cc`, `extent_arithmetic.cc` | Coordinate tuples, access substitution, index normalization, extent arithmetic |
+| `index_inference.h`, `index_inference.cc` | Scoped coordinate matching and direct coefficient constructors |
 | `normalize.cc` | Arithmetic normalization and intermediate boundaries |
 | `synthesize.cc` | Constructors from required coordinates |
 | `verify.cc` | Independent re-lowering under declared conditions |

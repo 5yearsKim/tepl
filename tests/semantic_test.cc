@@ -468,6 +468,8 @@ void symbolicTests() {
       replace(alternate, "alias: broadcast;", "alias: other_broadcast;");
   alternate = replace(alternate, "op transpose(", "op other_transpose(");
   alternate = replace(alternate, "op reduce_sum(", "op other_sum(");
+  alternate = replace(alternate, "op convolution(", "op other_convolution(");
+  alternate = replace(alternate, "alias: conv;", "alias: other_conv;");
   for (const auto* name :
        {"negate", "subtract", "zero_like", "broadcast_in_dim"})
     alternate = replace(alternate, std::string("op ") + name + "(",
