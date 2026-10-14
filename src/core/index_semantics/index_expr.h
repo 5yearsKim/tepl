@@ -8,15 +8,24 @@ namespace tepl::core::index_semantics {
 struct IndexExpr;
 using I = std::shared_ptr<const IndexExpr>;
 struct IndexExpr {
-  enum class Kind { Coordinates, Add, Concat, Select, Scale, Weighted } kind;
+  enum class Kind {
+    Coordinates,
+    Add,
+    Concat,
+    Select,
+    Scale,
+    Weighted,
+    Offset
+  } kind;
   S axes;  // Coordinates: identities; Select: selector; Weighted: per-axis
-           // scales.
+           // scales; Offset: per-axis metadata offsets.
   std::vector<I> args;
   std::int64_t coefficient = 1;
 };
 I coordinates(S);
 I indexAdd(std::vector<I>);
 I indexScale(Context&, const S&, const I&);
+I indexOffset(Context&, const S&, const I&);
 I indexConcat(std::vector<I>);
 I indexSelect(Context&, const I&, const S&);
 I indexSubstitute(Context&, const I&, const S& frame, const I& replacement);

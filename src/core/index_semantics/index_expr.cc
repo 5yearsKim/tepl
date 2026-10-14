@@ -60,8 +60,17 @@ I indexConcat(std::vector<I> args) {
 I indexAdd(std::vector<I> args) {
   if (args.empty())
     throw ProofFailure("index addition requires coordinate tuples");
+  S offsets;
   std::map<std::string, std::pair<I, std::int64_t>> terms;
   auto collect = [&](auto&& self, const I& e, std::int64_t factor) -> void {
+    if (e->kind == IndexExpr::Kind::Offset) {
+      auto part = factor == 1
+                      ? e->axes
+                      : call("scale_extents", {e->axes, signedInteger(factor)});
+      offsets = offsets ? call("extent_add", {offsets, part}) : part;
+      self(self, e->args[0], factor);
+      return;
+    }
     if (e->kind == IndexExpr::Kind::Add) {
       for (const auto& a : e->args) self(self, a, factor);
       return;
@@ -85,8 +94,22 @@ I indexAdd(std::vector<I> args) {
                                                  {term}, coefficient));
   }
   std::sort(normalized.begin(), normalized.end(), indexLess);
-  if (normalized.size() == 1) return normalized[0];
-  return node(IndexExpr::Kind::Add, {}, normalized);
+  auto out = normalized.size() == 1
+                 ? normalized[0]
+                 : node(IndexExpr::Kind::Add, {}, normalized);
+  return offsets ? node(IndexExpr::Kind::Offset, offsets, {out}) : out;
+}
+I indexOffset(Context& c, const S& raw, const I& e) {
+  c.tick();
+  auto offsets = c.canonical(raw);
+  if (offsets->kind == Symbol::Kind::List &&
+      std::all_of(offsets->args.begin(), offsets->args.end(), [](const S& x) {
+        return x->kind == Symbol::Kind::Integer && x->name == "0";
+      }))
+    return e;
+  if (e->kind == IndexExpr::Kind::Offset)
+    return indexOffset(c, call("extent_add", {offsets, e->axes}), e->args[0]);
+  return node(IndexExpr::Kind::Offset, offsets, {e});
 }
 I indexScale(Context& c, const S& raw, const I& e) {
   c.tick();
@@ -96,6 +119,9 @@ I indexScale(Context& c, const S& raw, const I& e) {
         return x->kind == Symbol::Kind::Integer && x->name == "1";
       }))
     return e;
+  if (e->kind == IndexExpr::Kind::Offset)
+    return indexOffset(c, call("extent_mul", {factors, e->axes}),
+                       indexScale(c, factors, e->args[0]));
   if (e->kind == IndexExpr::Kind::Weighted)
     return indexScale(c, call("extent_mul", {factors, e->axes}), e->args[0]);
   if (e->kind == IndexExpr::Kind::Scale)
@@ -136,6 +162,9 @@ I indexSelect(Context& c, const I& e, const S& selector) {
     for (const auto& a : e->args) args.push_back(indexSelect(c, a, p));
     return indexAdd(args);
   }
+  if (e->kind == IndexExpr::Kind::Offset)
+    return indexOffset(c, call("gather", {e->axes, p}),
+                       indexSelect(c, e->args[0], p));
   if (e->kind == IndexExpr::Kind::Weighted)
     return indexScale(c, call("gather", {e->axes, p}),
                       indexSelect(c, e->args[0], p));
@@ -193,6 +222,14 @@ I indexSubstitute(Context& c, const I& e, const S& frame,
     return indexSelect(c, args[0], e->axes);
   if (e->kind == IndexExpr::Kind::Weighted)
     return indexScale(c, e->axes, args[0]);
+  if (e->kind == IndexExpr::Kind::Offset)
+    return indexOffset(c, e->axes, args[0]);
+  if (e->kind == IndexExpr::Kind::Scale &&
+      args[0]->kind == IndexExpr::Kind::Offset)
+    return indexOffset(
+        c,
+        call("scale_extents", {args[0]->axes, signedInteger(e->coefficient)}),
+        node(e->kind, {}, {args[0]->args[0]}, e->coefficient));
   return node(e->kind, {}, args, e->coefficient);
 }
 I indexRename(Context& c, const I& e, const S& from, const S& to) {
@@ -207,6 +244,14 @@ I indexRename(Context& c, const I& e, const S& from, const S& to) {
     return indexSelect(c, args[0], e->axes);
   if (e->kind == IndexExpr::Kind::Weighted)
     return indexScale(c, e->axes, args[0]);
+  if (e->kind == IndexExpr::Kind::Offset)
+    return indexOffset(c, e->axes, args[0]);
+  if (e->kind == IndexExpr::Kind::Scale &&
+      args[0]->kind == IndexExpr::Kind::Offset)
+    return indexOffset(
+        c,
+        call("scale_extents", {args[0]->axes, signedInteger(e->coefficient)}),
+        node(e->kind, {}, {args[0]->args[0]}, e->coefficient));
   return node(e->kind, {}, args, e->coefficient);
 }
 S indexUpperBound(Context& c, const I& e) {
@@ -218,6 +263,8 @@ S indexUpperBound(Context& c, const I& e) {
   if (e->kind == IndexExpr::Kind::Concat) return call("concat", args);
   if (e->kind == IndexExpr::Kind::Select)
     return call("gather", {args[0], e->axes});
+  if (e->kind == IndexExpr::Kind::Offset)
+    return call("extent_add", {e->axes, args[0]});
   if (e->kind == IndexExpr::Kind::Weighted)
     return call("extent_mul", {e->axes, args[0]});
   if (e->kind == IndexExpr::Kind::Scale) {
@@ -234,7 +281,8 @@ bool equalIndex(Context& c, const I& a, const I& b) {
   if (a->kind != b->kind) return false;
   if (a->coefficient != b->coefficient || a->args.size() != b->args.size())
     return false;
-  if (a->axes && !(a->kind == IndexExpr::Kind::Weighted
+  if (a->axes && !((a->kind == IndexExpr::Kind::Weighted ||
+                    a->kind == IndexExpr::Kind::Offset)
                        ? equalExtentArithmetic(c, a->axes, b->axes)
                        : c.entails(call("==", {a->axes, b->axes}))))
     return false;
@@ -262,6 +310,7 @@ std::string showIndex(const I& e) {
   std::string out = e->kind == IndexExpr::Kind::Add        ? "index_add("
                     : e->kind == IndexExpr::Kind::Concat   ? "index_concat("
                     : e->kind == IndexExpr::Kind::Select   ? "index_select("
+                    : e->kind == IndexExpr::Kind::Offset   ? "index_offset("
                     : e->kind == IndexExpr::Kind::Weighted ? "index_weighted("
                                                            : "index_scale(";
   for (std::size_t i = 0; i < e->args.size(); ++i) {
@@ -269,7 +318,8 @@ std::string showIndex(const I& e) {
     out += showIndex(e->args[i]);
   }
   if (e->kind == IndexExpr::Kind::Select ||
-      e->kind == IndexExpr::Kind::Weighted)
+      e->kind == IndexExpr::Kind::Weighted ||
+      e->kind == IndexExpr::Kind::Offset)
     out += ", " + format(*e->axes);
   if (e->kind == IndexExpr::Kind::Scale)
     out += ", " + std::to_string(e->coefficient);

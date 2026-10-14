@@ -186,6 +186,31 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
           if (query(call("==", {x, y}), mode)) return true;
     }
   }
+  if (callIs(f, "is_positive_extents")) {
+    auto domain = canonical(f->args[0]);
+    if (domain->kind == Symbol::Kind::List) {
+      for (const auto& n : domain->args)
+        if (n->kind != Symbol::Kind::Integer || std::stoll(n->name) <= 0)
+          return false;
+      return true;
+    }
+    if (callIs(domain, "extent_mul"))
+      return query(call("==", {call("len", {domain->args[0]}),
+                               call("len", {domain->args[1]})}),
+                   mode) &&
+             query(call("is_positive_extents", {domain->args[0]}), mode) &&
+             query(call("is_positive_extents", {domain->args[1]}), mode);
+    if (callIs(domain, "gather"))
+      return query(call("is_positive_extents", {domain->args[0]}), mode) &&
+             query(call("is_valid_axis_list",
+                        {domain->args[1], call("len", {domain->args[0]})}),
+                   mode);
+    if (callIs(domain, "concat")) {
+      for (const auto& part : domain->args)
+        if (!query(call("is_positive_extents", {part}), mode)) return false;
+      return true;
+    }
+  }
   if (callIs(f, "is_valid_extents")) {
     auto domain = canonical(f->args[0]);
     if (query(call("is_positive_extents", {domain}), mode)) return true;
@@ -197,6 +222,9 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
     if (callIs(domain, "extent_mul") || callIs(domain, "extent_add"))
       return query(call("is_valid_extents", {domain->args[0]}), mode) &&
              query(call("is_valid_extents", {domain->args[1]}), mode);
+    if (callIs(domain, "offset_extents") && domain->args[1]->name == "-1" &&
+        query(call("is_positive_extents", {domain->args[0]}), mode))
+      return true;
     if (callIs(domain, "offset_extents") && nonnegative(domain->args[1]))
       return query(call("is_valid_extents", {domain->args[0]}), mode);
     if (domain->kind == Symbol::Kind::Shape) return true;

@@ -1,0 +1,15 @@
+from "../dialects/tensor.tepl" import TensorLang as t;
+use t::{slice, add, transpose};
+
+rule slice_add {
+  (slice[@s] (add A B)) => (add (slice[auto] A) (slice[auto] B))
+}
+
+rule compose_slice {
+  (slice[@outer] (slice[@inner] A)) => (slice[auto] A)
+}
+
+rule slice_transposed_input {
+  (slice[@s] (transpose[@p] (add A B)))
+  => (add (slice[auto] (transpose[@p] A)) (slice[auto] (transpose[@p] B)))
+}

@@ -30,9 +30,12 @@ std::string format(const Value& v, const Definition& d) {
         [&](const IndexValue& a) {
           if (a.kind == IndexValue::Kind::Coordinates)
             return "Coords(" + d.groups.at(a.group).name + ")";
-          if (a.kind == IndexValue::Kind::Scale)
-            return "IndexScale(" + format(*a.scale) + ", " + index(*a.args[0]) +
-                   ")";
+          if (a.kind == IndexValue::Kind::Scale ||
+              a.kind == IndexValue::Kind::Offset)
+            return std::string(a.kind == IndexValue::Kind::Scale
+                                   ? "IndexScale("
+                                   : "IndexOffset(") +
+                   format(*a.parameter) + ", " + index(*a.args[0]) + ")";
           std::string text =
               a.kind == IndexValue::Kind::Add ? "IndexAdd(" : "Concat(";
           for (std::size_t i = 0; i < a.args.size(); ++i) {

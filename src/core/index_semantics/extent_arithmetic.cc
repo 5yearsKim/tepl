@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <functional>
+#include <limits>
 
 #include "src/core/index_semantics/index_expr.h"
 
@@ -36,27 +38,29 @@ void accumulate(Polynomial& a, const Polynomial& b, std::int64_t factor) {
     throw ProofFailure("extent polynomial exceeds term limit",
                        FailureKind::BudgetExceeded);
 }
-Polynomial polynomial(Context& c, const S& raw) {
+Polynomial polynomial(Context& c, const S& raw,
+                      std::map<std::string, S>* atoms = nullptr) {
   c.tick();
   auto x = c.canonical(raw);
   if (callIs(x, "extent_add") || callIs(x, "extent_sub")) {
-    auto out = polynomial(c, x->args[0]);
-    accumulate(out, polynomial(c, x->args[1]),
+    auto out = polynomial(c, x->args[0], atoms);
+    accumulate(out, polynomial(c, x->args[1], atoms),
                callIs(x, "extent_sub") ? -1 : 1);
     return out;
   }
   if (callIs(x, "offset_extents")) {
-    auto out = polynomial(c, x->args[0]);
+    auto out = polynomial(c, x->args[0], atoms);
     accumulate(out, {{{}, literal(x->args[1])}}, 1);
     return out;
   }
   if (callIs(x, "scale_extents")) {
     Polynomial out;
-    accumulate(out, polynomial(c, x->args[0]), literal(x->args[1]));
+    accumulate(out, polynomial(c, x->args[0], atoms), literal(x->args[1]));
     return out;
   }
   if (callIs(x, "extent_mul")) {
-    auto a = polynomial(c, x->args[0]), b = polynomial(c, x->args[1]);
+    auto a = polynomial(c, x->args[0], atoms),
+         b = polynomial(c, x->args[1], atoms);
     Polynomial out;
     for (const auto& [am, an] : a)
       for (const auto& [bm, bn] : b) {
@@ -72,6 +76,7 @@ Polynomial polynomial(Context& c, const S& raw) {
     std::erase_if(out, [](const auto& term) { return term.second == 0; });
     return out;
   }
+  if (atoms) (*atoms)[key(x)] = x;
   return {{{key(x)}, 1}};
 }
 bool query(Context& c, const S& f, QueryMode mode) {
@@ -127,6 +132,99 @@ S upper(Context& c, const S& raw, QueryMode mode) {
   }
   return x;
 }
+// Bounded forward propagation of established vector inequalities. A known
+// L<=U permits remainder+m*L <= remainder+m*U when m is nonnegative.
+// Factored polynomial subexpressions are recognized without expanding rank.
+bool monotoneBound(Context& c, const S& left, const S& right, QueryMode mode) {
+  std::map<std::string, S> atoms;
+  auto first = polynomial(c, left, &atoms), goal = polynomial(c, right, &atoms);
+  struct Bound {
+    Polynomial lower, upper;
+  };
+  std::vector<Bound> bounds;
+  for (const auto& [l, u] : c.extentBounds()) {
+    c.tick();
+    if (!query(c, call("==", {call("len", {left}), call("len", {l})}), mode) ||
+        !query(c, call("==", {call("len", {l}), call("len", {u})}), mode))
+      continue;
+    auto lower = polynomial(c, l, &atoms), upper = polynomial(c, u, &atoms);
+    if (!lower.empty() && lower != upper)
+      bounds.push_back({std::move(lower), std::move(upper)});
+  }
+  auto scaled = [&](const Polynomial& p, const Monomial& factor,
+                    std::int64_t coefficient) {
+    Polynomial out;
+    for (const auto& [m, n] : p) {
+      c.tick();
+      auto product = m;
+      product.insert(product.end(), factor.begin(), factor.end());
+      std::sort(product.begin(), product.end());
+      out[product] = add(out[product], mul(n, coefficient));
+    }
+    return out;
+  };
+  std::set<Polynomial> visited;
+  std::function<bool(const Polynomial&, std::size_t)> search =
+      [&](const Polynomial& current, std::size_t depth) {
+        c.tick();
+        if (current == goal) return true;
+        if (depth == 0 || !visited.insert(current).second) return false;
+        for (const auto& bound : bounds) {
+          const auto anchor =
+              std::max_element(bound.lower.begin(), bound.lower.end(),
+                               [](const auto& a, const auto& b) {
+                                 return a.first.size() < b.first.size();
+                               });
+          for (const auto& [term, n] : current) {
+            c.tick();
+            if (!std::includes(term.begin(), term.end(), anchor->first.begin(),
+                               anchor->first.end()))
+              continue;
+            auto d = anchor->second;
+            if (d == -1 && n == std::numeric_limits<std::int64_t>::min())
+              continue;
+            if (n % d != 0 || n / d <= 0) continue;
+            auto coefficient = n / d;
+            Monomial factor;
+            std::set_difference(term.begin(), term.end(), anchor->first.begin(),
+                                anchor->first.end(),
+                                std::back_inserter(factor));
+            bool nonnegative = true;
+            for (const auto& atom : factor)
+              if (!query(c,
+                         call("==", {call("len", {atoms.at(atom)}),
+                                     call("len", {left})}),
+                         mode) ||
+                  !query(c, call("is_valid_extents", {atoms.at(atom)}), mode)) {
+                nonnegative = false;
+                break;
+              }
+            if (!nonnegative) continue;
+            auto contribution = scaled(bound.lower, factor, coefficient);
+            bool present = true;
+            for (const auto& [m, value] : contribution) {
+              auto it = current.find(m);
+              if (it == current.end() ||
+                  (value > 0 ? it->second < value : it->second > value)) {
+                present = false;
+                break;
+              }
+            }
+            if (!present) continue;
+            auto next = current;
+            accumulate(next, contribution, -1);
+            accumulate(next, scaled(bound.upper, factor, coefficient), 1);
+            if (next == current) continue;
+            if (search(next, depth - 1)) {
+              c.note("extent-monotonicity");
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+  return search(first, ProofLimits::extent_bound_steps);
+}
 }  // namespace
 bool equalExtentArithmetic(Context& c, const S& left, const S& right,
                            QueryMode mode) {
@@ -146,6 +244,8 @@ bool extentBoundArithmetic(Context& c, const S& left, const S& right,
       if (!extentBoundArithmetic(c, a->args[i], b->args[i], mode)) return false;
     return true;
   }
-  return equalExtentArithmetic(c, upper(c, a, mode), b, mode);
+  auto tightened = upper(c, a, mode);
+  if (equalExtentArithmetic(c, tightened, b, mode)) return true;
+  return monotoneBound(c, tightened, b, mode);
 }
 }  // namespace tepl::core::index_semantics

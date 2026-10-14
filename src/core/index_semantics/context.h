@@ -34,6 +34,8 @@ class Context {
     return guard_origins_;
   }
   const std::vector<std::string>& steps() const { return steps_; }
+  // Snapshot established vector inequalities; consumers cannot add premises.
+  std::vector<std::pair<S, S>> extentBounds() const;
   void registerCoordinates(std::size_t node, std::size_t group, const S&);
   void recordInputs(std::size_t node, std::vector<S> shapes);
   void recordTensor(std::size_t node, const S& axes, std::vector<S> groups);

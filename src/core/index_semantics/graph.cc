@@ -162,13 +162,17 @@ I Lowerer::indexValue(const IndexValue& v, const Instance& n,
   std::vector<I> args;
   for (const auto& a : v.args)
     args.push_back(indexValue(*a, n, inputs, groups));
-  if (v.kind == IndexValue::Kind::Scale) {
-    auto scale = metadata(*v.scale, n, inputs, groups);
+  if (v.kind == IndexValue::Kind::Scale || v.kind == IndexValue::Kind::Offset) {
+    auto scale = metadata(*v.parameter, n, inputs, groups);
     obligations.push_back(
         call("==", {call("len", {scale}), indexLength(args[0])}));
-    obligations.push_back(call("is_positive_extents", {scale}));
-    context.note("index-scale-normalization");
-    return indexScale(context, scale, args[0]);
+    bool offset = v.kind == IndexValue::Kind::Offset;
+    obligations.push_back(
+        call(offset ? "is_valid_extents" : "is_positive_extents", {scale}));
+    context.note(offset ? "index-offset-normalization"
+                        : "index-scale-normalization");
+    return offset ? indexOffset(context, scale, args[0])
+                  : indexScale(context, scale, args[0]);
   }
   if (v.kind == IndexValue::Kind::Concat) return indexConcat(args);
   for (std::size_t i = 1; i < args.size(); ++i)
@@ -205,8 +209,9 @@ E Lowerer::value(const Value& v, const Instance& n,
     context.note("index-substitution");
     obligations.push_back(
         call("==", {indexLength(access), call("len", {input.shape})}));
-    // Coordinates have nonnegative domains; IndexAdd has positive coefficients.
-    // The maximal access must fit the input. This is legality, not equivalence.
+    // Coordinates, positive scales, and nonnegative offsets preserve the lower
+    // bound. The maximal access must fit the input. This is legality, not
+    // equivalence.
     obligations.push_back(call(
         "extent_le", {indexUpperBound(context, access),
                       call("offset_extents",

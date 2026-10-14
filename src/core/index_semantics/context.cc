@@ -7,6 +7,13 @@
 #include "src/core/builtins/catalog.h"
 
 namespace tepl::core::index_semantics {
+std::vector<std::pair<S, S>> Context::extentBounds() const {
+  std::vector<std::pair<S, S>> out;
+  for (const auto& fact : facts_.raw)
+    if (callIs(fact, "extent_le"))
+      out.emplace_back(fact->args[0], fact->args[1]);
+  return out;
+}
 void Context::registerCoordinates(std::size_t node, std::size_t group,
                                   const S& axes) {
   source_.groups[{node, group}] = axes;

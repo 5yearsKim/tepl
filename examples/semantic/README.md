@@ -421,7 +421,7 @@ in physical input-dimension order. For 2D, the read is
 These are typed index expressions, separate from scalar `Add` and `Product`.
 An operand with explicit `Read` may have partial or no direct axis bindings;
 its reads must supply its full physical rank. Mixing implicit operand reads
-with explicit reads of the same operand is rejected. Index sums require equal
+with explicit reads of the same operand is rejected. Index sums, scales, and offsets require equal
 tuple lengths. Access bounds are operation-legality obligations.
 
 `extent_add(a,b)` and `extent_sub(a,b)` perform paired extent arithmetic;
@@ -479,6 +479,67 @@ remain outside direct matching. Padding and configurable layouts remain
 deferred. General calculated-access matching is bounded and incomplete;
 an unestablished proof is rejected. Code generation remains unsupported.
 
+## Slice and coordinate offsets
+
+`slice` selects a window at arbitrary rank. Its three attributes have one
+member per input axis:
+
+```text
+starts:  first selected input positions
+sizes:   output element counts, not exclusive limits
+strides: distances between selected input positions
+```
+
+Starts are nonnegative; sizes and strides are positive. The final selected
+position `starts + strides * (sizes - 1)` must fit inside the input. No
+clamping is performed. For example, `starts=[2], sizes=[3], strides=[2]`
+selects positions `[2,4,6]`. Rank-zero tensors are supported; empty results,
+negative strides, and dimension removal are outside this initial scope.
+
+The semantic read uses a generic index primitive:
+
+```tepl
+Read(input,
+    IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O))))
+```
+
+`IndexOffset(attrs.field, tuple)` adds paired metadata offsets. Offsets have
+no logical-coordinate dependencies. Composition, selection, and renaming keep
+offsets separate from coordinate identities. The access normalizer uses:
+
+```text
+a + (b + i) = (a + b) + i
+s * (a + i) = s*a + s*i
+```
+
+The same calculated-read matcher constructs unknown offsets and coefficients.
+Slice sizes come from the ordered output interface. Two composed slices yield:
+
+```text
+starts  = inner.starts + inner.strides * outer.starts
+sizes   = outer.sizes
+strides = inner.strides * outer.strides
+```
+
+The verifier proves bounds using established LHS inequalities and the generic
+law `L<=U => r+m*L <= r+m*U` for nonnegative `m`. Polynomial factoring recognizes
+these relationships without enumerating tensor dimensions. This proof attempt
+is bounded and incomplete; unresolved obligations are rejected rather than
+added as assumptions.
+
+Check distribution, composition, and transpose composition with inferred RHS
+attributes:
+
+```sh
+bazel run //:tepl -- check examples/semantic/rules/slice.tepl \
+  --semantic-policy=algebraic
+```
+
+The three examples require no concrete metadata and introduce no extra guards.
+Pure Slice composition also checks under the default strict policy using
+`--rule compose_slice`. The distribution examples use the algebraic policy
+required by the current scalar normalizer. Code generation is not supported.
+
 ## Implementation and verification
 
 The implementation lives in [`src/core/index_semantics`](../../src/core/index_semantics):
@@ -495,7 +556,7 @@ The implementation lives in [`src/core/index_semantics`](../../src/core/index_se
 | `proof_policy.h` | Named work limits and expected inference failures |
 | `graph.cc` | Generic composition into coordinate primitives |
 | `index_expr.h`, `index_expr.cc`, `extent_arithmetic.cc` | Coordinate tuples, access substitution, index normalization, extent arithmetic |
-| `index_inference.h`, `index_inference.cc` | Scoped coordinate matching and direct coefficient constructors |
+| `index_inference.h`, `index_inference.cc` | Scoped coordinate matching and coefficient/offset constructors |
 | `normalize.cc` | Arithmetic normalization and intermediate boundaries |
 | `synthesize.cc` | Constructors from required coordinates |
 | `verify.cc` | Independent re-lowering under declared conditions |

@@ -214,6 +214,33 @@ dialect TensorLang {
         }
     }
 
+    // Select positive-size windows. sizes counts output elements, not limits.
+    op slice(input: tensor) -> tensor {
+        attrs {
+            starts: index[];
+            sizes: index[];
+            strides: index[];
+        }
+        dtype(t) { yield t; }
+        axes {
+            assert len(attrs.starts) == rank(input);
+            assert len(attrs.sizes) == rank(input);
+            assert len(attrs.strides) == rank(input);
+            assert is_valid_extents(attrs.starts);
+            assert is_positive_extents(attrs.sizes);
+            assert is_positive_extents(attrs.strides);
+            let last = extent_add(attrs.starts,
+                extent_mul(attrs.strides, offset_extents(attrs.sizes, -1)));
+            assert extent_le(last, offset_extents(shape(input), -1));
+            bind O = group(attrs.sizes);
+            yield O;
+        }
+        semantics {
+            yield Read(input,
+                IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O))));
+        }
+    }
+
     // Insert axes only. Existing dimensions retain their extents. The mapping
     // is an ordered injection and may also reorder existing axes.
     // new_extents follows the increasing order of unoccupied output positions.

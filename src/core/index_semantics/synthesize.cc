@@ -16,11 +16,11 @@ struct Constructor {
   const TensorMeaning& source;
   S reductions;
   const Terms& source_terms;
-  bool unresolvedScales(const Instance& n) {
+  bool unresolvedIndexAttributes(const Instance& n) {
     bool found = false;
     auto indices = [&](auto&& self, const IndexValue& v) -> void {
-      if (v.scale && v.scale->kind == Meta::Kind::Attribute)
-        found |= containsHole(c.field(n, v.scale->index));
+      if (v.parameter && v.parameter->kind == Meta::Kind::Attribute)
+        found |= containsHole(c.field(n, v.parameter->index));
       for (const auto& a : v.args) self(self, *a);
     };
     auto values = [&](auto&& self, const Value& v) -> void {
@@ -30,16 +30,16 @@ struct Constructor {
     values(values, *n.definition->value);
     return found;
   }
-  void inferCoefficients(const Instance& n,
-                         const std::vector<TensorMeaning>& inputs,
-                         const std::vector<S>& groups) {
+  void inferReadAttributes(const Instance& n,
+                           const std::vector<TensorMeaning>& inputs,
+                           const std::vector<S>& groups) {
     IndexAssignments inferred;
     auto merge = [&](IndexAssignments& into, const IndexAssignments& values) {
       for (const auto& [id, value] : values) {
         auto [old, added] = into.emplace(id, value);
         if (!added && !equalExtentArithmetic(c, old->second, value))
           throw ProofFailure(
-              "ambiguous or conflicting calculated-read coefficient "
+              "ambiguous or conflicting calculated-read attribute "
               "constructors");
       }
     };
@@ -49,7 +49,7 @@ struct Constructor {
         for (const auto& actual : term.reads) {
           c.tick();
           if (actual->capture != pattern->capture) continue;
-          auto candidate = matchIndexCoefficients(
+          auto candidate = matchIndexAttributes(
               c, pattern->access ? pattern->access : coordinates(pattern->axes),
               actual->access ? actual->access : coordinates(actual->axes));
           if (!candidate) continue;
@@ -60,7 +60,7 @@ struct Constructor {
         }
       if (!solution)
         throw ProofFailure(
-            "no scoped coordinate match for calculated-read coefficients; "
+            "no scoped coordinate match for calculated-read attributes; "
             "composed or inverse inference may be required");
       merge(inferred, *solution);
     };
@@ -82,7 +82,7 @@ struct Constructor {
     values(values, *n.definition->value);
     if (inferred.empty())
       throw ProofFailure(
-          "calculated reads provide no direct coefficient constructor");
+          "calculated reads provide no direct attribute constructor");
     for (const auto& [id, value] : inferred)
       c.assignAttribute(id.first, id.second, value);
     c.note("index-coefficient-matching");
@@ -114,7 +114,7 @@ struct Constructor {
     };
     scan(*n.definition->value);
     const auto trial_obligations = lowerer.obligations.size();
-    const bool infer_scales = unresolvedScales(n);
+    const bool infer_indices = unresolvedIndexAttributes(n);
     std::vector<std::size_t> deferred_domains;
     std::set<std::pair<std::set<std::size_t>, bool>> signatures;
     std::vector<S> groups;
@@ -134,7 +134,8 @@ struct Constructor {
                                    call("union_axes", std::move(operand_axes)));
         auto order = c.filter(match.interfaces.at(id), wanted);
         auto domain = lowerer.metadata(*group.domain, n, inputs, groups);
-        if (infer_scales && containsHole(c.resolve(domain)))
+        if (infer_indices && containsHole(c.resolve(domain)) &&
+            c.resolve(domain)->kind != Symbol::Kind::Hole)
           deferred_domains.push_back(g);
         else
           assign(*group.domain, n, inputs, groups, c.extents(order));
@@ -189,8 +190,8 @@ struct Constructor {
       }
       groups.push_back(order);
     }
-    if (infer_scales) {
-      inferCoefficients(n, inputs, groups);
+    if (infer_indices) {
+      inferReadAttributes(n, inputs, groups);
       for (auto g : deferred_domains)
         assign(*n.definition->groups[g].domain, n, inputs, groups,
                c.extents(groups[g]));

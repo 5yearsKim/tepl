@@ -102,3 +102,14 @@ convolutions="$($compiler check "$5" --semantic-policy=algebraic)"
 [[ "$convolutions" == *"additional-guard: true"* ]]
 if "$compiler" check "$5" --rule convolution_distribute_input > "$temporary_directory/error" 2>&1; then exit 1; fi
 grep -Fq 'arithmetic normalization requires algebraic policy' "$temporary_directory/error"
+
+# Slice constructors come from calculated reads and the output interface.
+slices="$($compiler check "$6" --semantic-policy=algebraic)"
+[[ "$(printf '%s' "$slices" | grep -c 'status=proved')" == 3 ]]
+[[ "$slices" == *"index_offset("* ]]
+[[ "$slices" == *"starts = @s.starts"* ]]
+[[ "$slices" == *"sizes = @outer.sizes"* ]]
+[[ "$slices" == *"starts = extent_add("* ]]
+[[ "$slices" == *"law: extent-monotonicity"* ]]
+[[ "$slices" == *"additional-guard: true"* ]]
+"$compiler" check "$6" --rule compose_slice > /dev/null

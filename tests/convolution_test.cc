@@ -12,13 +12,19 @@
 #include "src/core/index_semantics/synthesize.h"
 #include "src/core/index_semantics/verify.h"
 #include "src/parse.h"
-#include "tests/index_constructor_eval.h"
+#include "tests/index_graph_eval.h"
 
 namespace {
 using namespace tepl::core::index_semantics;
+using tepl::test::add;
 using tepl::test::ConstructorEvaluator;
 using tepl::test::Coordinate;
 using tepl::test::Coordinates;
+using tepl::test::data;
+using tepl::test::Dense;
+using tepl::test::enumerate;
+using tepl::test::GraphEvaluator;
+using tepl::test::transpose;
 void expect(bool x, const std::string& message) {
   if (!x) throw std::runtime_error(message);
 }
@@ -38,56 +44,6 @@ void proved(const Plan& p) {
   expect(p.proof.guard.empty(), "no extra inferred guard");
   expect(verify(p, p.proof).status == ProofStatus::Proved,
          "independent verifier accepts convolution proof");
-}
-void enumerate(const List& sizes, const std::function<void(const List&)>& fn) {
-  List at(sizes.size());
-  auto loop = [&](auto&& self, std::size_t d) -> void {
-    if (d == sizes.size()) {
-      fn(at);
-      return;
-    }
-    for (at[d] = 0; at[d] < sizes[d]; ++at[d]) self(self, d + 1);
-  };
-  loop(loop, 0);
-}
-struct Dense {
-  List shape, values;
-  std::int64_t at(const List& p) const {
-    expect(p.size() == shape.size(), "read rank");
-    std::size_t offset = 0;
-    for (std::size_t d = 0; d < p.size(); ++d) {
-      expect(p[d] >= 0 && p[d] < shape[d],
-             "calculated read stays in bounds: axis " + std::to_string(d) +
-                 " index " + std::to_string(p[d]) + " extent " +
-                 std::to_string(shape[d]));
-      offset = offset * shape[d] + p[d];
-    }
-    return values.at(offset);
-  }
-};
-Dense data(List shape, int seed) {
-  Dense x{shape, {}};
-  enumerate(shape, [&](const auto&) {
-    x.values.push_back((std::int64_t(x.values.size()) * 3 + seed) % 11 - 5);
-  });
-  return x;
-}
-Dense add(const Dense& a, const Dense& b) {
-  expect(a.shape == b.shape, "addition shape");
-  auto out = a;
-  for (std::size_t i = 0; i < out.values.size(); ++i)
-    out.values[i] += b.values[i];
-  return out;
-}
-Dense transpose(const Dense& a, const List& p) {
-  Dense out;
-  for (auto i : p) out.shape.push_back(a.shape.at(i));
-  enumerate(out.shape, [&](const List& at) {
-    List original(at.size());
-    for (std::size_t i = 0; i < at.size(); ++i) original.at(p[i]) = at[i];
-    out.values.push_back(a.at(original));
-  });
-  return out;
 }
 // Direct physical reference: no axis maps, semantic IR, or normalization.
 using ConvConfig = std::pair<List, List>;  // strides, dilations
@@ -121,85 +77,6 @@ Dense convolution(const Dense& x, const Dense& kernel, ConvConfig config = {}) {
   });
   return out;
 }
-// Interpret a lowered graph with concrete coordinates. This checks lowering
-// against the direct convolution above, rather than trusting the proof result.
-struct GraphEvaluator {
-  ConstructorEvaluator& metadata;
-  const std::vector<Dense>& inputs;
-  std::map<Coordinate, std::int64_t> assignment;
-  Coordinates axes(const S& x) {
-    return std::get<Coordinates>(metadata.eval(x));
-  }
-  List index(const I& e) {
-    if (e->kind == IndexExpr::Kind::Coordinates) {
-      List out;
-      for (const auto& a : axes(e->axes)) out.push_back(assignment.at(a));
-      return out;
-    }
-    auto out = index(e->args[0]);
-    if (e->kind == IndexExpr::Kind::Scale) {
-      for (auto& n : out) n *= e->coefficient;
-    } else if (e->kind == IndexExpr::Kind::Weighted) {
-      auto factors = std::get<List>(metadata.eval(e->axes));
-      expect(out.size() == factors.size(), "scale tuple length");
-      for (std::size_t i = 0; i < out.size(); ++i) out[i] *= factors[i];
-    } else if (e->kind == IndexExpr::Kind::Select) {
-      auto p = std::get<List>(metadata.eval(e->axes));
-      List selected;
-      for (auto n : p) selected.push_back(out.at(n));
-      return selected;
-    } else {
-      for (std::size_t i = 1; i < e->args.size(); ++i) {
-        auto next = index(e->args[i]);
-        if (e->kind == IndexExpr::Kind::Concat)
-          out.insert(out.end(), next.begin(), next.end());
-        else {
-          expect(out.size() == next.size(), "paired spatial tuple lengths");
-          for (std::size_t j = 0; j < out.size(); ++j) out[j] += next[j];
-        }
-      }
-    }
-    return out;
-  }
-  std::int64_t value(const E& e) {
-    if (e->kind == Expr::Kind::Const) return e->constant;
-    if (e->kind == Expr::Kind::Read) {
-      List p;
-      if (e->access)
-        p = index(e->access);
-      else
-        for (const auto& a : axes(e->axes)) p.push_back(assignment.at(a));
-      return inputs.at(e->capture).at(p);
-    }
-    if (e->kind == Expr::Kind::Add)
-      return value(e->args[0]) + value(e->args[1]);
-    if (e->kind == Expr::Kind::Product)
-      return value(e->args[0]) * value(e->args[1]);
-    auto coordinates = axes(e->axes);
-    auto sizes = std::get<List>(metadata.eval(call("axis_extents", {e->axes})));
-    std::int64_t sum = 0;
-    enumerate(sizes, [&](const List& at) {
-      for (std::size_t i = 0; i < at.size(); ++i) {
-        expect(!assignment.contains(coordinates[i]), "fresh reduction binder");
-        assignment[coordinates[i]] = at[i];
-      }
-      sum += value(e->args[0]);
-      for (const auto& a : coordinates) assignment.erase(a);
-    });
-    return sum;
-  }
-  Dense tensor(const TensorMeaning& t) {
-    Dense out{std::get<List>(metadata.eval(t.shape)), {}};
-    auto coordinates = axes(t.axes);
-    enumerate(out.shape, [&](const List& at) {
-      for (std::size_t i = 0; i < at.size(); ++i)
-        assignment[coordinates[i]] = at[i];
-      out.values.push_back(value(t.value));
-      assignment.clear();
-    });
-    return out;
-  }
-};
 void compare(const Plan& p, const std::vector<Dense>& inputs,
              const Dense& expected, List permutation = {},
              std::vector<ConvConfig> configs = {}) {
@@ -464,7 +341,15 @@ int main(int argc, char** argv) {
     // Compare definitions in separate dialects without conflicting operation
     // names.
     auto begin = bad.find("    op convolution");
-    auto end = bad.find("    // Insert axes only.", begin);
+    auto end = bad.find('{', begin) + 1;
+    std::size_t depth = 1;
+    for (; end < bad.size() && depth; ++end) {
+      if (bad[end] == '{')
+        ++depth;
+      else if (bad[end] == '}')
+        --depth;
+    }
+    expect(depth == 0, "find operation body boundary");
     auto operation = bad.substr(begin, end - begin);
     at = operation.find("op convolution");
     operation.replace(at, 14, "op shifted");
@@ -565,20 +450,20 @@ int main(int argc, char** argv) {
     auto stride = coefficient_context.field(convolution_node, 0);
     auto dilation = coefficient_context.field(convolution_node, 1);
     auto hole = make(Symbol::Kind::Hole, "unknown", 101, 0);
-    auto result = matchIndexCoefficients(
+    auto result = matchIndexAttributes(
         coefficient_context, indexScale(coefficient_context, hole, h),
         indexScale(coefficient_context, stride, h));
     expect(
         result && result->size() == 1 && equal(result->begin()->second, stride),
         "direct coefficient matcher constructs a source expression");
-    auto scoped = matchIndexCoefficients(
+    auto scoped = matchIndexAttributes(
         coefficient_context, indexScale(coefficient_context, hole, h),
         indexScale(coefficient_context, stride, r));
     expect(!scoped,
            "matching refuses equally sized coordinates from different scopes");
     bool conflicting = false, coupled = false;
     try {
-      matchIndexCoefficients(
+      matchIndexAttributes(
           coefficient_context,
           indexAdd({indexScale(coefficient_context, hole, h),
                     indexScale(coefficient_context, hole, r)}),
@@ -592,7 +477,7 @@ int main(int argc, char** argv) {
            "one field cannot satisfy conflicting coefficient equations");
     try {
       auto other = make(Symbol::Kind::Hole, "unknown", 101, 1);
-      matchIndexCoefficients(
+      matchIndexAttributes(
           coefficient_context,
           indexScale(coefficient_context, call("extent_mul", {hole, other}), h),
           indexScale(coefficient_context, stride, h));

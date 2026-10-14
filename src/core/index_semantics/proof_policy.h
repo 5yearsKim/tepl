@@ -15,6 +15,7 @@ struct ProofLimits {
   static constexpr std::size_t query_depth = 24;
   static constexpr std::size_t query_work = 2048;
   static constexpr std::size_t normalization_terms = 256;
+  static constexpr std::size_t extent_bound_steps = 8;
   static constexpr std::size_t general_inference_work = 100000;
 };
 

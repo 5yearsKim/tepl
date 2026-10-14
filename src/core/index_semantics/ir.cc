@@ -21,9 +21,16 @@ const std::vector<Law>& laws() {
       {"extent-floor-bound", "s * floor(q/s) <= q",
        "paired tuple lengths; nonnegative q; positive s", false},
       {"index-coefficient-matching",
-       "a*x = b*x gives the sufficient constructor a:=b",
-       "matched scoped coordinate bases; whole coefficient holes; independent "
+       "o+a*x = p+b*x gives sufficient constructors o:=p, a:=b",
+       "matched scoped coordinate bases; whole coefficient/offset holes; "
+       "independent "
        "verification",
+       false},
+      {"index-offset-normalization", "a+(b+x)=(a+b)+x; s*(a+x)=s*a+s*x",
+       "paired tuple lengths; metadata offsets; exact integer arithmetic",
+       false},
+      {"extent-monotonicity", "L<=U implies r+m*L <= r+m*U",
+       "established bounds; equal tuple lengths; nonnegative multiplier",
        false},
       {"index-substitution",
        "Read(producer, q) = producer[output coordinates := q]",

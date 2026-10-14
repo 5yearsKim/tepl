@@ -49,6 +49,8 @@ struct Checker {
       return signature({Type::Positions, Type::Integer}, Type::Positions);
     if (name == "extent_le")
       return signature({Type::Positions, Type::Positions}, Type::Boolean);
+    if (name == "is_valid_extents")
+      return signature({Type::Positions}, Type::Boolean);
     if (name == "is_positive_extents")
       return signature({Type::Positions}, Type::Boolean);
     if (name == "all_axes") return signature({Type::Operand}, Type::Positions);
@@ -157,17 +159,22 @@ struct Checker {
     at = detail::origin(source, expr.span);
     if (expr.kind != ast::SemanticExpr::Kind::kCall)
       fail("read indices require Coords, IndexAdd, or Concat");
-    if (expr.text == "IndexScale") {
+    if (expr.text == "IndexScale" || expr.text == "IndexOffset") {
       if (expr.arguments.size() != 2 ||
           expr.arguments[0]->kind != ast::SemanticExpr::Kind::kAttribute ||
           !fields.contains(expr.arguments[0]->text))
-        fail("IndexScale requires an index[] attribute and a coordinate tuple");
+        fail(expr.text +
+             " requires an index[] attribute and a coordinate tuple");
       auto name = expr.arguments[0]->text;
       result.extent_fields.insert(fields.at(name));
       auto scale =
           make(Meta::Kind::Attribute, Type::Positions, name, fields.at(name));
-      return std::make_shared<IndexValue>(IndexValue{
-          IndexValue::Kind::Scale, 0, {indexValue(*expr.arguments[1])}, scale});
+      return std::make_shared<IndexValue>(
+          IndexValue{expr.text == "IndexScale" ? IndexValue::Kind::Scale
+                                               : IndexValue::Kind::Offset,
+                     0,
+                     {indexValue(*expr.arguments[1])},
+                     scale});
     }
     if (expr.text == "Coords") {
       if (expr.arguments.size() != 1 ||
