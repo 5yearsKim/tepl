@@ -11,8 +11,9 @@
 #include "src/codegen/rust/template_files.h"
 
 namespace tepl::codegen::rust {
-GenerationResult Backend::generate(const core::Program& program,
+GenerationResult Backend::generate(const program::Program& executable,
                                    const Options& options) const {
+  const auto& program = executable.ir();
   GenerationResult result;
   result.diagnostics = unsupportedRuleExpressions(program);
   if (!result.diagnostics.empty()) return result;

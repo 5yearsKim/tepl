@@ -151,27 +151,14 @@ std::vector<Diagnostic> resolveImports(ast::Program& program) {
 }  // namespace tepl
 
 namespace tepl {
-ParseResult loadProject(const std::string& directory) {
+namespace {
+ParseResult loadFiles(const std::vector<std::filesystem::path>& files,
+                      const std::filesystem::path& root) {
   namespace fs = std::filesystem;
   ParseResult result;
   result.program.emplace();
   auto& project = *result.program;
-  const auto root = fs::absolute(directory).lexically_normal();
   project.source_name = (root / "<project>").string();
-  std::vector<fs::path> files;
-  for (const auto* part : {"dialects", "rules", "graphs"}) {
-    if (!fs::is_directory(root / part)) continue;
-    for (const auto& entry : fs::recursive_directory_iterator(root / part))
-      if (entry.is_regular_file() && entry.path().extension() == ".tepl")
-        files.push_back(entry.path());
-  }
-  std::sort(files.begin(), files.end());
-  if (files.empty()) {
-    result.diagnostics.push_back(
-        {1, 1, "no .tepl files found under dialects/, rules/, or graphs/",
-         directory});
-    return result;
-  }
   std::unordered_set<std::string> dialects, scopes, instances, imported;
   for (const auto& file : files) {
     std::ifstream input(file, std::ios::binary);
@@ -220,6 +207,70 @@ ParseResult loadProject(const std::string& directory) {
     return instances.contains(rule.source_name + "\n" + rule.name);
   });
   result.rule_count = project.rules.size();
+  return result;
+}
+
+void collectFiles(const std::filesystem::path& path,
+                  std::vector<std::filesystem::path>& files) {
+  namespace fs = std::filesystem;
+  if (fs::is_directory(path)) {
+    std::vector<fs::path> found;
+    for (const auto& entry : fs::recursive_directory_iterator(path))
+      if (entry.is_regular_file() && entry.path().extension() == ".tepl")
+        found.push_back(entry.path());
+    std::sort(found.begin(), found.end());
+    files.insert(files.end(), found.begin(), found.end());
+  } else {
+    files.push_back(path);
+  }
+}
+}  // namespace
+
+ParseResult loadProject(const std::string& directory) {
+  namespace fs = std::filesystem;
+  const auto root = fs::absolute(directory).lexically_normal();
+  std::vector<fs::path> files;
+  for (const auto* part : {"dialects", "rules", "graphs"})
+    if (fs::is_directory(root / part)) collectFiles(root / part, files);
+  std::sort(files.begin(), files.end());
+  auto result = loadFiles(files, root);
+  if (files.empty())
+    result.diagnostics.push_back(
+        {1, 1, "no .tepl files found under dialects/, rules/, or graphs/",
+         directory});
+  return result;
+}
+
+ParseResult loadRewriteSources(const std::string& graph,
+                               const std::string& rules) {
+  namespace fs = std::filesystem;
+  const auto input = fs::absolute(graph).lexically_normal();
+  const auto ruleInput = fs::absolute(rules).lexically_normal();
+  std::vector<fs::path> graphFiles, ruleFiles;
+  if (fs::is_directory(input) && (fs::is_directory(input / "graphs") ||
+                                  fs::is_directory(input / "dialects") ||
+                                  fs::is_directory(input / "rules"))) {
+    for (const auto* part : {"dialects", "graphs"})
+      if (fs::is_directory(input / part))
+        collectFiles(input / part, graphFiles);
+  } else {
+    collectFiles(input, graphFiles);
+  }
+  collectFiles(ruleInput, ruleFiles);
+  auto files = graphFiles;
+  files.insert(files.end(), ruleFiles.begin(), ruleFiles.end());
+  std::unordered_set<std::string> seen;
+  std::erase_if(files, [&](const auto& file) {
+    return !seen.insert(fs::weakly_canonical(file).string()).second;
+  });
+  auto result =
+      loadFiles(files, fs::is_directory(input) ? input : input.parent_path());
+  for (const auto& [path, empty] : {std::pair{input, graphFiles.empty()},
+                                    std::pair{ruleInput, ruleFiles.empty()}})
+    if (empty)
+      result.diagnostics.push_back(
+          {1, 1, "no .tepl files found in selected source directory",
+           path.string()});
   return result;
 }
 }  // namespace tepl

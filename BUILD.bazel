@@ -51,6 +51,8 @@ cc_binary(
         "//src/core:analysis",
         "//src/core:print",
         "//src/support:init",
+        "//src/program:compile",
+        "//src/rewrite:cli",
         "@cli11//:cli11",
     ],
 )

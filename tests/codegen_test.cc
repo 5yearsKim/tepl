@@ -31,14 +31,14 @@ class PythonBackend final : public tepl::codegen::Generator {
     return tepl::codegen::Target::kPython;
   }
   tepl::codegen::GenerationResult generate(
-      const tepl::core::Program& program,
+      const tepl::program::Program& program,
       const tepl::codegen::Options&) const override {
     tepl::codegen::GenerationResult result;
     result.files.push_back(
         {"rules.py",
          "module_count = " +
              std::to_string(
-                 tepl::codegen::planProject(program).modules.size()) +
+                 tepl::codegen::planProject(program.ir()).modules.size()) +
              "\n"});
     return result;
   }
@@ -263,5 +263,7 @@ int main() {
     }
   }
   const PythonBackend python;
-  assert(python.generate(program, {}).files.front().path == "rules.py");
+  assert(
+      python.generate(tepl::program::compile(program), {}).files.front().path ==
+      "rules.py");
 }

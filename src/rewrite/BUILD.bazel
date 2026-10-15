@@ -1,0 +1,31 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "rewrite",
+    srcs = [
+        "builder.cc",
+        "engine.cc",
+        "evaluator.cc",
+        "matcher.cc",
+        "printer.cc",
+        "value.cc",
+    ],
+    hdrs = [
+        "builder.h",
+        "engine.h",
+        "evaluator.h",
+        "matcher.h",
+        "printer.h",
+        "value.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["//src/core:ir", "//src/program:program"],
+)
+
+cc_library(
+    name = "cli",
+    srcs = ["cli.cc"],
+    hdrs = ["cli.h"],
+    visibility = ["//visibility:public"],
+    deps = [":rewrite"],
+)

@@ -21,6 +21,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/core:ir",
+        "//src/program:compile",
         "//src/core:semantic_solver",
         "//src/support:process",
         "//src/support:temporary_directory",

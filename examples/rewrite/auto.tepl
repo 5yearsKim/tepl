@@ -1,0 +1,12 @@
+from "../semantic/dialects/tensor.tepl" import TensorLang as t;
+
+rule compose_transposes {
+    (t.transpose[@outer] (t.transpose[@inner] X))
+    => (t.transpose[auto] X)
+}
+
+graph example {
+    input X: f32[2, 3, 4];
+    let first = (t.transpose[permutation = [1, 2, 0]] X);
+    yield (t.transpose[permutation = [2, 0, 1]] first);
+}

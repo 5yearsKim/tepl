@@ -109,7 +109,7 @@ arithmetic policy.
 
 The frontend and symbolic checker support explicit constructors. The symbolic
 checker accepts its supported metadata fragment and diagnoses expressions it
-cannot lower or prove. Rule constructors and extended rule expressions do not
-yet have Rust/C++ code generation or an execution interpreter; generation
-reports a diagnostic before writing files. `$` host calls and host `fn`
+cannot lower or prove. The [greedy engine](greedy_rewriting.md) executes rule
+constructors and extended expressions. Their Rust/C++ code generation remains
+pending and reports a diagnostic before writing files. `$` host calls and host `fn`
 parameters are no longer part of TEPL.

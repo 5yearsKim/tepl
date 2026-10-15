@@ -227,6 +227,10 @@ struct DescriptorConstruct {
   // All fields in schema order; spreads/defaults have been expanded.
   std::vector<TypedExprPtr> fields;
 };
+// Executable metadata expression produced by compile-time axis synthesis.
+struct SymbolicExpr {
+  index_semantics::SymbolPtr value;
+};
 struct Local {
   LocalId id;
   std::string name;
@@ -240,7 +244,7 @@ struct TypedExpr {
                bool, BuiltinCall, UnaryExpr, BinaryExpr, LocalRef, LocalLet,
                ListExpr, IndexExpr, ConditionalExpr, ComprehensionExpr,
                StringConstant, EnumConstant, NoneConstant, OptionalValue,
-               DescriptorConstruct>
+               DescriptorConstruct, SymbolicExpr>
       value;
 };
 

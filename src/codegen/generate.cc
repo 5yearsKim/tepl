@@ -1,5 +1,7 @@
 #include "src/codegen/generate.h"
 
+#include <stdexcept>
+
 #include "src/codegen/cpp/backend.h"
 #include "src/codegen/rust/backend.h"
 
@@ -29,8 +31,15 @@ std::unique_ptr<Generator> createGenerator(Target target) {
   return nullptr;
 }
 
-GenerationResult generate(const core::Program& program,
+GenerationResult generate(const program::Program& program,
                           const Options& options) {
+  for (const auto& op : program.ir().operations)
+    if (op.semantic_definition) {
+      GenerationResult result;
+      result.diagnostics.push_back(
+          {op.origin, "code generation for axis semantics is not implemented"});
+      return result;
+    }
   auto backend = createGenerator(options.target);
   if (!backend) {
     GenerationResult result;
@@ -42,4 +51,14 @@ GenerationResult generate(const core::Program& program,
   return backend->generate(program, options);
 }
 
+GenerationResult generate(const core::Program& checked,
+                          const Options& options) {
+  try {
+    return generate(program::compile(checked), options);
+  } catch (const std::exception& error) {
+    GenerationResult result;
+    result.diagnostics.push_back({{}, error.what()});
+    return result;
+  }
+}
 }  // namespace tepl::codegen

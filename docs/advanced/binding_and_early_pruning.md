@@ -54,8 +54,9 @@ All rule expressions are pure. Guards wait for their required bindings.
 Rank and element-count limits are application policy; they do
 not establish mathematical equivalence.
 
-Local bindings and extended list expressions are checked by the frontend. Their
-code generation and execution are deferred and produce explicit diagnostics.
+Local bindings and extended list expressions run in the
+[greedy engine](greedy_rewriting.md), which evaluates guards after a complete
+structural match. Their Rust/C++ code generation remains deferred.
 
 ## Search and application are separate
 

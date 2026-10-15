@@ -228,3 +228,38 @@ cc_test(
     srcs = ["legacy_semantic_runtime_test.cc"],
     deps = ["//src/legacy_semantics:solver"],
 )
+
+cc_test(
+    name = "rewrite_test",
+    size = "small",
+    srcs = ["rewrite_test.cc"],
+    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
+    data = ["//:examples/semantic/dialects/tensor.tepl"],
+    deps = [
+        "//:frontend",
+        "//src/codegen",
+        "//src/core:analysis",
+        "//src/program:compile",
+        "//src/rewrite",
+        "@nlohmann_json//:json",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
+sh_test(
+    name = "rewrite_cli_test",
+    size = "small",
+    srcs = ["rewrite_cli_test.sh"],
+    args = [
+        "$(rootpath //:tepl)",
+        "$(rootpath //:examples/rewrite/graphs/transpose.tepl)",
+        "$(rootpath //schema:rewrite-program.schema.json)",
+    ],
+    data = [
+        "//:tepl",
+        "//:examples/rewrite/graphs/transpose.tepl",
+        "//:examples/rewrite/dialects/tensor.tepl",
+        "//:examples/rewrite/rules/transpose.tepl",
+        "//schema:rewrite-program.schema.json",
+    ],
+)

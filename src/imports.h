@@ -13,6 +13,13 @@ namespace tepl {
 // statement.
 std::vector<Diagnostic> resolveImports(ast::Program& program);
 
-// Load every .tepl file under dialects/ and rules/, preserving each file scope.
+// Load every .tepl file under dialects/, rules/, and graphs/, preserving
+// scopes.
 ParseResult loadProject(const std::string& directory);
+
+// Load graph source and independently selected rule source (file or directory).
+// A graph project directory contributes dialects/ and graphs/; --rules chooses
+// its rule input explicitly. Files retain their own import/use scopes.
+ParseResult loadRewriteSources(const std::string& graph,
+                               const std::string& rules);
 }  // namespace tepl

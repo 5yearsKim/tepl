@@ -13,11 +13,13 @@
 #include "src/core/print.h"
 #include "src/imports.h"
 #include "src/parse.h"
+#include "src/program/program.h"
+#include "src/rewrite/cli.h"
 #include "src/semantic_check.h"
 #include "src/support/init.h"
 
 int main(int argc, char** argv) {
-  CLI::App app{"Initialize, parse, check, and generate TEPL projects"};
+  CLI::App app{"Compile, rewrite, and generate code for TEPL projects"};
   app.require_subcommand(1);
   std::string project_directory;
   auto* init = app.add_subcommand("init", "Create a minimal TEPL project");
@@ -65,11 +67,45 @@ int main(int argc, char** argv) {
       "Format output with rustfmt or clang-format (default: on)");
   generate->add_option("--cpp-namespace", generation_options.cpp_namespace,
                        "Namespace for generated C++ (default: tepl_generated)");
+  auto* compile =
+      app.add_subcommand("compile", "Compile TEPL into portable rewrite JSON");
+  compile->add_option("file", filename, "TEPL file or project")->required();
+  compile->add_option("-o,--out", output_directory,
+                      "Output JSON file (default: stdout)");
+  auto* validate = app.add_subcommand(
+      "validate", "Validate a compiled rewrite JSON program");
+  validate->add_option("file", filename, "Compiled JSON file")->required();
+  auto* schema =
+      app.add_subcommand("schema", "Print the compiled program JSON Schema");
+  schema->add_option("-o,--out", output_directory,
+                     "Output schema file (default: stdout)");
+  auto* rewrite =
+      app.add_subcommand("rewrite", "Greedily rewrite a graph and print TEPL");
+  rewrite->add_option("file", filename, "TEPL file/project or compiled JSON")
+      ->required();
+  rewrite->add_option("-o,--out", output_directory,
+                      "Output TEPL file (default: stdout)");
+  std::string graph_name;
+  std::string rules_path;
+  tepl::rewrite::Options rewrite_options;
+  rewrite->add_option("--graph", graph_name,
+                      "Graph to rewrite (required when ambiguous)");
+  for (auto* command : {compile, rewrite})
+    command->add_option("--rules", rules_path,
+                        "Rule source file or directory (source input only)");
+  rewrite->add_option("--rule", rewrite_options.rule,
+                      "Apply only this rule (default: all loaded rules)");
+  rewrite->add_option("--max-steps", rewrite_options.max_steps,
+                      "Maximum committed rewrites");
+  rewrite->add_option("--max-nodes", rewrite_options.max_nodes,
+                      "Maximum graph node count");
+  rewrite->add_flag("--trace", rewrite_options.trace,
+                    "Report applied rules on stderr");
   std::string semantic_policy = "strict";
   std::string semantic_rule;
   check->add_option("--rule", semantic_rule,
                     "Select a semantic rule for compile-time proof");
-  for (auto* command : {check, generate}) {
+  for (auto* command : {check, generate, compile, rewrite}) {
     command
         ->add_option("--semantic-policy", semantic_policy,
                      "Arithmetic proof policy (strict or algebraic)")
@@ -108,9 +144,89 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  const auto execute = [&](const tepl::program::Program& executable) -> int {
+    if (*validate) {
+      std::cout << "Compiled program is valid.\n";
+      return 0;
+    }
+    if (*compile) {
+      tepl::rewrite::writeOutput(tepl::program::serialize(executable),
+                                 output_directory);
+      return 0;
+    }
+    if (*rewrite)
+      return tepl::rewrite::runCommand(executable, graph_name, output_directory,
+                                       rewrite_options);
+    for (const auto& operation : executable.ir().operations) {
+      if (operation.semantic_definition) {
+        std::cerr << "axis semantics supports checking and greedy rewriting; "
+                     "Rust/C++ code generation is not implemented\n";
+        return 1;
+      }
+    }
+    generation_options.target = target == "rust" ? tepl::codegen::Target::kRust
+                                : target == "cpp"
+                                    ? tepl::codegen::Target::kCpp
+                                    : tepl::codegen::Target::kPython;
+    write_options.target = generation_options.target;
+    const auto generated =
+        tepl::codegen::generate(executable, generation_options);
+    for (const auto& diagnostic : generated.diagnostics) {
+      const auto& at = diagnostic.origin.definition;
+      if (!at.source_name.empty()) {
+        std::cerr << at.source_name << ':' << at.span.begin.line << ':'
+                  << at.span.begin.column << ": ";
+      }
+      std::cerr << diagnostic.message << '\n';
+    }
+    if (!generated.ok()) return 1;
+    try {
+      const auto written = tepl::codegen::synchronize(
+          generated.files, output_directory, write_options);
+      if (write_options.check) {
+        for (const auto& path : written.differences)
+          std::cerr << "generated output differs: " << path << '\n';
+        if (!written.current()) return 1;
+        std::cout << "Generated output is current in " << output_directory
+                  << ".\n";
+        return 0;
+      }
+    } catch (const std::exception& error) {
+      std::cerr << error.what() << '\n';
+      return 2;
+    }
+    std::cout << "Generated " << generated.files.size() << " file(s) in "
+              << output_directory << ".\n";
+    return 0;
+  };
+  try {
+    if (*schema) {
+      tepl::rewrite::writeOutput(std::string(tepl::program::schema()),
+                                 output_directory);
+      return 0;
+    }
+    if (*validate || ((*rewrite || *generate) &&
+                      std::filesystem::path(filename).extension() == ".json")) {
+      if (!rules_path.empty())
+        throw std::invalid_argument(
+            "--rules requires TEPL source input; compiled JSON already "
+            "contains rules");
+      std::ifstream stream(filename, std::ios::binary);
+      if (!stream) throw std::runtime_error("cannot open " + filename);
+      std::string text{std::istreambuf_iterator<char>(stream), {}};
+      return execute(tepl::program::load(text));
+    }
+  } catch (const std::exception& error) {
+    std::cerr << error.what() << '\n';
+    return 1;
+  }
+
   tepl::ParseResult result;
   try {
-    if ((*generate || *check) && std::filesystem::is_directory(filename)) {
+    if (!rules_path.empty()) {
+      result = tepl::loadRewriteSources(filename, rules_path);
+    } else if ((*generate || *check || *compile || *rewrite) &&
+               std::filesystem::is_directory(filename)) {
       result = tepl::loadProject(filename);
       generation_options.graphs_root =
           (std::filesystem::absolute(filename) / "graphs").string();
@@ -147,7 +263,7 @@ int main(int argc, char** argv) {
   if (!result.ok()) {
     return 1;
   }
-  if (*check || *generate) {
+  if (*check || *generate || *compile || *rewrite) {
     auto analyzed = tepl::core::analyze(
         *result.program,
         {semantic_policy == "algebraic" ? tepl::core::SemanticPolicy::kAlgebraic
@@ -177,48 +293,12 @@ int main(int argc, char** argv) {
       return tepl::checkSemanticRules(*analyzed.program, semantic_rule,
                                       std::cout);
     }
-    for (const auto& operation : analyzed.program->operations) {
-      if (operation.semantic_definition) {
-        std::cerr << "axis semantics currently supports compiler-side check "
-                     "and inference; "
-                     "code generation is not implemented\n";
-        return 1;
-      }
-    }
-    generation_options.target = target == "rust" ? tepl::codegen::Target::kRust
-                                : target == "cpp"
-                                    ? tepl::codegen::Target::kCpp
-                                    : tepl::codegen::Target::kPython;
-    write_options.target = generation_options.target;
-    const auto generated =
-        tepl::codegen::generate(*analyzed.program, generation_options);
-    for (const auto& diagnostic : generated.diagnostics) {
-      const auto& at = diagnostic.origin.definition;
-      if (!at.source_name.empty()) {
-        std::cerr << at.source_name << ':' << at.span.begin.line << ':'
-                  << at.span.begin.column << ": ";
-      }
-      std::cerr << diagnostic.message << '\n';
-    }
-    if (!generated.ok()) return 1;
     try {
-      const auto written = tepl::codegen::synchronize(
-          generated.files, output_directory, write_options);
-      if (write_options.check) {
-        for (const auto& path : written.differences)
-          std::cerr << "generated output differs: " << path << '\n';
-        if (!written.current()) return 1;
-        std::cout << "Generated output is current in " << output_directory
-                  << ".\n";
-        return 0;
-      }
+      return execute(tepl::program::compile(*analyzed.program));
     } catch (const std::exception& error) {
       std::cerr << error.what() << '\n';
-      return 2;
+      return 1;
     }
-    std::cout << "Generated " << generated.files.size() << " file(s) in "
-              << output_directory << ".\n";
-    return 0;
   }
   if (print_tree) {
     std::cout << result.tree << '\n';

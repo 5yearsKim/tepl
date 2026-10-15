@@ -1,0 +1,24 @@
+dialect TensorLang {
+    op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(lhs, rhs) {
+            assert lhs == rhs;
+            yield lhs;
+        }
+        shape(lhs, rhs) {
+            assert lhs == rhs;
+            yield lhs;
+        }
+    }
+
+    op transpose(input: tensor) -> tensor {
+        attrs {
+            permutation: index[];
+        }
+        dtype(input) { yield input; }
+        shape(input) {
+            assert is_valid_axis_list(attrs.permutation, len(input));
+            assert len(attrs.permutation) == len(input);
+            yield gather(input, attrs.permutation);
+        }
+    }
+}

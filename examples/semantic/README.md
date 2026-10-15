@@ -3,7 +3,9 @@
 `tepl check` compiles a rewrite into attribute constructors and a checked
 semantic graph under the rule’s explicit conditions. No concrete shapes,
 attributes, or tensor values are supplied. Generated Rust/C++ execution remains
-outside this implementation.
+outside this implementation. The [greedy engine](../../docs/advanced/greedy_rewriting.md)
+can execute compiled constructors on concrete graphs; see
+[`examples/rewrite/auto.tepl`](../rewrite/auto.tepl).
 
 ## Run the checker
 
@@ -80,9 +82,8 @@ being treated as symbolic facts.
 
 Only declared conditions and LHS legality are proof assumptions. Missing facts
 produce errors; the compiler never adds applicability restrictions to a rule.
-A future generated matcher must check the declared conditions before applying
-it. The test metadata interpreter checks these conditions today; axis-semantic
-Rust/C++ generation is still unsupported.
+The greedy engine checks the declared conditions and compiled proof conditions
+before applying the rule. Axis-semantic Rust/C++ generation is still unsupported.
 
 ## Define operation semantics
 

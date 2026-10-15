@@ -62,11 +62,12 @@ conversions; `dtype` contains the five dtype classification predicates.
 
 Shape and rule emitters share builtin-call lowering. Integer operators also
 call the checked runtime helpers. Shape errors become invalid inference; rule
-errors reject a candidate before insertion or subsequent host calls. Boolean
+errors reject a candidate before insertion. Boolean
 operators retain short-circuit evaluation, and arguments execute once in order.
 All rule conditions are pure. Existing generated match checks retain binding
-readiness and source ordering. Local statements and extended expressions require
-the deferred execution support.
+readiness and source ordering. The native greedy engine in `src/rewrite/`
+evaluates local statements and extended expressions directly; their generated
+backend support remains deferred.
 
 Overflow, invalid indices/ranges, nonpositive rounded divisors, and incompatible
 broadcasting are failures. `/` truncates toward zero; rounded division requires

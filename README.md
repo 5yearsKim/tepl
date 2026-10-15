@@ -157,6 +157,7 @@ TEPL keeps tensor rewrites concise while supporting the features needed for real
 - **Custom rewrite conditions:** Use `where` to express legality checks and `derive` to compute new attributes.
 - **Multiple dialects:** Define and import your own operation dialects, and write rules that rewrite between them.
 - **Self-contained attribute logic:** Use builtins, local expressions, descriptor constructors, and `auto` synthesis for guards and attribute transformations. Extended rule code generation is pending.
+- **Direct graph rewriting:** Compile portable JSON, run greedy rewrites, and export the result as readable TEPL.
 - **E-graph integration:** Generate rewrites for egg or egg-c, with generated tensor analysis or hooks for your own analysis and inference.
 
 ## 📉 A smaller computation with LoRA
@@ -178,8 +179,8 @@ cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
 
 The [attribute examples](examples/sample/rules/attributes.tepl) show pure
 `where`/`derive` logic without application callbacks. Descriptor constructors
-and extended rule expressions currently support frontend checking; Rust/C++
-code generation and execution are deferred. The lab demos retain artifacts
+and extended rule expressions run in the greedy engine; their Rust/C++
+code generation remains deferred. The lab demos retain artifacts
 from the previous generated API.
 
 The [semantic examples](examples/semantic/README.md) show compiler-side proof
@@ -196,6 +197,17 @@ bazel build //:tepl
 bazel-bin/tepl check examples/sample
 bazel-bin/tepl generate examples/sample/rules/simple.tepl --out my_app/src/generated
 ```
+
+To rewrite a graph directly and inspect the result:
+
+```sh
+bazel-bin/tepl compile examples/rewrite -o /tmp/program.json
+bazel-bin/tepl validate /tmp/program.json
+bazel-bin/tepl rewrite /tmp/program.json --trace -o /tmp/result.tepl
+```
+
+See [greedy rewriting](docs/advanced/greedy_rewriting.md) for the engine architecture,
+[compiled format](schema/rewrite-program.schema.json), and graph export behavior.
 
 Start a new TEPL project with `tepl init <directory>` (use `.` for the current
 directory):

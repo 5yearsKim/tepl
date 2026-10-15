@@ -60,6 +60,7 @@ nav:
           - Run your first rewrite: tutorial/cpp/02_run.md
           - Add tensor analysis: tutorial/cpp/03_analyse.md
   - Advanced:
+      - Greedy rewriting: advanced/greedy_rewriting.md
       - Attributes and conditions: advanced/attributes_and_conditions.md
       - Binding and early pruning: advanced/binding_and_early_pruning.md
       - Custom analysis: advanced/custom_analysis.md
