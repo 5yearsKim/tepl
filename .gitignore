@@ -13,3 +13,6 @@
 /.venv-docs/
 /site/
 /tools/__pycache__/
+
+# Rust build output
+/runtime/rust/target/

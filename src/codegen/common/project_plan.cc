@@ -5,12 +5,25 @@
 #include <stdexcept>
 
 namespace tepl::codegen {
-ProjectPlan planProject(const core::Program& program,
+ProjectPlan planProject(const executable::ProgramData& program,
                         const std::string& rules_root,
                         const std::string& graphs_root) {
   namespace fs = std::filesystem;
   const auto identity = [](const std::string& source) {
     return fs::absolute(source).lexically_normal().string();
+  };
+  const auto modulePath = [&](const std::string& source,
+                              const std::string& root, const char* folder) {
+    if (!root.empty())
+      return fs::path(source).lexically_relative(
+          fs::absolute(root).lexically_normal());
+    auto parent = fs::path(source).parent_path();
+    while (!parent.empty() && parent != parent.parent_path()) {
+      if (parent.filename() == folder)
+        return fs::path(source).lexically_relative(parent);
+      parent = parent.parent_path();
+    }
+    return fs::path(source).filename();
   };
   ProjectPlan plan;
   std::map<std::pair<std::string, std::string>, std::size_t> dialect_ids;
@@ -35,10 +48,7 @@ ProjectPlan planProject(const core::Program& program,
   std::map<std::vector<std::string>, ModulePlan> modules;
   for (const auto& rule : program.rules) {
     auto source = identity(rule.source_name);
-    fs::path path = rules_root.empty()
-                        ? fs::path(source).filename()
-                        : fs::path(source).lexically_relative(
-                              fs::absolute(rules_root).lexically_normal());
+    fs::path path = modulePath(source, rules_root, "rules");
     if (rule.source_name == "<input>" && rules_root.empty())
       path = "input.tepl";
     path.replace_extension();
@@ -64,10 +74,7 @@ ProjectPlan planProject(const core::Program& program,
   std::map<std::vector<std::string>, GraphModulePlan> graph_modules;
   for (const auto& graph : program.graphs) {
     auto source = identity(graph.source_name);
-    fs::path path = graphs_root.empty()
-                        ? fs::path(source).filename()
-                        : fs::path(source).lexically_relative(
-                              fs::absolute(graphs_root).lexically_normal());
+    fs::path path = modulePath(source, graphs_root, "graphs");
     if (graph.source_name == "<input>" && graphs_root.empty())
       path = "input.tepl";
     path.replace_extension();

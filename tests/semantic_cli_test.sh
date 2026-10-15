@@ -68,10 +68,11 @@ TEPL
 if "$compiler" check "$temporary_directory/no_semantics.tepl" > "$temporary_directory/error" 2>&1; then exit 1; fi
 grep -Fq 'auto requires operations with axes and semantics' "$temporary_directory/error"
 
-# New semantics is compiler-only until codegen learns its constructors.
-if "$compiler" generate "$rules" --semantic-policy=algebraic --out "$temporary_directory/generated" > "$temporary_directory/error" 2>&1; then exit 1; fi
-grep -Fq 'code generation is not implemented' "$temporary_directory/error"
-test ! -e "$temporary_directory/generated"
+# Completed semantic constructors now generate native Rust.
+"$compiler" generate "$rules" --semantic-policy=algebraic --no-format --out "$temporary_directory/generated"
+test -f "$temporary_directory/generated/metadata.rs"
+test -f "$temporary_directory/generated/rules/algebraic.rs"
+grep -Fq 'pub fn derive_d' "$temporary_directory/generated/rules/algebraic.rs"
 
 # Scalar examples prove without concrete shapes; cancellation preserves output.
 scalars="$($compiler check "$3" --semantic-policy=algebraic)"

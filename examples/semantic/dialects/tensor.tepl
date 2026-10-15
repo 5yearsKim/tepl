@@ -1,7 +1,7 @@
 // Index-semantic IR for compiler-side graph lowering and attribute inference.
 // Rule compilation synthesizes symbolic attribute constructors and checks a
-// bounded algebraic fragment without concrete metadata. Generated Rust/C++
-// execution is not implemented; see ../README.md.
+// bounded algebraic fragment without concrete metadata. Generated Rust evaluates
+// completed constructors; see ../README.md.
 //
 // Axis groups and mappings
 // ------------------------

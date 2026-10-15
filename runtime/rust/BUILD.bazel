@@ -1,0 +1,5 @@
+filegroup(
+    name = "runtime",
+    srcs = glob(["src/**/*.rs", "tests/**/*.rs"]) + ["Cargo.toml", "Cargo.lock"],
+    visibility = ["//visibility:public"],
+)

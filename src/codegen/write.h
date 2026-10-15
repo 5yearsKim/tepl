@@ -4,14 +4,12 @@
 #include <string>
 #include <vector>
 
-#include "src/codegen/options.h"
 #include "src/codegen/output.h"
 
 namespace tepl::codegen {
 struct WriteOptions {
   bool check = false;
   bool format = true;
-  Target target = Target::kRust;
 };
 struct WriteResult {
   std::vector<std::string> differences;

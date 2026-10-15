@@ -63,7 +63,7 @@ nav:
       - Greedy rewriting: advanced/greedy_rewriting.md
       - Attributes and conditions: advanced/attributes_and_conditions.md
       - Binding and early pruning: advanced/binding_and_early_pruning.md
-      - Custom analysis: advanced/custom_analysis.md
+      - Tensor analysis: advanced/custom_analysis.md
   - Reference:
       - CLI: references/cli.md
       - Shapes: references/shape.md

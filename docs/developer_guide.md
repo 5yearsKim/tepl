@@ -64,15 +64,15 @@ target when a module only reads the output of a stage.
 | Runtime program and serialization | `src/executable/` |
 | Shared definitions and builtin catalogs | `src/shared/` |
 | Shared generation plans and language emitters | [src/codegen/](../src/codegen/README.md) |
-| Reusable runtime algorithms | [templates/rust/](../templates/rust/README.md), [templates/cpp/](../templates/cpp/README.md) |
+| Reusable runtime algorithms | [runtime/rust/](../runtime/rust/README.md); C++ templates remain deferred |
 | Compiler and generated-code fixtures | `tests/`, `tests/codegen/` |
 
 Edit the grammar and AST builder when changing syntax. Bazel regenerates the
 ANTLR parser; generated parser files belong in the build output.
 
 Keep language checks in core, declaration-dependent output in emitters, and
-shared runtime behavior in templates. Generated application files are replaced
-on regeneration; maintain their source templates instead.
+shared Rust runtime behavior in `runtime/rust/`. Generated application files
+are replaced on regeneration; edit the runtime crate or emitters instead.
 
 ## Built-in specifications
 
@@ -113,37 +113,35 @@ bazel run //:format -- --check
 
 This covers `src/`, `tests/`, and `tools/` using the repository's
 `.clang-format`. Set `CLANG_FORMAT` to choose another executable.
-Format edited Rust templates with `rustfmt --edition 2024`.
+Format Rust runtime changes with `cargo fmt --manifest-path runtime/rust/Cargo.toml`.
 
 ## Validate changes
 
 | Command | Coverage |
 | --- | --- |
 | `bazel test //...` | Parser, imports, semantic analysis, CLI, and code generation. |
-| `./tools/test_codegen.sh` | Generate Rust, regenerate the lab IR, and run lab and compiler-fixture tests. |
-| `./tools/test_codegen_cpp.sh` | Generate C++ and compile/run fixtures with egg-c, including optimized and sanitizer checks. |
+| `./tools/test_codegen.sh` | Generate temporary Rust applications and run execution and evaluator-reference tests. |
+| `cargo clippy --manifest-path runtime/rust/Cargo.toml --all-targets -- -D warnings` | Check the shared Rust runtime. |
 
 Rust integration needs Cargo, Rust with edition 2024 support, and `rustfmt`.
-C++ integration needs Git, `clang-format`, and a C++20 GCC or Clang compiler with
-`__int128` support. The C++ script fetches a pinned egg-c checkout unless
-`EGGC_SOURCE_DIR` selects a local one; `CXX` selects the compiler.
-
-Run the compiler suite for frontend changes and the relevant integration suite
-for emitter or runtime changes. Both integration scripts build TEPL by default;
-pass a compiler binary as the first argument to use an existing build.
+The integration script uses Cargo's local dependency cache. Run the compiler
+suite for frontend changes and the Rust integration suite for emitter or runtime
+changes. The script builds TEPL by default; pass a compiler binary and the
+`codegen_reference` helper to use existing builds. C++ generation is deferred.
 
 ## Develop Rust runtime logic
 
-The [Rust lab](../labs/rust-egg/README.md) exercises generated code from
-`examples/sample/`. Its `src/ir/` is generated and ignored by Git.
+The [Rust lab](../labs/rust-egg/README.md) exercises `examples/rewrite/`.
+Its `src/ir/` is generated and ignored by Git.
 
-1. Edit sample declarations, `templates/rust/src/`, or `src/codegen/rust/`.
-2. Keep application policies in `labs/rust-egg/src/host/` and runtime tests in
-   `labs/rust-egg/tests/`.
-3. Use `./tools/test_codegen.sh` to regenerate and validate the lab output.
+1. Edit TEPL declarations, `runtime/rust/src/`, or `src/codegen/rust/`.
+2. Keep runtime tests in `runtime/rust/tests/` and generation fixtures in
+   `tests/codegen/rust/`.
+3. Run `bazel test //tests:codegen_test //tests:rust_codegen_test`.
 
-For C++ runtime work, edit `templates/cpp/src/` or `src/codegen/cpp/` and use
-`./tools/test_codegen_cpp.sh`. Its fixtures live in `tests/codegen/cpp/`.
+`tools/test_codegen.sh` generates temporary applications, compares source and
+JSON output, checks builtin behavior against the executable evaluator, and runs
+Rust tests in debug and release modes. C++ generation remains deferred.
 
 ## Language and runtime documentation
 
@@ -153,5 +151,5 @@ For C++ runtime work, edit `templates/cpp/src/` or `src/codegen/cpp/` and use
   descriptor capture and derivation.
 - [Binding and early pruning](advanced/binding_and_early_pruning.md):
   matching and condition evaluation.
-- [Custom analysis](advanced/custom_analysis.md): host analysis integration.
+- [Tensor analysis](advanced/custom_analysis.md): input facts and metadata consistency.
 - [Graph examples](../examples/sample/graphs/README.md): construction and insertion.

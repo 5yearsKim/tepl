@@ -1,287 +1,72 @@
-# Code generation
+# Rust code generation
 
-Backend migration is deferred following the compiler pipeline refactor. The active
-CLI reports generation as unavailable. The implementation below retains its old
-interfaces for the next migration; there is no legacy solver compatibility layer.
-New backends should consume `tepl::executable::ExecutableProgram`.
+`generate(ExecutableProgram, Options)` returns Rust source files and diagnostics.
+It does not read source files, repeat semantic verification, solve attributes, or
+write output. The CLI compiles source or validates and loads JSON before calling
+this interface.
 
-The frontend no longer supports host-function calls or host `fn` parameters.
-Generated builders for supported rules take no host-function argument.
-Descriptor constructors, local bindings, and extended rule expressions are
-checked in core; their generation and execution support is deferred. Both
-backends diagnose these forms before emitting files.
+The generated module depends on the shared [`tepl-runtime`](../../runtime/rust/)
+crate and Rust edition 2024. C++ and Python generation are unavailable.
 
-`generate.h` is the public interface for all language backends. Each backend
-inherits `Generator` and implements `target()` and `generate(program, options)`.
-Input must be a successfully checked `core::Program`. A rule alone is insufficient
-because its IDs refer to the program's operation, type, schema, and host tables.
+## Boundaries
 
-A `GenerationResult` contains relative output paths, file contents, and source
-aware diagnostics. Backends perform no filesystem writes. The CLI writes files
-only after successful generation. Rust uses egg and C++ uses egg-c; Python
-reports an explicit diagnostic and emits no files.
+| Component | Input | Output |
+| --- | --- | --- |
+| Project planning | Executable tables and optional module roots | Source module membership |
+| Rust naming | Project plan and declarations | Validated Rust names and paths |
+| Rust emitters | Executable IR and names | Program-specific Rust files |
+| Output synchronization | Generated files and destination | Formatted files and ownership manifest |
+| Rust runtime | Generated program implementation and graph inputs | egg analysis and rewrite execution |
 
-The layout separates shared semantics from target syntax:
+`common/project_plan.*` preserves module paths under `rules/` and `graphs/`.
+Explicit roots override this convention. Naming rejects collisions before any
+files are written. Source and JSON inputs generate the same files when their
+executable data and generation options agree.
 
-- `common/rule_plan.*` computes tensor-metadata and binding dependencies for
-  supported pure conditions, including nested expressions. It also rejects
-  deferred rule expression forms before either backend emits output.
-  Unconditional shape-check dependencies are tracked
-  separately so expression metadata reads remain inside short-circuit control
-  flow. Conditions and derivations retain core's source order.
-- `common/project_plan.*` groups dialect operations and schemas by declaration
-  source, and rules and graphs by their owning source module. It preserves raw relative
-  module paths so every target can apply its own identifier rules.
-- `rust/backend.*` assembles module contents for an existing crate from the
-  validated naming plan.
-- `rust/dialect_emitter.*` emits the combined operation enum and attribute enum
-  from all checked dialect declarations, with arity, aliases, and schema checks.
-- `rust/graph_emitter.*` emits concrete nodes, schema-ordered attributes, input
-  metadata, named bindings, and one root. C++ has a matching emitter.
-- `rust/rule_emitter.*` recursively emits patterns, RHS expressions, shape
-  restrictions, and checked runtime callbacks.
-- `rust/analysis_emitter.*` emits shape and dtype dispatch from checked operation
-  definitions, including operation shape evaluators and attribute conversion.
-- `rust/metadata_expression_emitter.*` emits shape and dtype expressions through shared
-  builtins, checked arithmetic, fallible indexing, and list comprehensions.
-- `rust/expression_emitter.*` emits typed rule builtin/host expressions with
-  shared checked arithmetic and short-circuit boolean evaluation.
-- `rust/builtin_emitter.*` emits builtin calls for both rule and shape contexts,
-  including borrowing, variadics, numeric adapters, and error propagation.
-- `rust/names.*` constructs the complete validated Rust naming plan before
-  emission: dialects, operations, schemas, fields, host methods, rules, source
-  modules, and output indexes. It also owns string escaping and type representations.
-- `rust/paths.h` constructs relative generated paths and absolute external crate
-  paths. Emitters use qualified dialect references and explicit runtime imports.
-- `rust/code_writer.h` handles indentation and blocks.
-- `templates/rust/` holds reusable Rust templates, embedded by Bazel and copied
-  into the generated module. Runtime algorithms are maintained separately from emitters.
-  Bazel builds `tools/embed_templates.cc` and invokes it directly through
-  `tools/embed_templates.bzl` to generate `rust/template_files.h` in its output
-  directory. This build step needs no shell; the compiled TEPL executable contains
-  the templates and does not need the embedding tool at runtime.
-- `write.*` synchronizes generated files, maintains their ownership manifest,
-  formats output by default, and checks for drift without changing output.
+## Generated code
 
-The C++ backend in `cpp/` follows the same backend/emitter roles and uses
-`templates/cpp/` for its runtime. Both targets reuse the checked core and shared
-project and rule planners. Template embedding accepts a language, template root,
-and target namespace; generated executables contain both sets of templates.
+- `mod.rs`: combined operation and attribute enums, the runtime `Program`
+  implementation, concrete egg type aliases, and the semantic policy.
+- `dialects/`: dialect operation enums and one public struct per attribute
+  schema. Shared schemas are emitted once and reused by operations.
+- `metadata.rs`: shape, axes, and dtype contract evaluation. Explicit shape
+  programs take precedence over axes contracts, matching the executable engine.
+- `rules/`: patterns, restrictions, ordered conditions, local bindings, typed
+  descriptor derivations, and replacement preparation. `rules::all()` builds
+  the egg rewrites. Each rule also exposes `definition().build()`.
+- `graphs/`: constructors that register input metadata and build egg graphs.
 
-To add another language, create its directory with the same backend/emitter
-roles, inherit the public `Generator`, and register it in `createGenerator`.
-Reuse checked core and `common/` project and dependency planning. Target syntax, ownership,
-names, and runtime integration stay in that backend. `Options` and
-`GenerationResult` remain the shared entry and exit types. `tests/codegen_test.cc`
-contains an independent example backend using this interface.
+Expression emission is exhaustive over completed executable expressions.
+Generated functions call shared builtins and internal intrinsics, preserve
+short-circuit evaluation, and check value ranges. Synthesized attributes become
+ordinary functions returning their concrete schema structs.
 
-The runtime targets are Rust with egg and C++ with egg-c. An additional Rust runtime adapter
-can be introduced inside the Rust backend without changing core or the public
-language-backend interface.
+## Runtime
 
-## Generated Rust API
+The runtime crate owns value conversion, checked arithmetic, axis identity,
+metadata facts, attribute-aware matching, replacement preparation, and checked
+runner integration. Its `Program` trait is the only generated/runtime interface.
+The crate does not depend on generated programs or parse compiled JSON.
 
-The emitted module exposes `{analysis, builtins, dialects, op_node, types, pattern, rules, graphs}`.
-`analysis` exposes `TensorAnalysis`, `TensorAnalysisData`, `TensorBindingTable`,
-`TensorInfo`, and pure `infer_shape`, `infer_dtype`, and `infer_tensor` functions.
-`builtins::{common, shape, dtype}` contains the shared checked runtime helpers.
-Common list/arithmetic functions live in `builtins::common`; shape semantics
-live in `builtins::shape`. Errors use `builtins::{BuiltinError, BuiltinResult}`.
-Both rule and shape emitters call these implementations. Builtin signatures and
-section availability live in `src/core/builtins/catalog.*`.
-Operation evaluators come from checked shape and dtype programs;
-missing definitions return `Unknown`. Reusable analysis implementations and
-policy helpers are copied from `templates/rust/src/analysis/`.
-Its enclosing name and location are chosen by the consuming application; the
-examples below use `generated`.
-Each dialect has its own module and short `Op` and `OpAttrs` enums, such as
-`generated::dialects::tensor_lang::Op::Add` and `generated::dialects::scalar::Op::Add`.
-`generated::op_node` defines the combined `Op`, `OpAttrs`, and `OpNode` types used by egg.
+Shape and dtype facts merge independently. Unknown means no evidence; differing
+known facts produce a conflict. Input metadata must be registered before its
+node is inserted. Invalid inference and conflicting facts record diagnostics.
+Use the runtime's runner functions to propagate callback errors to the caller.
 
-```rust
-use crate::generated::{OpNode, dialects::scalar};
-let node = OpNode::new(scalar::Op::Add, scalar::OpAttrs::None, vec![x, y])?;
-```
+Matching keeps attribute values with their concrete node witnesses. The egg
+adapter rematches during application to recover those witnesses using current
+canonical tensor bindings. All conditions, derivations, and RHS validation finish
+before insertion and union. A known output metadata mismatch rejects a candidate.
+Missing required metadata skips it. Evaluation errors and conflicts stop execution.
 
-`DialectOp::Attrs` keeps an operation and its dialect's attributes paired at
-compile time. Arity and operation-specific schemas are validated at runtime.
-`OpNode::from_parts(op, children, attrs)` supports dynamic combined values and
-validates their pairing. Local `Op::from_name` accepts local names and aliases;
-combined `Op::from_name` requires a qualified name such as `Scalar.add`.
-
-Module names use snake_case; local enum variants use PascalCase. Each identifier
-has a semantic key and a Rust token: dialect `Type` generates `pub mod r#type;`
-and the file `dialects/type.rs`. Keyword source filenames and directories use the
-same policy. Filesystem paths and rewrite names never contain the `r#` escape.
-The compiler validates names after normalization, so dialect, operation, or
-schema `self_` fails with a TEPL source diagnostic for generated variant `Self`.
-Names Rust cannot escape must be renamed. Collisions are checked in each actual
-Rust declaration scope, including normalized parent directories and rule
-file/directory conflicts. `mod.rs`, runtime union variants (`None`, `Literal`,
-`Input`), and schema variant `None` are reserved in their respective scopes.
-Generation reports the conflicting declarations before formatting or writing
-output; it never adds numeric suffixes. Repeated imports of one dialect produce
-one output file.
-
-Generated code uses explicit runtime imports and qualified dialect paths.
-Dialects named `Std`, `Egg`, `Op`, or `DType` therefore cannot shadow runtime types
-or external crates. External references start with `::std::` and `::egg::`;
-generated references remain relative so the output can be relocated.
-
-Project input scans `dialects/**/*.tepl`, `rules/**/*.tepl`, and `graphs/**/*.tepl` in sorted order,
-resolves imports per file, and deduplicates declarations by source and name.
-It preserves each file's imports. `Options.rules_root`
-controls relative rule paths for API callers; `Options.graphs_root` controls graph
-paths. Nested files become nested Rust modules. A single input file produces a rule module named after its file stem.
-Inherited rules belong to their instance file, independently of diagnostic
-origins that can point into a template file.
-
-Attribute schemas become `OpAttrs` variants, shared by operations using the same
-schema. Attribute fields preserve their TEPL names. Calls resolve to checked
-`BuiltinCall` expressions; unknown calls are errors. See
-[builtin signatures and availability](../core/builtins/README.md).
-Rust keywords use raw identifiers, such as `r#type` and `r#match`. Names Rust
-cannot escape (`self`, `Self`, `super`, and `crate`) produce a generation
-diagnostic; rename them in TEPL. No prefixes or suffixes are added.
-Index fields use `u64`, string fields use `String`, and lists use `Vec`.
-Schema default annotations are retained as field comments; Rust callers supply
-all fields when constructing an attribute value, using an empty vector for an
-empty-list default.
-
-Each concrete rule becomes `generated::rules::FILE::rule_NAME` with:
-
-- `verify_small(&options)`: bounded sparse early rejection using the
-  checked guards and derivations; returns unknown outside its supported
-  explicit-attribute fragment. See
-  [early verification](../../examples/research/early_verification.md).
-- `pattern()` and `expression()`: structural match and replacement trees.
-- `constraints()`: shape/dtype restrictions indexed by capture, including inheritance.
-- `match_checks<N>()`: declarations and ordered pure condition evaluators using
-  the graph's analysis.
-- `build()`: a rewrite using the graph's analysis type. Rust
-  infers that type from use; standalone builders can specify it explicitly.
-
-Rewrite names are qualified as `FILE::NAME`, and rule modules have no broad
-re-exports. Abstract rules are
-already expanded in core; only concrete instances are emitted. Captures and
-attribute variables use core IDs to keep repeated identities and avoid collisions
-with user names. Rule integer arithmetic calls shared checked builtin helpers. Builtin errors
-reject candidates through `Option` propagation, while shape evaluator errors
-use `Result` and become invalid inference. Both conditions and derivations
-read matched LHS metadata;
-derivations may also read earlier derived descriptors.
-
-Generated builders use `tensor_rewrite_with_checks`. `MatchChecks`
-combines the existing tensor declarations with ordered condition dependencies
-and generated Rust evaluators. Shapes bind dimensions; conditions consume those
-bindings. Each branch holds one `next_condition` cursor alongside tensor,
-attribute, and shape bindings. At traversal start and after new bindings, the
-matcher advances through ready conditions in source order. Missing bindings wait;
-false or evaluation failure rejects the branch. Readiness never eagerly fetches
-metadata or evaluates a skipped expression branch. A later condition waits for
-an earlier condition even when its own bindings are ready.
-
-All supported conditions are pure and eligible for binding-aware checks.
-Each `where` block contributes one final Boolean expression; inherited guards
-remain separate checks. The whole expression waits for its required bindings,
-then evaluates `&&` and `||` with short-circuit behavior.
-Derivations execute during application in source order.
-Application rematches with the same plan, then rechecks shapes and the early
-prefix against current metadata before executing the remaining callback and
-validating the RHS. The same generated evaluators serve search and final checks;
-there is no runtime expression interpreter. Search limits count only surviving
-substitutions, and attribute witnesses are filtered before substitution deduplication.
-Rewrite builders require an owned (`'static`) analysis type and callbacks.
-Handwritten callers can use `matches_at_with_checks` or
-`tensor_rewrite_checked_with_checks`; custom early evaluators must be pure and
-stable during traversal. The tensor-only APIs remain wrappers with an empty
-condition plan.
-Rules with no early conditions emit `MatchChecks::tensors(constraints())` instead
-of generating a condition-dispatch closure. Rule planning collects dependencies
-once per supported expression and retains condition bindings.
-
-Descriptor schemas are checked at runtime. Bare graph literals use
-the common `Literal` node, separately from any user-declared `literal` op.
-An omitted dtype remains unconstrained during matching and generation. See
-`templates/rust/README.md` for contextual RHS resolution and runtime requirements.
-
-The generated module requires Rust edition 2024 and egg 0.11. Generation runs
-`rustfmt` on staged output by default, before writing or comparing it. This
-requires `rustfmt` on `PATH`; `--no-format` disables formatting. The formatter
-uses `src/support/process.*` with the pinned Bazel-managed `subprocess.h` library
-to launch an argument vector directly on Windows, Linux, and macOS. Combined
-diagnostics are drained while waiting, and staging directories use the standard
-C++ filesystem API with automatic cleanup. API callers can
-set `WriteOptions::format = false` to opt out. `--format` explicitly enables it.
-Rustfmt formats layout but does not eliminate redundant expression parentheses;
-generated rule modules still allow `unused_parens`.
-
-## Operation inference
-
-Shape expression values use signed `i128` arithmetic and homogeneous nested
-lists. Dimensions and index attributes enter as `u64`; signed attributes enter
-as `i64`. Generated evaluators widen inputs, call checked helpers, and validate
-all yielded dimensions against `u64`. Parameters follow the operation's fixed
-and variadic operand signature. Assertions and local bindings execute in source
-order; logical operators and conditional branches short-circuit. Comprehensions
-propagate element failures without panicking.
-
-Dtype dispatch evaluates checked optional dtype programs over operand dtype
-values, with typed attribute access, assertions, dtype predicates, generic
-lists, and short-circuit expressions. Zero-operand and variadic programs follow
-the declared signature. Absent programs return `Unknown`; failed assertions or
-builtin errors are invalid. There is no name-based inference or implicit promotion.
-
-`infer_tensor` combines known shape and dtype; any invalid component takes
-priority, and incomplete metadata is unknown. Runtime input and literal nodes
-have shared policies. User operations with absent shape or dtype declarations
-remain unknown, including typed-payload constants. Attribute-dependent dtype
-behavior uses dtype-valued attributes in the declared program.
-Analyses implement `RewriteAnalysis` once to provide tensor information and
-output inference. The LoRA demo supplies its host policy this way. Graphs with
-no analysis allow structural rules and skip tensor output validation. Rules
-requiring tensor information reject that configuration at construction.
-Checked analyses reject candidates with missing or incompatible information;
-they never switch to structural behavior.
-
-## Output ownership and regeneration
-
-Generation emits only module contents into `--out`. It does not create
-`Cargo.toml`, `src/lib.rs`, or an enclosing `src/` directory. Point `--out` at
-any module directory in your application, declare that module in its parent,
-and add egg 0.11 to your application's dependencies. There is no module-name
-option: relative internal imports make output independent of the enclosing
-name and depth. Nested rules use the appropriate number of `super::` segments;
-external crate imports use absolute paths such as `::egg::` and `::std::`.
+## Validate
 
 ```sh
-bazel-bin/tepl generate examples/sample/rules/simple.tepl --out my_app/src/generated
-bazel-bin/tepl generate examples/sample/rules/simple.tepl --out my_app/src/generated --check
+bazel test //tests:codegen_test //tests:rust_codegen_test
+cargo test --manifest-path runtime/rust/Cargo.toml --locked
 ```
 
-`.tepl-generated-files` records the relative paths owned by generation. A later
-generation removes obsolete files listed in that manifest and preserves unlisted
-files. Keep application host implementations outside the generated paths. Invalid
-manifest paths and symlinked generated paths are rejected before writing.
-
-`--check` compares file contents and the manifest, reporting missing, changed,
-or obsolete output without modifying it. It returns 0 when current and 1 on
-drift; usage, formatting, and output errors return 2. Use the same
-formatting options for generation and checking. `tools/test_codegen.sh`
-regenerates `labs/rust-egg/src/ir/`, runs the lab tests, and validates additional
-compiler fixtures in temporary crates.
-
-
-## Concrete graph builders
-
-`graphs::FILE::graph_NAME::build()` prepares a `GraphDefinition` with local child
-indices, input specifications, named bindings, and one root. Nested source paths
-become nested modules in both targets. See the
-[graph examples and API](../../examples/sample/graphs/README.md).
-
-Graph runtime templates validate topology and available shape/dtype programs
-before insertion, remap local children to e-graph IDs, and retain unused nodes.
-`input_bindings()` collects complete declared input types. The application
-passes these bindings to its chosen analysis and constructs an e-graph, then
-calls `insert_nodes()` to insert the prepared nodes. Insertion does not register
-metadata or change the graph's analysis configuration.
+`tools/test_codegen.sh` generates temporary test applications from source and
+JSON, compiles the full sample and semantic projects, and executes focused
+fixtures in debug and release modes. Runtime tests cover numeric boundaries,
+resource limits, metadata merging, and axis identity.

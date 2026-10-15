@@ -1,3 +1,37 @@
-# Backend migration is deferred. Sources are preserved, and the active CLI
-# reports generation as unavailable until these consume ExecutableProgram.
-exports_files(glob(["**/*.h", "**/*.cc", "README.md"]))
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "codegen",
+    srcs = [
+        "generate.cc",
+        "common/project_plan.cc",
+        "rust/backend.cc",
+        "rust/names.cc",
+        "rust/dialect_emitter.cc",
+        "rust/expression_emitter.cc",
+        "rust/metadata_emitter.cc",
+        "rust/rule_emitter.cc",
+        "rust/graph_emitter.cc",
+    ],
+    hdrs = [
+        "generate.h", "options.h", "output.h",
+        "common/project_plan.h",
+        "rust/backend.h", "rust/names.h", "rust/code_writer.h", "rust/paths.h",
+        "rust/dialect_emitter.h", "rust/expression_emitter.h", "rust/metadata_emitter.h",
+        "rust/rule_emitter.h", "rust/graph_emitter.h",
+    ],
+    deps = [
+        "//src/executable",
+        "//src/shared/builtins",
+        "//src/shared/builtins:intrinsics",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "write",
+    srcs = ["write.cc"],
+    hdrs = ["write.h"],
+    deps = [":codegen", "//src/support:process", "//src/support:temporary_directory"],
+    visibility = ["//visibility:public"],
+)

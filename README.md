@@ -137,7 +137,7 @@ Even this simple rewrite needs separate nested trees for the pattern and replace
 
 ## ✨ Write a rule in TEPL, a language dedicated to tensor rewrites
 
-TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates Rust code for egg or C++ code for [egg-c](https://github.com/5yearsKim/egg-c). Both backends support attribute capture, shape/dtype analysis, and multiple dialects.
+TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates Rust code for egg. The Rust backend supports attribute capture, synthesized attributes, shape/dtype analysis, and multiple dialects. C++ generation is deferred.
 
 Here is the complete TEPL rule, using the example tensor dialect. Save it as `examples/sample/rules/transpose_negate.tepl`:
 
@@ -160,37 +160,25 @@ TEPL keeps tensor rewrites concise while supporting the features needed for real
 - **Shape and dtype analysis:** `f32[Dims...]` matches an `f32` tensor of any rank; generated checks require the replacement to preserve the output shape and dtype.
 - **Custom rewrite conditions:** Use `where` to express legality checks and `derive` to compute new attributes.
 - **Multiple dialects:** Define and import your own operation dialects, and write rules that rewrite between them.
-- **Self-contained attribute logic:** Use builtins, local expressions, descriptor constructors, and `auto` synthesis for guards and attribute transformations. Extended rule code generation is pending.
+- **Self-contained attribute logic:** Use builtins, local expressions, descriptor constructors, and `auto` synthesis for guards and attribute transformations.
 - **Direct graph rewriting:** Compile portable JSON, run greedy rewrites, and export the result as readable TEPL.
-- **E-graph integration:** Generate rewrites for egg or egg-c, with generated tensor analysis or hooks for your own analysis and inference.
+- **E-graph integration:** Generate rewrites for egg with generated tensor analysis and a shared Rust runtime.
 
-## 📉 A smaller computation with LoRA
+## Run generated Rust
 
-The [LoRA example](labs/rust-egg/README.md#lora-saturation-example) uses TEPL-generated rules with egg to explore equivalent expressions and select one with a lower estimated arithmetic cost. Here, `@` denotes matrix multiplication.
-
-| | Expression | Estimated arithmetic operations |
-| --- | --- | ---: |
-| Before | `X @ (W + A @ B)` | 69,632 |
-| After | `X @ W + (X @ A) @ B` | 39,168 |
-
-That's **about 44% fewer estimated arithmetic operations** for input shapes `X=[2,4,64]`, `W=[2,64,32]`, `A=[2,64,4]`, and `B=[2,4,32]`. The demo checks equal results using deterministic integer inputs; floating-point reassociation is controlled by the host's legality policy.
-
-Read the [TEPL rule](examples/sample/rules/lora.tepl) or reproduce the result from the repository root:
+The [Rust lab](labs/rust-egg/README.md) composes transpose attributes and removes
+an identity transpose using generated rules:
 
 ```sh
-cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
+bazel-bin/tepl generate examples/rewrite --out labs/rust-egg/src/ir
+cargo run --manifest-path labs/rust-egg/Cargo.toml --example transpose
 ```
 
-The [attribute examples](examples/sample/rules/attributes.tepl) show pure
-`where`/`derive` logic without application callbacks. Descriptor constructors
-and extended rule expressions run in the greedy engine; their Rust/C++
-code generation remains deferred. The lab demos retain artifacts
-from the previous generated API.
-
-The [semantic examples](examples/semantic/README.md) show compiler-side proof
-and symbolic RHS attribute synthesis from user-defined axis semantics. These
-constructors are checked without concrete tensor metadata; their Rust/C++ code
-generation is a separate step that is not yet implemented.
+The [attribute examples](examples/sample/rules/attributes.tepl) demonstrate
+`where`, local bindings, comprehensions, and descriptor constructors. The
+[semantic examples](examples/semantic/README.md) demonstrate compiler-side proof
+and symbolic RHS attribute synthesis. Generated Rust evaluates those completed
+constructors with the shared [runtime crate](runtime/rust/README.md).
 
 ## 🚀 Quick start
 

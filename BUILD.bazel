@@ -12,6 +12,8 @@ cc_binary(
     visibility = ["//tests:__pkg__"],
     deps = [
         "//src/core:pipeline",
+        "//src/codegen",
+        "//src/codegen:write",
         "//src/core/syntax:syntax",
         "//src/core/resolution",
         "//src/core/semantics:report",
@@ -35,4 +37,10 @@ cc_binary(
     visibility = ["//tests:__pkg__"],
     srcs = ["tools/builtin_reference.cc"],
     deps = ["//src/shared/builtins", "//src/shared/builtins:intrinsics"],
+)
+
+filegroup(
+    name = "rust_codegen_sources",
+    srcs = glob(["examples/semantic/**/*.tepl", "examples/sample/**/*.tepl"]) + ["tools/test_codegen.sh"],
+    visibility = ["//tests:__pkg__"],
 )

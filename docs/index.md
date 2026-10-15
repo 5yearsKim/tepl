@@ -84,7 +84,8 @@ bazel-bin/tepl check examples/sample
 bazel-bin/tepl generate examples/sample --out my_app/src/generated
 ```
 
-Rust is the default output target. Add `--target cpp` to generate C++ headers.
+Rust is the implemented output target. Generated modules depend on the shared
+`tepl-runtime` crate. C++ generation is deferred.
 Follow the [Rust](tutorial/rust/02_run.md) or [C++](tutorial/cpp/02_run.md)
 tutorial to connect generated code to an application and run the optimizer.
 

@@ -1,0 +1,69 @@
+dialect D {
+  attrs Shared {
+    permutation: index[];
+    note: string?;
+    enabled: bool;
+    precision: precision;
+    signed: i64;
+  }
+  op add(x:tensor,y:tensor)->tensor {dtype(a,b){assert a==b;yield a;}shape(a,b){assert a==b;yield a;}}
+  op copy(x:tensor)->tensor { dtype(t){yield t;} shape(s){yield s;} }
+  op scalar(x:tensor)->tensor { dtype(t){yield t;} shape(s){yield [];} }
+  op transpose(x:tensor)->tensor {
+    attrs: Shared;
+    dtype(t){yield t;}
+    shape(s) {
+      assert attrs.enabled;
+      assert is_valid_axis_list(attrs.permutation,len(s));
+      assert len(attrs.permutation)==len(s);
+      yield [s[i] for i in attrs.permutation];
+    }
+  }
+  op other(x:tensor)->tensor { attrs: Shared; dtype(t){yield t;} shape(s){yield s;} }
+  op sink(x:tensor)->tensor { dtype(t){yield t;} shape(s){yield s;} }
+  op unknown(x:tensor)->tensor;
+  op many(xs:tensor...)->tensor {
+    dtype(ts...) { assert all([t==ts[0] for t in ts]); yield ts[0]; }
+    shape(ss...) { let first=ss[0]; assert all([s==first for s in ss]); yield first; }
+  }
+}
+rule compose {
+  X:[Dims...]
+  (D.transpose[@outer] (D.transpose[@inner] X)) => (D.transpose[@combined] X)
+  where {
+    let rank=len(Dims);
+    len(@outer.permutation)==rank && @outer.enabled && @inner.enabled
+  }
+  derive {
+    let composed=if len(@outer.permutation)==0 then [] else gather(@inner.permutation,@outer.permutation);
+    @combined={..@outer,permutation:composed,note:"derived",precision:high,signed:-1};
+  }
+}
+rule identity {
+  X:[Dims...]
+  (D.transpose[@p] X)=>X
+  where {let axes=range(len(Dims));all([@p.permutation[i]==i for i in axes])}
+}
+rule short_circuit {(D.copy X)=>X where {true || len(range(18446744073709551615))==0}}
+rule false_guard {(D.sink X)=>X where {false && len(range(18446744073709551615))==0}}
+rule invalid_guard {(D.sink X)=>X where {1 / 0 == 0}}
+rule invalid_rhs {(D.sink X)=>(D.transpose[@p] X) derive {@p={permutation:[9],enabled:true,note:none,precision:default,signed:0};}}
+rule incompatible_rhs {(D.sink X)=>(D.scalar X)}
+rule require_shape {X:[Dims...] (D.unknown X)=>X where {len(Dims)>0}}
+rule concrete_dtype {X:f32[Dims...] (D.copy X)=>X}
+rule dtype_variable {dtype T;X:T[Dims...] (D.copy X)=>X}
+rule literal {(D.copy X)=>0}
+rule bind {(D.copy (let A=(D.copy X)))=>A}
+
+graph composed {
+  input X:f32[2,3];
+  let inner=(D.transpose[permutation=[1,0],enabled=true,note=none,precision=default,signed=0] X);
+  yield (D.transpose[permutation=[1,0],enabled=true,note=none,precision=default,signed=0] inner);
+}
+graph variadic {input X:f32[2,3];yield (D.many X X X);}
+graph literal {yield 1:i32;}
+
+rule sequence {X:[M,Tail...,N] (D.copy X)=>X where {M==2 && N==4 && len(Tail)==1}}
+rule repeated {(D.add X X)=>X}
+rule match_literal {(D.add X 1:i32)=>X}
+rule float_guard {(D.copy X)=>X where {-2.5*2.0 < -1.0 && (if true then true else 1/0==0)}}

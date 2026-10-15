@@ -2,8 +2,8 @@
 
 `tepl check` compiles a rewrite into attribute constructors and a checked
 semantic graph under the rule’s explicit conditions. No concrete shapes,
-attributes, or tensor values are supplied. Generated Rust/C++ execution remains
-outside this implementation. The [greedy engine](../../docs/advanced/greedy_rewriting.md)
+attributes, or tensor values are supplied. Generated Rust executes the completed
+constructors through the shared runtime crate. The [greedy engine](../../docs/advanced/greedy_rewriting.md)
 can execute compiled constructors on concrete graphs; see
 [`examples/rewrite/auto.tepl`](../rewrite/auto.tepl).
 

@@ -12,8 +12,6 @@ struct Options {
   Target target = Target::kRust;
   // Rule source paths are made relative to this directory, when provided.
   std::string rules_root;
-  // C++ namespace for independently generated projects sharing an application.
-  std::string cpp_namespace = "tepl_generated";
   // Concrete graph source paths are made relative to this directory.
   std::string graphs_root;
 };

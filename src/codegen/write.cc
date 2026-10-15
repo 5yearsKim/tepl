@@ -46,18 +46,13 @@ void validate(const std::string& name, const fs::path& root) {
       throw std::runtime_error("generated path crosses a symlink: " + name);
   }
 }
-void format(std::map<std::string, std::string>& files, Target target) {
-  if (target != Target::kRust && target != Target::kCpp)
-    throw std::runtime_error("formatting is not implemented for this target");
+void format(std::map<std::string, std::string>& files) {
   support::TemporaryDirectory stage("tepl-format-");
-  const bool cpp = target == Target::kCpp;
-  const std::string formatter = cpp ? "clang-format" : "rustfmt";
-  std::vector<std::string> arguments =
-      cpp ? std::vector<std::string>{formatter, "--style=Google", "-i"}
-          : std::vector<std::string>{formatter, "--edition", "2024", "--config",
-                                     "skip_children=true"};
+  const std::string formatter = "rustfmt";
+  std::vector<std::string> arguments = {formatter, "--edition", "2024",
+                                        "--config", "skip_children=true"};
   const auto argument_count = arguments.size();
-  const auto extension = cpp ? ".h" : ".rs";
+  const auto extension = ".rs";
   for (const auto& [name, contents] : files) {
     if (fs::path(name).extension() != extension) continue;
     auto path = stage.path() / name;
@@ -109,7 +104,7 @@ WriteResult synchronize(const std::vector<GeneratedFile>& input,
     if (manifest.bad())
       throw std::runtime_error("cannot read generated manifest");
   }
-  if (options.format) format(files, options.target);
+  if (options.format) format(files);
   std::string manifest = std::string(kHeader) + '\n';
   WriteResult result;
   for (const auto& [name, contents] : files) {

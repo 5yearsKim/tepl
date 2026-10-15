@@ -308,7 +308,10 @@ check_exit 1 check "$invalid"
 grep -Fq "unknown RHS capture 'missing'" "$output"
 grep -Fq "${invalid}:1:" "$output"
 
-# Deferred backends are diagnosed without writing output.
-check_exit 1 generate "$example" --no-format --out "${TEST_TMPDIR}/deferred"
-grep -Fq 'code generation is not implemented' "$output"
+# Rust generation is active; unimplemented targets do not write output.
+check_exit 0 generate "$example" --no-format --out "${TEST_TMPDIR}/generated"
+test -f "${TEST_TMPDIR}/generated/mod.rs"
+check_exit 0 generate "$example" --no-format --check --out "${TEST_TMPDIR}/generated"
+check_exit 1 generate "$example" --target cpp --no-format --out "${TEST_TMPDIR}/deferred"
+grep -Fq 'cpp code generation is not implemented' "$output"
 test ! -e "${TEST_TMPDIR}/deferred"

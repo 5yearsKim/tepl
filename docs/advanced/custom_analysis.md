@@ -1,92 +1,60 @@
-# Custom e-class analysis
+# Tensor analysis
 
-An **e-class analysis** maintains facts about equivalent expressions. TEPL's
-generated `TensorAnalysis` tracks shape and dtype. A custom host analysis can
-also track constants, value ranges, or other application facts, and provide
-inference for operations that need host knowledge.
+Generated Rust programs provide a concrete `TensorAnalysis` backed by the shared
+`tepl-runtime` crate. Custom analysis adapters are deferred. Applications supply
+input metadata; TEPL operation definitions supply shape and dtype contracts.
 
-This page describes the Rust integration. The [Rust tutorial](../tutorial/rust/03_analyse.md)
-covers using the generated tensor analysis directly.
-
-## Facts belong to the whole e-class
-
-An e-class can contain several operations representing the same value. Its
-metadata must account for all alternatives, including after classes merge.
-Selecting the metadata of one arbitrary node is insufficient.
-
-The generated `TensorAnalysisData` retains three kinds of evidence:
-
-| Evidence | Behavior |
-| --- | --- |
-| Known shape and dtype | Exposed only when all alternatives are known and agree. |
-| Unknown metadata | Retains known evidence but prevents exposing a complete tensor type. |
-| Invalid metadata or conflicting known types | Marks the class invalid. |
-
-For example, merging evidence for `f32[2, 3]` with evidence for `f32[3, 2]`
-creates a conflict. An unknown alternative does not erase either known type.
-Marking the conflict cannot undo an incorrect e-class union; rewrites must
-validate replacements before merging them.
-
-## Connect a host analysis to generated rules
-
-Implement `egg::Analysis<OpNode>` to compute and merge your facts:
-
-- `make` computes a node's facts from its operation, attributes, and child facts.
-- `merge` combines evidence when e-classes unite and reports changes to egg.
-  Combining evidence must be independent of order and repeated merges.
-
-Then implement the generated `RewriteAnalysis` interface. This adapter assumes
-`MyAnalysis` already implements `egg::Analysis<OpNode>` with
-`type Data = TensorAnalysisData`:
+## Build a graph
 
 ```rust
-use egg::{EGraph, Id};
-use generated::{Op, OpAttrs, OpNode, RewriteAnalysis, TensorInfo};
-use generated::analysis::{TensorAnalysisData, infer_tensor_output};
+use generated::{DType, EGraph, OpNode, TensorAnalysis, TensorFacts};
+use generated::dialects::tensor_lang::{Op, TransposeAttrs};
 
-impl RewriteAnalysis for MyAnalysis {
-    const HAS_TENSOR_INFO: bool = true;
-
-    fn tensor_info(graph: &EGraph<OpNode, Self>, id: Id) -> Option<TensorInfo> {
-        graph[graph.find(id)].data.info().cloned()
-    }
-
-    fn infer_output(
-        &self,
-        op: Op,
-        operands: &[TensorInfo],
-        attrs: &OpAttrs,
-    ) -> Option<TensorInfo> {
-        infer_tensor_output(op, operands, attrs)
-    }
-}
+let analysis = TensorAnalysis::new([
+    ("X".into(), TensorFacts::known(vec![2, 3], DType::F32)),
+])?;
+let mut graph = EGraph::new(analysis);
+let x = graph.add(OpNode::input("X"));
+let transposed = graph.add(OpNode::operation(
+    Op::Transpose,
+    Some(TransposeAttrs { permutation: vec![1, 0] }.into()),
+    vec![x],
+)?);
+graph.analysis.check()?;
 ```
 
-`tensor_info` supplies agreed metadata for captures. `infer_output` validates
-new replacement operations; the example delegates to generated inference.
-If an operation needs host inference, use the same policy in this method and
-in your analysis's `make`. For `make`, `analysis::infer_tensor` preserves the
-known, unknown, and invalid outcomes instead of reducing them to `Option`.
+Register metadata before inserting an input node. Generated graph constructors
+perform registration automatically.
 
-You can reuse `TensorAnalysisData::merge` for tensor evidence. If your e-class
-data also stores custom facts, embed the tensor evidence in that data and update
-the adapter to read it. Custom facts need their own sound merge policy and host
-integration to use them in rewrite guards; they do not become TEPL fields
-automatically.
+## Facts and conflicts
 
-## Missing information is not permission
+Each e-class stores independent shape and dtype facts:
 
-With `HAS_TENSOR_INFO = true`, returning `None` for a capture or replacement
-rejects candidates that need that information. It does not switch to structural
-rewriting. The unit analysis `()` is the separate structural mode used in the
-first tutorial.
+- `Unknown`: no information is available.
+- `Known(value)`: the value is established.
+- `Conflict`: equivalent expressions disagree.
 
-Register input metadata before insertion. The generated tensor evidence
-accumulates unknown and conflicting facts; build a fresh graph when previously
-missing input metadata changes. Stable metadata answers are required during
-matching.
+Merging unknown and known facts preserves the known value. Equal known values
+remain known. Different known values produce a conflict. Rebuilding propagates
+new information through dependent nodes.
 
-See the [generated analysis implementation](../../templates/rust/src/analysis/tensor_analysis.rs)
-for `make` and `merge`, and the
-[rewrite interface](../../templates/rust/src/rewriting/context.rs) for the
-adapter contract and optional literal inference hook.
+Operation evaluators execute compiled shape or axes contracts and dtype programs.
+Axis identity is independent of extent: two dimensions of size two may represent
+different axes. The e-class stores the resulting shape, not those temporary
+identities.
+
+## Run with diagnostics
+
+```rust
+let rules = generated::rules::all()?;
+let runner = tepl_runtime::runner::runner(graph)?.with_iter_limit(20);
+let result = tepl_runtime::runner::run(runner, &rules)?;
+```
+
+Conditions with unavailable required metadata skip a match. Evaluation errors
+report diagnostics. Conflicting metadata stops optimization; egg cannot undo a
+union after discovering a conflict. Replacements are prepared and checked before
+insertion, and known output metadata mismatches reject the candidate.
+
+If integrating directly with egg, call `graph.analysis.check()` after insertion,
+rewriting, and rebuilding. The runtime runner performs error propagation for you.

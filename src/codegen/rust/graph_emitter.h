@@ -2,6 +2,6 @@
 #include "src/codegen/output.h"
 #include "src/codegen/rust/names.h"
 namespace tepl::codegen::rust {
-void emitGraphs(const core::Program&, const Names&, const ProjectPlan&,
-                GenerationResult&);
+void emitGraphs(const executable::ProgramData&, const Names&,
+                const ProjectPlan&, GenerationResult&);
 }

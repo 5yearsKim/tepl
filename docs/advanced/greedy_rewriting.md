@@ -209,16 +209,16 @@ dialect files. If an artifact's provenance paths are relative, run the exporter
 from the original source root or adjust the emitted imports after moving it.
 The compiled JSON itself remains executable without those files.
 
-Rust and C++ generators now accept this compiled program, including loaded JSON:
+The Rust generator accepts this compiled program, including loaded JSON:
 
 ```sh
 bazel-bin/tepl compile examples/rewrite/simple.tepl -o /tmp/simple.json
 bazel-bin/tepl generate /tmp/simple.json --target rust -o /tmp/generated
 ```
 
-Their existing supported subset is unchanged. Extended rule expressions,
-constructors, and axis semantics execute in the greedy engine; Rust/C++ lowering
-for these features remains pending and reports a diagnostic before writing files.
+Extended rule expressions, constructors, and axis contracts are translated into
+native Rust functions. The shared Rust runtime provides builtins, metadata
+analysis, and egg integration. C++ generation is deferred.
 
 ## Changing the format
 

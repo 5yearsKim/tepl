@@ -1,74 +1,37 @@
-# Binding and early pruning
+# Binding and rule evaluation
 
-A rewrite starts by matching its left-hand pattern. Each match binds tensor
-captures, operation descriptors, and any declared dimension or dtype variables.
-**Early pruning** rejects a search branch as soon as a required check fails.
-This can avoid exploring the rest of a large pattern.
+The Rust runtime matches operation nodes and retains each node's attributes with
+its tensor bindings. One e-class may contain several matching nodes with
+different attributes. Those values cannot be recovered from an arbitrary class
+representative.
 
-## Bindings come from matched values
+For example, matching `(transpose[@p] X)` against two equivalent nodes can yield
+`X=A, @p=[1,0]` and `X=B, @p=[0,1]`. Each pair remains a separate witness.
+Repeated tensor captures compare canonical e-class IDs. Repeated attribute
+captures compare complete attribute values.
 
-```javascript
-dtype T;
-X: T[Batch..., M, K]
-Y: T[Batch..., K, N]
-```
+## Application order
 
-Inside a rule, these declarations bind `T`, dimension sizes, and the `Batch`
-sequence from matched tensor metadata. Repeated names require equal values.
-For `X: f32[2, 3]`, `Batch` is empty, `M = 2`, and `K = 3`; a compatible `Y`
-must also be `f32`, have no batch dimensions, and start with dimension `3`.
+For each concrete witness, the runtime:
 
-Declarations are checked when their tensor capture is bound. A mismatch or
-unavailable required metadata rejects that branch. Bindings are local to each
-branch, so a failed candidate does not affect other candidates.
+1. Binds declared shape and dtype restrictions.
+2. Evaluates `where` statements in source order.
+3. Evaluates derivations, including synthesized `auto` expressions.
+4. Prepares and validates the complete replacement.
+5. Inserts replacement nodes and unions the roots.
 
-## Which conditions run during search?
+Local bindings remain available to later conditions and derivations. Boolean
+operators and conditionals evaluate only the required branch. Comprehensions
+restore their enclosing local scope after evaluation.
 
-Assuming the tensor dialect is imported as `t`:
+The egg adapter rematches during application using current canonical bindings.
+This recovers attribute witnesses without storing them in egg's tensor-only
+substitutions. Metadata checks run against current facts.
 
-```javascript
-rule cancel_small_negate {
-    dtype T;
-    X: T[Dims...]
+Conditions currently run after structural matching. Early pruning is an
+optimization for future work; it must preserve statement order, scope, and
+short-circuit behavior.
 
-    (t.negate (t.negate X)) => X
-
-    where {
-        is_numeric(T)
-        && len(Dims) <= 4
-        && product(Dims) <= 4096
-    }
-}
-```
-
-| Check | When it runs |
-| --- | --- |
-| `X: T[Dims...]` | During binding, and rechecked during application. |
-| Final `where` expression | During search once all its required bindings are ready, and rechecked during application. |
-
-The final Boolean expression can prune search once its required bindings are
-ready. Within that expression, `&&` and `||` evaluate from left to right and
-short-circuit. Inherited guards remain separate checks in base-to-child order.
-
-All rule expressions are pure. Guards wait for their required bindings.
-Rank and element-count limits are application policy; they do
-not establish mathematical equivalence.
-
-Local bindings and extended list expressions run in the
-[greedy engine](greedy_rewriting.md), which evaluates guards after a complete
-structural match. Their Rust/C++ code generation remains deferred.
-
-## Search and application are separate
-
-Finding a structural match does not guarantee insertion. Application rechecks
-the declarations and early conditions against current bindings, evaluates the
-remaining conditions, and computes `derive` descriptors. With tensor analysis
-enabled, it also validates replacement operations and the root's shape and dtype
-before inserting nodes.
-
-Keep inexpensive pure guards early when they express your intended policy.
-Metadata answers must remain stable during a matching traversal. Failed expression evaluation rejects the candidate before insertion.
-
-See [attributes and conditions](attributes_and_conditions.md) for descriptor
-examples and [shape](../references/shape.md) and [dtype](../references/dtype.md)
-for tensor constraints.
+Missing required metadata skips a candidate. Evaluation errors report a
+diagnostic through the checked runner. A failed replacement does not insert
+partial RHS nodes.

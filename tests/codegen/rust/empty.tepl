@@ -1,0 +1,1 @@
+abstract rule unused() {X=>X}

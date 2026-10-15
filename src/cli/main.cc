@@ -7,6 +7,8 @@
 
 #include "CLI/CLI.hpp"
 #include "src/cli/semantic_report.h"
+#include "src/codegen/generate.h"
+#include "src/codegen/write.h"
 #include "src/core/pipeline.h"
 #include "src/core/resolution/loading.h"
 #include "src/core/semantics/report.h"
@@ -44,12 +46,8 @@ int main(int argc, char** argv) {
       ->required();
   std::string target = "rust";
   std::string output_directory;
-  struct {
-    bool check = false, format = true;
-  } write_options;
-  struct {
-    std::string cpp_namespace = "tepl_generated", graphs_root, rules_root;
-  } generation_options;
+  tepl::codegen::WriteOptions write_options;
+  tepl::codegen::Options generation_options;
   auto* generate = app.add_subcommand(
       "generate",
       "Generate code from checked TEPL rules, dialects, and graphs");
@@ -64,11 +62,12 @@ int main(int argc, char** argv) {
       ->required();
   generate->add_flag("--check", write_options.check,
                      "Check generated output without changing files");
-  generate->add_flag(
-      "--format,!--no-format", write_options.format,
-      "Format output with rustfmt or clang-format (default: on)");
-  generate->add_option("--cpp-namespace", generation_options.cpp_namespace,
-                       "Namespace for generated C++ (default: tepl_generated)");
+  generate->add_flag("--format,!--no-format", write_options.format,
+                     "Format generated Rust with rustfmt (default: on)");
+  generate->add_option("--rules-root", generation_options.rules_root,
+                       "Root for generated rule module paths");
+  generate->add_option("--graphs-root", generation_options.graphs_root,
+                       "Root for generated graph module paths");
   auto* compile =
       app.add_subcommand("compile", "Compile TEPL into portable rewrite JSON");
   compile->add_option("file", filename, "TEPL file or project")->required();
@@ -92,7 +91,7 @@ int main(int argc, char** argv) {
   tepl::rewrite::Options rewrite_options;
   rewrite->add_option("--graph", graph_name,
                       "Graph to rewrite (required when ambiguous)");
-  for (auto* command : {compile, rewrite})
+  for (auto* command : {compile, rewrite, generate})
     command->add_option("--rules", rules_path,
                         "Rule source file or directory (source input only)");
   rewrite->add_option("--rule", rewrite_options.rule,
@@ -148,21 +147,44 @@ int main(int argc, char** argv) {
 
   const auto execute =
       [&](const tepl::executable::ExecutableProgram& executable) -> int {
-    if (*validate) {
-      std::cout << "Compiled program is valid.\n";
+    try {
+      if (*validate) {
+        std::cout << "Compiled program is valid.\n";
+        return 0;
+      }
+      if (*compile) {
+        tepl::rewrite::writeOutput(tepl::executable::serialize(executable),
+                                   output_directory);
+        return 0;
+      }
+      if (*rewrite)
+        return tepl::rewrite::runCommand(executable, graph_name,
+                                         output_directory, rewrite_options);
+      generation_options.target =
+          target == "rust"  ? tepl::codegen::Target::kRust
+          : target == "cpp" ? tepl::codegen::Target::kCpp
+                            : tepl::codegen::Target::kPython;
+      auto generated = tepl::codegen::generate(executable, generation_options);
+      for (const auto& error : generated.diagnostics) {
+        const auto& at = error.origin.definition;
+        if (!at.source_name.empty())
+          std::cerr << at.source_name << ':' << at.span.begin.line << ':'
+                    << at.span.begin.column << ": ";
+        std::cerr << error.message << '\n';
+      }
+      if (!generated.ok()) return 1;
+      auto written = tepl::codegen::synchronize(
+          generated.files, output_directory, write_options);
+      if (write_options.check && !written.current()) {
+        for (const auto& path : written.differences)
+          std::cerr << "generated output differs: " << path << '\n';
+        return 1;
+      }
       return 0;
+    } catch (const std::exception& error) {
+      std::cerr << error.what() << '\n';
+      return 1;
     }
-    if (*compile) {
-      tepl::rewrite::writeOutput(tepl::executable::serialize(executable),
-                                 output_directory);
-      return 0;
-    }
-    if (*rewrite)
-      return tepl::rewrite::runCommand(executable, graph_name, output_directory,
-                                       rewrite_options);
-    std::cerr
-        << "code generation is not implemented during backend migration\n";
-    return 1;
   };
   try {
     if (*schema) {
@@ -193,10 +215,6 @@ int main(int argc, char** argv) {
     } else if ((*generate || *check || *compile || *rewrite) &&
                std::filesystem::is_directory(filename)) {
       result = tepl::loadProject(filename);
-      generation_options.graphs_root =
-          (std::filesystem::absolute(filename) / "graphs").string();
-      generation_options.rules_root =
-          (std::filesystem::absolute(filename) / "rules").string();
     } else {
       std::ifstream input(filename, std::ios::binary);
       if (!input) {

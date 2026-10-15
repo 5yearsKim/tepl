@@ -202,80 +202,46 @@ C++ API, metadata checks, and export limitations.
 
 ## `generate`
 
-Generation is unavailable during backend migration. The command reports a
-diagnostic and writes no files. The options below describe the retained interface
-for that migration.
-
-### Generate Rust
+Generate Rust modules from TEPL source, a project directory, or compiled JSON:
 
 ```sh
-tepl generate examples/sample --out my_app/src/generated
+tepl generate examples/rewrite --out my_app/src/generated
+tepl compile examples/rewrite --out /tmp/program.json
+tepl generate /tmp/program.json --out my_app/src/generated
 ```
 
-Rust is the default target. The destination is the generated module directory,
-containing `mod.rs`, operation types, dialect modules, rule builders, graph
-builders, metadata analysis, and runtime helpers. Generation does not create
-a Cargo application or run it. See the [Rust tutorial](../tutorial/rust/02_run.md)
-for application setup.
-
-### Generate C++
-
-```sh
-tepl generate examples/sample --target cpp --out my_cpp_app/generated
-```
-
-The destination contains generated headers and the `generated.h` entry point.
-See the [C++ tutorial](../tutorial/cpp/02_run.md) for application setup with egg-c.
-
-To give an independently generated project its own namespace:
-
-```sh
-tepl generate examples/sample --target cpp \
-  --cpp-namespace my_app::tensor_rules \
-  --out my_cpp_app/generated
-```
-
-Namespace components must be valid, nonreserved C++ identifiers. The default
-namespace is `tepl_generated`; `std` and namespaces beneath it are rejected.
-This option applies to C++ generation.
-
-### Options
+The destination contains program-specific operation types, dialects, metadata
+functions, rules, and graph builders. Add the shared `tepl-runtime` crate to the
+application. Generation does not create a Cargo application or run it. See the
+[Rust tutorial](../tutorial/rust/02_run.md).
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `-o <directory>`, `--out <directory>` | Required | Destination for the generated module or headers. |
-| `--target <target>` | `rust` | Select `rust` or `cpp`. The accepted value `python` currently reports that generation is not implemented. |
-| `--check` | Off | Compare the expected generated files with the destination, without updating it. |
-| `--format` | On | Format generated Rust with `rustfmt`, or C++ headers with `clang-format`. |
-| `--no-format` | Off | Disable generated-output formatting. |
-| `--cpp-namespace <name>` | `tepl_generated` | Set the generated C++ namespace. Nested names such as `my_app::tensor_rules` are supported. |
+| `-o`, `--out` | Required | Generated module directory. |
+| `--target` | `rust` | Rust is implemented. C++ and Python report a diagnostic. |
+| `--rules` | None | Additional rule source file or directory; source input only. |
+| `--rules-root` | Inferred | Root for rule module paths. |
+| `--graphs-root` | Inferred | Root for graph module paths. |
+| `--check` | Off | Compare generated output without updating files. |
+| `--format` | On | Format generated Rust with `rustfmt`, using edition 2024. |
+| `--no-format` | Off | Skip generated-output formatting. |
 
-Source generation starts with parsing, import loading, semantic checking, and
-compilation. A `.json` input loads the same compiled program directly. Both paths
-reject invalid or unsupported input before output synchronization. Extended
-rule expressions and axis semantics still require future backend lowering.
+Source input is compiled to `ExecutableProgram`; JSON input is validated and
+loaded into the same representation. Completed conditions, attribute constructors,
+and axis derivations are translated into Rust functions. No source files are
+needed when generating from compiled JSON.
 
-### Formatting
+By default, source paths beneath `rules/` and `graphs/` retain their nested module
+paths. Other source paths use filename stems. Explicit roots override this
+convention and must contain the corresponding sources. Use the same root options
+when comparing source and JSON output.
 
-Formatting is enabled by default. Rust generation needs `rustfmt` on `PATH` and
-uses edition 2024. C++ generation needs `clang-format` and uses the Google style.
-A missing formatter or formatter failure stops generation with an error.
-
-To generate without either formatter:
-
-```sh
-tepl generate examples/sample --out my_app/src/generated --no-format
-tepl generate examples/sample --target cpp \
-  --out my_cpp_app/generated --no-format
-```
-
-These flags format generated code, not the input `.tepl` files. The Docker image
-omits the formatters, so pass `--no-format` when generating inside it. See the
-[Docker instructions](../tutorial/rust/01_build.md#option-2-build-with-docker).
+Formatting finishes before output synchronization. If `rustfmt` is unavailable,
+use `--no-format`. Formatting applies to generated Rust, not TEPL source.
 
 ### Check generated files
 
-Use the same input, target, namespace, and formatting settings as the command
+Use the same input, module roots, and formatting settings as the command
 that produced the output:
 
 ```sh
@@ -290,7 +256,7 @@ temporary directory. It compares the results with the destination without
 changing the destination. It still needs the selected formatter unless
 `--no-format` is supplied.
 
-A current output prints `Generated output is current in ...` and exits with `0`.
+Current output exits with `0`.
 Missing, changed, or obsolete files are reported on stderr as
 `generated output differs: ...`, and the command exits with `1`. An absent or
 different generated-file manifest also counts as a difference. This check compares
@@ -304,8 +270,8 @@ and removes obsolete files listed in the previous manifest. Unrelated files are
 preserved. Handwritten application code should use separate paths from generated
 files, since generated paths are overwritten on regeneration.
 
-Project generation preserves nested rule and graph source paths as module paths.
-When generating from one file, rule and graph modules use source filename stems.
+Generation preserves nested source paths under `rules/` and `graphs/`, including
+when those paths come from compiled JSON.
 The backend reports names or paths that cannot be represented without collisions.
 
 ## Output, diagnostics, and exit codes
@@ -320,14 +286,14 @@ errors can also include notes showing the instantiation and related declarations
 | Exit code | Meaning |
 | --- | --- |
 | `0` | Success, help displayed, or generated output is current. |
-| `1` | Syntax, import or project-loading diagnostics, semantic errors, or backend generation errors; also generated output differs under `generate --check`. |
+| `1` | Syntax, import or project-loading diagnostics, semantic errors, or backend generation errors; also output synchronization failures or differences under `generate --check`. |
 | `3` | Greedy rewriting stopped at a resource/step limit or cancellation; the current graph was exported. |
-| `2` | Invalid command-line arguments, top-level file access or filesystem failure, initialization failure, or output/formatter failure. |
+| `2` | Invalid command-line arguments, top-level file access or filesystem failure, initialization failure. |
 
 For scripting, check the exit code rather than parsing the human-readable IR or
 success messages. Compiled validation and rewrite failures report diagnostics
 and exit with `1`. `tepl check` validates source; `tepl generate --check` verifies
 that generated artifacts are current.
 
-See the [CLI implementation](../../src/main.cc) for option definitions and the
+See the [CLI implementation](../../src/cli/main.cc) for option definitions and the
 [builtin reference](built-ins.md) for functions available in TEPL expressions.
