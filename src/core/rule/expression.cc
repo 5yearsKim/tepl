@@ -194,8 +194,7 @@ TypedExprPtr ExpressionChecker::builtin(const ast::Call& call,
     return nullptr;
   }
   const auto count = signature->arguments.size();
-  if (call.arguments.size() < count ||
-      (!signature->variadic && call.arguments.size() != count)) {
+  if (!signature->acceptsArity(call.arguments.size())) {
     context_.report(origin,
                     "builtin '" + call.callee + "' expects " +
                         (signature->variadic ? "at least " : "exactly ") +

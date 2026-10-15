@@ -5,8 +5,7 @@ std::string emitBuiltin(core::builtins::Builtin builtin,
                         const std::vector<std::string>& arguments,
                         const std::string& runtime, bool shape) {
   using B = core::builtins::Builtin;
-  const auto* signature =
-      core::builtins::resolveBuiltin(core::builtins::builtinName(builtin));
+  const auto* signature = &core::builtins::signature(builtin);
   const std::string fn =
       runtime +
       (signature->domain == core::builtins::Domain::kShape   ? "::shape::"

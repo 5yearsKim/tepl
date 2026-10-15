@@ -15,11 +15,13 @@ trap 'rm -rf "$work_directory"' EXIT
 # Retain Cargo's build cache across runs.
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$project_root/labs/rust-egg/target}"
 
-# Regenerate the lab IR from the example project before testing it.
 lab="$project_root/labs/rust-egg"
-"$compiler" generate "$project_root/examples/sample" --target rust --out "$lab/src/ir"
-cargo test --manifest-path "$lab/Cargo.toml" --locked --all-targets
-cargo test --manifest-path "$lab/Cargo.toml" --locked --release --test runtime shape_builtins
+# Focused fixture runs leave the example lab untouched.
+if [[ $# -le 1 ]]; then
+    "$compiler" generate "$project_root/examples/sample" --target rust --out "$lab/src/ir"
+    cargo test --manifest-path "$lab/Cargo.toml" --locked --all-targets
+    cargo test --manifest-path "$lab/Cargo.toml" --locked --release --test runtime shape_builtins
+fi
 
 # Only definitions absent from the example project need isolated generated crates.
 prepare_application() {
@@ -39,7 +41,9 @@ TOML
 }
 
 # Historical semantic fixtures use retired compiler syntax; see tests/codegen/legacy_semantics/README.md.
-for source in dtype early_where names builtins analysis custom empty dialect_only literal_root structural concrete_graphs; do
+fixtures=(dtype early_where names builtins analysis custom empty dialect_only literal_root structural concrete_graphs)
+if [[ $# -gt 1 ]]; then fixtures=("${@:2}"); fi
+for source in "${fixtures[@]}"; do
     crate="$work_directory/$source"
     prepare_application "$crate"
     input="$project_root/tests/codegen/$source.tepl"

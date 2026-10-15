@@ -60,6 +60,5 @@ struct Budget {
     if (n > max_list) throw LimitError("list size limit");
   }
 };
-Value call(const std::string&, const std::vector<Value>&, Budget&);
 Value checkType(Value, const core::Type&);
 }  // namespace tepl::rewrite

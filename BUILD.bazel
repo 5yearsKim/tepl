@@ -2,7 +2,9 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
-exports_files(glob(["examples/**/*.tepl"]))
+exports_files(glob(["examples/**/*.tepl"]) + [
+    "docs/references/built-ins.md",
+])
 
 cc_library(
     name = "source",
@@ -70,4 +72,11 @@ cc_binary(
     name = "embed_templates",
     srcs = ["tools/embed_templates.cc"],
     visibility = ["//src/codegen:__pkg__"],
+)
+
+cc_binary(
+    name = "builtin_reference",
+    visibility = ["//tests:__pkg__"],
+    srcs = ["tools/builtin_reference.cc"],
+    deps = ["//src/core:builtins", "//src/core:intrinsics"],
 )

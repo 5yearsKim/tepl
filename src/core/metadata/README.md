@@ -16,7 +16,7 @@ pointers survive checking.
 | --- | --- |
 | `ir.h` | Checked expressions, symbols, operand bindings, statements, and program kind |
 | `types.*` | Integer, Bool, DType, homogeneous lists, and literal ranges |
-| `../builtins/catalog.*` | Shared builtin identities, signatures, domains, and availability |
+| `../builtins/catalog.def`, `catalog.h`, `catalog.cc` | Shared builtin identities, signatures, domains, and availability |
 | `check.*` | Parameters, statements, assertions, and yield contracts |
 | `check_context.h` | Program state and name scope |
 | `expression.*` | Names, attributes, expressions, and builtin calls |

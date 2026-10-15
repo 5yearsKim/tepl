@@ -263,3 +263,26 @@ sh_test(
         "//schema:rewrite-program.schema.json",
     ],
 )
+
+cc_test(
+    name = "builtins_test",
+    size = "small",
+    srcs = ["builtins_test.cc"],
+    deps = ["//:frontend", "//src/core:analysis", "//src/rewrite"],
+)
+
+sh_test(
+    name = "builtin_reference_test",
+    size = "small",
+    srcs = ["builtin_reference_test.sh"],
+    args = [
+        "$(rootpath //:builtin_reference)",
+        "$(rootpath //:docs/references/built-ins.md)",
+        "$(rootpath //src/core:intrinsics/README.md)",
+    ],
+    data = [
+        "//:builtin_reference",
+        "//:docs/references/built-ins.md",
+        "//src/core:intrinsics/README.md",
+    ],
+)

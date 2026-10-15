@@ -3,6 +3,8 @@
 #include <functional>
 #include <stdexcept>
 #include <type_traits>
+
+#include "src/core/builtins/axes.h"
 namespace tepl::core::index_semantics {
 S Lowerer::metadata(const Meta& m, const Instance& n,
                     const std::vector<TensorMeaning>& inputs,
@@ -25,19 +27,40 @@ S Lowerer::metadata(const Meta& m, const Instance& n,
         call("==", {call("len", {args[0]}), call("len", {args[1]})}));
   if (m.name == "extent_floor_div")
     obligations.push_back(call("is_positive_extents", {args[1]}));
-  if (m.name == "shape") return args[0];
-  if (m.name == "place") {
-    if (args[0]->sort == Symbol::Sort::Axes) return call("place_axes", args);
-    auto base = call("concat", {args[0], args[2]});
-    auto rest = call("ordered_complement",
-                     {call("range", {call("len", {base})}), args[1]});
-    return context.canonical(call(
-        "gather", {base, call("inverse", {call("concat", {args[1], rest})})}));
-  }
-  if (m.name == "rank") return call("len", args);
-  if (m.name == "all_axes") return call("range", {call("len", args)});
-  return context.canonical(
-      call(m.name == "permute" ? "gather" : m.name, std::move(args)));
+  const auto* entry = builtins::resolveAxisBuiltin(m.name);
+  if (!entry)
+    return context.canonical(call(m.name, std::move(args)));  // Operator.
+  return std::visit(
+      [&](auto target) -> S {
+        using T = decltype(target);
+        if constexpr (std::is_same_v<T, builtins::Builtin>) {
+          // Axis complements retain an explicit symbolic operation for proof
+          // laws.
+          if (target == builtins::Builtin::kExclude)
+            return context.canonical(
+                call("ordered_complement", std::move(args)));
+          return context.canonical(call(
+              std::string(builtins::builtinName(target)), std::move(args)));
+        } else if constexpr (std::is_same_v<T, intrinsics::Intrinsic>) {
+          if (target == intrinsics::Intrinsic::kPlaceAxes &&
+              args[0]->sort != Symbol::Sort::Axes) {
+            auto base = call("concat", {args[0], args[2]});
+            auto rest = call("ordered_complement",
+                             {call("range", {call("len", {base})}), args[1]});
+            return context.canonical(call(
+                "gather",
+                {base, call("inverse", {call("concat", {args[1], rest})})}));
+          }
+          return context.canonical(
+              call(std::string(intrinsics::signature(target).name),
+                   std::move(args)));
+        } else {
+          if (target == builtins::AxisQuery::Shape) return args[0];
+          if (target == builtins::AxisQuery::Rank) return call("len", args);
+          return call("range", {call("len", args)});
+        }
+      },
+      entry->target);
 }
 S Lowerer::dtype(const Instance& n, const std::vector<TensorMeaning>& inputs) {
   if (!n.dtype) throw ProofFailure("missing symbolic dtype contract");

@@ -105,8 +105,7 @@ ExprPtr ExpressionChecker::lower(const ast::MetadataCall& call,
     return nullptr;
   }
   const auto count = signature->arguments.size();
-  if (call.arguments.size() < count ||
-      (!signature->variadic && call.arguments.size() != count)) {
+  if (!signature->acceptsArity(call.arguments.size())) {
     context_.report(origin,
                     context_.programName() + " builtin '" + call.callee +
                         "' expects " +

@@ -5,8 +5,7 @@ std::string emitBuiltin(core::builtins::Builtin builtin,
                         const std::vector<std::string>& args,
                         const std::string& runtime, bool shape) {
   using B = core::builtins::Builtin;
-  auto signature =
-      core::builtins::resolveBuiltin(core::builtins::builtinName(builtin));
+  const auto* signature = &core::builtins::signature(builtin);
   std::string out = "([&]() { ";
   for (std::size_t i = 0; i < args.size(); ++i)
     out += "auto arg_" + std::to_string(i) + " = " + args[i] + "; ";

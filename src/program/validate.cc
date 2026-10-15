@@ -3,6 +3,8 @@
 #include <set>
 #include <stdexcept>
 
+#include "src/core/builtins/axes.h"
+#include "src/core/intrinsics/catalog.h"
 #include "src/core/type/literal.h"
 #include "src/program/program.h"
 
@@ -11,77 +13,26 @@ namespace {
 void require(bool b, const std::string& s) {
   if (!b) throw std::invalid_argument("compiled program: " + s);
 }
-// Portable axis expressions have a closed instruction set.
-void callArity(const std::string& name, std::size_t count) {
-  if (name == "concat" || name == "union_axes") {
-    require(count > 0, "empty variadic metadata call");
-    return;
+// Loaded source axes expressions and lowered symbolic instructions use their
+// respective catalogs. Internal operations never grant source permissions.
+void callArity(const std::string& name, std::size_t count,
+               bool axes_source = false) {
+  bool accepted = false;
+  if (axes_source) {
+    if (const auto* entry = core::builtins::resolveAxisBuiltin(name))
+      accepted = entry->acceptsArity(count);
+  } else if (const auto* entry = core::intrinsics::resolve(name)) {
+    accepted = entry->acceptsArity(count);
+  } else if (const auto* entry = core::builtins::resolveBuiltin(name)) {
+    accepted = entry->acceptsArity(count);
+  } else if (name.starts_with("dtype_")) {
+    accepted = count == 0 && core::resolveDType(name.substr(6)).has_value();
   }
-  if (name.starts_with("dtype_")) {
-    require(count == 0 && core::resolveDType(name.substr(6)).has_value(),
-            "invalid dtype instruction");
-    return;
-  }
-  if (const auto* b = core::builtins::resolveBuiltin(name)) {
-    require(b->variadic ? count >= b->arguments.size()
-                        : count == b->arguments.size(),
-            "metadata builtin arity mismatch");
-    return;
-  }
-  static const std::map<std::string, std::size_t> arities = {
-      {"+", 2},
-      {"-", 2},
-      {"*", 2},
-      {"/", 2},
-      {"%", 2},
-      {"==", 2},
-      {"!=", 2},
-      {"<", 2},
-      {"<=", 2},
-      {">", 2},
-      {">=", 2},
-      {"&&", 2},
-      {"||", 2},
-      {"!", 1},
-      {"if", 3},
-      {"index", 2},
-      {"rank", 1},
-      {"shape", 1},
-      {"all_axes", 1},
-      {"empty_axes", 0},
-      {"permute", 2},
-      {"axis_partition", 2},
-      {"inverse", 1},
-      {"order_positions", 1},
-      {"offset_positions", 2},
-      {"offset_extents", 2},
-      {"scale_extents", 2},
-      {"extent_add", 2},
-      {"extent_sub", 2},
-      {"extent_mul", 2},
-      {"extent_floor_div", 2},
-      {"extent_le", 2},
-      {"is_valid_extents", 1},
-      {"is_positive_extents", 1},
-      {"distinct_axes", 1},
-      {"axis_extents", 1},
-      {"positions", 2},
-      {"membership_positions", 2},
-      {"matched_positions", 2},
-      {"unique_axes", 1},
-      {"ordered_complement", 2},
-      {"filter_axes", 2},
-      {"intersection_axes", 2},
-      {"difference_axes", 2},
-      {"same_set", 2},
-      {"disjoint", 2},
-      {"subset", 2},
-      {"replace_axes", 3},
-      {"place", 3},
-      {"place_axes", 3}};
-  auto it = arities.find(name);
-  require(it != arities.end() && it->second == count,
-          "unsupported metadata instruction or arity: " + name);
+  if (resolveBinaryOperator(name))
+    accepted = count == 2;
+  else if (resolveUnaryOperator(name))
+    accepted = count == 1;
+  require(accepted, "unsupported metadata instruction or arity: " + name);
 }
 template <class V>
 void ids(const V& v) {
@@ -200,10 +151,14 @@ void validate(const Program& program) {
                           "metadata attribute type mismatch");
                     } else if constexpr (std::is_same_v<T, metadata::Call>) {
                       for (const auto& a : v.arguments) expr(a);
-                      callArity(std::string(builtins::builtinName(v.builtin)),
-                                v.arguments.size());
-                      const auto* b = builtins::resolveBuiltin(
-                          builtins::builtinName(v.builtin));
+                      const auto* b = &builtins::signature(v.builtin);
+                      require(b->acceptsArity(v.arguments.size()),
+                              "metadata builtin arity mismatch");
+                      require(
+                          b->availableIn(m.kind == metadata::ProgramKind::Shape
+                                             ? builtins::Context::kShape
+                                             : builtins::Context::kDType),
+                          "metadata builtin unavailable in section");
                       std::optional<MT> generic;
                       auto accept = [&](builtins::SignatureType signature,
                                         MT t) {
@@ -369,7 +324,7 @@ void validate(const Program& program) {
         require(e->name == "true" || e->name == "false",
                 "invalid axis boolean");
       if (e->kind == K::Call)
-        callArity(e->name, e->args.size());
+        callArity(e->name, e->args.size(), true);
       else if (e->kind != K::List)
         require(e->args.empty(), "axis metadata leaf has arguments");
       for (const auto& a : e->args) meta(a);
@@ -625,11 +580,8 @@ void validate(const Program& program) {
                               p.attribute_schemas[v.schema.value].fields[f]),
                       "constructor field type mismatch");
               } else if constexpr (std::is_same_v<T, BuiltinCall>) {
-                const auto* b =
-                    builtins::resolveBuiltin(builtins::builtinName(v.builtin));
-                require(b && (b->variadic
-                                  ? v.arguments.size() >= b->arguments.size()
-                                  : v.arguments.size() == b->arguments.size()),
+                const auto* b = &builtins::signature(v.builtin);
+                require(b->acceptsArity(v.arguments.size()),
                         "builtin arity mismatch");
                 std::optional<Type> generic, integer;
                 auto bindType = [&](std::optional<Type>& slot, Type value) {

@@ -65,6 +65,34 @@ Keep language checks in core, declaration-dependent output in emitters, and
 shared runtime behavior in templates. Generated application files are replaced
 on regeneration; maintain their source templates instead.
 
+## Built-in specifications
+
+Use the [public built-in reference](references/built-ins.md) to check signatures,
+section availability, examples, and failures. The [built-in architecture guide](../src/core/builtins/README.md)
+maps each responsibility to its implementation and explains how to add a function.
+[Internal operations](../src/core/intrinsics/README.md) have separate identities
+and never grant source access by themselves.
+
+Function inventory tables come from the compiled catalogs. After changing a
+catalog, regenerate them from the repository root:
+
+```sh
+python3 tools/build_program_schema.py
+bazel build //:builtin_reference
+bazel-bin/builtin_reference --write docs/references/built-ins.md
+bazel-bin/builtin_reference --internal --write src/core/intrinsics/README.md
+```
+
+After building `//:tepl`, run the built-in fixtures without regenerating lab IR:
+
+```sh
+./tools/test_codegen.sh "$PWD/bazel-bin/tepl" builtins
+./tools/test_codegen_cpp.sh "$PWD/bazel-bin/tepl" builtins
+```
+
+`bazel test //tests:builtin_reference_test` detects stale inventory tables.
+Behavioral prose and examples remain maintained alongside conformance tests.
+
 ## Format code
 
 Install `clang-format`, then format or check first-party C++ sources:

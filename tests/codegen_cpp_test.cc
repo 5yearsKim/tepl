@@ -37,7 +37,7 @@ int main() {
   std::set<std::string> paths;
   for (const auto& file : result.files) {
     assert(paths.insert(file.path).second);
-    assert(file.contents.find("@TEPL_NAMESPACE@") == std::string::npos);
+    assert(file.contents.find("@TEPL_NAMESPACE") == std::string::npos);
     assert(file.contents.find("// @tepl:") == std::string::npos);
   }
   for (auto path :

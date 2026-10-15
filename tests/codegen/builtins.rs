@@ -1,9 +1,8 @@
 use egg::{EGraph, Id, Rewrite};
-use std::sync::{Arc, Mutex};
 use tepl_generated::ir::analysis::{TensorAnalysis, TensorBindingTable, TensorInfo};
 use tepl_generated::ir::dialects::toolkit;
 use tepl_generated::ir::rules::builtins::*;
-use tepl_generated::ir::{DType, OpAttrs, OpNode};
+use tepl_generated::ir::{DType, Inference, OpAttrs, OpNode};
 
 fn graph(shape: &[u64]) -> (EGraph<OpNode, TensorAnalysis>, Id, Id) {
     let mut bindings = TensorBindingTable::default();
@@ -31,109 +30,44 @@ fn apply(
     !rule.apply(graph, &matches).is_empty()
 }
 #[test]
+fn metadata_builtins_follow_the_shared_contracts() {
+    let input = TensorInfo {
+        shape: vec![2, 3],
+        dtype: DType::F32,
+    };
+    assert_eq!(
+        tepl_generated::ir::analysis::infer_tensor(
+            toolkit::Op::Copy.into(),
+            &[input.clone()],
+            &OpAttrs::None,
+        ),
+        Inference::Known(input),
+    );
+}
+
+#[test]
 fn every_rule_builtin_executes_without_host_implementations() {
     let (mut graph, x, root) = graph(&[2, 3]);
-    assert!(apply(&mut graph, rule_utilities::build(()).unwrap()));
+    assert!(apply(&mut graph, rule_utilities::build().unwrap()));
     assert_eq!(graph.find(x), graph.find(root));
 }
 
-#[derive(Clone, Default)]
-struct Host {
-    calls: Arc<Mutex<Vec<&'static str>>>,
-}
-impl Host {
-    fn record(&self, name: &'static str) {
-        self.calls.lock().unwrap().push(name);
-    }
-    fn infer_attrs(&self, axes: &[u64]) -> Option<OpAttrs> {
-        self.record("attrs");
-        Some(
-            toolkit::OpAttrs::TagAttrs {
-                axes: axes.to_vec(),
-            }
-            .into(),
-        )
-    }
-}
-impl rule_derive_builtin::HostFunctions for Host {
-    fn infer_attrs(&self, axes: &[u64]) -> Option<OpAttrs> {
-        self.infer_attrs(axes)
-    }
-}
-impl rule_failed_derive::HostFunctions for Host {
-    fn infer_attrs(&self, axes: &[u64]) -> Option<OpAttrs> {
-        self.infer_attrs(axes)
-    }
-}
-impl rule_nested_hosts::HostFunctions for Host {
-    fn axes(&self, _: &TensorInfo) -> Option<Vec<u64>> {
-        self.record("axes");
-        Some(vec![1, 2])
-    }
-    fn axis(&self, _: &TensorInfo) -> Option<u64> {
-        self.record("axis");
-        Some(1)
-    }
-}
-impl rule_short_circuit::HostFunctions for Host {
-    fn axes(&self, _: &TensorInfo) -> Option<Vec<u64>> {
-        panic!("short-circuited host call");
-    }
-    fn legal(&self, _: u64) -> Option<bool> {
-        panic!("short-circuited host call");
-    }
-}
 #[test]
-fn builtins_compose_with_derivations_and_nested_hosts_in_evaluation_order() {
-    let (mut g, x, root) = graph(&[2, 3]);
-    let host = Host::default();
-    assert!(apply(
-        &mut g,
-        rule_derive_builtin::build(host.clone()).unwrap()
-    ));
-    let tag = g
-        .lookup(
-            OpNode::new(
-                toolkit::Op::Tag,
-                toolkit::OpAttrs::TagAttrs { axes: vec![0, 0] },
-                vec![x],
-            )
-            .unwrap(),
-        )
-        .unwrap();
-    assert_eq!(g.find(root), g.find(tag));
-    assert_eq!(*host.calls.lock().unwrap(), ["attrs"]);
-
-    let (mut g, _, _) = graph(&[2, 3]);
-    let host = Host::default();
-    assert!(apply(
-        &mut g,
-        rule_nested_hosts::build(host.clone()).unwrap()
-    ));
-    assert_eq!(
-        *host.calls.lock().unwrap(),
-        ["axes", "axes", "axes", "axis"]
-    );
-}
-#[test]
-fn short_circuit_skips_failed_builtins_and_host_calls() {
+fn short_circuit_skips_failed_builtins() {
     let (mut graph, _, _) = graph(&[2, 3]);
-    assert!(apply(
-        &mut graph,
-        rule_short_circuit::build(Host::default()).unwrap()
-    ));
+    assert!(apply(&mut graph, rule_short_circuit::build().unwrap()));
 }
 #[test]
-fn failures_reject_candidates_before_any_insertion_or_following_host_call() {
+fn failures_reject_candidates_before_any_insertion() {
     let cases = [
-        (vec![u64::MAX, 1], rule_failed_sum::build(()).unwrap()),
-        (vec![u64::MAX, 2], rule_failed_product::build(()).unwrap()),
-        (vec![2, 3], rule_failed_gather::build(()).unwrap()),
-        (vec![2, 3], rule_failed_slice::build(()).unwrap()),
-        (vec![2, 3], rule_failed_replace::build(()).unwrap()),
-        (vec![2, 3], rule_failed_divisor::build(()).unwrap()),
-        (vec![2, 3], rule_failed_range::build(()).unwrap()),
-        (vec![2, 3], rule_failed_broadcast::build(()).unwrap()),
+        (vec![u64::MAX, 1], rule_failed_sum::build().unwrap()),
+        (vec![u64::MAX, 2], rule_failed_product::build().unwrap()),
+        (vec![2, 3], rule_failed_gather::build().unwrap()),
+        (vec![2, 3], rule_failed_slice::build().unwrap()),
+        (vec![2, 3], rule_failed_replace::build().unwrap()),
+        (vec![2, 3], rule_failed_divisor::build().unwrap()),
+        (vec![2, 3], rule_failed_range::build().unwrap()),
+        (vec![2, 3], rule_failed_broadcast::build().unwrap()),
     ];
     for (shape, rule) in cases {
         let (mut graph, x, root) = graph(&shape);
@@ -144,13 +78,4 @@ fn failures_reject_candidates_before_any_insertion_or_following_host_call() {
         assert_eq!(graph.total_number_of_nodes(), before);
         assert_ne!(graph.find(x), graph.find(root));
     }
-    let (mut graph, _, _) = graph(&[2, 3]);
-    let host = Host::default();
-    let before = graph.total_number_of_nodes();
-    assert!(!apply(
-        &mut graph,
-        rule_failed_derive::build(host.clone()).unwrap()
-    ));
-    assert_eq!(graph.total_number_of_nodes(), before);
-    assert!(host.calls.lock().unwrap().is_empty());
 }

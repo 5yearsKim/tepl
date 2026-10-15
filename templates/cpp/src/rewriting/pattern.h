@@ -5,7 +5,7 @@
 
 #include "../op_node.h"
 
-namespace @TEPL_NAMESPACE @ ::rewriting {
+namespace @TEPL_NAMESPACE@ ::rewriting {
   using BindingId = ::std::size_t;
   struct AttrPattern {
     ::std::optional<BindingId> binding;
@@ -17,7 +17,7 @@ namespace @TEPL_NAMESPACE @ ::rewriting {
     enum class Kind { Var, Bind, Op, Literal };
     Kind kind;
     BindingId capture = 0;
-    ::@TEPL_NAMESPACE @ ::Op operation;
+    ::@TEPL_NAMESPACE@ ::Op operation;
     AttrPattern attributes;
     ::std::vector<TensorPattern> children;
     LiteralAttrs literal_value;
@@ -32,7 +32,7 @@ namespace @TEPL_NAMESPACE @ ::rewriting {
       p.children.push_back(::std::move(expression));
       return p;
     }
-    static TensorPattern op(::@TEPL_NAMESPACE @ ::Op op, AttrPattern attrs,
+    static TensorPattern op(::@TEPL_NAMESPACE@ ::Op op, AttrPattern attrs,
                             ::std::vector<TensorPattern> children) {
       TensorPattern p{Kind::Op};
       p.operation = op;
@@ -46,10 +46,10 @@ namespace @TEPL_NAMESPACE @ ::rewriting {
       p.literal_value = {::std::move(value), dtype};
       return p;
     }
-    ::std::optional<::@TEPL_NAMESPACE @ ::Op> root_op() const {
+    ::std::optional<::@TEPL_NAMESPACE@ ::Op> root_op() const {
       if (kind == Kind::Bind) return children.at(0).root_op();
       if (kind == Kind::Op) return operation;
-      if (kind == Kind::Literal) return ::@TEPL_NAMESPACE @ ::Op::Literal;
+      if (kind == Kind::Literal) return ::@TEPL_NAMESPACE@ ::Op::Literal;
       return {};
     }
     void bindings(::std::set<BindingId>& tensors,
@@ -91,7 +91,7 @@ namespace @TEPL_NAMESPACE @ ::rewriting {
     enum class Kind { Var, Op, Literal };
     Kind kind;
     BindingId capture = 0;
-    ::@TEPL_NAMESPACE @ ::Op operation;
+    ::@TEPL_NAMESPACE@ ::Op operation;
     AttrExpr attributes;
     ::std::vector<TensorExpr> children;
     LiteralAttrs literal_value;
@@ -100,7 +100,7 @@ namespace @TEPL_NAMESPACE @ ::rewriting {
       p.capture = id;
       return p;
     }
-    static TensorExpr op(::@TEPL_NAMESPACE @ ::Op op, AttrExpr attrs,
+    static TensorExpr op(::@TEPL_NAMESPACE@ ::Op op, AttrExpr attrs,
                          ::std::vector<TensorExpr> children) {
       TensorExpr p{Kind::Op};
       p.operation = op;

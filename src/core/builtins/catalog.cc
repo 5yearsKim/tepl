@@ -1,5 +1,7 @@
 #include "src/core/builtins/catalog.h"
 
+#include <stdexcept>
+
 namespace tepl::core::builtins {
 namespace {
 using S = SignatureType;
@@ -20,43 +22,12 @@ constexpr S kAxes[] = {S::kIntegerList, S::kInteger};
 constexpr S kShapes[] = {S::kIntegerList, S::kIntegerList};
 constexpr S kPair[] = {S::kInteger, S::kInteger};
 constexpr BuiltinSignature kBuiltins[] = {
-    {Builtin::kIsFloat, "is_float", kDType, S::kBoolean, false, Domain::kDType,
-     kDTypeContexts},
-    {Builtin::kIsInteger, "is_integer", kDType, S::kBoolean, false,
-     Domain::kDType, kDTypeContexts},
-    {Builtin::kIsSignedInteger, "is_signed_integer", kDType, S::kBoolean, false,
-     Domain::kDType, kDTypeContexts},
-    {Builtin::kIsUnsignedInteger, "is_unsigned_integer", kDType, S::kBoolean,
-     false, Domain::kDType, kDTypeContexts},
-    {Builtin::kIsNumeric, "is_numeric", kDType, S::kBoolean, false,
-     Domain::kDType, kDTypeContexts},
-    {Builtin::kLen, "len", kList, S::kInteger},
-    {Builtin::kRange, "range", kInteger, S::kIntegerList},
-    {Builtin::kConcat, "concat", kLists, S::kListT, true},
-    {Builtin::kGather, "gather", kGather, S::kListT},
-    {Builtin::kExclude, "exclude", kLists, S::kListT},
-    {Builtin::kSlice, "slice", kSlice, S::kListT},
-    {Builtin::kReplace, "replace", kReplace, S::kListT},
-    {Builtin::kSum, "sum", kIntegers, S::kInteger},
-    {Builtin::kProduct, "product", kIntegers, S::kInteger},
-    {Builtin::kAll, "all", kBooleans, S::kBoolean, false, Domain::kCommon,
-     kAllContexts},
-    {Builtin::kAny, "any", kBooleans, S::kBoolean, false, Domain::kCommon,
-     kAllContexts},
-    {Builtin::kContains, "contains", kContains, S::kBoolean},
-    {Builtin::kIsValidAxisList, "is_valid_axis_list", kAxes, S::kBoolean, false,
-     Domain::kShape},
-    {Builtin::kIsDisjoint, "is_disjoint", kLists, S::kBoolean},
-    {Builtin::kBroadcastShape, "broadcast_shape", kShapes, S::kIntegerList,
-     false, Domain::kShape},
-    {Builtin::kMin, "min", kPair, S::kInteger, false, Domain::kCommon,
-     kAllContexts, true},
-    {Builtin::kMax, "max", kPair, S::kInteger, false, Domain::kCommon,
-     kAllContexts, true},
-    {Builtin::kFloorDiv, "floor_div", kPair, S::kInteger, false,
-     Domain::kCommon, kAllContexts, true},
-    {Builtin::kCeilDiv, "ceil_div", kPair, S::kInteger, false, Domain::kCommon,
-     kAllContexts, true},
+#define TEPL_BUILTIN(id, name, feature, args, result, variadic, domain, \
+                     contexts, pair)                                    \
+  {Builtin::id, name,           Feature::feature, args, S::result,      \
+   variadic,    Domain::domain, contexts,         pair},
+#include "src/core/builtins/catalog.def"
+#undef TEPL_BUILTIN
 };
 }  // namespace
 
@@ -82,10 +53,28 @@ const BuiltinSignature* resolveBuiltin(std::string_view name) {
   return nullptr;
 }
 
+const BuiltinSignature& signature(Builtin builtin) {
+  for (const auto& entry : kBuiltins)
+    if (entry.builtin == builtin) return entry;
+  throw std::logic_error("invalid builtin ID");
+}
+
 std::string_view builtinName(Builtin builtin) {
-  for (const auto& signature : kBuiltins)
-    if (signature.builtin == builtin) return signature.name;
-  return "<invalid builtin>";
+  return signature(builtin).name;
+}
+
+std::string_view featureName(Feature feature) {
+  switch (feature) {
+    case Feature::kList:
+      return "list";
+    case Feature::kInteger:
+      return "integer";
+    case Feature::kShape:
+      return "shape";
+    case Feature::kDType:
+      return "dtype";
+  }
+  throw std::logic_error("invalid builtin feature");
 }
 
 }  // namespace tepl::core::builtins

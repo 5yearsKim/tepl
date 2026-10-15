@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "src/core/analysis_context.h"
+#include "src/core/builtins/axes.h"
 #include "src/core/resolution/source.h"
 
 namespace tepl::core::index_semantics {
@@ -40,46 +41,43 @@ struct Checker {
       for (auto t : inputs) type(args[i++], t);
       return make(Meta::Kind::Call, output, name, 0, args);
     };
-    if (name == "extent_add" || name == "extent_sub" || name == "extent_mul" ||
-        name == "extent_floor_div")
-      return signature({Type::Positions, Type::Positions}, Type::Positions);
-    if (name == "scale_extents")
-      return signature({Type::Positions, Type::Integer}, Type::Positions);
-    if (name == "offset_extents")
-      return signature({Type::Positions, Type::Integer}, Type::Positions);
-    if (name == "extent_le")
-      return signature({Type::Positions, Type::Positions}, Type::Boolean);
-    if (name == "is_valid_extents")
-      return signature({Type::Positions}, Type::Boolean);
-    if (name == "is_positive_extents")
-      return signature({Type::Positions}, Type::Boolean);
-    if (name == "all_axes") return signature({Type::Operand}, Type::Positions);
-    if (name == "rank") return signature({Type::Operand}, Type::Integer);
-    if (name == "shape") return signature({Type::Operand}, Type::Positions);
-    if (name == "ordered_complement")
-      return signature({Type::Positions, Type::Positions}, Type::Positions);
-    if (name == "gather")
-      return signature({Type::Positions, Type::Positions}, Type::Positions);
-    if (name == "range") return signature({Type::Integer}, Type::Positions);
-    if (name == "place")
-      return signature({Type::Axes, Type::Positions, Type::Axes}, Type::Axes);
-    if (name == "permute")
-      return signature({Type::Axes, Type::Positions}, Type::Axes);
-    if (name == "is_valid_axis_list")
-      return signature({Type::Positions, Type::Integer}, Type::Boolean);
-    if (name == "len") {
-      if (args.size() != 1 ||
-          (args[0]->type != Type::Axes && args[0]->type != Type::Positions))
-        fail("len requires an axis or position sequence");
-      return make(Meta::Kind::Call, Type::Integer, name, 0, args);
-    }
-    if (name == "concat") {
-      if (args.empty()) fail("concat requires arguments");
-      auto t = args[0]->type;
-      if (t != Type::Positions && t != Type::Axes)
-        fail("concat requires sequences");
-      for (auto& arg : args) type(arg, t);
-      return make(Meta::Kind::Call, t, name, 0, args);
+    if (const auto* builtin = builtins::resolveAxisBuiltin(name)) {
+      if (!builtin->acceptsArity(args.size()))
+        fail("wrong arity for '" + name + "'");
+      using A = builtins::AxisType;
+      auto concrete = [&](A pattern) -> Type {
+        switch (pattern) {
+          case A::Integer:
+            return Type::Integer;
+          case A::Boolean:
+            return Type::Boolean;
+          case A::Positions:
+            return Type::Positions;
+          case A::Axes:
+            return Type::Axes;
+          case A::Operand:
+            return Type::Operand;
+          case A::Sequence:
+            fail("unbound sequence signature");
+        }
+        fail("invalid axes signature");
+      };
+      std::optional<Type> sequence;
+      for (std::size_t i = 0; i < args.size(); ++i) {
+        auto expected =
+            builtin->arguments[std::min(i, builtin->arguments.size() - 1)];
+        if (expected == A::Sequence) {
+          if (args[i]->type != Type::Axes && args[i]->type != Type::Positions)
+            fail(name + " requires an axis or position sequence");
+          if (!sequence) sequence = args[i]->type;
+          type(args[i], *sequence);
+        } else {
+          type(args[i], concrete(expected));
+        }
+      }
+      auto output = builtin->result == A::Sequence ? *sequence
+                                                   : concrete(builtin->result);
+      return make(Meta::Kind::Call, output, name, 0, std::move(args));
     }
     if (name == "==" || name == "!=") {
       if (args.size() != 2 || args[0]->type != args[1]->type)

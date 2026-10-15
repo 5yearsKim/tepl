@@ -14,17 +14,10 @@ checks the function name, argument count, argument types, and expression context
 | Rule `derive` | Calculate replacement attribute descriptors using constructors and builtins. Each assignment must produce a descriptor. |
 | Operation `shape` | Compute an output shape from operand shape lists and operation attributes. A variadic parameter receives a list of shapes. |
 | Operation `dtype` | Compute an output dtype from operand dtype values and operation attributes. A variadic parameter receives a list of dtypes. |
+| Operation `axes` | Declare axis bindings, output order, and extent constraints using operand and axis queries. |
 
 Shape and dtype blocks share the metadata expression language. Function
 availability still depends on the block:
-
-| Functions | Rule `where` / `derive` | `shape` | `dtype` |
-| --- | --- | --- | --- |
-| List helpers | Yes | Yes | Yes |
-| `min`, `max`, `floor_div`, `ceil_div` | Yes | Yes | Yes |
-| `all`, `any` | Yes | Yes | Yes |
-| `is_valid_axis_list`, `broadcast_shape` | Yes | Yes | Yes |
-| `is_float`, `is_integer`, `is_signed_integer`, `is_unsigned_integer`, `is_numeric` | Yes | No | Yes |
 
 The shape helpers are also available in dtype blocks when working with integer
 lists. Their availability does not mean that a dtype block receives operand
@@ -48,6 +41,74 @@ Empty generic lists need an element type from context. `concat(s, [])` can use
 the type of `s`, and `sum([])` requires integers. A standalone `len([])` cannot
 infer the empty list's element type and is rejected.
 
+## Function inventory
+
+<!-- BEGIN BUILTIN CATALOG -->
+
+### Expression function inventory
+
+This table is generated from the compiler catalog. Feature groups do not grant
+section access. The axes overloads are listed separately below.
+
+| Function | Group | Metadata signature | Rule signature | Allowed sections |
+| --- | --- | --- | --- | --- |
+| `len` | list | `(T[]) -> Integer` | `(T[]) -> index` | `shape`, `dtype`, `where`, `derive` |
+| `range` | list | `(Integer) -> Integer[]` | `(index) -> index[]` | `shape`, `dtype`, `where`, `derive` |
+| `concat` | list | `(T[], T[], ...) -> T[]` | `(T[], T[], ...) -> T[]` | `shape`, `dtype`, `where`, `derive` |
+| `gather` | list | `(T[], Integer[]) -> T[]` | `(T[], index[]) -> T[]` | `shape`, `dtype`, `where`, `derive` |
+| `exclude` | list | `(T[], T[]) -> T[]` | `(T[], T[]) -> T[]` | `shape`, `dtype`, `where`, `derive` |
+| `slice` | list | `(T[], Integer, Integer) -> T[]` | `(T[], index, index) -> T[]` | `shape`, `dtype`, `where`, `derive` |
+| `replace` | list | `(T[], Integer, T) -> T[]` | `(T[], index, T) -> T[]` | `shape`, `dtype`, `where`, `derive` |
+| `all` | list | `(Bool[]) -> Bool` | `(bool[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
+| `any` | list | `(Bool[]) -> Bool` | `(bool[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
+| `contains` | list | `(T[], T) -> Bool` | `(T[], T) -> bool` | `shape`, `dtype`, `where`, `derive` |
+| `is_disjoint` | list | `(T[], T[]) -> Bool` | `(T[], T[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
+| `sum` | integer | `(Integer[]) -> Integer` | `(index[]) -> index` | `shape`, `dtype`, `where`, `derive` |
+| `product` | integer | `(Integer[]) -> Integer` | `(index[]) -> index` | `shape`, `dtype`, `where`, `derive` |
+| `min` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
+| `max` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
+| `floor_div` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
+| `ceil_div` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
+| `is_valid_axis_list` | shape | `(Integer[], Integer) -> Bool` | `(index[], index) -> bool` | `shape`, `dtype`, `where`, `derive` |
+| `broadcast_shape` | shape | `(Integer[], Integer[]) -> Integer[]` | `(index[], index[]) -> index[]` | `shape`, `dtype`, `where`, `derive` |
+| `is_float` | dtype | `(DType) -> Bool` | `(dtype) -> bool` | `dtype`, `where`, `derive` |
+| `is_integer` | dtype | `(DType) -> Bool` | `(dtype) -> bool` | `dtype`, `where`, `derive` |
+| `is_signed_integer` | dtype | `(DType) -> Bool` | `(dtype) -> bool` | `dtype`, `where`, `derive` |
+| `is_unsigned_integer` | dtype | `(DType) -> Bool` | `(dtype) -> bool` | `dtype`, `where`, `derive` |
+| `is_numeric` | dtype | `(DType) -> Bool` | `(dtype) -> bool` | `dtype`, `where`, `derive` |
+
+### Axes function inventory
+
+These functions are callable in operation `axes` blocks. `Positions` is an
+integer sequence, `Axes` is a sequence of axis identities, and `Operand` is an
+operation operand. `S` is one shared sequence type: `Positions` or `Axes`.
+An operand supplies its shape through `shape`, `rank`, or `all_axes`.
+
+| Function | Axes signature |
+| --- | --- |
+| `len` | `(S) -> Integer` |
+| `range` | `(Integer) -> Positions` |
+| `concat` | `(S, S, ...) -> S` |
+| `gather` | `(Positions, Positions) -> Positions` |
+| `is_valid_axis_list` | `(Positions, Integer) -> Bool` |
+| `ordered_complement` | `(Positions, Positions) -> Positions` |
+| `permute` | `(Axes, Positions) -> Axes` |
+| `all_axes` | `(Operand) -> Positions` |
+| `rank` | `(Operand) -> Integer` |
+| `shape` | `(Operand) -> Positions` |
+| `place` | `(Axes, Positions, Axes) -> Axes` |
+| `extent_add` | `(Positions, Positions) -> Positions` |
+| `extent_sub` | `(Positions, Positions) -> Positions` |
+| `extent_mul` | `(Positions, Positions) -> Positions` |
+| `extent_floor_div` | `(Positions, Positions) -> Positions` |
+| `extent_le` | `(Positions, Positions) -> Bool` |
+| `scale_extents` | `(Positions, Integer) -> Positions` |
+| `offset_extents` | `(Positions, Integer) -> Positions` |
+| `is_valid_extents` | `(Positions) -> Bool` |
+| `is_positive_extents` | `(Positions) -> Bool` |
+
+<!-- END BUILTIN CATALOG -->
+
 ## List helpers
 
 These functions are available in all four contexts.
@@ -61,8 +122,8 @@ These functions are available in all four contexts.
 | `exclude(xs, removed)` | `(T[], T[]) -> T[]` | `(T[], T[]) -> T[]` | Remove every element whose value occurs in `removed`. Preserve the order and duplicates of remaining elements. |
 | `slice(xs, start, end)` | `(T[], Integer, Integer) -> T[]` | `(T[], index, index) -> T[]` | Copy the half-open interval `[start, end)`. |
 | `replace(xs, position, value)` | `(T[], Integer, T) -> T[]` | `(T[], index, T) -> T[]` | Return a copy with one existing element replaced. |
-| `sum(xs)` | `Integer[] -> Integer` | `T[] -> index` | Add elements with checked arithmetic. The empty sum is `0`. |
-| `product(xs)` | `Integer[] -> Integer` | `T[] -> index` | Multiply elements with checked arithmetic. The empty product is `1`. Any zero makes the product `0`. |
+| `sum(xs)` | `Integer[] -> Integer` | `L -> index` | Add elements with checked arithmetic. The empty sum is `0`. |
+| `product(xs)` | `Integer[] -> Integer` | `L -> index` | Multiply elements with checked arithmetic. The empty product is `1`. Any zero makes the product `0`. |
 | `all(xs)` | `Bool[] -> Bool` | `bool[] -> bool` | Return true when every element is true. `all([])` is true. |
 | `any(xs)` | `Bool[] -> Bool` | `bool[] -> bool` | Return true when at least one element is true. `any([])` is false. |
 | `contains(xs, value)` | `(T[], T) -> Bool` | `(T[], T) -> bool` | Test whether the value occurs in the list. |
@@ -156,6 +217,41 @@ and are unavailable in `shape`.
 The dtype `bool` is neither integer nor numeric. Test it with `t == bool`.
 Dtype equality compares exact element types: `f16` and `bf16` are distinct.
 There is no general `dtype_of`, `promote`, or `can_cast` builtin.
+
+## Axes functions
+
+Operation `axes` blocks have their own signatures, listed in the inventory.
+Functions available in rules or metadata are not automatically available there.
+`len` and `concat` accept axis or position sequences, with one shared sequence
+type per call. `concat` requires at least two arguments in every source context.
+`gather` selects positions from a position sequence. `permute` performs the same
+selection on axis identities, including the supplied order and repetitions;
+operation legality may reject a repeated or incomplete output axis sequence.
+`ordered_complement(a, b)` uses the value-removal behavior of `exclude(a, b)`
+on position sequences.
+
+`shape(operand)` returns its dimensions, `rank(operand)` returns their count,
+and `all_axes(operand)` returns `[0, ..., rank - 1]`. Operand references are
+accepted by these queries rather than implicitly treated as position sequences.
+`place(left, positions, right)` places the left axis sequence at unique valid
+positions in a result of length `len(left) + len(right)`, then fills remaining
+positions from the right sequence. The position count must equal `len(left)`.
+
+`extent_add`, `extent_sub`, `extent_mul`, and `extent_floor_div` perform checked
+elementwise integer arithmetic on equal-length sequences. Rounded divisors must
+be strictly positive. `extent_le` tests that every left element is less than or
+equal to its corresponding right element and requires equal lengths too.
+`scale_extents` multiplies every element by one integer; `offset_extents` adds
+one integer to every element. `is_valid_extents` tests for nonnegative elements;
+`is_positive_extents` tests for strictly positive elements. Both return true
+for an empty sequence. Domain and binding validation enforce the final tensor
+extent constraints separately.
+
+Internal proof operations such as `axis_partition`, `inverse`, and
+`matched_positions` cannot be called from source. Public axes functions can
+lower to internal operations without exposing those operations elsewhere.
+For implementation ownership and shared identities, see the
+[developer architecture guide](../../src/core/builtins/README.md).
 
 ## Using builtins in each context
 
@@ -256,5 +352,5 @@ dimensions that fit `u64`.
 
 For tensor metadata concepts and operation examples, see the
 [shape reference](shape.md) and [dtype reference](dtype.md).
-The [builtin catalog](../../src/core/builtins/catalog.cc) defines the supported
+The [builtin catalog](../../src/core/builtins/catalog.def) defines the supported
 names, signatures, and contexts.

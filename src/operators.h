@@ -1,5 +1,7 @@
 #pragma once
 
+#include <initializer_list>
+#include <optional>
 #include <string_view>
 
 namespace tepl {
@@ -90,6 +92,22 @@ constexpr std::string_view spelling(BinaryOp op) {
       return "||";
   }
   return "<invalid binary operator>";
+}
+
+constexpr std::optional<UnaryOp> resolveUnaryOperator(std::string_view name) {
+  for (auto op : {UnaryOp::kPlus, UnaryOp::kNegate, UnaryOp::kLogicalNot})
+    if (spelling(op) == name) return op;
+  return std::nullopt;
+}
+constexpr std::optional<BinaryOp> resolveBinaryOperator(std::string_view name) {
+  for (auto op :
+       {BinaryOp::kAdd, BinaryOp::kSubtract, BinaryOp::kMultiply,
+        BinaryOp::kDivide, BinaryOp::kRemainder, BinaryOp::kLess,
+        BinaryOp::kLessEqual, BinaryOp::kGreater, BinaryOp::kGreaterEqual,
+        BinaryOp::kEqual, BinaryOp::kNotEqual, BinaryOp::kLogicalAnd,
+        BinaryOp::kLogicalOr})
+    if (spelling(op) == name) return op;
+  return std::nullopt;
 }
 
 }  // namespace tepl

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iterator>
 #include <nlohmann/json.hpp>
+#include <set>
 #include <stdexcept>
 #include <string>
 
@@ -11,6 +12,7 @@
 #include "src/core/analyze.h"
 #include "src/parse.h"
 #include "src/program/program.h"
+#include "src/rewrite/builtins/dispatch.h"
 #include "src/rewrite/engine.h"
 #include "src/rewrite/printer.h"
 #include "src/rewrite/value.h"
@@ -47,11 +49,13 @@ program::Program compile(
   }
   return compiled;
 }
-void expectInvalid(nlohmann::json j) {
+void expectInvalid(nlohmann::json j, std::string_view message = {}) {
   bool failed = false;
   try {
     program::load(j.dump());
-  } catch (const std::invalid_argument&) {
+  } catch (const std::invalid_argument& error) {
+    assert(std::string_view(error.what()).find(message) !=
+           std::string_view::npos);
     failed = true;
   }
   assert(failed);
@@ -115,6 +119,37 @@ graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
       compile("graph wide {input X:f32[18446744073709551615];yield X;}");
   auto wideLoaded = program::load(program::serialize(wide));
   assert(wideLoaded.ir().graphs[0].nodes[0].shape->at(0) == UINT64_MAX);
+}
+void builtinCatalogs() {
+  std::set<std::string> names;
+  for (const auto& entry : core::builtins::catalog()) names.emplace(entry.name);
+  auto spec = nlohmann::json::parse(program::schema());
+  const auto encoded =
+      spec["$defs"]["builtin"]["enum"].get<std::vector<std::string>>();
+  assert(names == std::set<std::string>(encoded.begin(), encoded.end()));
+
+  auto metadata = compile(R"(
+    dialect D { op copy(input:tensor)->tensor {
+      shape(s) { assert all([true]); yield s; }
+    } }
+  )",
+                          false);
+  auto j = nlohmann::json::parse(program::serialize(metadata));
+  j["program"]["operations"][0]["shape"]["statements"][0]["value"]["data"]
+   ["condition"]["value"]["data"]["builtin"] = "is_float";
+  expectInvalid(j, "unavailable in section");
+
+  auto axes = compile(R"(
+    dialect D { op copy(input:tensor)->tensor {
+      axes { bind S { input:all_axes(input) }; yield S; }
+      semantics { yield input; }
+    } }
+  )",
+                      false);
+  j = nlohmann::json::parse(program::serialize(axes));
+  j["program"]["operations"][0]["semantic_definition"]["groups"][0]["bindings"]
+   [0]["positions"]["name"] = "distinct_axes";
+  expectInvalid(j, "unsupported metadata instruction");
 }
 void guardsAndFailure() {
   const std::string graph = "graph g {input X:f32[2];yield (copy X);}";
@@ -200,15 +235,16 @@ void metadataAndDepth() {
   assert(!rewrite::printGraph(p.ir(), out.graph, false).empty());
   rewrite::Budget budget;
   using rewrite::Integer;
-  auto zero =
-      rewrite::call("product",
-                    {rewrite::Value(rewrite::List{
-                        Integer(UINT64_MAX), Integer(UINT64_MAX), Integer(0)})},
-                    budget);
+  auto zero = rewrite::evaluateBuiltin(
+      core::builtins::Builtin::kProduct,
+      {rewrite::Value(
+          rewrite::List{Integer(UINT64_MAX), Integer(UINT64_MAX), Integer(0)})},
+      budget);
   assert(rewrite::integer(zero) == 0);
   bool rejected = false;
   try {
-    rewrite::call("ceil_div", {Integer(4), Integer(-2)}, budget);
+    rewrite::evaluateBuiltin(core::builtins::Builtin::kCeilDiv,
+                             {Integer(4), Integer(-2)}, budget);
   } catch (const rewrite::EvaluationError&) {
     rejected = true;
   }
@@ -263,6 +299,7 @@ graph g {input A:f32[2,3,4];yield (reduce_sum[dimensions=[1]] (transpose[permuta
 int main(int argc, char** argv) {
   try {
     constructors();
+    builtinCatalogs();
     guardsAndFailure();
     sharingAndLimits();
     metadataAndDepth();

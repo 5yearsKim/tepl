@@ -2,6 +2,21 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 
 cc_library(
+    name = "intrinsics",
+    srcs = ["intrinsics/catalog.cc"],
+    hdrs = ["intrinsics/catalog.h", "intrinsics/catalog.def"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "builtins",
+    srcs = ["builtins/catalog.cc", "builtins/axes.cc"],
+    hdrs = ["builtins/catalog.h", "builtins/catalog.def", "builtins/axes.h"],
+    deps = [":intrinsics"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "ids",
     hdrs = ["ids.h"],
     visibility = ["//visibility:public"],
@@ -10,7 +25,6 @@ cc_library(
 cc_library(
     name = "ir",
     srcs = [
-        "builtins/catalog.cc",
         "index_semantics/ir.cc",
         "index_semantics/print.cc",
         "metadata/types.cc",
@@ -18,7 +32,6 @@ cc_library(
         "type/types.cc",
     ],
     hdrs = [
-        "builtins/catalog.h",
         "index_semantics/ir.h",
         "rule/attribute_holes.h",
         "ir.h",
@@ -30,6 +43,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":ids",
+        ":builtins",
         "//src/legacy_semantics:plan",
         "//:operators",
         "//:source",
@@ -160,3 +174,5 @@ cc_binary(
     linkshared = True,
     visibility = ["//visibility:public"],
 )
+
+exports_files(["intrinsics/README.md"])

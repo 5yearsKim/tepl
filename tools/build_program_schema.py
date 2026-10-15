@@ -4,6 +4,7 @@
 Generated files are checked in; CLI tests compare the public and embedded schemas.
 """
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,8 +27,16 @@ enum('attribute_kind','core::AttributeValue::Kind','integer:kInteger bool:kBool 
 enum('node_kind','core::ConcreteNode::Kind','input:kInput literal:kLiteral operation:kOperation')
 enum('unary','UnaryOp','+:kPlus -:kNegate !:kLogicalNot')
 enum('binary','BinaryOp','+:kAdd -:kSubtract *:kMultiply /:kDivide %:kRemainder <:kLess <=:kLessEqual >:kGreater >=:kGreaterEqual ==:kEqual !=:kNotEqual &&:kLogicalAnd ||:kLogicalOr')
-builtins='is_float:IsFloat is_integer:IsInteger is_signed_integer:IsSignedInteger is_unsigned_integer:IsUnsignedInteger is_numeric:IsNumeric len:Len range:Range concat:Concat gather:Gather exclude:Exclude slice:Slice replace:Replace sum:Sum product:Product all:All any:Any contains:Contains is_valid_axis_list:IsValidAxisList is_disjoint:IsDisjoint broadcast_shape:BroadcastShape min:Min max:Max floor_div:FloorDiv ceil_div:CeilDiv'
-enum('builtin','core::builtins::Builtin',' '.join(a+':k'+b for a,b in (x.split(':') for x in builtins.split())))
+# Public names and IDs belong to the builtin catalog, including in the wire schema.
+builtins = re.findall(
+    r'^TEPL_BUILTIN\(\s*(k\w+),\s*"([^"]+)"',
+    (ROOT / 'src/core/builtins/catalog.def').read_text(),
+    re.MULTILINE,
+)
+if not builtins:
+    raise RuntimeError('empty builtin catalog')
+enum('builtin', 'core::builtins::Builtin',
+     ' '.join(f'{name}:{identity}' for identity, name in builtins))
 enum('meta_kind','core::metadata::Type::Kind','integer:kInteger bool:kBoolean dtype:kDType')
 enum('meta_program_kind','core::metadata::ProgramKind','shape:Shape dtype:DType')
 enum('axis_meta_kind','core::index_semantics::Meta::Kind','integer:Integer bool:Boolean operand:Operand attribute:Attribute group:Group list:List call:Call')

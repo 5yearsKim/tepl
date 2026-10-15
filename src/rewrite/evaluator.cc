@@ -3,6 +3,11 @@
 #include <functional>
 #include <limits>
 
+#include "src/core/builtins/axes.h"
+#include "src/rewrite/builtins/dispatch.h"
+#include "src/rewrite/intrinsics.h"
+#include "src/rewrite/operators.h"
+
 namespace tepl::rewrite {
 namespace {
 void ensure(bool b, const char* s) {
@@ -80,25 +85,25 @@ class MetadataEvaluator {
           else if constexpr (std::is_same_v<T, Call>) {
             std::vector<Value> a;
             for (const auto& x : v.arguments) a.push_back(eval(*x));
-            return call(std::string(core::builtins::builtinName(v.builtin)), a,
-                        budget);
+            return evaluateBuiltin(v.builtin, a, budget);
           } else if constexpr (std::is_same_v<T, Unary>)
-            return call(std::string(spelling(v.op)), {eval(*v.operand)},
-                        budget);
+            return evaluateOperator(spelling(v.op), {eval(*v.operand)}, budget);
           else if constexpr (std::is_same_v<T, Binary>) {
             if (category(v.op) == BinaryCategory::kLogical)
               return binary(
                   v.op, [&](bool rhs) { return eval(rhs ? *v.rhs : *v.lhs); });
             auto a = eval(*v.lhs), b = eval(*v.rhs);
-            return call(std::string(spelling(v.op)), {a, b}, budget);
+            return evaluateOperator(spelling(v.op), {a, b}, budget);
           } else if constexpr (std::is_same_v<T, List>) {
             rewrite::List xs;
             for (const auto& x : v.elements) xs.push_back(eval(*x));
             budget.size(xs.size());
             return xs;
-          } else if constexpr (std::is_same_v<T, Index>)
-            return call("index", {eval(*v.value), eval(*v.index)}, budget);
-          else if constexpr (std::is_same_v<T, Conditional>)
+          } else if constexpr (std::is_same_v<T, Index>) {
+            auto value = eval(*v.value);
+            auto index = eval(*v.index);
+            return evaluateIndex(value, index, budget);
+          } else if constexpr (std::is_same_v<T, Conditional>)
             return eval(boolean(eval(*v.condition)) ? *v.then_value
                                                     : *v.else_value);
           else if constexpr (std::is_same_v<T, Comprehension>) {
@@ -158,7 +163,9 @@ Value axisShape(const core::index_semantics::Definition& def,
     std::vector<Value> args;
     for (const auto& a : m.args) args.push_back(eval(*a));
     if (m.kind == K::List) return args;
-    return call(m.name, args, budget);
+    if (core::builtins::resolveAxisBuiltin(m.name))
+      return evaluateAxisCall(m.name, args, budget);
+    return evaluateOperator(m.name, args, budget);
   };
   std::vector<std::set<std::size_t>> used(node.operands.size());
   for (std::size_t g = 0; g < def.groups.size(); ++g) {
@@ -167,13 +174,15 @@ Value axisShape(const core::index_semantics::Definition& def,
     for (const auto& bind : group.bindings) {
       auto positions = eval(*bind.positions);
       auto input = shape(graph.nodes.at(node.operands.at(bind.operand)));
-      ensure(boolean(call("is_valid_axis_list",
-                          {positions, Integer(list(input).size())}, budget)),
+      ensure(boolean(evaluateBuiltin(core::builtins::Builtin::kIsValidAxisList,
+                                     {positions, Integer(list(input).size())},
+                                     budget)),
              "invalid axis binding");
       for (const auto& p : list(positions))
         ensure(used.at(bind.operand).insert(position(p)).second,
                "overlapping axis bindings");
-      auto selected = list(call("gather", {input, positions}, budget));
+      auto selected = list(evaluateBuiltin(core::builtins::Builtin::kGather,
+                                           {input, positions}, budget));
       if (extents)
         ensure(*extents == selected, "axis group extents differ");
       else
@@ -205,9 +214,11 @@ Value axisShape(const core::index_semantics::Definition& def,
   for (const auto& a : def.assertions)
     ensure(boolean(eval(*a)), "axis assertion failed");
   auto output = eval(*def.output);
-  ensure(boolean(call("distinct_axes", {output}, budget)),
+  ensure(boolean(evaluateIntrinsic(core::intrinsics::Intrinsic::kDistinctAxes,
+                                   {output}, budget)),
          "duplicate output axes");
-  return call("axis_extents", {output}, budget);
+  return evaluateIntrinsic(core::intrinsics::Intrinsic::kAxisExtents, {output},
+                           budget);
 }
 }  // namespace
 Value Evaluator::eval(const core::TypedExpr& e) {
@@ -246,16 +257,15 @@ Value Evaluator::eval(const core::TypedExpr& e) {
         else if constexpr (std::is_same_v<T, BuiltinCall>) {
           std::vector<Value> a;
           for (const auto& x : v.arguments) a.push_back(eval(*x));
-          return call(std::string(builtins::builtinName(v.builtin)), a,
-                      budget_);
+          return evaluateBuiltin(v.builtin, a, budget_);
         } else if constexpr (std::is_same_v<T, UnaryExpr>)
-          return call(std::string(spelling(v.op)), {eval(*v.operand)}, budget_);
+          return evaluateOperator(spelling(v.op), {eval(*v.operand)}, budget_);
         else if constexpr (std::is_same_v<T, BinaryExpr>) {
           if (category(v.op) == BinaryCategory::kLogical)
             return binary(
                 v.op, [&](bool rhs) { return eval(rhs ? *v.rhs : *v.lhs); });
           auto a = eval(*v.lhs), b = eval(*v.rhs);
-          return call(std::string(spelling(v.op)), {a, b}, budget_);
+          return evaluateOperator(spelling(v.op), {a, b}, budget_);
         } else if constexpr (std::is_same_v<T, LocalRef>)
           return bindings_.locals.at(v.local.value);
         else if constexpr (std::is_same_v<T, LocalLet>) {
@@ -267,9 +277,11 @@ Value Evaluator::eval(const core::TypedExpr& e) {
           for (const auto& x : v.elements) xs.push_back(eval(*x));
           budget_.size(xs.size());
           return xs;
-        } else if constexpr (std::is_same_v<T, IndexExpr>)
-          return call("index", {eval(*v.value), eval(*v.index)}, budget_);
-        else if constexpr (std::is_same_v<T, ConditionalExpr>)
+        } else if constexpr (std::is_same_v<T, IndexExpr>) {
+          auto value = eval(*v.value);
+          auto index = eval(*v.index);
+          return evaluateIndex(value, index, budget_);
+        } else if constexpr (std::is_same_v<T, ConditionalExpr>)
           return eval(boolean(eval(*v.condition)) ? *v.then_value
                                                   : *v.else_value);
         else if constexpr (std::is_same_v<T, ComprehensionExpr>) {
@@ -335,7 +347,7 @@ Value Evaluator::symbolic(const core::index_semantics::Symbol& s) {
   for (const auto& a : s.args) args.push_back(symbolic(*a));
   if (s.kind == K::List) return args;
   ensure(s.kind == K::Call, "unresolved symbolic expression");
-  return call(s.name, args, budget_);
+  return evaluateSymbolicCall(s.name, args, budget_);
 }
 void infer(const core::Program& p, core::ConcreteGraph& graph, std::size_t id,
            Budget& budget) {
