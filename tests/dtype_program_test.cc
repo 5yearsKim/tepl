@@ -125,9 +125,9 @@ void rules() {
     }
   )";
   valid(dialect + R"(
-    abstract rule identity() { dtype T; X: T[...] (convert[@c] X) => X where { is_numeric(T); @c.to == T; } }
+    abstract rule identity() { dtype T; X: T[...] (convert[@c] X) => X where { is_numeric(T) && @c.to == T } }
     rule specialized extends identity() { X: f32[N] }
-    rule shared { dtype T; X: T[N] Y: T[N] (pair X Y) => (pair Y X) where { T != bool; } }
+    rule shared { dtype T; X: T[N] Y: T[N] (pair X Y) => (pair Y X) where { T != bool } }
   )");
   invalid(dialect + "rule r { X: T[...] X => X }", "unknown dtype");
   invalid(dialect + "rule r { dtype T; X => X }", "not bound");
@@ -138,11 +138,11 @@ void rules() {
   invalid(dialect + "rule r { f32 => f32 }", "conflicts");
   invalid(dialect +
               "rule r { X: [...] (convert[@c] X) => X where { @c.missing == "
-              "f32; } }",
+              "f32 } }",
           "unknown descriptor field");
   invalid(
       dialect +
-          "rule r { X: [...] (convert[@c] X) => X where { @c.to == true; } }",
+          "rule r { X: [...] (convert[@c] X) => X where { @c.to == true } }",
       "type mismatch");
 }
 }  // namespace

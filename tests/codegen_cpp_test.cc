@@ -45,6 +45,20 @@ int main() {
         "rules/nested/rules.h", "analysis/shape.h", "analysis/tensor_info.h",
         "rewriting/rewrite.h", "rewriting/rewrite_analysis.h", "dialects/t.h"})
     assert(paths.contains(path));
+  auto guarded = generate(
+      "dialect T { op copy(x: tensor) -> tensor; } "
+      "rule guarded { (copy X) => X "
+      "where { (true || len(range(18446744073709551615)) == 0) && true } }");
+  assert(guarded.ok());
+  bool guard_emitted = false;
+  for (const auto& file : guarded.files) {
+    if (file.path != "rules/nested/example.h") continue;
+    guard_emitted = true;
+    assert(file.contents.find("true || ") != std::string::npos);
+    assert(file.contents.find(" && true)") != std::string::npos);
+    assert(file.contents.find("::common::range(") != std::string::npos);
+  }
+  assert(guard_emitted);
   assert(generate("").ok());
   assert(generate("", "app::optimizer").ok());
   for (auto ns : {"", "class", "std", "std::optimizer", "app::", "::app",

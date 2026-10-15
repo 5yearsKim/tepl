@@ -87,7 +87,7 @@ replacement operations.
 
 ```javascript
 where {
-    K % 128 == 0;
+    K % 128 == 0
 }
 derive {
     @xa = { ..@outer };
@@ -128,7 +128,7 @@ rule commute_add extends commute(F = t.add);
 rule commute_small_vectors extends commute(F = t.add) {
     X: [N]
     Y: [N]
-    where { N <= 1024; }
+    where { N <= 1024 }
 }
 ```
 

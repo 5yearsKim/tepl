@@ -10,10 +10,10 @@ rule compose_transposes {
 
     where {
         let rank = len(Dims);
-        is_valid_axis_list(@outer.permutation, rank);
-        is_valid_axis_list(@inner.permutation, rank);
-        len(@outer.permutation) == rank;
-        len(@inner.permutation) == rank;
+        is_valid_axis_list(@outer.permutation, rank)
+        && is_valid_axis_list(@inner.permutation, rank)
+        && len(@outer.permutation) == rank
+        && len(@inner.permutation) == rank
     }
     derive {
         let permutation = gather(@inner.permutation, @outer.permutation);
@@ -27,8 +27,8 @@ rule remove_identity_transpose {
     (t.transpose[@p] X) => X
     where {
         let axes = range(len(Dims));
-        len(@p.permutation) == len(Dims);
-        all([@p.permutation[i] == i for i in axes]);
+        len(@p.permutation) == len(Dims)
+        && all([@p.permutation[i] == i for i in axes])
     }
 }
 

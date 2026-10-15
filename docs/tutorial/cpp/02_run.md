@@ -111,7 +111,7 @@ rule swap_dot {
     (d.dot[@dot] X Y) => (d.dot[@dot] Y X)
 
     where {
-        $supports_axis(@dot.axis);
+        $supports_axis(@dot.axis)
     }
 }
 ```

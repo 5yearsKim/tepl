@@ -10,7 +10,7 @@ checks the function name, argument count, argument types, and expression context
 
 | Context | Inputs and purpose |
 | --- | --- |
-| Rule `where` | Check a matched candidate using captured dimensions, dtype bindings, descriptor fields, and local values. Each condition must return `bool`. |
+| Rule `where` | Check a matched candidate using captured dimensions, dtype bindings, descriptor fields, and local values. The final expression must return `bool`. |
 | Rule `derive` | Calculate replacement attribute descriptors using constructors and builtins. Each assignment must produce a descriptor. |
 | Operation `shape` | Compute an output shape from operand shape lists and operation attributes. A variadic parameter receives a list of shapes. |
 | Operation `dtype` | Compute an output dtype from operand dtype values and operation attributes. A variadic parameter receives a list of dtypes. |
@@ -172,9 +172,9 @@ rule cancel_negate_small {
     (t.negate (t.negate X)) => X
 
     where {
-        is_numeric(T);
-        len(Dims) <= 4;
-        product(Dims) <= 4096;
+        is_numeric(T)
+        && len(Dims) <= 4
+        && product(Dims) <= 4096
     }
 }
 ```

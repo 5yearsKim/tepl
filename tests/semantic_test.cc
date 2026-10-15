@@ -324,7 +324,7 @@ void symbolicTests() {
          "unrestricted pin rejected");
   auto pinned = symbolicPlan(
       "rule r {(reduce_sum[@d] A) => (reduce_sum[auto, dimensions=[]] A) where "
-      "{ @d.dimensions == range(0); }}");
+      "{ @d.dimensions == range(0) }}");
   proved(pinned);
   auto withoutCondition = pinned;
   withoutCondition.assumptions.clear();
@@ -337,9 +337,9 @@ void symbolicTests() {
                  .proof.status == ProofStatus::Unknown,
          "unguarded reassociation rejected");
   auto association = symbolicPlan(
-      "rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B "
-      "C)) where { @d.lhs_batching_dimensions == @inner->B; "
-      "@d.lhs_contracting_dimensions == @inner->J; }}");
+      "rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B C)) "
+      "where { @d.lhs_batching_dimensions == @inner->B && "
+      "@d.lhs_contracting_dimensions == @inner->J }}");
   expect(association.proof.status == ProofStatus::Proved,
          "reassociation has a checked routing guard");
   Metadata matrix{{{2, 3}, {3, 4}, {4, 5}},
@@ -370,8 +370,8 @@ void symbolicTests() {
   }
   auto reverse = symbolicPlan(
       "rule r {(dot[@outer] A (dot[@inner] B C)) => (dot[auto] (dot[auto] A B) "
-      "C) where { @outer.rhs_batching_dimensions == @inner->B; "
-      "@outer.rhs_contracting_dimensions == @inner->I; }}");
+      "C) where { @outer.rhs_batching_dimensions == @inner->B && "
+      "@outer.rhs_contracting_dimensions == @inner->I }}");
   expect(reverse.proof.status == ProofStatus::Proved,
          "reverse association supported with guard");
   tepl::test::ConstructorEvaluator reverseEval(matrix, reverse);
@@ -383,8 +383,8 @@ void symbolicTests() {
   auto lora = symbolicPlan(
       "rule r {(dot[@outer] X (add W (dot[@inner] A B))) => (add (dot[auto] X "
       "W) (dot[auto] (dot[auto] X A) B)) where { "
-      "@outer.rhs_batching_dimensions == @inner->B; "
-      "@outer.rhs_contracting_dimensions == @inner->I; }}");
+      "@outer.rhs_batching_dimensions == @inner->B && "
+      "@outer.rhs_contracting_dimensions == @inner->I }}");
   proved(lora);
   Metadata lm{{{2, 3}, {3, 4}, {3, 2}, {2, 4}},
               {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}};
@@ -402,7 +402,7 @@ void symbolicTests() {
   auto cycle = symbolicPlan(
       "rule r { A: [K, M, N] (dot[@d] A B) => (dot[auto] (transpose[auto, "
       "permutation=[1,2,0]] A) B) where { @d.lhs_batching_dimensions == "
-      "range(0); @d.lhs_contracting_dimensions == range(1); }}");
+      "range(0) && @d.lhs_contracting_dimensions == range(1) }}");
   proved(cycle);
   Metadata good{{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}};
   tepl::test::ConstructorEvaluator goodEval(good, cycle);
@@ -485,10 +485,13 @@ void symbolicTests() {
                       dialect + alternate));
   auto declared = symbolicPlan(
       "rule r { A: [N,M,K] (transpose[@p] A) => (transpose[auto] A) where { N "
-      "> 0; M == K; } }");
+      "> 0 && M == K } }");
   proved(declared);
-  expect(declared.assumptions.size() >= 3,
-         "tensor declarations and pure where conditions imported");
+  expect(
+      declared.assumptions.size() >= 2 &&
+          std::any_of(declared.assumptions.begin(), declared.assumptions.end(),
+                      [](const S& s) { return callIs(s, "&&"); }),
+      "tensor declarations and final where expression imported");
   auto copied = symbolicPlan(
       "rule r {(transpose[@p] X) => (transpose[@copy] X) derive {@copy = "
       "{ ..@p };} }");
@@ -537,20 +540,25 @@ void explicitConditionTests() {
       "rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B C))";
   rejected(association + "}", "cannot verify rule 'r'");
   auto accepted = check(association + R"( where {
-    @d.lhs_batching_dimensions == @inner->B;
-    @d.lhs_contracting_dimensions == @inner->J;
+    @d.lhs_batching_dimensions == @inner->B
+    && @d.lhs_contracting_dimensions == @inner->J
   }})");
   expect(accepted.ok(), "declared group routing accepted by normal analysis");
+  rejected(association + R"( where {
+    (@d.lhs_batching_dimensions == @inner->B
+     && @d.lhs_contracting_dimensions == @inner->J) || true
+  }})",
+           "cannot verify rule 'r'");
   auto wrong = check(association + R"( where {
-    @d.lhs_batching_dimensions == @inner->B;
-    @d.lhs_contracting_dimensions == @inner->I;
+    @d.lhs_batching_dimensions == @inner->B
+    && @d.lhs_contracting_dimensions == @inner->I
   }})");
   expect(wrong.ok(), "whole lhs-free contraction also admits reassociation");
   rejected(
-      association + " where { @d.lhs_contracting_dimensions == @inner->K; }}",
+      association + " where { @d.lhs_contracting_dimensions == @inner->K }}",
       "absent from the operation output");
   rejected(association +
-               " where { @d.lhs_contracting_dimensions == @inner->Missing; }}",
+               " where { @d.lhs_contracting_dimensions == @inner->Missing }}",
            "unknown output-axis group");
   rejected(
       "rule r {(transpose[@p] A) => (transpose[@copy] A) derive { @copy = "
@@ -558,24 +566,23 @@ void explicitConditionTests() {
       "only supported in where");
   rejected(
       "rule r {(transpose[@p] A) => (transpose[auto] A) where { all([true for "
-      "i in [0]]); "
-      "}}",
+      "i in [0]]) }}",
       "unsupported semantic-rule condition");
   rejected(
-      "rule r {(dot[@d] A B) => (dot[@new] A B) where { len(@new->B) == 0; } "
+      "rule r {(dot[@d] A B) => (dot[@new] A B) where { len(@new->B) == 0 } "
       "derive { @new = { ..@d }; }}",
       "not available here");
   rejected(
       "rule r {(dot[@d] (dot[@d] A B) C) => (dot[auto] A (dot[auto] B C)) "
-      "where { len(@d->B) == 0; }}",
+      "where { len(@d->B) == 0 }}",
       "ambiguous output-axis reference");
 
   // Group names come from definitions, not a hard-coded B/I/J convention.
   auto renamed = replace(dialect, "bind J", "bind RightFree");
   renamed = replace(renamed, "B ++ I ++ J", "B ++ I ++ RightFree");
   auto named = symbolicPlan(association + R"( where {
-    @d.lhs_batching_dimensions == @inner->B;
-    @d.lhs_contracting_dimensions == @inner->RightFree;
+    @d.lhs_batching_dimensions == @inner->B
+    && @d.lhs_contracting_dimensions == @inner->RightFree
   }})",
                             true, renamed);
   proved(named);
@@ -583,7 +590,7 @@ void explicitConditionTests() {
   // The group follows its declared coordinate order through a permutation.
   auto permutation = symbolicPlan(
       "rule r {(transpose[@p] A) => (transpose[auto] A) where { @p.permutation "
-      "== @p->S; }}",
+      "== @p->S }}",
       false);
   proved(permutation);
   Metadata cycle{{{2, 3, 4}}, {{0, {{2, 0, 1}}}}};
@@ -604,7 +611,7 @@ void explicitConditionTests() {
 void partialAssociationTests() {
   const std::string rule = R"(rule r {
     (dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B C))
-    where { @d.lhs_batching_dimensions == @inner->B; }
+    where { @d.lhs_batching_dimensions == @inner->B }
   })";
   auto plan = symbolicPlan(rule);
   proved(plan);

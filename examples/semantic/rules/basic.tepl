@@ -17,8 +17,8 @@ rule transpose_dot_cycle {
     =>
     (dot[auto] (transpose[auto, permutation = [1, 2, 0]] A) B)
     where {
-        @d.lhs_batching_dimensions == range(0);
-        @d.lhs_contracting_dimensions == range(1);
+        @d.lhs_batching_dimensions == range(0)
+        && @d.lhs_contracting_dimensions == range(1)
     }
 }
 
@@ -27,7 +27,7 @@ rule transpose_dot_cycle {
 rule absorb_transpose {
     (dot[@d] (transpose[@p] A) B) => (dot[auto] A B)
     where {
-        @p.permutation == range(len(@p.permutation));
+        @p.permutation == range(len(@p.permutation))
     }
 }
 
@@ -35,6 +35,6 @@ rule absorb_transpose {
 rule transpose_dot_swap {
     (transpose[@p] (dot[@d] A B)) => (dot[auto] B A)
     where {
-        @p.permutation == concat(@d->B, @d->J, @d->I);
+        @p.permutation == concat(@d->B, @d->J, @d->I)
     }
 }

@@ -274,7 +274,7 @@ void testInvalidShapeSyntax() {
 void testBuiltinNamesRemainIdentifiers() {
   check(tepl::parse("dialect D { op len(shape: tensor) -> tensor { attrs { "
                     "shape: index[]; } shape(s) { yield attrs.shape; } } } "
-                    "rule r { len => len where { gather(len); len(len); } }")
+                    "rule r { len => len where { gather(len) && len(len) } }")
             .ok(),
         "Builtin names and shape must remain usable as ordinary identifiers");
 }

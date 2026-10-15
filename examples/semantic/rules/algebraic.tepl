@@ -18,7 +18,7 @@ rule associate {
   =>
   (dot[auto] A (dot[auto] B C))
   where {
-    @d.lhs_batching_dimensions == @inner->B;
+    @d.lhs_batching_dimensions == @inner->B
   }
 }
 
@@ -28,8 +28,8 @@ rule lora {
   =>
   (add (dot[auto] X W) (dot[auto] (dot[auto] X A) B))
   where {
-    @outer.rhs_batching_dimensions == @inner->B;
-    @outer.rhs_contracting_dimensions == @inner->I;
+    @outer.rhs_batching_dimensions == @inner->B
+    && @outer.rhs_contracting_dimensions == @inner->I
   }
 }
 
@@ -39,7 +39,7 @@ rule associate_reverse {
   =>
   (dot[auto] (dot[auto] A B) C)
   where {
-    @outer.rhs_batching_dimensions == @inner->B;
-    @outer.rhs_contracting_dimensions == @inner->I;
+    @outer.rhs_batching_dimensions == @inner->B
+    && @outer.rhs_contracting_dimensions == @inner->I
   }
 }

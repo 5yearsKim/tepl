@@ -366,7 +366,7 @@ attrRef
 // Rule semantics: legality conditions and derived metadata
 
 whereBlock
-    : WHERE '{' whereStatement* '}'
+    : WHERE '{' whereStatement* constraintExpr '}'
     ;
 
 deriveBlock
@@ -375,7 +375,6 @@ deriveBlock
 
 whereStatement
     : LET ID '=' constraintExpr ';'
-    | constraintExpr ';'
     ;
 deriveStatement
     : LET ID '=' constraintExpr ';'

@@ -67,6 +67,11 @@ void Context::invalidate() {
   }
 }
 void Context::learn(const S& fact) {
+  if (callIs(fact, "&&")) {
+    learn(fact->args[0]);
+    learn(fact->args[1]);
+    return;
+  }
   if (truth(fact) || !facts_.keys.insert(key(fact)).second) return;
   auto f = canonical(fact);
   if (truth(f)) return;

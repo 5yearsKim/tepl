@@ -32,8 +32,8 @@ void testValidSyntax() {
       {"root literals", "rule r { 1 => 1.0 }"},
       {"bound literal", "rule r { let Y = -1.0 => Y }"},
       {"float constraints",
-       "rule r { X => X where { f(1.0, -0.5); 0.25 + 0.5 < 1.0; } "
-       "derive { @d = infer(2.0); } }"},
+       "rule r { X => X where { f(1.0, -0.5) && 0.25 + 0.5 < 1.0 } derive { @d "
+       "= infer(2.0); } }"},
       {"abstract operation",
        "abstract rule commute(F: op<(tensor, tensor) -> tensor>) { "
        "(F X Y) => (F Y X) }"},
@@ -43,8 +43,8 @@ void testValidSyntax() {
       {"selected rule imports", "from \"abstract.tepl\" import {a, b};"},
       {"inherited rule", "rule r extends commute(F = t.add);"},
       {"inherited restrictions",
-       "rule r extends commute(F = t.add) { "
-       "X: [N] Y: [N] where { N <= 1024; } }"},
+       "rule r extends commute(F = t.add) { X: [N] Y: [N] where { N <= 1024 } "
+       "}"},
       {"inherited empty body", "rule r extends base() {}"},
       {"rank-zero tensor", "rule r { X: [] X => X }"},
       {"mixed declarations",
@@ -63,14 +63,16 @@ void testValidSyntax() {
       {"nested binding", "rule r { (add (let Y = (dot X W)) Y) => (mul Y Y) }"},
       {"tuple", "rule r { (get[0] (tuple X Y)) => X }"},
       {"RHS projection", "rule r { (tuple X Y) => (get[0] (tuple X Y)) }"},
-      {"empty sections", "rule r { X => X where {} derive {} }"},
+      {"empty derive", "rule r { X => X derive {} }"},
+      {"final boolean", "rule r { X => X where { true } }"},
+      {"local bindings and final expression",
+       "rule r { X => X where { let n = 1; let m = n + 1; m > n } }"},
       {"derive only", "rule r { X => (copy[@t] X) derive { @t = infer(X); } }"},
       {"rule expressions",
-       "rule r { X => X where { f(g(X, @d), Y, 4); "
-       "K % 128 == 0; -K + +N / 2 != 0; M - 1 < N; "
-       "rank(X) >= 2 && !(N <= 0) || true; M > N; } "
+       "rule r { X => X where { f(g(X, @d), Y, 4) && K % 128 == 0 && -K + +N / "
+       "2 != 0 && M - 1 < N && (rank(X) >= 2 && !(N <= 0) || true) && M > N } "
        "derive { @out = infer(Y, @d); } }"},
-      {"nested builtin syntax", "rule r { X => X where { f(f(X), g(X)); } }"},
+      {"nested builtin syntax", "rule r { X => X where { f(f(X), g(X)) } }"},
       {"comments", "// rule\nrule r { /* graph */ X => X } // end\n"},
       {"multiple rules", "rule a { X => X } rule b { Y => Y }"},
       {"dialect and import",
@@ -111,7 +113,7 @@ void testValidSyntax() {
 
 void testInvalidSyntax() {
   const Case cases[] = {
-      {"removed host call", "rule r { X => X where { $legal(X); } }"},
+      {"removed host call", "rule r { X => X where { $legal(X) } }"},
       {"removed function parameter",
        "abstract rule r(f: fn<(tensor) -> bool>) { X => X }"},
       {"removed host binding", "rule r extends a(f = $legal);"},
@@ -177,12 +179,20 @@ void testInvalidSyntax() {
       {"unknown scalar marker", "rule r { S: scalr S => S }"},
       {"quoted scalar marker", "rule r { S: \"scalar\" S => S }"},
       {"removed scalar declaration", "rule r { S: scalar S => S }"},
-      {"missing guard terminator", "rule r { X => X where { rank(X) == 2 } }"},
-      {"incomplete comparison", "rule r { X => X where { K >=; } }"},
-      {"chained comparison", "rule r { X => X where { M < N < K; } }"},
-      {"chained equality", "rule r { X => X where { M == N == K; } }"},
-      {"trailing call comma", "rule r { X => X where { f(X,); } }"},
-      {"assignment in where", "rule r { X => X where { @d = f(X); } }"},
+      {"empty where", "rule r { X => X where {} }"},
+      {"missing final expression", "rule r { X => X where { let n = 1; } }"},
+      {"trailing guard semicolon", "rule r { X => X where { true; } }"},
+      {"legacy guard statements", "rule r { X => X where { true; false; } }"},
+      {"binding after final expression",
+       "rule r { X => X where { true let n = 1; } }"},
+      {"return keyword", "rule r { X => X where { return true } }"},
+      {"missing binding terminator",
+       "rule r { X => X where { let n = 1 n > 0 } }"},
+      {"incomplete comparison", "rule r { X => X where { K >= } }"},
+      {"chained comparison", "rule r { X => X where { M < N < K } }"},
+      {"chained equality", "rule r { X => X where { M == N == K } }"},
+      {"trailing call comma", "rule r { X => X where { f(X,) } }"},
+      {"assignment in where", "rule r { X => X where { @d = f(X) } }"},
       {"derive without descriptor", "rule r { X => X derive { d = f(X); } }"},
       {"derive without terminator", "rule r { X => X derive { @d = f(X) } }"},
       {"wrong section order", "rule r { X => X derive {} where {} }"},
@@ -207,10 +217,10 @@ void testInvalidSyntax() {
       {"unclosed shape block",
        "dialect D { op x() -> tensor { shape() { yield []; } }"},
       {"lexical error", "rule r { X => X # }"},
-      {"missing host name", "rule r { X => X where { $(X); } }"},
-      {"duplicate host sigil", "rule r { X => X where { $$f(X); } }"},
-      {"host reference without call", "rule r { X => X where { $f; } }"},
-      {"qualified host name", "rule r { X => X where { $t.f(X); } }"},
+      {"missing host name", "rule r { X => X where { $(X) } }"},
+      {"duplicate host sigil", "rule r { X => X where { $$f(X) } }"},
+      {"host reference without call", "rule r { X => X where { $f } }"},
+      {"qualified host name", "rule r { X => X where { $t.f(X) } }"},
       {"host graph operator", "rule r { ($f X) => X }"},
       {"unterminated comment", "rule r { X => X } /* unfinished"},
   };
@@ -241,7 +251,7 @@ void testDiagnostics() {
 
 void testPrecedence() {
   const std::string source =
-      "rule r { X => X where { K + 2 * N >= 128 && !false || true; } }";
+      "rule r { X => X where { K + 2 * N >= 128 && !false || true } }";
   if (!tepl::parse(source).ok()) {
     check(false, "Precedence example must parse");
     return;
@@ -255,7 +265,6 @@ void testPrecedence() {
                          ->ruleDecl(0)
                          ->rewriteBody()
                          ->whereBlock()
-                         ->whereStatement(0)
                          ->constraintExpr()
                          ->logicalOr();
   check(expression->logicalAnd().size() == 2,

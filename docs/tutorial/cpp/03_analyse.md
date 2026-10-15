@@ -100,7 +100,7 @@ rule swap_dot {
     (d.dot[@dot] X Y) => (d.dot[@dot] Y X)
 
     where {
-        $supports_axis(@dot.axis);
+        $supports_axis(@dot.axis)
     }
 }
 
@@ -114,12 +114,12 @@ abstract rule factor_dot() {
         => (d.dot[@left] X (d.add Y Z))
 
     where {
-        @left.axis == @right.axis;
+        @left.axis == @right.axis
     }
 }
 
 rule factor_small_dot extends factor_dot() {
-    where { K <= 8; }
+    where { K <= 8 }
 }
 ```
 

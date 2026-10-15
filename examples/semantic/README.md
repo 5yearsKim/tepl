@@ -50,7 +50,7 @@ rule associate {
     (dot[@d] (dot[@inner] A B) C)
     => (dot[auto] A (dot[auto] B C))
     where {
-        @d.lhs_batching_dimensions == @inner->B;
+        @d.lhs_batching_dimensions == @inner->B
     }
 }
 ```

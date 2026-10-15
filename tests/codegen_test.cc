@@ -15,7 +15,7 @@ dialect Custom { op negate(input: tensor) -> tensor; }
 rule test {
   X: [N]
   (negate X) => X
-  where { sum(range(N + 1)) >= 0; }
+  where { sum(range(N + 1)) >= 0 }
 }
 )");
   assert(parsed.ok());
@@ -212,7 +212,7 @@ int main() {
     rule early {
       X: [Batch..., N]
       (copy X) => X
-      where { len(Batch) < 4; N > 0; true || N == 1; N < 128; }
+      where { len(Batch) < 4 && N > 0 && (true || N == 1) && N < 128 }
     }
   )");
   assert(where_parsed.ok());
@@ -220,13 +220,13 @@ int main() {
   assert(where_checked.ok());
   const auto where_plan =
       tepl::codegen::planRule(where_checked.program->rules[0]);
-  assert(where_plan.early_conditions.size() == 4);
-  assert(where_plan.early_conditions[0].dimensions.size() == 1);
+  assert(where_plan.early_conditions.size() == 1);
+  assert(where_plan.early_conditions[0].dimensions.size() == 2);
   assert(where_checked.program->rules[0]
              .dimensions[where_plan.early_conditions[0].dimensions[0].value]
              .sequence);
   assert(!where_checked.program->rules[0]
-              .dimensions[where_plan.early_conditions[1].dimensions[0].value]
+              .dimensions[where_plan.early_conditions[0].dimensions[1].value]
               .sequence);
   const auto where_output = tepl::codegen::generate(*where_checked.program);
   assert(where_output.ok());
@@ -235,15 +235,16 @@ int main() {
     if (file.path != "rules/input.rs") continue;
     where_emitted = true;
     assert(file.contents.find("fn condition_0") != std::string::npos);
-    assert(file.contents.find("fn condition_1") != std::string::npos);
-    assert(file.contents.find("fn condition_2") != std::string::npos);
+    assert(file.contents.find("fn condition_1") == std::string::npos);
+    assert(file.contents.find(" && ") != std::string::npos);
+    assert(file.contents.find(" || ") != std::string::npos);
     assert(file.contents.find("MatchBinding::Sequence(") != std::string::npos);
     assert(file.contents.find("MatchBinding::Dimension(") != std::string::npos);
   }
   assert(where_emitted);
   // Both backends reject deferred expressions before producing any files.
   for (const auto* source : {"dialect D { op copy(x: tensor) -> tensor; } rule "
-                             "r { (copy X) => X where { let n = 1; n > 0; } }",
+                             "r { (copy X) => X where { let n = 1; n > 0 } }",
                              "dialect D { op copy(x: tensor) -> tensor { attrs "
                              "{ axes: index[]; } } } rule r { (copy[@a] X) => "
                              "(copy[@b] X) derive { @b = { ..@a }; } }"}) {

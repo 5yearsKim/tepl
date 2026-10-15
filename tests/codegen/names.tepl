@@ -44,7 +44,7 @@ dialect Gen { op copy_gen(x: tensor) -> tensor; }
 rule match {
     X: f32[Dims...]
     (Std.std_copy (Egg.egg_copy (B.b_copy X))) => X
-    where { $type(X); $match(X); $gen(X); len(Dims) > 0; }
+    where { $type(X) && $match(X) && $gen(X) && len(Dims) > 0 }
 }
 rule type {
     (Type.type[@d] X) => (Type.type[@d] X)

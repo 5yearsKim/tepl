@@ -18,7 +18,7 @@ rule commute_same_dtype {
     (add X Y) => (add Y X)
 
     where {
-        is_numeric(T);
+        is_numeric(T)
     }
 }
 

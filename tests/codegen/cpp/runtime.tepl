@@ -6,14 +6,14 @@ dialect RuntimeTest {
 }
 rule witnesses {
     (tag[@a] X) => (tag[@out] X)
-    where { $allow(@a); }
+    where { $allow(@a) }
     derive { @out = $update(@a); }
 }
 rule branch {
     X: [N]
     Y: [N]
     (pair (copy X) (copy Y)) => X
-    where { N <= 4; }
+    where { N <= 4 }
 }
 abstract rule ordered_template(
     combine: fn<(index, index) -> bool>,
@@ -21,9 +21,9 @@ abstract rule ordered_template(
     right: fn<(tensor) -> index>
 ) {
     (copy X) => X
-    where { combine(left(X), right(X)); }
+    where { combine(left(X), right(X)) }
 }
 rule ordered extends ordered_template(combine = $combine, left = $left, right = $right);
 rule scalar { (copy X) => 1 }
 rule eliminate { X: [N] (copy X) => X }
-rule float_literals { (copy X) => X where { $floating(X) + 0008 > 0.0; } }
+rule float_literals { (copy X) => X where { $floating(X) + 0008 > 0.0 } }

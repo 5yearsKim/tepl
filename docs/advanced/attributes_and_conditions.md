@@ -65,15 +65,21 @@ is no constructor for arbitrary region bodies or tensor payloads.
 
 ## Guards and local expressions
 
-`where` contains Boolean guards and ordered local bindings:
+`where` contains ordered local bindings followed by one Boolean expression:
 
 ```tepl
 where {
     let rank = len(Dims);
-    len(@p.permutation) == rank;
-    all([@p.permutation[i] == i for i in range(rank)]);
+    len(@p.permutation) == rank
+    && all([@p.permutation[i] == i for i in range(rank)])
 }
 ```
+
+The final expression decides whether the rule applies. It has no trailing
+semicolon and needs no `return`. Combine conditions with `&&` and `||`; use
+parentheses to group them. Only local bindings end with `;`. Empty blocks and
+blocks containing only bindings are errors. Omit `where` for unconditional
+rules. An inherited rule requires both the base guard and its own guard to hold.
 
 Rule expressions support arithmetic, Boolean operators, homogeneous nested
 lists, indexing, conditionals, comprehensions, and

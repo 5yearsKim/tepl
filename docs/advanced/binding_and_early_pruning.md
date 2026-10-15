@@ -34,9 +34,9 @@ rule cancel_small_negate {
     (t.negate (t.negate X)) => X
 
     where {
-        is_numeric(T);
-        len(Dims) <= 4;
-        product(Dims) <= 4096;
+        is_numeric(T)
+        && len(Dims) <= 4
+        && product(Dims) <= 4096
     }
 }
 ```
@@ -44,15 +44,14 @@ rule cancel_small_negate {
 | Check | When it runs |
 | --- | --- |
 | `X: T[Dims...]` | During binding, and rechecked during application. |
-| `is_numeric(T)` and `len(Dims) <= 4` | During search once their bindings are ready, and rechecked during application. |
-| `product(Dims) <= 4096` | During search once its bindings are ready, and rechecked during application. |
+| Final `where` expression | During search once all its required bindings are ready, and rechecked during application. |
 
-The leading conditions containing only builtins and operators can prune search.
-They run in source order: if the next condition needs an unbound value, it waits,
-and later conditions wait behind it.
+The final Boolean expression can prune search once its required bindings are
+ready. Within that expression, `&&` and `||` evaluate from left to right and
+short-circuit. Inherited guards remain separate checks in base-to-child order.
 
-All rule expressions are pure. Conditions retain source order and wait for their
-required bindings. Rank and element-count limits are application policy; they do
+All rule expressions are pure. Guards wait for their required bindings.
+Rank and element-count limits are application policy; they do
 not establish mathematical equivalence.
 
 Local bindings and extended list expressions are checked by the frontend. Their

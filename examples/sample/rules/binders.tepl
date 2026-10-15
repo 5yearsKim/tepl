@@ -7,11 +7,11 @@ rule shared_expression {
     (add (let Y = (dot[@d] X W)) (mul Y Z)) => (add (mul Y Z) Y)
 
     where {
-        M == 2 && N == 2;
-        @d.lhs_contracting_dimensions == [1];
-        @d.rhs_contracting_dimensions == [0];
-        @d.lhs_batching_dimensions == [];
-        @d.rhs_batching_dimensions == [];
+        M == 2 && N == 2
+        && @d.lhs_contracting_dimensions == [1]
+        && @d.rhs_contracting_dimensions == [0]
+        && @d.lhs_batching_dimensions == []
+        && @d.rhs_batching_dimensions == []
     }
 }
 

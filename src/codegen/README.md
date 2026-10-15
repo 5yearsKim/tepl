@@ -177,6 +177,9 @@ metadata or evaluates a skipped expression branch. A later condition waits for
 an earlier condition even when its own bindings are ready.
 
 All supported conditions are pure and eligible for binding-aware checks.
+Each `where` block contributes one final Boolean expression; inherited guards
+remain separate checks. The whole expression waits for its required bindings,
+then evaluates `&&` and `||` with short-circuit behavior.
 Derivations execute during application in source order.
 Application rematches with the same plan, then rechecks shapes and the early
 prefix against current metadata before executing the remaining callback and

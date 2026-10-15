@@ -8,7 +8,7 @@ dialect Structural {
 rule swap_add { (Structural.add X Y) => (Structural.add Y X) }
 rule swap_dot {
     (Structural.dot[@dot] X Y) => (Structural.dot[@dot] Y X)
-    where { $supports_axis(@dot.axis); }
+    where { $supports_axis(@dot.axis) }
 }
 rule remove_zero { (Structural.add X 0) => X }
 rule typed_rhs { (Structural.add X 0:i32) => (Structural.add 0:i32 X) }
@@ -19,7 +19,7 @@ rule shaped {
 }
 rule tensor_host {
     (Structural.negate X) => X
-    where { $allowed(X); }
+    where { $allowed(X) }
 }
 rule tensor_derive {
     (Structural.dot[@dot] X Y) => (Structural.dot[@new] X Y)

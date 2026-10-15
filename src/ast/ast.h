@@ -350,8 +350,10 @@ struct Rule {
   // expansion.
   GraphExprPtr lhs;
   GraphExprPtr rhs;
-  // Empty vectors represent absent or empty where/derive sections.
+  // Where bindings in source order, followed by its final Boolean expression.
+  // An empty vector represents an absent where section.
   std::vector<ConstraintExprPtr> conditions;
+  // An empty vector represents an absent or empty derive section.
   std::vector<Derivation> derivations;
   bool is_abstract = false;
   std::vector<RuleParameter> parameters;

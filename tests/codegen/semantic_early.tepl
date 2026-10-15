@@ -3,7 +3,7 @@ use t::{add, dot, transpose};
 
 rule transpose_host {
     (transpose[@src] X) => (transpose[@out] X)
-    where { $eligible(X); }
+    where { $eligible(X) }
     derive {
         @mid = $copy_attrs(@src);
         @out = $copy_attrs(@mid);
@@ -24,7 +24,7 @@ rule dropped_operand {
 }
 rule guarded_false {
     (add X Y) => X
-    where { $enabled(X); }
+    where { $enabled(X) }
 }
 rule automatic_unsupported {
     (transpose[@p] X) => (transpose[auto] X)
@@ -39,7 +39,7 @@ rule unreachable_dtype {
 rule bound_intermediate_host {
     let Y = (transpose[@src] X)
     => (transpose[@copy] X)
-    where { $eligible(Y); }
+    where { $eligible(Y) }
     derive { @copy = $copy_attrs(@src); }
 }
 

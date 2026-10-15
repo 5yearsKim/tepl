@@ -136,11 +136,12 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
     for (auto* statement : where->whereStatement()) {
       auto value = std::any_cast<ast::ConstraintExprPtr>(
           visit(statement->constraintExpr()));
-      if (statement->LET())
-        value = makeConstraint(
-            statement, ast::LocalBinding{statement->ID()->getText(), value});
+      value = makeConstraint(
+          statement, ast::LocalBinding{statement->ID()->getText(), value});
       rule.conditions.push_back(value);
     }
+    rule.conditions.push_back(
+        std::any_cast<ast::ConstraintExprPtr>(visit(where->constraintExpr())));
   }
   if (auto* derive = body ? body->deriveBlock() : nullptr) {
     for (auto* statement : derive->deriveStatement()) {

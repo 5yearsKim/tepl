@@ -97,8 +97,8 @@ rule remove_identity_convert {
     (d.convert[@c] X) => X
 
     where {
-        is_numeric(T);
-        @c.to == T;
+        is_numeric(T)
+        && @c.to == T
     }
 }
 ```

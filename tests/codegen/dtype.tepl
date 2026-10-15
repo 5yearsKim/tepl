@@ -51,7 +51,7 @@ abstract rule identity() {
     dtype T;
     X: T[...]
     (convert[@c] X) => X
-    where { is_numeric(T); @c.to == T; }
+    where { is_numeric(T) && @c.to == T }
 }
 rule remove_identity_convert extends identity();
 rule remove_f32_convert extends identity() { X: f32[N] }
@@ -60,11 +60,11 @@ rule shared {
     X: T[N]
     Y: T[N]
     (pair X Y) => (pair Y X)
-    where { is_float(T); }
+    where { is_float(T) }
 }
 rule host_identity {
     dtype T;
     X: T[...]
     (convert[@c] X) => X
-    where { @c.to == T; $allow_dtype(T); }
+    where { @c.to == T && $allow_dtype(T) }
 }

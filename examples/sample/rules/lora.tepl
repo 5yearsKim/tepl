@@ -5,33 +5,22 @@ use t::{add, dot};
 // and reassociation. These guards specify equal-batch matrix contractions.
 rule lora {
     X: [Batch..., M, K]
-    W: [WeightBatch..., K, N]
-    A: [WeightBatch..., K, R]
-    B: [WeightBatch..., R, N]
+    W: [Batch..., K, N]
+    A: [Batch..., K, R]
+    B: [Batch..., R, N]
 
     (dot[@outer] X (add W (dot[@inner] A B)))
     =>
-    (add (dot[@xw] X W) (dot[@out] (dot[@xa] X A) B))
+    (add (dot[@outer] X W) (dot[@inner] (dot[@outer] X A) B))
 
     where {
-        Batch == WeightBatch;
-        @outer.lhs_batching_dimensions == range(len(Batch));
-        @outer.rhs_batching_dimensions == range(len(Batch));
-        @inner.lhs_batching_dimensions == range(len(Batch));
-        @inner.rhs_batching_dimensions == range(len(Batch));
-        @outer.lhs_contracting_dimensions == [len(Batch) + 1];
-        @outer.rhs_contracting_dimensions == [len(Batch)];
-        @inner.lhs_contracting_dimensions == [len(Batch) + 1];
-        @inner.rhs_contracting_dimensions == [len(Batch)];
-        @outer.precision_config == [default, default];
-        @inner.precision_config == [default, default];
-        @outer.algorithm == none;
-        @inner.algorithm == none;
-    }
-
-    derive {
-        @xw = { ..@outer };
-        @xa = { ..@outer };
-        @out = { ..@inner };
+        @outer.lhs_batching_dimensions == range(len(Batch))
+        && @outer.rhs_batching_dimensions == range(len(Batch))
+        && @inner.lhs_batching_dimensions == range(len(Batch))
+        && @inner.rhs_batching_dimensions == range(len(Batch))
+        && @outer.lhs_contracting_dimensions == [len(Batch) + 1]
+        && @outer.rhs_contracting_dimensions == [len(Batch)]
+        && @inner.lhs_contracting_dimensions == [len(Batch) + 1]
+        && @inner.rhs_contracting_dimensions == [len(Batch)]
     }
 }

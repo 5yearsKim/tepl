@@ -84,6 +84,11 @@ void testLora(const std::string& source, const std::string& path) {
   const auto& batch = as<tepl::ast::SequenceDimension>(
       x.shape[0].value, "X should begin with a dimension sequence");
   check(batch.name == "Batch", "Batch sequence was not preserved");
+  for (const auto& declaration : rule.declarations)
+    check(as<tepl::ast::SequenceDimension>(declaration.shape[0].value,
+                                           "Expected batch sequence")
+                  .name == "Batch",
+          "LoRA inputs must share their batch dimensions");
   check(
       as<tepl::ast::NamedDimension>(x.shape[1].value, "Expected M").name ==
               "M" &&
@@ -103,31 +108,27 @@ void testLora(const std::string& source, const std::string& path) {
   const auto& final_dot = as<tepl::ast::Operator>(
       rhs.operands[1]->value, "Second add operand is not dot");
   check(final_dot.name == "dot" && final_dot.attribute &&
-            final_dot.attribute->name == "out" &&
+            final_dot.attribute->name == "inner" &&
             final_dot.operands.size() == 2,
-        "Final dot or derived descriptor is wrong");
+        "Final dot must reuse inner attributes");
   const auto& inner_rhs_dot = as<tepl::ast::Operator>(
       final_dot.operands[0]->value, "Expected nested RHS dot");
   check(inner_rhs_dot.name == "dot" && inner_rhs_dot.attribute &&
-            inner_rhs_dot.attribute->name == "xa" &&
+            inner_rhs_dot.attribute->name == "outer" &&
             inner_rhs_dot.operands.size() == 2,
         "Nested dot or descriptor was not preserved");
   check(final_dot.operands[0]->span.begin.line == rule.rhs->span.begin.line,
         "Nested expression span is wrong");
 
-  check(rule.conditions.size() == 13 && rule.derivations.size() == 3,
+  const auto& xw =
+      as<tepl::ast::Operator>(rhs.operands[0]->value, "Expected X W dot");
+  check(xw.attribute && xw.attribute->name == "outer",
+        "X W dot must reuse outer attributes");
+  check(rule.conditions.size() == 1 && rule.derivations.empty(),
         "LoRA where/derive counts are wrong");
-  const auto& batches = as<tepl::ast::BinaryExpr>(rule.conditions[0]->value,
-                                                  "Expected batch equality");
-  check(batches.op == tepl::BinaryOp::kEqual, "LoRA requires equal batches");
-  const auto& copy = as<tepl::ast::DescriptorConstructor>(
-      rule.derivations[2].value->value, "Expected descriptor constructor");
-  check(copy.spread && copy.spread->name == "inner",
-        "Final dot copies inner attributes");
   auto printed = tepl::formatAst(program);
-  check(printed.find("descriptor ..@inner") != std::string::npos &&
-            printed.find("derive @out") != std::string::npos,
-        "Formatted AST is missing descriptor construction");
+  check(printed.find("operator dot @inner") != std::string::npos,
+        "Formatted AST is missing captured attribute reuse");
 }
 
 void testExtendedAttributesAndParsedShapes() {
@@ -167,7 +168,7 @@ dialect D {
 void testRuleConstructors() {
   auto parsed = tepl::parse(
       "rule r { X => (transpose[@out] X) where { let rank = len([1, 2]); rank "
-      "> 0; } derive { @out = { permutation: [i for i in range(2)] }; } }");
+      "> 0 } derive { @out = { permutation: [i for i in range(2)] }; } }");
   check(parsed.ok(), "Constructor fixture parses");
   const auto& rule = parsed.program->rules[0];
   check(std::holds_alternative<tepl::ast::LocalBinding>(
@@ -183,13 +184,10 @@ void testRuleConstructors() {
 
 void testExpressionsAndSpans() {
   auto parsed = tepl::parse(
-      "rule r {\n"
-      "  X: [M, Tail..., _]\n"
-      "  S: []\n"
-      "  (get[000] (tuple (let Y = (dot[@d] X S)) Y)) => Y\n"
-      "  where { K + 2 * N >= 128 && !false || true;\n"
-      "          -(M + N) < 0; f(X, @d, Y, 999999999999999999999999); }\n"
-      "}\n",
+      "rule r {\n  X: [M, Tail..., _]\n  S: []\n  (get[000] (tuple (let Y = "
+      "(dot[@d] X S)) Y)) => Y\n  where { (K + 2 * N >= 128 && !false || "
+      "true)\n          && -(M + N) < 0 && f(X, @d, Y, "
+      "999999999999999999999999) }\n}\n",
       "math.tepl");
   check(parsed.ok() && parsed.program.has_value(), "Expression fixture failed");
   const auto& rule = parsed.program->rules.front();
@@ -222,8 +220,17 @@ void testExpressionsAndSpans() {
                     .name == "Y",
         "Tuple or bound name reference is wrong");
 
+  check(rule.conditions.size() == 1,
+        "Where must preserve one final boolean expression");
+  const auto& final_and = as<tepl::ast::BinaryExpr>(
+      rule.conditions[0]->value, "Expected final conjunction");
+  const auto& first_and = as<tepl::ast::BinaryExpr>(
+      final_and.lhs->value, "Expected first conjunction");
+  check(final_and.op == tepl::ast::BinaryOp::kLogicalAnd &&
+            first_and.op == tepl::ast::BinaryOp::kLogicalAnd,
+        "Explicit conjunctions must associate left");
   const auto& logical_or = as<tepl::ast::BinaryExpr>(
-      rule.conditions[0]->value, "Expected outer logical OR");
+      first_and.lhs->value, "Expected grouped logical OR");
   check(logical_or.op == tepl::ast::BinaryOp::kLogicalOr,
         "Logical OR must have lowest precedence");
   const auto& logical_and =
@@ -250,17 +257,17 @@ void testExpressionsAndSpans() {
         "Unary or boolean nodes are wrong");
 
   const auto& second_comparison = as<tepl::ast::BinaryExpr>(
-      rule.conditions[1]->value, "Expected less-than comparison");
+      first_and.rhs->value, "Expected less-than comparison");
   const auto& negated = as<tepl::ast::UnaryExpr>(second_comparison.lhs->value,
                                                  "Expected unary minus");
   const auto& grouped = as<tepl::ast::BinaryExpr>(negated.operand->value,
                                                   "Expected grouped addition");
   check(negated.op == tepl::ast::UnaryOp::kNegate &&
             grouped.op == tepl::ast::BinaryOp::kAdd &&
-            negated.operand->span.begin.column == 12,
+            negated.operand->span.begin.column == 15,
         "Grouped expression or its source span is wrong");
   const auto& call =
-      as<tepl::ast::Call>(rule.conditions[2]->value, "Expected host call");
+      as<tepl::ast::Call>(final_and.rhs->value, "Expected builtin call");
   check(call.callee == "f" && call.arguments.size() == 4 &&
             as<tepl::ast::IntegerLiteral>(call.arguments[3]->value,
                                           "Expected large integer")
@@ -276,10 +283,8 @@ void testInvalidSource() {
 
 void testNumericLiterals() {
   auto parsed = tepl::parse(
-      "rule literals {\n"
-      "  (add 001 -1.2500) => (add +2 999999999999999999999999)\n"
-      "  where { check(1.00, -2.5); }\n"
-      "}");
+      "rule literals {\n  (add 001 -1.2500) => (add +2 "
+      "999999999999999999999999)\n  where { check(1.00, -2.5) }\n}");
   check(parsed.ok() && parsed.program, "Numeric literals must parse");
   const auto& rule = parsed.program->rules.front();
   const auto& lhs = as<tepl::ast::Operator>(rule.lhs->value, "Expected add");

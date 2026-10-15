@@ -323,9 +323,10 @@ void printRule(std::ostream& out, const ast::Rule& rule) {
     out << "    rhs\n";
     printGraph(out, *rule.rhs, 3);
   }
-  for (const auto& condition : rule.conditions) {
+  if (!rule.conditions.empty()) {
     out << "    where\n";
-    printConstraint(out, *condition, 3);
+    for (const auto& condition : rule.conditions)
+      printConstraint(out, *condition, 3);
   }
   for (const auto& derivation : rule.derivations) {
     out << (derivation.local ? "    derive let " : "    derive @")

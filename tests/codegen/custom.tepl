@@ -17,7 +17,7 @@ rule commute {
     X: [M, Batch..., N]
     Y: [M, Batch..., N]
     (Custom.plus X Y) => (Custom.add Y X)
-    where { M >= 1 && N <= 128; }
+    where { M >= 1 && N <= 128 }
 }
 rule bind {
     (Custom.add (let Y = (Custom.negate X)) Y) => Y
@@ -27,7 +27,7 @@ rule literal_typed { (Custom.add X 1:i32) => (Custom.add 1:i32 X) }
 rule construct_literal { (Custom.negate X) => (Custom.add X 2) }
 rule derive_chain {
     (Custom.transform[@d] X) => (Custom.transform[@last] X)
-    where { $enabled(X, @d); }
+    where { $enabled(X, @d) }
     derive {
         @first = $update(@d);
         @last = $update(@first);
@@ -36,30 +36,30 @@ rule derive_chain {
 rule reuse_attrs { (Custom.transform[@d] X) => (Custom.transform[@d] X) }
 rule short_circuit {
     (Custom.negate X) => X
-    where { true || $fails(X); false && $fails(X) || true; }
+    where { (true || $fails(X)) && (false && $fails(X) || true) }
 }
 rule overflow {
     X: [N]
     (Custom.negate X) => X
-    where { N + 1 > N; }
+    where { N + 1 > N }
 }
 rule divide_zero {
     X: [N]
     (Custom.negate X) => X
-    where { N / 0 > 1; }
+    where { N / 0 > 1 }
 }
 rule nested_calls {
     X: [N]
     (Custom.negate X) => X
-    where { $greater($twice(N) + 0, 1); }
+    where { $greater($twice(N) + 0, 1) }
 }
 rule signed_float {
     (Custom.negate X) => X
-    where { $signed(X) + -1 > -3; $floating(X) * 2.0 < 100.0; }
+    where { $signed(X) + -1 > -3 && $floating(X) * 2.0 < 100.0 }
 }
 rule reserved_names {
     (Custom.negate X) => X
-    where { $match(X); }
+    where { $match(X) }
 }
 rule variadic { (Custom.concat X Y Z) => (Custom.concat X) }
 
@@ -69,7 +69,7 @@ abstract rule restrict() {
 }
 rule inherited extends restrict() {
     X: f32[M, _, N]
-    where { M > 0; N > 0; }
+    where { M > 0 && N > 0 }
 }
 
 abstract rule pipeline(
@@ -79,12 +79,12 @@ abstract rule pipeline(
 ) {
     X: [Batch...]
     (Custom.transform[@d] X) => (Custom.negate X)
-    where { check(copy(X), copy_dims(Batch), !false, -1, +1.0, @d); }
+    where { check(copy(X), copy_dims(Batch), !false, -1, +1.0, @d) }
 }
 rule typed_pipeline extends pipeline(copy = $host_tensor, copy_dims = $host_dims, check = $host_check);
 rule short_literal {
     (Custom.negate X) => 1
-    where { true || $fails(X); }
+    where { true || $fails(X) }
 }
 
 abstract rule mixed_restrictions() {
@@ -93,5 +93,5 @@ abstract rule mixed_restrictions() {
 }
 rule mixed_inherited extends mixed_restrictions() {
     X: f32[_, ..., N]
-    where { M == N && M <= 4; }
+    where { M == N && M <= 4 }
 }
