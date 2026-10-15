@@ -17,7 +17,7 @@ void writeOutput(const std::string& text, const std::string& output) {
   stream.close();
   if (!stream) throw std::runtime_error("cannot write output '" + output + "'");
 }
-int runCommand(const program::Program& p, const std::string& name,
+int runCommand(const executable::ExecutableProgram& p, const std::string& name,
                const std::string& output, const Options& options) {
   const core::ConcreteGraph* graph = nullptr;
   for (const auto& g : p.ir().graphs)

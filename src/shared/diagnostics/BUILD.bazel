@@ -1,0 +1,8 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "diagnostics",
+    hdrs = ["diagnostic.h", "result.h"],
+    deps = ["//src/shared/source"],
+    visibility = ["//visibility:public"],
+)

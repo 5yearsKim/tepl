@@ -1,7 +1,7 @@
 #pragma once
 #include <functional>
 
-#include "src/program/program.h"
+#include "src/executable/program.h"
 namespace tepl::rewrite {
 struct Options {
   std::string rule;
@@ -24,6 +24,6 @@ struct Result {
   std::string detail;
 };
 // Copies the input; every replacement is validated before commit.
-Result run(const program::Program&, const core::ConcreteGraph&,
+Result run(const executable::ExecutableProgram&, const core::ConcreteGraph&,
            const Options& = {});
 }  // namespace tepl::rewrite

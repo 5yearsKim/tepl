@@ -8,10 +8,10 @@
 #include <type_traits>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/ast/print.h"
-#include "src/core/analyze.h"
-#include "src/core/print.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/semantics/report.h"
+#include "src/core/syntax/parse.h"
+#include "src/core/syntax/print.h"
 
 namespace {
 namespace metadata = tepl::core::metadata;
@@ -21,19 +21,19 @@ void check(bool condition, std::string_view message) {
   if (!condition) throw std::runtime_error(std::string(message));
 }
 
-tepl::core::AnalysisResult analyze(std::string_view body,
-                                   std::string_view signature = "x: tensor",
-                                   std::string_view attrs = "") {
+tepl::core::InspectionResult analyze(std::string_view body,
+                                     std::string_view signature = "x: tensor",
+                                     std::string_view attrs = "") {
   auto parsed = tepl::parse("dialect D { op test(" + std::string(signature) +
                                 ") -> tensor { " + std::string(attrs) + " " +
                                 std::string(body) + " } }",
                             "shape.tepl");
   check(parsed.ok(), "Core fixture must have valid syntax");
-  return tepl::core::analyze(*parsed.program);
+  return tepl::core::inspect(*parsed.program);
 }
 
 const metadata::Program& checkedShape(
-    const tepl::core::AnalysisResult& result) {
+    const tepl::core::InspectionResult& result) {
   if (!result.ok()) {
     for (const auto& diagnostic : result.diagnostics)
       std::cerr << diagnostic.message << '\n';
@@ -233,7 +233,7 @@ void listsAndAttributes() {
   const auto shared = tepl::parse(
       "dialect D { attrs A { shape: index[]; } op x(input: tensor) -> tensor { "
       "attrs: A; shape(s) { yield attrs.shape; } } }");
-  check(shared.ok() && tepl::core::analyze(*shared.program).ok(),
+  check(shared.ok() && tepl::core::inspect(*shared.program).ok(),
         "Shared attribute schemas must work");
 }
 
@@ -270,7 +270,7 @@ void diagnosticsAndPrinting() {
       "locations.tepl");
   check(parsed.ok(), "Diagnostic fixture must parse");
   const auto before = tepl::formatAst(*parsed.program);
-  const auto invalid = tepl::core::analyze(*parsed.program);
+  const auto invalid = tepl::core::inspect(*parsed.program);
   check(!invalid.ok() && invalid.diagnostics.size() == 1,
         "Unknown shape name should have one diagnostic");
   const auto& origin = invalid.diagnostics[0].origin.definition;
@@ -295,7 +295,7 @@ void diagnosticsAndPrinting() {
 
 void checkExpression(const metadata::ExprPtr& expression,
                      const metadata::Program& shape,
-                     const tepl::core::Program& program) {
+                     const tepl::core::semantics::InspectionData& program) {
   check(expression != nullptr && expression->type.value < shape.types.size(),
         "Every checked expression must have a resolved type");
   std::visit(
@@ -356,7 +356,7 @@ void examples(const char* executable, const char* tensor, const char* scalar) {
     const std::string source{std::istreambuf_iterator<char>(input), {}};
     const auto parsed = tepl::parse(source, path);
     check(parsed.ok(), "Example dialect must parse");
-    const auto result = tepl::core::analyze(*parsed.program);
+    const auto result = tepl::core::inspect(*parsed.program);
     if (!result.ok())
       for (const auto& diagnostic : result.diagnostics)
         std::cerr << diagnostic.message << '\n';

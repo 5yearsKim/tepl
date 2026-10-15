@@ -3,33 +3,27 @@
 #include <map>
 #include <set>
 
-#include "src/core/analysis_context.h"
-#include "src/core/resolution/source.h"
+#include "src/core/resolution/context.h"
+#include "src/shared/source/identity.h"
 
 namespace tepl::core::detail {
 
 namespace {
 
 using Aliases = std::map<std::string, DeclarationKey>;
-using Module = ast::Program::ImportedScope;
+using Module = syntax::ParsedModule;
 
 class FileScopeBuilder {
  public:
-  FileScopeBuilder(AnalysisContext& context, const DialectRegistry& dialects,
+  FileScopeBuilder(ResolutionContext& context, const DialectRegistry& dialects,
                    const RuleRegistry& rules)
-      : context_(context),
-        root_{context.input.source_name, context.input.imports,
-              context.input.uses},
-        dialects_(dialects),
-        rules_(rules) {}
+      : context_(context), dialects_(dialects), rules_(rules) {}
 
   void run() {
-    modules_.emplace(sourceKey(root_.source_name), &root_);
-    for (const auto& module : context_.input.imported_scopes)
+    for (const auto& module : context_.input.modules)
       modules_.emplace(sourceKey(module.source_name), &module);
-    buildScope(root_, origin(root_.source_name, context_.input.span));
-    for (const auto& module : context_.input.imported_scopes)
-      buildScope(module, origin(module.source_name, {}));
+    for (const auto& module : context_.input.modules)
+      buildScope(module, origin(module.source_name, module.span));
   }
 
  private:
@@ -58,7 +52,7 @@ class FileScopeBuilder {
   }
 
   void openImport(FileScope& scope, Aliases& aliases, const std::string& source,
-                  const ast::Import& imported) {
+                  const syntax::Import& imported) {
     const auto at = origin(source, imported.span);
     const auto target = importTarget(source, imported.path);
     const auto module = modules_.find(target);
@@ -101,7 +95,7 @@ class FileScopeBuilder {
   }
 
   void openUse(FileScope& scope, const Aliases& aliases,
-               const std::string& source, const ast::Use& used) {
+               const std::string& source, const syntax::Use& used) {
     const auto at = origin(source, used.span);
     const auto found = aliases.find(used.alias);
     if (found == aliases.end()) {
@@ -150,8 +144,7 @@ class FileScopeBuilder {
     complete_.insert(key);
     return true;
   }
-  AnalysisContext& context_;
-  Module root_;
+  ResolutionContext& context_;
   const DialectRegistry& dialects_;
   const RuleRegistry& rules_;
   std::map<std::string, const Module*> modules_;
@@ -161,7 +154,8 @@ class FileScopeBuilder {
 
 }  // namespace
 
-void buildFileScopes(AnalysisContext& context, const DialectRegistry& dialects,
+void buildFileScopes(ResolutionContext& context,
+                     const DialectRegistry& dialects,
                      const RuleRegistry& rules) {
   FileScopeBuilder(context, dialects, rules).run();
 }

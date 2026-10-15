@@ -1,7 +1,7 @@
 # TEPL command-line reference
 
 The `tepl` command initializes projects, parses source files, checks declarations,
-compiles portable JSON, runs greedy rewrites, and generates Rust or C++ code. See the [build guide](../tutorial/rust/01_build.md)
+compiles portable JSON and runs greedy rewrites. Rust/C++ backend migration is deferred. See the [build guide](../tutorial/rust/01_build.md)
 to build the executable. Examples below assume `tepl` is on your `PATH`; from
 the repository root, you can use `bazel-bin/tepl` instead.
 
@@ -57,7 +57,7 @@ my_project/
 ```
 
 `your_dialect.tepl` declares `YourDialect.add`. `your_rule.tepl` imports it and
-defines `commute_add`. The starter can be checked and generated immediately.
+defines `commute_add`. The starter can be checked and compiled immediately.
 Add a `graphs/` directory when you want concrete starting graphs.
 
 The destination can be new or an existing directory. `tepl init .` initializes
@@ -201,6 +201,10 @@ See [greedy rewriting](../advanced/greedy_rewriting.md) for the compiled format,
 C++ API, metadata checks, and export limitations.
 
 ## `generate`
+
+Generation is unavailable during backend migration. The command reports a
+diagnostic and writes no files. The options below describe the retained interface
+for that migration.
 
 ### Generate Rust
 

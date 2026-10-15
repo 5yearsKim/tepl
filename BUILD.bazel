@@ -1,72 +1,28 @@
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
-exports_files(glob(["examples/**/*.tepl"]) + [
-    "docs/references/built-ins.md",
-])
-
-cc_library(
-    name = "source",
-    hdrs = ["src/source.h"],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "operators",
-    hdrs = ["src/operators.h"],
-    visibility = ["//visibility:public"],
-)
-
-cc_library(
-    name = "frontend",
-    srcs = ["src/parse.cc"],
-    hdrs = ["src/parse.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//grammar:parser",
-        "//src/ast:ast",
-        "//src/ast:builder",
-    ],
-)
-
-cc_library(
-    name = "imports",
-    srcs = ["src/imports.cc"],
-    hdrs = ["src/imports.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":frontend",
-        "//src/ast:ast",
-    ],
-)
+exports_files(glob(["examples/**/*.tepl"]) + ["docs/references/built-ins.md"])
 
 cc_binary(
     name = "tepl",
-    srcs = ["src/main.cc", "src/semantic_check.cc", "src/semantic_check.h"],
+    srcs = ["src/cli/main.cc", "src/cli/semantic_report.cc", "src/cli/semantic_report.h"],
     visibility = ["//tests:__pkg__"],
     deps = [
-        ":frontend",
-        ":imports",
-        "//src/ast:ast",
-        "//src/codegen:codegen",
-        "//src/core:analysis",
-        "//src/core:print",
+        "//src/core:pipeline",
+        "//src/core/syntax:syntax",
+        "//src/core/resolution",
+        "//src/core/semantics:report",
         "//src/support:init",
-        "//src/program:compile",
+        "//src/executable",
         "//src/rewrite:cli",
         "@cli11//:cli11",
     ],
 )
-#####################
-# Utility tools
-#####################
 
-sh_binary(
-    name = "format",
-    srcs = ["tools/format.sh"],
-)
-
+sh_binary(name = "format", srcs = ["tools/format.sh"])
 
 cc_binary(
     name = "embed_templates",
@@ -78,5 +34,5 @@ cc_binary(
     name = "builtin_reference",
     visibility = ["//tests:__pkg__"],
     srcs = ["tools/builtin_reference.cc"],
-    deps = ["//src/core:builtins", "//src/core:intrinsics"],
+    deps = ["//src/shared/builtins", "//src/shared/builtins:intrinsics"],
 )

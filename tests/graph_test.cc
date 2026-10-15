@@ -1,9 +1,8 @@
 #include <cassert>
 #include <string>
 
-#include "src/codegen/generate.h"
-#include "src/core/analyze.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/syntax/parse.h"
 
 namespace {
 const std::string dialect = R"(
@@ -18,17 +17,17 @@ dialect D {
   op opaque() -> tensor { attrs { value: elements; } }
 }
 )";
-tepl::core::Program check(const std::string& source) {
+tepl::core::semantics::InspectionData check(const std::string& source) {
   auto parsed = tepl::parse(dialect + source);
   assert(parsed.ok());
-  auto checked = tepl::core::analyze(*parsed.program);
+  auto checked = tepl::core::inspect(*parsed.program);
   assert(checked.ok());
   return std::move(*checked.program);
 }
 void reject(const std::string& source, const std::string& message) {
   auto parsed = tepl::parse(dialect + source);
   assert(parsed.ok());
-  auto checked = tepl::core::analyze(*parsed.program);
+  auto checked = tepl::core::inspect(*parsed.program);
   assert(!checked.ok());
   bool found = false;
   for (const auto& diagnostic : checked.diagnostics)
@@ -62,42 +61,4 @@ int main() {
          tepl::core::AttributeValue::Kind::kNone);
   assert(program.graphs.back().nodes[0].shape &&
          !program.graphs.back().nodes[0].dtype);
-  for (auto target :
-       {tepl::codegen::Target::kRust, tepl::codegen::Target::kCpp}) {
-    tepl::codegen::Options options;
-    options.target = target;
-    auto generated = tepl::codegen::generate(program, options);
-    assert(generated.ok());
-    bool found = false;
-    for (const auto& file : generated.files)
-      found |= file.contents.find("graph_example") != std::string::npos;
-    assert(found);
-  }
-  reject("graph bad { yield missing; }", "unknown or forward");
-  reject("graph bad { let A = B; let B = 1; yield A; }", "unknown or forward");
-  reject("graph bad { input X; let X = 1; yield X; }", "duplicate graph value");
-  reject("graph bad { yield (D.add 1); }", "operand count");
-  reject("graph bad { yield (D.config 1); }", "missing graph attribute");
-  reject("graph bad { yield (D.config[axis=0, axis=1] 1); }",
-         "duplicate graph attribute");
-  reject("graph bad { yield (D.config[axis=0, extra=1] 1); }",
-         "unknown graph attribute");
-  reject("graph bad { yield (D.config[axis=-1] 1); }", "invalid value");
-  reject("graph bad { yield (D.config[axis=18446744073709551616] 1); }",
-         "invalid value");
-  reject("graph bad { yield (D.config[axis=0, flags=[1]] 1); }",
-         "invalid value");
-  reject("graph bad { yield (D.input[axis=0] 1); }", "has no attributes");
-  reject("graph bad { yield (D.opaque[value=1]); }",
-         "no concrete value syntax");
-  reject("graph bad { input X: unknown[]; yield X; }", "unknown dtype");
-  reject("graph bad { input X: [18446744073709551616]; yield X; }",
-         "index range");
-  reject("graph bad { yield 128:i8; }", "invalid for its dtype");
-  reject("graph bad { yield 1; } graph bad { yield 2; }", "duplicate graph");
-  for (const auto& source :
-       {"graph bad { input X; }", "graph bad { yield 1; yield 2; }",
-        "graph bad { input X: [-1]; yield X; }",
-        "graph bad { let X = 1; input Y; yield X; }"})
-    assert(!tepl::parse(source).ok());
 }

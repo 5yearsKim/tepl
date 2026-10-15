@@ -3,10 +3,10 @@
 #include <functional>
 #include <limits>
 
-#include "src/core/builtins/axes.h"
 #include "src/rewrite/builtins/dispatch.h"
 #include "src/rewrite/intrinsics.h"
 #include "src/rewrite/operators.h"
+#include "src/shared/builtins/axes.h"
 
 namespace tepl::rewrite {
 namespace {
@@ -137,10 +137,10 @@ std::vector<std::uint64_t> dimensions(const Value& v) {
 }
 // Concrete execution of an axes contract. Group members carry fresh identity
 // and extents; equal extents alone never identify two axes.
-Value axisShape(const core::index_semantics::Definition& def,
+Value axisShape(const core::axis::ShapeContract& def,
                 const core::ConcreteNode& node,
                 const core::ConcreteGraph& graph, Budget& budget) {
-  using M = core::index_semantics::Meta;
+  using M = core::axis::Meta;
   std::vector<Value> groups;
   std::function<Value(const M&)> eval = [&](const M& m) -> Value {
     budget.tick();
@@ -199,15 +199,7 @@ Value axisShape(const core::index_semantics::Definition& def,
   }
   // Implicit operands must cover every input dimension. Explicit Read operands
   // use the declared indexing/assertion contract instead.
-  std::set<std::size_t> implicit;
-  std::function<void(const core::index_semantics::Value&)> walk =
-      [&](const auto& v) {
-        if (v.kind == core::index_semantics::Value::Kind::Operand)
-          implicit.insert(v.index);
-        for (const auto& x : v.args) walk(*x);
-      };
-  walk(*def.value);
-  for (auto i : implicit)
+  for (auto i : def.implicit_operands)
     ensure(used.at(i).size() ==
                list(shape(graph.nodes.at(node.operands.at(i)))).size(),
            "axis bindings do not cover operand");
@@ -221,7 +213,7 @@ Value axisShape(const core::index_semantics::Definition& def,
                            budget);
 }
 }  // namespace
-Value Evaluator::eval(const core::TypedExpr& e) {
+Value Evaluator::eval(const core::completed::TypedExpr& e) {
   budget_.tick();
   const auto& p = program_.ir();
   auto value = std::visit(
@@ -252,15 +244,15 @@ Value Evaluator::eval(const core::TypedExpr& e) {
           return v.value;
         else if constexpr (std::is_same_v<T, NoneConstant>)
           return {};
-        else if constexpr (std::is_same_v<T, OptionalValue>)
+        else if constexpr (std::is_same_v<T, core::completed::OptionalValue>)
           return eval(*v.value);
-        else if constexpr (std::is_same_v<T, BuiltinCall>) {
+        else if constexpr (std::is_same_v<T, core::completed::BuiltinCall>) {
           std::vector<Value> a;
           for (const auto& x : v.arguments) a.push_back(eval(*x));
           return evaluateBuiltin(v.builtin, a, budget_);
-        } else if constexpr (std::is_same_v<T, UnaryExpr>)
+        } else if constexpr (std::is_same_v<T, core::completed::UnaryExpr>)
           return evaluateOperator(spelling(v.op), {eval(*v.operand)}, budget_);
-        else if constexpr (std::is_same_v<T, BinaryExpr>) {
+        else if constexpr (std::is_same_v<T, core::completed::BinaryExpr>) {
           if (category(v.op) == BinaryCategory::kLogical)
             return binary(
                 v.op, [&](bool rhs) { return eval(rhs ? *v.rhs : *v.lhs); });
@@ -268,23 +260,25 @@ Value Evaluator::eval(const core::TypedExpr& e) {
           return evaluateOperator(spelling(v.op), {a, b}, budget_);
         } else if constexpr (std::is_same_v<T, LocalRef>)
           return bindings_.locals.at(v.local.value);
-        else if constexpr (std::is_same_v<T, LocalLet>) {
+        else if constexpr (std::is_same_v<T, core::completed::LocalLet>) {
           auto a = eval(*v.value);
           bindings_.locals[v.local.value] = a;
           return a;
-        } else if constexpr (std::is_same_v<T, ListExpr>) {
+        } else if constexpr (std::is_same_v<T, core::completed::ListExpr>) {
           List xs;
           for (const auto& x : v.elements) xs.push_back(eval(*x));
           budget_.size(xs.size());
           return xs;
-        } else if constexpr (std::is_same_v<T, IndexExpr>) {
+        } else if constexpr (std::is_same_v<T, core::completed::IndexExpr>) {
           auto value = eval(*v.value);
           auto index = eval(*v.index);
           return evaluateIndex(value, index, budget_);
-        } else if constexpr (std::is_same_v<T, ConditionalExpr>)
+        } else if constexpr (std::is_same_v<T,
+                                            core::completed::ConditionalExpr>)
           return eval(boolean(eval(*v.condition)) ? *v.then_value
                                                   : *v.else_value);
-        else if constexpr (std::is_same_v<T, ComprehensionExpr>) {
+        else if constexpr (std::is_same_v<T,
+                                          core::completed::ComprehensionExpr>) {
           auto xs = list(eval(*v.iterable));
           List out;
           auto saved = bindings_.locals;
@@ -294,11 +288,12 @@ Value Evaluator::eval(const core::TypedExpr& e) {
           }
           bindings_.locals = std::move(saved);
           return out;
-        } else if constexpr (std::is_same_v<T, DescriptorConstruct>) {
+        } else if constexpr (std::is_same_v<
+                                 T, core::completed::DescriptorConstruct>) {
           DescriptorValue out{v.schema.value, {}};
           for (const auto& f : v.fields) out.fields.push_back(eval(*f));
           return out;
-        } else if constexpr (std::is_same_v<T, SymbolicExpr>)
+        } else if constexpr (std::is_same_v<T, core::completed::SymbolicExpr>)
           return symbolic(*v.value);
         else
           throw EvaluationError("unresolved expression in executable program");
@@ -307,9 +302,9 @@ Value Evaluator::eval(const core::TypedExpr& e) {
   // A let node's expression type is its initialized value's type.
   return checkType(std::move(value), p.types.at(e.type.value));
 }
-Value Evaluator::symbolic(const core::index_semantics::Symbol& s) {
+Value Evaluator::symbolic(const core::completed::Symbol& s) {
   budget_.tick();
-  using K = core::index_semantics::Symbol::Kind;
+  using K = core::completed::Symbol::Kind;
   if (s.kind == K::Integer) return parseInteger(s.name);
   if (s.kind == K::Boolean) return s.name == "true";
   if (s.kind == K::Field)
@@ -322,7 +317,7 @@ Value Evaluator::symbolic(const core::index_semantics::Symbol& s) {
     auto key = std::pair{s.owner, s.index};
     if (axis_cache_.contains(key)) return axis_cache_.at(key);
     ensure(active_axes_.insert(key).second, "cyclic axis definition");
-    const core::index_semantics::Symbol* definition = nullptr;
+    const core::completed::Symbol* definition = nullptr;
     for (const auto& d : program_.axes(rule_))
       if (d->owner == s.owner && d->index == s.index) {
         definition = d.get();
@@ -349,8 +344,8 @@ Value Evaluator::symbolic(const core::index_semantics::Symbol& s) {
   ensure(s.kind == K::Call, "unresolved symbolic expression");
   return evaluateSymbolicCall(s.name, args, budget_);
 }
-void infer(const core::Program& p, core::ConcreteGraph& graph, std::size_t id,
-           Budget& budget) {
+void infer(const executable::ProgramData& p, core::ConcreteGraph& graph,
+           std::size_t id, Budget& budget) {
   auto& n = graph.nodes.at(id);
   using K = core::ConcreteNode::Kind;
   if (n.kind == K::kInput) return;
@@ -377,9 +372,8 @@ void infer(const core::Program& p, core::ConcreteGraph& graph, std::size_t id,
     if (op.shape)
       n.shape =
           dimensions(MetadataEvaluator(*op.shape, n, graph, budget).run());
-    else if (op.semantic_definition)
-      n.shape =
-          dimensions(axisShape(*op.semantic_definition, n, graph, budget));
+    else if (op.axis_contract)
+      n.shape = dimensions(axisShape(*op.axis_contract, n, graph, budget));
   }
   if (known_dtype && op.dtype) {
     auto value = MetadataEvaluator(*op.dtype, n, graph, budget).run();

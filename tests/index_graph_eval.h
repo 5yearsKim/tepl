@@ -2,11 +2,11 @@
 
 #include <functional>
 
-#include "src/core/index_semantics/graph.h"
+#include "src/core/semantics/graph.h"
 #include "tests/index_constructor_eval.h"
 
 namespace tepl::test {
-using namespace core::index_semantics;
+using namespace core::semantics;
 inline void checkGraph(bool condition, const std::string& message) {
   if (!condition) throw std::runtime_error(message);
 }

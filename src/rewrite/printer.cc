@@ -30,8 +30,8 @@ std::string attribute(const core::AttributeValue& v) {
   return s + "]";
 }
 }  // namespace
-std::string printGraph(const core::Program& p, const core::ConcreteGraph& graph,
-                       bool imports) {
+std::string printGraph(const executable::ProgramData& p,
+                       const core::ConcreteGraph& graph, bool imports) {
   std::set<std::size_t> live;
   std::vector<std::size_t> pending{graph.root};
   while (!pending.empty()) {

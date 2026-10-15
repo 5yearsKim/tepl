@@ -1,0 +1,110 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "definitions",
+    srcs = ["definition.cc"],
+    hdrs = ["definition.h"],
+    deps = ["//src/shared/metadata"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "model",
+    srcs = ["ir.cc", "print.cc"],
+    hdrs = ["ir.h"],
+    deps = [
+        ":definitions",
+        ":symbolic_model",
+        "//src/shared/catalog:ids",
+        "//src/shared/metadata",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "proof",
+    srcs = glob(
+        ["**/*.cc"],
+        exclude = [
+            "ir.cc",
+            "print.cc",
+            "definition.cc",
+            "plan.cc",
+            "program.cc",
+            "materialize.cc",
+            "report.cc",
+            "metadata_print.cc",
+            "completion.cc",
+        ],
+    ),
+    hdrs = glob(
+        ["**/*.h"],
+        exclude = [
+            "ir.h",
+            "program.h",
+            "compilation_context.h",
+            "materialize.h",
+            "inspection.h",
+            "definition.h",
+            "report.h",
+            "metadata_print.h",
+            "completion.h",
+            "options.h",
+            "verified_ir.h",
+            "verify.h",
+            "inspect.h",
+            "symbolic/symbol.h",
+            "symbolic/key.h",
+        ],
+    ),
+    deps = [":model", "//src/shared/builtins", "//src/shared/types"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "semantics",
+    srcs = (
+        ["plan.cc", "program.cc", "materialize.cc", "completion.cc"] +
+        ["compilation_context.h", "materialize.h", "completion.h"]
+    ),
+    hdrs = ["verify.h", "inspect.h"],
+    deps = [
+        ":model",
+        ":proof",
+        ":verified_model",
+        ":inspection_model",
+        "//src/core/checking:model",
+        "//src/core/checking:ir",
+        "//src/shared/diagnostics",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "report",
+    srcs = ["report.cc", "metadata_print.cc", "metadata_print.h"],
+    hdrs = ["report.h"],
+    deps = [":inspection_model", "//src/core/checking:ir"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "verified_model",
+    hdrs = ["program.h", "verified_ir.h", "options.h"],
+    deps = ["//src/core:tables", "//src/shared/catalog", "//src/shared/diagnostics"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "inspection_model",
+    hdrs = ["inspection.h"],
+    deps = [":model", "//src/core/checking:ir"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "symbolic_model",
+    hdrs = ["symbolic/symbol.h", "symbolic/key.h"],
+    deps = ["//src/shared/source"],
+    visibility = ["//visibility:public"],
+)

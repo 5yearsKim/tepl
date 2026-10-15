@@ -5,7 +5,7 @@
 #include "antlr4-runtime.h"
 #include "grammar/TeplLexer.h"
 #include "grammar/TeplParser.h"
-#include "src/parse.h"
+#include "src/core/syntax/parse.h"
 
 namespace {
 
@@ -237,14 +237,15 @@ void testDiagnostics() {
   auto lexical = tepl::parse("rule r {\n X => X #\n}");
   check(lexical.diagnostics.size() == 1, "Expected one lexical diagnostic");
   if (lexical.diagnostics.size() == 1) {
-    check(
-        lexical.diagnostics[0].line == 2 && lexical.diagnostics[0].column == 9,
-        "Lexer coordinates must be one-based and point to '#'");
+    check(lexical.diagnostics[0].origin.definition.span.begin.line == 2 &&
+              lexical.diagnostics[0].origin.definition.span.begin.column == 9,
+          "Lexer coordinates must be one-based and point to '#'");
   }
   auto syntax = tepl::parse("rule r {\n X =>\n}");
   check(syntax.diagnostics.size() == 1, "Expected one parser diagnostic");
   if (syntax.diagnostics.size() == 1) {
-    check(syntax.diagnostics[0].line == 3 && syntax.diagnostics[0].column == 1,
+    check(syntax.diagnostics[0].origin.definition.span.begin.line == 3 &&
+              syntax.diagnostics[0].origin.definition.span.begin.column == 1,
           "Parser coordinates must point to the unexpected closing brace");
   }
 }

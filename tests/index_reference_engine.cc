@@ -8,7 +8,7 @@
 
 #include "tests/index_reference.h"
 
-namespace tepl::core::index_semantics {
+namespace tepl::core::semantics {
 namespace {
 using Axis = std::int64_t;
 using Axes = List;
@@ -809,4 +809,4 @@ Result infer(const Plan& plan, const Metadata& metadata, Limits limits) {
   engine.result.attributes.clear();
   return engine.result;
 }
-}  // namespace tepl::core::index_semantics
+}  // namespace tepl::core::semantics

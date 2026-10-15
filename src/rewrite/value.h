@@ -5,7 +5,7 @@
 #include <variant>
 #include <vector>
 
-#include "src/core/ir.h"
+#include "src/executable/ir.h"
 
 namespace tepl::rewrite {
 using Integer = __int128;

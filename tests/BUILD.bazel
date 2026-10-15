@@ -7,32 +7,32 @@ cc_test(
     srcs = ["slice_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/core:index_proof", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
 )
 
 cc_test(
     name = "convolution_test",
-    size = "small",
+    size = "medium",
     srcs = ["convolution_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/core:index_proof", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
 )
 
 cc_test(
     name = "axis_interface_test",
     size = "small",
     srcs = ["axis_interface_test.cc"],
-    deps = ["//src/core:index_proof"],
+    deps = ["//src/core/semantics:proof"],
 )
 
 cc_test(
     name = "semantic_test",
-    size = "small",
+    size = "medium",
     srcs = ["semantic_test.cc", "index_reference_engine.cc", "index_reference.h", "index_constructor_eval.h"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/core:index_proof", "//src/core:print", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "//src/core/semantics:report", "@rules_cc//cc/runfiles"],
 )
 
 sh_test(
@@ -58,11 +58,11 @@ cc_test(
         "//:examples/sample/dialects/tensor.tepl",
     ],
     deps = [
-        "//:frontend",
-        "//:imports",
-        "//src/ast:ast",
-        "//src/core:analysis",
-        "//src/core:print",
+        "//src/core/syntax:syntax",
+        "//src/core/resolution",
+        "//src/core/syntax:model",
+        "//src/core:pipeline",
+        "//src/core/semantics:report",
         "@rules_cc//cc/runfiles",
     ],
 )
@@ -103,9 +103,9 @@ cc_test(
         "//:examples/sample/rules/inherited.tepl",
     ],
     deps = [
-        "//src/ast:ast",
-        "//:frontend",
-        "//:imports",
+        "//src/core/syntax:model",
+        "//src/core/syntax:syntax",
+        "//src/core/resolution",
         "@rules_cc//cc/runfiles",
     ],
 )
@@ -115,7 +115,7 @@ cc_test(
     size = "small",
     srcs = ["syntax_test.cc"],
     deps = [
-        "//:frontend",
+        "//src/core/syntax:syntax",
         "//grammar:parser",
     ],
 )
@@ -125,8 +125,8 @@ cc_test(
     size = "small",
     srcs = ["shape_parser_test.cc"],
     deps = [
-        "//:frontend",
-        "//src/ast:ast",
+        "//src/core/syntax:syntax",
+        "//src/core/syntax:model",
     ],
 )
 
@@ -143,10 +143,10 @@ cc_test(
         "//:examples/sample/dialects/scalar.tepl",
     ],
     deps = [
-        "//:frontend",
-        "//src/ast:ast",
-        "//src/core:analysis",
-        "//src/core:print",
+        "//src/core/syntax:syntax",
+        "//src/core/syntax:model",
+        "//src/core:pipeline",
+        "//src/core/semantics:report",
         "@rules_cc//cc/runfiles",
     ],
 )
@@ -156,10 +156,10 @@ cc_test(
     size = "small",
     srcs = ["dtype_program_test.cc"],
     deps = [
-        "//:frontend",
-        "//src/ast:ast",
-        "//src/core:analysis",
-        "//src/core:print",
+        "//src/core/syntax:syntax",
+        "//src/core/syntax:model",
+        "//src/core:pipeline",
+        "//src/core/semantics:report",
     ],
 )
 
@@ -168,38 +168,13 @@ cc_test(
     size = "small",
     srcs = ["dtype_test.cc"],
     deps = [
-        "//:frontend",
-        "//src/ast:ast",
+        "//src/core/syntax:syntax",
+        "//src/core/syntax:model",
     ],
 )
 
-cc_test(
-    name = "codegen_test",
-    size = "small",
-    srcs = ["codegen_test.cc"],
-    deps = [
-        "//:frontend",
-        "//src/codegen:codegen",
-        "//src/core:analysis",
-    ],
-)
 
-cc_test(
-    name = "codegen_write_test",
-    size = "small",
-    srcs = ["codegen_write_test.cc"],
-    deps = [
-        "//src/codegen:codegen",
-        "//src/support:temporary_directory",
-    ],
-)
 
-cc_test(
-    name = "codegen_cpp_test",
-    size = "small",
-    srcs = ["codegen_cpp_test.cc"],
-    deps = ["//:frontend", "//src/codegen:codegen", "//src/core:analysis"],
-)
 
 cc_test(
     name = "support_test",
@@ -218,16 +193,10 @@ cc_test(
     name = "graph_test",
     size = "small",
     srcs = ["graph_test.cc"],
-    deps = ["//:frontend", "//src/codegen:codegen", "//src/core:analysis"],
+    deps = ["//src/core/syntax:syntax", "//src/core:pipeline"],
 )
 
 
-cc_test(
-    name = "legacy_semantic_runtime_test",
-    size = "small",
-    srcs = ["legacy_semantic_runtime_test.cc"],
-    deps = ["//src/legacy_semantics:solver"],
-)
 
 cc_test(
     name = "rewrite_test",
@@ -236,10 +205,9 @@ cc_test(
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/dialects/tensor.tepl"],
     deps = [
-        "//:frontend",
-        "//src/codegen",
-        "//src/core:analysis",
-        "//src/program:compile",
+        "//src/core/syntax:syntax",
+        "//src/core:pipeline",
+        "//src/core/lowering",
         "//src/rewrite",
         "@nlohmann_json//:json",
         "@rules_cc//cc/runfiles",
@@ -268,7 +236,7 @@ cc_test(
     name = "builtins_test",
     size = "small",
     srcs = ["builtins_test.cc"],
-    deps = ["//:frontend", "//src/core:analysis", "//src/rewrite"],
+    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/rewrite"],
 )
 
 sh_test(
@@ -278,11 +246,18 @@ sh_test(
     args = [
         "$(rootpath //:builtin_reference)",
         "$(rootpath //:docs/references/built-ins.md)",
-        "$(rootpath //src/core:intrinsics/README.md)",
+        "$(rootpath //src/shared/builtins:intrinsics/README.md)",
     ],
     data = [
         "//:builtin_reference",
         "//:docs/references/built-ins.md",
-        "//src/core:intrinsics/README.md",
+        "//src/shared/builtins:intrinsics/README.md",
     ],
+)
+
+cc_test(
+    name = "pipeline_test",
+    size = "small",
+    srcs = ["pipeline_test.cc"],
+    deps = ["//src/core:pipeline", "//src/core/lowering", "//src/core/resolution", "//src/rewrite"],
 )

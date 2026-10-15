@@ -552,24 +552,24 @@ required by the current scalar normalizer. Code generation is not supported.
 
 ## Implementation and verification
 
-The implementation lives in [`src/core/index_semantics`](../../src/core/index_semantics):
+The implementation lives in [`src/core/semantics`](../../src/core/semantics):
 
 | File | Responsibility |
 | --- | --- |
-| `ir.h`, `check.cc`, `plan.cc` | Definitions, templates, declared assumptions |
-| `expr.cc` | Immutable typed expressions and unconditional sequence identities |
+| `definition.h`, `../checking/operations/semantics.cc`, `plan.cc` | Definitions, templates, declared assumptions |
+| `symbolic/expr.cc` | Immutable typed expressions and unconditional sequence identities |
 | `context.h`, `context.cc` | Private rule state, source scope, attribute assignment, guards |
-| `axis_bindings.cc` | Coordinate tables and their lookup indexes |
-| `axis_maps.cc`, `axis_transport.cc` | Position lookup, selection, producer-consumer map composition |
-| `axis_normalize.cc` | Evidence-based normalization and axis-set operations |
-| `axis_theory.cc` | Fact registration, shared structural laws, bounded entailment |
-| `proof_policy.h` | Named work limits and expected inference failures |
+| `index_maps/axis_bindings.cc` | Coordinate tables and their lookup indexes |
+| `index_maps/axis_maps.cc`, `index_maps/axis_transport.cc` | Position lookup, selection, producer-consumer map composition |
+| `index_maps/axis_normalize.cc` | Evidence-based normalization and axis-set operations |
+| `index_maps/axis_theory.cc` | Fact registration, shared structural laws, bounded entailment |
+| `proof/proof_policy.h` | Named work limits and expected inference failures |
 | `graph.cc` | Generic composition into coordinate primitives |
-| `index_expr.h`, `index_expr.cc`, `extent_arithmetic.cc` | Coordinate tuples, access substitution, index normalization, extent arithmetic |
-| `index_inference.h`, `index_inference.cc` | Scoped coordinate matching and coefficient/offset constructors |
-| `normalize.cc` | Arithmetic normalization and intermediate boundaries |
-| `synthesize.cc` | Constructors from required coordinates |
-| `verify.cc` | Independent re-lowering under declared conditions |
+| `symbolic/index_expr.h`, `symbolic/index_expr.cc`, `symbolic/extent_arithmetic.cc` | Coordinate tuples, access substitution, index normalization, extent arithmetic |
+| `synthesis/index_inference.h`, `synthesis/index_inference.cc` | Scoped coordinate matching and coefficient/offset constructors |
+| `symbolic/normalize.cc` | Arithmetic normalization and intermediate boundaries |
+| `synthesis/synthesize.cc` | Constructors from required coordinates |
+| `proof/verify.cc` | Independent re-lowering under declared conditions |
 | `print.cc` | Coordinate tables, shared expressions, diagnostics |
 
 Public APIs are `synthesize(plan)` and `verify(plan, proof)` in the corresponding
@@ -612,8 +612,6 @@ explicit conditions or change their equation; there is no solver fallback.
 Shape/dtype programs and ordinary rules without semantic definitions remain
 supported.
 
-The existing generated-code runtime is isolated in
-[`src/legacy_semantics`](../../src/legacy_semantics/README.md). Its plan types and
-serialization are compatibility interfaces for the existing generators. The
-compiler does not populate those plans. New semantic constructors are not yet
-emitted into Rust or C++.
+The legacy solver, plan format, and native compatibility runtime have been
+removed. Code generation migration is deferred; the active compiler and greedy
+engine use the verified executable pipeline.

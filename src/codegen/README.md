@@ -1,5 +1,10 @@
 # Code generation
 
+Backend migration is deferred following the compiler pipeline refactor. The active
+CLI reports generation as unavailable. The implementation below retains its old
+interfaces for the next migration; there is no legacy solver compatibility layer.
+New backends should consume `tepl::executable::ExecutableProgram`.
+
 The frontend no longer supports host-function calls or host `fn` parameters.
 Generated builders for supported rules take no host-function argument.
 Descriptor constructors, local bindings, and extended rule expressions are

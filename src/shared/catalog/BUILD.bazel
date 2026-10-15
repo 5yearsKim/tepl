@@ -1,0 +1,14 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "ids",
+    hdrs = ["ids.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "catalog",
+    hdrs = ["data.h", "operations.h", "rules.h", "completed.h", "graphs.h"],
+    deps = [":ids", "//src/shared/types", "//src/shared/metadata", "//src/shared/source"],
+    visibility = ["//visibility:public"],
+)

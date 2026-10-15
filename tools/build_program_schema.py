@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the explicit v1 JSON Schema and its C++ codec from one field catalog.
+"""Generate the explicit v2 JSON Schema and its C++ codec from one field catalog.
 
 Generated files are checked in; CLI tests compare the public and embedded schemas.
 """
@@ -20,7 +20,7 @@ def variant(name, cpp, values):
 
 enum('dtype','core::DType',' '.join(f'{s}:k{c}' for s,c in [('bool','Bool'),('i8','I8'),('i16','I16'),('i32','I32'),('i64','I64'),('u8','U8'),('u16','U16'),('u32','U32'),('u64','U64'),('f16','F16'),('bf16','BF16'),('f32','F32'),('f64','F64')]))
 enum('type_kind','core::TypeKind','tensor:kTensor index:kIndex index_list:kIndexList bool:kBool i64:kI64 f64:kF64 descriptor:kDescriptor dtype:kDType string:kString precision:kPrecision opaque:kOpaque')
-enum('descriptor_kind','core::Descriptor::Kind','captured:kCaptured derived:kDerived inferred:kInferred')
+enum('descriptor_kind','core::completed::Descriptor::Kind','captured:kCaptured derived:kDerived')
 enum('shape_kind','core::ShapeElement::Kind','dimension:kDimension wildcard:kWildcard sequence:kSequence')
 enum('literal_kind','core::GraphLiteral::Kind','integer:kInteger decimal:kDecimal')
 enum('attribute_kind','core::AttributeValue::Kind','integer:kInteger bool:kBool string:kString enum:kEnum list:kList none:kNone')
@@ -30,7 +30,7 @@ enum('binary','BinaryOp','+:kAdd -:kSubtract *:kMultiply /:kDivide %:kRemainder 
 # Public names and IDs belong to the builtin catalog, including in the wire schema.
 builtins = re.findall(
     r'^TEPL_BUILTIN\(\s*(k\w+),\s*"([^"]+)"',
-    (ROOT / 'src/core/builtins/catalog.def').read_text(),
+    (ROOT / 'src/shared/builtins/catalog.def').read_text(),
     re.MULTILINE,
 )
 if not builtins:
@@ -39,12 +39,10 @@ enum('builtin', 'core::builtins::Builtin',
      ' '.join(f'{name}:{identity}' for identity, name in builtins))
 enum('meta_kind','core::metadata::Type::Kind','integer:kInteger bool:kBoolean dtype:kDType')
 enum('meta_program_kind','core::metadata::ProgramKind','shape:Shape dtype:DType')
-enum('axis_meta_kind','core::index_semantics::Meta::Kind','integer:Integer bool:Boolean operand:Operand attribute:Attribute group:Group list:List call:Call')
-enum('axis_type','core::index_semantics::Type','integer:Integer bool:Boolean positions:Positions axes:Axes operand:Operand')
-enum('index_kind','core::index_semantics::IndexValue::Kind','coordinates:Coordinates add:Add concat:Concat scale:Scale offset:Offset')
-enum('value_kind','core::index_semantics::Value::Kind','operand:Operand read:Read add:Add product:Product reduce:Reduce const:Const')
-enum('symbol_kind','core::index_semantics::Symbol::Kind','integer:Integer bool:Boolean shape:Shape dtype:DType field:Field hole:Hole axis_group:AxisGroup list:List call:Call')
-enum('symbol_sort','core::index_semantics::Symbol::Sort','integer:Integer bool:Boolean positions:Positions axes:Axes extents:Extents dtype:DType')
+enum('axis_meta_kind','core::axis::Meta::Kind','integer:Integer bool:Boolean operand:Operand attribute:Attribute group:Group list:List call:Call')
+enum('axis_type','core::axis::Type','integer:Integer bool:Boolean positions:Positions axes:Axes operand:Operand')
+enum('symbol_kind','core::completed::Symbol::Kind','integer:Integer bool:Boolean shape:Shape dtype:DType field:Field axis_group:AxisGroup list:List call:Call')
+enum('symbol_sort','core::completed::Symbol::Sort','integer:Integer bool:Boolean positions:Positions axes:Axes extents:Extents dtype:DType')
 struct('position','SourcePosition','line:id column:id')
 struct('span','SourceSpan','begin:position end:position')
 struct('location','SourceLocation','source_name:string span:span')
@@ -53,10 +51,10 @@ struct('type','core::Type','kind:type_kind schema:id? list_depth:id optional:boo
 struct('field','core::AttributeField','name:string type:string list_depth:id optional:bool empty_default:bool origin:origin')
 struct('schema','core::AttributeSchema','id:id dialect:string name:string fields:field[] origin:origin')
 struct('operand','core::Operand','name:string type:id variadic:bool origin:origin')
-struct('operation','core::Operation','id:id dialect:string name:string alias:string? operands:operand[] result:id attributes:id? origin:origin shape:meta_program? dtype:meta_program? semantic_definition:axis_definition*?')
+struct('operation','Operation','id:id dialect:string name:string alias:string? operands:operand[] result:id attributes:id? origin:origin shape:meta_program? dtype:meta_program? axis_contract:axis_definition*?')
 struct('capture','core::Capture','id:id name:string type:id origin:origin')
 struct('dimension','core::DimensionSymbol','id:id name:string sequence:bool type:id origin:origin')
-struct('descriptor','core::Descriptor','id:id name:string kind:descriptor_kind type:id origin:origin')
+struct('descriptor','core::completed::Descriptor','id:id name:string kind:descriptor_kind type:id origin:origin')
 struct('shape_element','core::ShapeElement','kind:shape_kind symbol:id? origin:origin')
 struct('dtype_variable','core::DTypeVariable','id:id name:string type:id origin:origin')
 variant('dtype_constraint','core::DTypeConstraint','fixed:dtype variable:dtype_id')
@@ -75,33 +73,32 @@ struct('dimension_ref','core::DimensionRef','dimension:id')
 struct('descriptor_ref','core::DescriptorRef','descriptor:id')
 struct('dtype_ref','core::DTypeVariableRef','variable:id')
 struct('field_ref','core::DescriptorFieldRef','descriptor:id schema:id field:id')
-struct('group_ref','core::OutputAxisGroupRef','descriptor:id group:string')
 struct('number','core::NumericConstant','spelling:string decimal:bool')
-struct('call','core::BuiltinCall','builtin:builtin arguments:expr*[]')
-struct('unary_expr','core::UnaryExpr','op:unary operand:expr*')
-struct('binary_expr','core::BinaryExpr','op:binary lhs:expr* rhs:expr*')
+struct('call','core::completed::BuiltinCall','builtin:builtin arguments:expr*[]')
+struct('unary_expr','core::completed::UnaryExpr','op:unary operand:expr*')
+struct('binary_expr','core::completed::BinaryExpr','op:binary lhs:expr* rhs:expr*')
 struct('local_ref','core::LocalRef','local:id')
-struct('local_let','core::LocalLet','local:id value:expr*')
-struct('list_expr','core::ListExpr','elements:expr*[]')
-struct('index_expr','core::IndexExpr','value:expr* index:expr*')
-struct('conditional','core::ConditionalExpr','condition:expr* then_value:expr* else_value:expr*')
-struct('comprehension','core::ComprehensionExpr','element:expr* variable:id iterable:expr*')
+struct('local_let','core::completed::LocalLet','local:id value:expr*')
+struct('list_expr','core::completed::ListExpr','elements:expr*[]')
+struct('index_expr','core::completed::IndexExpr','value:expr* index:expr*')
+struct('conditional','core::completed::ConditionalExpr','condition:expr* then_value:expr* else_value:expr*')
+struct('comprehension','core::completed::ComprehensionExpr','element:expr* variable:id iterable:expr*')
 struct('string_constant','core::StringConstant','value:string')
 struct('enum_constant','core::EnumConstant','value:string')
 struct('none','core::NoneConstant','')
-struct('optional_value','core::OptionalValue','value:expr*')
-struct('descriptor_construct','core::DescriptorConstruct','schema:id fields:expr*[]')
-struct('symbolic','core::SymbolicExpr','value:symbol*')
-variant('expr_value','decltype(core::TypedExpr::value)','capture:capture_ref dimension:dimension_ref descriptor:descriptor_ref field:field_ref output_group:group_ref dtype_variable:dtype_ref dtype:dtype number:number bool:bool builtin:call unary:unary_expr binary:binary_expr local:local_ref let:local_let list:list_expr index:index_expr if:conditional comprehension:comprehension string:string_constant enum:enum_constant none:none optional:optional_value construct:descriptor_construct symbolic:symbolic')
-struct('expr','core::TypedExpr','origin:origin type:id value:expr_value')
+struct('optional_value','core::completed::OptionalValue','value:expr*')
+struct('descriptor_construct','core::completed::DescriptorConstruct','schema:id fields:expr*[]')
+struct('symbolic','core::completed::SymbolicExpr','value:symbol*')
+variant('expr_value','decltype(core::completed::TypedExpr::value)','capture:capture_ref dimension:dimension_ref descriptor:descriptor_ref field:field_ref dtype_variable:dtype_ref dtype:dtype number:number bool:bool builtin:call unary:unary_expr binary:binary_expr local:local_ref let:local_let list:list_expr index:index_expr if:conditional comprehension:comprehension string:string_constant enum:enum_constant none:none optional:optional_value construct:descriptor_construct symbolic:symbolic')
+struct('expr','core::completed::TypedExpr','origin:origin type:id value:expr_value')
 struct('local','core::Local','id:id name:string type:id')
-struct('derivation','core::Derivation','target:id? value:expr* origin:origin')
-struct('rule','core::Rule','id:id name:string source_name:string origin:origin captures:capture[] dimensions:dimension[] descriptors:descriptor[] lhs:pattern* constraints:constraint[] conditions:expr*[] locals:local[] derivations:derivation[] rhs:build* dtypes:dtype_variable[]')
+struct('derivation','core::completed::Derivation','target:id? value:expr* origin:origin')
+struct('rule','Rule','id:id name:string source_name:string origin:origin captures:capture[] dimensions:dimension[] descriptors:descriptor[] lhs:pattern* constraints:constraint[] conditions:expr*[] locals:local[] derivations:derivation[] rhs:build* dtypes:dtype_variable[]')
 struct('attribute','core::AttributeValue','kind:attribute_kind text:string elements:attribute[]')
 struct('graph_node','core::ConcreteNode','kind:node_kind origin:origin text:string dtype:dtype? shape:extent[]? operation:id? operands:id[] attributes:attribute[]')
 struct('graph','core::ConcreteGraph','id:id name:string source_name:string origin:origin nodes:graph_node[] bindings:binding[] root:id')
 struct('dialect','core::Dialect','name:string origin:origin')
-struct('ir','core::Program','dialects:dialect[] sources:string[] types:type[] operations:operation[] attribute_schemas:schema[] rules:rule[] graphs:graph[]')
+struct('ir','ProgramData','dialects:dialect[] sources:string[] types:type[] operations:operation[] attribute_schemas:schema[] rules:rule[] graphs:graph[]')
 struct('meta_type','core::metadata::Type','kind:meta_kind list_depth:id')
 struct('meta_symbol_ref','core::metadata::SymbolRef','symbol:id')
 struct('meta_integer','core::metadata::Integer','spelling:string')
@@ -123,13 +120,11 @@ variant('statement_value','decltype(core::metadata::Statement::value)','let:meta
 struct('statement','core::metadata::Statement','origin:origin value:statement_value')
 struct('yield','core::metadata::Yield','origin:origin value:meta_expr*')
 struct('meta_program','core::metadata::Program','origin:origin types:meta_type[] symbols:meta_symbol[] parameters:parameter[] statements:statement[] result:yield kind:meta_program_kind')
-struct('axis_meta','core::index_semantics::Meta','kind:axis_meta_kind type:axis_type name:string index:id args:axis_meta*[] origin:origin')
-struct('axis_binding','core::index_semantics::Binding','operand:id positions:axis_meta*')
-struct('axis_group','core::index_semantics::Group','name:string bindings:axis_binding[] origin:origin domain:axis_meta*?')
-struct('index_value','core::index_semantics::IndexValue','kind:index_kind group:id args:index_value*[] parameter:axis_meta*?')
-struct('axis_value','core::index_semantics::Value','kind:value_kind index:id args:axis_value*[] origin:origin constant:signed_integer access:index_value*?')
-struct('axis_definition','core::index_semantics::Definition','operands:string[] fields:string[] groups:axis_group[] assertions:axis_meta*[] output:axis_meta* value:axis_value* extent_fields:idset')
-struct('symbol','core::index_semantics::Symbol','kind:symbol_kind name:string owner:id index:id args:symbol*[] sort:symbol_sort','core::index_semantics::Symbol::Kind::Integer')
+struct('axis_meta','core::axis::Meta','kind:axis_meta_kind type:axis_type name:string index:id args:axis_meta*[] origin:origin')
+struct('axis_binding','core::axis::Binding','operand:id positions:axis_meta*')
+struct('axis_group','core::axis::Group','name:string bindings:axis_binding[] origin:origin domain:axis_meta*?')
+struct('axis_definition','core::axis::ShapeContract','operands:string[] fields:string[] groups:axis_group[] assertions:axis_meta*[] output:axis_meta* extent_fields:idset implicit_operands:idset')
+struct('symbol','core::completed::Symbol','kind:symbol_kind name:string owner:id index:id args:symbol*[] sort:symbol_sort','core::completed::Symbol::Kind::Integer')
 
 def ref(t):
     if t.endswith('?'): return {'anyOf':[ref(t[:-1]),{'type':'null'}]}
@@ -178,15 +173,15 @@ for name,(typ,fields,init) in D.items():
         else: code+=['v.'+key+' = detail::unpack<decltype(v.'+key+')>(j.at("'+key+'"));']
     code+=['return v; }']
 # std::set codec declared before generated struct bodies.
-header=(ROOT/'src/program/codec.h').read_text().split('// Generated by tools/build_program_schema.py.')[0]
+header=(ROOT/'src/executable/codec.h').read_text().split('// Generated by tools/build_program_schema.py.')[0]
 if 'Codec<std::set<T>>' not in header:
     header += '''template<class T> struct Codec<std::set<T>> {
   static Json pack(const std::set<T>& vs) { return detail::pack(std::vector<T>(vs.begin(),vs.end())); }
   static std::set<T> unpack(const Json& j) { auto v=detail::unpack<std::vector<T>>(j); return {v.begin(),v.end()}; }
 };
 '''
-(ROOT/'src/program/codec.h').write_text(header+'\n'.join(code)+'\n} // namespace tepl::program::detail\n')
-schema={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'TEPL compiled rewrite program v1',**obj({'format':{'const':'tepl.rewrite'},'version':{'const':1},'policy':{'enum':['strict','algebraic']},'capabilities':{'const':['tepl.core.v1','tepl.axis-metadata.v1']},'program':ref('ir'),'axis_definitions':ref('symbol*[][]')}),'$defs':defs}
+(ROOT/'src/executable/codec.h').write_text(header+'\n'.join(code)+'\n} // namespace tepl::executable::detail\n')
+schema={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'TEPL compiled rewrite program v2',**obj({'format':{'const':'tepl.rewrite'},'version':{'const':2},'policy':{'enum':['strict','algebraic']},'capabilities':{'const':['tepl.core.v2','tepl.axis-metadata.v2']},'program':ref('ir'),'axis_definitions':ref('symbol*[][]')}),'$defs':defs}
 text=json.dumps(schema,indent=2)+'\n'
 (ROOT/'schema/rewrite-program.schema.json').write_text(text)
-(ROOT/'src/program/schema_data.h').write_text('// Generated by tools/build_program_schema.py. Do not edit.\n#pragma once\n#include <string_view>\nnamespace tepl::program::detail {\ninline constexpr std::string_view kSchema = R"TEPL_SCHEMA('+text+')TEPL_SCHEMA";\n}\n')
+(ROOT/'src/executable/schema_data.h').write_text('// Generated by tools/build_program_schema.py. Do not edit.\n#pragma once\n#include <string_view>\nnamespace tepl::executable::detail {\ninline constexpr std::string_view kSchema = R"TEPL_SCHEMA('+text+')TEPL_SCHEMA";\n}\n')

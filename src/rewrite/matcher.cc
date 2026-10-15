@@ -10,7 +10,7 @@ bool bind(Map& map, Key key, T value) {
   return added || it->second == value;
 }
 }  // namespace
-bool match(const core::Program& p, const core::Rule& r,
+bool match(const executable::ProgramData& p, const executable::Rule& r,
            const core::ConcreteGraph& g, std::size_t root, Bindings& b,
            Budget& budget) {
   std::function<bool(const core::Pattern&, std::size_t)> visit =

@@ -10,11 +10,11 @@
 #include <variant>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/ast/print.h"
-#include "src/core/analyze.h"
-#include "src/core/print.h"
-#include "src/imports.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/resolution/loading.h"
+#include "src/core/semantics/report.h"
+#include "src/core/syntax/parse.h"
+#include "src/core/syntax/print.h"
 
 namespace {
 
@@ -32,7 +32,7 @@ dialect Tensor {
 }
 )";
 
-AnalysisResult analyzeText(std::string_view text, bool dialect = true) {
+InspectionResult analyzeText(std::string_view text, bool dialect = true) {
   const auto parsed = tepl::parse(
       (dialect ? std::string(kDialect) : "") + std::string(text), "test.tepl");
   if (!parsed.ok()) {
@@ -40,7 +40,7 @@ AnalysisResult analyzeText(std::string_view text, bool dialect = true) {
       std::cerr << error.message << '\n';
   }
   assert(parsed.ok());
-  return analyze(*parsed.program);
+  return inspect(*parsed.program);
 }
 
 void expectError(std::string_view text, std::string_view message,
@@ -49,7 +49,9 @@ void expectError(std::string_view text, std::string_view message,
   assert(!result.ok());
   assert(!result.program);
   for (const auto& error : result.diagnostics) {
-    assert(error.origin.definition.source_name == "test.tepl");
+    assert(
+        std::filesystem::path(error.origin.definition.source_name).filename() ==
+        "test.tepl");
     assert(error.origin.definition.span.begin.line > 0);
     if (error.message.find(message) != std::string::npos) return;
   }
@@ -351,11 +353,11 @@ rule b extends commute(F = mul) { where { N < 32 } }
   assert(parsed.ok());
   const auto before = tepl::formatAst(*parsed.program);
   const auto template_lhs = parsed.program->rules[0].lhs;
-  auto result = analyze(*parsed.program);
+  auto result = inspect(*parsed.program);
   assert(result.ok());
   assert(tepl::formatAst(*parsed.program) == before);
   assert(parsed.program->rules[0].lhs == template_lhs);
-  assert(std::get<tepl::ast::Operator>(template_lhs->value).name == "F");
+  assert(std::get<tepl::syntax::Operator>(template_lhs->value).name == "F");
   // The IR owns its contents independently of the parser's AST lifetime.
   parsed.program.reset();
   const auto& rules = result.program->rules;
@@ -519,12 +521,12 @@ void invalidRules() {
     expectError(source, diagnostic);
   expectError("rule r { (add X Y) => X }", "visible dialect declaration",
               false);
-  expectError("import \"unloaded.tepl\"; rule r { X => X }", "is not loaded",
-              false);
+  expectError("import \"unloaded.tepl\"; rule r { X => X }",
+              "cannot open import", false);
   expectError("from \"unloaded.tepl\" import D; rule r { X => X }",
-              "is not loaded", false);
+              "cannot open import", false);
   expectError("from \"unloaded.tepl\" import {template}; rule r { X => X }",
-              "is not loaded", false);
+              "cannot open import", false);
   expectError("rule r { X: [N] X => X where { N + 1.0 > 0.0 } }",
               "type mismatch");
   expectError("rule r { X: [N] X => X where { -N > -1 } }",
@@ -570,11 +572,12 @@ rule r extends template(F = add);
 )",
                             (dir / "root.tepl").string());
   assert(parsed.ok());
-  assert(tepl::resolveImports(*parsed.program).empty());
-  const auto scope_count = parsed.program->imported_scopes.size();
-  assert(tepl::resolveImports(*parsed.program).empty());
-  assert(parsed.program->imported_scopes.size() == scope_count);
-  const auto result = analyze(*parsed.program);
+  const auto loaded = tepl::loadImports(*parsed.program);
+  assert(loaded.ok());
+  const auto again = tepl::loadImports(*parsed.program);
+  assert(again.ok() &&
+         again.program->modules.size() == loaded.program->modules.size());
+  const auto result = inspect(*parsed.program);
   assert(result.ok());
   const auto& rule = result.program->rules[0];
   const auto& root = std::get<MatchOperation>(rule.lhs->value);
@@ -592,8 +595,8 @@ rule r extends template(F = add);
         "from \"template.tepl\" import {template}; " + std::string(body),
         (dir / "root.tepl").string());
     assert(input.ok());
-    assert(tepl::resolveImports(*input.program).empty());
-    const auto result = analyze(*input.program);
+    assert(tepl::loadImports(*input.program).ok());
+    const auto result = inspect(*input.program);
     assert(!result.ok());
     bool found = false;
     for (const auto& diagnostic : result.diagnostics)
@@ -608,8 +611,8 @@ rule r extends template(F = add);
       tepl::parse("import \"aggregate.tepl\"; rule r { (negate X) => X }",
                   (dir / "root.tepl").string());
   assert(aggregate.ok());
-  assert(tepl::resolveImports(*aggregate.program).empty());
-  assert(analyze(*aggregate.program).ok());
+  assert(tepl::loadImports(*aggregate.program).ok());
+  assert(inspect(*aggregate.program).ok());
 }
 
 void examples(const char* executable, const char* lora, const char* inherited) {
@@ -625,8 +628,8 @@ void examples(const char* executable, const char* lora, const char* inherited) {
     const std::string source{std::istreambuf_iterator<char>(input), {}};
     auto parsed = tepl::parse(source, path);
     assert(parsed.ok());
-    assert(tepl::resolveImports(*parsed.program).empty());
-    const auto result = analyze(*parsed.program);
+    assert(tepl::loadImports(*parsed.program).ok());
+    const auto result = inspect(*parsed.program);
     assert(result.ok());
     assert(result.program->rules.size() == (file == lora ? 1 : 7));
     assert(!formatProgram(*result.program).empty());

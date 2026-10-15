@@ -1,0 +1,18 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "intrinsics",
+    srcs = ["intrinsics/catalog.cc"],
+    hdrs = ["intrinsics/catalog.h", "intrinsics/catalog.def"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "builtins",
+    srcs = ["catalog.cc", "axes.cc"],
+    hdrs = ["catalog.h", "catalog.def", "axes.h"],
+    deps = [":intrinsics"],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(["intrinsics/README.md"])

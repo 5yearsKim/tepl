@@ -5,8 +5,8 @@
 #include <stdexcept>
 #include <string>
 
-#include "src/core/builtins/axes.h"
-#include "src/core/intrinsics/catalog.h"
+#include "src/shared/builtins/axes.h"
+#include "src/shared/builtins/intrinsics/catalog.h"
 
 namespace {
 using namespace tepl::core::builtins;

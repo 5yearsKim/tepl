@@ -16,6 +16,10 @@
 
 <p align="center"><a href="https://5yearskim.github.io/tepl/">Official Documentation</a></p>
 
+The active compiler uses an explicit [compilation pipeline](src/core/README.md)
+and supports checking, executable compilation, and greedy rewriting. Rust/C++
+code generation is deferred while its backends migrate to the executable API.
+
 The same tensor computation can be expressed in different ways—with very different costs. In machine learning, choosing the right form can make a big difference: depending on tensor dimensions, `(XA)B` can require far less computation than `X(AB)`.
 
 [E-graphs](https://en.wikipedia.org/wiki/E-graph) help optimizers explore those alternatives. They compactly represent many equivalent expressions, letting rewrite rules uncover more ways to perform a computation.

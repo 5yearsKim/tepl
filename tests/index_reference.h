@@ -1,6 +1,6 @@
 #pragma once
-#include "src/core/index_semantics/ir.h"
-namespace tepl::core::index_semantics {
+#include "src/core/semantics/ir.h"
+namespace tepl::core::semantics {
 struct Metadata {
   std::vector<List> shapes;
   std::map<std::size_t, std::vector<List>> descriptors;
@@ -16,4 +16,4 @@ struct Limits {
   std::size_t max_terms = 256, max_work = 100000;
 };
 Result infer(const Plan&, const Metadata&, Limits = {});
-}  // namespace tepl::core::index_semantics
+}  // namespace tepl::core::semantics

@@ -1,0 +1,40 @@
+# Checked operation metadata programs
+
+`src/core/checking/dialects/check.cc` calls `metadata::check` for each operation's optional shape
+and dtype blocks after checking its signature and attribute schema. Successful
+checking stores a `metadata::Program` in `Operation::shape` or `Operation::dtype`.
+Programs are checked even when no rule references the operation.
+
+Both kinds share expressions, statements, symbols, type inference, and builtin
+resolution. `ProgramKind` determines parameter and yield types: shape parameters
+are integer lists and yield an integer list; dtype parameters and results are
+dtype values. A trailing variadic parameter binds a list of the corresponding
+operand metadata. Each program owns its type and symbol tables, and no AST
+pointers survive checking.
+
+| File | Responsibility |
+| --- | --- |
+| `ir.h` | Checked expressions, symbols, operand bindings, statements, and program kind |
+| `types.*` | Integer, Bool, DType, homogeneous lists, and literal ranges |
+| `../builtins/catalog.def`, `catalog.h`, `catalog.cc` | Shared builtin identities, signatures, domains, and availability |
+| `src/core/checking/metadata/check.*` | Parameters, statements, assertions, and yield contracts |
+| `src/core/checking/metadata/check_context.h` | Program state and name scope |
+| `src/core/checking/metadata/expression.*` | Names, attributes, expressions, and builtin calls |
+| `src/core/checking/metadata/type_inference.*` | Type equations, empty-list inference, and cycle detection |
+| `src/core/semantics/metadata_print.*` | Resolved expressions and types |
+
+`instruction.h` defines completed symbolic metadata instructions for verified
+programs and runtime evaluation. Compiler symbols and inference holes live in
+`src/core/semantics/symbolic/`.
+
+Integer semantics use checked signed 128-bit computation for u64 shapes and
+signed i64 attributes. Generated evaluators validate dimensions against u64,
+check indices and arithmetic, and preserve short-circuit control flow. Dtype
+values support equality and the five classification predicates, with no
+implicit promotion or arithmetic. Attributes may supply dtype values and lists.
+Assertions and local bindings execute in source order in both backends.
+
+See the [shape reference](../../../docs/references/shape.md) and
+[dtype reference](../../../docs/references/dtype.md). Checker tests live in
+`tests/shape_core_test.cc` and `tests/dtype_program_test.cc`; generated integration
+fixtures exercise both Rust and C++ evaluators and rule bindings.

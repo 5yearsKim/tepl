@@ -4,22 +4,22 @@
 #include <string>
 #include <variant>
 
-#include "src/ast/print.h"
-#include "src/core/analyze.h"
-#include "src/core/print.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/semantics/report.h"
+#include "src/core/syntax/parse.h"
+#include "src/core/syntax/print.h"
 
 namespace {
 void valid(const std::string& source) {
   auto parsed = tepl::parse(source, "dtype.tepl");
   assert(parsed.ok());
-  auto checked = tepl::core::analyze(*parsed.program);
+  auto checked = tepl::core::inspect(*parsed.program);
   assert(checked.ok());
 }
 void invalid(const std::string& source, const std::string& message) {
   auto parsed = tepl::parse(source, "dtype.tepl");
   assert(parsed.ok());
-  auto checked = tepl::core::analyze(*parsed.program);
+  auto checked = tepl::core::inspect(*parsed.program);
   assert(!checked.ok());
   assert(std::any_of(checked.diagnostics.begin(), checked.diagnostics.end(),
                      [&](const auto& d) {
@@ -58,7 +58,7 @@ void programs() {
   auto parsed = tepl::parse(
       "dialect D { op zero() -> tensor { dtype() { yield f32; } } }");
   assert(parsed.ok());
-  auto checked = tepl::core::analyze(*parsed.program);
+  auto checked = tepl::core::inspect(*parsed.program);
   assert(checked.ok());
   const auto& dtype = *checked.program->operations[0].dtype;
   assert(dtype.kind == tepl::core::metadata::ProgramKind::DType);

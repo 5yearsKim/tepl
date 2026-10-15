@@ -1,29 +1,3 @@
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("//:tools/embed_templates.bzl", "embed_rust_templates", "embed_templates")
-
-embed_rust_templates(
-    name = "embed_rust_templates",
-    srcs = ["//templates/rust:templates"],
-    out = "rust/template_files.h",
-)
-
-embed_templates(
-    name = "embed_cpp_templates",
-    language = "cpp",
-    srcs = ["//templates/cpp:templates"],
-    out = "cpp/template_files.h",
-)
-
-cc_library(
-    name = "codegen",
-    srcs = glob(["*.cc", "common/*.cc", "rust/*.cc", "cpp/*.cc"]),
-    hdrs = glob(["*.h", "common/*.h", "rust/*.h", "cpp/*.h"]) + [":embed_rust_templates", ":embed_cpp_templates"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//src/core:ir",
-        "//src/program:compile",
-        "//src/core:semantic_solver",
-        "//src/support:process",
-        "//src/support:temporary_directory",
-    ],
-)
+# Backend migration is deferred. Sources are preserved, and the active CLI
+# reports generation as unavailable until these consume ExecutableProgram.
+exports_files(glob(["**/*.h", "**/*.cc", "README.md"]))

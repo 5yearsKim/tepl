@@ -3,7 +3,7 @@
 #include <functional>
 
 namespace tepl::rewrite {
-std::size_t build(const core::Program& p, const core::BuildExpr& e,
+std::size_t build(const executable::ProgramData& p, const core::BuildExpr& e,
                   core::ConcreteGraph& g, const Bindings& b, Budget& budget,
                   std::size_t max_nodes) {
   budget.tick();

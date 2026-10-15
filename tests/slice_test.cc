@@ -4,15 +4,15 @@
 #include <numeric>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/core/analyze.h"
-#include "src/core/index_semantics/index_inference.h"
-#include "src/core/index_semantics/normalize.h"
-#include "src/core/index_semantics/verify.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/semantics/proof/verify.h"
+#include "src/core/semantics/symbolic/normalize.h"
+#include "src/core/semantics/synthesis/index_inference.h"
+#include "src/core/syntax/parse.h"
 #include "tests/index_graph_eval.h"
 
 namespace {
-using namespace tepl::core::index_semantics;
+using namespace tepl::core::semantics;
 using namespace tepl::test;
 std::string dialect;
 void expect(bool ok, const std::string& message) {
@@ -24,7 +24,7 @@ Plan plan(const std::string& rule, std::string definitions = {},
   auto parsed =
       tepl::parse((definitions.empty() ? dialect : definitions) + rule);
   expect(parsed.ok(), "slice fixture parses");
-  auto checked = tepl::core::analyze(*parsed.program, {policy, true});
+  auto checked = tepl::core::inspect(*parsed.program, {policy, true});
   for (const auto& d : checked.diagnostics) std::cerr << d.message << '\n';
   expect(checked.ok(), "slice fixture checks");
   return *checked.program->rules[0].semantic_plan;

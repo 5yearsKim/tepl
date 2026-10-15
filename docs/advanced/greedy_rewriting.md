@@ -83,14 +83,15 @@ flowchart LR
 
 | Directory | Responsibility |
 | --- | --- |
-| `src/core/` | Checked rules, operation contracts, and concrete graph types. |
-| `src/program/` | Executable program, compiler lowering, JSON codec, and validation. |
+| `src/core/` | Parsing, resolution, checking, semantic verification, and executable lowering. |
+| `src/executable/` | Executable program, JSON codec, and validation. |
+| `src/shared/` | Types, catalogs, and metadata representations. |
 | `schema/` | Public JSON Schema for the compiled format. |
 | `src/rewrite/` | Matching, pure expression evaluation, replacement, greedy scheduling, and graph printing. |
 | `src/codegen/` | Backend generation from the same compiled program. |
 
 The Bazel target `//src/rewrite` depends on the program loader and shared IR.
-Compiler lowering is a separate target, `//src/program:compile`; the engine does
+Compiler lowering is a separate target, `//src/core/lowering`; the engine does
 not depend on the parser or proof search. `ConcreteGraph` is the existing DAG
 representation: indexed nodes, operands, concrete attributes, optional shape and
 dtype, named bindings, and a root. There is no second graph representation to
@@ -103,7 +104,7 @@ The format is declared in
 Compile [`simple.tepl`](../../examples/rewrite/simple.tepl) to inspect a small
 program's JSON output locally.
 
-The envelope contains `format: "tepl.rewrite"`, `version: 1`, an arithmetic
+The envelope contains `format: "tepl.rewrite"`, `version: 2`, an arithmetic
 `policy`, required `capabilities`, the `program` tables, and rule-scoped
 `axis_definitions`. Rules contain explicit match and replacement trees,
 constraints, typed conditions, and descriptor derivations. Expression variants
@@ -171,12 +172,12 @@ The C++ API returns a graph, rewrite count, stop reason, optional trace, and
 resource-limit detail:
 
 ```cpp
-#include "src/program/program.h"
+#include "src/executable/program.h"
 #include "src/rewrite/engine.h"
 #include "src/rewrite/printer.h"
 
 // json_text is an already-read compiled program.
-auto program = tepl::program::load(json_text);
+auto program = tepl::executable::load(json_text);
 tepl::rewrite::Options options;
 options.max_steps = 100;
 // options.rule = "compose_transposes";  // Optional rule selection.

@@ -19,10 +19,10 @@ std::string_view stopReasonName(StopReason s) {
   }
   return "unknown";
 }
-Result run(const program::Program& program, const core::ConcreteGraph& input,
-           const Options& options) {
-  program::validate(program);
-  program::validateGraph(program.ir(), input);
+Result run(const executable::ExecutableProgram& program,
+           const core::ConcreteGraph& input, const Options& options) {
+  executable::validate(program);
+  executable::validateGraph(program.ir(), input);
   if (!options.rule.empty()) {
     std::size_t count = 0;
     for (const auto& rule : program.ir().rules)
@@ -74,7 +74,8 @@ Result run(const program::Program& program, const core::ConcreteGraph& input,
             bool allowed = true;
             for (const auto& condition : rule.conditions) {
               auto value = evaluator.eval(*condition);
-              if (!std::holds_alternative<core::LocalLet>(condition->value) &&
+              if (!std::holds_alternative<core::completed::LocalLet>(
+                      condition->value) &&
                   !boolean(value)) {
                 allowed = false;
                 break;

@@ -1,10 +1,5 @@
 #pragma once
-
-namespace tepl::core::detail {
-
-struct AnalysisContext;
-
-// Register checked declarations before building file visibility scopes.
-void resolve(AnalysisContext& context);
-
-}  // namespace tepl::core::detail
+#include "src/core/resolution/program.h"
+namespace tepl::core::resolution {
+Result<ResolvedProgram> resolve(SourceProject);
+}

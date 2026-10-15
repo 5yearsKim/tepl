@@ -1,0 +1,8 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "source",
+    srcs = ["identity.cc"],
+    hdrs = ["source.h", "identity.h"],
+    visibility = ["//visibility:public"],
+)

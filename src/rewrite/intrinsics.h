@@ -1,8 +1,8 @@
 #pragma once
 #include <string_view>
 
-#include "src/core/intrinsics/catalog.h"
 #include "src/rewrite/value.h"
+#include "src/shared/builtins/intrinsics/catalog.h"
 namespace tepl::rewrite {
 Value evaluateIntrinsic(core::intrinsics::Intrinsic, const std::vector<Value>&,
                         Budget&);

@@ -2,10 +2,10 @@
 #include <numeric>
 #include <stdexcept>
 
-#include "src/core/index_semantics/axis_bindings.h"
-#include "src/core/index_semantics/axis_sets.h"
+#include "src/core/semantics/index_maps/axis_bindings.h"
+#include "src/core/semantics/index_maps/axis_sets.h"
 
-using namespace tepl::core::index_semantics;
+using namespace tepl::core::semantics;
 namespace {
 void expect(bool value, const char* message) {
   if (!value) throw std::runtime_error(message);

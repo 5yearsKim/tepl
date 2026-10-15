@@ -1,7 +1,7 @@
 #pragma once
 #include <map>
 
-#include "src/program/program.h"
+#include "src/executable/program.h"
 #include "src/rewrite/value.h"
 
 namespace tepl::rewrite {
@@ -12,18 +12,19 @@ struct Bindings {
 };
 class Evaluator {
  public:
-  Evaluator(const program::Program& program, const core::ConcreteGraph& graph,
-            std::size_t rule, Bindings& bindings, Budget& budget)
+  Evaluator(const executable::ExecutableProgram& program,
+            const core::ConcreteGraph& graph, std::size_t rule,
+            Bindings& bindings, Budget& budget)
       : program_(program),
         graph_(graph),
         rule_(rule),
         bindings_(bindings),
         budget_(budget) {}
-  Value eval(const core::TypedExpr&);
-  Value symbolic(const core::index_semantics::Symbol&);
+  Value eval(const core::completed::TypedExpr&);
+  Value symbolic(const core::completed::Symbol&);
 
  private:
-  const program::Program& program_;
+  const executable::ExecutableProgram& program_;
   const core::ConcreteGraph& graph_;
   std::size_t rule_;
   Bindings& bindings_;
@@ -33,6 +34,6 @@ class Evaluator {
 };
 // Infer and validate metadata from operation contracts. Missing input metadata
 // stays unknown; a violated available contract is an error.
-void infer(const core::Program&, core::ConcreteGraph&, std::size_t node,
-           Budget&);
+void infer(const executable::ProgramData&, core::ConcreteGraph&,
+           std::size_t node, Budget&);
 }  // namespace tepl::rewrite

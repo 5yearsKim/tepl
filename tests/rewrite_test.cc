@@ -8,10 +8,9 @@
 #include <string>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/codegen/generate.h"
-#include "src/core/analyze.h"
-#include "src/parse.h"
-#include "src/program/program.h"
+#include "src/core/pipeline.h"
+#include "src/core/syntax/parse.h"
+#include "src/executable/program.h"
 #include "src/rewrite/builtins/dispatch.h"
 #include "src/rewrite/engine.h"
 #include "src/rewrite/printer.h"
@@ -31,28 +30,25 @@ dialect D {
  }
 }
 )";
-program::Program compile(
+executable::ExecutableProgram compile(
     const std::string& text, bool prefix = true,
     core::SemanticPolicy policy = core::SemanticPolicy::kStrict) {
   auto parsed = parse((prefix ? dialect : "") + text, "rewrite_test.tepl");
   for (const auto& d : parsed.diagnostics) std::cerr << d.message << '\n';
   assert(parsed.ok());
-  auto checked = core::analyze(*parsed.program, {policy});
+  auto checked = core::inspect(*parsed.program, {policy});
   for (const auto& d : checked.diagnostics) std::cerr << d.message << '\n';
   assert(checked.ok());
-  auto compiled = program::compile(*checked.program);
-  for (std::size_t i = 0; i < checked.program->rules.size(); ++i) {
-    const auto& r = checked.program->rules[i];
-    assert(compiled.ir().rules[i].conditions.size() ==
-           r.conditions.size() +
-               (r.semantic_plan ? r.semantic_plan->proof.guard.size() : 0));
-  }
+  auto result = core::compile(*parsed.program, {policy});
+  for (const auto& d : result.diagnostics) std::cerr << d.message << '\n';
+  assert(result.ok());
+  auto compiled = std::move(*result.program);
   return compiled;
 }
 void expectInvalid(nlohmann::json j, std::string_view message = {}) {
   bool failed = false;
   try {
-    program::load(j.dump());
+    executable::load(j.dump());
   } catch (const std::invalid_argument& error) {
     assert(std::string_view(error.what()).find(message) !=
            std::string_view::npos);
@@ -69,10 +65,10 @@ rule identity {X:[Dims...] (transpose[@p] X)=>X
 graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
  let b=(transpose[permutation=[1,0]] a);yield (add b b);}
 )");
-  auto json = program::serialize(p);
-  auto loaded = program::load(json);
-  assert(program::serialize(loaded) == json);
-  auto before = program::serialize(p);
+  auto json = executable::serialize(p);
+  auto loaded = executable::load(json);
+  assert(executable::serialize(loaded) == json);
+  auto before = executable::serialize(p);
   rewrite::Options opts;
   opts.trace = true;
   auto out = rewrite::run(loaded, loaded.ir().graphs[0], opts);
@@ -82,7 +78,7 @@ graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
   assert(out.graph.nodes.size() == 2);
   auto& root = out.graph.nodes[out.graph.root];
   assert(root.operands == std::vector<std::size_t>({0, 0}));
-  assert(program::serialize(p) == before);
+  assert(executable::serialize(p) == before);
   auto printed = rewrite::printGraph(p.ir(), out.graph, false);
   auto again = compile(printed);
   assert(again.ir().graphs[0].nodes.size() == 2);
@@ -108,7 +104,7 @@ graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
   expectInvalid(j);
   bool duplicateRejected = false;
   try {
-    program::load("{\"version\":1,\"version\":1}");
+    executable::load("{\"version\":1,\"version\":1}");
   } catch (const std::invalid_argument& e) {
     duplicateRejected =
         std::string(e.what()).find("duplicate") != std::string::npos;
@@ -117,13 +113,13 @@ graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
   // Decimal strings preserve extents beyond JSON's interoperable integer range.
   auto wide =
       compile("graph wide {input X:f32[18446744073709551615];yield X;}");
-  auto wideLoaded = program::load(program::serialize(wide));
+  auto wideLoaded = executable::load(executable::serialize(wide));
   assert(wideLoaded.ir().graphs[0].nodes[0].shape->at(0) == UINT64_MAX);
 }
 void builtinCatalogs() {
   std::set<std::string> names;
   for (const auto& entry : core::builtins::catalog()) names.emplace(entry.name);
-  auto spec = nlohmann::json::parse(program::schema());
+  auto spec = nlohmann::json::parse(executable::schema());
   const auto encoded =
       spec["$defs"]["builtin"]["enum"].get<std::vector<std::string>>();
   assert(names == std::set<std::string>(encoded.begin(), encoded.end()));
@@ -134,7 +130,7 @@ void builtinCatalogs() {
     } }
   )",
                           false);
-  auto j = nlohmann::json::parse(program::serialize(metadata));
+  auto j = nlohmann::json::parse(executable::serialize(metadata));
   j["program"]["operations"][0]["shape"]["statements"][0]["value"]["data"]
    ["condition"]["value"]["data"]["builtin"] = "is_float";
   expectInvalid(j, "unavailable in section");
@@ -146,9 +142,9 @@ void builtinCatalogs() {
     } }
   )",
                       false);
-  j = nlohmann::json::parse(program::serialize(axes));
-  j["program"]["operations"][0]["semantic_definition"]["groups"][0]["bindings"]
-   [0]["positions"]["name"] = "distinct_axes";
+  j = nlohmann::json::parse(executable::serialize(axes));
+  j["program"]["operations"][0]["axis_contract"]["groups"][0]["bindings"][0]
+   ["positions"]["name"] = "distinct_axes";
   expectInvalid(j, "unsupported metadata instruction");
 }
 void guardsAndFailure() {
@@ -250,20 +246,6 @@ void metadataAndDepth() {
   }
   assert(rejected);
 }
-void testCodegen() {
-  auto p = compile("rule r {X:[N] (copy X)=>X where {N>0}}");
-  auto loaded = program::load(program::serialize(p));
-  for (auto target : {codegen::Target::kRust, codegen::Target::kCpp}) {
-    codegen::Options opts;
-    opts.target = target;
-    auto a = codegen::generate(p, opts), b = codegen::generate(loaded, opts);
-    assert(a.ok() && b.ok());
-    assert(a.files.size() == b.files.size());
-    for (std::size_t i = 0; i < a.files.size(); ++i)
-      assert(a.files[i].path == b.files[i].path &&
-             a.files[i].contents == b.files[i].contents);
-  }
-}
 void automatic(const std::string& path) {
   std::ifstream f(path);
   std::string definitions{std::istreambuf_iterator<char>(f), {}};
@@ -273,7 +255,7 @@ graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (tran
 )",
                           false);
   assert(implicit.ir().rules[0].descriptors.size() == 3);
-  auto implicit_loaded = program::load(program::serialize(implicit));
+  auto implicit_loaded = executable::load(executable::serialize(implicit));
   auto implicit_out =
       rewrite::run(implicit_loaded, implicit_loaded.ir().graphs[0]);
   assert(implicit_out.rewrite_count == 1);
@@ -289,8 +271,7 @@ rule compose {(transpose[@a] (transpose[@b] X)) => (transpose[auto] X)}
 graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (transpose[permutation=[2,0,1]] a);}
 )",
                    false);
-  assert(p.ir().rules[0].attribute_holes.empty());
-  auto loaded = program::load(program::serialize(p));
+  auto loaded = executable::load(executable::serialize(p));
   auto out = rewrite::run(loaded, loaded.ir().graphs[0]);
   assert(out.rewrite_count == 1);
   assert(out.graph.nodes[out.graph.root].attributes[0].elements[0].text == "0");
@@ -301,7 +282,7 @@ rule move_reduce {(reduce_sum[@r] (transpose[@p] A)) => (transpose[auto] (reduce
 graph g {input A:f32[2,3,4];yield (reduce_sum[dimensions=[1]] (transpose[permutation=[2,0,1]] A));}
 )",
               false, core::SemanticPolicy::kAlgebraic);
-  loaded = program::load(program::serialize(p));
+  loaded = executable::load(executable::serialize(p));
   out = rewrite::run(loaded, loaded.ir().graphs[0]);
   assert(out.rewrite_count == 1);
   const auto& transposed = out.graph.nodes[out.graph.root];
@@ -320,7 +301,6 @@ int main(int argc, char** argv) {
     guardsAndFailure();
     sharingAndLimits();
     metadataAndDepth();
-    testCodegen();
     std::unique_ptr<rules_cc::cc::runfiles::Runfiles> files(
         rules_cc::cc::runfiles::Runfiles::Create(argv[0]));
     assert(argc == 2);

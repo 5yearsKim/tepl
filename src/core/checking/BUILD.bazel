@@ -1,0 +1,49 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "ir",
+    hdrs = ["ir.h", "attribute_holes.h", "rule_ir.h"],
+    deps = [
+        "//src/core:tables",
+        "//src/core/semantics:symbolic_model",
+        "//src/shared/catalog",
+        "//src/shared/metadata",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "model",
+    hdrs = ["program.h"],
+    deps = [":ir", "//src/shared/diagnostics"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "checking",
+    srcs = (
+        glob(["**/*.cc"], exclude = ["metadata/print.cc"]) +
+        glob(
+            ["**/*.h"],
+            exclude = [
+                "program.h",
+                "check.h",
+                "ir.h",
+                "rule_ir.h",
+                "attribute_holes.h",
+                "metadata/print.h",
+            ],
+        )
+    ),
+    hdrs = ["check.h"],
+    deps = [
+        ":model",
+        "//src/core/resolution:model",
+        "//src/core/semantics:definitions",
+        "//src/core/syntax:model",
+        "//src/shared/catalog",
+        "//src/shared/diagnostics",
+        "//src/shared/builtins",
+    ],
+    visibility = ["//visibility:public"],
+)

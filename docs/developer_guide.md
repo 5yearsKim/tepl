@@ -45,15 +45,24 @@ Pass `--no-format` when generating code with the image; it omits formatters.
 
 ## Where to make changes
 
-The compiler parses source, loads imports, builds checked core IR, and generates
-code. Reusable runtime templates are embedded into the compiler during the build.
+The compiler parses source, resolves imports, checks types, verifies semantics,
+and lowers rules into executable programs. See the
+[compilation pipeline](../src/core/README.md) for stage contracts. Backend migration
+is deferred; runtime templates and code generation sources remain for that work.
+Stage representations live in `program.h`; the `resolve.h`, `check.h`, `verify.h`,
+and `inspect.h` headers expose transformations. Depend on the representation
+target when a module only reads the output of a stage.
 
 | Area | Location |
 | --- | --- |
 | Language grammar | [grammar/Tepl.g4](../grammar/Tepl.g4) |
-| AST and parsing | `src/ast/`, `src/parse.cc` |
-| Imports and project discovery | `src/imports.cc` |
-| Semantic analysis and builtin catalog | `src/core/` |
+| AST and parsing | `src/core/syntax/` |
+| Imports and project discovery | `src/core/resolution/` |
+| Type checking | `src/core/checking/` |
+| Synthesis and verification | `src/core/semantics/` |
+| Executable lowering | `src/core/lowering/` |
+| Runtime program and serialization | `src/executable/` |
+| Shared definitions and builtin catalogs | `src/shared/` |
 | Shared generation plans and language emitters | [src/codegen/](../src/codegen/README.md) |
 | Reusable runtime algorithms | [templates/rust/](../templates/rust/README.md), [templates/cpp/](../templates/cpp/README.md) |
 | Compiler and generated-code fixtures | `tests/`, `tests/codegen/` |
@@ -68,9 +77,9 @@ on regeneration; maintain their source templates instead.
 ## Built-in specifications
 
 Use the [public built-in reference](references/built-ins.md) to check signatures,
-section availability, examples, and failures. The [built-in architecture guide](../src/core/builtins/README.md)
+section availability, examples, and failures. The [built-in architecture guide](../src/shared/builtins/README.md)
 maps each responsibility to its implementation and explains how to add a function.
-[Internal operations](../src/core/intrinsics/README.md) have separate identities
+[Internal operations](../src/shared/builtins/intrinsics/README.md) have separate identities
 and never grant source access by themselves.
 
 Function inventory tables come from the compiled catalogs. After changing a
@@ -80,7 +89,7 @@ catalog, regenerate them from the repository root:
 python3 tools/build_program_schema.py
 bazel build //:builtin_reference
 bazel-bin/builtin_reference --write docs/references/built-ins.md
-bazel-bin/builtin_reference --internal --write src/core/intrinsics/README.md
+bazel-bin/builtin_reference --internal --write src/shared/builtins/intrinsics/README.md
 ```
 
 After building `//:tepl`, run the built-in fixtures without regenerating lab IR:

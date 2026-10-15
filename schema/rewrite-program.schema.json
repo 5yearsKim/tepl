@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "TEPL compiled rewrite program v1",
+  "title": "TEPL compiled rewrite program v2",
   "type": "object",
   "properties": {
     "format": {
       "const": "tepl.rewrite"
     },
     "version": {
-      "const": 1
+      "const": 2
     },
     "policy": {
       "enum": [
@@ -17,8 +17,8 @@
     },
     "capabilities": {
       "const": [
-        "tepl.core.v1",
-        "tepl.axis-metadata.v1"
+        "tepl.core.v2",
+        "tepl.axis-metadata.v2"
       ]
     },
     "program": {
@@ -127,8 +127,7 @@
     "descriptor_kind": {
       "enum": [
         "captured",
-        "derived",
-        "inferred"
+        "derived"
       ]
     },
     "shape_kind": {
@@ -246,25 +245,6 @@
         "operand"
       ]
     },
-    "index_kind": {
-      "enum": [
-        "coordinates",
-        "add",
-        "concat",
-        "scale",
-        "offset"
-      ]
-    },
-    "value_kind": {
-      "enum": [
-        "operand",
-        "read",
-        "add",
-        "product",
-        "reduce",
-        "const"
-      ]
-    },
     "symbol_kind": {
       "enum": [
         "integer",
@@ -272,7 +252,6 @@
         "shape",
         "dtype",
         "field",
-        "hole",
         "axis_group",
         "list",
         "call"
@@ -541,7 +520,7 @@
             }
           ]
         },
-        "semantic_definition": {
+        "axis_contract": {
           "anyOf": [
             {
               "$ref": "#/$defs/axis_definition"
@@ -563,7 +542,7 @@
         "origin",
         "shape",
         "dtype",
-        "semantic_definition"
+        "axis_contract"
       ],
       "additionalProperties": false
     },
@@ -952,22 +931,6 @@
         "descriptor",
         "schema",
         "field"
-      ],
-      "additionalProperties": false
-    },
-    "group_ref": {
-      "type": "object",
-      "properties": {
-        "descriptor": {
-          "$ref": "#/$defs/id"
-        },
-        "group": {
-          "$ref": "#/$defs/string"
-        }
-      },
-      "required": [
-        "descriptor",
-        "group"
       ],
       "additionalProperties": false
     },
@@ -2016,82 +1979,6 @@
       ],
       "additionalProperties": false
     },
-    "index_value": {
-      "type": "object",
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/index_kind"
-        },
-        "group": {
-          "$ref": "#/$defs/id"
-        },
-        "args": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/index_value"
-          }
-        },
-        "parameter": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/axis_meta"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "kind",
-        "group",
-        "args",
-        "parameter"
-      ],
-      "additionalProperties": false
-    },
-    "axis_value": {
-      "type": "object",
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/value_kind"
-        },
-        "index": {
-          "$ref": "#/$defs/id"
-        },
-        "args": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/axis_value"
-          }
-        },
-        "origin": {
-          "$ref": "#/$defs/origin"
-        },
-        "constant": {
-          "$ref": "#/$defs/signed_integer"
-        },
-        "access": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/index_value"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "kind",
-        "index",
-        "args",
-        "origin",
-        "constant",
-        "access"
-      ],
-      "additionalProperties": false
-    },
     "axis_definition": {
       "type": "object",
       "properties": {
@@ -2122,10 +2009,10 @@
         "output": {
           "$ref": "#/$defs/axis_meta"
         },
-        "value": {
-          "$ref": "#/$defs/axis_value"
-        },
         "extent_fields": {
+          "$ref": "#/$defs/idset"
+        },
+        "implicit_operands": {
           "$ref": "#/$defs/idset"
         }
       },
@@ -2135,8 +2022,8 @@
         "groups",
         "assertions",
         "output",
-        "value",
-        "extent_fields"
+        "extent_fields",
+        "implicit_operands"
       ],
       "additionalProperties": false
     },
@@ -2389,22 +2276,6 @@
             },
             "data": {
               "$ref": "#/$defs/field_ref"
-            }
-          },
-          "required": [
-            "kind",
-            "data"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "const": "output_group"
-            },
-            "data": {
-              "$ref": "#/$defs/group_ref"
             }
           },
           "required": [

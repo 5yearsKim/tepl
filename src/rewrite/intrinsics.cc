@@ -2,10 +2,10 @@
 
 #include <algorithm>
 
-#include "src/core/builtins/axes.h"
 #include "src/rewrite/builtins/implementation.h"
 #include "src/rewrite/evaluation_support.h"
 #include "src/rewrite/operators.h"
+#include "src/shared/builtins/axes.h"
 namespace tepl::rewrite {
 Value evaluateIntrinsic(core::intrinsics::Intrinsic id,
                         const std::vector<Value>& a, Budget& budget) {

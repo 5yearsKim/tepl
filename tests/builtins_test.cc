@@ -6,12 +6,12 @@
 #include <string>
 #include <vector>
 
-#include "src/core/analyze.h"
-#include "src/core/builtins/axes.h"
-#include "src/core/intrinsics/catalog.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/syntax/parse.h"
 #include "src/rewrite/builtins/dispatch.h"
 #include "src/rewrite/intrinsics.h"
+#include "src/shared/builtins/axes.h"
+#include "src/shared/builtins/intrinsics/catalog.h"
 
 namespace {
 using namespace tepl;
@@ -126,7 +126,7 @@ void rejects(const std::string& source, const std::string& diagnostic) {
     for (const auto& d : parsed.diagnostics) std::cerr << d.message << "\n";
   }
   assert(parsed.ok());
-  auto checked = core::analyze(*parsed.program);
+  auto checked = core::inspect(*parsed.program);
   assert(!checked.ok());
   bool found =
       std::any_of(checked.diagnostics.begin(), checked.diagnostics.end(),

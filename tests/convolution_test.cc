@@ -6,16 +6,16 @@
 #include <numeric>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/core/analyze.h"
-#include "src/core/index_semantics/index_inference.h"
-#include "src/core/index_semantics/normalize.h"
-#include "src/core/index_semantics/synthesize.h"
-#include "src/core/index_semantics/verify.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/semantics/proof/verify.h"
+#include "src/core/semantics/symbolic/normalize.h"
+#include "src/core/semantics/synthesis/index_inference.h"
+#include "src/core/semantics/synthesis/synthesize.h"
+#include "src/core/syntax/parse.h"
 #include "tests/index_graph_eval.h"
 
 namespace {
-using namespace tepl::core::index_semantics;
+using namespace tepl::core::semantics;
 using tepl::test::add;
 using tepl::test::ConstructorEvaluator;
 using tepl::test::Coordinate;
@@ -32,7 +32,7 @@ std::string dialect;
 Plan plan(const std::string& rules, std::string definitions = {}) {
   auto p = tepl::parse((definitions.empty() ? dialect : definitions) + rules);
   expect(p.ok(), "convolution fixture parses");
-  auto checked = tepl::core::analyze(
+  auto checked = tepl::core::inspect(
       *p.program, {tepl::core::SemanticPolicy::kAlgebraic, true});
   for (const auto& d : checked.diagnostics) std::cerr << d.message << '\n';
   expect(checked.ok(), "convolution fixture checks");
@@ -387,7 +387,7 @@ int main(int argc, char** argv) {
         "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)};yield "
         "S;} "
         "semantics {yield Read(x,Coords(Missing));}}}");
-    expect(malformed.ok() && !tepl::core::analyze(*malformed.program).ok(),
+    expect(malformed.ok() && !tepl::core::inspect(*malformed.program).ok(),
            "unknown coordinate rejected");
     Context c{input, 100000};
     auto h =

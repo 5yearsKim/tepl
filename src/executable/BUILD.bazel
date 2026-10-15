@@ -1,0 +1,13 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "executable",
+    srcs = ["codec.cc", "validate.cc"] + ["codec.h", "schema_data.h"],
+    hdrs = ["program.h", "ir.h"],
+    deps = [
+        "//src/shared/catalog",
+        "//src/shared/builtins:intrinsics",
+        "@nlohmann_json//:json",
+    ],
+    visibility = ["//visibility:public"],
+)

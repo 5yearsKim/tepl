@@ -9,29 +9,30 @@
 #include <string>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/core/analyze.h"
-#include "src/core/index_semantics/ir.h"
-#include "src/core/index_semantics/synthesize.h"
-#include "src/core/index_semantics/verify.h"
-#include "src/core/print.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/semantics/ir.h"
+#include "src/core/semantics/proof/verify.h"
+#include "src/core/semantics/report.h"
+#include "src/core/semantics/synthesis/synthesize.h"
+#include "src/core/syntax/parse.h"
 #include "tests/index_constructor_eval.h"
 #include "tests/index_reference.h"
 
 namespace {
-using namespace tepl::core::index_semantics;
+using namespace tepl::core::semantics;
+using tepl::core::semantics::equal;
 std::string dialect;
 void expect(bool b, const std::string& s) {
   if (!b) throw std::runtime_error(s);
 }
-tepl::core::AnalysisResult analyze(const std::string& rule,
-                                   bool algebraic = true,
-                                   std::string definitions = {}) {
+tepl::core::InspectionResult analyze(const std::string& rule,
+                                     bool algebraic = true,
+                                     std::string definitions = {}) {
   auto parsed = tepl::parse(
       (definitions.empty() ? dialect : definitions) + rule, "index.tepl");
   for (const auto& d : parsed.diagnostics) std::cerr << d.message << '\n';
   expect(parsed.ok(), "fixture parses");
-  return tepl::core::analyze(*parsed.program,
+  return tepl::core::inspect(*parsed.program,
                              {algebraic ? tepl::core::SemanticPolicy::kAlgebraic
                                         : tepl::core::SemanticPolicy::kStrict,
                               true});
@@ -42,7 +43,6 @@ Result run(const std::string& rule, Metadata m, Limits limits = {},
   for (const auto& d : checked.diagnostics) std::cerr << d.message << '\n';
   expect(checked.ok(), "fixture checks");
   expect(bool(checked.program->rules[0].semantic_plan), "new inference plan");
-  expect(!checked.program->rules[0].inference, "legacy inference bypassed");
   return infer(*checked.program->rules[0].semantic_plan, m, limits);
 }
 void found(const Result& r) {
@@ -526,7 +526,7 @@ void explicitConditionTests() {
     for (const auto& d : parsed.diagnostics)
       std::cerr << d.message << " in " << source << '\n';
     expect(parsed.ok(), "condition fixture parses");
-    return tepl::core::analyze(*parsed.program,
+    return tepl::core::inspect(*parsed.program,
                                {tepl::core::SemanticPolicy::kAlgebraic});
   };
   auto rejected = [&](const std::string& source, const std::string& message) {
@@ -1257,6 +1257,13 @@ int main(int argc, char** argv) {
     std::ifstream input(files->Rlocation(argv[1]));
     dialect = {std::istreambuf_iterator<char>(input), {}};
     expect(!dialect.empty(), "read dialect");
+    const auto implicit = symbolicPlan(
+        "rule r { (dot (add A B) C) => (add (dot A C) (dot B C)) }");
+    proved(implicit);
+    expect(implicit.proof.constructors.size() == 2,
+           "omitted RHS attributes synthesize independently");
+    proved(
+        symbolicPlan("rule r { (transpose (transpose A)) => (transpose A) }"));
     symbolicTests();
     explicitConditionTests();
     partialAssociationTests();
@@ -1436,15 +1443,6 @@ int main(int argc, char** argv) {
                dump.find("status=proved") != std::string::npos,
            "compiler graph and symbolic constructor proof dump");
     expect(laws().size() >= 6, "explicit algebraic law registry");
-    // Keep extra proofs after the existing suite: symbolic interning affects
-    // the bounded proof search order across checks in one process.
-    const auto implicit = symbolicPlan(
-        "rule r { (dot (add A B) C) => (add (dot A C) (dot B C)) }");
-    proved(implicit);
-    expect(implicit.proof.constructors.size() == 2,
-           "omitted RHS attributes synthesize independently");
-    proved(
-        symbolicPlan("rule r { (transpose (transpose A)) => (transpose A) }"));
     std::cout << "semantic tests passed\n";
   } catch (const std::exception& e) {
     std::cerr << e.what() << '\n';

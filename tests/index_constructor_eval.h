@@ -8,7 +8,7 @@
 #include "tests/index_reference.h"
 
 namespace tepl::test {
-using namespace core::index_semantics;
+using namespace core::semantics;
 using Coordinate = std::tuple<std::size_t, std::size_t, std::size_t>;
 using Coordinates = std::vector<Coordinate>;
 using Datum = std::variant<std::int64_t, bool, List, Coordinates, std::string>;
