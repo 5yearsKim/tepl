@@ -57,23 +57,7 @@ std::string emit(const core::Program& program, const Names& names,
                  ">().ok()?";
         else if constexpr (std::is_same_v<T, bool>)
           return value ? "true" : "false";
-        else if constexpr (std::is_same_v<T, core::HostCall>) {
-          const auto& host = program.host_functions.at(value.function.value);
-          std::string call = "functions." + names.host(host.id) + "(";
-          for (std::size_t i = 0; i < value.arguments.size(); ++i) {
-            if (i) call += ", ";
-            auto argument =
-                emit(program, names, *value.arguments[i], builtins_path);
-            const auto kind =
-                program.types.at(host.signature.arguments.at(i).value).kind;
-            if (kind == core::TypeKind::kTensor ||
-                kind == core::TypeKind::kDescriptor ||
-                kind == core::TypeKind::kIndexList)
-              argument = "&(" + argument + ")";
-            call += argument;
-          }
-          return call + ")" + (host.fallible ? "?" : "");
-        } else if constexpr (std::is_same_v<T, core::BuiltinCall>) {
+        else if constexpr (std::is_same_v<T, core::BuiltinCall>) {
           std::vector<std::string> arguments;
           for (const auto& argument : value.arguments)
             arguments.push_back(emit(program, names, *argument, builtins_path));
@@ -86,7 +70,7 @@ std::string emit(const core::Program& program, const Names& names,
           return result_type.kind == core::TypeKind::kF64
                      ? "-" + operand
                      : builtins_path + "::common::neg(" + operand + ").ok()?";
-        } else {
+        } else if constexpr (std::is_same_v<T, core::BinaryExpr>) {
           const auto lhs =
               "(" + emit(program, names, *value.lhs, builtins_path) + ")";
           const auto rhs =
@@ -120,6 +104,9 @@ std::string emit(const core::Program& program, const Names& names,
           // order.
           return "(" + lhs + " " + std::string(spelling(value.op)) + " " + rhs +
                  ")";
+        } else {
+          throw std::logic_error(
+              "rule expression code generation is not implemented");
         }
       },
       expression.value);

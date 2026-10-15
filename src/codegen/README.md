@@ -1,5 +1,11 @@
 # Code generation
 
+The frontend no longer supports host-function calls or host `fn` parameters.
+Generated builders for supported rules take no host-function argument.
+Descriptor constructors, local bindings, and extended rule expressions are
+checked in core; their generation and execution support is deferred. Both
+backends diagnose these forms before emitting files.
+
 `generate.h` is the public interface for all language backends. Each backend
 inherits `Generator` and implements `target()` and `generate(program, options)`.
 Input must be a successfully checked `core::Program`. A rule alone is insufficient
@@ -12,9 +18,9 @@ reports an explicit diagnostic and emits no files.
 
 The layout separates shared semantics from target syntax:
 
-- `common/rule_plan.*` computes host and tensor-metadata dependencies, including
-  nested expressions. It also plans binding dependencies for the builtin-only
-  prefix of `where`, stopping at the first condition containing a host call.
+- `common/rule_plan.*` computes tensor-metadata and binding dependencies for
+  supported pure conditions, including nested expressions. It also rejects
+  deferred rule expression forms before either backend emits output.
   Unconditional shape-check dependencies are tracked
   separately so expression metadata reads remain inside short-circuit control
   flow. Conditions and derivations retain core's source order.
@@ -28,7 +34,7 @@ The layout separates shared semantics from target syntax:
 - `rust/graph_emitter.*` emits concrete nodes, schema-ordered attributes, input
   metadata, named bindings, and one root. C++ has a matching emitter.
 - `rust/rule_emitter.*` recursively emits patterns, RHS expressions, shape
-  restrictions, and per-rule host interfaces and callbacks.
+  restrictions, and checked runtime callbacks.
 - `rust/analysis_emitter.*` emits shape and dtype dispatch from checked operation
   definitions, including operation shape evaluators and attribute conversion.
 - `rust/metadata_expression_emitter.*` emits shape and dtype expressions through shared
@@ -119,20 +125,16 @@ generated references remain relative so the output can be relocated.
 
 Project input scans `dialects/**/*.tepl`, `rules/**/*.tepl`, and `graphs/**/*.tepl` in sorted order,
 resolves imports per file, and deduplicates declarations by source and name.
-It preserves each file's imports and host-function scope. `Options.rules_root`
+It preserves each file's imports. `Options.rules_root`
 controls relative rule paths for API callers; `Options.graphs_root` controls graph
 paths. Nested files become nested Rust modules. A single input file produces a rule module named after its file stem.
 Inherited rules belong to their instance file, independently of diagnostic
 origins that can point into a template file.
 
-Attribute schemas become `OpAttrs` variants, shared by every operation using
-that schema. Attribute fields and host trait methods preserve their TEPL names.
-The `$` host-call sigil is syntax only: `$infer_dot(...)` generates the trait
-method `infer_dot` and calls `functions.infer_dot(...)`. Checking resolves host
-calls (including bound `fn` parameters) to `HostCall` before code generation;
-unprefixed builtin calls lower to `BuiltinCall` and never create host methods.
-Bound template `fn` calls retain their host binding; unknown unprefixed calls
-are errors. See [builtin signatures and availability](../core/builtins/README.md).
+Attribute schemas become `OpAttrs` variants, shared by operations using the same
+schema. Attribute fields preserve their TEPL names. Calls resolve to checked
+`BuiltinCall` expressions; unknown calls are errors. See
+[builtin signatures and availability](../core/builtins/README.md).
 Rust keywords use raw identifiers, such as `r#type` and `r#match`. Names Rust
 cannot escape (`self`, `Self`, `super`, and `crate`) produce a generation
 diagnostic; rename them in TEPL. No prefixes or suffixes are added.
@@ -143,21 +145,19 @@ empty-list default.
 
 Each concrete rule becomes `generated::rules::FILE::rule_NAME` with:
 
-- `HostFunctions`: only host functions actually referenced by that rule.
-- `verify_small(&functions, &options)`: bounded sparse early rejection using the
-  actual host guards and derivations; returns unknown outside its supported
+- `verify_small(&options)`: bounded sparse early rejection using the
+  checked guards and derivations; returns unknown outside its supported
   explicit-attribute fragment. See
   [early verification](../../examples/research/early_verification.md).
 - `pattern()` and `expression()`: structural match and replacement trees.
 - `constraints()`: shape/dtype restrictions indexed by capture, including inheritance.
 - `match_checks<N>()`: declarations and ordered pure condition evaluators using
   the graph's analysis.
-- `build(functions)`: a rewrite using the graph's analysis type. Rust
+- `build()`: a rewrite using the graph's analysis type. Rust
   infers that type from use; standalone builders can specify it explicitly.
 
 Rewrite names are qualified as `FILE::NAME`, and rule modules have no broad
-re-exports. Host names are scoped to their source file; same-file overloads
-remain unsupported. For rules without host calls, pass `()` as `functions`. Abstract rules are
+re-exports. Abstract rules are
 already expanded in core; only concrete instances are emitted. Captures and
 attribute variables use core IDs to keep repeated identities and avoid collisions
 with user names. Rule integer arithmetic calls shared checked builtin helpers. Builtin errors
@@ -176,10 +176,8 @@ false or evaluation failure rejects the branch. Readiness never eagerly fetches
 metadata or evaluates a skipped expression branch. A later condition waits for
 an earlier condition even when its own bindings are ready.
 
-Only the builtin/operator prefix before the first host-containing condition is
-eligible. Nested host calls and calls in short-circuited branches still end that
-prefix. Host conditions, subsequent conditions, and derivations execute only
-during application, retaining their source order and host-call behavior.
+All supported conditions are pure and eligible for binding-aware checks.
+Derivations execute during application in source order.
 Application rematches with the same plan, then rechecks shapes and the early
 prefix against current metadata before executing the remaining callback and
 validating the RHS. The same generated evaluators serve search and final checks;
@@ -192,23 +190,9 @@ stable during traversal. The tensor-only APIs remain wrappers with an empty
 condition plan.
 Rules with no early conditions emit `MatchChecks::tensors(constraints())` instead
 of generating a condition-dispatch closure. Rule planning collects dependencies
-once per expression and retains only host functions and early-condition bindings.
+once per supported expression and retains condition bindings.
 
-Host argument/result types are:
-
-| Core type | Rust argument | Successful result |
-| --- | --- | --- |
-| Tensor | `&TensorInfo` | `TensorInfo` |
-| Index | `u64` | `u64` |
-| IndexList | `&[u64]` | `Vec<u64>` |
-| Bool | `bool` | `bool` |
-| DType | `DType` | `DType` |
-| I64 | `i64` | `i64` |
-| F64 | `f64` | `f64` |
-| Descriptor | `&OpAttrs` | `OpAttrs` |
-
-Fallible host functions wrap results in `Option`. Inferred descriptor schemas
-are checked at runtime, including intermediate results. Bare graph literals use
+Descriptor schemas are checked at runtime. Bare graph literals use
 the common `Literal` node, separately from any user-declared `literal` op.
 An omitted dtype remains unconstrained during matching and generation. See
 `templates/rust/README.md` for contextual RHS resolution and runtime requirements.
@@ -263,8 +247,8 @@ name and depth. Nested rules use the appropriate number of `super::` segments;
 external crate imports use absolute paths such as `::egg::` and `::std::`.
 
 ```sh
-bazel-bin/tepl generate examples/sample --out my_app/src/generated
-bazel-bin/tepl generate examples/sample --out my_app/src/generated --check
+bazel-bin/tepl generate examples/sample/rules/simple.tepl --out my_app/src/generated
+bazel-bin/tepl generate examples/sample/rules/simple.tepl --out my_app/src/generated --check
 ```
 
 `.tepl-generated-files` records the relative paths owned by generation. A later

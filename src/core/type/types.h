@@ -28,7 +28,7 @@ enum class DType {
 std::optional<DType> resolveDType(std::string_view name);
 std::string_view dtypeName(DType dtype);
 
-// Host values are distinct from graph tensors and their element dtypes.
+// Rule values are distinct from graph tensors and their element dtypes.
 // Index and I64 have unsigned/signed 64-bit literal ranges in this IR.
 enum class TypeKind {
   kTensor,
@@ -38,22 +38,24 @@ enum class TypeKind {
   kI64,
   kF64,
   kDescriptor,
-  kDType
+  kDType,
+  kString,
+  kPrecision,
+  kOpaque
 };
 
 struct Type {
   TypeKind kind = TypeKind::kTensor;
-  // Missing schema denotes an opaque host descriptor. Graph descriptor uses
-  // always resolve to a concrete schema.
+  // Descriptor values resolve to a concrete attribute schema.
   std::optional<AttributeSchemaId> schema;
+  std::size_t list_depth = 0;
+  bool optional = false;
+  std::string opaque_name;
   bool operator==(const Type&) const = default;
 };
 
-struct Signature {
-  std::vector<TypeId> arguments;
-  TypeId result;
-};
-
+Type listType(Type element);
+std::optional<Type> elementType(Type list);
 std::string typeName(const Type& type);
 std::optional<Type> resolveType(std::string_view name);
 bool isInteger(TypeKind kind);

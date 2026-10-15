@@ -1,5 +1,10 @@
 # C++ code generation templates
 
+> Host-function APIs shown here describe earlier generated artifacts. The
+> current frontend uses pure builtins and descriptor constructors; the extended
+> rule backend and application integrations await migration.
+
+
 These handwritten C++20 runtime headers are embedded in TEPL and copied into
 generated output. Declaration-dependent code belongs in `src/codegen/cpp/`.
 The directories mirror Rust: `analysis`, `builtins`, `rewriting`, and `graphs`,

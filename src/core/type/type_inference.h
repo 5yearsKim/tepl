@@ -21,6 +21,8 @@ class TypeInference {
   TypeId variable(SourceOrigin origin);
   TypeId concrete(Type type, SourceOrigin origin = {});
   std::optional<Type> known(TypeId id);
+  TypeId list(TypeId element, SourceOrigin origin);
+  TypeId element(TypeId list, SourceOrigin origin);
   void unify(TypeId left, TypeId right, const SourceOrigin& origin);
   void require(TypeId type, TypeRequirement requirement, SourceOrigin origin);
   void literal(TypeId type, std::string spelling, SourceOrigin origin);
@@ -36,6 +38,12 @@ class TypeInference {
     std::optional<Type> type;
     SourceOrigin origin;
   };
+  struct ListConstraint {
+    TypeId list, element;
+    SourceOrigin origin;
+  };
+  std::vector<ListConstraint> lists_;
+  void propagateLists();
   struct Requirement {
     TypeId type;
     TypeRequirement kind;

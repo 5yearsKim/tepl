@@ -93,7 +93,7 @@ class Checker {
     };
     if (field.type == "index" || field.type == "i64") {
       auto type = field.type == "index" ? TypeKind::kIndex : TypeKind::kI64;
-      if (input.kind != A::kInteger || !validHostLiteral(input.text, type))
+      if (input.kind != A::kInteger || !validScalarLiteral(input.text, type))
         bad();
       // Canonical integer text avoids octal C++ constants and target parser
       // limits.

@@ -75,8 +75,8 @@ group yields an empty position list.
 
 Shape declarations constrain ranks and extents; they do not silently constrain
 dot attributes. Required `index[]` descriptor fields can be compared with group
-references and other index-list expressions in `where` conditions. Opaque host
-conditions are rejected by this checker because they supply no symbolic facts.
+references and other index-list expressions in `where` conditions. Unsupported condition expressions are rejected by this checker rather than
+being treated as symbolic facts.
 
 Only declared conditions and LHS legality are proof assumptions. Missing facts
 produce errors; the compiler never adds applicability restrictions to a rule.
@@ -259,9 +259,11 @@ It prints elapsed time and counters for each inference/verification context to
 stderr. Outer context times include any nested verification, so they should not
 be added together. Normal compiler output is unchanged.
 
-The host-copy fixture is in [unsupported/host_call.tepl](unsupported/host_call.tepl).
-It remains unknown because `$copy_permutation` has no semantic contract. The
-compiler never assumes a host function's behavior from its name.
+Explicit descriptor constructors are shown in
+[rules/constructors.tepl](rules/constructors.tepl). Spreads and field expressions
+are lowered to LHS metadata before independent semantic verification. Unsupported
+symbolic expressions produce diagnostics. Application callbacks are no longer
+part of the language.
 
 ## Proof contract and limits
 
@@ -295,7 +297,7 @@ Required `index[]` fields, fixed operand arity, and the scalar primitives
 `Operand`, `Read`, `Const`, `Add`, `Product`, and `Reduce`
 form the operation fragment. Calculated reads support addition of coordinate
 tuples. Size-one expansion, reshape, general affine access inversion,
-value-dependent domains, and general host semantics are deferred.
+value-dependent domains, and arbitrary external computation are outside this language.
 
 ## Constants and cancellation
 

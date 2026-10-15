@@ -84,32 +84,6 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
     out.line("using " + names.root + "::rewriting::" + name + ";");
   for (auto name : {"OpAttrs", "DType", "TensorInfo"})
     out.line("using " + names.root + "::" + name + ";");
-  if (plan.host_functions.empty())
-    out.line("template<class F> concept HostFunctions=true;");
-  else {
-    out.line("template<class F> concept HostFunctions =");
-    bool first = true;
-    for (auto id : plan.host_functions) {
-      const auto& fn = program.host_functions.at(id.value);
-      std::string declaration = "requires(const F& functions";
-      for (std::size_t i = 0; i < fn.signature.arguments.size(); ++i)
-        declaration +=
-            "," +
-            type(program.types.at(fn.signature.arguments[i].value), true) +
-            " arg_" + std::to_string(i);
-      declaration += ") { { functions." + names.host(id) + "(";
-      for (std::size_t i = 0; i < fn.signature.arguments.size(); ++i) {
-        if (i) declaration += ",";
-        declaration += "arg_" + std::to_string(i);
-      }
-      auto result = type(program.types.at(fn.signature.result.value));
-      if (fn.fallible) result = "::std::optional<" + result + ">";
-      out.line((first ? "" : "&& ") + declaration + ") } -> ::std::same_as<" +
-               result + ">; }");
-      first = false;
-    }
-    out.line(";");
-  }
   out.line("inline TensorPattern pattern() { return " +
            pattern(*rule.lhs, names) + "; }");
   out.line("inline TensorExpr expression() { return " +
@@ -211,12 +185,8 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
     out.close("};");
   }
   out.close();
-  out.line("template<class A=" + names.root +
-           "::analysis::TensorAnalysis, HostFunctions F=" + names.root +
-           "::rewriting::NoFunctions>");
-  out.open("inline ::eggc::Rewrite<" + names.root +
-           "::OpNode,A> build(F functions={})");
-  out.line("auto host=::std::make_shared<F>(::std::move(functions));");
+  out.line("template<class A=" + names.root + "::analysis::TensorAnalysis>");
+  out.open("inline ::eggc::Rewrite<" + names.root + "::OpNode,A> build()");
   out.line("auto reader=[](const ::eggc::EGraph<" + names.root +
            "::OpNode,A>& graph, ::eggc::Id id) { return " + names.root +
            "::RewriteAnalysis<A>::tensor_info(graph,id); };");
@@ -226,11 +196,10 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
            quote(module.qualified + "::" + rule.name) +
            ",pattern(),expression(),::std::move(checks)," +
            (plan.requires_tensor_info ? "true," : "false,"));
-  out.open("[host,reader](const ::eggc::EGraph<" + names.root +
+  out.open("[reader](const ::eggc::EGraph<" + names.root +
            "::OpNode,A>& graph, const " + names.root +
            "::rewriting::TensorMatch& matched, [[maybe_unused]] const "
            "MetadataBindings& dimensions)->::std::optional<DerivedAttrs>");
-  out.line("[[maybe_unused]] const auto& functions=*host;");
   out.line("DerivedAttrs derived;");
   out.line("[[maybe_unused]] " + names.root +
            "::rewriting::MatchContext ctx{graph,matched,reader,&derived};");
@@ -249,7 +218,7 @@ void emitRule(CodeWriter& out, const core::Program& program, const Names& names,
     out.line("if(!(" + emitExpression(program, names, *rule.conditions[i]) +
              ")) return {};");
   for (const auto& d : rule.derivations)
-    out.line("derived.emplace(" + std::to_string(d.target.value) + "," +
+    out.line("derived.emplace(" + std::to_string(d.target->value) + "," +
              emitExpression(program, names, *d.value) + ");");
   InferenceSyntax inference_syntax{
       false, names.root,

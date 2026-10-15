@@ -1,5 +1,6 @@
 #include "src/codegen/cpp/backend.h"
 
+#include "src/codegen/common/rule_plan.h"
 #include "src/codegen/cpp/analysis_emitter.h"
 #include "src/codegen/cpp/dialect_emitter.h"
 #include "src/codegen/cpp/graph_emitter.h"
@@ -21,6 +22,8 @@ void replace(std::string& text, const std::string& marker,
 GenerationResult Backend::generate(const core::Program& program,
                                    const Options& options) const {
   GenerationResult result;
+  result.diagnostics = unsupportedRuleExpressions(program);
+  if (!result.diagnostics.empty()) return result;
   try {
     auto project =
         planProject(program, options.rules_root, options.graphs_root);

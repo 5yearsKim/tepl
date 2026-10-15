@@ -98,20 +98,6 @@ std::string emitExpression(const core::Program& program, const Names& names,
           std::vector<std::string> args;
           for (const auto& arg : value.arguments) args.push_back(emit(arg));
           return emitBuiltin(value.builtin, args, runtime, false);
-        } else if constexpr (std::is_same_v<T, core::HostCall>) {
-          const auto& fn = program.host_functions.at(value.function.value);
-          std::string out = "([&]() { ";
-          for (std::size_t i = 0; i < value.arguments.size(); ++i)
-            out += "auto arg_" + std::to_string(i) + " = " +
-                   emit(value.arguments[i]) + "; ";
-          std::string call = "functions." + names.host(fn.id) + "(";
-          for (std::size_t i = 0; i < value.arguments.size(); ++i) {
-            if (i) call += ",";
-            call += "arg_" + std::to_string(i);
-          }
-          call += ")";
-          if (fn.fallible) call = runtime + "::require(" + call + ")";
-          return out + "return " + call + "; }())";
         } else if constexpr (std::is_same_v<T, core::UnaryExpr>) {
           auto operand = emit(value.operand);
           if (value.op == UnaryOp::kPlus) return "(" + operand + ")";
@@ -120,7 +106,7 @@ std::string emitExpression(const core::Program& program, const Names& names,
             return "-(" + operand + ")";
           return runtime + "::take(" + runtime + "::common::neg(" + operand +
                  "))";
-        } else {
+        } else if constexpr (std::is_same_v<T, core::BinaryExpr>) {
           auto lhs = emit(value.lhs), rhs = emit(value.rhs);
           if (category(value.op) == BinaryCategory::kLogical)
             return "(" + lhs + " " + std::string(spelling(value.op)) + " " +
@@ -133,6 +119,9 @@ std::string emitExpression(const core::Program& program, const Names& names,
                         "(left,right))";
           return "([&]() { auto left=" + lhs + "; auto right=" + rhs +
                  "; return " + body + "; }())";
+        } else {
+          throw std::logic_error(
+              "rule expression code generation is not implemented");
         }
       },
       expr.value);

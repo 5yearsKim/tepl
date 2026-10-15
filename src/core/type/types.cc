@@ -25,8 +25,46 @@ std::string_view dtypeName(DType dtype) {
   return "<invalid dtype>";
 }
 
+Type listType(Type element) {
+  if (element.kind == TypeKind::kIndexList) {
+    element.kind = TypeKind::kIndex;
+    ++element.list_depth;
+  }
+  ++element.list_depth;
+  if (element.kind == TypeKind::kIndex && element.list_depth == 1 &&
+      !element.optional) {
+    element.kind = TypeKind::kIndexList;
+    element.list_depth = 0;
+  }
+  return element;
+}
+std::optional<Type> elementType(Type list) {
+  if (list.optional) return {};
+  if (list.kind == TypeKind::kIndexList) return Type{TypeKind::kIndex};
+  if (!list.list_depth) return {};
+  --list.list_depth;
+  if (list.kind == TypeKind::kIndex && list.list_depth == 1) {
+    list.kind = TypeKind::kIndexList;
+    list.list_depth = 0;
+  }
+  return list;
+}
 std::string typeName(const Type& type) {
+  if (type.list_depth || type.optional) {
+    auto scalar = type;
+    scalar.list_depth = 0;
+    scalar.optional = false;
+    auto result = typeName(scalar);
+    for (std::size_t i = 0; i < type.list_depth; ++i) result += "[]";
+    return result + (type.optional ? "?" : "");
+  }
   switch (type.kind) {
+    case TypeKind::kString:
+      return "String";
+    case TypeKind::kPrecision:
+      return "Precision";
+    case TypeKind::kOpaque:
+      return type.opaque_name;
     case TypeKind::kTensor:
       return "Tensor";
     case TypeKind::kIndex:
@@ -51,10 +89,11 @@ std::string typeName(const Type& type) {
 
 std::optional<Type> resolveType(std::string_view name) {
   static constexpr std::pair<std::string_view, TypeKind> names[] = {
-      {"dtype", TypeKind::kDType}, {"tensor", TypeKind::kTensor},
-      {"index", TypeKind::kIndex}, {"index_list", TypeKind::kIndexList},
-      {"bool", TypeKind::kBool},   {"i64", TypeKind::kI64},
-      {"f64", TypeKind::kF64},     {"attrs", TypeKind::kDescriptor},
+      {"dtype", TypeKind::kDType},   {"tensor", TypeKind::kTensor},
+      {"index", TypeKind::kIndex},   {"index_list", TypeKind::kIndexList},
+      {"string", TypeKind::kString}, {"precision", TypeKind::kPrecision},
+      {"bool", TypeKind::kBool},     {"i64", TypeKind::kI64},
+      {"f64", TypeKind::kF64},       {"attrs", TypeKind::kDescriptor},
   };
   for (const auto& [spelling, kind] : names)
     if (name == spelling) return Type{kind};

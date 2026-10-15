@@ -27,6 +27,7 @@ void registerDerivations(RuleCheckContext& context) {
   // RHS descriptor uses determine schemas before expressions are checked;
   // availability still advances in source order after each assignment.
   for (const auto& derivation : context.input.derivations) {
+    if (derivation.local) continue;
     if (context.scope.descriptors.contains(derivation.target)) {
       context.analysis.report(
           derivation.origin,
@@ -87,7 +88,7 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
         if ((field.type == "index" || field.type == "i64") &&
             input.kind == L::Kind::kInteger) {
           auto type = field.type == "index" ? TypeKind::kIndex : TypeKind::kI64;
-          valid = validHostLiteral(input.text, type);
+          valid = validScalarLiteral(input.text, type);
           if (valid && !value.text.empty() && value.text[0] == '+')
             value.text.erase(0, 1);
         } else if (field.type == "bool")
@@ -199,7 +200,33 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
 
 void checkDerivations(RuleCheckContext& context,
                       ExpressionChecker& expressions) {
+  // Gather schema equalities before checking fields; this permits an earlier
+  // temporary descriptor to obtain its schema from a later RHS-bound spread.
   for (const auto& derivation : context.input.derivations) {
+    if (derivation.local) continue;
+    std::optional<ast::AttributeRef> source;
+    if (auto ref = std::get_if<ast::AttributeRef>(&derivation.value->value))
+      source = *ref;
+    if (auto ctor =
+            std::get_if<ast::DescriptorConstructor>(&derivation.value->value))
+      source = ctor->spread;
+    if (source && context.scope.descriptors.contains(source->name))
+      context.analysis.types.unify(
+          context.rule.descriptors
+              .at(context.scope.descriptors.at(derivation.target).value)
+              .type,
+          context.rule.descriptors
+              .at(context.scope.descriptors.at(source->name).value)
+              .type,
+          derivation.origin);
+  }
+  for (const auto& derivation : context.input.derivations) {
+    if (derivation.local) {
+      if (auto checked = expressions.local(derivation.target, *derivation.value,
+                                           derivation.origin))
+        context.rule.derivations.push_back({{}, checked, derivation.origin});
+      continue;
+    }
     const auto id = context.scope.descriptors.at(derivation.target);
     const auto& descriptor = context.rule.descriptors.at(id.value);
     if (descriptor.kind != Descriptor::Kind::kDerived ||

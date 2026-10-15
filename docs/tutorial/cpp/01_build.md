@@ -91,7 +91,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" tepl check examples/sample
 
 docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/work" tepl generate examples/sample \
+  -v "$PWD:/work" tepl generate examples/sample/rules/simple.tepl \
   --target cpp --out my_cpp_app/generated --no-format
 ```
 

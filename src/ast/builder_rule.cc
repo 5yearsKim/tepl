@@ -87,8 +87,6 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
       ast::RuleParameter value;
       value.span = getSpan(parameter);
       value.name = parameter->ID()->getText();
-      value.kind = parameter->OP() ? ast::RuleParameterKind::kOperation
-                                   : ast::RuleParameterKind::kHostFunction;
       if (auto* types = parameter->signatureTypes()) {
         for (auto* type : types->signatureType()) {
           value.operand_types.push_back({getSpan(type), type->getText()});
@@ -105,11 +103,9 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
     inheritance.base = clause->ID()->getText();
     if (auto* bindings = clause->ruleBindings()) {
       for (auto* binding : bindings->ruleBinding()) {
-        auto* host = binding->hostFunctionRef();
-        inheritance.bindings.push_back(
-            {getSpan(binding), binding->ID()->getText(),
-             host ? host->ID()->getText() : binding->opRef()->getText(),
-             host != nullptr});
+        inheritance.bindings.push_back({getSpan(binding),
+                                        binding->ID()->getText(),
+                                        binding->opRef()->getText()});
       }
     }
     rule.inheritance = std::move(inheritance);
@@ -137,19 +133,25 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
   if (auto* where = body        ? body->whereBlock()
                     : inherited ? inherited->whereBlock()
                                 : nullptr) {
-    for (auto* expression : where->constraintExpr()) {
-      rule.conditions.push_back(
-          std::any_cast<ast::ConstraintExprPtr>(visit(expression)));
+    for (auto* statement : where->whereStatement()) {
+      auto value = std::any_cast<ast::ConstraintExprPtr>(
+          visit(statement->constraintExpr()));
+      if (statement->LET())
+        value = makeConstraint(
+            statement, ast::LocalBinding{statement->ID()->getText(), value});
+      rule.conditions.push_back(value);
     }
   }
   if (auto* derive = body ? body->deriveBlock() : nullptr) {
-    const auto targets = derive->attrRef();
-    const auto values = derive->constraintExpr();
-    for (std::size_t index = 0; index < targets.size(); ++index) {
+    for (auto* statement : derive->deriveStatement()) {
+      const bool local = statement->LET() != nullptr;
       rule.derivations.push_back(
-          {getSpan(targets[index]->getStart(), values[index]->getStop()),
-           ast::AttributeRef{targets[index]->ID()->getText()},
-           std::any_cast<ast::ConstraintExprPtr>(visit(values[index]))});
+          {getSpan(statement),
+           ast::AttributeRef{local ? statement->ID()->getText()
+                                   : statement->attrRef()->ID()->getText()},
+           std::any_cast<ast::ConstraintExprPtr>(
+               visit(statement->constraintExpr())),
+           local});
     }
   }
   return rule;
@@ -283,6 +285,14 @@ std::any AstBuilder::visitRhsOperatorGraph(
 
 std::any AstBuilder::visitConstraintExpr(
     Parser::ConstraintExprContext* context) {
+  if (context->IF()) {
+    const auto e = context->constraintExpr();
+    return makeConstraint(
+        context, ast::ConditionalExpr{
+                     std::any_cast<ast::ConstraintExprPtr>(visit(e[0])),
+                     std::any_cast<ast::ConstraintExprPtr>(visit(e[1])),
+                     std::any_cast<ast::ConstraintExprPtr>(visit(e[2]))});
+  }
   return visit(context->logicalOr());
 }
 
@@ -291,11 +301,16 @@ ast::ConstraintExprPtr AstBuilder::foldBinary(
     antlr4::ParserRuleContext* parent, const std::vector<Context*>& operands) {
   auto lhs = std::any_cast<ast::ConstraintExprPtr>(visit(operands.front()));
   for (std::size_t index = 1; index < operands.size(); ++index) {
-    const auto op = binaryOperator(parent->children[2 * index - 1]->getText());
+    const auto spelling = parent->children[2 * index - 1]->getText();
     auto rhs = std::any_cast<ast::ConstraintExprPtr>(visit(operands[index]));
     const ast::SourceSpan span{lhs->span.begin, rhs->span.end};
-    lhs = std::make_shared<ast::ConstraintExpr>(ast::ConstraintExpr{
-        span, ast::BinaryExpr{op, std::move(lhs), std::move(rhs)}});
+    if (spelling == "++")
+      lhs = std::make_shared<ast::ConstraintExpr>(
+          ast::ConstraintExpr{span, ast::Call{"concat", {lhs, rhs}}});
+    else
+      lhs = std::make_shared<ast::ConstraintExpr>(ast::ConstraintExpr{
+          span, ast::BinaryExpr{binaryOperator(spelling), std::move(lhs),
+                                std::move(rhs)}});
   }
   return lhs;
 }
@@ -326,7 +341,7 @@ std::any AstBuilder::visitMultiplicative(
 }
 
 std::any AstBuilder::visitUnary(Parser::UnaryContext* context) {
-  if (auto* primary = context->primary()) return visit(primary);
+  if (auto* postfix = context->postfix()) return visit(postfix);
   return makeConstraint(
       context, ast::UnaryExpr{unaryOperator(context->getStart()->getText()),
                               std::any_cast<ast::ConstraintExprPtr>(
@@ -334,10 +349,7 @@ std::any AstBuilder::visitUnary(Parser::UnaryContext* context) {
 }
 
 std::any AstBuilder::visitCallPrimary(Parser::CallPrimaryContext* context) {
-  auto* host = context->hostFunctionRef();
-  ast::Call call{host ? host->ID()->getText() : context->ID()->getText(),
-                 {},
-                 host ? ast::CallKind::kHost : ast::CallKind::kNative};
+  ast::Call call{context->ID()->getText(), {}};
   if (auto* arguments = context->arguments()) {
     for (auto* argument : arguments->constraintExpr()) {
       call.arguments.push_back(
@@ -386,6 +398,61 @@ std::any AstBuilder::visitGroupPrimary(Parser::GroupPrimaryContext* context) {
       std::any_cast<ast::ConstraintExprPtr>(visit(context->constraintExpr()));
   expression->span = getSpan(context);
   return expression;
+}
+
+std::any AstBuilder::visitPostfix(Parser::PostfixContext* context) {
+  auto value = std::any_cast<ast::ConstraintExprPtr>(visit(context->primary()));
+  for (auto* index : context->constraintExpr())
+    value = makeConstraint(
+        context, ast::IndexExpr{value, std::any_cast<ast::ConstraintExprPtr>(
+                                           visit(index))});
+  return value;
+}
+std::any AstBuilder::visitStringPrimary(Parser::StringPrimaryContext* context) {
+  auto raw = context->STRING()->getText();
+  std::string decoded;
+  for (std::size_t i = 1; i + 1 < raw.size(); ++i) {
+    if (raw[i] == '\\') ++i;
+    decoded += raw[i];
+  }
+  return makeConstraint(context, ast::StringLiteral{decoded});
+}
+std::any AstBuilder::visitListPrimary(Parser::ListPrimaryContext* context) {
+  ast::ListExpr list;
+  for (auto* e : context->constraintExpr())
+    list.elements.push_back(std::any_cast<ast::ConstraintExprPtr>(visit(e)));
+  return makeConstraint(context, list);
+}
+std::any AstBuilder::visitComprehensionPrimary(
+    Parser::ComprehensionPrimaryContext* context) {
+  return makeConstraint(
+      context, ast::ComprehensionExpr{std::any_cast<ast::ConstraintExprPtr>(
+                                          visit(context->constraintExpr(0))),
+                                      context->ID()->getText(),
+                                      std::any_cast<ast::ConstraintExprPtr>(
+                                          visit(context->constraintExpr(1)))});
+}
+template <class Context>
+ast::ConstraintExprPtr descriptorConstructor(
+    AstBuilder& builder, Context* context,
+    std::optional<ast::AttributeRef> spread) {
+  ast::DescriptorConstructor value{spread, {}};
+  for (auto* f : context->descriptorField())
+    value.fields.push_back({getSpan(f), f->ID()->getText(),
+                            std::any_cast<ast::ConstraintExprPtr>(
+                                builder.visit(f->constraintExpr()))});
+  return makeConstraint(context, value);
+}
+std::any AstBuilder::visitDescriptorPrimary(
+    Parser::DescriptorPrimaryContext* context) {
+  std::optional<ast::AttributeRef> spread;
+  if (context->attrRef())
+    spread = ast::AttributeRef{context->attrRef()->ID()->getText()};
+  return descriptorConstructor(*this, context, spread);
+}
+std::any AstBuilder::visitDescriptorFieldsPrimary(
+    Parser::DescriptorFieldsPrimaryContext* context) {
+  return descriptorConstructor(*this, context, {});
 }
 
 }  // namespace tepl

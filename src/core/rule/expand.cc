@@ -39,9 +39,9 @@ class RuleExpander {
     appendRestrictions(*body_, 0);
     if (body_ != &instance_) appendRestrictions(instance_, 1);
     for (const auto& derivation : body_->derivations)
-      output_.derivations.push_back({derivation.target.name,
-                                     cloneExpression(*derivation.value, *body_),
-                                     location(*body_, derivation.span)});
+      output_.derivations.push_back(
+          {derivation.target.name, cloneExpression(*derivation.value, *body_),
+           location(*body_, derivation.span), derivation.local});
     if (context_.diagnostics.size() != diagnostic_count) return std::nullopt;
     return std::move(output_);
   }
@@ -95,10 +95,7 @@ class RuleExpander {
             "missing binding for parameter '" + parameter.name + "'");
         continue;
       }
-      if (parameter.kind == ast::RuleParameterKind::kOperation)
-        bindOperation(parameter, *binding->second);
-      else
-        bindFunction(parameter, *binding->second);
+      bindOperation(parameter, *binding->second);
     }
     for (const auto& [name, binding] : bindings)
       if (!parameters.contains(name))
@@ -109,11 +106,6 @@ class RuleExpander {
   void bindOperation(const ast::RuleParameter& parameter,
                      const ast::RuleBinding& binding) {
     const auto at = location(instance_, binding.span);
-    if (binding.host) {
-      context_.report(at, "host function cannot bind operation parameter '" +
-                              parameter.name + "'");
-      return;
-    }
     const auto id =
         context_.operation(binding.value, instance_.source_name, at);
     if (!id) return;
@@ -135,41 +127,8 @@ class RuleExpander {
     op_bindings_.emplace(parameter.name, *id);
   }
 
-  void bindFunction(const ast::RuleParameter& parameter,
-                    const ast::RuleBinding& binding) {
-    const auto at = location(instance_, binding.span);
-    const auto& name = binding.value;
-    if (!binding.host) {
-      context_.report(at, "host-function binding for '" + parameter.name +
-                              "' requires '$' before '" + name + "'");
-      return;
-    }
-    if (name.find('.') != std::string::npos) {
-      context_.report(
-          at, "qualified host-function bindings are not supported in v1");
-      return;
-    }
-    const auto id = context_.host(name, parameter.operand_types.size(), at);
-    // Declaration resolution validates signature type names before expansion.
-    const auto& signature = context_.output.host_functions[id.value].signature;
-    for (std::size_t i = 0; i < std::min(signature.arguments.size(),
-                                         parameter.operand_types.size());
-         ++i)
-      context_.types.unify(
-          signature.arguments[i],
-          context_.types.concrete(
-              resolveType(parameter.operand_types[i].name).value(), at),
-          at);
-    context_.types.unify(
-        signature.result,
-        context_.types.concrete(resolveType(parameter.result_type.name).value(),
-                                at),
-        at);
-    fn_bindings_.emplace(parameter.name, id);
-  }
-
   bool isParameter(const std::string& name) const {
-    return op_bindings_.contains(name) || fn_bindings_.contains(name);
+    return op_bindings_.contains(name);
   }
 
   ast::GraphExprPtr cloneGraph(const ast::GraphExpr& input) {
@@ -180,9 +139,6 @@ class RuleExpander {
       if (op->name == "tuple") {
         context_.report(
             at, "tuple semantics are not supported in the initial analyzer");
-      } else if (fn_bindings_.contains(op->name)) {
-        context_.report(
-            at, "host-function parameter cannot be used as a graph operation");
       } else if (const auto bound = op_bindings_.find(op->name);
                  bound != op_bindings_.end()) {
         metadata.operation = bound->second;
@@ -216,18 +172,9 @@ class RuleExpander {
     const auto at = location(definition, input.span);
     output_.expr_origins.emplace(result.get(), at);
     if (auto* call = std::get_if<ast::Call>(&result->value)) {
-      if (&definition == body_ && call->kind == ast::CallKind::kNative) {
-        if (op_bindings_.contains(call->callee))
-          context_.report(
-              at, "operation parameter cannot be called as a host function");
-        if (const auto found = fn_bindings_.find(call->callee);
-            found != fn_bindings_.end()) {
-          call->callee =
-              context_.output.host_functions[found->second.value].name;
-          call->kind = ast::CallKind::kHost;
-          output_.bound_functions.emplace(call, found->second);
-        }
-      }
+      if (&definition == body_ && op_bindings_.contains(call->callee))
+        context_.report(at,
+                        "operation parameter cannot be called as a builtin");
       for (auto& argument : call->arguments)
         argument = cloneExpression(*argument, definition);
     } else if (auto* unary = std::get_if<ast::UnaryExpr>(&result->value)) {
@@ -235,11 +182,35 @@ class RuleExpander {
     } else if (auto* binary = std::get_if<ast::BinaryExpr>(&result->value)) {
       binary->lhs = cloneExpression(*binary->lhs, definition);
       binary->rhs = cloneExpression(*binary->rhs, definition);
+    } else if (auto* list = std::get_if<ast::ListExpr>(&result->value)) {
+      for (auto& e : list->elements) e = cloneExpression(*e, definition);
+    } else if (auto* index = std::get_if<ast::IndexExpr>(&result->value)) {
+      index->value = cloneExpression(*index->value, definition);
+      index->index = cloneExpression(*index->index, definition);
+    } else if (auto* conditional =
+                   std::get_if<ast::ConditionalExpr>(&result->value)) {
+      conditional->condition =
+          cloneExpression(*conditional->condition, definition);
+      conditional->then_value =
+          cloneExpression(*conditional->then_value, definition);
+      conditional->else_value =
+          cloneExpression(*conditional->else_value, definition);
+    } else if (auto* comp =
+                   std::get_if<ast::ComprehensionExpr>(&result->value)) {
+      comp->element = cloneExpression(*comp->element, definition);
+      comp->iterable = cloneExpression(*comp->iterable, definition);
+    } else if (auto* ctor =
+                   std::get_if<ast::DescriptorConstructor>(&result->value)) {
+      for (auto& f : ctor->fields)
+        f.value = cloneExpression(*f.value, definition);
+    } else if (auto* local = std::get_if<ast::LocalBinding>(&result->value)) {
+      local->value = cloneExpression(*local->value, definition);
     }
     return result;
   }
 
   void appendRestrictions(const ast::Rule& definition, std::size_t layer) {
+    output_.condition_scopes.push_back(output_.conditions.size());
     for (const auto& dtype : definition.dtypes)
       output_.dtypes.push_back(
           {dtype, location(definition, dtype.span), layer});
@@ -255,7 +226,6 @@ class RuleExpander {
   const ast::Rule* body_;
   ExpandedRule output_;
   std::map<std::string, OpId> op_bindings_;
-  std::map<std::string, HostFunctionId> fn_bindings_;
 };
 
 }  // namespace

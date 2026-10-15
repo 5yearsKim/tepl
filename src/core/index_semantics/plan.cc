@@ -116,6 +116,7 @@ struct Builder {
       }
       throw std::runtime_error("unknown output-axis group '" + ref.group + "'");
     };
+    std::map<std::size_t, S> locals;
     std::function<S(const TypedExpr&)> lower = [&](const TypedExpr& e) -> S {
       return std::visit(
           [&](const auto& v) -> S {
@@ -123,6 +124,12 @@ struct Builder {
             if constexpr (std::is_same_v<T, OutputAxisGroupRef>) {
               return outputPositions(v);
             } else if constexpr (std::is_same_v<T, DescriptorFieldRef>) {
+              if (auto found = plan.attributes.find(v.descriptor.value);
+                  found != plan.attributes.end())
+                return found->second.at(v.field);
+              if (rule.descriptors.at(v.descriptor.value).kind !=
+                  Descriptor::Kind::kCaptured)
+                return {};
               for (const auto& n : plan.nodes)
                 if (n.descriptor == v.descriptor && n.definition &&
                     !n.automatic)
@@ -161,12 +168,39 @@ struct Builder {
                               ? "ordered_complement"
                               : std::string(builtins::builtinName(v.builtin)),
                           std::move(args));
+            } else if constexpr (std::is_same_v<T, LocalRef>) {
+              auto found = locals.find(v.local.value);
+              return found != locals.end() ? found->second : S{};
+            } else if constexpr (std::is_same_v<T, ListExpr>) {
+              std::vector<S> values;
+              for (const auto& a : v.elements) {
+                auto value = lower(*a);
+                if (!value) return {};
+                values.push_back(value);
+              }
+              return make(Symbol::Kind::List, {}, 0, 0, std::move(values));
+            } else if constexpr (std::is_same_v<T, IndexExpr>) {
+              auto value = lower(*v.value), index = lower(*v.index);
+              return value && index ? call("index", {value, index}) : S{};
+            } else if constexpr (std::is_same_v<T, ConditionalExpr>) {
+              auto condition = lower(*v.condition), yes = lower(*v.then_value),
+                   no = lower(*v.else_value);
+              return condition && yes && no ? call("if", {condition, yes, no})
+                                            : S{};
             } else
               return {};
           },
           e.value);
     };
     for (const auto& condition : rule.conditions) {
+      if (const auto* local = std::get_if<LocalLet>(&condition->value)) {
+        auto value = lower(*local->value);
+        if (!value)
+          throw std::runtime_error(
+              "unsupported semantic-rule local expression");
+        locals[local->local.value] = value;
+        continue;
+      }
       auto value = lower(*condition);
       if (!value) {
         context.report(condition->origin,
@@ -175,6 +209,49 @@ struct Builder {
         throw std::runtime_error("cannot interpret declared condition");
       }
       plan.assumptions.push_back(value);
+    }
+    locals.clear();  // where and derive have independent local scopes.
+    for (const auto& derivation : rule.derivations) {
+      if (!derivation.target) {
+        const auto& local = std::get<LocalLet>(derivation.value->value);
+        auto value = lower(*local.value);
+        if (!value)
+          throw std::runtime_error(
+              "unsupported semantic-rule local expression");
+        locals[local.local.value] = value;
+        continue;
+      }
+      std::vector<S> fields;
+      if (const auto* ctor =
+              std::get_if<DescriptorConstruct>(&derivation.value->value)) {
+        for (const auto& f : ctor->fields) {
+          auto value = lower(*f);
+          if (!value) {
+            context.report(f->origin,
+                           "unsupported semantic descriptor field expression");
+            throw std::runtime_error(
+                "cannot interpret explicit descriptor constructor");
+          }
+          fields.push_back(value);
+        }
+      } else if (const auto* ref =
+                     std::get_if<DescriptorRef>(&derivation.value->value)) {
+        if (auto found = plan.attributes.find(ref->descriptor.value);
+            found != plan.attributes.end())
+          fields = found->second;
+        else {
+          for (const auto& n : plan.nodes) {
+            if (n.descriptor != ref->descriptor || !n.definition) continue;
+            for (std::size_t f = 0; f < n.definition->fields.size(); ++f)
+              fields.push_back(make(Symbol::Kind::Field,
+                                    n.definition->fields[f],
+                                    ref->descriptor.value, f));
+            break;
+          }
+        }
+      } else
+        throw std::runtime_error("unsupported semantic descriptor expression");
+      plan.attributes.emplace(derivation.target->value, std::move(fields));
     }
   }
   std::size_t capture(CaptureId id, const SourceOrigin& at) {

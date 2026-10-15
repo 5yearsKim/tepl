@@ -346,10 +346,10 @@ validation. Its runtime handles unknown, invalid, and conflicting metadata.
 The host supplies input types and any required inference missing from the dialect.
 
 🔒 **Conditions and derivations:** `where` states legality conditions; `derive`
-computes replacement attributes. Calls like `$is_reassociable(...)` run
-application-specific Rust or C++ functions. The [LoRA rule](../examples/sample/rules/lora.tepl)
-uses these blocks to check reassociation and derive contraction attributes.
-Floating-point reassociation requires explicit host permission.
+computes replacement attributes using builtins and descriptor constructors.
+The [LoRA rule](../examples/sample/rules/lora.tepl) uses explicit axis guards
+and descriptor copies. Floating-point reassociation requires an explicit
+numerical policy. Extended rule execution support is deferred.
 
 🔌 **Host integration:** Define or import dialects, write rules, generate code,
 and run it with an e-graph optimizer. TEPL supports multiple dialects and custom

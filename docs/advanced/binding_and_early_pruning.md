@@ -36,7 +36,6 @@ rule cancel_small_negate {
     where {
         is_numeric(T);
         len(Dims) <= 4;
-        $allows_cancellation(X);
         product(Dims) <= 4096;
     }
 }
@@ -46,20 +45,18 @@ rule cancel_small_negate {
 | --- | --- |
 | `X: T[Dims...]` | During binding, and rechecked during application. |
 | `is_numeric(T)` and `len(Dims) <= 4` | During search once their bindings are ready, and rechecked during application. |
-| `$allows_cancellation(X)` | During application. |
-| `product(Dims) <= 4096` | During application because it follows a host condition. |
+| `product(Dims) <= 4096` | During search once its bindings are ready, and rechecked during application. |
 
 The leading conditions containing only builtins and operators can prune search.
 They run in source order: if the next condition needs an unbound value, it waits,
 and later conditions wait behind it.
 
-The first condition containing a host call ends this early prefix. It and every
-following condition run during application. A nested host call still establishes
-this boundary, even if short-circuit evaluation skips calling it.
+All rule expressions are pure. Conditions retain source order and wait for their
+required bindings. Rank and element-count limits are application policy; they do
+not establish mathematical equivalence.
 
-In this example, move `product(Dims) <= 4096` before the host condition if you
-want it to prune search too. The rank and element-count limits are application
-policy; they do not change the tensors or establish mathematical equivalence.
+Local bindings and extended list expressions are checked by the frontend. Their
+code generation and execution are deferred and produce explicit diagnostics.
 
 ## Search and application are separate
 
@@ -70,8 +67,7 @@ enabled, it also validates replacement operations and the root's shape and dtype
 before inserting nodes.
 
 Keep inexpensive pure guards early when they express your intended policy.
-Metadata answers must remain stable during a matching traversal. Host calls
-remain fallible, and a rejected candidate leaves the replacement uninserted.
+Metadata answers must remain stable during a matching traversal. Failed expression evaluation rejects the candidate before insertion.
 
 See [attributes and conditions](attributes_and_conditions.md) for descriptor
 examples and [shape](../references/shape.md) and [dtype](../references/dtype.md)

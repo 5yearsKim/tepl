@@ -1,6 +1,8 @@
 from "../dialects/tensor.tepl" import TensorLang as t;
 use t::{add, dot};
 
+// Algebraic identity: select only when the numerical policy permits distribution
+// and reassociation. These guards specify equal-batch matrix contractions.
 rule lora {
     X: [Batch..., M, K]
     W: [WeightBatch..., K, N]
@@ -12,13 +14,24 @@ rule lora {
     (add (dot[@xw] X W) (dot[@out] (dot[@xa] X A) B))
 
     where {
-        $is_broadcastable(Batch, WeightBatch);
-        $is_reassociable(X, A, B, @outer, @inner);
+        Batch == WeightBatch;
+        @outer.lhs_batching_dimensions == range(len(Batch));
+        @outer.rhs_batching_dimensions == range(len(Batch));
+        @inner.lhs_batching_dimensions == range(len(Batch));
+        @inner.rhs_batching_dimensions == range(len(Batch));
+        @outer.lhs_contracting_dimensions == [len(Batch) + 1];
+        @outer.rhs_contracting_dimensions == [len(Batch)];
+        @inner.lhs_contracting_dimensions == [len(Batch) + 1];
+        @inner.rhs_contracting_dimensions == [len(Batch)];
+        @outer.precision_config == [default, default];
+        @inner.precision_config == [default, default];
+        @outer.algorithm == none;
+        @inner.algorithm == none;
     }
 
     derive {
-        @xw = $infer_dot(X, W, @outer);
-        @xa = $infer_dot(X, A, @outer);
-        @out = $infer_lora_out(X, A, B, @outer, @inner);
+        @xw = { ..@outer };
+        @xa = { ..@outer };
+        @out = { ..@inner };
     }
 }

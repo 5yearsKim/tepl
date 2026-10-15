@@ -40,8 +40,6 @@ const metadata::Program& checkedShape(
     throw std::runtime_error("Expected successful shape checking");
   }
   const auto& program = *result.program;
-  check(program.host_functions.empty(),
-        "Shape builtins must not register host functions");
   check(program.operations[0].shape.has_value(),
         "Checked shape must be attached to the operation");
   return *program.operations[0].shape;

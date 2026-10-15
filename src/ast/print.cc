@@ -145,18 +145,48 @@ void printConstraint(std::ostream& out, const ast::ConstraintExpr& expression,
         } else if constexpr (std::is_same_v<T, ast::BooleanLiteral>) {
           out << "boolean " << (value.value ? "true" : "false") << '\n';
         } else if constexpr (std::is_same_v<T, ast::Call>) {
-          out << "call " << (value.kind == ast::CallKind::kHost ? "$" : "")
-              << value.callee << '\n';
+          out << "call " << value.callee << '\n';
           for (const auto& argument : value.arguments) {
             printConstraint(out, *argument, depth + 1);
           }
         } else if constexpr (std::is_same_v<T, ast::UnaryExpr>) {
           out << "unary " << unarySymbol(value.op) << '\n';
           printConstraint(out, *value.operand, depth + 1);
-        } else {
+        } else if constexpr (std::is_same_v<T, ast::BinaryExpr>) {
           out << "binary " << binarySymbol(value.op) << '\n';
           printConstraint(out, *value.lhs, depth + 1);
           printConstraint(out, *value.rhs, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ListExpr>) {
+          out << "list\n";
+          for (const auto& e : value.elements)
+            printConstraint(out, *e, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::IndexExpr>) {
+          out << "index\n";
+          printConstraint(out, *value.value, depth + 1);
+          printConstraint(out, *value.index, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ConditionalExpr>) {
+          out << "if\n";
+          printConstraint(out, *value.condition, depth + 1);
+          printConstraint(out, *value.then_value, depth + 1);
+          printConstraint(out, *value.else_value, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::ComprehensionExpr>) {
+          out << "comprehension " << value.variable << '\n';
+          printConstraint(out, *value.iterable, depth + 1);
+          printConstraint(out, *value.element, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::LocalBinding>) {
+          out << "let " << value.name << '\n';
+          printConstraint(out, *value.value, depth + 1);
+        } else if constexpr (std::is_same_v<T, ast::StringLiteral>) {
+          out << "string " << value.value << '\n';
+        } else if constexpr (std::is_same_v<T, ast::DescriptorConstructor>) {
+          out << "descriptor";
+          if (value.spread) out << " ..@" << value.spread->name;
+          out << '\n';
+          for (const auto& f : value.fields) {
+            indent(out, depth + 1);
+            out << f.name << '\n';
+            printConstraint(out, *f.value, depth + 2);
+          }
         }
       },
       expression.value);
@@ -265,8 +295,7 @@ void printRule(std::ostream& out, const ast::Rule& rule) {
       << '\n';
   for (const auto& parameter : rule.parameters) {
     out << "    parameter " << parameter.name << ": "
-        << (parameter.kind == ast::RuleParameterKind::kOperation ? "op" : "fn")
-        << "<(";
+        << "op<(";
     for (std::size_t index = 0; index < parameter.operand_types.size();
          ++index) {
       if (index != 0) out << ", ";
@@ -277,8 +306,7 @@ void printRule(std::ostream& out, const ast::Rule& rule) {
   if (rule.inheritance) {
     out << "    extends " << rule.inheritance->base << '\n';
     for (const auto& binding : rule.inheritance->bindings) {
-      out << "      " << binding.parameter << " = " << (binding.host ? "$" : "")
-          << binding.value << '\n';
+      out << "      " << binding.parameter << " = " << binding.value << '\n';
     }
   }
   for (const auto& declaration : rule.dtypes) {
@@ -300,7 +328,8 @@ void printRule(std::ostream& out, const ast::Rule& rule) {
     printConstraint(out, *condition, 3);
   }
   for (const auto& derivation : rule.derivations) {
-    out << "    derive @" << derivation.target.name << '\n';
+    out << (derivation.local ? "    derive let " : "    derive @")
+        << derivation.target.name << '\n';
     printConstraint(out, *derivation.value, 3);
   }
 }

@@ -6,20 +6,20 @@ TEPL is a declarative language for tensor graph rewrites, guided by four princip
   Express graph structure, transformation intent, and tensor metadata clearly,
   with explicit shape, dtype, and legality constraints.
 
-- **Design for host integration.**
-  Fit into the host's architecture and semantic model. Delegate complex logic,
-  including tensor semantics, numerical legality, and metadata inference, to
-  host functions while keeping rewrite expressions simple.
+- **Keep rules self-contained.**
+  Express guards and attribute transformations with pure expressions, reusable
+  builtins, descriptor constructors, and semantic synthesis. Applications select
+  the numerical policy and supply input metadata.
 
 - **Extensible architecture.**
   Use shape-generic rules to express rewrites across tensor sizes and ranks, and
-  rule polymorphism to reuse transformations across operations and host functions.
+  rule polymorphism to reuse transformations across operations.
   Extend the operation vocabulary through dialects while keeping the core language small.
 
 - **Validate early, search efficiently.**
   Validate rewrite definitions before search wherever possible. Use explicit
   constraints to reject candidates as soon as the necessary information is
-  available, retaining runtime checks for match-dependent and host-defined semantics.
+  available, retaining runtime checks for match-dependent metadata.
 
 ## Core concepts
 
@@ -28,39 +28,26 @@ TEPL is a declarative language for tensor graph rewrites, guided by four princip
 A rule describes a matched graph and its replacement with `LHS => RHS`.
 Operations use S-expressions; repeated names refer to the same captured value.
 
-The [LoRA example](../examples/sample/rules/lora.tepl) combines graph structure,
-shape constraints, and host functions:
+The [attribute examples](../examples/sample/rules/attributes.tepl) combine
+patterns, builtins, and explicit attribute construction:
 
-```javascript
+```tepl
 from "../dialects/tensor.tepl" import TensorLang as t;
-use t::{add, dot};
 
-rule lora {
-    X: [Batch..., M, K]
-    W: [WeightBatch..., K, N]
-    A: [WeightBatch..., K, R]
-    B: [WeightBatch..., R, N]
-
-    (dot[@outer] X (add W (dot[@inner] A B)))
-    =>
-    (add (dot[@xw] X W)
-         (dot[@out] (dot[@xa] X A) B))
-
-    where {
-        $is_broadcastable(Batch, WeightBatch);
-        $is_reassociable(X, A, B, @outer, @inner);
-    }
-
+rule compose_transposes {
+    (t.transpose[@outer] (t.transpose[@inner] X))
+    => (t.transpose[@combined] X)
     derive {
-        @xw = $infer_dot(X, W, @outer);
-        @xa = $infer_dot(X, A, @outer);
-        @out = $infer_lora_out(X, A, B, @outer, @inner);
+        @combined = {
+            ..@outer,
+            permutation: gather(@inner.permutation, @outer.permutation)
+        };
     }
 }
 ```
 
-Import paths are relative to the rule file. This example uses the layout under
-`examples/sample/rules/`.
+Import paths are relative to the rule file. Constructors are checked by the
+frontend; their Rust/C++ execution support is deferred.
 
 ### Tensor constraints and shape-generic rules
 
@@ -79,10 +66,9 @@ S: f32[]             // A rank-zero tensor
 Each shape permits at most one sequence. Dtype annotations never insert casts
 or imply promotion; an omitted dtype is unrestricted.
 
-### Host functions and operator descriptors
+### Builtins and operator descriptors
 
-`$name(...)` calls a host function. The host supplies tensor semantics,
-numerical legality, and specialized inference.
+Calls resolve to reusable builtins. Rules do not call application functions.
 
 Descriptors hold operation attributes. A pattern captures them with `@name`;
 the replacement can reuse them or use derived descriptors.
@@ -102,17 +88,16 @@ replacement operations.
 ```javascript
 where {
     K % 128 == 0;
-    $is_reassociable(X, A, B, @outer, @inner);
 }
 derive {
-    @xa = $infer_dot(X, A, @outer);
+    @xa = { ..@outer };
 }
 ```
 
 Both blocks use matched inputs, captured descriptors, and shape variables.
 Derivations run in source order and cannot inspect newly constructed RHS values.
 Numerical transformations such as floating-point reassociation require explicit
-host permission.
+numerical policy.
 
 ### Extensible dialects and polymorphic rules
 

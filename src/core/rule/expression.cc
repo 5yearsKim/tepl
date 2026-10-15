@@ -7,6 +7,29 @@ namespace tepl::core::detail {
 TypedExprPtr ExpressionChecker::check(const ast::ConstraintExpr& expression,
                                       std::optional<TypeId> expected) {
   const auto& origin = input_.expr_origins.at(&expression);
+  if (expected) {
+    if (auto type = context_.types.known(*expected); type && type->optional) {
+      if (auto conditional =
+              std::get_if<ast::ConditionalExpr>(&expression.value))
+        return lower(*conditional, origin, expected);
+      if (auto name = std::get_if<ast::NameRef>(&expression.value);
+          name && name->name == "none")
+        return make(origin, *expected, NoneConstant{});
+      auto value =
+          std::visit([&](const auto& v) { return lower(v, origin, {}); },
+                     expression.value);
+      if (!value) return nullptr;
+      if (auto actual = context_.types.known(value->type);
+          actual && actual->optional) {
+        context_.types.unify(value->type, *expected, origin);
+        return value;
+      }
+      type->optional = false;
+      context_.types.unify(value->type, context_.types.concrete(*type, origin),
+                           origin);
+      return make(origin, *expected, OptionalValue{value});
+    }
+  }
   return std::visit(
       [&](const auto& value) { return lower(value, origin, expected); },
       expression.value);
@@ -15,6 +38,17 @@ TypedExprPtr ExpressionChecker::check(const ast::ConstraintExpr& expression,
 TypedExprPtr ExpressionChecker::lower(const ast::NameRef& name,
                                       const SourceOrigin& origin,
                                       std::optional<TypeId> expected) {
+  if (auto found = locals_.find(name.name); found != locals_.end()) {
+    const auto& local = rule_.locals.at(found->second.value);
+    return make(origin, local.type, LocalRef{local.id}, expected);
+  }
+  if (name.name == "default" || name.name == "high" || name.name == "highest")
+    return make(origin, context_.types.concrete({TypeKind::kPrecision}, origin),
+                EnumConstant{name.name}, expected);
+  if (name.name == "none") {
+    context_.report(origin, "none requires an optional attribute context");
+    return nullptr;
+  }
   if (auto dtype = resolveDType(name.name))
     return make(origin, context_.types.concrete({TypeKind::kDType}, origin),
                 *dtype, expected);
@@ -80,20 +114,13 @@ TypedExprPtr ExpressionChecker::lower(const ast::DescriptorField& field,
   for (std::size_t i = 0; i < schema.fields.size(); ++i) {
     const auto& attribute = schema.fields[i];
     if (attribute.name != field.field) continue;
-    auto field_type = resolveType(attribute.type);
-    if (!field_type || attribute.optional ||
-        (attribute.list_depth && !(attribute.list_depth == 1 &&
-                                   field_type->kind == TypeKind::kIndex)) ||
-        field_type->kind == TypeKind::kTensor ||
-        field_type->kind == TypeKind::kDescriptor) {
-      context_.report(origin,
-                      "descriptor field is optional, an unsupported list, or "
-                      "opaque to rule "
-                      "expressions");
-      return nullptr;
-    }
-    if (attribute.list_depth) field_type = Type{TypeKind::kIndexList};
-    return make(origin, context_.types.concrete(*field_type, origin),
+    auto field_type =
+        resolveType(attribute.type)
+            .value_or(Type{TypeKind::kOpaque, {}, 0, false, attribute.type});
+    for (std::size_t depth = 0; depth < attribute.list_depth; ++depth)
+      field_type = listType(field_type);
+    field_type.optional = attribute.optional;
+    return make(origin, context_.types.concrete(field_type, origin),
                 DescriptorFieldRef{
                     std::get<DescriptorRef>(descriptor->value).descriptor,
                     schema.id, i},
@@ -148,34 +175,7 @@ TypedExprPtr ExpressionChecker::lower(const ast::BooleanLiteral& literal,
 TypedExprPtr ExpressionChecker::lower(const ast::Call& call,
                                       const SourceOrigin& origin,
                                       std::optional<TypeId> expected) {
-  const auto bound = input_.bound_functions.find(&call);
-  if (call.kind == ast::CallKind::kNative &&
-      bound == input_.bound_functions.end()) {
-    return builtin(call, origin, expected);
-  }
-  const auto id =
-      bound != input_.bound_functions.end()
-          ? bound->second
-          : context_.host(call.callee, call.arguments.size(), origin);
-  // Nested calls can grow the host table, so retain a copy of the signature.
-  const auto signature = context_.output.host_functions.at(id.value).signature;
-  if (bound != input_.bound_functions.end() &&
-      signature.arguments.size() != call.arguments.size())
-    context_.report(origin, "conflicting arity for bound host function '" +
-                                call.callee + "'");
-  if (expected) context_.types.unify(signature.result, *expected, origin);
-  HostCall result{id, {}};
-  bool complete = true;
-  for (std::size_t i = 0; i < call.arguments.size(); ++i) {
-    const auto type = i < signature.arguments.size()
-                          ? std::optional<TypeId>(signature.arguments[i])
-                          : std::nullopt;
-    auto argument = check(*call.arguments[i], type);
-    complete &= argument != nullptr;
-    result.arguments.push_back(std::move(argument));
-  }
-  if (!complete) return nullptr;
-  return make(origin, signature.result, std::move(result));
+  return builtin(call, origin, expected);
 }
 
 TypedExprPtr ExpressionChecker::builtin(const ast::Call& call,
@@ -183,9 +183,7 @@ TypedExprPtr ExpressionChecker::builtin(const ast::Call& call,
                                         std::optional<TypeId> expected) {
   const auto* signature = builtins::resolveBuiltin(call.callee);
   if (!signature) {
-    context_.report(origin, "unknown native function '" + call.callee +
-                                "'; use '$" + call.callee +
-                                "(...)' to call a host function");
+    context_.report(origin, "unknown builtin '" + call.callee + "'");
     return nullptr;
   }
   if (!signature->availableIn(section_)) {
@@ -205,32 +203,41 @@ TypedExprPtr ExpressionChecker::builtin(const ast::Call& call,
     return nullptr;
   }
   auto& types = context_.types;
-  std::optional<TypeId> integer_pair;
-  if (signature->rule_integer_pair) {
-    integer_pair = types.variable(origin);
-    types.require(*integer_pair, TypeRequirement::kInteger, origin);
-  }
+  std::optional<TypeId> element, integer;
+  auto genericElement = [&]() {
+    if (!element) element = types.variable(origin);
+    return *element;
+  };
+  auto integerPair = [&]() {
+    if (!integer) {
+      integer = types.variable(origin);
+      types.require(*integer, TypeRequirement::kInteger, origin);
+    }
+    return *integer;
+  };
   const auto type = [&](builtins::SignatureType pattern) -> TypeId {
     using S = builtins::SignatureType;
     switch (pattern) {
       case S::kDType:
         return types.concrete({TypeKind::kDType}, origin);
       case S::kInteger:
-        if (integer_pair) return *integer_pair;
-        [[fallthrough]];
+        return signature->rule_integer_pair
+                   ? integerPair()
+                   : types.concrete({TypeKind::kIndex}, origin);
       case S::kT:
-        return types.concrete({TypeKind::kIndex}, origin);
+        return genericElement();
       case S::kIntegerList:
-      case S::kListT:
         return types.concrete({TypeKind::kIndexList}, origin);
+      case S::kListT:
+        return types.list(genericElement(), origin);
       case S::kBoolean:
         return types.concrete({TypeKind::kBool}, origin);
       case S::kBooleanList:
-        // Context validation rejects these before signature instantiation.
-        break;
+        return types.concrete({TypeKind::kBool, {}, 1}, origin);
     }
     return types.variable(origin);
   };
+  // Only instantiate generic variables that occur in this signature.
   const auto result_type = type(signature->result);
   if (expected) types.unify(result_type, *expected, origin);
   BuiltinCall result{signature->builtin, {}};
@@ -294,11 +301,171 @@ TypedExprPtr ExpressionChecker::lower(const ast::BinaryExpr& binary,
     types.require(operand_type, requirement, origin);
   }
   // Both operands constrain the same type variable.
-  auto lhs = check(*binary.lhs, operand_type);
-  auto rhs = check(*binary.rhs, operand_type);
+  TypedExprPtr lhs, rhs;
+  const auto* left_name = std::get_if<ast::NameRef>(&binary.lhs->value);
+  if (kind == BinaryCategory::kEquality && left_name &&
+      left_name->name == "none") {
+    rhs = check(*binary.rhs, operand_type);
+    lhs = check(*binary.lhs, operand_type);
+  } else {
+    lhs = check(*binary.lhs, operand_type);
+    rhs = check(*binary.rhs, operand_type);
+  }
   if (!lhs || !rhs) return nullptr;
   return make(origin, result_type,
               BinaryExpr{binary.op, std::move(lhs), std::move(rhs)});
+}
+
+TypedExprPtr ExpressionChecker::local(const std::string& name,
+                                      const ast::ConstraintExpr& value,
+                                      const SourceOrigin& origin) {
+  if (locals_.contains(name) || scope_.captures.contains(name) ||
+      scope_.dimensions.contains(name) || scope_.dtypes.contains(name) ||
+      resolveDType(name) || name == "none" || name == "default" ||
+      name == "high" || name == "highest") {
+    context_.report(origin,
+                    "duplicate or conflicting local name '" + name + "'");
+    return nullptr;
+  }
+  auto checked = check(value);
+  if (!checked) return nullptr;
+  LocalId id{rule_.locals.size()};
+  rule_.locals.push_back({id, name, checked->type});
+  locals_.emplace(name, id);
+  return make(origin, checked->type, LocalLet{id, checked});
+}
+TypedExprPtr ExpressionChecker::lower(const ast::LocalBinding& binding,
+                                      const SourceOrigin& origin,
+                                      std::optional<TypeId>) {
+  return local(binding.name, *binding.value, origin);
+}
+TypedExprPtr ExpressionChecker::lower(const ast::StringLiteral& v,
+                                      const SourceOrigin& origin,
+                                      std::optional<TypeId> expected) {
+  return make(origin, context_.types.concrete({TypeKind::kString}, origin),
+              StringConstant{v.value}, expected);
+}
+TypedExprPtr ExpressionChecker::lower(const ast::ListExpr& v,
+                                      const SourceOrigin& origin,
+                                      std::optional<TypeId> expected) {
+  auto& types = context_.types;
+  auto element = types.variable(origin);
+  auto list = types.list(element, origin);
+  if (expected) {
+    types.unify(list, *expected, origin);
+    if (auto t = types.known(*expected))
+      if (auto e = elementType(*t))
+        types.unify(element, types.concrete(*e, origin), origin);
+  }
+  ListExpr result;
+  for (const auto& e : v.elements) {
+    auto checked = check(*e, element);
+    if (!checked) return nullptr;
+    result.elements.push_back(checked);
+  }
+  return make(origin, list, result);
+}
+TypedExprPtr ExpressionChecker::lower(const ast::IndexExpr& v,
+                                      const SourceOrigin& origin,
+                                      std::optional<TypeId> expected) {
+  auto list = check(*v.value);
+  auto index =
+      check(*v.index, context_.types.concrete({TypeKind::kIndex}, origin));
+  if (!list || !index) return nullptr;
+  auto element = context_.types.element(list->type, origin);
+  return make(origin, element, IndexExpr{list, index}, expected);
+}
+TypedExprPtr ExpressionChecker::lower(const ast::ConditionalExpr& v,
+                                      const SourceOrigin& origin,
+                                      std::optional<TypeId> expected) {
+  auto condition =
+      check(*v.condition, context_.types.concrete({TypeKind::kBool}, origin));
+  auto type = expected ? *expected : context_.types.variable(origin);
+  auto yes = check(*v.then_value, type), no = check(*v.else_value, type);
+  if (!condition || !yes || !no) return nullptr;
+  return make(origin, type, ConditionalExpr{condition, yes, no});
+}
+TypedExprPtr ExpressionChecker::lower(const ast::ComprehensionExpr& v,
+                                      const SourceOrigin& origin,
+                                      std::optional<TypeId> expected) {
+  auto iterable = check(*v.iterable);
+  if (!iterable) return nullptr;
+  auto item = context_.types.element(iterable->type, origin);
+  const auto previous = locals_;
+  LocalId id{rule_.locals.size()};
+  rule_.locals.push_back({id, v.variable, item});
+  locals_[v.variable] = id;
+  std::optional<TypeId> result_element;
+  if (expected) result_element = context_.types.element(*expected, origin);
+  auto element = check(*v.element, result_element);
+  locals_ = previous;
+  if (!element) return nullptr;
+  auto result = context_.types.list(element->type, origin);
+  return make(origin, result, ComprehensionExpr{element, id, iterable},
+              expected);
+}
+TypedExprPtr ExpressionChecker::lower(const ast::DescriptorConstructor& v,
+                                      const SourceOrigin& origin,
+                                      std::optional<TypeId> expected) {
+  TypedExprPtr spread;
+  if (v.spread) spread = lower(*v.spread, origin, expected);
+  auto type =
+      expected ? context_.types.known(*expected) : std::optional<Type>{};
+  if ((!type || !type->schema) && spread)
+    type = context_.types.known(spread->type);
+  if (!type || type->kind != TypeKind::kDescriptor || !type->schema) {
+    context_.report(
+        origin,
+        "descriptor constructor requires a schema from RHS usage or a spread");
+    return nullptr;
+  }
+  auto schema = *type->schema;
+  const auto& fields =
+      context_.output.attribute_schemas.at(schema.value).fields;
+  std::map<std::string, const ast::DescriptorConstructor::Field*>
+      explicit_fields;
+  for (const auto& f : v.fields) {
+    if (!explicit_fields.emplace(f.name, &f).second)
+      context_.report(origin, "duplicate constructor field '" + f.name + "'");
+    if (std::none_of(fields.begin(), fields.end(),
+                     [&](const auto& a) { return a.name == f.name; }))
+      context_.report(origin, "unknown constructor field '" + f.name + "'");
+  }
+  DescriptorConstruct result{schema, {}};
+  for (std::size_t i = 0; i < fields.size(); ++i) {
+    const auto& f = fields[i];
+    auto field_type = resolveType(f.type).value_or(
+        Type{TypeKind::kOpaque, {}, 0, false, f.type});
+    for (std::size_t depth = 0; depth < f.list_depth; ++depth)
+      field_type = listType(field_type);
+    field_type.optional = f.optional;
+    auto id = context_.types.concrete(field_type, origin);
+    TypedExprPtr value;
+    if (auto found = explicit_fields.find(f.name);
+        found != explicit_fields.end()) {
+      value = check(*found->second->value, id);
+    } else if (spread) {
+      // Spread is restricted to a descriptor reference, so field reads retain
+      // identity.
+      value = make(
+          origin, id,
+          DescriptorFieldRef{std::get<DescriptorRef>(spread->value).descriptor,
+                             schema, i});
+    } else if (f.empty_default) {
+      auto underlying = field_type;
+      underlying.optional = false;
+      value =
+          make(origin, context_.types.concrete(underlying, origin), ListExpr{});
+      if (f.optional) value = make(origin, id, OptionalValue{value});
+    } else if (f.optional)
+      value = make(origin, id, NoneConstant{});
+    else
+      context_.report(origin,
+                      "missing required constructor field '" + f.name + "'");
+    if (!value) return nullptr;
+    result.fields.push_back(value);
+  }
+  return make(origin, context_.types.concrete(*type, origin), result, expected);
 }
 
 }  // namespace tepl::core::detail

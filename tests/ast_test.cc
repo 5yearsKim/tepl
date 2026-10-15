@@ -90,7 +90,7 @@ void testLora(const std::string& source, const std::string& path) {
           as<tepl::ast::NamedDimension>(x.shape[2].value, "Expected K").name ==
               "K",
       "Dimensions must preserve source order");
-  check(x.shape[0].span.begin.line == 5 && x.shape[0].span.begin.column == 9 &&
+  check(x.shape[0].span.begin.line == 7 && x.shape[0].span.begin.column == 9 &&
             x.shape[0].span.end.column == 17,
         "Named sequence source span is wrong");
 
@@ -115,38 +115,19 @@ void testLora(const std::string& source, const std::string& path) {
   check(final_dot.operands[0]->span.begin.line == rule.rhs->span.begin.line,
         "Nested expression span is wrong");
 
-  check(rule.conditions.size() == 2 && rule.derivations.size() == 3,
+  check(rule.conditions.size() == 13 && rule.derivations.size() == 3,
         "LoRA where/derive counts are wrong");
-  const auto& predicate = as<tepl::ast::Call>(rule.conditions[0]->value,
-                                              "Expected broadcastable call");
-  check(predicate.kind == tepl::ast::CallKind::kHost &&
-            predicate.callee == "is_broadcastable" &&
-            predicate.arguments.size() == 2,
-        "Broadcast predicate arguments are wrong");
-  check(rule.derivations[2].target.name == "out", "Missing @out derivation");
-  const auto& infer = as<tepl::ast::Call>(rule.derivations[2].value->value,
-                                          "Expected infer_lora_out call");
-  check(infer.callee == "infer_lora_out" && infer.arguments.size() == 5 &&
-            as<tepl::ast::NameRef>(infer.arguments[0]->value, "Expected X")
-                    .name == "X" &&
-            as<tepl::ast::NameRef>(infer.arguments[1]->value, "Expected A")
-                    .name == "A" &&
-            as<tepl::ast::NameRef>(infer.arguments[2]->value, "Expected B")
-                    .name == "B" &&
-            as<tepl::ast::AttributeRef>(infer.arguments[3]->value,
-                                        "Expected outer descriptor")
-                    .name == "outer" &&
-            as<tepl::ast::AttributeRef>(infer.arguments[4]->value,
-                                        "Expected inner descriptor")
-                    .name == "inner",
-        "Derived @out must use LHS captures and descriptors");
-
+  const auto& batches = as<tepl::ast::BinaryExpr>(rule.conditions[0]->value,
+                                                  "Expected batch equality");
+  check(batches.op == tepl::BinaryOp::kEqual, "LoRA requires equal batches");
+  const auto& copy = as<tepl::ast::DescriptorConstructor>(
+      rule.derivations[2].value->value, "Expected descriptor constructor");
+  check(copy.spread && copy.spread->name == "inner",
+        "Final dot copies inner attributes");
   auto printed = tepl::formatAst(program);
-  check(printed.find("tensor X [Batch..., M, K]") != std::string::npos &&
-            printed.find("let XA") == std::string::npos &&
-            printed.find("infer_lora_out") != std::string::npos &&
+  check(printed.find("descriptor ..@inner") != std::string::npos &&
             printed.find("derive @out") != std::string::npos,
-        "Formatted AST is missing LoRA structure");
+        "Formatted AST is missing descriptor construction");
 }
 
 void testExtendedAttributesAndParsedShapes() {
@@ -183,32 +164,21 @@ dialect D {
         "Attribute type modifiers must print without loss");
 }
 
-void testCallKinds() {
+void testRuleConstructors() {
   auto parsed = tepl::parse(
-      "rule r { X => X where { $f(g(X), $g(X)); } }\n"
-      "rule s extends template(F = t.add, predicate = $legal);");
-  check(parsed.ok() && parsed.program, "Call kinds must parse");
-  const auto& expression = parsed.program->rules[0].conditions[0];
-  const auto& host =
-      as<tepl::ast::Call>(expression->value, "Expected host call");
-  check(host.kind == tepl::ast::CallKind::kHost && host.callee == "f" &&
-            expression->span.begin.column == 25,
-        "Host sigil must be preserved in kind and source span");
-  check(as<tepl::ast::Call>(host.arguments[0]->value, "Expected native call")
-                    .kind == tepl::ast::CallKind::kNative &&
-            as<tepl::ast::Call>(host.arguments[1]->value, "Expected host call")
-                    .kind == tepl::ast::CallKind::kHost,
-        "Nested native and host calls must remain distinct");
-  const auto& bindings = parsed.program->rules[1].inheritance->bindings;
-  check(!bindings[0].host && bindings[0].value == "t.add" && bindings[1].host &&
-            bindings[1].value == "legal",
-        "Host bindings must preserve the sigil separately from their name");
-  const auto printed = tepl::formatAst(*parsed.program);
-  check(printed.find("call $f") != std::string::npos &&
-            printed.find("call g") != std::string::npos &&
-            printed.find("call $g") != std::string::npos &&
-            printed.find("predicate = $legal") != std::string::npos,
-        "AST printing must preserve host sigils");
+      "rule r { X => (transpose[@out] X) where { let rank = len([1, 2]); rank "
+      "> 0; } derive { @out = { permutation: [i for i in range(2)] }; } }");
+  check(parsed.ok(), "Constructor fixture parses");
+  const auto& rule = parsed.program->rules[0];
+  check(std::holds_alternative<tepl::ast::LocalBinding>(
+            rule.conditions[0]->value),
+        "Where preserves let statements");
+  const auto& ctor = as<tepl::ast::DescriptorConstructor>(
+      rule.derivations[0].value->value, "Expected constructor");
+  check(ctor.fields.size() == 1 && !ctor.spread &&
+            std::holds_alternative<tepl::ast::ComprehensionExpr>(
+                ctor.fields[0].value->value),
+        "Constructor preserves comprehension");
 }
 
 void testExpressionsAndSpans() {
@@ -218,7 +188,7 @@ void testExpressionsAndSpans() {
       "  S: []\n"
       "  (get[000] (tuple (let Y = (dot[@d] X S)) Y)) => Y\n"
       "  where { K + 2 * N >= 128 && !false || true;\n"
-      "          -(M + N) < 0; $f(X, @d, Y, 999999999999999999999999); }\n"
+      "          -(M + N) < 0; f(X, @d, Y, 999999999999999999999999); }\n"
       "}\n",
       "math.tepl");
   check(parsed.ok() && parsed.program.has_value(), "Expression fixture failed");
@@ -308,7 +278,7 @@ void testNumericLiterals() {
   auto parsed = tepl::parse(
       "rule literals {\n"
       "  (add 001 -1.2500) => (add +2 999999999999999999999999)\n"
-      "  where { $check(1.00, -2.5); }\n"
+      "  where { check(1.00, -2.5); }\n"
       "}");
   check(parsed.ok() && parsed.program, "Numeric literals must parse");
   const auto& rule = parsed.program->rules.front();
@@ -400,9 +370,7 @@ void testAbstractAndInherited(const std::string& abstract_path,
             commute.source_name == abstract_path,
         "Abstract rule structure is wrong");
   const auto& parameter = commute.parameters.front();
-  check(parameter.name == "F" &&
-            parameter.kind == tepl::ast::RuleParameterKind::kOperation &&
-            parameter.operand_types.size() == 2 &&
+  check(parameter.name == "F" && parameter.operand_types.size() == 2 &&
             parameter.operand_types[0].name == "tensor" &&
             parameter.result_type.name == "tensor" &&
             span_text(parameter.span) == "F: op<(tensor, tensor) -> tensor>" &&
@@ -474,7 +442,7 @@ int main(int argc, char** argv) {
     std::string source{std::istreambuf_iterator<char>(input),
                        std::istreambuf_iterator<char>()};
     testLora(source, path);
-    testCallKinds();
+    testRuleConstructors();
     testExpressionsAndSpans();
     testExtendedAttributesAndParsedShapes();
     testNumericLiterals();

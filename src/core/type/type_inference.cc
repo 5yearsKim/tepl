@@ -49,6 +49,9 @@ void TypeInference::unify(TypeId left, TypeId right,
   auto first = variables_[a].type, second = variables_[b].type;
   if (first && second) {
     if (first->kind != second->kind ||
+        first->list_depth != second->list_depth ||
+        first->optional != second->optional ||
+        first->opaque_name != second->opaque_name ||
         (first->schema && second->schema && first->schema != second->schema)) {
       report(
           origin,
@@ -65,6 +68,67 @@ void TypeInference::unify(TypeId left, TypeId right,
   if (variables_[a].rank == variables_[b].rank) ++variables_[a].rank;
   variables_[a].type = type;
   variables_[a].origin = at;
+}
+
+TypeId TypeInference::list(TypeId element, SourceOrigin origin) {
+  const auto id = variable(origin);
+  lists_.push_back({id, element, origin});
+  if (auto value = known(element))
+    unify(id, concrete(listType(*value), origin), origin);
+  return id;
+}
+TypeId TypeInference::element(TypeId list, SourceOrigin origin) {
+  const auto id = variable(origin);
+  lists_.push_back({list, id, origin});
+  if (auto value = known(list)) {
+    if (auto element = elementType(*value))
+      unify(id, concrete(*element, origin), origin);
+    else
+      report(origin, "expected a list, got " + typeName(*value));
+  }
+  return id;
+}
+void TypeInference::propagateLists() {
+  if (!diagnostics_.empty()) return;
+  // Every pass fixes at least one unknown type; depth is bounded by syntax.
+  for (std::size_t pass = 0; pass <= lists_.size(); ++pass) {
+    bool changed = false;
+    // Equal list variables imply equal element variables even before either
+    // element has a concrete type. Do this before defaulting numeric literals.
+    std::map<std::size_t, TypeId> elements;
+    for (const auto& c : lists_) {
+      auto [found, inserted] = elements.emplace(root(c.list), c.element);
+      if (!inserted && root(found->second) != root(c.element)) {
+        unify(found->second, c.element, c.origin);
+        changed = true;
+      }
+    }
+    for (const auto& c : lists_) {
+      auto list = known(c.list), element = known(c.element);
+      if (list) {
+        auto item = elementType(*list);
+        if (!item) {
+          report(c.origin, "expected a list, got " + typeName(*list));
+          continue;
+        }
+        if (!element) {
+          unify(c.element, concrete(*item, c.origin), c.origin);
+          changed = true;
+        } else if (*item != *element)
+          unify(c.element, concrete(*item, c.origin), c.origin);
+      } else if (element) {
+        if (element->optional) {
+          report(c.origin,
+                 "lists of optional values are unsupported; copy the optional "
+                 "field directly");
+          continue;
+        }
+        unify(c.list, concrete(listType(*element), c.origin), c.origin);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
 }
 
 void TypeInference::require(TypeId type, TypeRequirement requirement,
@@ -112,9 +176,14 @@ void TypeInference::checkRequirements() {
       case TypeRequirement::kEquality:
         valid = isNumeric(type->kind) || type->kind == TypeKind::kBool ||
                 type->kind == TypeKind::kDType ||
-                type->kind == TypeKind::kIndexList;
+                type->kind == TypeKind::kIndexList ||
+                type->kind == TypeKind::kString ||
+                type->kind == TypeKind::kPrecision ||
+                type->kind == TypeKind::kOpaque;
         break;
     }
+    if (type->list_depth || type->optional)
+      valid = valid && requirement.kind == TypeRequirement::kEquality;
     if (!valid)
       report(requirement.origin,
              "operator does not support " + typeName(*type));
@@ -126,19 +195,20 @@ void TypeInference::checkLiterals() {
     const auto type = known(literal.type);
     // Nonnumeric types are already diagnosed by the expression requirements.
     if (!type || !isNumeric(type->kind)) continue;
-    if (!validHostLiteral(literal.spelling, type->kind))
-      report(literal.origin, "host literal '" + literal.spelling +
+    if (!validScalarLiteral(literal.spelling, type->kind))
+      report(literal.origin, "scalar literal '" + literal.spelling +
                                  "' is invalid for " + typeName(*type));
   }
 }
 
 std::optional<std::vector<Type>> TypeInference::finish() {
+  propagateLists();
   defaultLiterals();
+  propagateLists();
   for (std::size_t i = 0; i < variables_.size(); ++i) {
     if (root(TypeId{i}) == i && !variables_[i].type)
       report(variables_[i].origin,
-             "cannot infer expression or host-function type; provide a typed "
-             "context or a function parameter signature");
+             "cannot infer expression type; provide a typed context");
   }
   checkRequirements();
   checkLiterals();

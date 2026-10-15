@@ -87,6 +87,17 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
   std::any visitMultiplicative(
       tepl_generated::TeplParser::MultiplicativeContext*) override;
   std::any visitUnary(tepl_generated::TeplParser::UnaryContext*) override;
+  std::any visitPostfix(tepl_generated::TeplParser::PostfixContext*) override;
+  std::any visitStringPrimary(
+      tepl_generated::TeplParser::StringPrimaryContext*) override;
+  std::any visitListPrimary(
+      tepl_generated::TeplParser::ListPrimaryContext*) override;
+  std::any visitComprehensionPrimary(
+      tepl_generated::TeplParser::ComprehensionPrimaryContext*) override;
+  std::any visitDescriptorPrimary(
+      tepl_generated::TeplParser::DescriptorPrimaryContext*) override;
+  std::any visitDescriptorFieldsPrimary(
+      tepl_generated::TeplParser::DescriptorFieldsPrimaryContext*) override;
   std::any visitCallPrimary(
       tepl_generated::TeplParser::CallPrimaryContext*) override;
   std::any visitNamePrimary(

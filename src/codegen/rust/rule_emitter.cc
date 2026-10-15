@@ -102,21 +102,6 @@ void emitRule(CodeWriter& out, const core::Program& program,
                     "MatchContext, tensor_rewrite_with_checks}") +
       ";");
   const auto builtins_path = paths::within(root, "builtins");
-  out.open("pub trait HostFunctions: Send + Sync");
-  for (const auto id : plan.host_functions) {
-    const auto& fn = program.host_functions.at(id.value);
-    out.line("/// Host implementation of TEPL `$" + fn.name + "(...)`.");
-    std::string signature = "fn " + names.host(fn.id) + "(&self";
-    for (std::size_t i = 0; i < fn.signature.arguments.size(); ++i)
-      signature +=
-          ", arg" + std::to_string(i) + ": " +
-          type(program.types.at(fn.signature.arguments[i].value), true);
-    auto result = type(program.types.at(fn.signature.result.value));
-    if (fn.fallible) result = "Option<" + result + ">";
-    out.line(signature + ") -> " + result + ";");
-  }
-  out.close();
-  if (plan.host_functions.empty()) out.line("impl HostFunctions for () {}");
   out.open("pub fn pattern() -> TensorPattern");
   out.line(pattern(*rule.lhs, names, root));
   out.close();
@@ -215,9 +200,9 @@ void emitRule(CodeWriter& out, const core::Program& program,
   out.close();
   out.line("/// Uses the graph's analysis; () supports structural rules.");
   out.line(
-      "pub fn build<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, "
+      "pub fn build<N>() -> Result<Rewrite<OpNode, N>, "
       "String>");
-  out.line("where N: RewriteAnalysis, F: HostFunctions + 'static");
+  out.line("where N: RewriteAnalysis");
   out.open("");
   out.line("let checks = match_checks::<N>();");
   out.line("let metadata = AnalysisMetadata::<N>::new();");
@@ -244,7 +229,7 @@ void emitRule(CodeWriter& out, const core::Program& program,
         emitExpression(program, names, *rule.conditions[i], builtins_path) +
         ") { return None; }");
   for (const auto& derivation : rule.derivations)
-    out.line("let " + descriptor(derivation.target.value) + " = " +
+    out.line("let " + descriptor(derivation.target->value) + " = " +
              emitExpression(program, names, *derivation.value, builtins_path) +
              ";");
   InferenceSyntax inference_syntax{
@@ -268,8 +253,8 @@ void emitRule(CodeWriter& out, const core::Program& program,
   else {
     out.line("Some(HashMap::from([");
     for (const auto& derivation : rule.derivations)
-      out.line("(" + attrVar(derivation.target.value) + ", " +
-               descriptor(derivation.target.value) + "),");
+      out.line("(" + attrVar(derivation.target->value) + ", " +
+               descriptor(derivation.target->value) + "),");
     if (rule.inference)
       for (const auto& assignment : rule.inference->assignments)
         out.line("(" + attrVar(assignment.descriptor.value) + ", " +

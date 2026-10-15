@@ -12,7 +12,7 @@ namespace tepl::core::detail {
 class ExpressionChecker {
  public:
   ExpressionChecker(AnalysisContext& context, const ExpandedRule& input,
-                    const Rule& rule, const RuleScope& scope,
+                    Rule& rule, const RuleScope& scope,
                     builtins::Context section = builtins::Context::kWhere)
       : context_(context),
         input_(input),
@@ -24,7 +24,12 @@ class ExpressionChecker {
   TypedExprPtr check(const ast::ConstraintExpr& expression,
                      std::optional<TypeId> expected = {});
 
+  void resetLocals() { locals_.clear(); }
+  TypedExprPtr local(const std::string& name, const ast::ConstraintExpr& value,
+                     const SourceOrigin& origin);
+
  private:
+  std::map<std::string, LocalId> locals_;
   template <typename Value>
   TypedExprPtr make(const SourceOrigin& origin, TypeId type, Value value,
                     std::optional<TypeId> expected = {}) {
@@ -55,12 +60,26 @@ class ExpressionChecker {
   TypedExprPtr lower(const ast::BinaryExpr&, const SourceOrigin&,
                      std::optional<TypeId>);
 
+  TypedExprPtr lower(const ast::StringLiteral&, const SourceOrigin&,
+                     std::optional<TypeId>);
+  TypedExprPtr lower(const ast::ListExpr&, const SourceOrigin&,
+                     std::optional<TypeId>);
+  TypedExprPtr lower(const ast::IndexExpr&, const SourceOrigin&,
+                     std::optional<TypeId>);
+  TypedExprPtr lower(const ast::ConditionalExpr&, const SourceOrigin&,
+                     std::optional<TypeId>);
+  TypedExprPtr lower(const ast::ComprehensionExpr&, const SourceOrigin&,
+                     std::optional<TypeId>);
+  TypedExprPtr lower(const ast::DescriptorConstructor&, const SourceOrigin&,
+                     std::optional<TypeId>);
+  TypedExprPtr lower(const ast::LocalBinding&, const SourceOrigin&,
+                     std::optional<TypeId>);
   TypedExprPtr builtin(const ast::Call&, const SourceOrigin&,
                        std::optional<TypeId>);
 
   AnalysisContext& context_;
   const ExpandedRule& input_;
-  const Rule& rule_;
+  Rule& rule_;
   const RuleScope& scope_;
   builtins::Context section_;
 };

@@ -1,5 +1,11 @@
 # 🔎 Add tensor shape and dtype analysis
 
+> This tutorial describes the previous generated host-function API. TEPL now
+> uses pure builtins and descriptor constructors; extended rule generation and
+> these application examples await migration. See
+> [attribute construction](../../advanced/attributes_and_conditions.md).
+
+
 Continue from [Run your first TEPL code](02_run.md), using the same C++
 project, egg-c dependency, and `src/utils.h`.
 

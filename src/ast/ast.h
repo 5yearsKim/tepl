@@ -59,7 +59,7 @@ struct IntegerLiteral {
   // Preserve decimal spelling until numeric range validation. Graph literals
   // may include a sign; constraint signs are represented by UnaryExpr.
   std::string digits;
-  // Set only for graph literals; constraint numbers are host values.
+  // Set only for graph literals; constraint numbers are scalar values.
   std::optional<DTypeAnnotation> dtype;
 };
 
@@ -67,7 +67,7 @@ struct FloatLiteral {
   // Preserve spelling without rounding or choosing a tensor element type.
   // Graph literals may include a sign, as with IntegerLiteral.
   std::string digits;
-  // Set only for graph literals; constraint numbers are host values.
+  // Set only for graph literals; constraint numbers are scalar values.
   std::optional<DTypeAnnotation> dtype;
 };
 
@@ -130,13 +130,9 @@ struct GraphExpr {
 using ::tepl::BinaryOp;
 using ::tepl::UnaryOp;
 
-enum class CallKind { kNative, kHost };
-
 struct Call {
-  // The source sigil is represented by kind, never included in the name.
   std::string callee;
   std::vector<ConstraintExprPtr> arguments;
-  CallKind kind = CallKind::kNative;
 };
 
 struct UnaryExpr {
@@ -156,15 +152,50 @@ struct DescriptorField {
   bool output_group = false;
 };
 
+struct StringLiteral {
+  std::string value;
+};
+struct ListExpr {
+  std::vector<ConstraintExprPtr> elements;
+};
+struct IndexExpr {
+  ConstraintExprPtr value, index;
+};
+struct ConditionalExpr {
+  ConstraintExprPtr condition, then_value, else_value;
+};
+struct ComprehensionExpr {
+  ConstraintExprPtr element;
+  std::string variable;
+  ConstraintExprPtr iterable;
+};
+struct DescriptorConstructor {
+  std::optional<AttributeRef> spread;
+  struct Field {
+    SourceSpan span;
+    std::string name;
+    ConstraintExprPtr value;
+  };
+  std::vector<Field> fields;
+};
+// Statement-only node, never accepted as a nested expression.
+struct LocalBinding {
+  std::string name;
+  ConstraintExprPtr value;
+};
+
 struct ConstraintExpr {
   SourceSpan span;
   std::variant<NameRef, AttributeRef, DescriptorField, IntegerLiteral,
-               FloatLiteral, BooleanLiteral, Call, UnaryExpr, BinaryExpr>
+               FloatLiteral, BooleanLiteral, Call, UnaryExpr, BinaryExpr,
+               StringLiteral, ListExpr, IndexExpr, ConditionalExpr,
+               ComprehensionExpr, DescriptorConstructor, LocalBinding>
       value;
 };
 
 // Shape programs have their own expression tree. Unlike rule constraints,
-// they cannot contain tensor captures, descriptor references, or host calls.
+// they cannot contain tensor captures, descriptor references, or rule-local
+// bindings.
 struct MetadataExpr;
 using MetadataExprPtr = std::shared_ptr<MetadataExpr>;
 
@@ -278,9 +309,8 @@ struct Derivation {
   SourceSpan span;
   AttributeRef target;
   ConstraintExprPtr value;
+  bool local = false;
 };
-
-enum class RuleParameterKind { kOperation, kHostFunction };
 
 struct SignatureType {
   SourceSpan span;
@@ -290,7 +320,6 @@ struct SignatureType {
 struct RuleParameter {
   SourceSpan span;
   std::string name;
-  RuleParameterKind kind = RuleParameterKind::kOperation;
   std::vector<SignatureType> operand_types;
   SignatureType result_type;
 };
@@ -298,9 +327,8 @@ struct RuleParameter {
 struct RuleBinding {
   SourceSpan span;
   std::string parameter;
-  // Unresolved name, without the host sigil. Operations may be qualified.
+  // Unresolved operation name, possibly qualified.
   std::string value;
-  bool host = false;
 };
 
 struct RuleInheritance {

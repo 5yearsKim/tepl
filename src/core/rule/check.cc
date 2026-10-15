@@ -1,5 +1,6 @@
 #include "src/core/rule/check.h"
 
+#include <algorithm>
 #include <functional>
 #include <utility>
 
@@ -16,8 +17,18 @@ namespace {
 
 void checkConditions(RuleCheckContext& context,
                      ExpressionChecker& expressions) {
-  for (const auto& condition : context.input.conditions) {
+  for (std::size_t i = 0; i < context.input.conditions.size(); ++i) {
+    if (std::find(context.input.condition_scopes.begin(),
+                  context.input.condition_scopes.end(),
+                  i) != context.input.condition_scopes.end())
+      expressions.resetLocals();
+    const auto& condition = context.input.conditions[i];
     const auto& at = context.input.expr_origins.at(condition.get());
+    if (auto local = std::get_if<ast::LocalBinding>(&condition->value)) {
+      if (auto checked = expressions.local(local->name, *local->value, at))
+        context.rule.conditions.push_back(checked);
+      continue;
+    }
     if (auto checked = expressions.check(
             *condition, context.analysis.types.concrete({TypeKind::kBool}, at)))
       context.rule.conditions.push_back(std::move(checked));
@@ -49,17 +60,10 @@ std::optional<Rule> check(AnalysisContext& analysis,
   if (!index_semantics::compile(analysis, context.rule)) {
     std::function<bool(const TypedExpr&)> hasGroup = [&](const TypedExpr& e) {
       if (std::holds_alternative<OutputAxisGroupRef>(e.value)) return true;
-      if (auto b = std::get_if<BinaryExpr>(&e.value))
-        return hasGroup(*b->lhs) || hasGroup(*b->rhs);
-      if (auto u = std::get_if<UnaryExpr>(&e.value))
-        return hasGroup(*u->operand);
-      if (auto b = std::get_if<BuiltinCall>(&e.value))
-        for (const auto& a : b->arguments)
-          if (hasGroup(*a)) return true;
-      if (auto h = std::get_if<HostCall>(&e.value))
-        for (const auto& a : h->arguments)
-          if (hasGroup(*a)) return true;
-      return false;
+      bool found = false;
+      forEachExpressionChild(
+          e, [&](const TypedExpr& child) { found |= hasGroup(child); });
+      return found;
     };
     for (const auto& e : context.rule.conditions)
       if (hasGroup(*e))

@@ -22,14 +22,13 @@ void emitVerification(CodeWriter& out, const core::Program& program,
   auto runtime = paths::within(root, "builtins::verification");
   auto builtins = paths::within(root, "builtins");
   out.line(
-      "/// Bounded early rejection using sparse inputs and the real host "
-      "functions.");
+      "/// Bounded early rejection using sparse inputs and checked rule "
+      "expressions.");
   out.line(
       "/// Uses ideal arithmetic; passing does not prove arbitrary-rank "
       "validity.");
-  out.open("pub fn verify_small<F: HostFunctions>(functions: &F, options: &" +
-           runtime + "::VerificationOptions) -> " + runtime +
-           "::VerificationReport");
+  out.open("pub fn verify_small(options: &" + runtime +
+           "::VerificationOptions) -> " + runtime + "::VerificationReport");
   bool supported = rule.attribute_holes.empty() && rule.inference &&
                    rule.inference->semantic;
   if (supported) {
@@ -104,8 +103,9 @@ void emitVerification(CodeWriter& out, const core::Program& program,
     out.line("ctx.attributes.insert(" + attribute(desc.id.value) + ", " + name +
              ".clone());");
   }
-  // Evaluate the actual generated dtype/shape programs before host calls.
-  // This prevents unreachable source configurations from causing rejection.
+  // Evaluate the actual generated dtype/shape programs before evaluating rule
+  // expressions. This prevents unreachable source configurations from causing
+  // rejection.
   out.line("let mut source_info: Vec<Option<TensorInfo>> = vec![None; " +
            std::to_string(plan.source_end) + "];");
   for (std::size_t node = 0; node < plan.source_end; ++node) {
@@ -151,10 +151,10 @@ void emitVerification(CodeWriter& out, const core::Program& program,
     out.line("if !(" + emitExpression(program, names, *condition, builtins) +
              ") { return None; }");
   for (auto& derivation : rule.derivations) {
-    auto name = descriptor(derivation.target.value);
+    auto name = descriptor(derivation.target->value);
     out.line("let " + name + " = " +
              emitExpression(program, names, *derivation.value, builtins) + ";");
-    out.line("ctx.attributes.insert(" + attribute(derivation.target.value) +
+    out.line("ctx.attributes.insert(" + attribute(derivation.target->value) +
              ", " + name + ".clone());");
   }
   std::string known = "vec![";

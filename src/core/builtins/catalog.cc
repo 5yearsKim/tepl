@@ -21,7 +21,7 @@ constexpr S kShapes[] = {S::kIntegerList, S::kIntegerList};
 constexpr S kPair[] = {S::kInteger, S::kInteger};
 constexpr BuiltinSignature kBuiltins[] = {
     {Builtin::kIsFloat, "is_float", kDType, S::kBoolean, false, Domain::kDType,
-     14},
+     kDTypeContexts},
     {Builtin::kIsInteger, "is_integer", kDType, S::kBoolean, false,
      Domain::kDType, kDTypeContexts},
     {Builtin::kIsSignedInteger, "is_signed_integer", kDType, S::kBoolean, false,
@@ -40,11 +40,9 @@ constexpr BuiltinSignature kBuiltins[] = {
     {Builtin::kSum, "sum", kIntegers, S::kInteger},
     {Builtin::kProduct, "product", kIntegers, S::kInteger},
     {Builtin::kAll, "all", kBooleans, S::kBoolean, false, Domain::kCommon,
-     static_cast<unsigned>(Context::kShape) |
-         static_cast<unsigned>(Context::kDType)},
+     kAllContexts},
     {Builtin::kAny, "any", kBooleans, S::kBoolean, false, Domain::kCommon,
-     static_cast<unsigned>(Context::kShape) |
-         static_cast<unsigned>(Context::kDType)},
+     kAllContexts},
     {Builtin::kContains, "contains", kContains, S::kBoolean},
     {Builtin::kIsValidAxisList, "is_valid_axis_list", kAxes, S::kBoolean, false,
      Domain::kShape},

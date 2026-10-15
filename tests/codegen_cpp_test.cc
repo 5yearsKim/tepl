@@ -57,9 +57,7 @@ int main() {
                       "dialect T { op foo_bar(x: tensor) -> tensor; op "
                       "fooBar(x: tensor) -> tensor; }",
                       "dialect T { attrs OpAttrs { x: index; } }",
-                      "dialect T { attrs A { hash_value: index; } }",
-                      "dialect T { op copy(x: tensor) -> tensor; } rule a { "
-                      "(copy X) => X where { $operator(X); } }"}) {
+                      "dialect T { attrs A { hash_value: index; } }"}) {
     auto bad = generate(source);
     assert(!bad.ok() && bad.files.empty());
     assert(!bad.diagnostics.front().origin.definition.source_name.empty());

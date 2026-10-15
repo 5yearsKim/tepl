@@ -156,7 +156,7 @@ TEPL keeps tensor rewrites concise while supporting the features needed for real
 - **Shape and dtype analysis:** `f32[Dims...]` matches an `f32` tensor of any rank; generated checks require the replacement to preserve the output shape and dtype.
 - **Custom rewrite conditions:** Use `where` to express legality checks and `derive` to compute new attributes.
 - **Multiple dialects:** Define and import your own operation dialects, and write rules that rewrite between them.
-- **Host function bindings:** Implement complex logic in Rust or C++ and call it from TEPL with `$function(...)` in `where` and `derive` blocks.
+- **Self-contained attribute logic:** Use builtins, local expressions, descriptor constructors, and `auto` synthesis for guards and attribute transformations. Extended rule code generation is pending.
 - **E-graph integration:** Generate rewrites for egg or egg-c, with generated tensor analysis or hooks for your own analysis and inference.
 
 ## 📉 A smaller computation with LoRA
@@ -176,6 +176,12 @@ Read the [TEPL rule](examples/sample/rules/lora.tepl) or reproduce the result fr
 cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
 ```
 
+The [attribute examples](examples/sample/rules/attributes.tepl) show pure
+`where`/`derive` logic without application callbacks. Descriptor constructors
+and extended rule expressions currently support frontend checking; Rust/C++
+code generation and execution are deferred. The lab demos retain artifacts
+from the previous generated API.
+
 The [semantic examples](examples/semantic/README.md) show compiler-side proof
 and symbolic RHS attribute synthesis from user-defined axis semantics. These
 constructors are checked without concrete tensor metadata; their Rust/C++ code
@@ -188,7 +194,7 @@ Try it from the repository root:
 ```sh
 bazel build //:tepl
 bazel-bin/tepl check examples/sample
-bazel-bin/tepl generate examples/sample --out my_app/src/generated
+bazel-bin/tepl generate examples/sample/rules/simple.tepl --out my_app/src/generated
 ```
 
 Start a new TEPL project with `tepl init <directory>` (use `.` for the current

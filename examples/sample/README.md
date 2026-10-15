@@ -2,8 +2,8 @@
 
 The examples demonstrate [shape](../../docs/references/shape.md) and
 [dtype programs](../../docs/references/dtype.md), dtype-valued
-attributes, rule dtype bindings, and descriptor-field access. Both Rust and C++
-backends support these definitions.
+attributes, rule dtype bindings, and descriptor-field access. Operation shape/dtype programs remain supported by both backends; the extended
+rule expression frontend is described below.
 
 - `dialects/tensor.tepl`: a StableHLO subset with generated shape definitions and
   attribute schemas.
@@ -39,26 +39,42 @@ Here `t` is the imported TensorLang dialect. Both captures allow any dtype;
 `X: f32[]` additionally restricts the element type to `f32`. Scalars use the
 same shape declarations and rank checks as tensors with dimensions.
 
-## Function names
+## Pure rule expressions
 
-Builtin calls are unprefixed, such as `len(s)` or `gather(s, axes)`. Host-function
-calls use `$`, such as `$infer_dot(X, W, @outer)`.
-Descriptors retain their `@` prefix. Abstract-rule examples parameterize only
-operations; host calls appear directly in concrete rules. See
-[the builtin reference](../../docs/references/built-ins.md) for function syntax
-and resolution rules.
+Calls such as `len(Dims)` and `gather(values, axes)` resolve to builtins.
+Rules no longer support application callbacks or `fn` template parameters.
+Abstract rules still parameterize operations.
 
-The compiler requires `$` for direct host calls. Unknown unprefixed calls in
-rules are errors. Shape and dtype blocks support builtin calls, lists, indexing,
-conditionals, and comprehensions. Core checks parameters, names, builtin types,
-attribute fields, assertions, and yield types. Both backends emit checked
-evaluators for e-class analysis and RHS validation. Missing definitions return
-`Unknown` and may require application inference hooks. Rule `where` and `derive`
-builtins operate on `index`, `i64`, `index_list`, and `dtype`; `all` and `any`
-accept Boolean lists inside shape and dtype programs.
-See [the builtin reference](../../docs/references/built-ins.md) for signatures,
-context availability, and rule examples.
-The generated lab IR includes the matching dtype programs and runtime bindings.
+`where` contains Boolean guards and local `let` bindings. `derive` calculates
+replacement descriptors with constructors and immutable copy/update expressions:
+
+```tepl
+derive {
+    let permutation = gather(@inner.permutation, @outer.permutation);
+    @combined = { ..@outer, permutation: permutation };
+}
+```
+
+The RHS operation supplies the constructor's schema. A spread copies all fields;
+explicit fields override the copied values. Without a spread, optional fields
+become `none`, declared defaults apply, and required fields must be supplied.
+
+Rules support homogeneous nested lists, indexing, `if ... then ... else ...`,
+and comprehensions. `all` and `any` accept Boolean lists in rules as well as
+metadata programs. Locals are scoped to their block; earlier derived descriptors
+remain available to later derivations. See
+[attribute construction](../../docs/advanced/attributes_and_conditions.md) and
+[builtins](../../docs/references/built-ins.md).
+
+`rules/attributes.tepl` demonstrates transpose composition and identity guards.
+`rules/lora.tepl` expresses equal-batch matrix contractions through explicit
+axis guards and descriptor copies. Distribution and reassociation still require
+an appropriate numerical policy; metadata checks do not authorize them.
+
+The frontend checks these examples today. Code generation for constructors,
+local bindings, lists, indexing, conditionals, and comprehensions in rules is
+pending. Generating this entire project reports a diagnostic and writes no
+files. Existing simple rule and operation metadata generation remains available.
 
 The operation set follows the [StableHLO specification](https://openxla.org/stablehlo/spec).
 `relu`, `scale`, `square`, `alias`, `rmsnorm`, `vocab_cross_entropy`,
@@ -77,7 +93,7 @@ Run from the repository root:
 ```sh
 bazel build //:tepl
 bazel-bin/tepl check examples/sample
-bazel-bin/tepl generate examples/sample --out my_app/src/generated
+bazel-bin/tepl generate examples/sample/rules/simple.tepl --out my_app/src/generated
 ```
 
 Generation emits only module contents. Add `pub mod generated;` to your
@@ -97,9 +113,9 @@ Single-file generation is also supported:
 Validate changes to these dialects and rules with:
 
 ```sh
-./tools/test_codegen.sh
+bazel test //tests:all --test_timeout=240
 ```
 
-The script regenerates `labs/rust-egg/src/ir/` from this project, runs the lab's
-tests, and checks additional compiler fixtures in temporary crates. Application
-helpers remain in `labs/rust-egg/src/host/`.
+The existing generation integration scripts and lab artifacts use the previous
+host-function API. Migrating those applications is deferred with extended rule
+code generation. Use `bazel test //tests:all` for current compiler coverage.

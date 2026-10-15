@@ -489,12 +489,20 @@ void symbolicTests() {
   proved(declared);
   expect(declared.assumptions.size() >= 3,
          "tensor declarations and pure where conditions imported");
-  auto host = symbolicPlan(
+  auto copied = symbolicPlan(
       "rule r {(transpose[@p] X) => (transpose[@copy] X) derive {@copy = "
-      "$copy_permutation(@p);} }");
-  expect(host.proof.status == ProofStatus::Unknown,
-         "host behavior requires a semantic contract");
+      "{ ..@p };} }");
+  proved(copied);
 
+  proved(symbolicPlan(
+      "rule r {(transpose[@outer] (transpose[@inner] X)) => "
+      "(transpose[@combined] X) derive { let p = gather(@inner.permutation, "
+      "@outer.permutation); @combined = { ..@outer, permutation: p }; }}"));
+  auto incorrect = symbolicPlan(
+      "rule r {(transpose[@p] X) => (transpose[@out] X) derive { @out = { "
+      "permutation: [0] }; }}");
+  expect(incorrect.proof.status == ProofStatus::Unknown,
+         "typed constructors do not bypass semantic verification");
   const std::string restricted = R"(
     dialect Restricted {
       op sum(a:tensor, b:tensor)->tensor {
@@ -549,12 +557,13 @@ void explicitConditionTests() {
       "@p->S; }}",
       "only supported in where");
   rejected(
-      "rule r {(transpose[@p] A) => (transpose[auto] A) where { $accept(@p); "
+      "rule r {(transpose[@p] A) => (transpose[auto] A) where { all([true for "
+      "i in [0]]); "
       "}}",
       "unsupported semantic-rule condition");
   rejected(
       "rule r {(dot[@d] A B) => (dot[@new] A B) where { len(@new->B) == 0; } "
-      "derive { @new = $copy(@d); }}",
+      "derive { @new = { ..@d }; }}",
       "not available here");
   rejected(
       "rule r {(dot[@d] (dot[@d] A B) C) => (dot[auto] A (dot[auto] B C)) "

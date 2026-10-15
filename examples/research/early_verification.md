@@ -1,5 +1,10 @@
 # Bounded early rejection with sparse inputs
 
+> Host-function APIs shown here describe earlier generated artifacts. The
+> current frontend uses pure builtins and descriptor constructors; the extended
+> rule backend and application integrations await migration.
+
+
 The explicit-attribute checker is implemented. It derives a polynomial degree
 bound from composed semantic IR, chooses legal small LHS configurations, and
 searches sparse inputs for a failure. It never recognizes operation names.

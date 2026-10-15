@@ -80,7 +80,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
   -v "$PWD:/work" tepl check examples/sample
 
 docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD:/work" tepl generate examples/sample \
+  -v "$PWD:/work" tepl generate examples/sample/rules/simple.tepl \
   --out my_app/src/generated --no-format
 ```
 

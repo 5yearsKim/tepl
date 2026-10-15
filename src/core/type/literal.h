@@ -9,6 +9,6 @@ namespace tepl::core {
 // Validate parsed literals without changing their spelling. Tensor floating
 // format rounding/representability remains the host's responsibility.
 bool validGraphLiteral(std::string_view spelling, DType dtype);
-bool validHostLiteral(std::string_view spelling, TypeKind type);
+bool validScalarLiteral(std::string_view spelling, TypeKind type);
 
 }  // namespace tepl::core

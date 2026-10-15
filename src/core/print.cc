@@ -45,15 +45,6 @@ class Printer {
       }
       out_ << " }\n";
     }
-    for (const auto& fn : program_.host_functions) {
-      out_ << "  host_fn #" << fn.id.value << ' ' << fn.name << '(';
-      for (std::size_t i = 0; i < fn.signature.arguments.size(); ++i) {
-        if (i) out_ << ", ";
-        out_ << type(fn.signature.arguments[i]);
-      }
-      out_ << ") -> " << type(fn.signature.result)
-           << (fn.fallible ? " (fallible)" : "") << '\n';
-    }
     for (const auto& rule : program_.rules) printRule(rule);
     for (const auto& graph : program_.graphs) {
       out_ << "  graph #" << graph.id.value << ' ' << graph.name << " [";
@@ -197,15 +188,7 @@ class Printer {
             out_ << value.spelling;
           else if constexpr (std::is_same_v<T, bool>)
             out_ << (value ? "true" : "false");
-          else if constexpr (std::is_same_v<T, HostCall>) {
-            out_ << '$' << program_.host_functions.at(value.function.value).name
-                 << " #" << value.function.value << '(';
-            for (std::size_t i = 0; i < value.arguments.size(); ++i) {
-              if (i) out_ << ", ";
-              expression(*value.arguments[i]);
-            }
-            out_ << ')';
-          } else if constexpr (std::is_same_v<T, BuiltinCall>) {
+          else if constexpr (std::is_same_v<T, BuiltinCall>) {
             out_ << "Builtin(" << builtins::builtinName(value.builtin);
             for (const auto& argument : value.arguments) {
               out_ << ", ";
@@ -216,11 +199,57 @@ class Printer {
             out_ << spelling(value.op) << '(';
             expression(*value.operand);
             out_ << ')';
-          } else {
+          } else if constexpr (std::is_same_v<T, BinaryExpr>) {
             out_ << '(';
             expression(*value.lhs);
             out_ << ' ' << spelling(value.op) << ' ';
             expression(*value.rhs);
+            out_ << ')';
+          } else if constexpr (std::is_same_v<T, LocalRef>)
+            out_ << "LocalRef(#" << value.local.value << ')';
+          else if constexpr (std::is_same_v<T, LocalLet>) {
+            out_ << "let #" << value.local.value << " = ";
+            expression(*value.value);
+          } else if constexpr (std::is_same_v<T, ListExpr>) {
+            out_ << '[';
+            for (const auto& e : value.elements) {
+              expression(*e);
+              out_ << ',';
+            }
+            out_ << ']';
+          } else if constexpr (std::is_same_v<T, IndexExpr>) {
+            expression(*value.value);
+            out_ << '[';
+            expression(*value.index);
+            out_ << ']';
+          } else if constexpr (std::is_same_v<T, ConditionalExpr>) {
+            out_ << "if ";
+            expression(*value.condition);
+            out_ << " then ";
+            expression(*value.then_value);
+            out_ << " else ";
+            expression(*value.else_value);
+          } else if constexpr (std::is_same_v<T, ComprehensionExpr>) {
+            out_ << '[';
+            expression(*value.element);
+            out_ << " for #" << value.variable.value << " in ";
+            expression(*value.iterable);
+            out_ << ']';
+          } else if constexpr (std::is_same_v<T, DescriptorConstruct>) {
+            out_ << "Descriptor(#" << value.schema.value << "){";
+            for (const auto& f : value.fields) {
+              expression(*f);
+              out_ << ',';
+            }
+            out_ << '}';
+          } else if constexpr (std::is_same_v<T, StringConstant> ||
+                               std::is_same_v<T, EnumConstant>)
+            out_ << std::quoted(value.value);
+          else if constexpr (std::is_same_v<T, NoneConstant>)
+            out_ << "none";
+          else if constexpr (std::is_same_v<T, OptionalValue>) {
+            out_ << "some(";
+            expression(*value.value);
             out_ << ')';
           }
         },
@@ -277,7 +306,10 @@ class Printer {
       out_ << '\n';
     }
     for (const auto& derivation : rule.derivations) {
-      out_ << "    derive @#" << derivation.target.value << " = ";
+      if (derivation.target)
+        out_ << "    derive @#" << derivation.target->value << " = ";
+      else
+        out_ << "    derive ";
       expression(*derivation.value);
       out_ << '\n';
     }

@@ -10,8 +10,8 @@ checks the function name, argument count, argument types, and expression context
 
 | Context | Inputs and purpose |
 | --- | --- |
-| Rule `where` | Check a matched candidate using captured dimensions, dtype bindings, descriptor fields, and host results. Each condition must return `bool`. |
-| Rule `derive` | Compute arguments for host functions that construct replacement attribute descriptors. Each assignment must produce a descriptor. |
+| Rule `where` | Check a matched candidate using captured dimensions, dtype bindings, descriptor fields, and local values. Each condition must return `bool`. |
+| Rule `derive` | Calculate replacement attribute descriptors using constructors and builtins. Each assignment must produce a descriptor. |
 | Operation `shape` | Compute an output shape from operand shape lists and operation attributes. A variadic parameter receives a list of shapes. |
 | Operation `dtype` | Compute an output dtype from operand dtype values and operation attributes. A variadic parameter receives a list of dtypes. |
 
@@ -20,9 +20,9 @@ availability still depends on the block:
 
 | Functions | Rule `where` / `derive` | `shape` | `dtype` |
 | --- | --- | --- | --- |
-| List helpers, except `all` and `any` | Yes | Yes | Yes |
+| List helpers | Yes | Yes | Yes |
 | `min`, `max`, `floor_div`, `ceil_div` | Yes | Yes | Yes |
-| `all`, `any` | No | Yes | Yes |
+| `all`, `any` | Yes | Yes | Yes |
 | `is_valid_axis_list`, `broadcast_shape` | Yes | Yes | Yes |
 | `is_float`, `is_integer`, `is_signed_integer`, `is_unsigned_integer`, `is_numeric` | Yes | No | Yes |
 
@@ -50,24 +50,23 @@ infer the empty list's element type and is rejected.
 
 ## List helpers
 
-These functions are available in all four contexts, except `all` and `any`,
-which are available only in shape and dtype programs.
+These functions are available in all four contexts.
 
 | Function | Shape / dtype signature | Rule signature | Behavior |
 | --- | --- | --- | --- |
-| `len(xs)` | `T[] -> Integer` | `L -> index` | Return the number of elements in the outer list. |
+| `len(xs)` | `T[] -> Integer` | `T[] -> index` | Return the number of elements in the outer list. |
 | `range(n)` | `Integer -> Integer[]` | `index -> L` | Construct `[0, 1, ..., n - 1]`. `range(0)` is empty. |
-| `concat(a, b, ...)` | Two or more `T[] -> T[]` | Two or more `L -> L` | Join lists in argument order. Nested elements retain their boundaries. |
-| `gather(xs, positions)` | `(T[], Integer[]) -> T[]` | `(L, L) -> L` | Select entries in the supplied order. Repeated positions are allowed. |
-| `exclude(xs, removed)` | `(T[], T[]) -> T[]` | `(L, L) -> L` | Remove every element whose value occurs in `removed`. Preserve the order and duplicates of remaining elements. |
-| `slice(xs, start, end)` | `(T[], Integer, Integer) -> T[]` | `(L, index, index) -> L` | Copy the half-open interval `[start, end)`. |
-| `replace(xs, position, value)` | `(T[], Integer, T) -> T[]` | `(L, index, index) -> L` | Return a copy with one existing element replaced. |
-| `sum(xs)` | `Integer[] -> Integer` | `L -> index` | Add elements with checked arithmetic. The empty sum is `0`. |
-| `product(xs)` | `Integer[] -> Integer` | `L -> index` | Multiply elements with checked arithmetic. The empty product is `1`. Any zero makes the product `0`. |
-| `all(xs)` | `Bool[] -> Bool` | Unavailable | Return true when every element is true. `all([])` is true. |
-| `any(xs)` | `Bool[] -> Bool` | Unavailable | Return true when at least one element is true. `any([])` is false. |
-| `contains(xs, value)` | `(T[], T) -> Bool` | `(L, index) -> bool` | Test whether the value occurs in the list. |
-| `is_disjoint(a, b)` | `(T[], T[]) -> Bool` | `(L, L) -> bool` | Test whether the lists have no values in common. |
+| `concat(a, b, ...)` | Two or more `T[] -> T[]` | Two or more `T[] -> T[]` | Join lists in argument order. Nested elements retain their boundaries. |
+| `gather(xs, positions)` | `(T[], Integer[]) -> T[]` | `(T[], L) -> T[]` | Select entries in the supplied order. Repeated positions are allowed. |
+| `exclude(xs, removed)` | `(T[], T[]) -> T[]` | `(T[], T[]) -> T[]` | Remove every element whose value occurs in `removed`. Preserve the order and duplicates of remaining elements. |
+| `slice(xs, start, end)` | `(T[], Integer, Integer) -> T[]` | `(T[], index, index) -> T[]` | Copy the half-open interval `[start, end)`. |
+| `replace(xs, position, value)` | `(T[], Integer, T) -> T[]` | `(T[], index, T) -> T[]` | Return a copy with one existing element replaced. |
+| `sum(xs)` | `Integer[] -> Integer` | `T[] -> index` | Add elements with checked arithmetic. The empty sum is `0`. |
+| `product(xs)` | `Integer[] -> Integer` | `T[] -> index` | Multiply elements with checked arithmetic. The empty product is `1`. Any zero makes the product `0`. |
+| `all(xs)` | `Bool[] -> Bool` | `bool[] -> bool` | Return true when every element is true. `all([])` is true. |
+| `any(xs)` | `Bool[] -> Bool` | `bool[] -> bool` | Return true when at least one element is true. `any([])` is false. |
+| `contains(xs, value)` | `(T[], T) -> Bool` | `(T[], T) -> bool` | Test whether the value occurs in the list. |
+| `is_disjoint(a, b)` | `(T[], T[]) -> Bool` | `(T[], T[]) -> bool` | Test whether the lists have no values in common. |
 
 Positions start at zero. `gather` and `replace` require each position to be
 within the list. `slice` requires `0 <= start <= end <= len(xs)`; its bounds are
@@ -180,26 +179,18 @@ rule cancel_negate_small {
 }
 ```
 
-Rules can also receive `index_list` values from host functions. Rule expressions
-have no list literals, list indexing, or comprehensions. Use the list helpers
-to work with captured dimension sequences and host-provided lists.
+Rules support list literals, indexing, comprehensions, and local bindings.
+Descriptor fields supply values directly, including nested lists. `derive`
+constructs descriptors with schema-checked field expressions:
 
-Required scalar descriptor fields, such as `@capture.axis` or `@capture.to`,
-can supply builtin arguments directly. Access list, optional, or opaque
-descriptor fields through a host function.
-
-`derive` assigns attribute descriptors. A builtin can compute an argument for a
-descriptor-producing host function:
-
-```javascript
+```tepl
 derive {
-    @out = $infer_attrs(@source, concat(Dims, range(2)));
+    @out = { ..@source, permutation: gather(@source.permutation, axes) };
 }
 ```
 
-This fragment assumes `@source` and `Dims` were captured on the left, and that
-the application implements `$infer_attrs` with the required descriptor result.
-A scalar or list builtin result cannot be the whole descriptor assignment.
+A scalar or list value cannot replace a complete descriptor assignment.
+See [attribute construction](../advanced/attributes_and_conditions.md).
 
 ### Shape programs
 
@@ -238,10 +229,8 @@ yield a list of integer dimensions.
 
 ## Name resolution and failures
 
-In rules, an unprefixed call resolves to a bound abstract-rule `fn` parameter
-first, then to a builtin. `$name(...)` explicitly selects an application host
-function, even when the name matches a builtin. Shape and dtype programs allow
-builtins but do not allow `$` host calls.
+Every call resolves to a builtin. Unknown names are errors. Application callbacks
+and host-function template parameters are unsupported.
 
 All occurrences of a call's generic element type must agree. For example,
 `concat([f32], [i32])` is a valid dtype list, while `concat([f32], [1])` mixes
@@ -256,9 +245,9 @@ intermediate multiplication. A yielded shape must contain nonnegative
 dimensions that fit `u64`.
 
 - In a rule, a builtin failure rejects the rewrite candidate before insertion.
-  The leading builtin-only conditions in `where` can also prune matches during
-  search. The first condition containing a host call ends that search prefix;
-  it and later conditions, along with `derive`, run during application.
+  Pure conditions can prune search when their bindings are ready. Extended rule
+  expression code generation and execution are deferred; the frontend checks
+  these forms and reports unsupported backend features explicitly.
 - In a shape or dtype program, a failed assertion or evaluated builtin makes
   inference invalid. Missing required tensor metadata can leave inference
   unknown. Assertions remain active in optimized builds.

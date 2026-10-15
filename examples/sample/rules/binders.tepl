@@ -1,12 +1,17 @@
 from "../dialects/tensor.tepl" import TensorLang as t;
 use t::{add, dot, mul, transpose};
 
-// `let Y` names the dot result. Both later references use its e-class.
+// `let Y` names the dot result. Both later references share that value.
 rule shared_expression {
+    Y: f32[M, N]
     (add (let Y = (dot[@d] X W)) (mul Y Z)) => (add (mul Y Z) Y)
 
     where {
-        $is_reusable(Y, @d);
+        M == 2 && N == 2;
+        @d.lhs_contracting_dimensions == [1];
+        @d.rhs_contracting_dimensions == [0];
+        @d.lhs_batching_dimensions == [];
+        @d.rhs_batching_dimensions == [];
     }
 }
 

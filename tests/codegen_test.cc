@@ -15,7 +15,7 @@ dialect Custom { op negate(input: tensor) -> tensor; }
 rule test {
   X: [N]
   (negate X) => X
-  where { $outer(sum(range($inner(N) + 1)), X); }
+  where { sum(range(N + 1)) >= 0; }
 }
 )");
   assert(parsed.ok());
@@ -48,10 +48,10 @@ class PythonBackend final : public tepl::codegen::Generator {
 int main() {
   const auto program = checkedProgram();  // The source AST has been destroyed.
   const auto plan = tepl::codegen::planRule(program.rules.front());
-  assert(plan.host_functions.size() == 2);  // Includes the nested call.
+  assert(plan.early_conditions.size() == 1);
   const auto generated = tepl::codegen::generate(program);
   assert(generated.ok() && !generated.files.empty());
-  bool found_host_methods = false;
+  bool found_builtins = false;
   for (const auto& file : generated.files) {
     assert(file.contents.find("#[test]") == std::string::npos);
     assert(file.contents.find("#[cfg(test)]") == std::string::npos);
@@ -61,17 +61,13 @@ int main() {
     assert(file.contents.find("::rewriting::*") == std::string::npos);
     assert(file.contents.find("fn $") == std::string::npos);
     assert(file.contents.find("functions.$") == std::string::npos);
-    if (file.contents.find("fn outer(") == std::string::npos) continue;
-    found_host_methods = true;
-    assert(file.contents.find("fn inner(") != std::string::npos);
-    assert(file.contents.find("functions.outer(") != std::string::npos);
-    assert(file.contents.find("functions.inner(") != std::string::npos);
+    assert(file.contents.find("HostFunctions") == std::string::npos);
+    if (file.path != "rules/input.rs") continue;
+    found_builtins = true;
     assert(file.contents.find("::builtins::common::sum(") != std::string::npos);
     assert(file.contents.find("::builtins::common::add(") != std::string::npos);
-    assert(file.contents.find(".checked_add(") == std::string::npos);
-    assert(file.contents.find("TEPL `$outer(...)`") != std::string::npos);
   }
-  assert(found_host_methods);
+  assert(found_builtins);
   const auto repeated = tepl::codegen::generate(program);
   assert(repeated.ok() && repeated.files.size() == generated.files.size());
   for (std::size_t i = 0; i < generated.files.size(); ++i) {
@@ -142,11 +138,7 @@ int main() {
     const std::string field_source =
         "dialect D { attrs A { " + std::string(name) +
         ": index; } op node() -> tensor { attrs: A; } }";
-    const std::string host_source =
-        "dialect D { op negate(x: tensor) -> tensor; } "
-        "rule r { (negate X) => X where { $" +
-        std::string(name) + "(X); } }";
-    for (const auto& source : {field_source, host_source}) {
+    for (const auto& source : {field_source}) {
       auto parsed = tepl::parse(source);
       assert(parsed.ok());
       auto checked = tepl::core::analyze(*parsed.program);
@@ -220,7 +212,7 @@ int main() {
     rule early {
       X: [Batch..., N]
       (copy X) => X
-      where { len(Batch) < 4; N > 0; true || $allowed(X); N < 128; }
+      where { len(Batch) < 4; N > 0; true || N == 1; N < 128; }
     }
   )");
   assert(where_parsed.ok());
@@ -228,7 +220,7 @@ int main() {
   assert(where_checked.ok());
   const auto where_plan =
       tepl::codegen::planRule(where_checked.program->rules[0]);
-  assert(where_plan.early_conditions.size() == 2);
+  assert(where_plan.early_conditions.size() == 4);
   assert(where_plan.early_conditions[0].dimensions.size() == 1);
   assert(where_checked.program->rules[0]
              .dimensions[where_plan.early_conditions[0].dimensions[0].value]
@@ -236,7 +228,6 @@ int main() {
   assert(!where_checked.program->rules[0]
               .dimensions[where_plan.early_conditions[1].dimensions[0].value]
               .sequence);
-  assert(where_plan.host_functions.size() == 1);
   const auto where_output = tepl::codegen::generate(*where_checked.program);
   assert(where_output.ok());
   bool where_emitted = false;
@@ -245,12 +236,31 @@ int main() {
     where_emitted = true;
     assert(file.contents.find("fn condition_0") != std::string::npos);
     assert(file.contents.find("fn condition_1") != std::string::npos);
-    assert(file.contents.find("fn condition_2") == std::string::npos);
-    assert(file.contents.find("functions.allowed(") != std::string::npos);
+    assert(file.contents.find("fn condition_2") != std::string::npos);
     assert(file.contents.find("MatchBinding::Sequence(") != std::string::npos);
     assert(file.contents.find("MatchBinding::Dimension(") != std::string::npos);
   }
   assert(where_emitted);
+  // Both backends reject deferred expressions before producing any files.
+  for (const auto* source : {"dialect D { op copy(x: tensor) -> tensor; } rule "
+                             "r { (copy X) => X where { let n = 1; n > 0; } }",
+                             "dialect D { op copy(x: tensor) -> tensor { attrs "
+                             "{ axes: index[]; } } } rule r { (copy[@a] X) => "
+                             "(copy[@b] X) derive { @b = { ..@a }; } }"}) {
+    auto parsed = tepl::parse(source);
+    assert(parsed.ok());
+    auto checked = tepl::core::analyze(*parsed.program);
+    assert(checked.ok());
+    for (auto target :
+         {tepl::codegen::Target::kRust, tepl::codegen::Target::kCpp}) {
+      tepl::codegen::Options options;
+      options.target = target;
+      auto result = tepl::codegen::generate(*checked.program, options);
+      assert(!result.ok() && result.files.empty());
+      assert(result.diagnostics[0].message.find("not implemented") !=
+             std::string::npos);
+    }
+  }
   const PythonBackend python;
   assert(python.generate(program, {}).files.front().path == "rules.py");
 }

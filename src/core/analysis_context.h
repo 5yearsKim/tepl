@@ -27,13 +27,10 @@ struct AnalysisContext {
   Program output;
   std::vector<Diagnostic> diagnostics;
   std::map<std::string, FileScope> scopes;
-  std::unordered_map<std::string, HostFunctionId> host_names;
   TypeInference types;
 
   void report(SourceOrigin origin, std::string message,
               std::vector<SourceLocation> related = {});
-  HostFunctionId host(const std::string& name, std::size_t arity,
-                      const SourceOrigin& origin);
   std::optional<OpId> operation(const std::string& name,
                                 const std::string& source,
                                 const SourceOrigin& origin);

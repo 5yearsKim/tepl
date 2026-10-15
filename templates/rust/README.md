@@ -1,5 +1,10 @@
 # Rust code generation templates
 
+> Host-function APIs shown here describe earlier generated artifacts. The
+> current frontend uses pure builtins and descriptor constructors; the extended
+> rule backend and application integrations await migration.
+
+
 These files are handwritten Rust templates copied into generated modules.
 Bazel embeds them into the compiler; codegen copies them into its output. `src/rewriting/` is copied into the output's
 `rewriting/`; it contains matching, attribute witnesses, shape checks,

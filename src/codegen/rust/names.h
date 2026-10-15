@@ -50,15 +50,13 @@ class Names {
   const std::string& operationVariant(core::OpId id) const;
   std::string schema(core::AttributeSchemaId id) const;
   const std::string& field(core::AttributeSchemaId id, std::size_t index) const;
-  const std::string& host(core::HostFunctionId id) const;
   const std::string& rule(core::RuleId id) const;
   std::vector<DialectNames> dialects;
   std::vector<RuleModuleNames> modules;
   std::map<std::string, std::vector<std::string>> module_indexes;
 
  private:
-  std::vector<std::string> operations_, operation_variants_, schemas_, hosts_,
-      rules_;
+  std::vector<std::string> operations_, operation_variants_, schemas_, rules_;
   std::vector<std::vector<std::string>> fields_;
 };
 }  // namespace tepl::codegen::rust

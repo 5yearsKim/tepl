@@ -106,7 +106,7 @@ Shape programs support arithmetic, comparisons, list literals and indexing,
 Intermediate integers use checked signed 128-bit arithmetic. Yielded dimensions
 must be nonnegative and fit `u64`. Only required branches of `&&`, `||`, and
 conditional expressions are evaluated. Function calls must resolve to supported
-builtins; `$` host calls are unavailable inside shape and dtype programs.
+builtins. Application callbacks are unsupported throughout TEPL.
 See [built-in functions](built-ins.md) for signatures and failure behavior.
 
 Generated Rust and C++ evaluators reuse these programs for e-class analysis and

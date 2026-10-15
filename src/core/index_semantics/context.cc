@@ -252,6 +252,12 @@ S Context::resolve(const S& s) {
 }
 S Context::field(const Instance& n, std::size_t f) {
   if (!n.descriptor) throw ProofFailure("attribute has no rule descriptor");
+  if (auto found = plan.attributes.find(n.descriptor->value);
+      found != plan.attributes.end()) {
+    const auto& value = found->second.at(f);
+    validateSource(value);
+    return resolve(value);
+  }
   if (n.automatic && f < n.pins.size() && n.pins[f]) {
     const auto& pin = *n.pins[f];
     if (pin.literal) {

@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include "src/codegen/common/rule_plan.h"
 #include "src/codegen/rust/analysis_emitter.h"
 #include "src/codegen/rust/dialect_emitter.h"
 #include "src/codegen/rust/graph_emitter.h"
@@ -13,6 +14,8 @@ namespace tepl::codegen::rust {
 GenerationResult Backend::generate(const core::Program& program,
                                    const Options& options) const {
   GenerationResult result;
+  result.diagnostics = unsupportedRuleExpressions(program);
+  if (!result.diagnostics.empty()) return result;
   try {
     const auto project =
         planProject(program, options.rules_root, options.graphs_root);

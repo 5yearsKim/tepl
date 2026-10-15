@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -55,15 +56,6 @@ struct Operation {
   std::optional<metadata::Program> shape;
   std::optional<metadata::Program> dtype;
   std::shared_ptr<const index_semantics::Definition> semantic_definition;
-};
-
-struct HostFunction {
-  HostFunctionId id;
-  std::string name;
-  Signature signature;
-  // None rejects a match; failure is separate from the successful value type.
-  bool fallible = true;
-  SourceOrigin origin;
 };
 
 struct Capture {
@@ -185,10 +177,7 @@ struct NumericConstant {
   std::string spelling;
   bool decimal = false;
 };
-struct HostCall {
-  HostFunctionId function;
-  std::vector<TypedExprPtr> arguments;
-};
+
 struct BuiltinCall {
   builtins::Builtin builtin;
   std::vector<TypedExprPtr> arguments;
@@ -202,17 +191,98 @@ struct BinaryExpr {
   TypedExprPtr lhs;
   TypedExprPtr rhs;
 };
+struct LocalRef {
+  LocalId local;
+};
+struct LocalLet {
+  LocalId local;
+  TypedExprPtr value;
+};
+struct ListExpr {
+  std::vector<TypedExprPtr> elements;
+};
+struct IndexExpr {
+  TypedExprPtr value, index;
+};
+struct ConditionalExpr {
+  TypedExprPtr condition, then_value, else_value;
+};
+struct ComprehensionExpr {
+  TypedExprPtr element;
+  LocalId variable;
+  TypedExprPtr iterable;
+};
+struct StringConstant {
+  std::string value;
+};
+struct EnumConstant {
+  std::string value;
+};
+struct NoneConstant {};
+struct OptionalValue {
+  TypedExprPtr value;
+};
+struct DescriptorConstruct {
+  AttributeSchemaId schema;
+  // All fields in schema order; spreads/defaults have been expanded.
+  std::vector<TypedExprPtr> fields;
+};
+struct Local {
+  LocalId id;
+  std::string name;
+  TypeId type;
+};
 struct TypedExpr {
   SourceOrigin origin;
   TypeId type;
   std::variant<CaptureRef, DimensionRef, DescriptorRef, DescriptorFieldRef,
                OutputAxisGroupRef, DTypeVariableRef, DType, NumericConstant,
-               bool, HostCall, BuiltinCall, UnaryExpr, BinaryExpr>
+               bool, BuiltinCall, UnaryExpr, BinaryExpr, LocalRef, LocalLet,
+               ListExpr, IndexExpr, ConditionalExpr, ComprehensionExpr,
+               StringConstant, EnumConstant, NoneConstant, OptionalValue,
+               DescriptorConstruct>
       value;
 };
 
+// Includes statement initializers and comprehension bodies; leaf nodes have no
+// children.
+template <class F>
+void forEachExpressionChild(const TypedExpr& expression, F&& visit) {
+  std::visit(
+      [&](const auto& v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, BuiltinCall>) {
+          for (const auto& a : v.arguments) visit(*a);
+        } else if constexpr (std::is_same_v<T, UnaryExpr>)
+          visit(*v.operand);
+        else if constexpr (std::is_same_v<T, BinaryExpr>) {
+          visit(*v.lhs);
+          visit(*v.rhs);
+        } else if constexpr (std::is_same_v<T, LocalLet> ||
+                             std::is_same_v<T, OptionalValue>)
+          visit(*v.value);
+        else if constexpr (std::is_same_v<T, ListExpr>) {
+          for (const auto& a : v.elements) visit(*a);
+        } else if constexpr (std::is_same_v<T, IndexExpr>) {
+          visit(*v.value);
+          visit(*v.index);
+        } else if constexpr (std::is_same_v<T, ConditionalExpr>) {
+          visit(*v.condition);
+          visit(*v.then_value);
+          visit(*v.else_value);
+        } else if constexpr (std::is_same_v<T, ComprehensionExpr>) {
+          visit(*v.iterable);
+          visit(*v.element);
+        } else if constexpr (std::is_same_v<T, DescriptorConstruct>) {
+          for (const auto& a : v.fields) visit(*a);
+        }
+      },
+      expression.value);
+}
+
 struct Derivation {
-  DescriptorId target;
+  std::optional<DescriptorId> target;
+  // A missing target denotes a local let statement.
   TypedExprPtr value;
   SourceOrigin origin;
 };
@@ -228,7 +298,9 @@ struct Rule {
   std::vector<Descriptor> descriptors;
   PatternPtr lhs;
   std::vector<CaptureConstraint> constraints;
+  // Ordered where statements: Boolean guards or LocalLet nodes.
   std::vector<TypedExprPtr> conditions;
+  std::vector<Local> locals;
   std::vector<Derivation> derivations;
   BuildExprPtr rhs;
   std::vector<DTypeVariable> dtypes;
@@ -277,7 +349,6 @@ struct Program {
   std::vector<Type> types;
   std::vector<Operation> operations;
   std::vector<AttributeSchema> attribute_schemas;
-  std::vector<HostFunction> host_functions;
   std::vector<Rule> rules;
   std::vector<ConcreteGraph> graphs;
 };

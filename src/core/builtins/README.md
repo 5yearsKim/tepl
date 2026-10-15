@@ -4,11 +4,9 @@
 arity, and expression-section availability. Metadata and rule checkers use this
 catalog; successful IR stores a resolved builtin ID, never an unresolved name.
 
-An unprefixed call resolves to an explicitly bound template `fn` parameter
-first, then a builtin. `$name(...)` always selects a host function, including
-when its name is also a builtin. Builtins do not add entries to the host-function
-table or methods to generated `HostFunctions` traits. Unknown names, wrong arity,
-incompatible types, and unavailable sections produce source diagnostics.
+Every call resolves to a builtin. Unknown names, wrong arity, incompatible
+types, and unavailable sections produce source diagnostics. Rules have no
+application callbacks or host-function template parameters.
 
 Semantic domain and section availability are independent: `broadcast_shape`
 is a shape-domain function available in both shapes and rules. Catalog context
@@ -26,17 +24,17 @@ There is no implicit signed/unsigned conversion or floating builtin overload.
 
 | Builtin | Shape signature | Rule signature | Domain | Sections |
 | --- | --- | --- | --- | --- |
-| `len` | `List<T> → Integer` | `L → index` | Common | shape, dtype, where, derive |
+| `len` | `List<T> → Integer` | `List<T> → index` | Common | shape, dtype, where, derive |
 | `range` | `Integer → List<Integer>` | `index → L` | Common | shape, dtype, where, derive |
-| `concat` | Two or more `List<T> → List<T>` | Two or more `L → L` | Common | shape, dtype, where, derive |
-| `gather` | `(List<T>, List<Integer>) → List<T>` | `(L, L) → L` | Common | shape, dtype, where, derive |
-| `exclude` | `(List<T>, List<T>) → List<T>` | `(L, L) → L` | Common | shape, dtype, where, derive |
-| `slice` | `(List<T>, Integer, Integer) → List<T>` | `(L, index, index) → L` | Common | shape, dtype, where, derive |
-| `replace` | `(List<T>, Integer, T) → List<T>` | `(L, index, index) → L` | Common | shape, dtype, where, derive |
-| `sum`, `product` | `List<Integer> → Integer` | `L → index` | Common | shape, dtype, where, derive |
-| `all`, `any` | `List<Bool> → Bool` | Unavailable: rules have no Boolean-list type | Common | shape, dtype |
-| `contains` | `(List<T>, T) → Bool` | `(L, index) → bool` | Common | shape, dtype, where, derive |
-| `is_disjoint` | `(List<T>, List<T>) → Bool` | `(L, L) → bool` | Common | shape, dtype, where, derive |
+| `concat` | Two or more `List<T> → List<T>` | Two or more `List<T> → List<T>` | Common | shape, dtype, where, derive |
+| `gather` | `(List<T>, List<Integer>) → List<T>` | `(List<T>, L) → List<T>` | Common | shape, dtype, where, derive |
+| `exclude` | `(List<T>, List<T>) → List<T>` | `(List<T>, List<T>) → List<T>` | Common | shape, dtype, where, derive |
+| `slice` | `(List<T>, Integer, Integer) → List<T>` | `(List<T>, index, index) → List<T>` | Common | shape, dtype, where, derive |
+| `replace` | `(List<T>, Integer, T) → List<T>` | `(List<T>, index, T) → List<T>` | Common | shape, dtype, where, derive |
+| `sum`, `product` | `List<Integer> → Integer` | `List<T> → index` | Common | shape, dtype, where, derive |
+| `all`, `any` | `List<Bool> → Bool` | `List<Bool> → bool` | Common | shape, dtype, where, derive |
+| `contains` | `(List<T>, T) → Bool` | `(List<T>, T) → bool` | Common | shape, dtype, where, derive |
+| `is_disjoint` | `(List<T>, List<T>) → Bool` | `(List<T>, List<T>) → bool` | Common | shape, dtype, where, derive |
 | `is_valid_axis_list` | `(List<Integer>, Integer) → Bool` | `(L, index) → bool` | Shape | shape, dtype, where, derive |
 | `broadcast_shape` | `(List<Integer>, List<Integer>) → List<Integer>` | `(L, L) → L` | Shape | shape, dtype, where, derive |
 | `min`, `max` | `(Integer, Integer) → Integer` | `(I, I) → I` | Common | shape, dtype, where, derive |
@@ -47,22 +45,12 @@ There is no implicit signed/unsigned conversion or floating builtin overload.
 `dtype → bool` in rules. They belong to the DType domain and are available in
 `dtype`, `where`, and `derive`. Bool is neither integer nor numeric.
 
-Rule expressions retain their existing syntax. Dimension sequences and
-`index_list` host results supply lists; list literals, indexing, and
-comprehensions remain operation metadata expression forms. `derive` assigns
-attribute descriptors, so builtins usually appear inside descriptor-producing
-host calls, rather than as the whole assignment:
-
-```tepl
-where {
-    len(Batch) > 0;
-    product(Batch) <= 4096;
-    is_valid_axis_list(range(len(Batch)), len(Batch));
-}
-derive {
-    @out = $infer_attrs(@in, concat(Batch, range(2)));
-}
-```
+Rule expressions support lists, indexing, conditionals, comprehensions, local
+bindings, and descriptor constructors. Generic list helpers use homogeneous
+lists in rules too; integer-list reductions retain their existing index domain.
+See [the attribute reference](../../../docs/advanced/attributes_and_conditions.md)
+for construction semantics. Rust/C++ generation for extended rule expressions
+is deferred and diagnosed before output.
 
 ## Runtime behavior
 
@@ -76,12 +64,9 @@ Shape and rule emitters share builtin-call lowering. Integer operators also
 call the checked runtime helpers. Shape errors become invalid inference; rule
 errors reject a candidate before insertion or subsequent host calls. Boolean
 operators retain short-circuit evaluation, and arguments execute once in order.
-The builtin/operator prefix of `where` also runs during matching, in source
-order as its bindings become available, and is rechecked before application.
-False or a builtin error prunes the branch. The first host-containing condition
-ends this prefix, including nested and short-circuited host calls. That condition
-and all subsequent conditions, plus `derive`, run during application. Tensor
-shape/dtype declarations bind dimensions through the same match-checking plan.
+All rule conditions are pure. Existing generated match checks retain binding
+readiness and source ordering. Local statements and extended expressions require
+the deferred execution support.
 
 Overflow, invalid indices/ranges, nonpositive rounded divisors, and incompatible
 broadcasting are failures. `/` truncates toward zero; rounded division requires

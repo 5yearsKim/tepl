@@ -29,6 +29,7 @@ struct LocatedDerivation {
   std::string target;
   ast::ConstraintExprPtr value;
   SourceOrigin origin;
+  bool local = false;
 };
 
 struct GraphMetadata {
@@ -39,13 +40,13 @@ struct GraphMetadata {
 struct ExpandedRule {
   std::string source_name;
   std::string name;
-  std::unordered_map<const ast::Call*, HostFunctionId> bound_functions;
   SourceOrigin origin;
   ast::GraphExprPtr lhs;
   ast::GraphExprPtr rhs;
   std::vector<LocatedDeclaration> declarations;
   std::vector<LocatedDTypeDeclaration> dtypes;
   std::vector<ast::ConstraintExprPtr> conditions;
+  std::vector<std::size_t> condition_scopes;
   std::vector<LocatedDerivation> derivations;
   // Keys refer to the owning expression trees above and live for this stage.
   std::unordered_map<const ast::GraphExpr*, GraphMetadata> graphs;

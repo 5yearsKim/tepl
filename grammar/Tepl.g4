@@ -271,7 +271,7 @@ ruleParameters
     ;
 
 ruleParameter
-    : ID ':' (OP | FN) '<' '(' signatureTypes? ')' '->' signatureType '>'
+    : ID ':' OP '<' '(' signatureTypes? ')' '->' signatureType '>'
     ;
 
 signatureTypes
@@ -288,12 +288,9 @@ ruleBindings
     ;
 
 ruleBinding
-    : ID '=' (opRef | hostFunctionRef)
+    : ID '=' opRef
     ;
 
-hostFunctionRef
-    : '$' ID
-    ;
 
 // Instances add restrictions to the inherited pattern.
 inheritedBody
@@ -369,19 +366,29 @@ attrRef
 // Rule semantics: legality conditions and derived metadata
 
 whereBlock
-    : WHERE '{' (constraintExpr ';')* '}'
+    : WHERE '{' whereStatement* '}'
     ;
 
 deriveBlock
-    : DERIVE '{' (attrRef '=' constraintExpr ';')* '}'
+    : DERIVE '{' deriveStatement* '}'
     ;
 
-// Constraint expressions: shared by where and derive
+whereStatement
+    : LET ID '=' constraintExpr ';'
+    | constraintExpr ';'
+    ;
+deriveStatement
+    : LET ID '=' constraintExpr ';'
+    | attrRef '=' constraintExpr ';'
+    ;
 
-// Host calls and constraints use conventional infix syntax. Each level has its
+// Pure expressions shared by where and derive
+
+// Rule expressions use conventional infix syntax. Each level has its
 // own rule so precedence remains explicit and independent of graph expressions.
 constraintExpr
-    : logicalOr
+    : IF constraintExpr THEN constraintExpr ELSE constraintExpr
+    | logicalOr
     ;
 
 logicalOr
@@ -401,7 +408,7 @@ comparison
     ;
 
 additive
-    : multiplicative (('+' | '-') multiplicative)*
+    : multiplicative (('+' | '-' | '++') multiplicative)*
     ;
 
 multiplicative
@@ -410,11 +417,15 @@ multiplicative
 
 unary
     : ('!' | '+' | '-') unary
-    | primary
+    | postfix
+    ;
+
+postfix
+    : primary ('[' constraintExpr ']')*
     ;
 
 primary
-    : (ID | hostFunctionRef) '(' arguments? ')' # CallPrimary
+    : ID '(' arguments? ')' # CallPrimary
     | ID                                     # NamePrimary
     | attrRef (('.' | '->') ID)?                      # AttributePrimary
     | INT                                    # IntegerPrimary
@@ -422,6 +433,15 @@ primary
     | TRUE                                   # TruePrimary
     | FALSE                                  # FalsePrimary
     | '(' constraintExpr ')'                 # GroupPrimary
+    | STRING                                 # StringPrimary
+    | '[' (constraintExpr (',' constraintExpr)*)? ']' # ListPrimary
+    | '[' constraintExpr FOR ID IN constraintExpr ']' # ComprehensionPrimary
+    | '{' ('..' attrRef (',' descriptorField)*)? '}' # DescriptorPrimary
+    | '{' descriptorField (',' descriptorField)* '}' # DescriptorFieldsPrimary
+    ;
+
+descriptorField
+    : ID ':' constraintExpr
     ;
 
 arguments
@@ -433,7 +453,6 @@ arguments
 RULE: 'rule';
 ABSTRACT: 'abstract';
 EXTENDS: 'extends';
-FN: 'fn';
 LET: 'let';
 ASSERT: 'assert';
 YIELD: 'yield';

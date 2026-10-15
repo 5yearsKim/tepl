@@ -148,6 +148,11 @@ std::string type(const core::Type& value, bool argument) {
   switch (value.kind) {
     case core::TypeKind::kDType:
       return "DType";
+    case core::TypeKind::kString:
+    case core::TypeKind::kPrecision:
+    case core::TypeKind::kOpaque:
+      throw std::logic_error(
+          "extended rule type code generation is not implemented");
     case core::TypeKind::kTensor:
       return argument ? "const TensorInfo&" : "TensorInfo";
     case core::TypeKind::kIndex:
@@ -164,7 +169,7 @@ std::string type(const core::Type& value, bool argument) {
     case core::TypeKind::kDescriptor:
       return argument ? "const OpAttrs&" : "OpAttrs";
   }
-  throw std::invalid_argument("invalid host type");
+  throw std::invalid_argument("invalid rule value type");
 }
 std::string descriptor(std::size_t id) {
   return "descriptor_" + std::to_string(id);
@@ -221,7 +226,6 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
   operation_variants_.resize(program.operations.size());
   schemas_.resize(program.attribute_schemas.size());
   fields_.resize(program.attribute_schemas.size());
-  hosts_.resize(program.host_functions.size());
   rules_.resize(program.rules.size());
   Scope module_scope, variant_scope;
   module_scope.reserve("dialects");
@@ -272,10 +276,6 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
     }
     dialects.push_back(std::move(dialect));
   }
-  for (const auto& host : program.host_functions)
-    hosts_[host.id.value] =
-        Identifier::make(host.name, NameKind::kMethod, host.origin).token;
-
   // Validate both source module scopes and filesystem scopes, including parent
   // directories. Different source spellings must never silently merge.
   std::map<std::string, Scope> child_scopes;
@@ -321,14 +321,6 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
           Identifier::make(rule.name, NameKind::kRule, rule.origin);
       rule_scope.insert(name, rule.name, rule.origin, "rule");
       rules_[id.value] = name.token;
-      Scope methods;
-      for (const auto host_id : planRule(rule).host_functions) {
-        const auto& host = program.host_functions.at(host_id.value);
-        const auto name =
-            Identifier::make(host.name, NameKind::kMethod, host.origin);
-        methods.insert(name, host.name, host.origin,
-                       "host function within rule '" + rule.name + "'");
-      }
     }
     modules.push_back(std::move(module));
   }
@@ -351,9 +343,6 @@ std::string Names::schema(core::AttributeSchemaId id) const {
 const std::string& Names::field(core::AttributeSchemaId id,
                                 std::size_t index) const {
   return fields_.at(id.value).at(index);
-}
-const std::string& Names::host(core::HostFunctionId id) const {
-  return hosts_.at(id.value);
 }
 const std::string& Names::rule(core::RuleId id) const {
   return rules_.at(id.value);

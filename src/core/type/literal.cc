@@ -56,7 +56,7 @@ bool validGraphLiteral(std::string_view value, DType dtype) {
   return false;
 }
 
-bool validHostLiteral(std::string_view value, TypeKind type) {
+bool validScalarLiteral(std::string_view value, TypeKind type) {
   if (type == TypeKind::kIndex) return fitsInteger(value, false, 64);
   if (type == TypeKind::kI64) return fitsInteger(value, true, 64);
   if (type != TypeKind::kF64) return false;

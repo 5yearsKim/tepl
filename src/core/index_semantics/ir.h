@@ -164,6 +164,8 @@ struct Plan {
   RuleProof proof;
   std::map<std::size_t, std::string> descriptor_names;
   std::vector<SymbolPtr> assumptions;
+  // Explicit derived descriptors, lowered entirely to LHS metadata.
+  std::map<std::size_t, std::vector<SymbolPtr>> attributes;
 };
 
 // Every law has a direction, an arithmetic requirement, and explicit side

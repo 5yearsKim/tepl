@@ -1,5 +1,11 @@
 # 🚀 Run your first TEPL code
 
+> This tutorial describes the previous generated host-function API. TEPL now
+> uses pure builtins and descriptor constructors; extended rule generation and
+> these application examples await migration. See
+> [attribute construction](../../advanced/attributes_and_conditions.md).
+
+
 Let's build a small optimizer for addition and vector dot products. You will
 write operations, rewrite rules, and a starting graph in TEPL, then run the
 generated C++ code with egg-c. This guide covers structural rewriting;
