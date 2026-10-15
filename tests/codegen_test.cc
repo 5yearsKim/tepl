@@ -262,6 +262,18 @@ int main() {
              std::string::npos);
     }
   }
+  auto anonymous_parsed = tepl::parse(
+      "dialect D { op copy(x: tensor) -> tensor { attrs { n: index; } } } "
+      "rule r { (copy X) => X }");
+  assert(anonymous_parsed.ok());
+  auto anonymous_checked = tepl::core::analyze(*anonymous_parsed.program);
+  assert(anonymous_checked.ok());
+  for (auto target :
+       {tepl::codegen::Target::kRust, tepl::codegen::Target::kCpp}) {
+    tepl::codegen::Options options;
+    options.target = target;
+    assert(tepl::codegen::generate(*anonymous_checked.program, options).ok());
+  }
   const PythonBackend python;
   assert(
       python.generate(tepl::program::compile(program), {}).files.front().path ==

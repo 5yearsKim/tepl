@@ -214,8 +214,7 @@ check_exit 1 parse "$bad_arity"
 grep -Fq "duplicate dialect 'Duplicate'" "$output"
 
 printf 'import "%s"; rule r { (dot X Y) => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 check "$bad_arity"
-grep -Fq 'requires an attribute descriptor' "$output"
+check_exit 0 check "$bad_arity"
 
 printf 'import "%s"; rule r { (missing X) => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"

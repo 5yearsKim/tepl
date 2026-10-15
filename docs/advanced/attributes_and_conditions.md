@@ -6,6 +6,11 @@ separately from operands and tensor metadata.
 
 ## Capture and reuse
 
+Omitting attributes on the LHS captures that operation's complete descriptor
+anonymously. Each omission is a separate capture, so two operations may match
+different attributes. Name a capture with `@name` when a condition, derivation,
+or RHS operation needs to refer to it.
+
 Capture a descriptor on the LHS with `@name`, then reuse it on the RHS:
 
 ```tepl
@@ -102,10 +107,25 @@ local initializer is evaluated in source order, including unused locals.
 
 An explicit constructor specifies how attributes are computed. `[auto]` asks
 the compiler to synthesize supported attributes from operation semantics.
-These remain separate forms. Both must satisfy operation legality and the
-applicable semantic checks. Matching output shape and dtype alone does not
-prove numerical equivalence; distribution and reassociation require an explicit
-arithmetic policy.
+For an RHS operation with attributes, omitting the annotation also requests
+`[auto]`. Each RHS operation gets its own synthesized descriptor. For example:
+
+```tepl
+rule compose_transposes {
+    (t.transpose (t.transpose X)) => (t.transpose X)
+}
+```
+
+The anonymous LHS captures still supply their values to synthesis. The rule
+must pass the same semantic checks as an explicitly annotated rule. Keep
+`[auto, field = value]` when synthesis needs a pinned field, and use `[@name]`
+to copy a captured descriptor. Operations without an attribute schema need no
+annotation on either side.
+
+Explicit constructors and automatic synthesis remain separate forms. Both must
+satisfy operation legality and the applicable semantic checks. Matching output
+shape and dtype alone does not prove numerical equivalence; distribution and
+reassociation require an explicit arithmetic policy.
 
 The frontend and symbolic checker support explicit constructors. The symbolic
 checker accepts its supported metadata fragment and diagnoses expressions it

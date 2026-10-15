@@ -165,6 +165,19 @@ rule unrestricted { X => X }
 }
 
 void descriptorsAndTypes() {
+  const auto anonymous = analyzeText("rule r { (dot (dot X Y) Z) => X }");
+  assert(anonymous.ok());
+  const auto& anonymous_rule = anonymous.program->rules[0];
+  const auto& outer = std::get<MatchOperation>(anonymous_rule.lhs->value);
+  const auto& inner = std::get<MatchOperation>(outer.operands[0]->value);
+  assert(outer.descriptor && inner.descriptor &&
+         outer.descriptor != inner.descriptor);
+  assert(anonymous_rule.descriptors.size() == 2);
+  for (const auto& descriptor : anonymous_rule.descriptors) {
+    assert(descriptor.kind == Descriptor::Kind::kCaptured);
+    assert(anonymous.program->types[descriptor.type.value].schema);
+  }
+
   const auto result = analyzeText(R"(
 rule r {
   X: [Batch..., M, K]
@@ -467,7 +480,6 @@ void invalidRules() {
            {"rule r { -1:u64 => 0:u64 }", "invalid for dtype"},
            {"rule r { 1.0:i32 => 1:i32 }", "invalid for dtype"},
            {"rule r { 1:unknown => X }", "unknown dtype"},
-           {"rule r { (dot X Y) => X }", "requires an attribute descriptor"},
            {"rule r { (add[@d] X Y) => X }", "has no attributes"},
            {"rule r { (dot[@d] X Y) => (dot[@missing] X Y) }",
             "unknown RHS descriptor"},

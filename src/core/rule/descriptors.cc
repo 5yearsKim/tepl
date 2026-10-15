@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 #include "src/core/rule/check_context.h"
 #include "src/core/rule/expression.h"
@@ -12,12 +13,13 @@ namespace tepl::core::detail {
 namespace {
 
 DescriptorId addDescriptor(RuleCheckContext& context, const std::string& name,
-                           Descriptor::Kind kind, const SourceOrigin& at) {
+                           Descriptor::Kind kind, const SourceOrigin& at,
+                           bool named = true) {
   const DescriptorId id{context.rule.descriptors.size()};
   context.rule.descriptors.push_back(
       {id, name, kind,
        context.analysis.types.concrete({TypeKind::kDescriptor}, at), at});
-  context.scope.descriptors.emplace(name, id);
+  if (named) context.scope.descriptors.emplace(name, id);
   return id;
 }
 
@@ -45,7 +47,7 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
                                             const SourceOrigin& at) {
   const auto schema =
       context.analysis.output.operations[operation.value].attributes;
-  if (op.automatic) {
+  if (op.automatic || (!op.attribute && schema && !lhs)) {
     if (lhs) {
       context.analysis.report(at,
                               "auto attributes are only allowed on the RHS");
@@ -110,7 +112,9 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
       }
       return std::make_shared<AttributePin>(std::move(value));
     };
-    for (const auto& override : op.automatic->fields) {
+    const std::vector<ast::AutoField> no_overrides;
+    const auto& overrides = op.automatic ? op.automatic->fields : no_overrides;
+    for (const auto& override : overrides) {
       auto field =
           std::find_if(fields.begin(), fields.end(),
                        [&](const auto& f) { return f.name == override.name; });
@@ -169,9 +173,17 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
     return id;
   }
   if (!op.attribute) {
-    if (schema)
-      context.analysis.report(
-          at, "operation '" + op.name + "' requires an attribute descriptor");
+    if (schema) {
+      const auto id = addDescriptor(
+          context, "capture#" + std::to_string(context.rule.descriptors.size()),
+          Descriptor::Kind::kCaptured, at, false);
+      context.analysis.types.unify(
+          context.rule.descriptors[id.value].type,
+          context.analysis.types.concrete({TypeKind::kDescriptor, schema}, at),
+          at);
+      context.scope.available_descriptors.insert(id.value);
+      return id;
+    }
     return std::nullopt;
   }
   if (!schema) {

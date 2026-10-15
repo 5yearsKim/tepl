@@ -7,6 +7,13 @@ outside this implementation. The [greedy engine](../../docs/advanced/greedy_rewr
 can execute compiled constructors on concrete graphs; see
 [`examples/rewrite/auto.tepl`](../rewrite/auto.tepl).
 
+Attributes may be omitted in rules: each LHS omission captures that operation's
+attributes anonymously, and each RHS omission requests automatic synthesis.
+Use a named capture when a `where` condition, derivation, or RHS descriptor copy
+needs to refer to it. For example, `transpose_compose` in
+[`rules/reductions.tepl`](rules/reductions.tepl) composes two anonymous source
+permutations into a synthesized replacement permutation.
+
 ## Run the checker
 
 ```sh

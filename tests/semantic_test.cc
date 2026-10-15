@@ -1436,6 +1436,15 @@ int main(int argc, char** argv) {
                dump.find("status=proved") != std::string::npos,
            "compiler graph and symbolic constructor proof dump");
     expect(laws().size() >= 6, "explicit algebraic law registry");
+    // Keep extra proofs after the existing suite: symbolic interning affects
+    // the bounded proof search order across checks in one process.
+    const auto implicit = symbolicPlan(
+        "rule r { (dot (add A B) C) => (add (dot A C) (dot B C)) }");
+    proved(implicit);
+    expect(implicit.proof.constructors.size() == 2,
+           "omitted RHS attributes synthesize independently");
+    proved(
+        symbolicPlan("rule r { (transpose (transpose A)) => (transpose A) }"));
     std::cout << "semantic tests passed\n";
   } catch (const std::exception& e) {
     std::cerr << e.what() << '\n';

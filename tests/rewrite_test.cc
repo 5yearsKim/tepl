@@ -267,6 +267,23 @@ void testCodegen() {
 void automatic(const std::string& path) {
   std::ifstream f(path);
   std::string definitions{std::istreambuf_iterator<char>(f), {}};
+  auto implicit = compile(definitions + R"(
+rule compose {(transpose (transpose X)) => (transpose X)}
+graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (transpose[permutation=[2,0,1]] a);}
+)",
+                          false);
+  assert(implicit.ir().rules[0].descriptors.size() == 3);
+  auto implicit_loaded = program::load(program::serialize(implicit));
+  auto implicit_out =
+      rewrite::run(implicit_loaded, implicit_loaded.ir().graphs[0]);
+  assert(implicit_out.rewrite_count == 1);
+  assert(implicit_out.graph.nodes[implicit_out.graph.root].shape ==
+         std::optional<std::vector<std::uint64_t>>({2, 3, 4}));
+  const auto& implicit_attrs =
+      implicit_out.graph.nodes[implicit_out.graph.root].attributes[0].elements;
+  assert(implicit_attrs.size() == 3 && implicit_attrs[0].text == "0" &&
+         implicit_attrs[1].text == "1" && implicit_attrs[2].text == "2");
+
   auto p = compile(definitions + R"(
 rule compose {(transpose[@a] (transpose[@b] X)) => (transpose[auto] X)}
 graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (transpose[permutation=[2,0,1]] a);}

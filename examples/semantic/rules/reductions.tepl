@@ -3,16 +3,16 @@ use t::{add, reduce_sum, transpose};
 
 // Exact-arithmetic reduction linearity; axes and domains are matched jointly.
 rule sum_distribute {
-    (reduce_sum[@d] (add A B))
+    (reduce_sum (add A B))
     =>
-    (add (reduce_sum[auto] A) (reduce_sum[auto] B))
+    (add (reduce_sum A) (reduce_sum B))
 }
 
 // Permutations compose through ordered interfaces, with no arithmetic rewrite.
 rule transpose_compose {
-    (transpose[@outer] (transpose[@inner] A))
+    (transpose (transpose A))
     =>
-    (transpose[auto] A)
+    (transpose A)
 }
 
 rule merge_reductions {
