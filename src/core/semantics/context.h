@@ -66,7 +66,6 @@ class Context {
   void selectionFacts(const S&, const S&, const S&);
   void partition(const S&, const std::vector<S>&, const std::vector<S>&,
                  bool refine = true);
-  AxisPartition split(const S& parent, const S& selector);
   TensorAxisInterface tensorInterface(const S& axes) const;
   S mappedPositions(const S& interface, const S& group) const;
   void bind(const S& interface, const S& group, const S& positions);

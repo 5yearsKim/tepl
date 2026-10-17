@@ -3,12 +3,6 @@
 #include "src/core/semantics/context.h"
 
 namespace tepl::core::semantics {
-AxisPartition Context::split(const S& parent, const S& selector) {
-  require(call("is_valid_axis_list", {selector, call("len", {parent})}));
-  auto result = bindings_.split(parent, selector);
-  invalidate();
-  return result;
-}
 TensorAxisInterface Context::tensorInterface(const S& axes) const {
   return bindings_.tensorInterface(axes);
 }
@@ -84,8 +78,8 @@ void Context::partition(const S& interface, const std::vector<S>& groups,
   for (const auto& old : prior) {
     bool ordered_blocks = true;
     S offset = integer(0);
-    for (const auto& selector : old.selectors) {
-      auto block = positionBlock(selector);
+    for (const auto& member : old.members) {
+      auto block = positionBlock(bindings_.selector(member));
       ordered_blocks &=
           block && equal(canonical(block->first), canonical(offset));
       if (block) offset = call("+", {offset, block->second});
@@ -93,19 +87,21 @@ void Context::partition(const S& interface, const std::vector<S>& groups,
     for (std::size_t i = 0; i < groups.size(); ++i) {
       auto left = canonical(groups[i]);
       std::vector<S> ordered_parts;
-      for (std::size_t j = 0; j < old.groups.size(); ++j) {
-        auto right = canonical(old.groups[j]);
+      for (const auto& member : old.members) {
+        auto old_group = bindings_.mapping(member.mapping).group;
+        auto old_selector = bindings_.selector(member);
+        auto right = canonical(old_group);
         if (equal(left, right)) {
           ordered_parts.push_back(left);
           continue;
         }
         if (independent(left, right) || partitionDisjoint(left, right))
           continue;
-        auto slots = membershipPositions(selectors[i], old.selectors[j]);
+        auto slots = membershipPositions(selectors[i], old_selector);
         auto view = call("gather", {left, slots});
         ordered_parts.push_back(view);
         auto paired =
-            matchPositions(selectors[i], old.selectors[j]).right_positions;
+            matchPositions(selectors[i], old_selector).right_positions;
         if (bindings_.overlap(left, right, view, slots, paired)) invalidate();
         note("ordered-axis-split");
         note("paired-axis-selection");
@@ -127,16 +123,25 @@ void Context::partition(const S& interface, const std::vector<S>& groups,
 }
 bool Context::partitionPiece(const S& x) const {
   for (const auto& p : bindings_.partitions())
-    for (const auto& g : p.groups)
-      if (equal(x, g)) return true;
+    for (const auto& member : p.members)
+      if (equal(x, bindings_.mapping(member.mapping).group)) return true;
   return false;
 }
 bool Context::partitionDisjoint(const S& a, const S& b) {
-  for (const auto& p : bindings_.partitions()) {
-    for (std::size_t i = 0; i < p.groups.size(); ++i)
-      if (equal(a, canonical(p.groups[i])))
-        for (std::size_t j = 0; j < p.groups.size(); ++j)
-          if (i != j && equal(b, canonical(p.groups[j]))) return true;
+  const auto count = bindings_.partitions().size();
+  for (std::size_t n = 0; n < count; ++n) {
+    const auto members = bindings_.partitions()[n].members.size();
+    for (std::size_t i = 0; i < members; ++i) {
+      auto left =
+          bindings_.mapping(bindings_.partitions()[n].members[i].mapping).group;
+      if (!equal(a, canonical(left))) continue;
+      for (std::size_t j = 0; j < members; ++j) {
+        auto right =
+            bindings_.mapping(bindings_.partitions()[n].members[j].mapping)
+                .group;
+        if (i != j && equal(b, canonical(right))) return true;
+      }
+    }
   }
   return false;
 }
@@ -170,10 +175,13 @@ S Context::lookupPositions(const S& a, const S& b, QueryMode mode) {
     auto map = bindings_.positions(x, base);
     if (map) return call("gather", {map, y->args[1]});
   }
-  const auto wiring = bindings_.wiring();
-  for (auto it = wiring.rbegin(); it != wiring.rend(); ++it)
-    if (equal(x, canonical(it->interface)) && equal(y, canonical(it->group)))
-      return canonical(it->positions);
+  const auto mappings = bindings_.mappingIds();
+  for (auto it = mappings.rbegin(); it != mappings.rend(); ++it) {
+    auto mapping = bindings_.mapping(*it);
+    if (equal(x, canonical(mapping.interface)) &&
+        equal(y, canonical(mapping.group)))
+      return canonical(mapping.positions);
+  }
   if (callIs(x, "gather") &&
       query(call("axis_partition", {x->args[1], call("len", {x->args[0]})}),
             mode))
@@ -195,14 +203,20 @@ S Context::lookupPositions(const S& a, const S& b, QueryMode mode) {
       offset = call("+", {offset, call("len", {part})});
     }
   }
-  for (auto it = bindings_.partitions().rbegin();
-       it != bindings_.partitions().rend(); ++it)
-    if (equal(x, canonical(it->interface)))
-      for (std::size_t i = 0; i < it->groups.size(); ++i)
-        if (!equal(x, canonical(it->groups[i])) &&
-            query(call("subset", {y, it->groups[i]}), mode))
-          return call("gather",
-                      {it->selectors[i], positions(it->groups[i], y, mode)});
+  for (auto n = bindings_.partitions().size(); n > 0; --n) {
+    auto interface = bindings_.partitions()[n - 1].interface;
+    if (equal(x, canonical(interface))) {
+      const auto count = bindings_.partitions()[n - 1].members.size();
+      for (std::size_t i = 0; i < count; ++i) {
+        auto member = bindings_.partitions()[n - 1].members[i];
+        auto group = bindings_.mapping(member.mapping).group;
+        auto selector = bindings_.selector(member);
+        if (!equal(x, canonical(group)) &&
+            query(call("subset", {y, group}), mode))
+          return call("gather", {selector, positions(group, y, mode)});
+      }
+    }
+  }
   return call("positions", {x, y});
 }
 S Context::select(const S& a, const S& p, QueryMode mode) {
@@ -353,10 +367,12 @@ S Context::selectKnown(const S& x, const S& q, QueryMode mode) {
       equal(x, canonical(extents(q->args[0]))))
     return canonical(extents(q->args[1]));
   if (x->sort != Symbol::Sort::Axes) return call("gather", {x, q});
-  const auto wiring = bindings_.wiring();
-  for (auto it = wiring.rbegin(); it != wiring.rend(); ++it)
-    if (equal(x, it->interface) && equal(q, canonical(it->positions)))
-      return canonical(it->group);
+  const auto mappings = bindings_.mappingIds();
+  for (auto it = mappings.rbegin(); it != mappings.rend(); ++it) {
+    auto mapping = bindings_.mapping(*it);
+    if (equal(x, mapping.interface) && equal(q, canonical(mapping.positions)))
+      return canonical(mapping.group);
+  }
   if (callIs(q, "positions") && equal(x, q->args[0])) return q->args[1];
   if (x->sort == Symbol::Sort::Axes && callIs(q, "ordered_complement") &&
       equal(q->args[0], canonical(call("range", {call("len", {x})}))) &&
@@ -364,13 +380,19 @@ S Context::selectKnown(const S& x, const S& q, QueryMode mode) {
     auto removed = select(x, q->args[1], mode);
     return call("filter_axes", {x, difference(x, removed, mode)});
   }
-  for (auto it = bindings_.partitions().rbegin();
-       it != bindings_.partitions().rend(); ++it)
-    if (equal(x, it->interface))
-      for (std::size_t i = 0; i < it->selectors.size(); ++i)
-        if (callIs(q, "gather") &&
-            equal(q->args[0], canonical(it->selectors[i])))
-          return select(it->groups[i], q->args[1], mode);
+  for (auto n = bindings_.partitions().size(); n > 0; --n) {
+    auto interface = bindings_.partitions()[n - 1].interface;
+    if (equal(x, interface)) {
+      const auto count = bindings_.partitions()[n - 1].members.size();
+      for (std::size_t i = 0; i < count; ++i) {
+        auto member = bindings_.partitions()[n - 1].members[i];
+        auto group = bindings_.mapping(member.mapping).group;
+        auto selector = bindings_.selector(member);
+        if (callIs(q, "gather") && equal(q->args[0], canonical(selector)))
+          return select(group, q->args[1], mode);
+      }
+    }
+  }
   return call("gather", {x, q});
 }
 S Context::replace(const S& axes, const S& from, const S& to) {

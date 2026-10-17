@@ -63,6 +63,70 @@ void maps() {
   expect(equal(a, b) && equal(a, list({3, 1})),
          "paired slots retain selector order");
 }
+void mappingStorage() {
+  AxisBindings bindings;
+  auto shape = make(Symbol::Kind::Shape, {}, 0);
+  auto frame = make(Symbol::Kind::AxisGroup, "frame", 0, 0, {shape});
+  auto k = make(Symbol::Kind::AxisGroup, "K", 1, 0, {shape});
+  auto i = make(Symbol::Kind::AxisGroup, "I", 2, 0, {shape});
+  auto positions = make(Symbol::Kind::Field, "positions", 0, 0);
+  auto remaining = call("ordered_complement",
+                        {call("range", {call("len", {frame})}), positions});
+  // Keep an equivalent expression syntactically distinct to exercise aliases
+  // and partition-specific witnesses without expression-factory folding.
+  auto alias = make(Symbol::Kind::Call, "gather", 0, 0,
+                    {positions, call("range", {call("len", {positions})})});
+  expect(!equal(positions, alias), "distinct selector expressions");
+
+  expect(bindings.partition(frame, {k, i}, {positions, remaining}),
+         "partition reserves mapping IDs");
+  auto first = bindings.partitions().front();
+  auto k_id = first.members[0].mapping;
+  auto i_id = first.members[1].mapping;
+  auto snapshot = bindings.partitionsFor(frame);
+  expect(bindings.mappingIds().empty() && !bindings.positions(frame, k) &&
+             !bindings.group(frame, positions) && !bindings.lookup(frame, k),
+         "reserved members do not publish mappings early");
+
+  expect(bindings.bind(frame, i, remaining) && bindings.bind(frame, k, alias),
+         "publish mappings in binding order");
+  expect(bindings.mappingIds()[0] == i_id && bindings.mappingIds()[1] == k_id,
+         "registration order is independent of reservation order");
+  expect(equal(bindings.positions(frame, k), alias),
+         "first published selector is preferred");
+  expect(equal(bindings.selector(bindings.partitions()[0].members[0]),
+               positions) &&
+             equal(bindings.selector(snapshot[0].members[0]), positions),
+         "partition and snapshot retain the original witness");
+  expect(bindings.bind(frame, k, positions), "add reverse selector alias");
+  expect(bindings.mappingIds().size() == 2 &&
+             equal(bindings.group(frame, positions), k) &&
+             equal(bindings.group(frame, alias), k) &&
+             equal(bindings.lookup(frame, k), alias),
+         "aliases share one preferred mapping and invalidate earlier misses");
+  expect(!bindings.bind(frame, k, positions), "repeated alias is a no-op");
+
+  expect(bindings.partition(frame, {k, i}, {alias, remaining}),
+         "a partition can use another witness for the same members");
+  expect(
+      bindings.partitions()[1].members[0].mapping == k_id &&
+          !bindings.partitions()[1].members[0].selector &&
+          equal(bindings.selector(bindings.partitions()[1].members[0]), alias),
+      "partition reuses the preferred mapping without a selector copy");
+  auto interface = bindings.tensorInterface(frame);
+  expect(equal(interface.lookup(k), alias),
+         "tensor interface publishes preferred mapping");
+  for (std::size_t n = 0; n < 128; ++n) {
+    auto group = make(Symbol::Kind::AxisGroup, "extra", n + 3, 0, {shape});
+    bindings.bind(frame, group, make(Symbol::Kind::Field, "extra", n + 3, 0));
+  }
+  expect(equal(bindings.mapping(k_id).group, k) &&
+             equal(bindings.mapping(k_id).positions, alias) &&
+             equal(bindings.selector(bindings.partitions()[0].members[0]),
+                   positions) &&
+             equal(interface.lookup(k), alias),
+         "mapping IDs and tensor snapshots survive storage growth");
+}
 void membership() {
   std::size_t work = 0;
   AxisSets sets([&] { ++work; });
@@ -84,6 +148,7 @@ void membership() {
 int main() {
   try {
     maps();
+    mappingStorage();
     membership();
   } catch (const std::exception& e) {
     std::cerr << e.what() << '\n';

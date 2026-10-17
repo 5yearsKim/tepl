@@ -22,17 +22,25 @@ S Context::transportInterface(const S& from, const S& to, const S& read_axes) {
   if (evidence(call("axis_partition", {read_map, call("len", {from})})))
     for (const auto& p : consumers) {
       std::vector<S> selectors;
-      for (const auto& s : p.selectors)
-        selectors.push_back(select(call("inverse", {read_map}), s));
-      partition(axes, p.groups, selectors);
+      std::vector<S> groups;
+      for (const auto& member : p.members) {
+        groups.push_back(bindings_.mapping(member.mapping).group);
+        selectors.push_back(
+            select(call("inverse", {read_map}), bindings_.selector(member)));
+      }
+      partition(axes, groups, selectors);
     }
   for (const auto& p : producers) {
-    std::vector<S> groups;
-    for (const auto& g : p.groups) groups.push_back(replace(g, from, to));
-    partition(axes, groups, p.selectors);
+    std::vector<S> groups, selectors;
+    for (const auto& member : p.members) {
+      auto group = bindings_.mapping(member.mapping).group;
+      selectors.push_back(bindings_.selector(member));
+      groups.push_back(replace(group, from, to));
+    }
+    partition(axes, groups, selectors);
   }
-  for (const auto& w : bindings_.wiringFor(read_axes))
-    bind(axes, replace(w.group, from, to), w.positions);
+  for (const auto& mapping : bindings_.mappingsFor(read_axes))
+    bind(axes, replace(mapping.group, from, to), mapping.positions);
   if (auto old_cover = bindings_.cover(read_axes)) {
     auto transported = replace(old_cover, from, to);
     if (!equal(transported, axes) || !bindings_.cover(axes))

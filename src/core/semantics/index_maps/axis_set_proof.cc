@@ -135,8 +135,9 @@ bool Context::setEntails(const S& f) {
     for (const auto& p : bindings_.partitions()) {
       auto base = setExpression(p.interface);
       AxisSets::Id covered = 0;
-      for (const auto& g : p.groups) {
-        auto part = setExpression(g);
+      for (const auto& member : p.members) {
+        auto group = bindings_.mapping(member.mapping).group;
+        auto part = setExpression(group);
         sets_->assume(sets_->negate(sets_->conjunction(covered, part)));
         covered = sets_->disjunction(covered, part);
       }

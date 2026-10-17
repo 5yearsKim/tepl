@@ -6,11 +6,11 @@
 
 - **Problem:** Tensor rewrite rules are concise in algebraic form, but their implementations require substantial attribute-transformation logic.
 - **Gap:** Symbolic patterns express the computation structure; matching alone does not derive the permutations, contraction dimensions, and other attributes needed by the replacement.
-- **Approach:** TEPL retains algebraic rewrite skeletons and delegates supported attribute transformations to a compiler using operation semantics.
+- **Approach:** TEPL (Tensor Equality Pattern Language) lets users write tensor rewrite rules with explicit conditions and attribute changes. When replacement attributes are omitted, the compiler infers them from operation semantics and checks supported rewrites for validity and equivalent results.
 - **Technical insight:** Coordinate correspondences used to establish semantic equivalence also provide constructive witnesses for attribute synthesis.
 - **Mechanism:** Arbitrary-length axis sequences, compositional ordered mappings, lazy partition refinement, and algebraic normalization.
-- **Guarantee sought:** Every accepted constructor preserves legality and tensor semantics under explicit preconditions and the selected arithmetic policy.
-- **Evaluation:** Handwritten attribute logic eliminated, remaining callbacks and guards, semantic-definition cost, production-derived coverage, and synthesis performance; results to be measured.
+- **Guarantee sought:** Every semantically verified rewrite has computable replacement attributes and preserves legality and tensor semantics under explicit preconditions and the selected arithmetic policy.
+- **Evaluation:** Authoring effort with explicit and inferred attributes, remaining attribute expressions and conditions, semantic-definition cost, production-derived coverage, and synthesis performance; results to be measured.
 
 ## 1. Introduction
 
@@ -31,35 +31,43 @@
 
 ### 1.2 Central Thesis
 
-- **Language objective:** Design a domain-specific language dedicated to practical tensor rewriting, enabling users to express algebraic transformations concisely while supporting rich attributes, explicit conditions, and integration with host compilers.
+TEPL describes tensor rewrites, their conditions, and their attribute changes together. Attribute changes can be written by users or inferred from operation semantics. The compiler checks supported rewrites for validity and equivalent results.
+
+- **Language objective:** Let users express algebraic rewrite patterns, applicability conditions, and attribute changes in one language.
 - Support multiple dialects, each defining its own operations, attributes, and semantics.
 - Define operations once within a dialect, then import and reuse them across rules.
 - Represent tensor operations, graph patterns, and attribute bindings directly in the language.
-- Support host-function delegation for application-specific logic; opaque host functions require specifications before their behavior can be verified.
-- **Central technical advance:** Introduce `auto` to infer RHS attributes from operation semantics, leaving users to specify the intended transformation and its conditions.
+- Let users write conditions and compute replacement attributes directly in the language.
+- **Central technical advance:** Infer omitted RHS attributes from operation semantics; users can also request inference explicitly with `auto`.
 - Use symbolic axis mapping to construct and verify reusable attribute programs for arbitrary-rank tensors within the supported semantics.
-- Verify rules using operation legality and user-written conditions; rejct rules when correctness cannot be proved.
+- Verify semantic rules using operation legality and user-written conditions; reject them as unproved when correctness cannot be established.
 
 ### 1.3 Proposed Contributions
 
-1. **A practical DSL for tensor rewriting**
+1. **A language for tensor rewrites**
    - Support user-defined dialects and operations.
-   - Express tensor rewrites as intuitive algebraic equations, with explicit conditions when needed.
-   - Provide attribute binding and host-function delegation for application-specific logic.
+   - Express rewrite patterns, applicability conditions, and attribute changes together.
+   - Let users capture and reuse attributes, or compute replacement attributes directly in the language.
 
-2. **Semantics-driven synthesis of attribute programs**
-   - Introduce `auto` to synthesize RHS attribute programs from operation semantics, removing the need for manual attribute transformations in supported rewrites.
+2. **Automatic attribute inference**
+   - Synthesize omitted RHS attributes from operation semantics, removing the need to write attribute transformations for supported rewrites.
    - Produce reusable functions of LHS metadata for arbitrary-rank tensors.
    - Introduce **Axes IR**, building on prior aggregated-axis representations, with explicit ordered interfaces, operand mappings, and value semantics.
 
-3. **Symbolic Axis Mapping for composed operations**
+3. **Symbolic axis mapping for composed operations**
    - Track how logical axes correspond across composed tensor operations, enabling the compiler to match their semantics and infer the required RHS attributes.
    - Split and compose arbitrary-length axis groups while preserving coordinate order and pairings.
    - Reuse established mappings across producer–consumer operations to support algebraic matching and attribute construction.
 
-## 2. High-Level Language Design
+## 2. Background
 
-### 2.1 Dialects, Operations, and Attributes
+- TensorRight verifies tensor graph rewrites for tensors of arbitrary rank and size. [POPL 2025](https://doi.org/10.1145/3704865)
+- It uses aggregated axes to represent groups with an arbitrary number of axes, allowing one rule to describe tensors of different ranks.
+- This provides background for TEPL's use of symbolic axis groups to reason about rewrites and infer replacement attributes.
+
+## 3. High-Level Language Design
+
+### 3.1 Dialects, Operations, and Attributes
 
 - A dialect groups user-defined operations with their operand signatures, attribute schemas, and semantics.
 - Define operations once, then import and reuse them across rules; different dialects may define different operation vocabularies.
@@ -80,7 +88,7 @@ dialect TensorLang {
 - Transpose changes the output coordinate order while preserving the coordinate-indexed input value. `yield input` therefore does not imply an unchanged tensor interface.
 - Introduce these blocks here; defer their formal representation and composition to Axes IR.
 
-### 2.2 Imports and Rewrite Rules
+### 3.2 Imports and Rewrite Rules
 
 - Import a dialect and select operations used by the rules.
 - Express rewrites as algebraic equations: an LHS pattern followed by an RHS replacement.
@@ -96,83 +104,85 @@ use t::{transpose};
 - Its intended replacement is one transpose of `X`; the remaining task is to construct its permutation.
 - Tensor declarations may additionally constrain shape and dtype; equal dimension sizes alone do not establish coordinate identity.
 
-### 2.3 Attribute Binding and Reuse
+### 3.3 Attribute Binding and Reuse
 
 - `op[@name]` binds the operation's attribute descriptor on the LHS.
+- Omitting LHS attributes captures each operation's descriptor independently and anonymously; name captures when expressions or RHS operations need to refer to them.
 - Captured attributes are available in `where` conditions, `derive` expressions, and RHS operations.
 - Field access, such as `@outer.permutation`, refers to an individual attribute where supported by the expression context.
 - Reusing `@name` on a compatible RHS operation reuses its descriptor; derived descriptors can also configure RHS operations.
 - Transpose composition binds `@inner` and `@outer`; copying either alone generally cannot construct the replacement permutation.
 - Descriptor compatibility checks attribute structure, not mathematical correctness.
 
-### 2.4 Host-Function Delegation
+### 3.4 Writing Attribute Changes
 
-- `$function(...)` invokes application-supplied logic using tensor captures, descriptors, or supported metadata expressions.
-- Host functions can return decisions for conditions or descriptors for replacement construction.
-- Example interfaces: `$supports_composition(@outer, @inner)` and `$compose_transposes(@outer, @inner)`.
-- This supports target policies, opaque metadata, and transformations outside the symbolic synthesis fragment.
-- A failed callback prevents rule application; the host implements the function's behavior.
-- Opaque host behavior is not automatically verified. The current semantic checker rejects unsupported host-dependent proofs; semantic contracts are a future extension.
+- Write conditions and compute replacement attributes directly in the language.
+- Expressions can read captured attributes and available shape and dtype bindings; they do not execute tensor computations.
+- Introduce local bindings, builtins, lists, indexing, conditionals, and comprehensions as examples need them.
+- For transpose composition, `gather(@inner.permutation, @outer.permutation)` computes the replacement permutation.
+- Descriptor constructors collect computed fields into immutable attributes for an RHS operation.
+- Some expressions can execute but cannot yet be checked for semantic correctness by the compiler.
 
-### 2.5 Conditions with `where`
+### 3.5 Conditions with `where`
 
-- `where` states when a matched rewrite is applicable; all conditions must hold.
-- Conditions can use captured metadata, pure predicates, and host-function calls.
+- A `where` block ends with a condition that decides whether the rule applies. Write any local calculations before it. Only `let` bindings end with `;`.
+- Conditions can use captured metadata, builtins, and local expressions. Combine predicates with `&&` and `||`.
 - Example clause for the running transpose pattern:
 
 ```tepl
 where {
-  len(@outer.permutation) == len(@inner.permutation);
-  $supports_composition(@outer, @inner);
+  let rank = len(@inner.permutation);
+  len(@outer.permutation) == rank
 }
 ```
 
 - The length condition illustrates attribute access; for a legal transpose composition it already follows from operation legality.
-- The host predicate can express application policy; it does not independently establish semantic equivalence.
+- Omit `where` when no additional condition is needed.
+- A condition may express applicability or application policy; the compiler does not infer profitability decisions.
 - Semantic rules can state axis-routing conditions such as `@d.lhs_batching_dimensions == @inner->B`; introduce their meaning with the mapping algorithm.
 - For verified rules, every correctness obligation must follow from operation legality and supported user-written conditions.
 
-### 2.6 Attribute Construction with `derive`
+### 3.6 Attribute Construction with `derive`
 
 - `derive` names replacement descriptors computed from the captured information.
-- Combine binding, a host condition, and host-based construction in one rule:
+- Combine captured attributes and an explicit descriptor constructor in one rule:
 
 ```tepl
-rule compose_transposes_host {
+rule compose_transposes_explicit {
   (transpose[@outer] (transpose[@inner] X))
   => (transpose[@combined] X)
-  where {
-    $supports_composition(@outer, @inner);
-  }
   derive {
-    @combined = $compose_transposes(@outer, @inner);
+    @combined = {
+      permutation: gather(@inner.permutation, @outer.permutation)
+    };
   }
 }
 ```
 
-- If the inner permutation is `p` and the outer permutation is `q`, the callback constructs a descriptor with permutation `r[i] = p[q[i]]`.
+- If the inner permutation is `p` and the outer permutation is `q`, the expression constructs a descriptor with permutation `r[i] = p[q[i]]`.
 - `where` decides applicability; `derive` constructs attributes; the RHS specifies the replacement computation.
-- This example illustrates the host interface, not an automatically verified semantic rule.
+- Local bindings can name intermediate computations. A spread such as `{ ..@outer, permutation: permutation }` copies fields before applying explicit overrides.
+- `where` and `derive` have separate local scopes; derivations may read captured and earlier derived descriptors.
+- With the transpose semantics, this explicit constructor is supported by semantic verification. Checking attribute types alone does not prove that the rewrite preserves the result.
 
-### 2.7 Automatic Attributes with `auto`
+### 3.7 Automatic Attributes with `auto`
 
-- Replace manual descriptor construction with `auto` when operation semantics support synthesis.
+- Omit replacement attributes when operation semantics support synthesis. An explicit `[auto]` annotation requests the same inference.
 
 ```tepl
 rule compose_transposes_auto {
-  (transpose[@outer] (transpose[@inner] X))
-  => (transpose[auto] X)
+  (transpose (transpose X)) => (transpose X)
 }
 ```
 
 - Matching supplies tensor captures and LHS descriptors; semantic compilation derives a reusable program for the RHS permutation.
-- The resulting constructor computes `r[i] = p[q[i]]` without a handwritten composition callback.
-- The host policy from the previous example is omitted to isolate semantic synthesis; `auto` does not infer or replace application policy.
-- Users still define operation semantics and any required correctness conditions. Unsupported inference is rejected rather than silently delegated to a solver.
-- Constructor synthesis occurs at compile time; intended application evaluates the constructor on matched metadata.
-- Modern constructor emission into generated Rust/C++ remains future work; existing host export and semantic synthesis have distinct implementation boundaries.
+- In the explicit rule, the user writes how to combine the permutations. In this rule, the compiler derives that computation from transpose semantics: `r[i] = p[q[i]]`.
+- Each omitted RHS descriptor is inferred independently. Use `[@name]` to reuse an existing descriptor or `[auto, field = value]` to pin a field during inference.
+- Users still define operation semantics and any required correctness conditions. Unsupported inference is rejected with a diagnostic.
+- Constructor synthesis occurs at compile time; application evaluates the constructor on matched metadata.
+- Completed constructors execute in the greedy rewrite engine or generated Rust with the shared runtime. C++ generation remains unavailable.
 
-### 2.8 From `auto` to Attribute Synthesis
+### 3.8 From `auto` to Attribute Synthesis
 
 - `auto` lets users leave RHS attributes to the compiler. **But how can the compiler find them?**
 - Matching the LHS gives known attributes and tensor metadata.
@@ -180,11 +190,11 @@ rule compose_transposes_auto {
 - That program must work across tensor ranks and shapes, and preserve the computation under the user's conditions.
 - The next section defines this problem precisely.
 
-## 3. Problem Definition
+## 4. Problem Definition
 
-### 3.1 What Must the Compiler Find?
+### 4.1 What Must the Compiler Find?
 
-- Some attributes are left as `auto` in the RHS. **How can the compiler infer them?**
+- Some RHS attributes are omitted or marked `auto`. **How can the compiler infer them?**
 - Finding attribute values at matching time is easier when ranks, shapes, and LHS attributes are known. However, deriving a formula before the matched tensors are known is not a trivial task.
 - The compiler takes the following inputs:
   - User-defined operation semantics and rewrite rules.
@@ -194,18 +204,20 @@ rule compose_transposes_auto {
   - For example, composing transposes with permutations `inner` and `outer` gives `result[i] = inner[outer[i]]`.
 - Rule compilation derives this formula without concrete permutations; matching later supplies their values.
 
-### 3.2 What Makes the Result Correct?
+### 4.2 What Makes the Result Correct?
 
-- The inferred formula must be evaluable and produce valid attributes for the RHS operations.
+- The compiler must establish that replacement attributes can be computed, satisfy the replacement operations' requirements, and preserve the result whenever the rule's conditions hold.
+- An explicit constructor supplies the attribute program; automatic inference asks the compiler to discover it. Both require checking for semantic rules.
+- The attribute program must be evaluable and produce valid attributes for the RHS operations.
 - With those attributes, the RHS must produce the same tensor as the LHS, under the selected arithmetic policy.
 - The compiler must prove this for every legal input satisfying the user's conditions; otherwise, it rejects the rule as unproved.
 
-### 3.3 Mathematical Definition
+### 4.3 Mathematical Definition
 
 - Write the LHS as `L(p, X)` and the RHS as `R(p, beta, X)`.
-- `p` is all known source metadata: shapes, and captured attributes.
-- `X` denotes input tensor values; `beta` denotes the missing RHS attributes.
-- `G(p)` is the user-written condition; `f(p)` is the attribute program to synthesize.
+- `p` is all known source metadata, including shapes, dtypes, and captured attributes.
+- `X` denotes input tensor values; `beta` denotes the RHS attributes to construct.
+- `G(p)` is the user-written condition; `f(p)` is the attribute program, supplied explicitly or synthesized for missing attributes.
 - The intended correctness statement is:
 
 \[
@@ -217,51 +229,203 @@ p\in\operatorname{dom}(f)\land
 \]
 
 - Read this as: **for every legal LHS satisfying the conditions, the computed RHS is legal and gives the same result for every input value.**
-- \(p \in \operatorname{dom}(f)\) means the source metadata is valid input to the inferred attribute program; operations such as inverse permutation and position lookup can be evaluated.
+- \(p \in \operatorname{dom}(f)\) means the source metadata is valid input to the attribute program; operations such as inverse permutation and position lookup can be evaluated.
+- Define `G(p)` through successful guard evaluation to `true`. The formal account must cover ordered local evaluation, short-circuiting, indexing, and checked arithmetic, including evaluation failures.
 - Equality includes ordered output shape, dtype, and element values; exact algebra does not establish floating-point reassociation.
 
-### 3.4 When the Compiler Cannot Prove the Rule
+### 4.4 When Can the Compiler Accept a Rewrite?
 
-- Return a checked attribute program when construction and verification succeed.
-- Otherwise reject the rule and report the reason: malformed input, unsupported reasoning, unresolved matching, or a proof-work limit.
-- Failure to prove a rule does not necessarily mean the equation is false or that no valid attributes exist.
-- If several attribute choices are possible, accept any choice that can be verified; otherwise report the unresolved case.
+- The compiler accepts a semantic rewrite when it can show that the replacement attributes are computable, the replacement operations are valid, and the result is preserved under the stated conditions.
+- The compiler checks correctness both for attributes computed explicitly in `derive` and for attributes inferred automatically.
+- If the compiler cannot prove correctness, it rejects the rule as unproved. The rule may still be correct and can be implemented manually, but its correctness must be established separately.
 
-## 4. Axes IR
+## 5. Proposed Method
 
-### 4.1 Tensor Representation
+### 5.1 Axes IR
 
-- Tensor: value expression, ordered output axes, extents, dtype, and reusable axis mappings.
-- Scalar layer: `Read`, `Const`, `Add`, `Product`, and `Reduce`.
-- Index layer: coordinates, concatenation, selection, scale, and offset.
-- Axis layer: scoped groups and symbolic sequence operations.
-- Groups have arbitrary finite length, including zero where operation legality permits.
-- A group is an ordered sequence of coordinates, not a flattened tensor dimension.
-- Output axes may remain even when the value is constant or independent of them.
+Axes IR is TEPL's intermediate representation of tensor computations. It describes how operations use tensor axes and compute output values. By translating operation definitions into this shared representation, TEPL can track axis relationships across operations, infer replacement attributes, and check that rewrites preserve the result.
 
-### 4.2 Operation Semantics
+#### 5.1.1 Symbolic Axis Groups
 
-- Addition: shared input/output coordinates; pointwise `Add`.
-- Transpose: permuted ordered interface; preserved coordinate-indexed values.
-- Reduction: selected bound coordinates; surviving output interface.
-- Dot: paired batch group `B`, paired contraction group `K`, free groups `I` and `J`.
-- Dot value: `Reduce(K, Product(lhs, rhs))`; output: `B ++ I ++ J`.
-- Dot output has three groups; its semantic relation also contains the bound group `K`.
-- Broadcast: inserted output coordinates absent from the input access.
-- Convolution and slice: calculated accesses; algebraic index normalization supplements axis correspondence.
+- A symbolic axis group borrows the idea of grouping an arbitrary number of axes from [TensorRight's aggregated axes](https://doi.org/10.1145/3704865).
+- Both support reasoning about tensors of arbitrary rank.
+- While TensorRight represents an aggregated axis as a set of named axes, TEPL represents a symbolic axis group as an ordered sequence.
+- TEPL tracks position mappings between these groups and tensor axes to construct replacement attributes.
 
-## 5. Symbolic Axis Mapping
+A symbolic axis group represents an ordered sequence of axes without fixing how many axes it contains. For example, one group can represent all contraction axes of a tensor operation.
 
-### 5.1 Ordered Mapping Witnesses
+TEPL declares a group using `bind`, which associates the group with axis positions in one or more operands. When a binding includes two operands, their selected axes are paired in list order. The operation's attributes determine the positions, so the same definition can describe tensors of different ranks and axis arrangements.
+
+Operands bound to the same group must select the same number of axes, with matching sizes at corresponding positions. Equal sizes alone do not establish a pairing; the binding specifies it.
+
+The following `dot_general` definition illustrates these bindings. It takes two tensor operands and four attributes specifying their batch and contraction axes. Each attribute is a list of axis positions. The excerpt shows the attribute declarations and axis bindings; dtype and value semantics are omitted here.
+
+```tepl
+op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+    attrs {
+        lhs_batching_dimensions: index[];
+        rhs_batching_dimensions: index[];
+        lhs_contracting_dimensions: index[];
+        rhs_contracting_dimensions: index[];
+    }
+
+    axes {
+        let lb = attrs.lhs_batching_dimensions;
+        let rb = attrs.rhs_batching_dimensions;
+        let lc = attrs.lhs_contracting_dimensions;
+        let rc = attrs.rhs_contracting_dimensions;
+
+        let lf = ordered_complement(all_axes(lhs), lb ++ lc);
+        let rf = ordered_complement(all_axes(rhs), rb ++ rc);
+
+        bind B { lhs: lb, rhs: rb };
+        bind K { lhs: lc, rhs: rc };
+        bind I { lhs: lf };
+        bind J { rhs: rf };
+
+        yield B ++ I ++ J;
+    }
+}
+```
+
+Axis positions start at zero. `all_axes(t)` lists all axis positions of `t`, and `++` joins sequences in order. `ordered_complement` selects the remaining axes in operand order, and `yield` specifies the output axis order.
+
+This definition supports different numbers and arrangements of axes. As one concrete example, consider the axis orders below. The labels identify logical axes:
+
+```text
+lhs:    [i, k0, b, k1]
+rhs:    [k1, j, k0, b]
+output: [b, i, j]
+```
+
+For this instance, the attributes are:
+
+```text
+lhs_batching_dimensions = [2]
+rhs_batching_dimensions = [3]
+lhs_contracting_dimensions = [1, 3]
+rhs_contracting_dimensions = [2, 0]
+```
+
+The batch binding pairs axis `2` of `lhs` with axis `3` of `rhs`. The contraction binding pairs positions in list order: `(1, 2)` for `k0` and `(3, 0)` for `k1`. The remaining axes form `I = [i]` and `J = [j]`, giving the output order `B ++ I ++ J = [b, i, j]`. The contraction group `K` is omitted from the output because those axes are reduced.
+
+- Here, `K` contains two axes. The same definition supports other group lengths without enumerating individual axes.
+- Grouping preserves each axis separately and retains its order; it does not flatten the axes into one dimension.
+- A group may be empty when the operation permits it, such as the batch group of a dot operation without batch axes.
+
+These mappings let the compiler recover where logical axes appear in each operand and use those positions to construct replacement attributes.
+
+#### 5.1.2 Expressing Tensor Computations
+
+- The `axes` block defines axis relationships and output order. The `semantics` block defines how each output element is computed.
+- TEPL uses **value expressions** to compute tensor element values and **index expressions** to calculate the indices used to read them.
+- Operand references use the coordinates established by axis bindings. Explicit index expressions handle accesses that require additional calculations, such as slices and convolutions.
+- `Read` connects the two: it takes an operand and an index expression, then returns the value at those indices.
+- A `semantics` block contains a value expression returned by `yield`.
+
+**Value Expressions**
+
+- For example, elementwise addition pairs every axis of `lhs` with the corresponding axis of `rhs`. Both operands bind to the same symbolic axis group `S`, and the output preserves that group.
+
+```tepl
+axes {
+    bind S {
+        lhs: all_axes(lhs),
+        rhs: all_axes(rhs)
+    };
+    yield S;
+}
+
+semantics {
+    yield Add(lhs, rhs);
+}
+```
+
+- The shared binding requires the operands to have the same rank and matching axis sizes.
+- At each coordinate in `S`, `lhs` and `rhs` refer to the corresponding operand elements. `Add(lhs, rhs)` adds those values to produce the output element.
+- This describes elementwise addition without broadcasting.
+- Value expressions describe how tensor element values are computed:
+
+| Expression | Meaning |
+| --- | --- |
+| `input` | Read an operand element using its axis bindings. |
+| `Const(c)` | Produce a signed integer constant. |
+| `Add(a, b)` | Add two scalar values. |
+| `Product(a, b)` | Multiply two scalar values. |
+| `Reduce(G, e)` | Sum `e` over all coordinate combinations of the axes in group `G`. |
+| `Read(input, indices)` | Read an operand element at explicitly calculated indices. |
+
+- `Reduce` denotes summation here; other reductions, such as maximum, are not implied by this primitive.
+
+**Index Expressions**
+
+- Some operations read input elements at shifted or scaled indices. Index expressions describe these calculations and produce a sequence with one index for each accessed axis.
+- The index expressions are:
+
+| Expression | Meaning |
+| --- | --- |
+| `Coords(G)` | Get the current coordinates of axis group `G` in group order. |
+| `IndexAdd(a, b)` | Add index sequences element by element. |
+| `Concat(a, b)` | Join index sequences in order. |
+| `IndexScale(attrs.strides, indices)` | Multiply each index by its corresponding scale. |
+| `IndexOffset(attrs.starts, indices)` | Add an offset to each index. |
+
+- For example, a slice uses the following value expression to read at calculated indices:
+
+```tepl
+Read(input,
+    IndexOffset(attrs.starts,
+        IndexScale(attrs.strides, Coords(O))))
+```
+
+- `O` is the output axis group. The index expression computes input indices as `starts + strides * output_indices`, separately for each axis.
+- `Read` retrieves the input element at those indices. The index calculation selects the element; the enclosing value expression produces its value.
+
+**Combining Expressions with Axis Groups**
+
+- Value and index expressions use the symbolic axis groups declared in the `axes` block.
+- Axis bindings determine which operand elements participate in the expression. Operands bound to the same group use corresponding coordinates.
+- A reduction sums over the coordinates of its group while the remaining output coordinates stay fixed. Because a group can contain a variable number of axes, one reduction expression can describe summation over different numbers of dimensions.
+- To complete the value definition of `dot_general` from Section 5.1.1, place the following block immediately after its `axes` block:
+
+```tepl
+semantics {
+    yield Reduce(K, Product(lhs, rhs));
+}
+```
+
+- `Product(lhs, rhs)` multiplies elements whose coordinates are determined by the bindings for `B`, `I`, `J`, and `K`. `Reduce(K, ...)` sums these products over the contraction coordinates.
+- The output coordinates belong to `B`, `I`, and `J`, as specified by `yield B ++ I ++ J`. The contraction group `K` participates in the computation but does not appear in the output.
+- For the preceding concrete example, this computes:
+
+\[
+\operatorname{out}[b,i,j]
+=
+\sum_{k_0,k_1}
+\operatorname{lhs}[i,k_0,b,k_1]\,
+\operatorname{rhs}[k_1,j,k_0,b].
+\]
+
+- Value and index expressions, together with axis bindings, describe a range of tensor operations. Elementwise operations combine values at shared coordinates; transpose changes the output axis order; summation and dot products use reductions.
+- Slices and convolutions calculate input indices to select the elements they need.
+- Broadcasting adds output axes while reusing input values along those axes.
+- Output shape is described separately from element computation. For example, a tensor filled with zeros still has a defined shape.
+
+<br>
+- These expressions give the compiler a common way to describe different operations. The next section explains how axis mappings connect these descriptions across composed operations.
+
+### 5.2 Symbolic Axis Mapping
+
+#### 5.2.1 Ordered Mapping Witnesses
 
 - Define `gather(P, q)` as selection from sequence `P` in the order given by `q`.
-- Store `AxisMap(source, destination, positions)` with invariant:
-  `gather(destination, positions) = source`.
+- Store `Mapping(interface, group, positions)` with invariant:
+  `gather(interface, positions) = group`.
 - Example: a dot operand associates `B`, `K`, and its free group with physical axis positions.
 - Paired operand bindings share logical coordinates only after pairing lengths and extents are validated.
 - Use scoped identities to distinguish unrelated coordinates with equal extents.
 
-### 5.2 Producer–Consumer Composition
+#### 5.2.2 Producer–Consumer Composition
 
 - Each constructed tensor exposes `TensorAxisInterface(axes, mappings)`.
 - Resolve consumer bindings against the producer's ordered interface.
@@ -272,7 +436,7 @@ p\in\operatorname{dom}(f)\land
 - Invert permutations only with a bijectivity witness; partial selections are not invertible permutations.
 - Reuse mappings across arbitrarily many graph edges, subject to implementation resource limits.
 
-### 5.3 Lazy Ordered Partitions
+#### 5.2.3 Lazy Ordered Partitions
 
 - For valid distinct selector `q`, construct `AxisPartition(P, q)`:
   - Selected axes: `gather(P, q)`.
@@ -284,7 +448,7 @@ p\in\operatorname{dom}(f)\land
 - Keep expressions symbolic; no enumeration of unknown axis counts is required.
 - Memoize splits by parent and selector; refine only relationships required by composition or matching.
 
-### 5.4 Refining Two Partitions of One Interface
+#### 5.2.4 Refining Two Partitions of One Interface
 
 - Producer and consumer may partition the same interface differently.
 - Compare their selectors, rather than group names or dimension sizes.
@@ -294,14 +458,14 @@ p\in\operatorname{dom}(f)\land
 - Record an overlap view with witnesses into both groups.
 - Propagate the same selected slots to a paired operand, preserving contraction correspondence.
 
-### 5.5 Reassociation Example with Interleaved Selection
+#### 5.2.5 Reassociation Example with Interleaved Selection
 
 ```tepl
 rule associate {
   (dot[@d] (dot[@inner] A B) C)
   => (dot[auto] A (dot[auto] B C))
   where {
-    @d.lhs_batching_dimensions == @inner->B;
+    @d.lhs_batching_dimensions == @inner->B
   }
 }
 ```
@@ -321,11 +485,12 @@ rule associate {
   - Concatenating these views in `I, J` order would change contraction pairing; retain the slot witnesses.
 - General implementation uses symbolic selectors for the same construction.
 
-### 5.6 Representation and Lookup
+#### 5.2.6 Representation and Lookup
 
-- `wiring_`: established interface/group/position witnesses.
+- `mappings_`: one record per interface and group, stored in a vector with stable IDs and lookup indexes.
 - `splits_`: selected/remaining views for individual selection requests.
-- `partitions_`: complete disjoint decompositions of interfaces; support coverage and disjointness reasoning.
+- `partitions_`: complete disjoint decompositions of interfaces, referencing mapping IDs; support coverage and disjointness reasoning.
+- Keep each mapping's first registered position expression. Equivalent selectors share its ID; partitions retain their original selector when it differs.
 - `overlaps_`: intersections with paired position witnesses between established groups.
 - Store symbolic expressions by shared references; records use vectors with associative lookup indexes.
 - Mapping lookup follows registered origins with visited sets and composes witnesses.
@@ -333,9 +498,9 @@ rule associate {
 - Invalidate cached results when established relationships change; keep unresolved relationships explicit.
 - Measure record and expression growth; do not claim polynomial complexity for the entire synthesis algorithm.
 
-## 6. Attribute Program Synthesis
+### 5.3 Attribute Program Synthesis
 
-### 6.1 Algorithm
+#### 5.3.1 Algorithm
 
 1. Elaborate operation definitions, source metadata, holes, and user conditions.
 2. Lower the LHS; establish legality and compose producer–consumer coordinates.
@@ -346,7 +511,9 @@ rule associate {
 7. Resolve output extents and prove attribute/domain obligations.
 8. Extract source-only metadata expressions and independently verify the completed rewrite.
 
-### 6.2 Algebraic and Coordinate Reasoning
+- If several attribute choices are possible, accept any choice that can be verified; otherwise report the unresolved case.
+
+#### 5.3.2 Algebraic and Coordinate Reasoning
 
 - Example: `(dot[@d] (add A B) C) => (add (dot[auto] A C) (dot[auto] B C))`; normalize by distributivity and reduction linearity, then recover both descriptors from coordinate correspondence.
 - Scalar laws: associativity, commutativity, distributivity, reduction linearity, and coefficient collection, with explicit side conditions.
@@ -356,88 +523,98 @@ rule associate {
 - Geometry alone does not establish value equivalence or reduction-domain equality.
 - No requirement for exhaustive equality saturation or enumeration of concrete attribute assignments.
 
-### 6.3 Residual Constructor Programs
+#### 5.3.3 Residual Constructor Programs
 
 - Constructors contain source attributes, sequence operations, extent arithmetic, and shared subexpressions.
 - Examples: inverse permutation, gathered positions, ordered complements, and composed slice offsets.
 - Slice composition constructs `start = inner.start + inner.stride * outer.start`, `stride = inner.stride * outer.stride`, and `size = outer.size`; source legality must imply the resulting access bounds.
 - Reject residual RHS holes or dependence on tensor element values.
-- Compile-time synthesis produces the program; intended matching-time execution supplies concrete metadata.
+- Compile-time synthesis produces the program; matching-time execution supplies concrete metadata.
 - Call this staged evaluation; laziness applies to partition/refinement work, not necessarily constructor execution.
-- Current implementation stores/checks constructors; modern Rust/C++ constructor emission remains future work.
+- Completed attribute programs lower to executable IR for the greedy rewrite engine and Rust generation. Generated Rust evaluates synthesized attributes through functions returning concrete descriptor types.
 
-## 7. Correctness and Scope
+### 5.4 Correctness and Scope
 
-### 7.1 Proposed Proof Structure
+#### 5.4.1 Proposed Proof Structure
 
 - **Lowering lemma:** Operation lowering preserves the declared denotation.
 - **Mapping lemma:** Composition, selection, and refinement preserve ordered coordinate witnesses.
 - **Normalization lemma:** Each enabled rewrite preserves values and domains under its side conditions.
 - **Constructor lemma:** Emitted expressions are source-dependent, well-defined, and realize the required coordinate relations.
-- **Acceptance theorem:** Successful verification implies the contract in Section 3.3.
+- **Expression evaluation lemma:** Lowering completed expressions preserves guard and attribute evaluation, including checked arithmetic, indexing, and short-circuit behavior.
+- **Acceptance theorem:** Successful semantic verification implies the contract in Section 4.3 for explicit and synthesized attribute programs.
 - These are proof obligations for the paper; executable checks alone do not constitute formal proofs.
 
-### 7.2 Verification Boundary
+#### 5.4.2 Verification Boundary
 
+- Check explicit attribute programs and synthesized programs against operation legality and tensor semantics.
 - Re-lower the completed RHS in a fresh context.
 - Recheck accesses, reduction domains, output order, extents, dtype, and legality.
 - Treat synthesis obligations as goals, never additional assumptions.
 - Constructor provenance and mapping records do not substitute for semantic verification.
 - The verifier shares semantic infrastructure with synthesis; it is not a separately mechanized proof kernel.
+- The semantic checker supports a limited set of attribute computations and conditions. An expression may execute even when the checker cannot prove the rewrite correct.
+- Report why compilation failed: malformed input, unsupported reasoning, unresolved matching, or a proof-work limit. Expressions that cannot be lowered or proved are unsupported for semantic verification.
+- Structural rules receive structural checks without a tensor-equivalence proof; keep this distinction explicit in reported guarantees.
 
-### 7.3 Completeness Boundary
+#### 5.4.3 Completeness Boundary
 
 - General completeness and weakest-precondition inference are not claimed.
 - Investigate restricted completeness for a precisely defined fragment with fixed term correspondence, bijective axis routing, and directly solvable attribute holes.
 - Establish such a theorem before presenting the fragment as complete.
 - Unsupported cases include unresolved correspondence, general inverse equations, and exhausted proof budgets.
 
-## 8. Implementation
+## 6. Implementation
 
+- TEPL checks the rule, infers missing attributes, verifies supported semantic rewrites, and lowers completed rules for execution.
 - Frontend and operation-defined semantics; no per-operation inference routine required for the supported fragment.
-- `src/core/index_semantics/`: lowering, mapping, normalization, synthesis, and verification.
-- `axis_bindings.*`, `axis_maps.cc`, `axis_transport.cc`: mapping storage, refinement, and transport.
-- `index_expr.*`, `index_inference.*`: calculated access normalization and attribute matching.
-- `synthesize.cc`, `verify.cc`: constructor production and rechecking.
-- Modern semantic inference uses no Z3 search; legacy code-generation components remain separate.
+- `src/core/semantics/`: semantic lowering, completion, and verification orchestration.
+- `semantics/index_maps/`: mapping storage, refinement, and transport.
+- `semantics/symbolic/`: expression construction, normalization, and calculated access reasoning.
+- `semantics/synthesis/` and `semantics/proof/`: attribute construction and semantic verification.
+- `src/executable/`: runtime representation, validation, and serialization; completed rules contain no attribute holes or proof plans.
+- `src/rewrite/`: direct greedy graph rewriting from executable programs.
+- `src/codegen/`: Rust generation from executable programs; `runtime/rust/` provides shared metadata evaluation and egg integration. C++ generation remains unavailable.
+- Modern semantic inference uses no Z3 search.
 - Document numerical policy, bounded reasoning, implementation trust assumptions, and unsupported features.
 
-## 9. Evaluation Plan
+## 7. Evaluation Plan
 
-### 9.1 Research Questions
+### 7.1 Research Questions
 
-- **RQ1 — Authoring effort:** How much handwritten attribute logic is eliminated, and what callbacks, guards, and semantic definitions remain necessary?
-- **RQ2 — Coverage:** Which practical attribute transformations can be synthesized, including those that require newly constructed rather than copied descriptors?
+- **RQ1 — Authoring effort:** How much does TEPL simplify writing rewrites, and how much additional attribute logic does inference remove? What explicit expressions, conditions, and semantic definitions remain necessary?
+- **RQ2 — Coverage:** Which practical rewrites can be executed, verified, and synthesized, including those that require newly constructed rather than copied descriptors?
 - **RQ3 — Scalability:** How do composition depth, partition overlap, and expression size affect synthesis?
 - **RQ4 — Generality:** Can new operations be supported through semantic definitions alone?
-- **RQ5 — Reliability:** Does verification reject corrupted constructors and invalid rewrites?
+- **RQ5 — Reliability:** Does verification reject incorrect user-written constructors, corrupted synthesized constructors, and invalid rewrites?
 
-### 9.2 Workloads and Comparisons
+### 7.2 Workloads and Comparisons
 
 - Select and document a production-derived corpus with explicit inclusion/exclusion criteria.
 - Include distribution, transpose/dot, guarded reassociation, reductions, broadcasts, slices, and supported convolution rewrites.
-- Compare equivalent rewrites implemented with handwritten constructors, TEPL host delegation, and TEPL `auto`; keep applicability conditions and numerical policies aligned.
+- Compare equivalent rewrites in three forms: handwritten host-language implementations, TEPL with explicit `derive` expressions, and TEPL with inferred attributes. Keep applicability conditions and numerical policies aligned.
+- Use the explicit TEPL baseline to measure the language's benefit, then compare it with inference to measure the additional work synthesis removes.
 - Include simple descriptor reuse and complex attribute reconstruction; report them separately.
 - Use a feasible bounded-search baseline to assess synthesis cost, with its rank and attribute-domain limits stated.
 - Compare related verifiers on shared expressible tasks; distinguish verification coverage from synthesis coverage.
 - Report required user guards and semantic-definition effort, not only rule length.
 - Pin production examples to revisions; separate attribute transformation from profitability, graph construction, and unrelated infrastructure.
 
-### 9.3 Measurements and Ablations
+### 7.3 Measurements and Ablations
 
-- Per-rule attribute-code size and remaining host callbacks; distinguish eliminated logic from logic moved into shared helpers.
+- Per-rule attribute-code size and remaining explicit attribute expressions; distinguish eliminated logic from logic moved into shared builtins or semantic definitions.
 - User-supplied guards and operation-definition size; report both initial semantic-specification cost and reuse across multiple rules.
 - Compare total authored code for a rule corpus as well as per-rule savings; treat code size as an effort proxy, not evidence of usability by itself.
-- Coverage denominator; accepted, unsupported, invalid, and budget-limited cases.
-- Synthesis/verification time, peak memory, constructor size, and eventual matching-time cost.
+- Separate execution, verification, and synthesis coverage with explicit denominators; classify accepted, unsupported, invalid, and budget-limited cases.
+- Synthesis/verification time, peak memory, constructor size, and matching-time cost in the greedy engine and generated Rust.
 - Scale source composition depth, overlap patterns, repeated factors, and concrete constructor inputs.
 - Disable reusable interfaces, lazy refinement, or mapping caches to isolate their effects.
 - Test interleaved selections, empty groups, multiple contractions, rank-zero cases, and supported zero extents.
-- Use independent numerical references and constructor mutation tests as implementation evidence.
+- Use independent numerical references, incorrect explicit constructors, and synthesized-constructor mutation tests as implementation evidence.
 - Numerical testing supplements universal reasoning; it does not replace it.
 - Leave all performance and coverage numbers unfilled until measured.
 
-## 10. Related Work and Novelty Positioning
+## 8. Related Work and Novelty Positioning
 
 - **TensorRight:** Aggregated axes and arbitrary-rank rewrite verification are prior work; axis grouping alone is not a novelty claim. [POPL 2025](https://doi.org/10.1145/3704865)
 - **Tensor rewrite synthesis and equality saturation:** Compare TASO/TENSAT on generated artifacts, semantic assumptions, and treatment of attributes; examine primary papers before asserting distinctions.
@@ -447,23 +624,26 @@ rule associate {
 - Candidate distinction to substantiate: compositional synthesis of reusable, rank-polymorphic attribute programs from user-defined tensor semantics.
 - Avoid “first” claims until a systematic literature review supports them.
 
-## 11. Limitations and Future Work
+## 9. Limitations and Future Work
 
 - Incomplete inference; ambiguity and finite proof budgets can reject valid rules.
 - Partition and normalized-expression growth across long compositions.
 - Restricted convolution, broadcasting, and positive-size/positive-stride slice semantics.
 - General padding, data-dependent indexing, coupled attribute equations, and unsupported numerical policies.
-- Semantic contracts for host functions and a smaller trusted verification kernel.
-- Integration of modern constructor programs into generated rewrite implementations.
+- Attribute computations and application conditions that the metadata language cannot express.
+- Executable expressions outside the semantic checker's supported fragment; extending runtime support alone does not extend verification coverage.
+- A smaller trusted verification kernel and broader expression verification.
+- Further backend support and validation that expression semantics are preserved across execution paths.
 
-## 12. Conclusion
+## 10. Conclusion
 
 - Reiterate the central result to establish: semantic coordinate correspondence can generate executable attribute transformations.
+- Connect this result to the language: users write rewrite patterns and conditions, then supply attribute changes explicitly or ask the compiler to infer them.
 - Summarize only guarantees and practical benefits supported by proofs and measurements.
 
 ## Appendix / Artifact
 
 - Formal IR grammar, denotational semantics, mapping invariants, and algebraic side conditions.
 - Full synthesis pseudocode and proof details.
-- Benchmark definitions, guards, synthesized constructors, and failure classifications.
+- Benchmark definitions, guards, explicit and synthesized constructors, and failure classifications.
 - Reproduction commands, versioned environments, and independent reference tests.

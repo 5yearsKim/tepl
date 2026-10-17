@@ -6,9 +6,9 @@
 
 namespace tepl::core::semantics {
 
-// Position witnesses are ordered: destination[positions] == source.
-struct AxisMap {
-  S source, destination, positions;
+// Positions retain group order: gather(interface, positions) == group.
+struct AxisSelection {
+  S group, positions;
 };
 struct AxisPartition {
   S parent, selected, remaining;
@@ -16,7 +16,7 @@ struct AxisPartition {
 };
 struct TensorAxisInterface {
   S axes;
-  std::vector<AxisMap> mappings;
+  std::vector<AxisSelection> mappings;
   S lookup(const S& group) const;
 };
 
@@ -25,12 +25,24 @@ struct TensorAxisInterface {
 // evidence and cache invalidation.
 class AxisBindings {
  public:
-  struct Wiring {
+  struct MappingId {
+    std::size_t value;
+    bool operator==(const MappingId&) const = default;
+  };
+  struct Mapping {
     S interface, group, positions;
+    // Partitions may reserve an ID before bind publishes its lookup records.
+    bool registered = false;
+  };
+  struct PartitionMember {
+    MappingId mapping;
+    // Retain the partition's witness only when it differs from the preferred
+    // mapping. Refinement depends on the original selector expression.
+    S selector;
   };
   struct Partition {
     S interface;
-    std::vector<S> groups, selectors;
+    std::vector<PartitionMember> members;
   };
   struct Overlap {
     S left, right, view, slots, paired_slots;
@@ -43,7 +55,9 @@ class AxisBindings {
   S lookup(const S& interface, const S& group) const;
   bool orderedView(const S& view, const std::vector<S>& parts);
   S orderedView(const S& view) const;
-  bool isView(const S& view) const { return group_wiring_.contains(key(view)); }
+  bool isView(const S& view) const {
+    return group_mappings_.contains(key(view));
+  }
   std::vector<S> orderedParts(const S& view) const;
   TensorAxisInterface tensorInterface(const S& axes) const;
   const std::vector<AxisPartition>& splits() const { return splits_; }
@@ -62,30 +76,40 @@ class AxisBindings {
   S group(const S& interface, const S& positions) const;
   S cover(const S& interface) const;
 
-  const std::vector<Wiring>& wiring() const { return wiring_; }
+  // IDs stay stable across insertion. Copy a record before calling code that
+  // can register more mappings; references into the vector may be invalidated.
+  const Mapping& mapping(MappingId id) const { return mappings_[id.value]; }
+  S selector(const PartitionMember& member) const {
+    return member.selector ? member.selector
+                           : mapping(member.mapping).positions;
+  }
+  const std::vector<MappingId>& mappingIds() const { return mapping_order_; }
   const std::vector<Partition>& partitions() const { return partitions_; }
   const std::vector<Overlap>& overlaps() const { return overlaps_; }
   const Overlap* overlapFor(const S& view) const;
   // Snapshots allow registration during transport without invalidating
   // iteration. Only records for the requested interface are copied.
-  std::vector<Wiring> wiringFor(const S& interface) const;
+  std::vector<Mapping> mappingsFor(const S& interface) const;
   std::vector<Partition> partitionsFor(const S& interface) const;
 
  private:
   mutable symbolic::KeyArena keys_;
   Key key(const S& s) const { return keys_.intern(semantics::key(s)); }
   S lookup(const S&, const S&, std::set<std::pair<Key, Key>>&) const;
+  MappingId reserveMapping(const S& interface, const S& group,
+                           const S& positions);
   std::map<Key, S> ordered_views_;
   std::vector<AxisPartition> splits_;
   std::map<std::pair<Key, Key>, std::size_t> split_index_;
   mutable std::map<std::pair<Key, Key>, S> lookup_cache_;
-  std::vector<Wiring> wiring_;
+  std::vector<Mapping> mappings_;
+  std::vector<MappingId> mapping_order_;
   std::vector<Partition> partitions_;
   std::vector<Overlap> overlaps_;
   std::map<Key, std::size_t> overlap_views_;
-  std::map<std::pair<Key, Key>, S> positions_, groups_;
-  std::map<Key, std::vector<std::size_t>> interface_wiring_,
-      interface_partitions_, group_wiring_;
+  std::map<std::pair<Key, Key>, MappingId> by_group_, by_selector_;
+  std::map<Key, std::vector<MappingId>> interface_mappings_, group_mappings_;
+  std::map<Key, std::vector<std::size_t>> interface_partitions_;
   std::map<Key, S> covers_;
   std::set<Key> partition_keys_;
   std::set<std::pair<Key, Key>> transported_frames_;

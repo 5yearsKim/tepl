@@ -148,8 +148,9 @@ S Context::sequenceEquality(const S& a, const S& b) {
   if (a->sort == Symbol::Sort::Axes && b->sort == Symbol::Sort::Axes &&
       setEntails(call("same_set", {a, b}))) {
     std::set<Key> visited;
-    const auto wiring = bindings_.wiring();
-    for (const auto& edge : wiring) {
+    const auto mappings = bindings_.mappingIds();
+    for (auto id : mappings) {
+      auto edge = bindings_.mapping(id);
       if (!visited.insert(key(edge.interface)).second) continue;
       auto pa = bindings_.lookup(edge.interface, a);
       if (!pa || !orderedPositions(pa)) continue;

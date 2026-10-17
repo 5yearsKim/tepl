@@ -171,7 +171,7 @@ Context::~Context() {
             << " positions=" << counters.positions
             << " facts=" << facts_.raw.size()
             << " resolutions=" << counters.resolutions
-            << " bindings=" << bindings_.wiring().size() << '\n';
+            << " bindings=" << bindings_.mappingIds().size() << '\n';
 }
 void Context::tick() {
   if (budget_ == 0)

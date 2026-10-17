@@ -1,12 +1,13 @@
 #include "src/core/semantics/index_maps/axis_bindings.h"
 
 #include <functional>
+#include <stdexcept>
 
 namespace tepl::core::semantics {
 S TensorAxisInterface::lookup(const S& group) const {
   for (const auto& mapping : mappings) {
-    if (equal(mapping.source, group)) return mapping.positions;
-    if (callIs(group, "gather") && equal(mapping.source, group->args[0]))
+    if (equal(mapping.group, group)) return mapping.positions;
+    if (callIs(group, "gather") && equal(mapping.group, group->args[0]))
       return AxisBindings::compose(mapping.positions, group->args[1]);
   }
   return {};
@@ -63,8 +64,6 @@ AxisPartition AxisBindings::split(const S& parent, const S& selector) {
   AxisPartition result{parent, selected, remaining, selector, rest};
   split_index_[identity] = splits_.size();
   splits_.push_back(result);
-  bind(parent, result.selected, selector);
-  bind(parent, result.remaining, rest);
   return result;
 }
 S AxisBindings::lookup(const S& interface, const S& group) const {
@@ -117,10 +116,10 @@ S AxisBindings::lookup(const S& interface, const S& group,
     if (callIs(origin.axes, "gather"))
       origins.push_back({origin.axes->args[0],
                          compose(origin.axes->args[1], origin.positions)});
-    if (auto incoming = group_wiring_.find(key(origin.axes));
-        incoming != group_wiring_.end())
+    if (auto incoming = group_mappings_.find(key(origin.axes));
+        incoming != group_mappings_.end())
       for (auto index : incoming->second) {
-        const auto& edge = wiring_[index];
+        const auto& edge = mapping(index);
         if (!equal(edge.interface, origin.axes))
           origins.push_back(
               {edge.interface, compose(edge.positions, origin.positions)});
@@ -138,8 +137,14 @@ S AxisBindings::lookup(const S& interface, const S& group,
 }
 TensorAxisInterface AxisBindings::tensorInterface(const S& axes) const {
   TensorAxisInterface result{axes, {}};
-  for (const auto& w : wiringFor(axes))
-    result.mappings.push_back({w.group, axes, w.positions});
+  auto found = interface_mappings_.find(key(axes));
+  if (found != interface_mappings_.end()) {
+    result.mappings.reserve(found->second.size());
+    for (auto id : found->second) {
+      const auto& value = mapping(id);
+      result.mappings.push_back({value.group, value.positions});
+    }
+  }
   return result;
 }
 
@@ -155,27 +160,50 @@ const AxisBindings::Overlap* AxisBindings::overlapFor(const S& view) const {
   auto found = overlap_views_.find(key(view));
   return found == overlap_views_.end() ? nullptr : &overlaps_[found->second];
 }
-bool AxisBindings::bind(const S& interface, const S& group, const S& p) {
+AxisBindings::MappingId AxisBindings::reserveMapping(const S& interface,
+                                                     const S& group,
+                                                     const S& positions) {
   auto identity = std::pair(key(interface), key(group));
-  // Preserve the first established witness for a group. Later registrations
-  // may express the same positions through a different composed expression.
-  if (positions_.contains(identity)) {
-    auto selector = std::pair(key(interface), key(p));
-    if (groups_.contains(selector)) return false;
-    groups_[selector] = group;
+  auto found = by_group_.find(identity);
+  if (found != by_group_.end()) return found->second;
+  MappingId id{mappings_.size()};
+  by_group_.emplace(std::move(identity), id);
+  mappings_.push_back({interface, group, positions});
+  return id;
+}
+bool AxisBindings::bind(const S& interface, const S& group, const S& p) {
+  auto id = reserveMapping(interface, group, p);
+  auto selector_key = std::pair(key(interface), key(p));
+  // Preserve the first published witness. Additional selector expressions
+  // remain aliases for reverse lookup, without introducing another mapping.
+  if (mapping(id).registered) {
+    if (by_selector_.contains(selector_key)) return false;
+    by_selector_.emplace(std::move(selector_key), id);
     lookup_cache_.clear();
     return true;
   }
+  if (!equal(mapping(id).positions, p)) {
+    // A partition can reserve this ID before recursive bind calls publish it.
+    // Preserve the partition's exact selector if the first published witness
+    // differs from the reservation.
+    auto prior = interface_partitions_.find(key(interface));
+    if (prior != interface_partitions_.end())
+      for (auto partition : prior->second)
+        for (auto& member : partitions_[partition].members)
+          if (member.mapping == id && !member.selector)
+            member.selector = mapping(id).positions;
+    mappings_[id.value].positions = p;
+  }
+  mappings_[id.value].registered = true;
   lookup_cache_.clear();
-  positions_[identity] = p;
-  groups_[{key(interface), key(p)}] = group;
-  interface_wiring_[key(interface)].push_back(wiring_.size());
-  group_wiring_[key(group)].push_back(wiring_.size());
-  wiring_.push_back({interface, group, p});
+  by_selector_.insert_or_assign(std::move(selector_key), id);
+  interface_mappings_[key(interface)].push_back(id);
+  group_mappings_[key(group)].push_back(id);
+  mapping_order_.push_back(id);
   // Publish surviving components with their parent interface. This is
   // compositional construction, not a search through unrelated map records.
   if (!equal(interface, group)) {
-    auto children = wiringFor(group);
+    auto children = mappingsFor(group);
     for (const auto& child : children)
       if (!equal(child.group, group) && !equal(child.group, interface))
         bind(interface, child.group, compose(p, child.positions));
@@ -193,11 +221,20 @@ bool AxisBindings::bind(const S& interface, const S& group, const S& p) {
 }
 bool AxisBindings::partition(const S& interface, const std::vector<S>& groups,
                              const std::vector<S>& selectors) {
+  if (groups.size() != selectors.size())
+    throw std::invalid_argument("partition groups and selectors must match");
   auto identity = key(interface) + ":" + key(call("concat", groups)) + ":" +
                   key(call("concat", selectors));
   if (!partition_keys_.insert(identity).second) return false;
+  Partition result{interface, {}};
+  result.members.reserve(groups.size());
+  for (std::size_t i = 0; i < groups.size(); ++i) {
+    auto id = reserveMapping(interface, groups[i], selectors[i]);
+    result.members.push_back(
+        {id, equal(mapping(id).positions, selectors[i]) ? S{} : selectors[i]});
+  }
   interface_partitions_[key(interface)].push_back(partitions_.size());
-  partitions_.push_back({interface, groups, selectors});
+  partitions_.push_back(std::move(result));
   return true;
 }
 bool AxisBindings::cover(const S& interface, const S& groups) {
@@ -210,31 +247,41 @@ bool AxisBindings::beginTransport(const S& from, const S& to) {
   return transported_frames_.emplace(key(from), key(to)).second;
 }
 S AxisBindings::positions(const S& interface, const S& group) const {
-  auto found = positions_.find({key(interface), key(group)});
-  return found == positions_.end() ? S{} : found->second;
+  auto found = by_group_.find({key(interface), key(group)});
+  if (found == by_group_.end()) return {};
+  const auto& value = mapping(found->second);
+  return value.registered ? value.positions : S{};
 }
 S AxisBindings::group(const S& interface, const S& positions) const {
-  auto found = groups_.find({key(interface), key(positions)});
-  return found == groups_.end() ? S{} : found->second;
+  auto found = by_selector_.find({key(interface), key(positions)});
+  return found == by_selector_.end() ? S{} : mapping(found->second).group;
 }
 S AxisBindings::cover(const S& interface) const {
   auto found = covers_.find(key(interface));
   return found == covers_.end() ? S{} : found->second;
 }
-std::vector<AxisBindings::Wiring> AxisBindings::wiringFor(
+std::vector<AxisBindings::Mapping> AxisBindings::mappingsFor(
     const S& interface) const {
-  std::vector<Wiring> result;
-  auto found = interface_wiring_.find(key(interface));
-  if (found != interface_wiring_.end())
-    for (auto id : found->second) result.push_back(wiring_[id]);
+  std::vector<Mapping> result;
+  auto found = interface_mappings_.find(key(interface));
+  if (found != interface_mappings_.end()) {
+    result.reserve(found->second.size());
+    for (auto id : found->second) result.push_back(mapping(id));
+  }
   return result;
 }
 std::vector<AxisBindings::Partition> AxisBindings::partitionsFor(
     const S& interface) const {
   std::vector<Partition> result;
   auto found = interface_partitions_.find(key(interface));
-  if (found != interface_partitions_.end())
-    for (auto id : found->second) result.push_back(partitions_[id]);
+  if (found != interface_partitions_.end()) {
+    result.reserve(found->second.size());
+    for (auto id : found->second) {
+      auto snapshot = partitions_[id];
+      for (auto& member : snapshot.members) member.selector = selector(member);
+      result.push_back(std::move(snapshot));
+    }
+  }
   return result;
 }
 }  // namespace tepl::core::semantics
