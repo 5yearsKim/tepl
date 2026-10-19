@@ -15,12 +15,14 @@ struct IndexExpr {
     Select,
     Scale,
     Weighted,
-    Offset
+    Offset,
+    Reverse
   } kind;
   S axes;  // Coordinates: identities; Select: selector; Weighted: per-axis
-           // scales; Offset: per-axis metadata offsets.
+           // scales; Offset: per-axis metadata offsets; Reverse: fixed extents.
   std::vector<I> args;
   std::int64_t coefficient = 1;
+  S dimensions;  // Reverse: selected tuple positions; extents stay in axes.
 };
 I coordinates(S);
 I indexAdd(std::vector<I>);
@@ -28,11 +30,15 @@ I indexScale(Context&, const S&, const I&);
 I indexOffset(Context&, const S&, const I&);
 I indexConcat(std::vector<I>);
 I indexSelect(Context&, const I&, const S&);
+// Reflect selected entries of a tuple about extent-1. Extents belong to the
+// original reversal domain and survive coordinate substitution unchanged.
+I indexReverse(Context&, const I&, const S& extents, const S& dimensions);
 I indexSubstitute(Context&, const I&, const S& frame, const I& replacement);
 I indexRename(Context&, const I&, const S& from, const S& to);
 S indexLength(const I&);
 S indexDependencies(const I&);
 S indexUpperBound(Context&, const I&);
+S indexLowerBound(Context&, const I&);
 bool equalIndex(Context&, const I&, const I&);
 std::string showIndex(const I&);
 // Affine extent-vector arithmetic, used for domains and access intervals.

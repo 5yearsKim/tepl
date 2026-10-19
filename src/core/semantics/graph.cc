@@ -188,6 +188,14 @@ I Lowerer::indexValue(const IndexValue& v, const Instance& n,
   std::vector<I> args;
   for (const auto& a : v.args)
     args.push_back(indexValue(*a, n, inputs, groups));
+  if (v.kind == IndexValue::Kind::Reverse) {
+    auto positions = metadata(*v.parameter, n, inputs, groups);
+    auto length = indexLength(args[0]);
+    obligations.push_back(call("is_valid_axis_list", {positions, length}));
+    auto extents = context.extents(args[0]->axes);
+    context.note("index-reverse-normalization");
+    return indexReverse(context, args[0], extents, positions);
+  }
   if (v.kind == IndexValue::Kind::Select) {
     auto positions = metadata(*v.parameter, n, inputs, groups);
     obligations.push_back(
@@ -242,9 +250,11 @@ E Lowerer::value(const Value& v, const Instance& n,
     context.note("index-substitution");
     obligations.push_back(
         call("==", {indexLength(access), call("len", {input.shape})}));
-    // Coordinates, positive scales, and nonnegative offsets preserve the lower
-    // bound. The maximal access must fit the input. This is legality, not
-    // equivalence.
+    // Reflection is decreasing, so both bounds are checked. For an empty
+    // coordinate domain the interval may be empty (upper < lower); no element
+    // is read. In particular reflecting [0,-1] about -1 gives [0,-1].
+    obligations.push_back(
+        call("is_valid_extents", {indexLowerBound(context, access)}));
     obligations.push_back(call(
         "extent_le", {indexUpperBound(context, access),
                       call("offset_extents",

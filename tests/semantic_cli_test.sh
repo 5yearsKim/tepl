@@ -114,3 +114,13 @@ slices="$($compiler check "$6" --semantic-policy=algebraic)"
 [[ "$slices" == *"law: extent-monotonicity"* ]]
 [[ "$slices" == *"additional-guard: true"* ]]
 "$compiler" check "$6" --rule compose_slice > /dev/null
+
+# Reverse reads retain their domains; pure cancellation needs no arithmetic law.
+reversals="$($compiler check "$7" --semantic-policy=algebraic)"
+[[ "$(printf '%s' "$reversals" | grep -c 'status=proved')" == 5 ]]
+[[ "$reversals" == *"index_reverse("* ]]
+[[ "$reversals" == *"law: index-reverse-cancellation"* ]]
+[[ "$reversals" == *"additional-guard: true"* ]]
+"$compiler" check "$7" --rule reverse_twice > /dev/null
+"$compiler" check "$7" --rule reverse_empty_axes > /dev/null
+"$compiler" check "$7" --rule reverse_scalar_broadcast > /dev/null

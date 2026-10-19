@@ -39,6 +39,9 @@ bool sameBasis(Context& c, const I& pattern, const I& source) {
   c.tick();
   auto a = peel(c, pattern).base, b = peel(c, source).base;
   if (a->kind != b->kind || a->args.size() != b->args.size()) return false;
+  if (a->kind == IndexExpr::Kind::Reverse &&
+      !c.entails(call("==", {a->dimensions, b->dimensions})))
+    return false;
   if (a->axes && !c.entails(call("==", {a->axes, b->axes}))) return false;
   if (a->kind == IndexExpr::Kind::Add) {
     std::vector<bool> used(b->args.size());

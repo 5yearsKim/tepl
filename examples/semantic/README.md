@@ -305,6 +305,7 @@ Required `index[]` fields, fixed operand arity, and the scalar primitives
 `Operand`, `Read`, `Const`, `Add`, `Product`, and `Reduce`
 form the operation fragment. Calculated reads support tuple addition,
 concatenation, position selection, positive scales, and nonnegative offsets.
+Selected coordinates can also be reversed within their original extent domains.
 Size-one expansion, reshape, general affine access inversion,
 value-dependent domains, and arbitrary external computation are outside this language.
 
@@ -433,6 +434,53 @@ constructing a scale or offset from a source expression. Solving general inverse
 or coupled metadata equations remains outside its scope; supply explicit
 attributes for those cases. Selection positions may also need explicit
 attributes or pins.
+
+## Reverse indexing
+
+`reverse(input)` preserves the input's shape and reverses the axes listed in
+its `dimensions` attribute. Its calculated read is:
+
+```tepl
+Read(input, IndexReverse(Coords(S), attrs.dimensions))
+```
+
+On a selected axis of extent `d`, coordinate `i` reads `d - 1 - i`;
+unselected coordinates are unchanged. The first argument must be `Coords(G)`
+for an exported group, so the compiler can establish the reversal's extents.
+Dimensions must be distinct and in range. An empty list reverses nothing.
+Scalars and tensors with zero extents are supported; empty tensors perform no
+reads and retain their shape.
+
+The internal coordinate expression retains those original extents when reads
+are substituted or renamed. Selection remaps the reversed positions. Bounds
+checking establishes that the incoming coordinates lie in the original domain,
+which reflection preserves. This does not introduce arbitrary negative scales.
+
+Reversing the same axes twice over equal extent domains cancels. Reversal of
+axes established to have extent one is also an identity. The compiler does not
+cancel reversals with different axis selections or extent domains.
+
+The rules in [`rules/reverse.tepl`](rules/reverse.tepl) cover cancellation,
+empty axis lists, distribution through addition and multiplication, and removal
+of reversal from scalar broadcasts. Distribution followed by scalar-broadcast
+elimination also leaves a broadcast scalar operand unchanged:
+
+```text
+reverse(add(X, broadcast(c)), d)
+  -> add(reverse(X, d), reverse(broadcast(c), d))
+  -> add(reverse(X, d), broadcast(c))
+```
+
+```sh
+bazel-bin/tepl check examples/semantic/rules/reverse.tepl --semantic-policy=algebraic
+bazel-bin/tepl check examples/semantic/rules/reverse.tepl --rule reverse_twice
+```
+
+Cancellation, empty-axis elimination, and scalar-broadcast elimination also
+verify under strict policy. Arithmetic examples use algebraic policy.
+Supply reversal dimensions explicitly; general inference of reversal axes and
+reindexing of reduction domains, such as moving reversal between dot operands,
+remain outside this implementation.
 
 ## Convolution and calculated reads
 

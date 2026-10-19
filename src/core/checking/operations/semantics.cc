@@ -234,6 +234,17 @@ struct Checker {
       return std::make_shared<IndexValue>(
           IndexValue{IndexValue::Kind::Select, 0, {coordinates}, positions});
     }
+    if (expr.text == "IndexReverse") {
+      if (expr.arguments.size() != 2)
+        fail("IndexReverse requires Coords(group) and a position sequence");
+      auto coordinates = indexValue(*expr.arguments[0]);
+      if (coordinates->kind != IndexValue::Kind::Coordinates)
+        fail("IndexReverse requires Coords(group) to establish its extents");
+      auto positions = semanticMetadata(*expr.arguments[1]);
+      type(positions, Type::Positions);
+      return std::make_shared<IndexValue>(
+          IndexValue{IndexValue::Kind::Reverse, 0, {coordinates}, positions});
+    }
     if (expr.text == "Coords") {
       if (expr.arguments.size() != 1 ||
           expr.arguments[0]->kind != syntax::SemanticExpr::Kind::kName ||

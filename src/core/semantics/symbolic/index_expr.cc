@@ -5,8 +5,9 @@
 namespace tepl::core::semantics {
 namespace {
 I node(IndexExpr::Kind kind, S axes, std::vector<I> args = {},
-       std::int64_t coefficient = 1) {
-  return std::make_shared<IndexExpr>(IndexExpr{kind, axes, args, coefficient});
+       std::int64_t coefficient = 1, S dimensions = {}) {
+  return std::make_shared<IndexExpr>(
+      IndexExpr{kind, axes, args, coefficient, dimensions});
 }
 std::int64_t checkedAdd(std::int64_t a, std::int64_t b) {
   std::int64_t result;
@@ -17,6 +18,7 @@ std::int64_t checkedAdd(std::int64_t a, std::int64_t b) {
 Key identity(const I& e) {
   Key out = std::to_string(int(e->kind)) + ":";
   if (e->axes) out += key(e->axes);
+  if (e->dimensions) out += ":reverse=" + key(e->dimensions);
   out += ":" + std::to_string(e->coefficient);
   for (const auto& a : e->args) out += "{" + identity(a) + "}";
   return out;
@@ -26,12 +28,32 @@ bool indexLess(const I& a, const I& b) {
   if (a->coefficient != b->coefficient) return a->coefficient < b->coefficient;
   if (a->axes && b->axes && !equal(a->axes, b->axes))
     return symbolLess(a->axes, b->axes);
+  if (a->dimensions && b->dimensions && !equal(a->dimensions, b->dimensions))
+    return symbolLess(a->dimensions, b->dimensions);
   return std::lexicographical_compare(a->args.begin(), a->args.end(),
                                       b->args.begin(), b->args.end(),
                                       indexLess);
 }
 S signedInteger(std::int64_t n) {
   return make(Symbol::Kind::Integer, std::to_string(n));
+}
+// A partial reflection preserves the box [0,extent-1]. Keep this conservative
+// bound only after proving that the incoming tuple lies in that box. Empty
+// axes have the empty interval [0,-1], which is also preserved. More general
+// signed affine interval propagation is deliberately outside this fragment.
+std::pair<S, S> reverseBounds(Context& c, const I& e) {
+  auto zero = call("extent_sub", {e->axes, e->axes});
+  auto last = call("offset_extents", {e->axes, signedInteger(-1)});
+  auto lower = indexLowerBound(c, e->args[0]);
+  auto upper = indexUpperBound(c, e->args[0]);
+  bool exact = equalExtentArithmetic(c, lower, zero) &&
+               equalExtentArithmetic(c, upper, last);
+  if (!exact && !(c.entails(call("is_valid_extents", {lower})) &&
+                  extentBoundArithmetic(c, upper, last, QueryMode::Entailment)))
+    throw ProofFailure(
+        "reverse coordinates are not established within their "
+        "original extent domain");
+  return {zero, last};
 }
 }  // namespace
 I coordinates(S axes) { return node(IndexExpr::Kind::Coordinates, axes); }
@@ -134,6 +156,37 @@ I indexScale(Context& c, const S& raw, const I& e) {
   }
   return node(IndexExpr::Kind::Weighted, factors, {e});
 }
+I indexReverse(Context& c, const I& e, const S& raw_extents,
+               const S& raw_dimensions) {
+  c.tick();
+  auto extents = c.canonical(raw_extents);
+  auto dimensions = c.canonical(raw_dimensions);
+  if (equal(c.canonical(call("len", {dimensions})), integer(0))) return e;
+  if (equal(c.canonical(indexLength(e)), integer(0))) return e;
+  if (e->kind == IndexExpr::Kind::Reverse &&
+      equalExtentArithmetic(c, extents, e->axes) &&
+      c.entails(call("==", {dimensions, e->dimensions}))) {
+    c.note("index-reverse-cancellation");
+    return e->args[0];
+  }
+  // An extent-one coordinate is necessarily zero. Do not apply this law to
+  // arbitrary calculated expressions just because their reflection extent is 1.
+  if (e->kind == IndexExpr::Kind::Coordinates &&
+      equalExtentArithmetic(c, extents, c.extents(e->axes))) {
+    auto selected = c.canonical(call("gather", {extents, dimensions}));
+    auto ones = call("offset_extents",
+                     {call("extent_sub", {selected, selected}), integer(1)});
+    bool literal_ones =
+        selected->kind == Symbol::Kind::List &&
+        std::all_of(selected->args.begin(), selected->args.end(),
+                    [](const S& x) { return equal(x, integer(1)); });
+    if (literal_ones || equalExtentArithmetic(c, selected, ones)) {
+      c.note("index-reverse-singleton");
+      return e;
+    }
+  }
+  return node(IndexExpr::Kind::Reverse, extents, {e}, 1, dimensions);
+}
 S indexLength(const I& e) {
   if (e->kind == IndexExpr::Kind::Coordinates) return call("len", {e->axes});
   if (e->kind == IndexExpr::Kind::Select) return call("len", {e->axes});
@@ -168,6 +221,10 @@ I indexSelect(Context& c, const I& e, const S& selector) {
   if (e->kind == IndexExpr::Kind::Weighted)
     return indexScale(c, call("gather", {e->axes, p}),
                       indexSelect(c, e->args[0], p));
+  if (e->kind == IndexExpr::Kind::Reverse)
+    return indexReverse(c, indexSelect(c, e->args[0], p),
+                        call("gather", {e->axes, p}),
+                        call("membership_positions", {p, e->dimensions}));
   if (e->kind == IndexExpr::Kind::Scale)
     return node(e->kind, {}, {indexSelect(c, e->args[0], p)}, e->coefficient);
   // Resolve exact block selections without expanding symbolic group members.
@@ -224,6 +281,8 @@ I indexSubstitute(Context& c, const I& e, const S& frame,
     return indexScale(c, e->axes, args[0]);
   if (e->kind == IndexExpr::Kind::Offset)
     return indexOffset(c, e->axes, args[0]);
+  if (e->kind == IndexExpr::Kind::Reverse)
+    return indexReverse(c, args[0], e->axes, e->dimensions);
   if (e->kind == IndexExpr::Kind::Scale &&
       args[0]->kind == IndexExpr::Kind::Offset)
     return indexOffset(
@@ -246,6 +305,8 @@ I indexRename(Context& c, const I& e, const S& from, const S& to) {
     return indexScale(c, e->axes, args[0]);
   if (e->kind == IndexExpr::Kind::Offset)
     return indexOffset(c, e->axes, args[0]);
+  if (e->kind == IndexExpr::Kind::Reverse)
+    return indexReverse(c, args[0], e->axes, e->dimensions);
   if (e->kind == IndexExpr::Kind::Scale &&
       args[0]->kind == IndexExpr::Kind::Offset)
     return indexOffset(
@@ -258,8 +319,34 @@ S indexUpperBound(Context& c, const I& e) {
   c.tick();
   if (e->kind == IndexExpr::Kind::Coordinates)
     return call("offset_extents", {c.extents(e->axes), signedInteger(-1)});
+  if (e->kind == IndexExpr::Kind::Reverse) return reverseBounds(c, e).second;
   std::vector<S> args;
   for (const auto& a : e->args) args.push_back(indexUpperBound(c, a));
+  if (e->kind == IndexExpr::Kind::Concat) return call("concat", args);
+  if (e->kind == IndexExpr::Kind::Select)
+    return call("gather", {args[0], e->axes});
+  if (e->kind == IndexExpr::Kind::Offset)
+    return call("extent_add", {e->axes, args[0]});
+  if (e->kind == IndexExpr::Kind::Weighted)
+    return call("extent_mul", {e->axes, args[0]});
+  if (e->kind == IndexExpr::Kind::Scale) {
+    if (e->coefficient < 1) throw ProofFailure("nonpositive index scale");
+    return call("scale_extents", {args[0], signedInteger(e->coefficient)});
+  }
+  S out = args[0];
+  for (std::size_t i = 1; i < args.size(); ++i)
+    out = call("extent_add", {out, args[i]});
+  return out;
+}
+S indexLowerBound(Context& c, const I& e) {
+  c.tick();
+  if (e->kind == IndexExpr::Kind::Coordinates) {
+    auto extents = c.extents(e->axes);
+    return call("extent_sub", {extents, extents});
+  }
+  if (e->kind == IndexExpr::Kind::Reverse) return reverseBounds(c, e).first;
+  std::vector<S> args;
+  for (const auto& a : e->args) args.push_back(indexLowerBound(c, a));
   if (e->kind == IndexExpr::Kind::Concat) return call("concat", args);
   if (e->kind == IndexExpr::Kind::Select)
     return call("gather", {args[0], e->axes});
@@ -281,8 +368,12 @@ bool equalIndex(Context& c, const I& a, const I& b) {
   if (a->kind != b->kind) return false;
   if (a->coefficient != b->coefficient || a->args.size() != b->args.size())
     return false;
+  if (a->kind == IndexExpr::Kind::Reverse &&
+      !c.entails(call("==", {a->dimensions, b->dimensions})))
+    return false;
   if (a->axes && !((a->kind == IndexExpr::Kind::Weighted ||
-                    a->kind == IndexExpr::Kind::Offset)
+                    a->kind == IndexExpr::Kind::Offset ||
+                    a->kind == IndexExpr::Kind::Reverse)
                        ? equalExtentArithmetic(c, a->axes, b->axes)
                        : c.entails(call("==", {a->axes, b->axes}))))
     return false;
@@ -312,6 +403,7 @@ std::string showIndex(const I& e) {
                     : e->kind == IndexExpr::Kind::Select   ? "index_select("
                     : e->kind == IndexExpr::Kind::Offset   ? "index_offset("
                     : e->kind == IndexExpr::Kind::Weighted ? "index_weighted("
+                    : e->kind == IndexExpr::Kind::Reverse  ? "index_reverse("
                                                            : "index_scale(";
   for (std::size_t i = 0; i < e->args.size(); ++i) {
     if (i) out += ", ";
@@ -319,10 +411,12 @@ std::string showIndex(const I& e) {
   }
   if (e->kind == IndexExpr::Kind::Select ||
       e->kind == IndexExpr::Kind::Weighted ||
-      e->kind == IndexExpr::Kind::Offset)
+      e->kind == IndexExpr::Kind::Offset || e->kind == IndexExpr::Kind::Reverse)
     out += ", " + format(*e->axes);
   if (e->kind == IndexExpr::Kind::Scale)
     out += ", " + std::to_string(e->coefficient);
+  if (e->kind == IndexExpr::Kind::Reverse)
+    out += ", dimensions=" + format(*e->dimensions);
   return out + ")";
 }
 }  // namespace tepl::core::semantics

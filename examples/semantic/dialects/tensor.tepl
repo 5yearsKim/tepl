@@ -52,6 +52,8 @@
 // Concat joins coordinate tuples. These are separate from scalar arithmetic.
 // IndexScale and IndexOffset accept metadata expressions for per-axis values.
 // IndexSelect(tuple, positions) selects distinct in-range entries in list order.
+// IndexReverse(Coords(G), positions) reflects selected coordinates about their
+// original extent minus one. Empty domains perform no reads.
 // Reduce([], e) = e. A domain with any zero extent has sum zero.
 // This describes a value and its interface, not storage allocation. Operation
 // operands and attrs are visible in both blocks.
@@ -278,6 +280,20 @@ dialect TensorLang {
         }
         semantics {
             yield input;
+        }
+    }
+
+    // Reverse selected axes without changing their order or extents.
+    op reverse(input: tensor) -> tensor {
+        attrs { dimensions: index[]; }
+        dtype(t) { yield t; }
+        axes {
+            bind S { input: all_axes(input) };
+            assert is_valid_axis_list(attrs.dimensions, rank(input));
+            yield S;
+        }
+        semantics {
+            yield Read(input, IndexReverse(Coords(S), attrs.dimensions));
         }
     }
 

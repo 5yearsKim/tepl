@@ -472,7 +472,7 @@ void symbolicTests() {
   alternate = replace(alternate, "alias: conv;", "alias: other_conv;");
   alternate = replace(alternate, "op slice(", "op other_slice(");
   for (const auto* name :
-       {"negate", "subtract", "zero_like", "broadcast_in_dim"})
+       {"negate", "subtract", "zero_like", "broadcast_in_dim", "reverse"})
     alternate = replace(alternate, std::string("op ") + name + "(",
                         std::string("op other_") + name + "(");
   alternate = replace(alternate, "alias: dot;", "alias: other;");

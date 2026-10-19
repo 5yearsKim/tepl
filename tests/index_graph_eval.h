@@ -87,6 +87,11 @@ struct GraphEvaluator {
       auto offsets = std::get<List>(metadata.eval(e->axes));
       checkGraph(out.size() == offsets.size(), "offset tuple length");
       for (std::size_t i = 0; i < out.size(); ++i) out[i] += offsets[i];
+    } else if (e->kind == IndexExpr::Kind::Reverse) {
+      auto extents = std::get<List>(metadata.eval(e->axes));
+      checkGraph(out.size() == extents.size(), "reverse tuple length");
+      auto dimensions = std::get<List>(metadata.eval(e->dimensions));
+      for (auto i : dimensions) out.at(i) = extents.at(i) - 1 - out.at(i);
     } else if (e->kind == IndexExpr::Kind::Select) {
       auto p = std::get<List>(metadata.eval(e->axes));
       List selected;
