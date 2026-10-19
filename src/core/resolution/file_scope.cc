@@ -54,7 +54,11 @@ class FileScopeBuilder {
   void openImport(FileScope& scope, Aliases& aliases, const std::string& source,
                   const syntax::Import& imported) {
     const auto at = origin(source, imported.span);
-    const auto target = importTarget(source, imported.path);
+    const auto edge =
+        context_.input.import_targets.find({sourceKey(source), imported.path});
+    const auto target = edge != context_.input.import_targets.end()
+                            ? edge->second
+                            : importTarget(source, imported.path);
     const auto module = modules_.find(target);
     if (module == modules_.end()) {
       context_.report(

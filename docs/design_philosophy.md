@@ -32,7 +32,7 @@ The [attribute examples](../examples/sample/rules/attributes.tepl) combine
 patterns, builtins, and explicit attribute construction:
 
 ```tepl
-from "../dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t;
 
 rule compose_transposes {
     (t.transpose[@outer] (t.transpose[@inner] X))

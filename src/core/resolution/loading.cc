@@ -8,6 +8,7 @@
 #include <set>
 
 #include "src/core/syntax/parse.h"
+#include "src/support/project_config.h"
 
 namespace tepl {
 namespace {
@@ -88,13 +89,44 @@ class LoadingSession {
     if (dialects_.insert(key(d)).second)
       project_->declarations.dialects.push_back(d);
   }
+  std::optional<std::string> projectRoot(const std::string& source) {
+    const auto directory = fs::path(source).parent_path().string();
+    if (const auto found = roots_.find(directory); found != roots_.end())
+      return found->second;
+    std::optional<std::string> root;
+    if (const auto path = loader_.findProjectConfig(source)) {
+      const auto config_name = identity(*path);
+      auto [entry, added] = configs_.try_emplace(config_name);
+      if (added) {
+        if (const auto text = loader_.read(config_name)) {
+          auto parsed = support::parseProjectConfig({config_name, *text});
+          entry->second = std::move(parsed.config);
+          diagnostics_.insert(diagnostics_.end(), parsed.diagnostics.begin(),
+                              parsed.diagnostics.end());
+        } else {
+          diagnostics_.emplace_back(
+              1, 1, "cannot read project config '" + config_name + "'",
+              config_name);
+        }
+      }
+      if (entry->second) root = entry->second->root;
+    }
+    roots_.emplace(directory, root);
+    return root;
+  }
   void visit(const syntax::ParsedModule& module) {
     const auto name = identity(module.source_name);
     if (complete_.contains(name)) return;
+    const auto root = projectRoot(name);
     active_.insert(name);
     for (const auto& imported : module.imports) {
-      const auto target =
-          identity((fs::path(name).parent_path() / imported.path).string());
+      const fs::path path(imported.path);
+      const bool relative =
+          !path.empty() && (*path.begin() == "." || *path.begin() == "..");
+      const auto base =
+          root && !relative ? fs::path(*root) : fs::path(name).parent_path();
+      const auto target = identity((base / path).string());
+      project_->import_targets.emplace(std::pair{name, imported.path}, target);
       auto report = [&](std::string message) {
         diagnostics_.push_back({imported.span.begin.line,
                                 imported.span.begin.column, std::move(message),
@@ -154,6 +186,8 @@ class LoadingSession {
   SourceLoader& loader_;
   Project* project_ = nullptr;
   std::map<std::string, std::optional<syntax::ParsedModule>> modules_;
+  std::map<std::string, std::optional<std::string>> roots_;
+  std::map<std::string, std::optional<support::ProjectConfig>> configs_;
   std::set<std::string> active_, complete_, included_, dialects_, rules_;
   std::vector<Diagnostic> diagnostics_;
 };
@@ -173,9 +207,29 @@ void sortFiles(std::vector<std::string>& files) {
 std::optional<std::string> FileSourceLoader::read(const std::string& name) {
   std::ifstream input(name, std::ios::binary);
   if (!input) return {};
-  std::string text{std::istreambuf_iterator<char>(input), {}};
-  if (input.bad()) return {};
-  return text;
+  try {
+    std::string text{std::istreambuf_iterator<char>(input), {}};
+    if (input.bad()) return {};
+    return text;
+  } catch (const std::ios_base::failure&) {
+    return {};
+  }
+}
+std::optional<std::string> FileSourceLoader::findProjectConfig(
+    const std::string& source) {
+  auto directory = fs::path(identity(source)).parent_path();
+  for (;;) {
+    const auto config = directory / "tepl.toml";
+    std::error_code error;
+    const auto status = fs::symlink_status(config, error);
+    if (error && error != std::errc::no_such_file_or_directory)
+      throw fs::filesystem_error("cannot inspect project config", config,
+                                 error);
+    if (fs::exists(status)) return config.string();
+    const auto parent = directory.parent_path();
+    if (parent == directory) return {};
+    directory = parent;
+  }
 }
 LoadResult loadImports(const syntax::ParsedModule& module,
                        SourceLoader& loader) {

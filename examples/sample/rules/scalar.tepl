@@ -1,4 +1,4 @@
-from "../dialects/scalar.tepl" import Scalar as s;
+from "dialects/scalar.tepl" import Scalar as s;
 
 rule commute_add {
     (s.add X Y) => (s.add Y X)

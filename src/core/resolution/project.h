@@ -1,4 +1,8 @@
 #pragma once
+#include <map>
+#include <string>
+#include <utility>
+
 #include "src/core/syntax/ast.h"
 namespace tepl::core::resolution {
 struct ProjectDeclarations {
@@ -13,5 +17,8 @@ struct SourceProject {
   // Selected declarations used by this compilation.
   ProjectDeclarations declarations;
   std::vector<syntax::Rule> imported_rules;
+  // (normalized importing source, written import path) -> normalized target.
+  // Later stages consume these edges without filesystem or config discovery.
+  std::map<std::pair<std::string, std::string>, std::string> import_targets;
 };
 }  // namespace tepl::core::resolution

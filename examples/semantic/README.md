@@ -16,6 +16,10 @@ permutations into a synthesized replacement permutation.
 
 ## Run the checker
 
+[`tepl.toml`](tepl.toml) marks this directory as the project root.
+All rule files import `"dialects/tensor.tepl"` from that root, independently of
+their depth or your working directory.
+
 ```sh
 bazel run //:tepl -- check examples/semantic/rules/algebraic.tepl \
   --semantic-policy=algebraic --rule distribute

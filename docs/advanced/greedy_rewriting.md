@@ -33,12 +33,14 @@ The example is a project with independent dialect, rule, and graph files:
 
 ```text
 examples/rewrite/
+├── tepl.toml
 ├── dialects/tensor.tepl
 ├── rules/transpose.tepl
 └── graphs/transpose.tepl
 ```
 
-Graphs and rules each import their dialect. The graph does not import rules;
+`tepl.toml` marks the project root. Graphs and rules each import
+`"dialects/tensor.tepl"` from that root. The graph does not import rules;
 choose the rule source on the command line:
 
 ```sh

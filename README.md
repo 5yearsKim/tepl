@@ -142,7 +142,7 @@ TEPL lets you express the rule, its attributes, and its tensor constraints toget
 Here is the complete TEPL rule, using the example tensor dialect. Save it as `examples/sample/rules/transpose_negate.tepl`:
 
 ```javascript
-from "../dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t;
 
 rule transpose_negate {
     X: f32[Dims...]

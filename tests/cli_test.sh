@@ -37,8 +37,12 @@ grep -Fq 'Initialized TEPL project in' "$output"
 grep -Fq 'tepl check' "$output"
 test -f "$starter/dialects/your_dialect.tepl"
 test -f "$starter/rules/your_rule.tepl"
+grep -Fxq 'tepl-version = "0.1.0"' "$starter/tepl.toml"
+grep -Fq 'from "dialects/your_dialect.tepl"' "$starter/rules/your_rule.tepl"
 check_exit 0 check "$starter"
 grep -Fq 'MatchOp(YourDialect.add' "$output"
+check_exit 0 check "$starter/rules/your_rule.tepl"
+check_exit 0 parse "$starter/rules/your_rule.tepl"
 # Existing directories and unrelated files are preserved; '.' and relative paths work.
 init_current="${TEST_TMPDIR}/init_current"
 mkdir -p "$init_current/dialects" "$init_current/rules"
@@ -52,9 +56,10 @@ printf 'keep me\n' > "$init_current/notes.txt"
 grep -Fxq 'keep me' "$init_current/notes.txt"
 cmp "$starter/dialects/your_dialect.tepl" "$init_current/dialects/your_dialect.tepl"
 cmp "$starter/rules/your_rule.tepl" "$init_current/rules/your_rule.tepl"
+cmp "$starter/tepl.toml" "$init_current/tepl.toml"
 check_exit 0 check "$init_current/relative project"
 
-# Both starter destinations are checked before either is written.
+# All starter destinations are checked before any are written.
 for part in dialect rule; do
   conflict="${TEST_TMPDIR}/init_conflict_${part}"
   mkdir -p "$conflict/${part}s"
@@ -62,12 +67,21 @@ for part in dialect rule; do
   check_exit 2 init "$conflict"
   grep -Fq 'refusing to overwrite' "$output"
   grep -Fxq 'user content' "$conflict/${part}s/your_${part}.tepl"
+  test ! -e "$conflict/tepl.toml"
   if [[ "$part" == dialect ]]; then
     test ! -e "$conflict/rules"
   else
     test ! -e "$conflict/dialects"
   fi
 done
+conflict="${TEST_TMPDIR}/init_conflict_config"
+mkdir -p "$conflict"
+printf '# user config\n' > "$conflict/tepl.toml"
+check_exit 2 init "$conflict"
+grep -Fq 'refusing to overwrite' "$output"
+grep -Fxq '# user config' "$conflict/tepl.toml"
+test ! -e "$conflict/dialects"
+test ! -e "$conflict/rules"
 check_exit 2 init "$starter"
 cmp "$starter/dialects/your_dialect.tepl" "$init_current/dialects/your_dialect.tepl"
 cmp "$starter/rules/your_rule.tepl" "$init_current/rules/your_rule.tepl"
@@ -77,6 +91,72 @@ conflict="${TEST_TMPDIR}/init_file_directory"
 mkdir -p "$conflict/rules/your_rule.tepl"
 check_exit 2 init "$conflict"
 test ! -e "$conflict/dialects"
+
+# Config destinations receive the same directory and symlink protection.
+for kind in directory symlink; do
+  conflict="${TEST_TMPDIR}/init_config_${kind}"
+  mkdir -p "$conflict"
+  if [[ "$kind" == directory ]]; then
+    mkdir "$conflict/tepl.toml"
+  else
+    ln -s "${TEST_TMPDIR}/missing_config_target" "$conflict/tepl.toml"
+  fi
+  check_exit 2 init "$conflict"
+  test ! -e "$conflict/dialects"
+  test ! -e "$conflict/rules"
+done
+
+# Root imports work from nested sources, independently of the invocation cwd.
+mkdir -p "$starter/rules/nested" "$starter/graphs"
+cp "$starter/rules/your_rule.tepl" "$starter/rules/nested/commute.tepl"
+(
+  cd "$init_current"
+  check_exit 0 check "$starter/rules/nested/commute.tepl"
+)
+printf 'from "dialects/your_dialect.tepl" import YourDialect as d; graph g { input X; input Y; yield (d.add X Y); }\n' > "$starter/graphs/g.tepl"
+check_exit 0 compile "$starter/graphs/g.tepl" --rules "$starter/rules/nested" -o "${TEST_TMPDIR}/root-imports.json"
+check_exit 0 validate "${TEST_TMPDIR}/root-imports.json"
+check_exit 0 generate "$starter/graphs/g.tepl" --rules "$starter/rules/nested" --no-format --out "${TEST_TMPDIR}/root-imports-generated"
+
+# Nearest configs win, including an empty marker, and relative imports stay local.
+nested="$starter/nested_project"
+check_exit 0 init "$nested"
+printf '# empty marker\n' > "$nested/tepl.toml"
+printf 'dialect Local { op negate(x: tensor) -> tensor; }\n' > "$nested/dialects/local.tepl"
+printf 'from "dialects/local.tepl" import Local as d; rule local { (d.negate X) => X }\n' > "$nested/rules/local.tepl"
+check_exit 0 check "$nested/rules/local.tepl"
+printf 'from "./local.tepl" import Local;\n' > "$nested/dialects/relative.tepl"
+check_exit 0 check "$nested/dialects/relative.tepl"
+printf 'from "../dialects/local.tepl" import Local as d; rule local { (d.negate X) => X }\n' > "$nested/rules/relative.tepl"
+check_exit 0 check "$nested/rules/relative.tepl"
+# A bare path never falls back to the importing directory in a configured project.
+printf 'from "local.tepl" import Local;\n' > "$nested/dialects/no_fallback.tepl"
+check_exit 1 parse "$nested/dialects/no_fallback.tepl"
+grep -Fq "cannot open import 'local.tepl'" "$output"
+# Filesystem absolute paths continue to work in a configured project.
+printf 'from "%s" import Local;\n' "$nested/dialects/local.tepl" > "$nested/dialects/absolute.tepl"
+check_exit 0 check "$nested/dialects/absolute.tepl"
+
+# Config errors include the config location and fail even for standalone sources.
+printf 'rule identity { X => X }\n' > "$nested/rules/standalone.tepl"
+printf 'tepl-version = "99.0.0"\n' > "$nested/tepl.toml"
+check_exit 1 check "$nested/rules/standalone.tepl"
+grep -Fq "$nested/tepl.toml:1:" "$output"
+grep -Fq "unsupported tepl-version '99.0.0'" "$output"
+printf 'tepl-version = 123\n' > "$nested/tepl.toml"
+check_exit 1 parse "$nested/rules/standalone.tepl"
+grep -Fq 'tepl-version must be a string' "$output"
+printf 'tepl-version = [\n' > "$nested/tepl.toml"
+check_exit 1 parse "$nested/rules/standalone.tepl"
+grep -Fq 'invalid tepl.toml' "$output"
+rm "$nested/tepl.toml"
+ln -s "${TEST_TMPDIR}/missing_config_target" "$nested/tepl.toml"
+check_exit 1 parse "$nested/rules/standalone.tepl"
+grep -Fq 'cannot read project config' "$output"
+rm "$nested/tepl.toml"
+mkdir "$nested/tepl.toml"
+check_exit 1 parse "$nested/rules/standalone.tepl"
+grep -Fq 'cannot read project config' "$output"
 conflict="${TEST_TMPDIR}/init_file_symlink"
 mkdir -p "$conflict/rules"
 ln -s "${TEST_TMPDIR}/missing_link_target" "$conflict/rules/your_rule.tepl"
@@ -115,7 +195,7 @@ cmp "$output" "${TEST_TMPDIR}/tree"
 check_exit 0 parse "$example" --ast
 grep -Fq '  rule commute_add' "$output"
 grep -Fq '      operator add' "$output"
-grep -Fq '  from "../dialects/tensor.tepl" import TensorLang as t' "$output"
+grep -Fq '  from "dialects/tensor.tepl" import TensorLang as t' "$output"
 grep -Fq '  use t::{add}' "$output"
 grep -Fq '  dialect TensorLang' "$output"
 cp "$output" "${TEST_TMPDIR}/ast"

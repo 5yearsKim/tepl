@@ -1,4 +1,4 @@
-from "../dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t;
 use t::{dot, transpose};
 
 // Restrictions below are declared by the user, never inferred applicability guards.

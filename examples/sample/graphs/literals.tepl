@@ -1,4 +1,4 @@
-from "../dialects/scalar.tepl" import Scalar as s;
+from "dialects/scalar.tepl" import Scalar as s;
 use s::{add};
 
 graph add_scalar_literal {

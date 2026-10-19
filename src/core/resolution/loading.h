@@ -10,10 +10,17 @@ class SourceLoader {
  public:
   virtual ~SourceLoader() = default;
   virtual std::optional<std::string> read(const std::string& identity) = 0;
+  // Return the nearest enclosing tepl.toml identity. Virtual loaders opt in;
+  // the default preserves file-relative imports without filesystem access.
+  virtual std::optional<std::string> findProjectConfig(
+      const std::string& identity) {
+    return {};
+  }
 };
 class FileSourceLoader final : public SourceLoader {
  public:
   std::optional<std::string> read(const std::string&) override;
+  std::optional<std::string> findProjectConfig(const std::string&) override;
 };
 struct LoadResult {
   std::optional<core::resolution::SourceProject> program;

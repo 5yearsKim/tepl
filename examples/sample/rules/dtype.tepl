@@ -1,4 +1,4 @@
-from "../dialects/dtype.tepl" import DTypeExamples as d;
+from "dialects/dtype.tepl" import DTypeExamples as d;
 use d::{convert};
 
 // Valid because this dialect defines same-type numeric conversion as identity.

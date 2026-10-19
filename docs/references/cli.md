@@ -50,6 +50,7 @@ The starter project contains:
 
 ```text
 my_project/
+├── tepl.toml
 ├── dialects/
 │   └── your_dialect.tepl
 └── rules/
@@ -60,14 +61,26 @@ my_project/
 defines `commute_add`. The starter can be checked and compiled immediately.
 Add a `graphs/` directory when you want concrete starting graphs.
 
+`tepl.toml` identifies the project root and records the supported TEPL version:
+
+```toml
+tepl-version = "0.1.0"
+```
+
+The starter rule uses a project-root import:
+
+```tepl
+from "dialects/your_dialect.tepl" import YourDialect as d;
+```
+
 The destination can be new or an existing directory. `tepl init .` initializes
 the current directory. Existing unrelated files are preserved. Initialization
-refuses to overwrite either starter file, including a directory or symlink at
-the same filename.
+refuses to overwrite any of the three starter files, including a directory or
+symlink at the same filename.
 
 | Argument | Required | Meaning |
 | --- | --- | --- |
-| `<directory>` | Yes | Destination for the `dialects/` and `rules/` starter files. |
+| `<directory>` | Yes | Destination for `tepl.toml` and the `dialects/` and `rules/` starter files. |
 
 ## File and project inputs
 
@@ -85,10 +98,39 @@ Nested directories are supported. A directory can omit any of the three parts,
 but it must contain at least one `.tepl` file under them. Files elsewhere in
 the project root are not automatically discovered.
 
-Imports are resolved relative to the file containing each import, independently
-of your shell's working directory. Imported dialects and selected abstract rules
-are loaded as needed. `parse` accepts only a file and does not perform project
-directory discovery.
+Imported dialects and selected abstract rules are loaded as needed. `parse`
+accepts only a file and does not scan the project directories for source files.
+
+### Project configuration and import paths
+
+For each source file, TEPL searches its containing directory and then its
+ancestors for the nearest `tepl.toml`. That config's directory is the project
+root, independently of your shell's working directory. Nested projects can have
+their own config; imports in each file use that file's nearest config.
+
+| Import path | Resolution |
+| --- | --- |
+| `"dialects/tensor.tepl"` | Relative to the project root when a config is present. |
+| `"./helpers.tepl"` | Relative to the importing file's directory. |
+| `"../dialects/tensor.tepl"` | Relative to the importing file's directory. |
+| `"/absolute/path/tensor.tepl"` | Filesystem absolute path. |
+
+For example, `examples/semantic/tepl.toml` lets
+`examples/semantic/rules/basic.tepl` use this import from any nesting depth:
+
+```tepl
+from "dialects/tensor.tepl" import TensorLang as t;
+```
+
+An empty `tepl.toml` is a valid root marker. The optional `tepl-version` field
+must be a string equal to the supported version, currently `"0.1.0"`; version
+ranges are not supported. Invalid TOML, invalid version types, unsupported
+versions, and unreadable configs report diagnostics.
+
+Without a config, bare paths retain their previous file-relative behavior.
+When adding a config to an existing project, change local imports such as
+`"abstract.tepl"` to `"./abstract.tepl"`. Configured imports do not fall back to
+the importing directory if the project-root target is missing.
 
 ## `parse`
 
@@ -158,7 +200,7 @@ tepl schema -o /tmp/rewrite-program.schema.json
 `compile` checks source and lowers rules to the versioned executable format.
 Use `--rules <file-or-directory>` to load rule source separately from the graph.
 Directory inputs are scanned recursively for `.tepl` files in sorted path order;
-imports remain relative to each file.
+imports follow the project-root and file-relative rules above.
 `--semantic-policy strict|algebraic` selects the existing proof policy for source
 rules with axis semantics. `validate` checks the compiled schema and IR invariants;
 it does not rerun numerical proofs. `schema` exports the exact schema embedded

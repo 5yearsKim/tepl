@@ -28,6 +28,7 @@ cc_library(
         "//src/core/syntax:syntax",
         "//src/shared/catalog",
         "//src/shared/diagnostics",
+        "//src/support:project_config",
     ],
     visibility = ["//visibility:public"],
 )

@@ -295,7 +295,7 @@ incompatible candidates early, and replacement checks reuse the same inference.
 The transpose-negate rule becomes a single TEPL declaration:
 
 ```javascript
-from "../dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t;
 
 rule transpose_negate {
     X: f32[Dims...]
@@ -306,7 +306,7 @@ rule transpose_negate {
 }
 ```
 
-Save this rule under `examples/sample/rules/`. Its relative import loads operations and
+Save this rule under `examples/sample/rules/`. Its project-root import loads operations and
 metadata definitions from the [tensor dialect](../examples/sample/dialects/tensor.tepl).
 
 - **Graph structure:** `LHS => RHS` describes the pattern and replacement.

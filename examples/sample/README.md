@@ -5,6 +5,10 @@ The examples demonstrate [shape](../../docs/references/shape.md) and
 attributes, rule dtype bindings, and descriptor-field access. Operation shape/dtype programs remain supported by both backends; the extended
 rule expression frontend is described below.
 
+[`tepl.toml`](tepl.toml) marks this directory as the project root. Rules and
+graphs import dialects with paths such as `"dialects/tensor.tepl"`; reusable
+rules use paths such as `"rules/abstract.tepl"`.
+
 - `dialects/tensor.tepl`: a StableHLO subset with generated shape definitions and
   attribute schemas.
 - `dialects/scalar.tepl`: a minimal second dialect with `add` and `negate`.
@@ -101,9 +105,10 @@ application and egg 0.11 to its Cargo dependencies. The output directory can
 have any name and live at any depth in the application's module tree.
 Rust output is formatted by default; use `--no-format` to skip rustfmt.
 
-Generation recursively discovers `.tepl` files under `dialects/`, `rules/`, and `graphs/`,
-resolves imports relative to each file, and emits each dialect once. Nested rule and graph files
-keep their relative module path. Rules with the same name in different files
+Generation recursively discovers `.tepl` files under `dialects/`, `rules/`, and
+`graphs/`. Imports resolve from the project root marked by `tepl.toml`, and each
+dialect is emitted once. Nested rule and graph files keep their relative module
+path. Rules with the same name in different files
 remain distinct. Use unique dialect names across the project; aliases select
 names in TEPL source but do not create extra Rust dialect modules.
 

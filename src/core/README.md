@@ -56,6 +56,18 @@ Project discovery and independent graph/rule inputs use this same session and
 accept an injected loader. `loadProject(vector<SourceFile>, SourceLoader&)`
 supports explicit roots in memory.
 
+`FileSourceLoader::findProjectConfig` discovers the nearest enclosing
+`tepl.toml`. The loading session caches configs and resolves bare import paths
+against each file's project root. Explicit `./` and `../` paths stay relative
+to the importing file. Without a config, all non-absolute imports remain
+file-relative. Virtual loaders can override `findProjectConfig` to supply a
+config identity and return its text through `read`; by default they perform no
+config discovery.
+
+`SourceProject::import_targets` records normalized import edges. Symbol
+resolution consumes these targets without rediscovering configs or reading
+the filesystem. Parsed imports retain their original text.
+
 Resolved graph and expression metadata uses node IDs, rather than pointer keys.
 Resolution snapshots all source expression trees, including operation metadata
 and scalar semantics. Its published pointers are const, and callers cannot alter

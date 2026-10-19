@@ -4,7 +4,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
-exports_files(glob(["examples/**/*.tepl"]) + ["docs/references/built-ins.md"])
+exports_files(glob(["examples/**/*.tepl", "examples/**/tepl.toml"]) + ["docs/references/built-ins.md"])
 
 cc_binary(
     name = "tepl",
@@ -41,6 +41,6 @@ cc_binary(
 
 filegroup(
     name = "rust_codegen_sources",
-    srcs = glob(["examples/semantic/**/*.tepl", "examples/sample/**/*.tepl"]) + ["tools/test_codegen.sh"],
+    srcs = glob(["examples/semantic/**/*.tepl", "examples/semantic/**/tepl.toml", "examples/sample/**/*.tepl", "examples/sample/**/tepl.toml"]) + ["tools/test_codegen.sh"],
     visibility = ["//tests:__pkg__"],
 )

@@ -2,6 +2,8 @@
 set -euo pipefail
 compiler="$1"
 rules="$2"
+"$compiler" check "$(dirname "$rules")/basic.tepl" \
+  --semantic-policy=algebraic --rule transpose_dot_cycle > /dev/null
 symbolic="$($compiler check "$rules" --semantic-policy=algebraic --rule distribute)"
 [[ "$symbolic" == *"status=proved"* ]]
 [[ "$symbolic" == *"lhs_contracting_dimensions = @d.lhs_contracting_dimensions"* ]]
