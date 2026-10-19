@@ -1345,48 +1345,116 @@ def synthesize_attribute_programs(rule):
 
 ### 5.4 Correctness and Scope
 
-#### 5.4.1 Proposed Proof Structure
+- Attribute synthesis proposes how to construct the replacement. Verification must establish that this construction preserves the original computation. This section explains the checks, the intended guarantee, and the limits of the method.
 
-- **Lowering lemma:** Operation lowering preserves the declared denotation.
-- **Mapping lemma:** Composition, selection, and refinement preserve ordered coordinate witnesses.
-- **Normalization lemma:** Each enabled rewrite preserves values and domains under its side conditions.
-- **Constructor lemma:** Emitted expressions are source-dependent, well-defined, and realize the required coordinate relations.
-- **Expression evaluation lemma:** Lowering completed expressions preserves guard and attribute evaluation, including checked arithmetic, indexing, and short-circuit behavior.
-- **Acceptance theorem:** Successful semantic verification implies the contract in Section 4.2 for explicit and synthesized attribute programs.
-- These are proof obligations for the paper; executable checks alone do not constitute formal proofs.
+#### 5.4.1 Checking the Completed Rewrite
 
-#### 5.4.2 Verification Boundary
+- A mapping table can locate the requested axes, but that alone does not establish correctness. Are the resulting attributes valid, and does the completed RHS compute the same tensor as the LHS?
+- After synthesis produces an attribute program \(f\), the verifier substitutes its expressions into the RHS and checks the completed rule in a fresh context. It reconstructs the tensor meanings and coordinate relationships instead of treating synthesis's intermediate conclusions as established facts.
+- The verification checks are:
 
-- Check explicit attribute programs and synthesized programs against operation legality and tensor semantics.
-- Re-lower the completed RHS in a fresh context.
-- Recheck accesses, reduction domains, output order, extents, dtype, and legality.
-- Treat synthesis obligations as goals, never additional assumptions.
-- Constructor provenance and mapping records do not substitute for semantic verification.
-- The verifier shares semantic infrastructure with synthesis; it is not a separately mechanized proof kernel.
-- The semantic checker supports a limited set of attribute computations and conditions. An expression may execute even when the checker cannot prove the rewrite correct.
-- Report why compilation failed: malformed input, unsupported reasoning, unresolved matching, or a proof-work limit. Expressions that cannot be lowered or proved are unsupported for semantic verification.
-- Structural rules receive structural checks without a tensor-equivalence proof; keep this distinction explicit in reported guarantees.
+  | Check | What must be established |
+  | --- | --- |
+  | Attribute computation | Each constructor depends only on source information \(s\) and can be evaluated whenever the rule applies. No attribute holes remain. |
+  | RHS legality | Constructed attributes satisfy the operation definitions, including valid position lists, paired axis sizes, reduction domains, and access bounds. |
+  | Value equivalence | Normalized LHS and completed RHS terms agree in coefficients, indexed operand reads, and reduction domains. |
+  | Output agreement | Both sides produce the same ordered output axes and shape. |
 
-#### 5.4.3 Completeness Boundary
+- Read matching against the RHS arithmetic skeleton helps establish coordinates, but does not prove value equivalence. The value check uses the fully lowered RHS, with its constructed attributes and actual reduction axes.
+- The verifier may use source legality and the rule's declared guard. Any additional condition required by construction must follow from those assumptions; it cannot be added as a new assumption merely to make verification succeed.
+- The result is either an accepted completed rule or an explanation of what could not be established. Explicit attribute programs are also subject to semantic verification.
 
-- General completeness and weakest-precondition inference are not claimed.
-- Investigate restricted completeness for a precisely defined fragment with fixed term correspondence, bijective axis routing, and directly solvable attribute holes.
-- Establish such a theorem before presenting the fragment as complete.
-- Unsupported cases include unresolved correspondence, general inverse equations, and exhausted proof budgets.
+#### 5.4.2 Correctness Guarantee
+
+- What should successful verification guarantee beyond the checks above? It should establish the contract from Section 4.2 for every source instance covered by the rule, rather than only for particular tensor shapes or values.
+
+**Formal Statement**
+
+- The intended soundness guarantee is: if semantic verification accepts the completed rule, then for every legal source description \(s\) satisfying \(\operatorname{Guard}(s)\):
+
+  1. The attribute program \(f(s)\) can be evaluated.
+  2. Its attributes make the RHS operations legal.
+  3. For every compatible input value \(X\),
+
+     \[
+     \operatorname{LHS}(s,X)
+     =\operatorname{RHS}(s,f(s),X).
+     \]
+
+- Equality includes ordered output shape and element values, with element types fixed as in Section 4. The guarantee uses the selected arithmetic policy. For example, algebraic reassociation does not by itself establish equality under strict floating-point evaluation.
+- **Proof structure:** Establish that axis mappings preserve ordered coordinates and that lowering preserves the declared operation meanings. Then prove normalization by induction on value expressions: each case preserves values under its reduction-domain conditions. Finally, show that matched normalized terms have equal coefficients, coordinate accesses, and summation domains, so their sums are equal. Together with attribute evaluability, RHS legality, and output agreement, these results imply the contract above.
+- The [soundness proof draft](soundness_proof.md) states these lemmas and proves a relative soundness theorem for the algebraic verifier. Its assumptions explicitly cover correct operation definitions, sound primitive metadata and index checks, admissible coordinate frames, and faithful evaluation of partial attribute programs. These assumptions must hold for the theorem to apply to an implementation.
+- The fresh verification context separates checking from construction, but both use shared semantic infrastructure. The proof draft therefore distinguishes the mathematical verifier from the remaining implementation obligations, including checked arithmetic, coordinate transport, and guard evaluation. It does not claim that the current C++ implementation has been formally proved sound.
+
+#### 5.4.3 Scope and Limitations
+
+- What does failure mean? A rule that cannot be proved may still be correct. The method is incomplete: it accepts a semantic rewrite only when the supported reasoning establishes all required conditions.
+- The main limits are:
+
+  | Limitation | Example |
+  | --- | --- |
+  | Ambiguous correspondence | A replacement read has several possible source coordinate assignments that cannot be shown to agree. |
+  | Unsupported attribute construction | A missing attribute requires solving a coupled or inverse equation outside the supported fragment. |
+  | Unsupported semantic reasoning | An index computation or guard can execute, but the checker cannot establish the required relationship. |
+  | Arithmetic policy | A proposed reassociation requires laws unavailable under the selected policy. |
+  | Bounded proof work | Normalization or coordinate reasoning reaches an implementation limit. |
+
+- Failure reports should distinguish malformed rules, unresolved or unsupported reasoning, and exhausted proof limits. The method does not claim to find every valid attribute program or the weakest condition under which a rewrite is correct.
+- This guarantee applies to semantically verified rules. Structural rules receive structural checks and do not carry the same tensor-equivalence guarantee.
+- Thus, acceptance means the supported semantic checks succeeded under the declared conditions; failure to prove a rule is not, by itself, a counterexample to the rule.
 
 ## 6. Implementation
 
-- TEPL checks the rule, infers missing attributes, verifies supported semantic rewrites, and lowers completed rules for execution.
-- Frontend and operation-defined semantics; no per-operation inference routine required for the supported fragment.
-- `src/core/semantics/`: semantic lowering, completion, and verification orchestration.
-- `semantics/index_maps/`: mapping storage, refinement, and transport.
-- `semantics/symbolic/`: expression construction, normalization, and calculated access reasoning.
-- `semantics/synthesis/` and `semantics/proof/`: attribute construction and semantic verification.
-- `src/executable/`: runtime representation, validation, and serialization; completed rules contain no attribute holes or proof plans.
-- `src/rewrite/`: direct greedy graph rewriting from executable programs.
-- `src/codegen/`: Rust generation from executable programs; `runtime/rust/` provides shared metadata evaluation and egg integration. C++ generation remains unavailable.
-- Modern semantic inference uses no Z3 search.
-- Document numerical policy, bounded reasoning, implementation trust assumptions, and unsupported features.
+### 6.1 High-Level Architecture
+
+- TEPL is implemented in **C++20** and uses **ANTLR** to parse operation definitions and rewrite rules. The system separates rule compilation from rewrite execution.
+- During compilation, the compiler resolves names and checks types, then constructs missing attributes and verifies semantic rules. It lowers the completed rules into an executable representation that can be exported as JSON.
+
+  ```text
+  Rule compilation
+  TEPL source
+    → ANTLR parsing
+    → Name resolution and type checking
+    → Attribute synthesis and semantic verification
+    → Executable rewrite program
+    → JSON export
+  ```
+
+- Type-checked rules may still contain attribute holes. Executable rules contain completed attribute programs, guards, and replacement patterns. JSON serializes this executable representation so it can be loaded without repeating compilation or semantic verification.
+- The rewrite engine loads and validates the compiled program, then searches an input graph for matching LHS patterns. For each match, it evaluates the rule's guard, computes the replacement attributes, and constructs and applies the RHS graph.
+
+  ```text
+  Rewrite execution
+  Compiled JSON + input graph
+    → Load and validate
+    → Find an LHS pattern match
+    → Evaluate the guard
+    → Compute replacement attributes
+    → Construct and apply the RHS
+  ```
+
+- A failed guard or invalid attribute evaluation skips the match. The engine applies rewrites greedily, repeating the search until no rule changes the graph or an execution limit is reached.
+
+### 6.2 Internal Representations
+
+- Symbolic axis groups and position expressions are represented by immutable, typed expression nodes. Their types distinguish axes, positions, extents, integers, and Boolean conditions. Operations such as `gather`, concatenation, and inverse permutation remain symbolic until their inputs are known.
+- Expression nodes can share subexpressions. Structural keys identify expressions with the same structure, and each proof context interns these keys to accelerate repeated comparisons. Hash values accelerate lookup; structural comparison resolves collisions.
+- Value expressions use nodes for constants, operand reads, binary addition, binary multiplication, and reduction. Calculated operand coordinates use a separate index-expression representation supporting coordinate selection, concatenation, scaling, and offsets.
+- Normalization produces a vector of terms. Each term stores an integer coefficient, a list of operand reads, and a symbolic reduction-axis sequence, implementing the representation introduced in Section 5.3.1.
+
+### 6.3 Mapping Storage and Lookup
+
+- The mapping table stores entries `(interface, group, positions)`. Separate indexes support lookup by interface and group, and reverse lookup by interface and position sequence.
+- Partitions refer to mapping entries through stable identifiers. Each partition retains its own position sequences when they differ from the mapping table's preferred sequence. Overlap records retain the selected subgroup and its positions in both parent groups.
+- Lookup first checks existing mappings. When a direct mapping is unavailable, it follows established relationships and composes their position sequences. Concatenated groups are handled by combining component mappings; traversal through registered origins uses breadth-first search and avoids revisiting the same origin.
+- Lookup results are cached. Registering new mappings invalidates the mapping cache, while changes to established facts invalidate the corresponding reasoning caches. This allows later queries to use newly discovered relationships.
+
+### 6.4 Rule Execution
+
+- The engine searches reachable graph nodes for LHS pattern matches. Matching checks operation identities and operand structure, then records captured graph nodes, operation attributes, and shape bindings. Repeated captures must refer to the same node.
+- For each match, the evaluator processes the guard and then the replacement-attribute expressions using those bindings. Boolean conditions preserve short-circuit evaluation. A false guard or evaluation failure skips the match.
+- The builder reuses captured nodes and constructs new RHS operations with the computed attributes. Construction takes place on a candidate graph, allowing the engine to validate operation contracts and output compatibility before committing the replacement.
+- After a successful replacement, the engine restarts its search. Rewriting stops when no candidate changes the graph, a configured limit is reached, or execution is cancelled.
 
 ## 7. Evaluation Plan
 

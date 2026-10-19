@@ -18,13 +18,6 @@ Inference infer(d::Op op, std::initializer_list<DType> inputs,
       op, std::span<const DType>(inputs.begin(), inputs.size()), attrs);
 }
 ir::TensorInfo info(DType dtype) { return {{4}, dtype}; }
-struct Host {
-  std::shared_ptr<unsigned> calls;
-  std::optional<bool> allow_dtype(DType dtype) const {
-    ++*calls;
-    return dtype == DType::F32;
-  }
-};
 int main() {
   assert(infer(d::Op::Fixed, {}).value == DType::F32);
   assert(infer(d::Op::Unknown, {DType::F32}).kind == Inference::Kind::Unknown);
@@ -87,17 +80,14 @@ int main() {
     auto x = graph.add(ir::OpNode::input("x"));
     auto root = graph.add(
         ir::OpNode::make(d::Op::Convert, d::ConvertAttrs{input}, {x}));
-    auto calls = std::make_shared<unsigned>(0);
     graph.rebuild();
     auto checks = r::rule_remove_f32_convert::match_checks<A>();
     auto matches = ir::rewriting::matches_at_with_checks(
         graph, root, r::rule_remove_f32_convert::pattern(), checks,
         ir::analysis::tensor_info);
     assert(!matches.empty() == (input == DType::F32));
-    auto host = r::rule_host_identity::build(Host{calls});
-    eggc::run(graph, std::vector{host});
+    eggc::run(graph, std::vector{r::rule_remove_f32_convert::build()});
     assert((graph.find(x) == graph.find(root)) == (input == DType::F32));
-    assert(*calls > 0);
   }
   using NA = support::TestAnalysis;
   using BareGraph = eggc::EGraph<ir::OpNode, NA>;

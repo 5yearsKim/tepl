@@ -62,9 +62,3 @@ rule shared {
     (pair X Y) => (pair Y X)
     where { is_float(T) }
 }
-rule host_identity {
-    dtype T;
-    X: T[...]
-    (convert[@c] X) => X
-    where { @c.to == T && $allow_dtype(T) }
-}

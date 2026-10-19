@@ -5,11 +5,6 @@
 #include "second/generated.h"
 
 namespace ir = tepl_generated;
-struct Host {
-  std::optional<bool> type(const ir::TensorInfo&) const { return true; }
-  std::optional<bool> match(const ir::TensorInfo&) const { return true; }
-  std::optional<bool> gen(const ir::TensorInfo&) const { return true; }
-};
 int odr_check();
 int main() {
   ir::analysis::TensorBindingTable inputs;
@@ -22,7 +17,7 @@ int main() {
       graph.add(ir::OpNode::make(ir::dialects::egg::Op::EggCopy, {}, {b}));
   auto root =
       graph.add(ir::OpNode::make(ir::dialects::std::Op::StdCopy, {}, {egg}));
-  auto rule = ir::rules::type::match::rule_match::build(Host{});
+  auto rule = ir::rules::type::match::rule_match::build();
   eggc::run(graph, std::vector{rule});
   assert(graph.find(root) == graph.find(x));
   assert(odr_check() == 13);

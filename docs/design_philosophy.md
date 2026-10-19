@@ -114,8 +114,9 @@ dialect TensorLang {
 }
 ```
 
-Abstract rules parameterize operations (`op`) and host functions (`fn`).
-Concrete rules bind those parameters and may add constraints.
+Abstract rules parameterize operations (`op`). Concrete rules bind those
+parameters and may add constraints. Conditions and derivations use builtins;
+host-function parameters and callbacks are unsupported.
 
 ```javascript
 abstract rule commute(F: op<(tensor, tensor) -> tensor>) {

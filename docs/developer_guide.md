@@ -96,7 +96,6 @@ After building `//:tepl`, run the built-in fixtures without regenerating lab IR:
 
 ```sh
 ./tools/test_codegen.sh "$PWD/bazel-bin/tepl" builtins
-./tools/test_codegen_cpp.sh "$PWD/bazel-bin/tepl" builtins
 ```
 
 `bazel test //tests:builtin_reference_test` detects stale inventory tables.

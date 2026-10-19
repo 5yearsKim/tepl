@@ -86,8 +86,8 @@ bazel-bin/tepl generate examples/sample --out my_app/src/generated
 
 Rust is the implemented output target. Generated modules depend on the shared
 `tepl-runtime` crate. C++ generation is deferred.
-Follow the [Rust](tutorial/rust/02_run.md) or [C++](tutorial/cpp/02_run.md)
-tutorial to connect generated code to an application and run the optimizer.
+Follow the [Rust tutorial](tutorial/rust/02_run.md) to connect generated code
+to an application and run the optimizer.
 
 ## 💡 Write rules in VS Code
 
@@ -112,8 +112,8 @@ to your editor, so you can write rules with less friction.
 
 - **Connect your application**
 
-    [Custom analysis](advanced/custom_analysis.md): connect facts from your host
-    application to generated rules.
+    [Tensor analysis](advanced/custom_analysis.md): supply input shape and dtype
+    metadata and understand generated inference.
 
 - **Look up the details**
 
