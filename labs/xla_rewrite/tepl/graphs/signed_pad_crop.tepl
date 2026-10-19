@@ -1,0 +1,6 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+graph signed_pad_crop {
+    input X: f32[6];
+    input C: f32[];
+    yield (hlo.pad[low=[-1],high=[2],interior=[0]] X C);
+}

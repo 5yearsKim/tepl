@@ -1,0 +1,11 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: indexing-slice-pad-only
+// Scope: Rank-one edge-padding-only slice, with arbitrary positive stride.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_slice_pad_only {
+    X: [N] C: []
+     (hlo.slice[@s] (hlo.nonnegative_pad[@p] X C)) => (hlo.broadcast[@b] C)
+     where { @p.interior==[0] && len(@s.sizes)==1 && (@s.starts[0]+max(@s.sizes[0]-1,0)*@s.strides[0]<@p.low[0] || @s.starts[0]>=@p.low[0]+N) }
+     derive { @b={dimensions:[],new_extents:@s.sizes}; }
+}

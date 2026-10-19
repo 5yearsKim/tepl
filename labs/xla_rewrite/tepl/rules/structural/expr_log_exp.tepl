@@ -1,0 +1,6 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_log_exp {
+    (hlo.log (hlo.exp X)) => X
+}

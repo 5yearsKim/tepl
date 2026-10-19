@@ -1,0 +1,11 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: indexing-dynamic-slice-compose
+// Scope: Rank-one scalar i64 starts; explicit independent clamping before addition.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_dynamic_slice_compose {
+    X: [N] S: i64[] T: i64[]
+     (hlo.dynamic_slice[@outer] (hlo.dynamic_slice[@inner] X S) T)
+     => (hlo.dynamic_slice[@outer] X (hlo.add (hlo.clamp 0:i64 S (hlo.scalar[@first])) (hlo.clamp 0:i64 T (hlo.scalar[@second]))))
+     derive { @first={value:N-@inner.sizes[0],element_type:i64,shape:[]}; @second={value:@inner.sizes[0]-@outer.sizes[0],element_type:i64,shape:[]}; }
+}

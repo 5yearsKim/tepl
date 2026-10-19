@@ -1,0 +1,6 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+graph power_two_splat {
+    input X: i64[2,3];
+    yield (hlo.power X (hlo.fill[shape=[2,3], value=2, element_type=i64]));
+}

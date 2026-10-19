@@ -1,0 +1,506 @@
+// Local HLO evaluation dialect. Value/axis semantics include registered pure pointwise scalar calls.
+// Algebraic proofs use the declared ideal arithmetic model, not IEEE equivalence.
+dialect HLO {
+
+op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) };
+            yield S;
+        }
+        semantics {
+            yield Add(lhs, rhs);
+        }
+    }
+
+op multiply(lhs: tensor, rhs: tensor) -> tensor {
+        alias: mul;
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) };
+            yield S;
+        }
+        semantics {
+            yield Product(lhs, rhs);
+        }
+    }
+
+op negate(input: tensor) -> tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes { bind S { input: all_axes(input) }; yield S; }
+        semantics { yield Product(Const(-1), input); }
+    }
+
+op subtract(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) { assert a == b; assert is_numeric(a); yield a; }
+        axes { bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) }; yield S; }
+        semantics { yield Add(lhs, Product(Const(-1), rhs)); }
+    }
+
+op zero_like(input: tensor) -> tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes { bind S { input: all_axes(input) }; yield S; }
+        semantics { yield Const(0); }
+    }
+
+op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+        
+        alias: dot;
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        attrs {
+            
+            lhs_contracting_dimensions: index[];
+            rhs_contracting_dimensions: index[];
+            lhs_batching_dimensions: index[];
+            rhs_batching_dimensions: index[];
+        }
+        axes {
+            let lb = attrs.lhs_batching_dimensions;
+            let rb = attrs.rhs_batching_dimensions;
+            let lc = attrs.lhs_contracting_dimensions;
+            let rc = attrs.rhs_contracting_dimensions;
+
+            let lf = ordered_complement(all_axes(lhs), lb ++ lc);
+            let rf = ordered_complement(all_axes(rhs), rb ++ rc);
+
+            bind B { lhs: lb, rhs: rb };
+            bind K { lhs: lc, rhs: rc };
+            bind I { lhs: lf };
+            bind J { rhs: rf };
+
+            
+            
+            yield B ++ I ++ J;
+        }
+        semantics {
+            yield Reduce(K, Product(lhs, rhs));
+        }
+
+        
+        
+        
+        
+        
+        
+        
+    }
+
+op convolution(input: tensor, kernel: tensor) -> tensor {
+        alias: conv;
+        attrs {
+            strides: index[];
+            dilations: index[];
+        }
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            assert rank(input) >= 3;
+            assert rank(kernel) == rank(input);
+            let spatial = ordered_complement(all_axes(input), [0, rank(input) - 1]);
+            let window = range(rank(kernel) - 2);
+            let input_sizes = gather(shape(input), spatial);
+            let window_sizes = gather(shape(kernel), window);
+            assert is_positive_extents(window_sizes);
+            assert len(attrs.strides) == len(spatial);
+            assert len(attrs.dilations) == len(spatial);
+            assert is_positive_extents(attrs.strides);
+            assert is_positive_extents(attrs.dilations);
+            let effective_window = offset_extents(
+                extent_mul(attrs.dilations, offset_extents(window_sizes, -1)), 1);
+            assert extent_le(effective_window, input_sizes);
+
+            bind N { input: [0] };
+            bind C { input: [rank(input) - 1], kernel: [rank(kernel) - 2] };
+            bind F { kernel: [rank(kernel) - 1] };
+            bind Window { kernel: window };
+            bind O = group(offset_extents(
+                extent_floor_div(extent_sub(input_sizes, effective_window), attrs.strides), 1));
+            yield N ++ O ++ F;
+        }
+        semantics {
+            yield Reduce(Window, Reduce(C,
+                Product(
+                    Read(input, Concat(Coords(N), IndexAdd(IndexScale(attrs.strides, Coords(O)), IndexScale(attrs.dilations, Coords(Window))), Coords(C))),
+                    kernel
+                )
+            ));
+        }
+    }
+
+op slice(input: tensor) -> tensor {
+        attrs {
+            starts: index[];
+            sizes: index[];
+            strides: index[];
+        }
+        dtype(t) { yield t; }
+        axes {
+            assert len(attrs.starts) == rank(input);
+            assert len(attrs.sizes) == rank(input);
+            assert len(attrs.strides) == rank(input);
+            assert is_valid_extents(attrs.starts);
+            assert is_positive_extents(attrs.sizes);
+            assert is_positive_extents(attrs.strides);
+            let last = extent_add(attrs.starts,
+                extent_mul(attrs.strides, offset_extents(attrs.sizes, -1)));
+            assert extent_le(last, offset_extents(shape(input), -1));
+            bind O = group(attrs.sizes);
+            yield O;
+        }
+        semantics {
+            yield Read(input,
+                IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O))));
+        }
+    }
+
+op broadcast_in_dim(input: tensor) -> tensor {
+        alias: broadcast;
+        attrs {
+            dimensions: index[];
+            new_extents: index[];
+        }
+        dtype(t) { yield t; }
+        axes {
+            bind S { input: all_axes(input) };
+            bind N = group(attrs.new_extents);
+            yield place(S, attrs.dimensions, N);
+        }
+        semantics { yield input; }
+    }
+
+op transpose(input: tensor) -> tensor {
+        attrs {
+            permutation: index[];
+        }
+        dtype(t) {
+            yield t;
+        }
+        axes {
+            bind S { input: all_axes(input) };
+
+            assert is_valid_axis_list(attrs.permutation, rank(input));
+            assert len(attrs.permutation) == rank(input);
+            
+            yield permute(S, attrs.permutation);
+        }
+        semantics {
+            yield input;
+        }
+    }
+
+op reverse(input: tensor) -> tensor {
+        attrs { dimensions: index[]; }
+        dtype(t) { yield t; }
+        axes {
+            bind S { input: all_axes(input) };
+            assert is_valid_axis_list(attrs.dimensions, rank(input));
+            yield S;
+        }
+        semantics {
+            yield Read(input, IndexReverse(Coords(S), attrs.dimensions));
+        }
+    }
+
+op reduce_sum(input: tensor) -> tensor {
+        attrs {
+            dimensions: index[];
+        }
+        dtype(t) {
+            assert is_numeric(t);
+            yield t;
+        }
+        axes {
+            let reduced = attrs.dimensions;
+            let retained = ordered_complement(all_axes(input), reduced);
+
+            bind K { input: reduced };
+            bind F { input: retained };
+
+            yield F;
+        }
+        semantics {
+            yield Reduce(K, input);
+        }
+    }
+
+    op divide(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield div(lhs, rhs);}
+    }
+
+    op exp(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield exp(input);}
+    }
+
+    op log(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield log(input);}
+    }
+
+    op sqrt(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield sqrt(input);}
+    }
+
+    op rsqrt(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield rsqrt(input);}
+    }
+
+    op abs(input: tensor) -> tensor {
+        dtype(a) {assert is_numeric(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield abs(input);}
+    }
+
+    op power(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield pow(lhs, rhs);}
+    }
+
+    op maximum(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield max(lhs, rhs);}
+    }
+
+    op minimum(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield min(lhs, rhs);}
+    }
+
+    op logical_not(input: tensor) -> tensor {
+        dtype(a) {assert a == bool; yield bool;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield not(input);}
+    }
+
+    op logical_and(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == bool; assert b == bool; yield bool;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield and(lhs, rhs);}
+    }
+
+    op logical_or(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == bool; assert b == bool; yield bool;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield or(lhs, rhs);}
+    }
+
+    op logical_xor(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == bool; assert b == bool; yield bool;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield xor(lhs, rhs);}
+    }
+
+op real(input: tensor) -> tensor;
+
+op imag(input: tensor) -> tensor;
+
+op complex(lhs: tensor, rhs: tensor) -> tensor;
+
+    op select(pred: tensor, lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b,c) {assert a == bool; assert b == c; yield b;}
+        axes {bind S {pred: all_axes(pred), lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield select(pred, lhs, rhs);}
+    }
+
+    op remainder(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; yield S;}
+        semantics {yield rem(lhs, rhs);}
+    }
+
+op reshape(input: tensor) -> tensor {
+        attrs { shape: index[]; }
+        shape(s) { assert product(s) == product(attrs.shape); yield attrs.shape; }
+    }
+
+op concatenate(inputs: tensor...) -> tensor {
+        attrs { dimension: index; }
+    }
+
+op pad(input: tensor, value: tensor) -> tensor {
+        attrs { low: i64[]; high: i64[]; interior: index[]; }
+    }
+
+op nonnegative_pad(input: tensor, value: tensor) -> tensor {
+        attrs { low: index[]; high: index[]; interior: index[]; }
+    }
+
+op dynamic_slice(input: tensor, starts: tensor...) -> tensor {
+        attrs { sizes: index[]; }
+    }
+
+op dynamic_update_slice(input: tensor, update: tensor, starts: tensor...) -> tensor;
+
+op reduce(input: tensor, init: tensor) -> tensor {
+        attrs { dimensions: index[]; body: region; }
+    }
+
+op convert(input: tensor) -> tensor { attrs { to: dtype; } }
+
+    op compare(lhs: tensor, rhs: tensor) -> tensor {
+        attrs {direction: index;}
+        dtype(a,b) {assert a == b; assert is_numeric(a) || a == bool; yield bool;}
+        axes {bind S {lhs: all_axes(lhs), rhs: all_axes(rhs)}; assert attrs.direction >= 0; assert attrs.direction < 6; yield S;}
+        semantics {yield compare(lhs, rhs, attrs.direction);}
+    }
+
+    op clamp(low: tensor, input: tensor, high: tensor) -> tensor {
+        dtype(a,b,c) {assert a == b; assert b == c; assert is_numeric(a); yield a;}
+        axes {bind S {low: all_axes(low), input: all_axes(input), high: all_axes(high)}; yield S;}
+        semantics {yield clamp(low, input, high);}
+    }
+
+    op cbrt(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield cbrt(input);}
+    }
+
+    op erf(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield erf(input);}
+    }
+
+    op logistic(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield logistic(input);}
+    }
+
+    op tanh(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+        axes {bind S {input: all_axes(input)}; yield S;}
+        semantics {yield tanh(input);}
+    }
+
+op fill() -> tensor {
+        attrs { shape: index[]; value: i64; element_type: dtype; }
+        dtype() { yield attrs.element_type; }
+        shape() { yield attrs.shape; }
+    }
+
+op scalar() -> tensor {
+        attrs { value: index; element_type: dtype; shape: index[]; }
+        dtype() { yield attrs.element_type; }
+        shape() { yield attrs.shape; }
+    }
+
+op iota() -> tensor {
+        attrs { shape: index[]; dimension: index; element_type: dtype; }
+        dtype() { yield attrs.element_type; }
+        shape() { yield attrs.shape; }
+    }
+
+op rotate(input: tensor) -> tensor { attrs { dimensions: index[]; shifts: index[]; } }
+
+op scatter(input: tensor, indices: tensor, updates: tensor) -> tensor {
+        attrs {
+            update_window_dims: index[]; inserted_window_dims: index[];
+            scatter_dims_to_operand_dims: index[]; index_vector_dim: index;
+            input_batching_dims: index[]; scatter_indices_batching_dims: index[];
+            indices_are_sorted: bool; unique_indices: bool; body: region;
+        }
+    }
+
+op scatter_add(input: tensor, indices: tensor, updates: tensor) -> tensor {
+        attrs {
+            update_window_dims: index[]; inserted_window_dims: index[];
+            scatter_dims_to_operand_dims: index[]; index_vector_dim: index;
+            input_batching_dims: index[]; scatter_indices_batching_dims: index[];
+            indices_are_sorted: bool; unique_indices: bool;
+        }
+    }
+
+op gather(input: tensor, indices: tensor) -> tensor {
+        attrs {
+            offset_dims: index[]; collapsed_slice_dims: index[];
+            start_index_map: index[]; index_vector_dim: index; slice_sizes: index[];
+            operand_batching_dims: index[]; start_indices_batching_dims: index[];
+            shape: index[];
+        }
+    }
+
+op map(lhs: tensor, rhs: tensor) -> tensor { attrs { body: region; } }
+
+op reduce_min(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+
+op reduce_max(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+
+op reduce_and(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+
+op reduce_or(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+
+op reduce_window(input: tensor, init: tensor) -> tensor {
+        attrs {
+            window_dimensions: index[]; window_strides: index[];
+            base_dilations: index[]; window_dilations: index[];
+            padding_low: index[]; padding_high: index[]; body: region;
+        }
+    }
+
+op reduce_window_sum(input: tensor, init: tensor) -> tensor {
+        attrs {
+            window_dimensions: index[]; window_strides: index[];
+            base_dilations: index[]; window_dilations: index[];
+            padding_low: index[]; padding_high: index[];
+        }
+    }
+
+op reduce_window_min(input: tensor, init: tensor) -> tensor {
+        attrs {
+            window_dimensions: index[]; window_strides: index[];
+            base_dilations: index[]; window_dilations: index[];
+            padding_low: index[]; padding_high: index[];
+        }
+    }
+
+op reduce_window_max(input: tensor, init: tensor) -> tensor {
+        attrs {
+            window_dimensions: index[]; window_strides: index[];
+            base_dilations: index[]; window_dilations: index[];
+            padding_low: index[]; padding_high: index[];
+        }
+    }
+
+op general_convolution(lhs: tensor, rhs: tensor) -> tensor {
+        attrs {
+            window_strides: index[]; padding_low: index[]; padding_high: index[];
+            lhs_dilation: index[]; rhs_dilation: index[]; window_reversal: bool[];
+            input_batch_dimension: index; input_feature_dimension: index;
+            input_spatial_dimensions: index[];
+            kernel_input_feature_dimension: index; kernel_output_feature_dimension: index;
+            kernel_spatial_dimensions: index[];
+            output_batch_dimension: index; output_feature_dimension: index;
+            output_spatial_dimensions: index[];
+            feature_group_count: index; batch_group_count: index;
+            precision_config: precision[]; shape: index[];
+        }
+    }
+}

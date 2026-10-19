@@ -1,0 +1,5 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule negative_subtract_to_add { (subtract X Y) => (add X Y) }

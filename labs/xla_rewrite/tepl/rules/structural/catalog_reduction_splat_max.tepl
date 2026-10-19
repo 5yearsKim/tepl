@@ -1,0 +1,10 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: reduction-splat-max
+// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_reduction_splat_max {
+    X: [] Init: []
+     (hlo.reduce_max[@r] (hlo.broadcast[@b] X) Init) => (hlo.maximum X Init)
+     where { @b.dimensions==[] && product(@b.new_extents)>0 && @r.dimensions==range(len(@b.new_extents)) }
+}

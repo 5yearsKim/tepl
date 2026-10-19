@@ -1,0 +1,6 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_maximum_nested_right {
+    (hlo.maximum X (hlo.maximum X Y)) => (hlo.maximum X Y)
+}

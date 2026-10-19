@@ -1,0 +1,9 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: indexing-update-zero-index
+// Scope: Rank-one, full-shape update; start becomes zero.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_update_zero_index {
+    X: [N] Y: [N] Start: i32[]
+     (hlo.dynamic_update_slice X Y Start) => (hlo.dynamic_update_slice X Y 0:i32)
+}

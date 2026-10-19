@@ -1,0 +1,15 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// elementwise-power-two: a splat represented by the existing fill declaration.
+// Read the declared scalar attribute; no tensor-payload inspection is required.
+rule native_power_two_splat {
+    dtype T;
+    X: T[Dims...]
+    (hlo.power X (hlo.fill[@exponent])) => (hlo.multiply X X)
+    where {
+        is_numeric(T)
+        && @exponent.element_type == T
+        && @exponent.shape == Dims
+        && @exponent.value == 2
+    }
+}

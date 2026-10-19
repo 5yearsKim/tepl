@@ -1,0 +1,329 @@
+// Local HLO evaluation dialect. Structural profile: matching dtype/attribute interfaces, without value semantics.
+// Algebraic proofs use the declared ideal arithmetic model, not IEEE equivalence.
+dialect HLO {
+
+op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+    }
+
+op multiply(lhs: tensor, rhs: tensor) -> tensor {
+        alias: mul;
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+    }
+
+op negate(input: tensor) -> tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+    }
+
+op subtract(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) { assert a == b; assert is_numeric(a); yield a; }
+    }
+
+op zero_like(input: tensor) -> tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+    }
+
+op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+
+        alias: dot;
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        attrs {
+
+            lhs_contracting_dimensions: index[];
+            rhs_contracting_dimensions: index[];
+            lhs_batching_dimensions: index[];
+            rhs_batching_dimensions: index[];
+        }
+    }
+
+op convolution(input: tensor, kernel: tensor) -> tensor {
+        alias: conv;
+        attrs {
+            strides: index[];
+            dilations: index[];
+        }
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+    }
+
+op slice(input: tensor) -> tensor {
+        attrs {
+            starts: index[];
+            sizes: index[];
+            strides: index[];
+        }
+        dtype(t) { yield t; }
+    }
+
+op broadcast_in_dim(input: tensor) -> tensor {
+        alias: broadcast;
+        attrs {
+            dimensions: index[];
+            new_extents: index[];
+        }
+        dtype(t) { yield t; }
+    }
+
+op transpose(input: tensor) -> tensor {
+        attrs {
+            permutation: index[];
+        }
+        dtype(t) {
+            yield t;
+        }
+    }
+
+op reverse(input: tensor) -> tensor {
+        attrs { dimensions: index[]; }
+        dtype(t) { yield t; }
+    }
+
+op reduce_sum(input: tensor) -> tensor {
+        attrs {
+            dimensions: index[];
+        }
+        dtype(t) {
+            assert is_numeric(t);
+            yield t;
+        }
+    }
+
+    op divide(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+    }
+
+    op exp(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+    }
+
+    op log(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+    }
+
+    op sqrt(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+    }
+
+    op rsqrt(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+    }
+
+    op abs(input: tensor) -> tensor {
+        dtype(a) {assert is_numeric(a); yield a;}
+    }
+
+    op power(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+    }
+
+    op maximum(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+    }
+
+    op minimum(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+    }
+
+    op logical_not(input: tensor) -> tensor {
+        dtype(a) {assert a == bool; yield bool;}
+    }
+
+    op logical_and(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == bool; assert b == bool; yield bool;}
+    }
+
+    op logical_or(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == bool; assert b == bool; yield bool;}
+    }
+
+    op logical_xor(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == bool; assert b == bool; yield bool;}
+    }
+
+op real(input: tensor) -> tensor;
+
+op imag(input: tensor) -> tensor;
+
+op complex(lhs: tensor, rhs: tensor) -> tensor;
+
+    op select(pred: tensor, lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b,c) {assert a == bool; assert b == c; yield b;}
+    }
+
+    op remainder(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a,b) {assert a == b; assert is_numeric(a); yield a;}
+    }
+
+op reshape(input: tensor) -> tensor {
+        attrs { shape: index[]; }
+        shape(s) { assert product(s) == product(attrs.shape); yield attrs.shape; }
+    }
+
+op concatenate(inputs: tensor...) -> tensor {
+        attrs { dimension: index; }
+    }
+
+op pad(input: tensor, value: tensor) -> tensor {
+        attrs { low: i64[]; high: i64[]; interior: index[]; }
+    }
+
+op nonnegative_pad(input: tensor, value: tensor) -> tensor {
+        attrs { low: index[]; high: index[]; interior: index[]; }
+    }
+
+op dynamic_slice(input: tensor, starts: tensor...) -> tensor {
+        attrs { sizes: index[]; }
+    }
+
+op dynamic_update_slice(input: tensor, update: tensor, starts: tensor...) -> tensor;
+
+op reduce(input: tensor, init: tensor) -> tensor {
+        attrs { dimensions: index[]; body: region; }
+    }
+
+op convert(input: tensor) -> tensor { attrs { to: dtype; } }
+
+    op compare(lhs: tensor, rhs: tensor) -> tensor {
+        attrs {direction: index;}
+        dtype(a,b) {assert a == b; assert is_numeric(a) || a == bool; yield bool;}
+    }
+
+    op clamp(low: tensor, input: tensor, high: tensor) -> tensor {
+        dtype(a,b,c) {assert a == b; assert b == c; assert is_numeric(a); yield a;}
+    }
+
+    op cbrt(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+    }
+
+    op erf(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+    }
+
+    op logistic(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+    }
+
+    op tanh(input: tensor) -> tensor {
+        dtype(a) {assert is_float(a); yield a;}
+    }
+
+op fill() -> tensor {
+        attrs { shape: index[]; value: i64; element_type: dtype; }
+        dtype() { yield attrs.element_type; }
+        shape() { yield attrs.shape; }
+    }
+
+op scalar() -> tensor {
+        attrs { value: index; element_type: dtype; shape: index[]; }
+        dtype() { yield attrs.element_type; }
+        shape() { yield attrs.shape; }
+    }
+
+op iota() -> tensor {
+        attrs { shape: index[]; dimension: index; element_type: dtype; }
+        dtype() { yield attrs.element_type; }
+        shape() { yield attrs.shape; }
+    }
+
+op rotate(input: tensor) -> tensor { attrs { dimensions: index[]; shifts: index[]; } }
+
+op scatter(input: tensor, indices: tensor, updates: tensor) -> tensor {
+        attrs {
+            update_window_dims: index[]; inserted_window_dims: index[];
+            scatter_dims_to_operand_dims: index[]; index_vector_dim: index;
+            input_batching_dims: index[]; scatter_indices_batching_dims: index[];
+            indices_are_sorted: bool; unique_indices: bool; body: region;
+        }
+    }
+
+op scatter_add(input: tensor, indices: tensor, updates: tensor) -> tensor {
+        attrs {
+            update_window_dims: index[]; inserted_window_dims: index[];
+            scatter_dims_to_operand_dims: index[]; index_vector_dim: index;
+            input_batching_dims: index[]; scatter_indices_batching_dims: index[];
+            indices_are_sorted: bool; unique_indices: bool;
+        }
+    }
+
+op gather(input: tensor, indices: tensor) -> tensor {
+        attrs {
+            offset_dims: index[]; collapsed_slice_dims: index[];
+            start_index_map: index[]; index_vector_dim: index; slice_sizes: index[];
+            operand_batching_dims: index[]; start_indices_batching_dims: index[];
+            shape: index[];
+        }
+    }
+
+op map(lhs: tensor, rhs: tensor) -> tensor { attrs { body: region; } }
+
+op reduce_min(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+
+op reduce_max(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+
+op reduce_and(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+
+op reduce_or(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+
+op reduce_window(input: tensor, init: tensor) -> tensor {
+        attrs {
+            window_dimensions: index[]; window_strides: index[];
+            base_dilations: index[]; window_dilations: index[];
+            padding_low: index[]; padding_high: index[]; body: region;
+        }
+    }
+
+op reduce_window_sum(input: tensor, init: tensor) -> tensor {
+        attrs {
+            window_dimensions: index[]; window_strides: index[];
+            base_dilations: index[]; window_dilations: index[];
+            padding_low: index[]; padding_high: index[];
+        }
+    }
+
+op reduce_window_min(input: tensor, init: tensor) -> tensor {
+        attrs {
+            window_dimensions: index[]; window_strides: index[];
+            base_dilations: index[]; window_dilations: index[];
+            padding_low: index[]; padding_high: index[];
+        }
+    }
+
+op reduce_window_max(input: tensor, init: tensor) -> tensor {
+        attrs {
+            window_dimensions: index[]; window_strides: index[];
+            base_dilations: index[]; window_dilations: index[];
+            padding_low: index[]; padding_high: index[];
+        }
+    }
+
+op general_convolution(lhs: tensor, rhs: tensor) -> tensor {
+        attrs {
+            window_strides: index[]; padding_low: index[]; padding_high: index[];
+            lhs_dilation: index[]; rhs_dilation: index[]; window_reversal: bool[];
+            input_batch_dimension: index; input_feature_dimension: index;
+            input_spatial_dimensions: index[];
+            kernel_input_feature_dimension: index; kernel_output_feature_dimension: index;
+            kernel_spatial_dimensions: index[];
+            output_batch_dimension: index; output_feature_dimension: index;
+            output_spatial_dimensions: index[];
+            feature_group_count: index; batch_group_count: index;
+            precision_config: precision[]; shape: index[];
+        }
+    }
+}

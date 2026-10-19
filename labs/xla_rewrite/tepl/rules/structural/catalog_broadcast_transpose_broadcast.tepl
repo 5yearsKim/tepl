@@ -1,0 +1,17 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: broadcast-transpose-broadcast
+// Scope: General insertion-only broadcast/permutation equation; source sorted-map/layout policy remains in the catalog.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_transpose_broadcast {
+    X: [Dims...]
+     (hlo.transpose[@p] (hlo.broadcast[@b] X)) => (hlo.broadcast[@out] X)
+     derive {
+      let inv = [sum([if @p.permutation[j] == i then j else 0 for j in range(len(@p.permutation))]) for i in range(len(@p.permutation))];
+      let d = gather(inv,@b.dimensions);
+      let oldnew = exclude(range(len(@p.permutation)),@b.dimensions);
+      let newpos = exclude(range(len(@p.permutation)),d);
+      let oldshape = [if contains(@b.dimensions,i) then sum([if @b.dimensions[j]==i then Dims[j] else 0 for j in range(len(Dims))]) else @b.new_extents[sum([if k<i then 1 else 0 for k in oldnew])] for i in range(len(@p.permutation))];
+      @out = { dimensions: d, new_extents: gather(gather(oldshape,@p.permutation),newpos) };
+     }
+}

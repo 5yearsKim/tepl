@@ -1,0 +1,11 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: convolution-swap-operands
+// Scope: One spatial axis, unit strides/dilations, nonnegative transformed padding; kernel reversal, role swap and precision swap are explicit.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_convolution_swap_operands {
+    X: [N,L,C] W: [K,C,F]
+     (hlo.general_convolution[@c] X W) => (hlo.general_convolution[@out] (hlo.reverse[@rev] W) X)
+     where { L>0 && K>L && @c.padding_low[0]+L>=K && @c.padding_high[0]+L>=K && @c.feature_group_count==1 && @c.batch_group_count==1 && @c.window_strides==[1] && @c.lhs_dilation==[1] && @c.rhs_dilation==[1] && @c.window_reversal==[false] && len(@c.precision_config)==2 && @c.input_batch_dimension==0 && @c.input_feature_dimension==2 && @c.input_spatial_dimensions==[1] && @c.kernel_input_feature_dimension==1 && @c.kernel_output_feature_dimension==2 && @c.kernel_spatial_dimensions==[0] && @c.output_batch_dimension==0 && @c.output_feature_dimension==2 && @c.output_spatial_dimensions==[1] }
+     derive { @rev={dimensions:[0]}; @out={..@c,padding_low:[L+@c.padding_low[0]-K],padding_high:[L+@c.padding_high[0]-K],window_reversal:[true],input_batch_dimension:2,input_feature_dimension:1,input_spatial_dimensions:[0],kernel_input_feature_dimension:2,kernel_output_feature_dimension:0,kernel_spatial_dimensions:[1],output_batch_dimension:2,output_feature_dimension:0,output_spatial_dimensions:[1],precision_config:gather(@c.precision_config,[1,0])}; }
+}

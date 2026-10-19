@@ -1,0 +1,10 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: indexing-iota-trivial
+// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_iota_trivial {
+    (hlo.iota[@i]) => (hlo.fill[@z])
+     where { @i.shape[@i.dimension]<=1 }
+     derive { @z={shape:@i.shape,value:0,element_type:@i.element_type}; }
+}

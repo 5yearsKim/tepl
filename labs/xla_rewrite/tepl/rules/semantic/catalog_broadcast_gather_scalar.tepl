@@ -1,0 +1,11 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-gather-scalar
+// Scope: Effective-scalar operand; result shape is adapter metadata on gather.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_gather_scalar {
+    dtype T; X: T[Dims...]
+     (let R = (hlo.gather[@g] X Indices)) => (hlo.broadcast[@b] (hlo.reshape[@r] X))
+     where { product(Dims)==1 }
+     derive { @r={shape:[]}; @b={dimensions:[],new_extents:@g.shape}; }
+}

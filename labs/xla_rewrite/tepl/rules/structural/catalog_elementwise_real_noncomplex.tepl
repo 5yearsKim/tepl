@@ -1,0 +1,8 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: elementwise-real-noncomplex
+// Scope: Noncomplex f32 inputs of arbitrary rank.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_real_noncomplex {
+    X: f32[Dims...] (hlo.real X) => X
+}

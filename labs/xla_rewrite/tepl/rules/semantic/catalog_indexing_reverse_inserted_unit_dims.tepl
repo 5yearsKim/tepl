@@ -1,0 +1,11 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: indexing-reverse-inserted-unit-dims
+// Scope: Insert one leading unit axis into rank-one input.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_reverse_inserted_unit_dims {
+    X: [N]
+     (hlo.reverse[@r] (hlo.reshape[@shape] X)) => (hlo.reshape[@shape] (hlo.reverse[@out] X))
+     where { @shape.shape==[1,N] }
+     derive { @out={dimensions:[d-1 for d in exclude(@r.dimensions,[0])]}; }
+}

@@ -1,0 +1,1323 @@
+{
+  "schema_version": 1,
+  "coverage_unit": "Every AlgebraicSimplifierVisitor method definition in the pinned .cc, including overloads. Free helpers are traced through their callers; the external convolution swap implementation is also captured.",
+  "methods": [
+    {
+      "symbol": "IsNonNegative",
+      "line": 571,
+      "end_line": 638,
+      "status": "support",
+      "reason": "Type-aware range analysis used in abs, compare, powers, and roots; not a separate rewrite.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ResetState",
+      "line": 640,
+      "end_line": 644,
+      "status": "support",
+      "reason": "Visitor lifecycle.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "Run",
+      "line": 646,
+      "end_line": 652,
+      "status": "support",
+      "reason": "Visitor dispatch/lifecycle.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "SameShape",
+      "line": 654,
+      "end_line": 657,
+      "status": "support",
+      "reason": "Replacement compatibility checks.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "SameShape",
+      "line": 659,
+      "end_line": 665,
+      "status": "support",
+      "reason": "Replacement compatibility checks.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ScalarMultiplyReduction",
+      "line": 704,
+      "end_line": 853,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-scalar-multipliers"
+      ]
+    },
+    {
+      "symbol": "ReplaceWithBitcast",
+      "line": 855,
+      "end_line": 867,
+      "status": "excluded",
+      "reason": "Physical replacement helper.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ReplaceInstructionIfCompatible",
+      "line": 872,
+      "end_line": 891,
+      "status": "support",
+      "reason": "Shape/type/layout compatibility and graph replacement, including variadic results.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ReplaceInstructionIfCompatible",
+      "line": 893,
+      "end_line": 925,
+      "status": "support",
+      "reason": "Shape/type/layout compatibility and graph replacement, including variadic results.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleAbs",
+      "line": 927,
+      "end_line": 935,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-abs-nonnegative"
+      ]
+    },
+    {
+      "symbol": "HandleAdd",
+      "line": 937,
+      "end_line": 1273,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-add-constant-order",
+        "elementwise-add-constants",
+        "elementwise-add-subtract-cancel",
+        "elementwise-add-zero",
+        "elementwise-factor-common-product",
+        "elementwise-subtract-add-constants",
+        "indexing-add-scatter",
+        "indexing-add-sparse-update",
+        "indexing-add-two-scatters-concat",
+        "indexing-add-two-scatters-nested"
+      ]
+    },
+    {
+      "symbol": "TrySimplifyTautologicalCompare",
+      "line": 1275,
+      "end_line": 1317,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-and-upper-bounds"
+      ]
+    },
+    {
+      "symbol": "HandleAllGather",
+      "line": 1319,
+      "end_line": 1329,
+      "status": "excluded",
+      "reason": "Distributed collective semantics; communication and replica topology are outside this logical tensor catalog.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleAllToAll",
+      "line": 1331,
+      "end_line": 1339,
+      "status": "excluded",
+      "reason": "Distributed collective replacement; communication topology is outside scope.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleAllReduceOrReduceScatter",
+      "line": 1341,
+      "end_line": 1405,
+      "status": "excluded",
+      "reason": "Distributed collective reduction and replica groups are outside scope.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleAllReduce",
+      "line": 1407,
+      "end_line": 1410,
+      "status": "excluded",
+      "reason": "Collective wrapper; see HandleAllReduceOrReduceScatter.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleReduceScatter",
+      "line": 1412,
+      "end_line": 1415,
+      "status": "excluded",
+      "reason": "Collective wrapper; see HandleAllReduceOrReduceScatter.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleAnd",
+      "line": 1417,
+      "end_line": 1460,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-and-true",
+        "elementwise-and-zero"
+      ]
+    },
+    {
+      "symbol": "HandleBitcast",
+      "line": 1462,
+      "end_line": 1553,
+      "status": "excluded",
+      "reason": "Physical storage reinterpretation/layout transformations; logical reshape/transpose variants are cataloged separately.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ComputeBitcastDimMap",
+      "line": 1565,
+      "end_line": 1638,
+      "status": "excluded",
+      "reason": "Physical bitcast/layout helper.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ReshapeLayoutDimensions",
+      "line": 1640,
+      "end_line": 1719,
+      "status": "excluded",
+      "reason": "Physical copy/bitcast layout helper.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "InvertBitcastDimMap",
+      "line": 1722,
+      "end_line": 1737,
+      "status": "excluded",
+      "reason": "Physical bitcast mapping helper.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "SwapCopyBitcastCopy",
+      "line": 1739,
+      "end_line": 1811,
+      "status": "excluded",
+      "reason": "Physical copy and bitcast reordering.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleBitcastConvert",
+      "line": 1813,
+      "end_line": 1868,
+      "status": "excluded",
+      "reason": "Bit representation and type-width canonicalization.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleCopy",
+      "line": 1870,
+      "end_line": 2015,
+      "status": "excluded",
+      "reason": "Physical copies, memory spaces, layout conversion, and bitcast/copy chains.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleConcatenate",
+      "line": 2017,
+      "end_line": 2197,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-concat-repeat-unit-axis",
+        "indexing-concat-adjacent-slices",
+        "indexing-concat-empty",
+        "indexing-concat-flatten",
+        "indexing-concat-splat-to-pad",
+        "indexing-concat-unary"
+      ]
+    },
+    {
+      "symbol": "TrySimplifyTautologicalBitcastConvert",
+      "line": 2200,
+      "end_line": 2226,
+      "status": "excluded",
+      "reason": "Bit representation/type conversion helper.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "TryRemoveUpcastAndDowncastSurroundingBinaryOp",
+      "line": 2229,
+      "end_line": 2303,
+      "status": "excluded",
+      "reason": "Type promotion/demotion and representability-specific transformation.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleConstant",
+      "line": 2321,
+      "end_line": 2366,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-literal-splat",
+        "indexing-literal-iota",
+        "indexing-literal-strided-iota"
+      ]
+    },
+    {
+      "symbol": "HandleSubtract",
+      "line": 2368,
+      "end_line": 2440,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-add-subtract-cancel-right",
+        "elementwise-subtract-add-cancel",
+        "elementwise-subtract-constant",
+        "elementwise-subtract-self",
+        "elementwise-subtract-subtract-cancel",
+        "elementwise-subtract-zero"
+      ]
+    },
+    {
+      "symbol": "HandleDivide",
+      "line": 2506,
+      "end_line": 2702,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-divide-broadcast",
+        "elementwise-divide-constant",
+        "elementwise-divide-converted-predicate",
+        "elementwise-divide-exponential",
+        "elementwise-divide-exponentials",
+        "elementwise-divide-left-quotient",
+        "elementwise-divide-one",
+        "elementwise-divide-power",
+        "elementwise-divide-power-two-signed",
+        "elementwise-divide-power-two-unsigned",
+        "elementwise-divide-right-quotient",
+        "elementwise-divide-rsqrt",
+        "elementwise-divide-sqrt",
+        "elementwise-divide-two-quotients"
+      ]
+    },
+    {
+      "symbol": "RemoveDegenerateDimensionFromDot",
+      "line": 2705,
+      "end_line": 2784,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-drop-unit-dims"
+      ]
+    },
+    {
+      "symbol": "SimplifyTransposeOfBroadcast",
+      "line": 2797,
+      "end_line": 2862,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-transpose-broadcast"
+      ]
+    },
+    {
+      "symbol": "RemoveTransposesFromDotOperands",
+      "line": 2865,
+      "end_line": 2925,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-transpose-both-operands"
+      ]
+    },
+    {
+      "symbol": "MoveDotParamToRhs",
+      "line": 2943,
+      "end_line": 2993,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-swap-parameter-operand"
+      ]
+    },
+    {
+      "symbol": "NormalizeDotOperandToBatchMajorAndContractingMinor",
+      "line": 2996,
+      "end_line": 3014,
+      "status": "support",
+      "reason": "Axis ordering helper for dot multiply/reduce lowering.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "AddReduce",
+      "line": 3016,
+      "end_line": 3026,
+      "status": "support",
+      "reason": "Build additive reduction with zero init for dot transformations.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "OptimizeDotOfConcat",
+      "line": 3028,
+      "end_line": 3052,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-concat-contraction"
+      ]
+    },
+    {
+      "symbol": "OptimizeDotOfConcatHelper",
+      "line": 3055,
+      "end_line": 3170,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-concat-contraction"
+      ]
+    },
+    {
+      "symbol": "OptimizeDotOfGather",
+      "line": 3172,
+      "end_line": 3299,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-constant-dynamic-slice"
+      ]
+    },
+    {
+      "symbol": "OptimizeDotOfReorderContractingDims",
+      "line": 3311,
+      "end_line": 3517,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-move-contracting-permutation"
+      ]
+    },
+    {
+      "symbol": "AssociativeReorderDotOperator",
+      "line": 3522,
+      "end_line": 3781,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-move-broadcast",
+        "dot-move-reverse",
+        "dot-move-zero-pad"
+      ]
+    },
+    {
+      "symbol": "RewriteAsMultiplyDotWithZeroLhsContractingDim",
+      "line": 3784,
+      "end_line": 3827,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-no-contraction"
+      ]
+    },
+    {
+      "symbol": "AssociativeReorderNestedDot",
+      "line": 3830,
+      "end_line": 4180,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-associate"
+      ]
+    },
+    {
+      "symbol": "RewriteBatchPlusContractingAsReduce",
+      "line": 4182,
+      "end_line": 4243,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-reduce-product"
+      ]
+    },
+    {
+      "symbol": "SupportedDotPrecisionConfig",
+      "line": 4245,
+      "end_line": 4250,
+      "status": "support",
+      "reason": "Dot algorithm eligibility check.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "MakeMultiplyForPrecisionAlgorithm",
+      "line": 4253,
+      "end_line": 4256,
+      "status": "support",
+      "reason": "Build the product in dot strength reduction.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleDot",
+      "line": 4258,
+      "end_line": 4390,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-associate",
+        "dot-concat-contraction",
+        "dot-constant-dynamic-slice",
+        "dot-drop-unit-dims",
+        "dot-empty",
+        "dot-move-broadcast",
+        "dot-move-contracting-permutation",
+        "dot-move-reverse",
+        "dot-move-zero-pad",
+        "dot-no-contraction",
+        "dot-reduce-product",
+        "dot-swap-parameter-operand",
+        "dot-transpose-both-operands"
+      ]
+    },
+    {
+      "symbol": "HandleGather",
+      "line": 4514,
+      "end_line": 4738,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-gather-scalar",
+        "indexing-gather-empty",
+        "indexing-gather-pad",
+        "indexing-gather-reshape-pad",
+        "indexing-gather-small"
+      ]
+    },
+    {
+      "symbol": "IsNondecreasingSublinear",
+      "line": 4788,
+      "end_line": 4799,
+      "status": "support",
+      "reason": "Opcode whitelist supporting the max/unary rule.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleMaximum",
+      "line": 4801,
+      "end_line": 4910,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-max-clamp-bound",
+        "elementwise-max-identity",
+        "elementwise-max-min-clamp",
+        "elementwise-max-monotone",
+        "elementwise-max-nested-left",
+        "elementwise-max-nested-right",
+        "elementwise-max-nested-right-reorder",
+        "elementwise-max-self"
+      ]
+    },
+    {
+      "symbol": "HandleMinimum",
+      "line": 4912,
+      "end_line": 4979,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-min-identity",
+        "elementwise-min-max-clamp",
+        "elementwise-min-nested-left",
+        "elementwise-min-nested-right",
+        "elementwise-min-nested-right-reorder",
+        "elementwise-min-self"
+      ]
+    },
+    {
+      "symbol": "HandleClamp",
+      "line": 4981,
+      "end_line": 5016,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-clamp-clamp"
+      ]
+    },
+    {
+      "symbol": "TryToReorderConvAddMultiply",
+      "line": 5018,
+      "end_line": 5061,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "convolution-scale-filter-bias"
+      ]
+    },
+    {
+      "symbol": "HandleMultiply",
+      "line": 5063,
+      "end_line": 5293,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-multiply-constant-into-broadcast",
+        "elementwise-multiply-constant-pairs",
+        "elementwise-multiply-constants",
+        "elementwise-multiply-exponentials",
+        "elementwise-multiply-negatives",
+        "elementwise-multiply-one",
+        "elementwise-multiply-predicate",
+        "elementwise-multiply-zero",
+        "elementwise-square-abs",
+        "elementwise-square-rsqrt",
+        "elementwise-square-sqrt"
+      ]
+    },
+    {
+      "symbol": "HandleNegate",
+      "line": 5295,
+      "end_line": 5303,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-double-negate"
+      ]
+    },
+    {
+      "symbol": "HandleNot",
+      "line": 5305,
+      "end_line": 5314,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-double-not"
+      ]
+    },
+    {
+      "symbol": "HandleOr",
+      "line": 5316,
+      "end_line": 5350,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-or-true",
+        "elementwise-or-zero"
+      ]
+    },
+    {
+      "symbol": "HandleXor",
+      "line": 5352,
+      "end_line": 5385,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-xor-self",
+        "elementwise-xor-zero"
+      ]
+    },
+    {
+      "symbol": "HandleLog",
+      "line": 5387,
+      "end_line": 5436,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-log-exp",
+        "elementwise-log-power",
+        "elementwise-log-rsqrt",
+        "elementwise-log-sqrt"
+      ]
+    },
+    {
+      "symbol": "HandleGetTupleElement",
+      "line": 5438,
+      "end_line": 5453,
+      "status": "excluded",
+      "reason": "Tuple projection and annotation/representation bookkeeping.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleOptimizationBarrier",
+      "line": 5455,
+      "end_line": 5530,
+      "status": "excluded",
+      "reason": "Unused tuple elements and barrier bookkeeping.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleBroadcast",
+      "line": 5650,
+      "end_line": 5785,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-compose",
+        "broadcast-drop-unit-dims",
+        "broadcast-inserted-unit-dims",
+        "broadcast-iota",
+        "broadcast-reshape",
+        "broadcast-scalar-through-indexing",
+        "broadcast-transpose"
+      ]
+    },
+    {
+      "symbol": "HandleCompare",
+      "line": 5787,
+      "end_line": 5931,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-compare-max",
+        "elementwise-compare-min",
+        "elementwise-compare-nonnegative-zero",
+        "elementwise-compare-predicate-false",
+        "elementwise-compare-predicate-true",
+        "elementwise-compare-selected-mask",
+        "elementwise-compare-self"
+      ]
+    },
+    {
+      "symbol": "HandleConvert",
+      "line": 5933,
+      "end_line": 5977,
+      "status": "excluded",
+      "reason": "Type conversion, constant conversion, and upcast/downcast elimination.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleCustomCall",
+      "line": 5979,
+      "end_line": 6017,
+      "status": "excluded",
+      "reason": "XLA-specific custom calls: dynamic-shape annotations and layout constraints.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleExp",
+      "line": 6019,
+      "end_line": 6027,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-exp-zero"
+      ]
+    },
+    {
+      "symbol": "HandleComplex",
+      "line": 6030,
+      "end_line": 6038,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-complex-components"
+      ]
+    },
+    {
+      "symbol": "HandleReal",
+      "line": 6041,
+      "end_line": 6051,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-real-complex",
+        "elementwise-real-noncomplex"
+      ]
+    },
+    {
+      "symbol": "HandleImag",
+      "line": 6054,
+      "end_line": 6065,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-imag-complex",
+        "elementwise-imag-noncomplex"
+      ]
+    },
+    {
+      "symbol": "HandleIota",
+      "line": 6067,
+      "end_line": 6076,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-iota-trivial"
+      ]
+    },
+    {
+      "symbol": "HandlePad",
+      "line": 6078,
+      "end_line": 6283,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-pad-broadcast",
+        "indexing-pad-empty",
+        "indexing-pad-identity",
+        "indexing-pad-interior-unit",
+        "indexing-pad-negative"
+      ]
+    },
+    {
+      "symbol": "HandlePower",
+      "line": 6285,
+      "end_line": 6342,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-power-exp",
+        "elementwise-power-half",
+        "elementwise-power-one",
+        "elementwise-power-reciprocal",
+        "elementwise-power-three",
+        "elementwise-power-two",
+        "elementwise-power-zero"
+      ]
+    },
+    {
+      "symbol": "TryToSinkBroadcastAfterElementwiseOps",
+      "line": 6345,
+      "end_line": 6428,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-elementwise"
+      ]
+    },
+    {
+      "symbol": "HandleRemainder",
+      "line": 6494,
+      "end_line": 6584,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-remainder-compose",
+        "elementwise-remainder-power-two-signed",
+        "elementwise-remainder-power-two-unsigned",
+        "indexing-remainder-iota",
+        "indexing-remainder-offset-iota"
+      ]
+    },
+    {
+      "symbol": "TryRemovingBitcastOrReshapeTransposeChain",
+      "line": 6587,
+      "end_line": 6744,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "transpose-reshape-reshape-transpose-cancel-chain"
+      ]
+    },
+    {
+      "symbol": "TryHoistTransposeOfReshape",
+      "line": 6747,
+      "end_line": 6789,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "transpose-reshape-reshape-hoist-transpose"
+      ]
+    },
+    {
+      "symbol": "HandleReshape",
+      "line": 6791,
+      "end_line": 7078,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-reshape-broadcast",
+        "indexing-reshape-iota",
+        "indexing-reshape-update",
+        "transpose-reshape-reshape-compose",
+        "transpose-reshape-reshape-empty",
+        "transpose-reshape-reshape-hoist-transpose",
+        "transpose-reshape-reshape-identity",
+        "transpose-reshape-reshape-transpose-cancel-chain"
+      ]
+    },
+    {
+      "symbol": "HandleReverse",
+      "line": 7097,
+      "end_line": 7203,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-reverse-compose",
+        "indexing-reverse-elementwise",
+        "indexing-reverse-inserted-unit-dims",
+        "indexing-reverse-trivial"
+      ]
+    },
+    {
+      "symbol": "HandleShuffle",
+      "line": 7205,
+      "end_line": 7281,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-rotate-canonicalize",
+        "indexing-rotate-compose"
+      ]
+    },
+    {
+      "symbol": "TrySimplifyScalarSlice",
+      "line": 7283,
+      "end_line": 7333,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-slice-concat-scalar"
+      ]
+    },
+    {
+      "symbol": "TryToReorderSliceAndReshape",
+      "line": 7335,
+      "end_line": 7448,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-slice-reshape"
+      ]
+    },
+    {
+      "symbol": "TryToReorderSliceAndReverse",
+      "line": 7452,
+      "end_line": 7494,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-slice-reverse"
+      ]
+    },
+    {
+      "symbol": "RemoveRedundantStride",
+      "line": 7496,
+      "end_line": 7533,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-slice-singleton-stride"
+      ]
+    },
+    {
+      "symbol": "HandleSlice",
+      "line": 7535,
+      "end_line": 7997,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-slice-broadcast",
+        "broadcast-slice-broadcast-only",
+        "dot-slice-output",
+        "indexing-slice-compose",
+        "indexing-slice-concat",
+        "indexing-slice-concat-scalar",
+        "indexing-slice-identity",
+        "indexing-slice-inside-pad",
+        "indexing-slice-inside-update",
+        "indexing-slice-pad-cancel",
+        "indexing-slice-pad-only",
+        "indexing-slice-reshape",
+        "indexing-slice-reverse",
+        "indexing-slice-singleton-stride",
+        "indexing-slice-update-cancel",
+        "reduction-slice-window-to-reduce"
+      ]
+    },
+    {
+      "symbol": "HandleRsqrt",
+      "line": 7999,
+      "end_line": 8020,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-rsqrt-negative-power",
+        "elementwise-rsqrt-reciprocal"
+      ]
+    },
+    {
+      "symbol": "HandleDynamicSlice",
+      "line": 8022,
+      "end_line": 8309,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-dynamic-slice-broadcast",
+        "indexing-dynamic-slice-compose",
+        "indexing-dynamic-slice-identity",
+        "indexing-dynamic-slice-iota",
+        "indexing-dynamic-slice-static",
+        "indexing-dynamic-slice-transpose",
+        "indexing-dynamic-slice-unit-reshape",
+        "indexing-dynamic-slice-zero-index"
+      ]
+    },
+    {
+      "symbol": "HandleDynamicUpdateSlice",
+      "line": 8311,
+      "end_line": 8608,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-update-broadcast-to-pad",
+        "indexing-update-compose",
+        "indexing-update-empty",
+        "indexing-update-full",
+        "indexing-update-pad-to-concat",
+        "indexing-update-zero-index"
+      ]
+    },
+    {
+      "symbol": "BroadcastReduce",
+      "line": 8733,
+      "end_line": 8754,
+      "status": "support",
+      "reason": "Materialize scalar init values for empty reductions.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ReplaceReduceWithReshape",
+      "line": 8756,
+      "end_line": 8777,
+      "status": "support",
+      "reason": "Materialize unit-axis reduction replacements.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ReorderReduceDotToDotReduce",
+      "line": 8780,
+      "end_line": 8888,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-reduce-output-free"
+      ]
+    },
+    {
+      "symbol": "MergeReduces",
+      "line": 8890,
+      "end_line": 8918,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "reduction-compose"
+      ]
+    },
+    {
+      "symbol": "HandleReduce",
+      "line": 8920,
+      "end_line": 9426,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "dot-reduce-output-batch",
+        "reduction-argextreme-splat",
+        "reduction-broadcast-original-axes",
+        "reduction-broadcast-replication-axes",
+        "reduction-concat",
+        "reduction-empty",
+        "reduction-negate",
+        "reduction-reshape-free",
+        "reduction-reshape-reduced",
+        "reduction-reuse-argmax",
+        "reduction-reuse-argmin",
+        "reduction-splat-and",
+        "reduction-splat-max",
+        "reduction-splat-min",
+        "reduction-splat-or",
+        "reduction-transpose",
+        "reduction-unit-axes"
+      ]
+    },
+    {
+      "symbol": "HandleReducePrecision",
+      "line": 9428,
+      "end_line": 9444,
+      "status": "excluded",
+      "reason": "Floating-format precision metadata and no-op precision changes.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleReduceWindow",
+      "line": 9446,
+      "end_line": 9948,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-window-padded-unit-broadcast",
+        "reduction-window-empty",
+        "reduction-window-pad",
+        "reduction-window-scalar",
+        "reduction-window-singleton-add",
+        "reduction-window-singleton-max",
+        "reduction-window-singleton-min",
+        "reduction-window-splat-cumsum",
+        "reduction-window-to-reduce"
+      ]
+    },
+    {
+      "symbol": "HandleSelect",
+      "line": 9950,
+      "end_line": 10062,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-select-compare-eq",
+        "elementwise-select-compare-gt",
+        "elementwise-select-compare-lt",
+        "elementwise-select-compare-ne",
+        "elementwise-select-constant",
+        "elementwise-select-identical",
+        "elementwise-select-not",
+        "elementwise-select-predicate-identity",
+        "elementwise-select-predicate-not",
+        "indexing-select-update"
+      ]
+    },
+    {
+      "symbol": "HandleScatter",
+      "line": 10064,
+      "end_line": 10085,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-scatter-empty-update",
+        "indexing-scatter-scalar-map"
+      ]
+    },
+    {
+      "symbol": "HandleSort",
+      "line": 10087,
+      "end_line": 10100,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-sort-trivial"
+      ]
+    },
+    {
+      "symbol": "HandleSqrt",
+      "line": 10102,
+      "end_line": 10130,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "elementwise-sqrt-square"
+      ]
+    },
+    {
+      "symbol": "TryFoldTransposeIntoScatter",
+      "line": 10159,
+      "end_line": 10232,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "indexing-transpose-scatter"
+      ]
+    },
+    {
+      "symbol": "HandleTranspose",
+      "line": 10234,
+      "end_line": 10571,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "broadcast-transpose-broadcast",
+        "dot-transpose-output",
+        "indexing-transpose-scatter",
+        "transpose-reshape-reshape-transpose-cancel-chain",
+        "transpose-reshape-space-depth-to-slices",
+        "transpose-reshape-transpose-compose",
+        "transpose-reshape-transpose-identity",
+        "transpose-reshape-transpose-unit-dims"
+      ]
+    },
+    {
+      "symbol": "FoldConvInputPad",
+      "line": 10573,
+      "end_line": 10640,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "convolution-fold-input-pad"
+      ]
+    },
+    {
+      "symbol": "FoldConvFilterPad",
+      "line": 10642,
+      "end_line": 10709,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "convolution-fold-filter-pad"
+      ]
+    },
+    {
+      "symbol": "SwapConvOperands",
+      "line": 10711,
+      "end_line": 10724,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "convolution-swap-operands"
+      ]
+    },
+    {
+      "symbol": "PromoteConvolutionToF32IfNotOnednnCompatible",
+      "line": 10727,
+      "end_line": 10802,
+      "status": "excluded",
+      "reason": "CPU oneDNN compatibility and dtype promotion.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "SimplifyConvToDot",
+      "line": 10804,
+      "end_line": 10923,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "convolution-pointwise-dot"
+      ]
+    },
+    {
+      "symbol": "SimplifyConvToMultiply",
+      "line": 10925,
+      "end_line": 11034,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "convolution-depthwise-product"
+      ]
+    },
+    {
+      "symbol": "HandleConvolution",
+      "line": 11036,
+      "end_line": 11089,
+      "status": "cataloged",
+      "reason": "Logical rewrite schemas or their caller-side eligibility checks are linked below.",
+      "rule_ids": [
+        "convolution-depthwise-product",
+        "convolution-empty",
+        "convolution-fold-filter-pad",
+        "convolution-fold-input-pad",
+        "convolution-pointwise-dot",
+        "convolution-swap-operands"
+      ]
+    },
+    {
+      "symbol": "HandleMap",
+      "line": 11091,
+      "end_line": 11126,
+      "status": "excluded",
+      "reason": "Embedded-computation inlining and projection/constant-body elimination; language lowering rather than an algebraic tensor identity.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "HandleConditional",
+      "line": 11156,
+      "end_line": 11180,
+      "status": "excluded",
+      "reason": "Conditional predicate representation and control-flow canonicalization.",
+      "rule_ids": []
+    },
+    {
+      "symbol": "ShouldStrengthReduceDotToReduce",
+      "line": 11182,
+      "end_line": 11206,
+      "status": "support",
+      "reason": "CPU versus other-backend strength-reduction policy.",
+      "rule_ids": []
+    }
+  ],
+  "excluded_branches": [
+    {
+      "symbol": "HandleConstant",
+      "branch": "Tuple-literal expansion",
+      "reason": "Tuple representation lowering; scalar splat and iota identities are retained."
+    },
+    {
+      "symbol": "HandleClamp",
+      "branch": "ReplicaId/PartitionId bounds",
+      "reason": "Distributed runtime configuration, rather than pure tensor operands."
+    },
+    {
+      "symbol": "HandleReshape",
+      "branch": "RNG output-shape mutation",
+      "reason": "Stateful/random generation semantics."
+    },
+    {
+      "symbol": "HandleReshape",
+      "branch": "Copy/layout/bitcast rewrites",
+      "reason": "Physical representation and memory-space transformations."
+    },
+    {
+      "symbol": "HandleTranspose",
+      "branch": "RNG output-shape mutation",
+      "reason": "Stateful/random generation semantics."
+    },
+    {
+      "symbol": "HandleTranspose",
+      "branch": "Transpose-to-physical-bitcast",
+      "reason": "Physical layout implementation of an otherwise unchanged logical transpose."
+    },
+    {
+      "symbol": "TryRemovingBitcastOrReshapeTransposeChain",
+      "branch": "Physical-bitcast variants",
+      "reason": "Catalog includes the logical reshape/transpose cancellation schema only."
+    },
+    {
+      "symbol": "HandleReduce",
+      "branch": "Unary variadic tuple unwrapping",
+      "reason": "Tuple/computation representation; empty and unit-axis reductions retain their componentwise variants."
+    },
+    {
+      "symbol": "HandleReduceWindow",
+      "branch": "Unary variadic tuple unwrapping",
+      "reason": "Tuple/computation representation; empty/scalar windows retain their componentwise variants."
+    },
+    {
+      "symbol": "HandleDot",
+      "branch": "Sharding annotations",
+      "reason": "Recorded as source policy where applicable; distributed execution semantics are outside scope."
+    }
+  ],
+  "shared_helpers": [
+    {
+      "symbol": "TryDivideToShift",
+      "reason": "Signed/unsigned division by powers of two; referenced by the corresponding entries."
+    },
+    {
+      "symbol": "TryRemainderToAnd",
+      "reason": "Signed/unsigned remainder by powers of two; referenced by the corresponding entries."
+    },
+    {
+      "symbol": "MinMaxToClamp",
+      "reason": "Literal bound ordering and clamp construction for both min/max patterns."
+    },
+    {
+      "symbol": "ConstructToDotMaps / ConstructFromDotMaps",
+      "reason": "Coordinate correspondences for dot reassociation, slices, and reductions."
+    },
+    {
+      "symbol": "CheckPaddedDimsForGatherOfPad",
+      "reason": "Passthrough and explicitly batched gather/pad eligibility; see HandleGather."
+    },
+    {
+      "symbol": "ReductionComputationsEquivalent / MatchArgMin / MatchArgMax",
+      "reason": "Reduction-combiner equivalence and recognized argument-extreme patterns."
+    },
+    {
+      "symbol": "FindContiguousChunks / IsContiguousChunk",
+      "reason": "Reshape/transpose chunk correspondence."
+    },
+    {
+      "symbol": "IsAll / IsAllFloat / IsPositive / IsAllFpConstantPowerOf2",
+      "reason": "Value/type predicates; they do not count as separate rewrites."
+    },
+    {
+      "symbol": "SwapConvolutionOperandsIfBeneficial",
+      "reason": "Delegated convolution algebraic transformation, cataloged with its implementation source."
+    }
+  ]
+}

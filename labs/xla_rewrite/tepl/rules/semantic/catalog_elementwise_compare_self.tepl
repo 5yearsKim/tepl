@@ -1,0 +1,9 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-compare-self
+// Scope: Integral scalar EQ/GE/LE cases; false-result directions can use a separate rule.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_compare_self {
+    X: i32[] (hlo.compare[@c] X X) => 1:bool
+     where { @c.direction == 0 || @c.direction == 2 || @c.direction == 4 }
+}

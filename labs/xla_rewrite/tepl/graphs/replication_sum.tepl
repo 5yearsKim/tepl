@@ -1,0 +1,6 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+graph replication_sum {
+    input X: f32[2,3];
+    yield (hlo.reduce_sum[dimensions=[2,3]]
+        (hlo.broadcast[dimensions=[0,1],new_extents=[4,2]] X));
+}

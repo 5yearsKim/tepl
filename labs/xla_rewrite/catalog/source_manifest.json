@@ -1,0 +1,49 @@
+{
+  "repository": "https://github.com/openxla/xla",
+  "revision": "e02127ba9c9c48912b0e6776fe5bfe3843d81042",
+  "commit_date": "2026-10-18T18:59:39Z",
+  "files": [
+    {
+      "path": "xla/hlo/transforms/simplifiers/algebraic_simplifier.h",
+      "local_path": "upstream/algebraic_simplifier.h",
+      "url": "https://raw.githubusercontent.com/openxla/xla/e02127ba9c9c48912b0e6776fe5bfe3843d81042/xla/hlo/transforms/simplifiers/algebraic_simplifier.h",
+      "sha256": "341a923dcf88a80301cbff088844421936d784a6c737aff2e9ae17731888737b",
+      "bytes": 37936
+    },
+    {
+      "path": "xla/hlo/transforms/simplifiers/algebraic_simplifier.cc",
+      "local_path": "upstream/algebraic_simplifier.cc",
+      "url": "https://raw.githubusercontent.com/openxla/xla/e02127ba9c9c48912b0e6776fe5bfe3843d81042/xla/hlo/transforms/simplifiers/algebraic_simplifier.cc",
+      "sha256": "cee113d1c8070e890242cba50b912f196b5359be3c0c7ef43bef3c1c7bebd265",
+      "bytes": 462445
+    },
+    {
+      "path": "xla/hlo/transforms/simplifiers/algebraic_simplifier_test.cc",
+      "local_path": "upstream/algebraic_simplifier_test.cc",
+      "url": "https://raw.githubusercontent.com/openxla/xla/e02127ba9c9c48912b0e6776fe5bfe3843d81042/xla/hlo/transforms/simplifiers/algebraic_simplifier_test.cc",
+      "sha256": "980ac6ad13b7f937a27bdbd2ed2679b58a01d387a0540058c5a14b168f4fc043",
+      "bytes": 637212
+    },
+    {
+      "path": "xla/hlo/transforms/simplifiers/conv_operand_swapper.cc",
+      "local_path": "upstream/conv_operand_swapper.cc",
+      "url": "https://raw.githubusercontent.com/openxla/xla/e02127ba9c9c48912b0e6776fe5bfe3843d81042/xla/hlo/transforms/simplifiers/conv_operand_swapper.cc",
+      "sha256": "020bdb59b28c8c5041654bfa83af7f60706d35aa6620d6a74edebf94edd4db0e",
+      "bytes": 7807
+    },
+    {
+      "path": "xla/hlo/transforms/simplifiers/conv_operand_swapper.h",
+      "local_path": "upstream/conv_operand_swapper.h",
+      "url": "https://raw.githubusercontent.com/openxla/xla/e02127ba9c9c48912b0e6776fe5bfe3843d81042/xla/hlo/transforms/simplifiers/conv_operand_swapper.h",
+      "sha256": "7f2264cc3ffc574e5c66624344f267fa728e3e421b8e7665744aff27e0450be0",
+      "bytes": 2082
+    },
+    {
+      "path": "LICENSE",
+      "local_path": "upstream/LICENSE",
+      "url": "https://raw.githubusercontent.com/openxla/xla/e02127ba9c9c48912b0e6776fe5bfe3843d81042/LICENSE",
+      "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+      "bytes": 11356
+    }
+  ]
+}

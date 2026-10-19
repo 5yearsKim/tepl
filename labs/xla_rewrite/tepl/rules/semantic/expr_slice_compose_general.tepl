@@ -1,0 +1,6 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_slice_compose_general {
+    (hlo.slice[@outer] (hlo.slice[@inner] X)) => (hlo.slice[@out] X) where { @inner.strides == [1 for s in @inner.strides] && @outer.strides == [1 for s in @outer.strides] } derive { @out = { starts: [@inner.starts[i] + @outer.starts[i] for i in range(len(@outer.starts))], sizes: @outer.sizes, strides: @outer.strides }; }
+}

@@ -1,0 +1,11 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: reduction-empty
+// Scope: Single-output reduction with arbitrary initial value and empty input.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_reduction_empty {
+    X: [Dims...] Init: []
+     (hlo.reduce[@r] X Init) => (hlo.broadcast[@b] Init)
+     where { product(Dims)==0 }
+     derive { @b={dimensions:[],new_extents:gather(Dims,exclude(range(len(Dims)),@r.dimensions))}; }
+}

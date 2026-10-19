@@ -1,0 +1,1483 @@
+{
+  "schema_version": 1,
+  "description": "Frozen pre-reasoning measurement and corpus; compare the general reasoning extension without changing rules, guards, scopes or dialects.",
+  "source_revision": "3bf7a16e5543ef33f86d8daf3e6f36eef188f025",
+  "compiler_sha256": "bf2ac01bb93b0ecd2fa4ee90b0d10981890c488073cadc14cb662c5cecdfd6a9",
+  "corpus_hashes": {
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_select_compare_ne.tepl": "86ffc9b85a468bd2671b48e504fd4b8b884a3adb0463002e34d539e705666287",
+    "labs/xla_rewrite/coverage/rules/dot_transpose_output.tepl": "7bc21d766ef9ca6ae5b029d18754d3d05d345c854bf677f6f41e7361d6630e1d",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_divide_exponential.tepl": "c918012c208773c1b6622f6d39280eb56913e9d474772b9ac278c5f9b3f994b1",
+    "labs/xla_rewrite/coverage/rules/slice_compose_zero_starts.tepl": "c0f6dc8eb18a93561cad1105f093bb193b9f4c061eb37067a833f61ee660dbe6",
+    "labs/xla_rewrite/coverage/rules/negative_subtract_to_add.tepl": "33bda1996b6349dd4f496f568459302c776c31a329495d6427a17e8086bd6c4c",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_max_monotone.tepl": "032a45f119a82d155816bd5d3acd1cfcaf7ba0e5f414705aa74b32d475d145c8",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_select_compare_gt.tepl": "93ccc05ed4bc6ada3695fd1ac44a2c8ed4ac3bbdb97268a6b212e446b92c4287",
+    "labs/xla_rewrite/coverage/rules/expr_log_sqrt.tepl": "e92c6bcf675b2a570f84408100a296ecbd84f80968435888cb707a9a4e9276f2",
+    "labs/xla_rewrite/coverage/rules/broadcast_multiply.tepl": "d2c3d33666ca990913eac228020c2c48e2a74cbb43b8c8914c3719893bffc067",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_move_broadcast.tepl": "52bec0903c29f81f3199177c982d62391278c34565cdbfa09e3f5afb3d54c1ae",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_window_scalar.tepl": "caaf71b8e2aeaba35baafc252855f85853c8cacbaa6a1a8c98abcdf4c8ca6dca",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_compare_min.tepl": "dc0a3aeea467a2c757ec038b8c25266589204d8507ac1f091bc172652cbb6f37",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_scalar_multipliers.tepl": "ae2c913a5ebfcf11addaf76c94c7fbbdbe85742f3d60f75b7b3ccff99aee7dac",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_imag_noncomplex.tepl": "f1daea4d89ce70645dd89dc474a13d783f2bbbcdd8148d8b850a9a888929c064",
+    "labs/xla_rewrite/coverage/rules/expr_reverse_compose_general.tepl": "3fd59207b9fc9556613bb902c0600e97aea6dd5fdb88db12362d1e6baae477b7",
+    "labs/xla_rewrite/coverage/rules/subtract_constant.tepl": "734515cf939ca7b3b066304bee3c0f30e8796250b51fba8c4ef073ebcea2de82",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_divide_broadcast.tepl": "0e6c45e7ad60bf5b6a94242f8d4bc8a4d4c390b4ed43afbe4052210942046bbc",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_splat_min.tepl": "ed97d2ba5cf5bb12cbc5c5197016f189f1e08f2c77b0d02a158f991f8c0d39da",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_divide_rsqrt.tepl": "b87f2dde3d77c0766fcad1e87da4eceed83e1722f171cb36f9a3fac5d30b2c64",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_reshape_update.tepl": "ef310a6d35971fd31e61f6433cd66cb3683139b4be8a57e894e31ba3eec60998",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_divide_converted_predicate.tepl": "37084a31c9c7af6da7054c9d78fe97f5aad62a22e4a97260fee802af468317ab",
+    "labs/xla_rewrite/coverage/rules/expr_or_zero.tepl": "13c00cb26d26cffde807ae89d5a729f4b9f29b92dbcc91693f11228dd9cb87d5",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_empty.tepl": "a5e6b073f610d619e31df73bd5d9d25270dc0076aa14de7d8afe1d1a4f601ab7",
+    "labs/xla_rewrite/coverage/rules/expr_maximum_nested_right.tepl": "e2c85a93e0ddb5da6eb664c7a757aa531efe33d826250bfafbddb6ecfd6d9792",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_reshape_reduced.tepl": "5b67a99a69ea7e5bf788e9e73ce8ad67a3f2492061584802e6e5b6a4c084b5ac",
+    "labs/xla_rewrite/coverage/rules/broadcast_add.tepl": "ea5a38a94c0ed77a8d5d379ce6320d99e4d03666611f94ca86182c8d1bc0c054",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_update_compose.tepl": "e227f5d23851a486c7f83b4a9edd8293397ae6f6b0b735c6b65955047143de97",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_slice_inside_pad.tepl": "e1d7d2c21ff0deb3f9a0b2365b7b574c941d9517a7e5c7fc1bdcf746bc30af8b",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_reshape_free.tepl": "1d973679e39756175e8a49eb89b3770f2696c7515b72783e8b08558a92cd17dd",
+    "labs/xla_rewrite/coverage/rules/expr_divide_left_quotient.tepl": "0964afa0ff93506686a8f4434a76b41651e48ea37bf0ad639c463e4cd6cdbd28",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_gather_reshape_pad.tepl": "edcd07e6e2882b737c90a7992d75db1e70ecbda8a0741c71b78f987b77a2095e",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_log_power.tepl": "5cf0778b11ba8a561743c038790fbfd02af101993e63e9df71d23f0ec1f398d3",
+    "labs/xla_rewrite/coverage/rules/catalog_transpose_reshape_reshape_empty.tepl": "1fb137a0a7a103fefdbee53bed8bd2e8463e67672b0b29cc439181397befd15c",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_compare_self.tepl": "5f0486f7df9b198a8703a35854e89141a3970fc73804485e156d6cc8c80f3e73",
+    "labs/xla_rewrite/coverage/rules/expr_power_one.tepl": "aadf484f500f4e4fd5e70115e8941d771058a5d2aa370c930db1b78956268b94",
+    "labs/xla_rewrite/coverage/rules/expr_remainder_compose.tepl": "a8731c61ea233010b8bb6b580605b9b4138119218a05465a609d9d9dbad51089",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_transpose.tepl": "a307ccacc9edc8f48a39bc0b92d858305131e0d7b221dd9d2bc9716bc947e1e5",
+    "labs/xla_rewrite/coverage/rules/catalog_transpose_reshape_reshape_transpose_cancel_chain.tepl": "bcecfc5de7132f73467353d11022e6d4e175c67f2dd4223c7feb629aa78f70cf",
+    "labs/xla_rewrite/coverage/rules/subtract_add_cancel.tepl": "8ccecb1b31a26439887d10003e8acf4fdbe3c8ef7297dbc7b06f80b775ab90da",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_slice_singleton_stride.tepl": "5d377b46a5d3181329b2bab865e1967598e6da853c93a86c6284501626f4855a",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_dynamic_slice_compose.tepl": "b84f9fe7fb13e33d0e6019c262223ab88e731c35f0989e56c3dd89f3e461d03f",
+    "labs/xla_rewrite/coverage/rules/expr_minimum_self.tepl": "05c9d3fe4998bd7c1fc774e1b7191082eae5988509f2417f88ab3965cb836cf0",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_slice_output.tepl": "9a03fdfff1a2e949c6ce6c32fea409af706434a9e84d323264529b4fdf4e27d0",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_slice_reshape.tepl": "517e3a1fe4bb5bf84227e8c1abe77ec4b1d82a48d3e57068aadb1b841490f714",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_min_nested_right_reorder.tepl": "bb6d7312cd4251e631b03b2d02fd8acfed34772be3bfcb42fe44082118189464",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_transpose_both_operands.tepl": "46f3ece952a01b3eb26686fd5e2735aa2a94b7a1e19fd00ead2b56b29ee4fc22",
+    "labs/xla_rewrite/coverage/rules/expr_convolution_scale_filter_bias.tepl": "9195defdb44f3c455e384dbfaaf798965889370226e426146355e9df5b3c2cd4",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_divide_power.tepl": "8e1611f3934f54465948b4cc85db8f0042a7876925611cb05d3b3310d7b9f887",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_iota.tepl": "f235fe318ebed9534882832b9753a01f647ae3823a268c83454cbe29ca4e92e1",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_splat_and.tepl": "10ff6f6be51ddf1ba49d7a99826e276a95260556e7a395008fb9a5437dcff165",
+    "labs/xla_rewrite/coverage/rules/expr_and_zero.tepl": "525bbe9a8948ea53b34aa07cc16942af680a6b76e1cee2ab6e098d0d67049b59",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_concat_splat_to_pad.tepl": "f10288f343ed2f8e90b84ce4c06a7984373c42c552978a8e36f066d77951a5bc",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_select_compare_lt.tepl": "112747ff8df10ad32c89c6689f9696ff167df7841204f7e20881d37dd8a74d5b",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_max_identity.tepl": "cabdb1bcdac55e42a9bd5729094ea1c594e38acdb053ffe157781e2a14f02de7",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_window_singleton_max.tepl": "15cb6c3beb8760dc0895d9f314d7c7e43167e6660e564df466190fdee36a0215",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_gather_pad.tepl": "f106f6c0f0a4fdc9687ad07a7c725a09d3a38108e80b2bf5e0e88af5c74a1998",
+    "labs/xla_rewrite/coverage/rules/expr_power_zero.tepl": "9a66a1c1af4c51290063f57e900c2e0300be2b7a1ea7124e49f12c0c320d2f06",
+    "labs/xla_rewrite/coverage/rules/subtract_self.tepl": "a431ce036fad502e4fcc9bde68fdd374a8fa4c9d28fe357d87a96e1acd53d196",
+    "labs/xla_rewrite/coverage/rules/catalog_convolution_depthwise_product.tepl": "6e7264e37be61862f80db0cdcdbe3a335cdacb537220eb58bfed8d3ef72242aa",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_drop_unit_dims.tepl": "bff05e8580b5bb58b3b29f36de02ed9732cc594ae9125913094b3942ecc29a24",
+    "labs/xla_rewrite/coverage/rules/expr_complex_components.tepl": "a39bc1ce36ac31995910695c7ff30313b0b61559ed3887ad794ad7e05ab4176a",
+    "labs/xla_rewrite/coverage/rules/expr_square_abs.tepl": "eb60a6ef0f570b5b94b71279ac8062b274075bda9c332053c8f459e919c0425f",
+    "labs/xla_rewrite/coverage/rules/reduce_compose.tepl": "b9261ab16599811b07740decf5d8535f53b48ce7d7c98f6a416ec8ff1a57c913",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_real_noncomplex.tepl": "22dcb707bb835f04d750ea466e442f6454858e9c709e24c47012461953dddbf0",
+    "labs/xla_rewrite/coverage/rules/expr_minimum_nested.tepl": "4b4cf9c2b3327560cc4ef0eb3388f6b813c1f8ff113561b27e4e0c84807fd4a3",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_add_sparse_update.tepl": "fbc11f0b39e7370468bbcaa61c0d1237530bdcd1a513d81e09822c1a9b7391bc",
+    "labs/xla_rewrite/coverage/rules/double_negate.tepl": "9ce1458b03aaaa5707700ba0871070cea70790e5a01650af36b13590abbb1a37",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_power_exp.tepl": "77a1846447b4ead604edc457521a32b79461aa8e25b00eec3808889182674327",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_reverse_trivial.tepl": "a5b1071d2a8d15adbf6e34e5c64b64813fc7a9b0a2fae4cd25f91fccd1bd8879",
+    "labs/xla_rewrite/coverage/rules/transpose_identity.tepl": "3a08685fc89bf709551fdeea811ee43ea53ac7fea28c0486d453973eddc582e7",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_pad_negative.tepl": "71a1034e4960e42acd8226d3d019e4bd0029bdaab1c2df771a0f10db1ea94814",
+    "labs/xla_rewrite/coverage/rules/reduce_negate.tepl": "081fca7579443e252a44a499c3b71dfdc4c63eb683284ea0a7fd68666d98f897",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_min_identity.tepl": "12e0c9bdb6dfb6103d9329eded86138587c5fa2924fd703ad2c627b39dc2dfbc",
+    "labs/xla_rewrite/coverage/rules/expr_divide_two_quotients.tepl": "1afea552b6e8c727da7ac723120915aa8d632fe56424b146928a1ac192e1481d",
+    "labs/xla_rewrite/coverage/rules/native_power_two_splat.tepl": "53a2b5922b2b1f41cef252dc5d3c605547ed5402d2140766140926b874777f27",
+    "labs/xla_rewrite/coverage/rules/transpose_compose.tepl": "30ae1d6c2b16146290be7bde3309b5310c997fdb0aa0496e8690d2765e2ab2fa",
+    "labs/xla_rewrite/coverage/rules/add_subtract_cancel_right.tepl": "a6f75045cc42800040dd10203ff05751303eab096ed03f77962ef4fc8d276ce4",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_window_singleton_add.tepl": "00bfeb009fd9901a4cdccc2c5c1ce9203e5de92df3aad3b745c2257c50fcb42d",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_log_rsqrt.tepl": "b93882bd3a00830e8533a32ec413dcdbfcda6cf4785122e9d5efed365e187ccc",
+    "labs/xla_rewrite/coverage/rules/expr_update_empty.tepl": "2f68ac3963583c825a0934b3fb79b749d4c5ec5b69e6185ae18a84ae6f68f4f1",
+    "labs/xla_rewrite/coverage/rules/native_abs_unsigned.tepl": "0d82165f747d31b745f814bd62d0cc28c2aa1105f844b5950fbc9df9c91c491e",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_reverse_inserted_unit_dims.tepl": "7f586e201158f856a3b45e30083ee6542744e9bc9b0ce369089f8bd650c5e4c0",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_dynamic_slice_identity.tepl": "cc1e819ee6acd63411720f10b4bcd0ad744da9e8d1cd1de0827ad18149f6c8fe",
+    "labs/xla_rewrite/coverage/rules/expr_double_not.tepl": "75d85a3721b5d7626937b5c2da9466ac1b9cf5cf4ea9a58493462bf3ec491bcb",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_move_zero_pad.tepl": "71cbc1184dc0bcbd84494957cb36bc32203ad5f0f19f98d588d878aeb6cfb11a",
+    "labs/xla_rewrite/coverage/rules/subtract_zero.tepl": "438abcd10f2c12936c528623172b312d00f6c8095f707c313608143add7848ed",
+    "labs/xla_rewrite/coverage/rules/expr_maximum_self.tepl": "a58c31105c7c08fc4733aa2001dd8ed49adfd752d6ea934af4120dc105203481",
+    "labs/xla_rewrite/coverage/rules/expr_update_full.tepl": "77ac99c30e4dbd0dacd9aa1837836d236413443ba2cdb6b42337399044d75cef",
+    "labs/xla_rewrite/coverage/rules/expr_reduce_compose_general.tepl": "17013f07b19e06bb67cb321891c2526fe89f6410320c55360cdf663d0ec16582",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_slice_pad_cancel.tepl": "c9cb0d87928336c1073f1c7b6da8700b2aeaf90084f5090370ba246b7406c041",
+    "labs/xla_rewrite/coverage/rules/subtract_add_constants.tepl": "54c0cda383086d3f751879604fc6c3a7f789db6b658e69829bbb71195fc22b70",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_multiply_predicate.tepl": "3a68c3da43ed6a1d37bacd454ea86f3e4ae4915a75ac6acbc9ab1f3be30efdff",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_dynamic_slice_transpose.tepl": "a50fa7e4c80e21f7728ce3e2ec04002b839a81c2f57e777480c1a7a869f13d9f",
+    "labs/xla_rewrite/coverage/rules/expr_divide_one.tepl": "432732bfe3a758aea4c41e5001779d99091d449ff74b7383c532a1a1c8a3e23d",
+    "labs/xla_rewrite/coverage/rules/expr_select_not.tepl": "71c3d1ddeab16cf272b6ef6993fb0beb715f763d5f97330cb2ee8cad2453dc69",
+    "labs/xla_rewrite/coverage/rules/catalog_transpose_reshape_reshape_hoist_transpose.tepl": "ae26b20aed3ecedaa3f3eaba3bf37a23c49a26ebe80af7ae64b9086510c96347",
+    "labs/xla_rewrite/coverage/rules/catalog_convolution_fold_filter_pad.tepl": "65cf83aece28e9febbc86a2bc5e50bc8512e1ab42e5fc633e46ff5310ce7f249",
+    "labs/xla_rewrite/coverage/rules/dot_associate.tepl": "c716d4f7370af1ee04db6400a4ed80a4316712f351390d8d061d4b5a884d738c",
+    "labs/xla_rewrite/coverage/rules/expr_multiply_exponentials.tepl": "677174ab2f1f5caa342d3906c3682e5311c2752d52b1bf72ce3f82c8b93ac273",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_constant_dynamic_slice.tepl": "005e90e04c082b6889abd38e567e3da3f8fe91ab0b260e403861bab74a9a0047",
+    "labs/xla_rewrite/coverage/rules/multiply_zero.tepl": "093b61976e583645ef9d56902d7aa430aaec43aec21bb234948418f994954cf3",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_and_true.tepl": "334a58e552ff464117c1231621d1ddfd6b793a5beebf887310cc37069f177939",
+    "labs/xla_rewrite/coverage/rules/reverse_compose_disjoint.tepl": "f05197628e605fbf1b80a9ca2fa420cf60092b7d1d2d891c28d44644cff0d08f",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_broadcast_original_axes.tepl": "231daf3b4cf7f5e58ad9fae416c0606f7de088e3ce70524c8a125749118b6d2a",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_window_singleton_min.tepl": "50106ae1993f8abece843d35336011595f82abe25fa592982cb4a30ab0bd1c5d",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_dynamic_slice_broadcast.tepl": "fdf64f98028a555c6d986a472d0645276ea0fa887dedd4afce5cda7319e1da81",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_window_pad.tepl": "443e83ad4f27effb128e952833714c8c45b1d634ff56b45142c4cb341ad3ee63",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_slice_window_to_reduce.tepl": "d6a298d8975419cb76c53691408434a3e7784fba5f4efcf091cb9a01eff61d2b",
+    "labs/xla_rewrite/coverage/rules/expr_multiply_one.tepl": "1f1adc83298043b3d200bacbca84f5d0d674588a371690538ca0fd2c79f88b15",
+    "labs/xla_rewrite/coverage/rules/expr_reshape_identity.tepl": "f6813d32f955e19b4f3f1642d221b107e1c5f845a5b983de090e67bd372489a5",
+    "labs/xla_rewrite/coverage/rules/expr_minimum_nested_right.tepl": "4689b92722c151fc93ea951d7227d498c4a0c19a47b847d1afe11855a01fafd9",
+    "labs/xla_rewrite/coverage/rules/slice_reverse.tepl": "93b761aebdc9b1750ae2f4972d62797fb1a45a00c45ffca6cb49b1ada4d765eb",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_compare_selected_mask.tepl": "c3710d655c58f96eb41daac3e4e20c5ae1d0c1de51a5867f339714dccdf36521",
+    "labs/xla_rewrite/coverage/rules/scalar_broadcast_transpose.tepl": "5ed64423e39652cb327e78f200c9441e32214eaaf74d2cad4efabe6ab1db2783",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_drop_unit_dims.tepl": "a074493c5e011220a8cdf99ea953fdbd9e6667f7a7ab80374b9137a4ce26c5b6",
+    "labs/xla_rewrite/coverage/rules/add_subtract_cancel.tepl": "a1103b60b7d7f36be83d46874dbe38118305197b45b51dafd55c56916cbd6c3c",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_compare_max.tepl": "bb32bfcee95dcf69fa0343b35df55739babb194d4ee31171057f4df66e262614",
+    "labs/xla_rewrite/coverage/rules/add_constants.tepl": "bad5b59df27bebe60721f26f73631d3aae367e77cd8e634216938cbcfe465261",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_compare_predicate_true.tepl": "c18bdc5768e7c59956edd617fd137d04fefa1e68a6f4751a82ed6a2d9337539c",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_update_zero_index.tepl": "f48ff7edfb2dff756c6d95273e7a73b97bc6cecb777d0e149c5e3f80fbff4df1",
+    "labs/xla_rewrite/coverage/rules/expr_maximum_nested.tepl": "11da11017be1f4dc9828d631323e058a1fbc33f2472032d3979514e3f89d5685",
+    "labs/xla_rewrite/coverage/rules/reverse_cancel.tepl": "f3e8a7d02c667bc99ab156b156ef6adcbac3f401a876c77da5502640450cfa74",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_window_empty.tepl": "59185b75000f6a49dc4716fbe532c8b9e43b451335bd8c823dd22e6d0b3a1d7d",
+    "labs/xla_rewrite/coverage/rules/expr_concat_unary.tepl": "1d970bfa437f484a6c086a1a426c925ca6821a0142c1bd5a953f735356d298b2",
+    "labs/xla_rewrite/coverage/rules/add_zero.tepl": "f0f84b6b38d6d3ba0a1118afc32b9da5fc28c2fa4e154a66202c7ceb9054d505",
+    "labs/xla_rewrite/coverage/rules/dot_reduce_product.tepl": "8ea943dfe407d1c0e3216d88b176df9189c01f037ff69c50375098770a2c4691",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_select_compare_eq.tepl": "55a98c185cad8719b66f239e9dab1d575bd484bd5ce3e2cabad4996b1d6c8aec",
+    "labs/xla_rewrite/coverage/rules/dot_reduce_batch.tepl": "e9e5be7873ded1f654682378ce690b215dc62a018a91e7abed7c80da02d4201b",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_concat_adjacent_slices.tepl": "aab71db67a91464efaf98053312d1e8d6277650aeef9307eeaea6f741e3ee3e0",
+    "labs/xla_rewrite/coverage/rules/add_constant_order.tepl": "2cf5f3e8acfa66efd278743198d020c0ac90a7b7117f2b0363477080a9f7cb76",
+    "labs/xla_rewrite/coverage/rules/multiply_constants.tepl": "2213e6e9130c24318f17e32173f8353b790d43ed0a0193ac02aa0dc17f7756f1",
+    "labs/xla_rewrite/coverage/rules/reverse_add_scalar.tepl": "a0f5ef2a9e3c38d6666f277a6976b6ebdce226f7a2547d2bc864354976bc0738",
+    "labs/xla_rewrite/coverage/rules/expr_power_reciprocal.tepl": "2d874b5682135709e3b35adf05993b86d77584a9845c95bdeed74a3bcc0cfd6c",
+    "labs/xla_rewrite/coverage/rules/expr_power_two.tepl": "81422464afaed1d8af30b29b8ad8f10959b7ff9419056cf2105cabfd3435085f",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_rotate_compose.tepl": "47fc8bab725d1b0dc2aba2a068f9cab015eb69d7f6b374e6868695db230b094d",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_divide_sqrt.tepl": "9532ad63f101893e5faa1de769a8b6f76a8f80d4385d0baebd4e4bc3ff374cf5",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_unit_axes.tepl": "1da648f7acd66da51f9f250aa9e1d407fa9accf256265e529d1fd67be6bb0093",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_or_true.tepl": "cf92ec403303eb58ff8e49f83e202c5837dde69895622785176c0d57aa00215e",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_reduce_output_free.tepl": "4c87965cd09e7d169a3a7e4be67ea121a6d6afd18c0f8a7e4333ab19e0b339b0",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_sqrt_square.tepl": "dbfd32ccad4569dd7ac3ed26add45095773c482fcd3fc25b65bba8c5978e2cbb",
+    "labs/xla_rewrite/coverage/rules/catalog_convolution_empty.tepl": "e7a52e954009a128128187461673d8d8abc78c3a362ce69ed2e1a17baea704cb",
+    "labs/xla_rewrite/coverage/rules/reduce_compose_leading.tepl": "d9f4ef9475ecf4b2e6bfbeb3b5c167ce8335482023e77724017c0386a2216fd2",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_inserted_unit_dims.tepl": "4ac21016954927af3ef32cd09b91bf2185f8f97d02fe40b728d9197d450da2de",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_scatter_scalar_map.tepl": "d197fe777874eee38b14f09ff5e1e573cb11c77e3fefa2ec44a7a779ee86ae5a",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_reshape_broadcast.tepl": "e6b0c292cc17bde799fe4d21bc54bafb6353f57b36efaedf8411d71a0789eb7d",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_gather_empty.tepl": "3a413204c6de399d83e84b9cf7dc6b674c26282160f7a806bf53b3f29d0b0b36",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_broadcast_replication_axes.tepl": "541411cbc295220b5d976772a16c5c5a2b4acea942359b0915c0e77a33d0b61e",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_dynamic_slice_unit_reshape.tepl": "ffc93e8bde234ef421538b8eb6856f55af991e07997610edb41e092f1598e37a",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_dynamic_slice_zero_index.tepl": "1b656d805720285d0e401726ccb217521d38a3e1a85fee4edbb296bc35525fd9",
+    "labs/xla_rewrite/coverage/rules/broadcast_compose_append.tepl": "77daf6842edc2b54dcbd821cd581c7e5828eeedb0395d131ee0970f39b1b2046",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_gather_scalar.tepl": "88cd4c256b19aa0cc2412ad87a7ec0774a289638343be2ee07da1c80908fd77d",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_iota_trivial.tepl": "bb203139c412fd85d6c3cd33ab1a2d90151f4ec5a27f2feb973f0858f8d8746c",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_pad_empty.tepl": "b228bfa148a4c73e95d3f44fa49e7d99f9916216f8400d9430ce25880749b3d0",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_max_nested_right_reorder.tepl": "4634073a8b49e6b43464cca4147a3f65efe0171bbd550ccd8c3cf4aaebf64eb0",
+    "labs/xla_rewrite/coverage/rules/expr_slice_reverse_general.tepl": "551bd23cea9468876ee8379fb9f995db3a86da0cba2ccee00a224b9e17efe719",
+    "labs/xla_rewrite/coverage/rules/dot_swap_operands.tepl": "2edcdbb88e2b7264bcf08d1cd74945bc96e788c41acd41f4f6bf22ba41325c66",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_compare_predicate_false.tepl": "05ff6c321e80c06e8599bc007e9204106ec716a6695883fd976e0784c1bdd85e",
+    "labs/xla_rewrite/coverage/rules/catalog_transpose_reshape_transpose_unit_dims.tepl": "ab061a03bc8e0d9f72727f79b4e367f5f3b546ac12f4a6cc50f02608014cf7aa",
+    "labs/xla_rewrite/coverage/rules/factor_common_product.tepl": "24ab8b014f8149953a2dfc4995afcd86fa25539cebd927ac9d96ac37ff2a2ebe",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_max_clamp_bound.tepl": "f2723311d1ae73aec65299d48ed650205e7b00a1ac920857601a0030e94bc7a5",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_divide_exponentials.tepl": "8c89a51586df6f14228ee3fd26425ed41a3a6202b1fc33d80c53087a1e6c087c",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_empty.tepl": "deabea8ea420daea92e75d8b0c7124f91132503dcf71fcda5007e23838fbf24e",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_dynamic_slice_iota.tepl": "dedc6b6855fcd4f41164034c3b39d81ce618a6b919fdcb1b9139afa23b63a4bb",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_window_padded_unit_broadcast.tepl": "89b3c9bb3f59f420d1ef11077fe46107d43c637be8fe2cd410ce603114ce98b9",
+    "labs/xla_rewrite/coverage/rules/expr_select_identical.tepl": "680d42804ca1c907f887f164c691f085dcf383b9883489b34a4c6fa5eeeb8e30",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_transpose_scatter.tepl": "8ed091470db8ef8efd524f356d6c965467efdcedc598c5a536b993f8d33cda97",
+    "labs/xla_rewrite/coverage/rules/scalar_broadcast_reverse.tepl": "788350d36c0544a3aadd842fdd73606878f05540a2d3df4c51948e19dfafbb1c",
+    "labs/xla_rewrite/coverage/rules/catalog_convolution_fold_input_pad.tepl": "d1f710fe24ad0903820577304345e3555ae09e71be25675ea75d4946aca81dc0",
+    "labs/xla_rewrite/coverage/rules/expr_real_complex.tepl": "3f8ebdc065dc6a493b0df2e8fcbc1902650c102b7a2ab0ed25cdf1156bae24ab",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_slice_pad_only.tepl": "365304e203b00fbc0954295f77aa46fa7f682ab60b8b68082178556efae7e7eb",
+    "labs/xla_rewrite/coverage/rules/expr_slice_compose_general.tepl": "74791aa7aaf4bd31616393a3b2a7309409e5fceddac8a4c8717a7a73adced612",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_pad_interior_unit.tepl": "8fda3481a25da612320186388885f566a4265afa6e1f034d31a5eeda9503629e",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_scatter_empty_update.tepl": "20d1663fa2948a0163ce68bfbae03a762f007f89916a1d6e2954dc2f130aec55",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_transpose_broadcast.tepl": "5575540d9886ba59f5b4c2f0b96eaf51e62887077b573e5f23725925dbb1016a",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_select_predicate_not.tepl": "c018493468f85abb995af71ad2965ecb6518443e7d56acc2fad32894b00c99be",
+    "labs/xla_rewrite/coverage/rules/dot_no_contraction.tepl": "6c8bd998cacba4ccc4426b0edd6b18822d8df08ec7d7344bb2fb0f4d1e90c572",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_slice_broadcast.tepl": "b56c59425bb3695f6bd838e6bb1d12b148cbc189c976074187f946a83f54ab8d",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_clamp_clamp.tepl": "a3dcbed43b62971b9ee9300a95e798993b1a6e5efd67c546736e1f102676fd43",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_pad_broadcast.tepl": "fa4ba0ee7ecd682a660e9768b9155b09e19c64c3fa33175da855739804644ab2",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_window_to_reduce.tepl": "e50e3d50beb25a240f68d456b2849d82c8cbcaabbfe298d12df48aa266dfeac1",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_multiply_constant_into_broadcast.tepl": "5c6e901f99e0ffb10b8e8ee7f201d9dc8d03596ec88e22175e2ac6ce82e25f5e",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_reshape.tepl": "47e6c12ce6d1b9255bd3e794ce3eff4931b01bdf39d65b0f384b894488f9e110",
+    "labs/xla_rewrite/coverage/rules/expr_imag_complex.tepl": "e8dba70103e3095225478b65d92fdb16274f5816743d6777d720c6f769badf9b",
+    "labs/xla_rewrite/coverage/rules/catalog_convolution_pointwise_dot.tepl": "1d07eadbb4fec87df1cda32b4aaf842bfe527b2546e27296dff97bd7a304ccc7",
+    "labs/xla_rewrite/coverage/rules/expr_reshape_compose.tepl": "71006b36120309bf20a7561e53dde422f64ea8d26a015b5db3e98ddc8539e5b5",
+    "labs/xla_rewrite/coverage/rules/expr_log_exp.tepl": "02c76e1a98a364bf1f7fac4c27bae643f9639d375b276b55d62426e5b7940b70",
+    "labs/xla_rewrite/coverage/rules/multiply_negatives.tepl": "17e30f0a920ae85d94bc0f82134a529679c551a44c472e5b653b7ba1fcb3e6e1",
+    "labs/xla_rewrite/coverage/rules/expr_xor_self.tepl": "91035dcaab30ce6b29e6cd72c7524f9572f84c5dfb4fd542cbdc16894910b839",
+    "labs/xla_rewrite/coverage/rules/expr_divide_right_quotient.tepl": "ee7f3d4b4ac6ac9617b14a953aad0b3ea1862f18b477fdbbf86a21d37e72530e",
+    "labs/xla_rewrite/coverage/rules/catalog_broadcast_slice_broadcast_only.tepl": "ab97d9d0847e87eacb0a49e3decf58218fe44b950ca442e325a905955f66df07",
+    "labs/xla_rewrite/coverage/rules/reduce_transpose.tepl": "f9a0dd386eb3d1e9b926f7e434eb90927e2e90bb91cb700a616b3fde48d41ea5",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_splat_or.tepl": "822cce8ee1528a22abd91f82dd23e3e468785044e01eeba9b86ddcd921a6bcd4",
+    "labs/xla_rewrite/coverage/rules/expr_pad_identity.tepl": "98d8ccf0f92759c609a6ee241308aa6eb2c02f7fb792282dcfafe3adc43ebe4f",
+    "labs/xla_rewrite/coverage/rules/catalog_convolution_swap_operands.tepl": "3fb516fb528a50f6e326a7b19ae93215f419493b332a17c9d43f56b6a8bcfe47",
+    "labs/xla_rewrite/coverage/rules/catalog_elementwise_select_predicate_identity.tepl": "dbc2072f32b58f8fb01cc975251a341e58742ea8282d9a5ebb642673561febe0",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_select_update.tepl": "9568ff3dafb45d4c49df73c7fcf63a9d305ccc6bda7b878892fa8010036ce0cf",
+    "labs/xla_rewrite/coverage/rules/slice_identity.tepl": "4f59ff3f903136456da927d8f349a54883e29c9534056c8d28ff4e10b4c458ae",
+    "labs/xla_rewrite/coverage/rules/expr_xor_zero.tepl": "aeea47fb4f8c5ab04aacf25ec59a1984cf5ca3f9008c8a166d61f0ce56728fea",
+    "labs/xla_rewrite/coverage/rules/expr_concat_flatten.tepl": "7dbbef5e1b5d781672f450994d4dc5defc25ba7bd3c7186bbfe207d9dca84bcf",
+    "labs/xla_rewrite/coverage/rules/slice_compose.tepl": "3826ae9a18b62ffbdde6f05a8e33c7eff7bfb21527f4405e823992c0f07d74e5",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_add_two_scatters_nested.tepl": "0b1ccb68b9be21cdbc4c56f912ed30e1c5023789c58c9c982e5201ddcdfa97ca",
+    "labs/xla_rewrite/coverage/rules/expr_power_three.tepl": "7e55e9ed4a8038b97ceb02bb64955be1ea7c4f5aaed0bac20bf93bfc172cbb22",
+    "labs/xla_rewrite/coverage/rules/subtract_subtract_cancel.tepl": "26e39db8f8c3abe406f44c7c8b83b8cd9fe8aeaa1e5b08473f221046f3c31aa0",
+    "labs/xla_rewrite/coverage/rules/multiply_constant_pairs.tepl": "638e2f05f57dbd8522ceec038db5e7197d84a828ed0057119ef5b12c2f6cf90a",
+    "labs/xla_rewrite/coverage/rules/dot_move_reverse.tepl": "a9734cf6fa55195011dc9450071e56494be5cde8702e04eae9ddf0b7f7345fcc",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_window_splat_cumsum.tepl": "47cc87861de15dccae3a6435adf71696cfd0de015a29f86541513b27dce66bed",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_add_scatter.tepl": "7304b23e62f2f633a0e4adace9681a5f3285c368e418184874ef816da393c7d7",
+    "labs/xla_rewrite/coverage/rules/catalog_indexing_add_two_scatters_concat.tepl": "7eac0a80f3000845c7113eb145a73343aefd8da5a341f8b3803514877dd66692",
+    "labs/xla_rewrite/coverage/rules/catalog_dot_move_contracting_permutation.tepl": "608e0b0bbc6831fb4a1ed43653192fb3a3752783ca724fa37ab5b9cff4e16855",
+    "labs/xla_rewrite/coverage/rules/catalog_reduction_splat_max.tepl": "5157f15a170cd93e35441dfd096bf2a4be2e53073e32a83fc87fce66b41baf95",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_select_compare_ne.tepl": "65b4ed395be3d3d3c779e4c3581a785e01340e03c76922c216d6bcb8ada68fd4",
+    "labs/xla_rewrite/coverage/expression_rules/dot_transpose_output.tepl": "62fa18a2707b59dc53617cc4214e202cda063f656104d29fa45a00b0686ceaa8",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_divide_exponential.tepl": "ca5806b6a40a19873084161347863c3ac0cff994c4a65818bf2180194aa49241",
+    "labs/xla_rewrite/coverage/expression_rules/slice_compose_zero_starts.tepl": "a9f398ebbd653ec1b42683e37d3f89ebde7581f3c7d4706a0dc755015fbafde7",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_max_monotone.tepl": "bed58290cc34aa0de18ea66d54590d1b9c4a0224d6483b60151dd78e45dae408",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_select_compare_gt.tepl": "9bfd541f4f15799795d80c5db9f179e7f17fd40cae91f87a0c7dcb6775688686",
+    "labs/xla_rewrite/coverage/expression_rules/expr_log_sqrt.tepl": "dac112548d7e8c1ab4fda957bd2ec7888bcb0863cdbec4b23a7c2cf2683e4245",
+    "labs/xla_rewrite/coverage/expression_rules/broadcast_multiply.tepl": "4bff480616145fd7f09434217409633c1cf5128cf333de9b2416173c5893e125",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_move_broadcast.tepl": "210d738bf9724a092530ccd085724e0731715c454d3654dc564c0e4007153e32",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_window_scalar.tepl": "b224b01bba3550ae5aa99298654162e66aee26e45343e8b219542eeabb9633e2",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_compare_min.tepl": "1da989b240d0bbe43bd13f4e21373236796db5076eb28e8941c72af72d0ef5ae",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_scalar_multipliers.tepl": "2d59fea73ae8c1d72690f3e2e00b1baf8e3ec071407d23ca948f364c89d79e9f",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_imag_noncomplex.tepl": "aeae8c77be05968167c84c04f0cedede7a6119f1651855fd4150231891274f87",
+    "labs/xla_rewrite/coverage/expression_rules/expr_reverse_compose_general.tepl": "d5da2605c9d0d6617500399917caed82a27212dac1e611611030f0ba8a07ddb8",
+    "labs/xla_rewrite/coverage/expression_rules/subtract_constant.tepl": "1f9659368d14ae03186bf88942a6304a634affed605e3404ef3280e0e3156f94",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_divide_broadcast.tepl": "31084e3d5569d7cee4d306254255a377f947307b70f57c409d68b748f06f873e",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_splat_min.tepl": "2712da58d7b89f019625dc15b41b07e1614dac865a2e9ea74b14577b1b31c899",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_divide_rsqrt.tepl": "0d8332e6e97f10a0c49f66a10936b806a7df5b541973b4bbc9c438bc5f293a50",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_reshape_update.tepl": "83236fe3664d285a796958b73dd70e7abce4bac68d2e24f61884db9a0d527f43",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_divide_converted_predicate.tepl": "9cc0ae75672bd85ffdabcd4d74ed4e17199978810b5423325445b593fc5fa9c5",
+    "labs/xla_rewrite/coverage/expression_rules/expr_or_zero.tepl": "98af0f85cce3b1bbac30e3c05cc9daa122c57079827378ad6de42b2d300cddd6",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_empty.tepl": "103a2b0e6290d3aa7000c6ebb73b87c4655a1179fce4378b2468cb53ec17123c",
+    "labs/xla_rewrite/coverage/expression_rules/expr_maximum_nested_right.tepl": "905b61e37902253d06c3e21484a8a987f073ace51d69be9e3cc881d08e25a8ea",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_reshape_reduced.tepl": "4c8e67cd60e359c4b88760884c85bb4a611e5c780b1c5a1e1dae481fbbef7103",
+    "labs/xla_rewrite/coverage/expression_rules/broadcast_add.tepl": "be02b521cd45a6e08d97966c3ec09c36628ec28f9a5cd307c5b30b174f5b7f55",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_update_compose.tepl": "8126f8a0cb525a1c04b72d41f97845e2837b1c8738e29ee9bf85123478229f93",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_slice_inside_pad.tepl": "55a9726f38c00cc2e19eb6dda1b79487a0c33d6190bcff4cb72af3a30133de70",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_reshape_free.tepl": "b9953ed8acf7fe65720b93cfdab39fdf7c4ea91aaee6b45f3354aca11774364f",
+    "labs/xla_rewrite/coverage/expression_rules/expr_divide_left_quotient.tepl": "b4a7bf5164fd1284e7375af2fe77c937ea6a3557b3be6f091b67d3c317e95b6d",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_gather_reshape_pad.tepl": "41ad60096b1158c166dee77f29f60c8c297787678e0741039ea9e430e1552538",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_log_power.tepl": "4b58a4962779f654de5bf4cb07e46005fbe731546c84baeb65796fcffca2e4b9",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_transpose_reshape_reshape_empty.tepl": "2ba9448ae5f71a039a7c9e76b7e494630eca9bb880c4ee910aa893afd4e52141",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_compare_self.tepl": "b93183e9bbdc6197c739d32da132f3b4e3f237f284f787c7bc7fa2067c3f7182",
+    "labs/xla_rewrite/coverage/expression_rules/expr_power_one.tepl": "e4fca81b912b54d8d86cc059b8b5f024afc390a8a80772edd5e624be378f3995",
+    "labs/xla_rewrite/coverage/expression_rules/expr_remainder_compose.tepl": "ea2cb10e57920321f1aee4b009aac4ecfba377cdc24fbe3f40f8b411f5dcd20b",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_transpose.tepl": "d481c80f9a09512d2c287db393c650f7918ad90fa42d6f3e592b5a023487398d",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_transpose_reshape_reshape_transpose_cancel_chain.tepl": "8f11604648bb3f48ebaca532ac72d1eb2b3b5cef902da6cfacf379512293972e",
+    "labs/xla_rewrite/coverage/expression_rules/subtract_add_cancel.tepl": "5daee4c8e9e9cfcf9228c5c12244608e64a73d8ddf41943fe0c46a0d86a521ba",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_slice_singleton_stride.tepl": "b0c7691293979d2ec54f71d122cbb8ee7fffbe7ce4095e58f884b6d480db2bf0",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_dynamic_slice_compose.tepl": "72423451153fd910d6600a73ebdb61eb74005117636c118d60cf2572bbfaa5a2",
+    "labs/xla_rewrite/coverage/expression_rules/expr_minimum_self.tepl": "efa0bb175fcef4198b7c3f201cac4fe8e22673a3aa6892b2aea21eef43b0ee52",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_slice_output.tepl": "9bf3593c7949b951ed54efb68b744fedd1c4f1e63a6abba6c08a79161de3d9ce",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_slice_reshape.tepl": "7dd990283d8506db46e946cd4983c9f63187a152ad50cad0eeba7801b5df9618",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_min_nested_right_reorder.tepl": "ea907b54b871537a19ce13dbb27653e0ba98256f48ae21bc821ac31266a88888",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_transpose_both_operands.tepl": "7de48ded16b3807baef35ea2afee7119b7aefcdff10ef0dba17d405667c2f996",
+    "labs/xla_rewrite/coverage/expression_rules/expr_convolution_scale_filter_bias.tepl": "318d31afe76d45fc9231b37170e3087f23615d500a35c05494424db94a68034c",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_divide_power.tepl": "8bee32a529e4927faccef3976961989999e38babe9c5e60ceb1656f9403db9a9",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_iota.tepl": "27ba2ce469a9b999b5ef76e9569afa4226fa002ada34893cec523052a18f8fac",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_splat_and.tepl": "fd38e90c00dd1d03bb9ee2b993fc6d7c4c6cec807d0350fe2dcb337753da1e57",
+    "labs/xla_rewrite/coverage/expression_rules/expr_and_zero.tepl": "e542cea4622a2a7daefae8e1bb50f63fe0b7887f2bfbeae8fa0a9291847fb8d1",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_concat_splat_to_pad.tepl": "7e80987512a1c7489a127b4a743e3496365d285417248feb12e4d5e1c47d86d1",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_select_compare_lt.tepl": "907226b252aca64ccda3aeff14787d8a3a358509a0b0d1bbadfcd728af719dab",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_max_identity.tepl": "6b8cdec0fe8ad5c2c1ebdc8f06dff7f2b00b77555318aa793ce7dc2240c35056",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_window_singleton_max.tepl": "2829160afbff1cf4d894448ef015e6339906e92252304386a9e115018ccf2817",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_gather_pad.tepl": "2356b45696b25c06370ffa4236d33ca72c28c36680b583157ce19ed3d39339c2",
+    "labs/xla_rewrite/coverage/expression_rules/expr_power_zero.tepl": "260f1b5e35eda4c7f6f9bb17e1d0c601f7d6265cefe7f4ac8a43c374ab3b1f39",
+    "labs/xla_rewrite/coverage/expression_rules/subtract_self.tepl": "a2ed6311836e847eb5c8f1825a815267e3aaad3b50c9cfc96c03f94297c7efea",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_convolution_depthwise_product.tepl": "e382fa0ed8cf9646a880e0c4fb793845974e932d1008b8f3c0cb000c444ebb99",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_drop_unit_dims.tepl": "c0ba25e959124b408423a341864c8ad4df345013214ff9f827e7949e0091c79e",
+    "labs/xla_rewrite/coverage/expression_rules/expr_complex_components.tepl": "b410943f535d11ff3bc308b4815deddd3ad54e0602a7713ccc2cd8216fd412c6",
+    "labs/xla_rewrite/coverage/expression_rules/expr_square_abs.tepl": "e32960d70cf4fc719d77e88b65651f5330638d8eb0a5827bf7176ccd19ba85af",
+    "labs/xla_rewrite/coverage/expression_rules/reduce_compose.tepl": "d9dbf95ccfb04b37cc201a9aa7b78faf197dda24ee1ebd5570de640b748d3eb0",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_real_noncomplex.tepl": "33b5d7a56d2896c33ee2cfb10689ed2c6e2bebb91e29533a6814dae3be0cebae",
+    "labs/xla_rewrite/coverage/expression_rules/expr_minimum_nested.tepl": "6d451b253cd2336d5f65765f8f457503f595c409a1889a4d5ba1f4f514a1bf43",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_add_sparse_update.tepl": "40ddd279e956d35ac72afb4f90302071db4a3670facd4c31015b1e7d56f524dd",
+    "labs/xla_rewrite/coverage/expression_rules/double_negate.tepl": "0085544aa50639867a6aaafb99bee1bd4a1b0402223656ca5093929633ecb263",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_power_exp.tepl": "73de6d76b42cf060359c69fd5ecf99f644639fc902d2da6880b0b7cbe8b15a65",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_reverse_trivial.tepl": "290b9c8a80e5724ba734cb0369fce90afd6b8eeadf3baec23bc34fb9c45bc217",
+    "labs/xla_rewrite/coverage/expression_rules/transpose_identity.tepl": "573721a1274281be2049e7217d25071448d789472e7e3772334dbeeaf0dd43ce",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_pad_negative.tepl": "7a3d8fa4a750a62ca0f2c5015781c6e92a5e9ed9628a03c1b18955c7c636f9cd",
+    "labs/xla_rewrite/coverage/expression_rules/reduce_negate.tepl": "511efdb732aaf3f7d1e7e8f645f5f6d7088d586de3dc69e6b9ca2a331b5ccdaf",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_min_identity.tepl": "48ba8dc727efdd5e56dc60473906e54aef48339b4d28817e12be60765b19db65",
+    "labs/xla_rewrite/coverage/expression_rules/expr_divide_two_quotients.tepl": "efa875247621d4c23116fb3bc93b555ad539f52dd63ebdd8f7741a01d72a119a",
+    "labs/xla_rewrite/coverage/expression_rules/native_power_two_splat.tepl": "68079731f239192b2dd50be118a8a4d4895bc4a006f346d81331645fef829e51",
+    "labs/xla_rewrite/coverage/expression_rules/transpose_compose.tepl": "b80fa393ed76218d7289447696f8853b9caa21a70f422ec9aaee4ed928fc3f31",
+    "labs/xla_rewrite/coverage/expression_rules/add_subtract_cancel_right.tepl": "a80c9756a7745e5bd73aa79d55df745acc8b1b61ae39c1b5bd7e2cfc13ce2b55",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_window_singleton_add.tepl": "ca5c420c232eed595e0fa64c257f52e1d731983847ae22a4d1daf1948791c73d",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_log_rsqrt.tepl": "7cce9dba53942ad0ede0d139e99b0b3753e9c7708e1f619d47e537faaeb913db",
+    "labs/xla_rewrite/coverage/expression_rules/expr_update_empty.tepl": "8c7497b7d427be8469a3af021f7fcd35d7409b58841b52455df1312de72aba63",
+    "labs/xla_rewrite/coverage/expression_rules/native_abs_unsigned.tepl": "09ed4f3d2c7e65583117122acb2c4bbb6d60199952806224c01b9b279c436170",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_reverse_inserted_unit_dims.tepl": "db2555f48720b242b0dcc3474763e46081568033bcf6f1f97a119d758e466fdf",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_dynamic_slice_identity.tepl": "5467a3b82bd93404e7366cb92f05926efc71340690c98364307d6de6ba356768",
+    "labs/xla_rewrite/coverage/expression_rules/expr_double_not.tepl": "788d7521840d0f66b7cc7a2868393531189b7e999e6b27fe018d24ba0eebc2c2",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_move_zero_pad.tepl": "a6e2b8f0eb5d15da7eb247c8c29de6ac9dc81d6904fc8016c1de227b01f12fa7",
+    "labs/xla_rewrite/coverage/expression_rules/subtract_zero.tepl": "94c7c644ab83b3837c1a2134af38ee6a99ad149309fff9277317723362b6619e",
+    "labs/xla_rewrite/coverage/expression_rules/expr_maximum_self.tepl": "1a56b25e54c048d6db7f6bf03f0ec8563ba148611c8194b0c929db6be3cf2abc",
+    "labs/xla_rewrite/coverage/expression_rules/expr_update_full.tepl": "43439feaccfd9d22a717fd48d8d6fbfd45ddcbfac60a8f420fd2d746a2588a34",
+    "labs/xla_rewrite/coverage/expression_rules/expr_reduce_compose_general.tepl": "9c45c4344d88ca444052d5104f3f4b790920388ab0074580002d89f44eb91bb2",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_slice_pad_cancel.tepl": "37319cd0802dd0414e18e2599f00f5cd1df782f7f2d61c07de3152f5b62043a5",
+    "labs/xla_rewrite/coverage/expression_rules/subtract_add_constants.tepl": "4c402b6475660d0de6002ec26ec7cf33f809994e54d854739f4f428255fd41fb",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_multiply_predicate.tepl": "7fd2a48d46f9ea839878a2171d86713ab8641273ab00338245905ba2bfdb64b0",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_dynamic_slice_transpose.tepl": "bb5258545d5a3357bb4594d9fa93ebf1ab162a8d7dd13c557dc0be73b6dbf705",
+    "labs/xla_rewrite/coverage/expression_rules/expr_divide_one.tepl": "11d1eaf77a28c346870262f037f700014729c71c17dce2377ec9f7d7cd0c058f",
+    "labs/xla_rewrite/coverage/expression_rules/expr_select_not.tepl": "6818a852607ce61bf776f3a7c7a6b70795369ef40b179ae7400257704180b4f9",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_transpose_reshape_reshape_hoist_transpose.tepl": "8c44ab4fbdef7276499835fb40ff1a7621d90ae95ea674a6c18d8c5e15c5f63d",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_convolution_fold_filter_pad.tepl": "a123cc9615f0fa4e6726bfff8076ff8736081dbc0fe0f4edc923c809e71d00ab",
+    "labs/xla_rewrite/coverage/expression_rules/dot_associate.tepl": "3e9797642f8b91e9dd34a1006b617ba6e322d0a6f75eec07a216ae309cdf9f56",
+    "labs/xla_rewrite/coverage/expression_rules/expr_multiply_exponentials.tepl": "0e9cedd677127afb1d594050051954abab69aa2da0789bc64e68de81fa9614ae",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_constant_dynamic_slice.tepl": "434595d1507f3c7280495f1f0b8f38ee5fcd394fce87208a3817e3d55a55c9db",
+    "labs/xla_rewrite/coverage/expression_rules/multiply_zero.tepl": "7514f6dd9e42ccf5d63d95c5f3d7e5ed11f4f78e66ffde6f93d0ffe0df179400",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_and_true.tepl": "dc8d3a35e74dc979671ac32c60a21dfb2244254fe4d85928a93c399c7776c382",
+    "labs/xla_rewrite/coverage/expression_rules/reverse_compose_disjoint.tepl": "a26cf9e83c956d2101a8e75c28f77323280966a2da80dc473844ec8f63deef1d",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_broadcast_original_axes.tepl": "8495e6c51dd4ca03cb3bd75761a6fcda18fb0c0546cf21cddfa6b0319e615b49",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_window_singleton_min.tepl": "72576b8158617aea792a1a8d27d8d4cc6ec8db462c8e4ad7012b2ebc5935c798",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_dynamic_slice_broadcast.tepl": "a268c391c1422d135a23186a625b333c14c403510a5246ac0cbd0f353fde1a1f",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_window_pad.tepl": "02762bd9a7691c8b9105cab8d6d5736ee9f3f7092e39d18c16f8459dbe863038",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_slice_window_to_reduce.tepl": "d358910eb90f4bc203c6d18508bbb8a2d0e2f65720783c97d97306ac0bfabbb7",
+    "labs/xla_rewrite/coverage/expression_rules/expr_multiply_one.tepl": "5c1ea2080cb53b24456c6196dd54316c65134c317f5862f4be635f56b1237120",
+    "labs/xla_rewrite/coverage/expression_rules/expr_reshape_identity.tepl": "6b83f066645a6dc1777528ef990e4f65f76e9c026c06a7c374effb1ed26a323a",
+    "labs/xla_rewrite/coverage/expression_rules/expr_minimum_nested_right.tepl": "6d62a86d5a1f93be2b5c42dd8d993acfe9003b33f2d39c3f23b7fcdb56e9314d",
+    "labs/xla_rewrite/coverage/expression_rules/slice_reverse.tepl": "a9422ca57728ef25b64cf7aae8c70bfe1bc028db3531c24dc6b2f6a691eae044",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_compare_selected_mask.tepl": "ee994a813e0e6df0aecd3cc3f2f0a0e4269a38dc7b96cabec4b519dc8b388c82",
+    "labs/xla_rewrite/coverage/expression_rules/scalar_broadcast_transpose.tepl": "30b778076c2e4aa0a9aa4cf0e64f571dfe5746170c3077303fd2e3e33c811257",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_drop_unit_dims.tepl": "b0b041be5865718720f0f492e6fbb831e4ebee33765122ad6b945cb7ad5f0d3d",
+    "labs/xla_rewrite/coverage/expression_rules/add_subtract_cancel.tepl": "5a8a5d04837ca725d44a50ba5f39598e4875710ec29d18927e4b290f2354994f",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_compare_max.tepl": "5b60b1ec61730b269e74ccea17dcba5f8ea369ef7f5f4e8b2d763234ed9be115",
+    "labs/xla_rewrite/coverage/expression_rules/add_constants.tepl": "f48874e5f21c03b8463736cdcb97880ff82b9cd297409e0df5b2ca629a6c6a54",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_compare_predicate_true.tepl": "686112f91ed4fe514d092d2afdc787164918bc4f32f6ac78f078778a6b09f3bf",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_update_zero_index.tepl": "2ddc4528143ff620850790808ff7426e522af1e08c1c91e0e60e36296d5d5001",
+    "labs/xla_rewrite/coverage/expression_rules/expr_maximum_nested.tepl": "dabe0e4dc9c3dfda6ede6ae69b3020fa27218ca5b07638552655c523ee284d34",
+    "labs/xla_rewrite/coverage/expression_rules/reverse_cancel.tepl": "d110d40f2e2fc6a7174b3095e84fead3dea4950765e5f53f2a96a6faf64dbbcf",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_window_empty.tepl": "e4c894d822fb994f0ba7c9aa3828a21ff2f93cff837921b8d4c50f09b8341b44",
+    "labs/xla_rewrite/coverage/expression_rules/expr_concat_unary.tepl": "f218723259a69c0448fdb25acd61ac5af6d390e3a78595762654a6fe2efba42b",
+    "labs/xla_rewrite/coverage/expression_rules/add_zero.tepl": "e21baf2439197c25d2f89d240f6c894c1d87b809ac7e0ff9dc01e38f291506a5",
+    "labs/xla_rewrite/coverage/expression_rules/dot_reduce_product.tepl": "5f4ffe197916ca85fcf7b38c5ea5be3062be64109e8ac93fe00be47e77902b61",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_select_compare_eq.tepl": "251de501a618a2b3da4236df752b627f1711925c926300aeaa22d4d0c0c0022c",
+    "labs/xla_rewrite/coverage/expression_rules/dot_reduce_batch.tepl": "1187aa742420d94b7a94e80fa13ba35d3b53bac67bef6083a515ee724093fb04",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_concat_adjacent_slices.tepl": "f71c9a136d64e23f208c4fe24424fa610ac02b87cd0f6d17cd2b22d9cd45283d",
+    "labs/xla_rewrite/coverage/expression_rules/add_constant_order.tepl": "74da869b528495b45a54fdea1381efead897b4fc073465a7b74c12f224330516",
+    "labs/xla_rewrite/coverage/expression_rules/multiply_constants.tepl": "3f72f39ba04d4bc5e458aeef96b5b6a55a21938a57f105c9466c7c4cebec6d66",
+    "labs/xla_rewrite/coverage/expression_rules/reverse_add_scalar.tepl": "e757dbd848f427274e15925886ac772db83d4661bcc147295baed8e74c347041",
+    "labs/xla_rewrite/coverage/expression_rules/expr_power_reciprocal.tepl": "1efeb32cfb15760d6b0543f44d0074f64e5cf7d872bd34b214c4a30cb96f8c20",
+    "labs/xla_rewrite/coverage/expression_rules/expr_power_two.tepl": "56e02ff1af662973fa744bac16b84b26109797cb0a9f0ea7dca955751abfa67d",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_rotate_compose.tepl": "d337d49357d4bb122a4dc9f09b1e77d3e2033f09b7548e69069e11d16b6d733b",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_divide_sqrt.tepl": "b55dbaad8184af1cee586246c95f033e5f7b2917d549eb72100375d1c8001b24",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_unit_axes.tepl": "058f73bb8fed4420c06cb3fc70081a120613f1aa7356802ea0f5915bdfeb61f7",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_or_true.tepl": "f4bbaa8326295b2e3bd5859f77b1f16f26f14a4ab5b09690e9e130d33183ff94",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_reduce_output_free.tepl": "cdb4338b77318a0a60684d7f30ebda3e772fbaa581e0d4b4949e2855d49c6f93",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_sqrt_square.tepl": "218f057584a1ed397dc75d9ec0f097635b78e4ff753f5f509e15cada7124fd9e",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_convolution_empty.tepl": "b13dfa2d586e853c7f8e2f233238268419b08d6f8d8aedbdf4880fba5311e2c9",
+    "labs/xla_rewrite/coverage/expression_rules/reduce_compose_leading.tepl": "ca8c3807496ddbff986e652c452dbe1820916e791b6e16761db30d8b088054be",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_inserted_unit_dims.tepl": "40c000e368fab51768feeeea0fc771503f11e1a31f434403f325741fad27d7a8",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_scatter_scalar_map.tepl": "6dbaed0d856208903508b860b249495d15687bcdcb1e3fcdfded193dbaab3871",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_reshape_broadcast.tepl": "4c3ae355ef8b2e070cbd50f1dde21511d58b7afd50ba54b4f72a51f849735f16",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_gather_empty.tepl": "8d5984052a6e8c72cc208d5b45fd0285a15f6f227702b00d5ec2d5b0a11c9d81",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_broadcast_replication_axes.tepl": "827059087975c18055cedd4e9df3767939ea1215c023a92404f7d72597505db2",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_dynamic_slice_unit_reshape.tepl": "35b98c8a656d01874a7c1295800dc26e2c510eb07d2dc6c50237e92b6cf3d34c",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_dynamic_slice_zero_index.tepl": "b7364035ec420076c6765a6f6cb3b4472818b44c1ca7a6f414cb445b91661b9d",
+    "labs/xla_rewrite/coverage/expression_rules/broadcast_compose_append.tepl": "454d391004a631bccd7f1a4c57459012193556a1bf73997822dd0e9d781cc11c",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_gather_scalar.tepl": "37c021561d8795536369123934c52f1e56e3a1a7078118888ff0d67dfd53a43b",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_iota_trivial.tepl": "7a57f65b69806acc5292d4cbc702b146da606852c8e2ac2e6fc1e8de0db4bf44",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_pad_empty.tepl": "c4f020ac425c5590cc8604aab7842f7adbecc72a03c56d0e181d68179e5954b7",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_max_nested_right_reorder.tepl": "63709ecdc630f788a0242d2c9b7e1ad88c52cbebff47334a4368135c04c68704",
+    "labs/xla_rewrite/coverage/expression_rules/expr_slice_reverse_general.tepl": "3828777f0c46d8d13ed0c080c4e8985797ec262774031e6dfb18403a3fe65f21",
+    "labs/xla_rewrite/coverage/expression_rules/dot_swap_operands.tepl": "dd77ce46e7deabcec59805510573cf8b0ed46de6fdc692ed866b2531bc92e471",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_compare_predicate_false.tepl": "869810994c794bcdb8b79b1120170dc96677d8f0d18839b36ca9849b774f6ea3",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_transpose_reshape_transpose_unit_dims.tepl": "4e82211ebddff96eade801a845cb67f15f320adcd098f67d1b8315268822fcba",
+    "labs/xla_rewrite/coverage/expression_rules/factor_common_product.tepl": "ed70c2c30b657149d6a99e1f76114f9d2796d223fe90be5eddb8c45c2a899fda",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_max_clamp_bound.tepl": "790707798738a66a97b9243d302900a9e31aa61549b1775c6dbdd1160f901cea",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_divide_exponentials.tepl": "209ea23d8a01525412702c0ddd39e49fba48dd755b4c109b7de8c70f4e7ca2ba",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_empty.tepl": "2e2c8de678416dca3be071ab0a5dafe30fe1c9bb2dc03714a3cf2e4689958790",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_dynamic_slice_iota.tepl": "5b3f9af84f11489ce961a693c489ea48f27357f865446a18ea987c8c58796c4a",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_window_padded_unit_broadcast.tepl": "51eff41ceaf21f4e4222b83001a7707b5849db5d6e47cb3b728b70fc253b6385",
+    "labs/xla_rewrite/coverage/expression_rules/expr_select_identical.tepl": "3f3f06a74c9585bc79e16d2e4d8eeae7e8e9d6247a30c572aa51c4055de497f4",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_transpose_scatter.tepl": "22b757c61d954f2147e79d1ad64e7f57c5e1fb000039ea89df8786441594a6aa",
+    "labs/xla_rewrite/coverage/expression_rules/scalar_broadcast_reverse.tepl": "538b0a5108e48398fe12e08d3445cbd30694bcb4434a170e31aa65c1f2a317ba",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_convolution_fold_input_pad.tepl": "0814cd09871912c1b76039a6a705e977a12862534d48e7689d9452c54657514a",
+    "labs/xla_rewrite/coverage/expression_rules/expr_real_complex.tepl": "69dc7c003c3448f57415b997ae6d9674979db871f6fb29442ca22a894ea96cb8",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_slice_pad_only.tepl": "cd6ac15ff4f45d7b3fe4ade86432c790dcd55e1586db1d3ce5a995b4f453ae02",
+    "labs/xla_rewrite/coverage/expression_rules/expr_slice_compose_general.tepl": "4af8ae2bf2b79e5ea1f9d4946df3d7c7719da6a1088e3f96ef923c3246c05dcc",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_pad_interior_unit.tepl": "973a1c3d5e55cf6fd274713b4f24caaad801a6450b547ade3f74f093a1a4b1d2",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_scatter_empty_update.tepl": "dcb5835c1d04ca8d1ad3c976bbd3d4c12d995fae36480a9e3732358f1d3690b5",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_transpose_broadcast.tepl": "7544d58609da3211d2e65d5ef388858d52709a1276e8849b873529bf33c4bc18",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_select_predicate_not.tepl": "a33aaba9fb4a76a5bdb3d73a1b164c592b43db28a90dc304ef18ca156f76a84a",
+    "labs/xla_rewrite/coverage/expression_rules/dot_no_contraction.tepl": "667b9532482742953f13d621c78264a78242422ae7e43716accf8a38138da425",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_slice_broadcast.tepl": "1b1b4e3b09232511b3421cae44d81a5471bce770a16db98cc4b12726126fec72",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_clamp_clamp.tepl": "01655f3ed5b11cd6b9f32af0a09b8929d0d3da0ef3494bacdac69adfb7801aea",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_pad_broadcast.tepl": "23b364c623d192d13d9eb8c9672e555a0aee18c22a2821d7b0cf60d18bfd4e48",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_window_to_reduce.tepl": "5e743fe0333c95e18c807c60a8a923fc98db1548bb70fd6b11cf69bf721966d9",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_multiply_constant_into_broadcast.tepl": "460111265424d25753554c2d40ec49ea8fc63c25dc16972d862d495f8f42a3d8",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_reshape.tepl": "59dea6bbe8a8d1ea92e43a000f1695882dd71438c02b1e47e12a2d22b9a33eb1",
+    "labs/xla_rewrite/coverage/expression_rules/expr_imag_complex.tepl": "eb6f8809fa88067e8a40c678070ec1cf6359671f51cc23b4a59d7b84cf8182c1",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_convolution_pointwise_dot.tepl": "d84b7fda0726642f341032e5feda804d57b54db8af355e337d57abe47913cb24",
+    "labs/xla_rewrite/coverage/expression_rules/expr_reshape_compose.tepl": "2de1b036afbffc349fae1ae6728c29f90dc687e71ddfcdd974422e4aa788cf37",
+    "labs/xla_rewrite/coverage/expression_rules/expr_log_exp.tepl": "0514f66861aa99f87ed5522143ae6cf71860ff07cead17df9e514b375ea7bc89",
+    "labs/xla_rewrite/coverage/expression_rules/multiply_negatives.tepl": "15cc36119146d5a0ccb1fcb89fa90af0ccada1668c7c05e3044997b873242479",
+    "labs/xla_rewrite/coverage/expression_rules/expr_xor_self.tepl": "7b2cbb877f7c5eb4d55d808aa30b574ebf5aa1ca4ffe12d8f921a6b5a3f8e3f7",
+    "labs/xla_rewrite/coverage/expression_rules/expr_divide_right_quotient.tepl": "858a4cc779537b7c19668410cd36b6cf272c8a64ffa840e56e06b8dc3eaa474c",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_broadcast_slice_broadcast_only.tepl": "660c08d7c04bacec352fc5bab3cda280e46f1f610392c7bebc5eed34c3c4bb24",
+    "labs/xla_rewrite/coverage/expression_rules/reduce_transpose.tepl": "8751dadb79ed53641ac60251428539bf16a6ff4469b7664f9bfba9787a92b811",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_splat_or.tepl": "64b9d72a24b714ed74176ba51022ed6fa3db5a4a6fe48a5871fd17d7a4dca751",
+    "labs/xla_rewrite/coverage/expression_rules/expr_pad_identity.tepl": "de3c1f04ec0ee8b1d096aa19cf74c6c5e49c3468031e2e942c592661f6b7b7a6",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_convolution_swap_operands.tepl": "f23a13ef30dbdb566b614fc7428589b669719755dcc0fff5d38e12651608904a",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_elementwise_select_predicate_identity.tepl": "0ab7e51d1f0e6b3d09b64e39f22a2e87cb5fa898210e0a713bdf9fcc4849fded",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_select_update.tepl": "162fcbb098ae30746d6d4356e06cf850ef0eba5c8da840e503732de0389b355b",
+    "labs/xla_rewrite/coverage/expression_rules/slice_identity.tepl": "9cefd4172a7caa097a5aee3f4aac1bf4a4aafed008a25833af009c2b92dc79b1",
+    "labs/xla_rewrite/coverage/expression_rules/expr_xor_zero.tepl": "e01a523d4bb11928ac1dc1d77d00ffd68e54f67f2fb24cf9e10ee06becbc0f92",
+    "labs/xla_rewrite/coverage/expression_rules/expr_concat_flatten.tepl": "b53dc88429ee33c12aec1df8ee780b592248226b83b4aa5f67ede31d96c6f3d7",
+    "labs/xla_rewrite/coverage/expression_rules/slice_compose.tepl": "778b3507c6c821af448b0fe8b9e0670242813dabb8f50d8fd41a40317be51a9e",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_add_two_scatters_nested.tepl": "15f8db62eae0584a786283ef12d4def975c656288298dc57a6cda39e2e3b348d",
+    "labs/xla_rewrite/coverage/expression_rules/expr_power_three.tepl": "e826cc7a69d8ed3947b9b1d6ebfa3dd6d1081634b8af1e446124b7874441765d",
+    "labs/xla_rewrite/coverage/expression_rules/subtract_subtract_cancel.tepl": "a9950ecde83058ac1614651782addc54632668e7bfc0cc09def5a66aeb4d8224",
+    "labs/xla_rewrite/coverage/expression_rules/multiply_constant_pairs.tepl": "96c3eaf726c1c145c22d20a0875763b24a3984fc55547f7143684a09417a47dd",
+    "labs/xla_rewrite/coverage/expression_rules/dot_move_reverse.tepl": "9560d929e786d2afdde2e20e95507f746dae2b86b9064ecd195e04ddf3d6a83a",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_window_splat_cumsum.tepl": "94a029bcaac47b699c6d7a95409cfec06c0a8ac37729c838dd665f6c311539d0",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_add_scatter.tepl": "dfff530b5ecbedc2b78bc8eb7cf7ea45c3e27eb0306853108a435db88a998abf",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_indexing_add_two_scatters_concat.tepl": "766744ac2254d3bcb52f5305ef0413d1267a2609609f931620ef81f8e9d3c7bc",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_dot_move_contracting_permutation.tepl": "7b832403d7b1df2de3d34464545ec013a05736574f27178be70bfa5130888b23",
+    "labs/xla_rewrite/coverage/expression_rules/catalog_reduction_splat_max.tepl": "f53cacad45acbb52924b0f1ad0f396b44fda4b97316566104af920bb65607ab2",
+    "labs/xla_rewrite/coverage/cases.json": "390c6868ec24a1c821720e6719d7b005546d8beae3daaba2c12ba8472b2b8ee2",
+    "labs/xla_rewrite/coverage/expression_cases.json": "d7fe1481cd24c33457b76945d84fb5c5edf16bc430fe9105c335ef09bfbf9d98",
+    "labs/xla_rewrite/coverage/dialects/hlo.tepl": "9add97d3f11bd2a53455d578586398992c49c36e867e0cba3848390493f7a6de",
+    "labs/xla_rewrite/coverage/dialects/hlo_structural.tepl": "64c85f3da8be45e1e6aec68cdafca290134e94926388f3ffe14c934e4f2c5cbd"
+  },
+  "results": [
+    {
+      "case": "add_zero",
+      "catalog_id": "elementwise-add-zero",
+      "status": "proved"
+    },
+    {
+      "case": "add_constant_order",
+      "catalog_id": "elementwise-add-constant-order",
+      "status": "proved"
+    },
+    {
+      "case": "add_constants",
+      "catalog_id": "elementwise-add-constants",
+      "status": "proved"
+    },
+    {
+      "case": "subtract_add_constants",
+      "catalog_id": "elementwise-subtract-add-constants",
+      "status": "proved"
+    },
+    {
+      "case": "add_subtract_cancel",
+      "catalog_id": "elementwise-add-subtract-cancel",
+      "status": "proved"
+    },
+    {
+      "case": "factor_common_product",
+      "catalog_id": "elementwise-factor-common-product",
+      "status": "proved"
+    },
+    {
+      "case": "subtract_self",
+      "catalog_id": "elementwise-subtract-self",
+      "status": "proved"
+    },
+    {
+      "case": "subtract_zero",
+      "catalog_id": "elementwise-subtract-zero",
+      "status": "proved"
+    },
+    {
+      "case": "subtract_constant",
+      "catalog_id": "elementwise-subtract-constant",
+      "status": "proved"
+    },
+    {
+      "case": "subtract_subtract_cancel",
+      "catalog_id": "elementwise-subtract-subtract-cancel",
+      "status": "proved"
+    },
+    {
+      "case": "subtract_add_cancel",
+      "catalog_id": "elementwise-subtract-add-cancel",
+      "status": "proved"
+    },
+    {
+      "case": "add_subtract_cancel_right",
+      "catalog_id": "elementwise-add-subtract-cancel-right",
+      "status": "proved"
+    },
+    {
+      "case": "multiply_zero",
+      "catalog_id": "elementwise-multiply-zero",
+      "status": "proved"
+    },
+    {
+      "case": "multiply_negatives",
+      "catalog_id": "elementwise-multiply-negatives",
+      "status": "proved"
+    },
+    {
+      "case": "multiply_constant_pairs",
+      "catalog_id": "elementwise-multiply-constant-pairs",
+      "status": "proved"
+    },
+    {
+      "case": "multiply_constants",
+      "catalog_id": "elementwise-multiply-constants",
+      "status": "proved"
+    },
+    {
+      "case": "double_negate",
+      "catalog_id": "elementwise-double-negate",
+      "status": "proved"
+    },
+    {
+      "case": "transpose_identity",
+      "catalog_id": "transpose-reshape-transpose-identity",
+      "status": "proved"
+    },
+    {
+      "case": "transpose_compose",
+      "catalog_id": "transpose-reshape-transpose-compose",
+      "status": "proved"
+    },
+    {
+      "case": "broadcast_add",
+      "catalog_id": "broadcast-elementwise",
+      "status": "proved"
+    },
+    {
+      "case": "broadcast_multiply",
+      "catalog_id": "broadcast-elementwise",
+      "status": "proved"
+    },
+    {
+      "case": "scalar_broadcast_reverse",
+      "catalog_id": "broadcast-scalar-through-indexing",
+      "status": "proved"
+    },
+    {
+      "case": "scalar_broadcast_transpose",
+      "catalog_id": "broadcast-scalar-through-indexing",
+      "status": "proved"
+    },
+    {
+      "case": "reduce_negate",
+      "catalog_id": "reduction-negate",
+      "status": "proved"
+    },
+    {
+      "case": "reduce_compose",
+      "catalog_id": "reduction-compose",
+      "status": "not_proved"
+    },
+    {
+      "case": "reduce_transpose",
+      "catalog_id": "reduction-transpose",
+      "status": "proved"
+    },
+    {
+      "case": "reverse_cancel",
+      "catalog_id": "indexing-reverse-compose",
+      "status": "proved"
+    },
+    {
+      "case": "reverse_compose_disjoint",
+      "catalog_id": "indexing-reverse-compose",
+      "status": "not_proved"
+    },
+    {
+      "case": "reverse_add_scalar",
+      "catalog_id": "indexing-reverse-elementwise",
+      "status": "not_proved"
+    },
+    {
+      "case": "slice_identity",
+      "catalog_id": "indexing-slice-identity",
+      "status": "not_proved"
+    },
+    {
+      "case": "slice_compose",
+      "catalog_id": "indexing-slice-compose",
+      "status": "not_proved"
+    },
+    {
+      "case": "slice_reverse",
+      "catalog_id": "indexing-slice-reverse",
+      "status": "not_proved"
+    },
+    {
+      "case": "dot_associate",
+      "catalog_id": "dot-associate",
+      "status": "proved"
+    },
+    {
+      "case": "dot_transpose_output",
+      "catalog_id": "dot-transpose-output",
+      "status": "proved"
+    },
+    {
+      "case": "dot_move_reverse",
+      "catalog_id": "dot-move-reverse",
+      "status": "not_proved"
+    },
+    {
+      "case": "negative_subtract_to_add",
+      "catalog_id": null,
+      "status": "not_proved"
+    },
+    {
+      "case": "reduce_compose_leading",
+      "catalog_id": "reduction-compose",
+      "status": "not_proved"
+    },
+    {
+      "case": "slice_compose_zero_starts",
+      "catalog_id": "indexing-slice-compose",
+      "status": "proved"
+    },
+    {
+      "case": "broadcast_compose_append",
+      "catalog_id": "broadcast-compose",
+      "status": "not_proved"
+    },
+    {
+      "case": "dot_swap_operands",
+      "catalog_id": "dot-swap-parameter-operand",
+      "status": "proved"
+    },
+    {
+      "case": "dot_no_contraction",
+      "catalog_id": "dot-no-contraction",
+      "status": "not_proved"
+    },
+    {
+      "case": "dot_reduce_product",
+      "catalog_id": "dot-reduce-product",
+      "status": "proved"
+    },
+    {
+      "case": "dot_reduce_batch",
+      "catalog_id": "dot-reduce-output-batch",
+      "status": "proved"
+    },
+    {
+      "case": "expr_divide_one",
+      "catalog_id": "elementwise-divide-one",
+      "status": "proved"
+    },
+    {
+      "case": "expr_divide_two_quotients",
+      "catalog_id": "elementwise-divide-two-quotients",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_divide_left_quotient",
+      "catalog_id": "elementwise-divide-left-quotient",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_divide_right_quotient",
+      "catalog_id": "elementwise-divide-right-quotient",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_multiply_one",
+      "catalog_id": "elementwise-multiply-one",
+      "status": "proved"
+    },
+    {
+      "case": "expr_square_abs",
+      "catalog_id": "elementwise-square-abs",
+      "status": "proved"
+    },
+    {
+      "case": "expr_multiply_exponentials",
+      "catalog_id": "elementwise-multiply-exponentials",
+      "status": "proved"
+    },
+    {
+      "case": "expr_double_not",
+      "catalog_id": "elementwise-double-not",
+      "status": "proved"
+    },
+    {
+      "case": "expr_xor_self",
+      "catalog_id": "elementwise-xor-self",
+      "status": "proved"
+    },
+    {
+      "case": "expr_xor_zero",
+      "catalog_id": "elementwise-xor-zero",
+      "status": "proved"
+    },
+    {
+      "case": "expr_and_zero",
+      "catalog_id": "elementwise-and-zero",
+      "status": "proved"
+    },
+    {
+      "case": "expr_or_zero",
+      "catalog_id": "elementwise-or-zero",
+      "status": "proved"
+    },
+    {
+      "case": "expr_log_exp",
+      "catalog_id": "elementwise-log-exp",
+      "status": "proved"
+    },
+    {
+      "case": "expr_log_sqrt",
+      "catalog_id": "elementwise-log-sqrt",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_maximum_self",
+      "catalog_id": "elementwise-max-self",
+      "status": "proved"
+    },
+    {
+      "case": "expr_maximum_nested",
+      "catalog_id": "elementwise-max-nested-left",
+      "status": "proved"
+    },
+    {
+      "case": "expr_maximum_nested_right",
+      "catalog_id": "elementwise-max-nested-right",
+      "status": "proved"
+    },
+    {
+      "case": "expr_minimum_self",
+      "catalog_id": "elementwise-min-self",
+      "status": "proved"
+    },
+    {
+      "case": "expr_minimum_nested",
+      "catalog_id": "elementwise-min-nested-left",
+      "status": "proved"
+    },
+    {
+      "case": "expr_minimum_nested_right",
+      "catalog_id": "elementwise-min-nested-right",
+      "status": "proved"
+    },
+    {
+      "case": "expr_real_complex",
+      "catalog_id": "elementwise-real-complex",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_imag_complex",
+      "catalog_id": "elementwise-imag-complex",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_complex_components",
+      "catalog_id": "elementwise-complex-components",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_select_identical",
+      "catalog_id": "elementwise-select-identical",
+      "status": "proved"
+    },
+    {
+      "case": "expr_select_not",
+      "catalog_id": "elementwise-select-not",
+      "status": "proved"
+    },
+    {
+      "case": "expr_power_zero",
+      "catalog_id": "elementwise-power-zero",
+      "status": "proved"
+    },
+    {
+      "case": "expr_power_one",
+      "catalog_id": "elementwise-power-one",
+      "status": "proved"
+    },
+    {
+      "case": "expr_power_two",
+      "catalog_id": "elementwise-power-two",
+      "status": "proved"
+    },
+    {
+      "case": "expr_power_three",
+      "catalog_id": "elementwise-power-three",
+      "status": "proved"
+    },
+    {
+      "case": "expr_power_reciprocal",
+      "catalog_id": "elementwise-power-reciprocal",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_remainder_compose",
+      "catalog_id": "elementwise-remainder-compose",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_reshape_identity",
+      "catalog_id": "transpose-reshape-reshape-identity",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_reshape_compose",
+      "catalog_id": "transpose-reshape-reshape-compose",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_concat_unary",
+      "catalog_id": "indexing-concat-unary",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_concat_flatten",
+      "catalog_id": "indexing-concat-flatten",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_update_full",
+      "catalog_id": "indexing-update-full",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_update_empty",
+      "catalog_id": "indexing-update-empty",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_reverse_compose_general",
+      "catalog_id": "indexing-reverse-compose",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_pad_identity",
+      "catalog_id": "indexing-pad-identity",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_reduce_compose_general",
+      "catalog_id": "reduction-compose",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "expr_slice_compose_general",
+      "catalog_id": "indexing-slice-compose",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_slice_reverse_general",
+      "catalog_id": "indexing-slice-reverse",
+      "status": "not_proved"
+    },
+    {
+      "case": "expr_convolution_scale_filter_bias",
+      "catalog_id": "convolution-scale-filter-bias",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_and_true",
+      "catalog_id": "elementwise-and-true",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_or_true",
+      "catalog_id": "elementwise-or-true",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_divide_exponentials",
+      "catalog_id": "elementwise-divide-exponentials",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_divide_exponential",
+      "catalog_id": "elementwise-divide-exponential",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_divide_power",
+      "catalog_id": "elementwise-divide-power",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_divide_sqrt",
+      "catalog_id": "elementwise-divide-sqrt",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_divide_rsqrt",
+      "catalog_id": "elementwise-divide-rsqrt",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_multiply_predicate",
+      "catalog_id": "elementwise-multiply-predicate",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_elementwise_log_power",
+      "catalog_id": "elementwise-log-power",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_log_rsqrt",
+      "catalog_id": "elementwise-log-rsqrt",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_max_identity",
+      "catalog_id": "elementwise-max-identity",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_min_identity",
+      "catalog_id": "elementwise-min-identity",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_max_nested_right_reorder",
+      "catalog_id": "elementwise-max-nested-right-reorder",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_min_nested_right_reorder",
+      "catalog_id": "elementwise-min-nested-right-reorder",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_max_clamp_bound",
+      "catalog_id": "elementwise-max-clamp-bound",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_max_monotone",
+      "catalog_id": "elementwise-max-monotone",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_clamp_clamp",
+      "catalog_id": "elementwise-clamp-clamp",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_real_noncomplex",
+      "catalog_id": "elementwise-real-noncomplex",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_elementwise_imag_noncomplex",
+      "catalog_id": "elementwise-imag-noncomplex",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_elementwise_power_exp",
+      "catalog_id": "elementwise-power-exp",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_sqrt_square",
+      "catalog_id": "elementwise-sqrt-square",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_compare_self",
+      "catalog_id": "elementwise-compare-self",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_compare_predicate_false",
+      "catalog_id": "elementwise-compare-predicate-false",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_compare_predicate_true",
+      "catalog_id": "elementwise-compare-predicate-true",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_compare_selected_mask",
+      "catalog_id": "elementwise-compare-selected-mask",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_compare_max",
+      "catalog_id": "elementwise-compare-max",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_compare_min",
+      "catalog_id": "elementwise-compare-min",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_select_predicate_identity",
+      "catalog_id": "elementwise-select-predicate-identity",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_select_predicate_not",
+      "catalog_id": "elementwise-select-predicate-not",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_select_compare_gt",
+      "catalog_id": "elementwise-select-compare-gt",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_select_compare_lt",
+      "catalog_id": "elementwise-select-compare-lt",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_elementwise_select_compare_eq",
+      "catalog_id": "elementwise-select-compare-eq",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_select_compare_ne",
+      "catalog_id": "elementwise-select-compare-ne",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_elementwise_divide_converted_predicate",
+      "catalog_id": "elementwise-divide-converted-predicate",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_divide_broadcast",
+      "catalog_id": "broadcast-divide-broadcast",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_broadcast_multiply_constant_into_broadcast",
+      "catalog_id": "broadcast-multiply-constant-into-broadcast",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_broadcast_reshape",
+      "catalog_id": "broadcast-reshape",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_transpose",
+      "catalog_id": "broadcast-transpose",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_broadcast_inserted_unit_dims",
+      "catalog_id": "broadcast-inserted-unit-dims",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_iota",
+      "catalog_id": "broadcast-iota",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_drop_unit_dims",
+      "catalog_id": "broadcast-drop-unit-dims",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_reshape_broadcast",
+      "catalog_id": "broadcast-reshape-broadcast",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_transpose_broadcast",
+      "catalog_id": "broadcast-transpose-broadcast",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_pad_broadcast",
+      "catalog_id": "broadcast-pad-broadcast",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_slice_broadcast_only",
+      "catalog_id": "broadcast-slice-broadcast-only",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_broadcast_slice_broadcast",
+      "catalog_id": "broadcast-slice-broadcast",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_broadcast_dynamic_slice_broadcast",
+      "catalog_id": "broadcast-dynamic-slice-broadcast",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_gather_scalar",
+      "catalog_id": "broadcast-gather-scalar",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_transpose_reshape_reshape_empty",
+      "catalog_id": "transpose-reshape-reshape-empty",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_transpose_reshape_reshape_transpose_cancel_chain",
+      "catalog_id": "transpose-reshape-reshape-transpose-cancel-chain",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_transpose_reshape_reshape_hoist_transpose",
+      "catalog_id": "transpose-reshape-reshape-hoist-transpose",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_transpose_reshape_transpose_unit_dims",
+      "catalog_id": "transpose-reshape-transpose-unit-dims",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_add_sparse_update",
+      "catalog_id": "indexing-add-sparse-update",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_add_scatter",
+      "catalog_id": "indexing-add-scatter",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_add_two_scatters_concat",
+      "catalog_id": "indexing-add-two-scatters-concat",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_add_two_scatters_nested",
+      "catalog_id": "indexing-add-two-scatters-nested",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_select_update",
+      "catalog_id": "indexing-select-update",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_reshape_update",
+      "catalog_id": "indexing-reshape-update",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_concat_adjacent_slices",
+      "catalog_id": "indexing-concat-adjacent-slices",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_concat_splat_to_pad",
+      "catalog_id": "indexing-concat-splat-to-pad",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_iota_trivial",
+      "catalog_id": "indexing-iota-trivial",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_pad_empty",
+      "catalog_id": "indexing-pad-empty",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_pad_interior_unit",
+      "catalog_id": "indexing-pad-interior-unit",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_reverse_trivial",
+      "catalog_id": "indexing-reverse-trivial",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_indexing_reverse_inserted_unit_dims",
+      "catalog_id": "indexing-reverse-inserted-unit-dims",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_rotate_compose",
+      "catalog_id": "indexing-rotate-compose",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_slice_pad_only",
+      "catalog_id": "indexing-slice-pad-only",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_slice_pad_cancel",
+      "catalog_id": "indexing-slice-pad-cancel",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_slice_inside_pad",
+      "catalog_id": "indexing-slice-inside-pad",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_slice_reshape",
+      "catalog_id": "indexing-slice-reshape",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_slice_singleton_stride",
+      "catalog_id": "indexing-slice-singleton-stride",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_identity",
+      "catalog_id": "indexing-dynamic-slice-identity",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_zero_index",
+      "catalog_id": "indexing-dynamic-slice-zero-index",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_unit_reshape",
+      "catalog_id": "indexing-dynamic-slice-unit-reshape",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_transpose",
+      "catalog_id": "indexing-dynamic-slice-transpose",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_iota",
+      "catalog_id": "indexing-dynamic-slice-iota",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_compose",
+      "catalog_id": "indexing-dynamic-slice-compose",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_update_zero_index",
+      "catalog_id": "indexing-update-zero-index",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_update_compose",
+      "catalog_id": "indexing-update-compose",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_gather_empty",
+      "catalog_id": "indexing-gather-empty",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_gather_pad",
+      "catalog_id": "indexing-gather-pad",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_gather_reshape_pad",
+      "catalog_id": "indexing-gather-reshape-pad",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_scatter_empty_update",
+      "catalog_id": "indexing-scatter-empty-update",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_scatter_scalar_map",
+      "catalog_id": "indexing-scatter-scalar-map",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_transpose_scatter",
+      "catalog_id": "indexing-transpose-scatter",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_dot_empty",
+      "catalog_id": "dot-empty",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_dot_drop_unit_dims",
+      "catalog_id": "dot-drop-unit-dims",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_dot_transpose_both_operands",
+      "catalog_id": "dot-transpose-both-operands",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_dot_constant_dynamic_slice",
+      "catalog_id": "dot-constant-dynamic-slice",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_dot_move_contracting_permutation",
+      "catalog_id": "dot-move-contracting-permutation",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_dot_move_zero_pad",
+      "catalog_id": "dot-move-zero-pad",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_dot_move_broadcast",
+      "catalog_id": "dot-move-broadcast",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_dot_slice_output",
+      "catalog_id": "dot-slice-output",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_dot_reduce_output_free",
+      "catalog_id": "dot-reduce-output-free",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_dot_scalar_multipliers",
+      "catalog_id": "dot-scalar-multipliers",
+      "status": "not_proved"
+    },
+    {
+      "case": "catalog_reduction_empty",
+      "catalog_id": "reduction-empty",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_unit_axes",
+      "catalog_id": "reduction-unit-axes",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_reshape_reduced",
+      "catalog_id": "reduction-reshape-reduced",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_reshape_free",
+      "catalog_id": "reduction-reshape-free",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_splat_min",
+      "catalog_id": "reduction-splat-min",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_splat_max",
+      "catalog_id": "reduction-splat-max",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_splat_and",
+      "catalog_id": "reduction-splat-and",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_splat_or",
+      "catalog_id": "reduction-splat-or",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_broadcast_original_axes",
+      "catalog_id": "reduction-broadcast-original-axes",
+      "status": "proved"
+    },
+    {
+      "case": "catalog_reduction_broadcast_replication_axes",
+      "catalog_id": "reduction-broadcast-replication-axes",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_window_empty",
+      "catalog_id": "reduction-window-empty",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_window_scalar",
+      "catalog_id": "reduction-window-scalar",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_window_splat_cumsum",
+      "catalog_id": "reduction-window-splat-cumsum",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_window_singleton_add",
+      "catalog_id": "reduction-window-singleton-add",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_window_singleton_min",
+      "catalog_id": "reduction-window-singleton-min",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_window_singleton_max",
+      "catalog_id": "reduction-window-singleton-max",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_window_to_reduce",
+      "catalog_id": "reduction-window-to-reduce",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_slice_window_to_reduce",
+      "catalog_id": "reduction-slice-window-to-reduce",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_reduction_window_pad",
+      "catalog_id": "reduction-window-pad",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_broadcast_window_padded_unit_broadcast",
+      "catalog_id": "broadcast-window-padded-unit-broadcast",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_convolution_empty",
+      "catalog_id": "convolution-empty",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_convolution_fold_input_pad",
+      "catalog_id": "convolution-fold-input-pad",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_convolution_fold_filter_pad",
+      "catalog_id": "convolution-fold-filter-pad",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_convolution_pointwise_dot",
+      "catalog_id": "convolution-pointwise-dot",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_convolution_depthwise_product",
+      "catalog_id": "convolution-depthwise-product",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_convolution_swap_operands",
+      "catalog_id": "convolution-swap-operands",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "catalog_indexing_pad_negative",
+      "catalog_id": "indexing-pad-negative",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "native_power_two_splat",
+      "catalog_id": "elementwise-power-two",
+      "status": "missing_semantics"
+    },
+    {
+      "case": "native_abs_unsigned",
+      "catalog_id": "elementwise-abs-nonnegative",
+      "status": "proved"
+    }
+  ]
+}

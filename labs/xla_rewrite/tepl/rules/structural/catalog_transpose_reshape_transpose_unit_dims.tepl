@@ -1,0 +1,11 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: transpose-reshape-transpose-unit-dims
+// Scope: Rank-two input with one unit axis.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_transpose_reshape_transpose_unit_dims {
+    X: [A,N]
+     (hlo.transpose[@p] X) => (hlo.reshape[@r] X)
+     where { A==1 && @p.permutation==[1,0] }
+     derive { @r={shape:[N,1]}; }
+}

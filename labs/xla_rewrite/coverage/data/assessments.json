@@ -1,0 +1,2783 @@
+{
+  "schema_version": 1,
+  "tepl_revision": "992048d9d368d953ce6aaadfacd2470f63eccff9",
+  "xla_revision": "e02127ba9c9c48912b0e6776fe5bfe3843d81042",
+  "scope": "Historical manual semantic feasibility assessment before the scalar-function extension. Per-rule classifications, reasons and capability descriptions describe that baseline and have not been reassessed. Current operation support and actual proofs are recorded in data/hlo_support.json and results/verification.json; no manual classification counts as verification.",
+  "statuses": {
+    "candidate": "The mathematical schema fits the current compiler vocabulary; general explicit-rule verification is not established.",
+    "restricted": "A meaningful specialization fits; the full catalog schema is not covered.",
+    "proof_gap": "The relevant operations can be represented, but a required proof/constructor capability is missing or a current check fails.",
+    "unsupported": "A required general operation or value/index semantic feature is absent."
+  },
+  "routes": {
+    "bundled": "Uses supplied semantic operations; additional explicit rules/constructors may be needed.",
+    "dialect": "Can specialize or add declarations with existing compiler primitives; no compiler change proposed.",
+    "compiler": "A missing semantic/proof capability prevents the general translation."
+  },
+  "capabilities": {
+    "polynomial": {
+      "description": "Add/Product/Const and sum-of-products normalization",
+      "evidence": [
+        "src/core/semantics/definition.h",
+        "src/core/semantics/symbolic/normalize.cc",
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl"
+      ]
+    },
+    "literal": {
+      "description": "Fixed signed-integer constants, without tensor literal inspection/extraction",
+      "evidence": [
+        "src/core/semantics/definition.h",
+        "src/core/checking/operations/semantics.cc"
+      ]
+    },
+    "nonpolynomial": {
+      "description": "No general tensor division, powers, min/max or transcendental scalar primitives",
+      "evidence": [
+        "src/core/semantics/definition.h",
+        "src/core/checking/operations/semantics.cc"
+      ]
+    },
+    "bitwise": {
+      "description": "No tensor logical, shift, bitwise or fixed-width conversion semantics",
+      "evidence": [
+        "src/core/semantics/definition.h"
+      ]
+    },
+    "select": {
+      "description": "No tensor predicate/comparison/conditional value primitive",
+      "evidence": [
+        "src/core/semantics/definition.h"
+      ]
+    },
+    "complex": {
+      "description": "No general real/imaginary component projection primitives",
+      "evidence": [
+        "src/core/semantics/definition.h"
+      ]
+    },
+    "value_analysis": {
+      "description": "Metadata assumptions are not tensor element range analysis",
+      "evidence": [
+        "src/core/semantics/plan.cc",
+        "src/shared/builtins/axes.cc"
+      ]
+    },
+    "axis_order": {
+      "description": "Ordered interfaces, selection and permutation composition",
+      "evidence": [
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+        "src/core/semantics/index_maps/axis_normalize.cc"
+      ]
+    },
+    "broadcast": {
+      "description": "Insertion-only broadcast; does not expand an existing size-one axis",
+      "evidence": [
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl"
+      ]
+    },
+    "reshape": {
+      "description": "Sample reshape has shape checks; semantic coordinate split/merge is missing",
+      "evidence": [
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+        "src/core/semantics/definition.h",
+        "src/core/semantics/symbolic/index_expr.h"
+      ]
+    },
+    "slice": {
+      "description": "Static nonnegative starts, positive sizes/strides, calculated affine reads",
+      "evidence": [
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+        "tests/slice_test.cc",
+        "src/core/semantics/plan.cc"
+      ]
+    },
+    "reverse": {
+      "description": "Reflection in original domains; same-selector cancellation and known-singleton removal",
+      "evidence": [
+        "src/core/semantics/symbolic/index_expr.cc",
+        "tests/reverse_test.cc",
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl"
+      ]
+    },
+    "reduction": {
+      "description": "Reduce is summation; sum/product extraction and reduction concatenation",
+      "evidence": [
+        "src/core/semantics/symbolic/normalize.cc",
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl"
+      ]
+    },
+    "reduction_other": {
+      "description": "No generic reducer/comparator computation, tuple reduction or scatter semantics",
+      "evidence": [
+        "src/core/semantics/definition.h",
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl"
+      ]
+    },
+    "reduction_reindex": {
+      "description": "Normalizer compares reduction domains and reads, without general bijective change of bound coordinates",
+      "evidence": [
+        "src/core/semantics/symbolic/normalize.cc",
+        "src/core/semantics/symbolic/index_expr.cc"
+      ]
+    },
+    "cardinality": {
+      "description": "Coefficients are fixed int64, not products of symbolic extents",
+      "evidence": [
+        "src/core/semantics/symbolic/normalize.h",
+        "src/core/semantics/symbolic/normalize.cc"
+      ]
+    },
+    "empty": {
+      "description": "Empty sum semantics exist; simplifying all empty-domain forms is not established",
+      "evidence": [
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+        "tests/semantic_test.cc",
+        "src/core/semantics/symbolic/normalize.cc"
+      ]
+    },
+    "dot": {
+      "description": "Generalized dot with batch/contraction/free groups and same-type arithmetic",
+      "evidence": [
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl"
+      ]
+    },
+    "convolution": {
+      "description": "Valid fixed-layout ungrouped convolution with positive strides/dilations",
+      "evidence": [
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+        "tests/convolution_test.cc"
+      ]
+    },
+    "piecewise": {
+      "description": "No coordinate-dependent branch to choose padding/concat/update values",
+      "evidence": [
+        "src/core/semantics/definition.h",
+        "src/core/semantics/symbolic/index_expr.h"
+      ]
+    },
+    "dynamic": {
+      "description": "Index parameters are metadata; tensor-valued indices/clamping cannot be lowered",
+      "evidence": [
+        "src/core/semantics/definition.h",
+        "src/core/checking/operations/semantics.cc"
+      ]
+    },
+    "window": {
+      "description": "No supplied general reduce_window semantic operation",
+      "evidence": [
+        "labs/xla_rewrite/tepl/dialects/hlo.tepl"
+      ]
+    },
+    "iota": {
+      "description": "Coordinate tuples can index Read but cannot become scalar tensor values",
+      "evidence": [
+        "src/core/semantics/definition.h"
+      ]
+    },
+    "variadic": {
+      "description": "Arbitrary operand-list rewrites are outside the fixed-arity semantic pilot",
+      "evidence": [
+        "src/core/semantics/definition.h"
+      ]
+    },
+    "modular": {
+      "description": "No modulo or wraparound coordinate primitive",
+      "evidence": [
+        "src/core/semantics/definition.h"
+      ]
+    },
+    "sort": {
+      "description": "No sort/comparator semantic primitive",
+      "evidence": [
+        "src/core/semantics/definition.h"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "id": "elementwise-abs-nonnegative",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-add-zero",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-add-constant-order",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-add-constants",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-subtract-add-constants",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-add-subtract-cancel",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-add-sparse-update",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-factor-common-product",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-add-scatter",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "reduction_other"
+      ],
+      "reason": "Scatter semantics need data-dependent update destinations and combining computations; multiple-output/variadic cases also exceed the supplied tensor semantic model.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-add-two-scatters-concat",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "reduction_other"
+      ],
+      "reason": "Scatter semantics need data-dependent update destinations and combining computations; multiple-output/variadic cases also exceed the supplied tensor semantic model.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-add-two-scatters-nested",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "reduction_other"
+      ],
+      "reason": "Scatter semantics need data-dependent update destinations and combining computations; multiple-output/variadic cases also exceed the supplied tensor semantic model.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-and-true",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-and-zero",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-and-upper-bounds",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-subtract-self",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-subtract-zero",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-subtract-constant",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-subtract-subtract-cancel",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-subtract-add-cancel",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-add-subtract-cancel-right",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-one",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-power-two-unsigned",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-power-two-signed",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-exponentials",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-exponential",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-power",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-sqrt",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-rsqrt",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-constant",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-divide-broadcast",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial"
+      ],
+      "reason": "The broadcast mapping is expressible, but division and reciprocal tensor values are not.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-two-quotients",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-left-quotient",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-divide-right-quotient",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-multiply-one",
+      "assessment": "candidate",
+      "route": "dialect",
+      "requires": [
+        "polynomial",
+        "literal"
+      ],
+      "reason": "A shaped Const(1) declaration suffices for the identity; the compiler already supports literal integer semantics. The bundled dialect has zero_like but no one_like.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-multiply-zero",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-multiply-negatives",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-square-abs",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-multiply-predicate",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-multiply-constant-pairs",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-multiply-constants",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-multiply-constant-into-broadcast",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "polynomial",
+        "broadcast",
+        "literal"
+      ],
+      "reason": "Multiplication and scalar broadcasting are representable. A constant factor can remain a capture; constructing broadcasts at both operand shapes requires explicit maps and extents.",
+      "restriction": "Same-type ideal arithmetic and insertion-only broadcasts; no source literal folding or XLA numerical-policy execution."
+    },
+    {
+      "id": "elementwise-multiply-exponentials",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial"
+      ],
+      "reason": "The scalar vocabulary has no exp/log/transcendental or general power operation, and no corresponding normalization identities. Declaring these as opaque arithmetic would not verify their laws.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-square-sqrt",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-square-rsqrt",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-double-negate",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial"
+      ],
+      "reason": "Add/Product/Const and term collection express the mathematical identity. Negation is multiplication by -1; subtraction is addition of a negation. Constants can remain captured reads when literal folding is unnecessary.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-double-not",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-or-true",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-or-zero",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-xor-self",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-xor-zero",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "bitwise",
+        "select"
+      ],
+      "reason": "Predicate/bitwise operations, conversion and/or selection in this schema lack declared value semantics. Arithmetic metadata booleans do not supply tensor predicates.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-log-exp",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial"
+      ],
+      "reason": "The scalar vocabulary has no exp/log/transcendental or general power operation, and no corresponding normalization identities. Declaring these as opaque arithmetic would not verify their laws.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-log-power",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial"
+      ],
+      "reason": "The scalar vocabulary has no exp/log/transcendental or general power operation, and no corresponding normalization identities. Declaring these as opaque arithmetic would not verify their laws.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-log-sqrt",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial"
+      ],
+      "reason": "The scalar vocabulary has no exp/log/transcendental or general power operation, and no corresponding normalization identities. Declaring these as opaque arithmetic would not verify their laws.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-log-rsqrt",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial"
+      ],
+      "reason": "The scalar vocabulary has no exp/log/transcendental or general power operation, and no corresponding normalization identities. Declaring these as opaque arithmetic would not verify their laws.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-max-self",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-max-identity",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-max-nested-left",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-max-nested-right",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-max-nested-right-reorder",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-min-self",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-min-identity",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-min-nested-left",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-min-nested-right",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-min-nested-right-reorder",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-max-min-clamp",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-min-max-clamp",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-max-clamp-bound",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-max-monotone",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-clamp-clamp",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-exp-zero",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial"
+      ],
+      "reason": "The scalar vocabulary has no exp/log/transcendental or general power operation, and no corresponding normalization identities. Declaring these as opaque arithmetic would not verify their laws.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-complex-components",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "complex"
+      ],
+      "reason": "General complex construction, real/imaginary projections and their component identities are not represented by the current scalar primitives.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-real-complex",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "complex"
+      ],
+      "reason": "General complex construction, real/imaginary projections and their component identities are not represented by the current scalar primitives.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-real-noncomplex",
+      "assessment": "restricted",
+      "route": "dialect",
+      "requires": [
+        "polynomial",
+        "complex"
+      ],
+      "reason": "For noncomplex inputs, a restricted real operation is identity and a restricted imaginary operation is zero. Both can be declared using current primitives; general complex decomposition is absent.",
+      "restriction": "Declare only the noncomplex operation domain and omit complex values and conversions."
+    },
+    {
+      "id": "elementwise-imag-complex",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "complex"
+      ],
+      "reason": "General complex construction, real/imaginary projections and their component identities are not represented by the current scalar primitives.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-imag-noncomplex",
+      "assessment": "restricted",
+      "route": "dialect",
+      "requires": [
+        "polynomial",
+        "complex"
+      ],
+      "reason": "For noncomplex inputs, a restricted real operation is identity and a restricted imaginary operation is zero. Both can be declared using current primitives; general complex decomposition is absent.",
+      "restriction": "Declare only the noncomplex operation domain and omit complex values and conversions."
+    },
+    {
+      "id": "elementwise-power-zero",
+      "assessment": "restricted",
+      "route": "dialect",
+      "requires": [
+        "polynomial",
+        "nonpolynomial"
+      ],
+      "reason": "Fixed nonnegative integer powers can be declared with Const/Product. General pow on a tensor-valued exponent cannot be declared or checked with this semantic vocabulary.",
+      "restriction": "Specialize the operation to the fixed exponent at dialect/import time; this does not implement a matcher or a semantic definition for general HLO power."
+    },
+    {
+      "id": "elementwise-power-one",
+      "assessment": "restricted",
+      "route": "dialect",
+      "requires": [
+        "polynomial",
+        "nonpolynomial"
+      ],
+      "reason": "Fixed nonnegative integer powers can be declared with Const/Product. General pow on a tensor-valued exponent cannot be declared or checked with this semantic vocabulary.",
+      "restriction": "Specialize the operation to the fixed exponent at dialect/import time; this does not implement a matcher or a semantic definition for general HLO power."
+    },
+    {
+      "id": "elementwise-power-exp",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial"
+      ],
+      "reason": "The scalar vocabulary has no exp/log/transcendental or general power operation, and no corresponding normalization identities. Declaring these as opaque arithmetic would not verify their laws.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-power-two",
+      "assessment": "restricted",
+      "route": "dialect",
+      "requires": [
+        "polynomial",
+        "nonpolynomial"
+      ],
+      "reason": "Fixed nonnegative integer powers can be declared with Const/Product. General pow on a tensor-valued exponent cannot be declared or checked with this semantic vocabulary.",
+      "restriction": "Specialize the operation to the fixed exponent at dialect/import time; this does not implement a matcher or a semantic definition for general HLO power."
+    },
+    {
+      "id": "elementwise-power-three",
+      "assessment": "restricted",
+      "route": "dialect",
+      "requires": [
+        "polynomial",
+        "nonpolynomial"
+      ],
+      "reason": "Fixed nonnegative integer powers can be declared with Const/Product. General pow on a tensor-valued exponent cannot be declared or checked with this semantic vocabulary.",
+      "restriction": "Specialize the operation to the fixed exponent at dialect/import time; this does not implement a matcher or a semantic definition for general HLO power."
+    },
+    {
+      "id": "elementwise-power-reciprocal",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-power-half",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-rsqrt-negative-power",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-rsqrt-reciprocal",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-sqrt-square",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-compare-nonnegative-zero",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "value_analysis"
+      ],
+      "reason": "The rule needs abs/sqrt/rsqrt/power/comparison semantics and, where required, data-value nonnegativity reasoning. Metadata guards do not inspect tensor elements.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-compare-self",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-compare-predicate-false",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-compare-predicate-true",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-compare-selected-mask",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-compare-max",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-compare-min",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "select"
+      ],
+      "reason": "min/max/clamp and ordered tensor comparison are absent from the value-expression vocabulary; their idempotence, ordering and NaN laws are also absent.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-identical",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-constant",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-not",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-predicate-identity",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-predicate-not",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-compare-gt",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-compare-lt",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-compare-eq",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-select-compare-ne",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "select"
+      ],
+      "reason": "The schema requires tensor comparison or conditional selection, which cannot be lowered to the current arithmetic value vocabulary with faithful semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-select-update",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-literal-splat",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "literal"
+      ],
+      "reason": "This requires examining a captured literal tensor, proving all entries equal and extracting its first value. Const(n) represents a declared literal, not runtime literal inspection.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-literal-iota",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "iota",
+        "literal",
+        "nonpolynomial"
+      ],
+      "reason": "iota requires exposing coordinates as tensor values; literal recognition or modulo arithmetic is also needed by some cases. Read coordinates are not scalar value expressions.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-literal-strided-iota",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "iota",
+        "literal",
+        "nonpolynomial"
+      ],
+      "reason": "iota requires exposing coordinates as tensor values; literal recognition or modulo arithmetic is also needed by some cases. Read coordinates are not scalar value expressions.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-reshape",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The transformation requires a semantic reshape that inserts/deletes/splits/merges dimensions (and sometimes concat). Current axis identity mappings alone do not justify that coordinate conversion.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-transpose",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "broadcast",
+        "axis_order"
+      ],
+      "reason": "When input and output ranks agree, an insertion-only broadcast has no new axes and is a permutation; transpose can express the result. An explicit inverse-permutation constructor still needs checking.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-inserted-unit-dims",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The transformation requires a semantic reshape that inserts/deletes/splits/merges dimensions (and sometimes concat). Current axis identity mappings alone do not justify that coordinate conversion.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-elementwise",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "broadcast",
+        "polynomial"
+      ],
+      "reason": "The current dialect supports the schema for add/multiply/negate/subtract with compatible insertion-only maps. It cannot quantify over every HLO elementwise opcode.",
+      "restriction": "Supported polynomial operators only; equal base shapes in the pilot; no arbitrary elementwise functions or size-one expansion."
+    },
+    {
+      "id": "broadcast-scalar-through-indexing",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "broadcast",
+        "reverse",
+        "slice",
+        "reshape",
+        "dynamic"
+      ],
+      "reason": "Transpose, reverse and nonempty static slice of a scalar broadcast have representable coordinates. Reshape, sort and dynamic slice members of the schema have missing semantics.",
+      "restriction": "Only supported indexing members; static slice output sizes remain positive. Each member is counted under the same catalog schema."
+    },
+    {
+      "id": "broadcast-iota",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "iota"
+      ],
+      "reason": "iota returns its coordinate as a tensor value. Coordinates currently occur only inside Read indices, not as scalar value expressions.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-compose",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "broadcast",
+        "axis_order"
+      ],
+      "reason": "Ordered axis insertion and permutations express the complete mathematical mapping. Composition uses gather of broadcast positions; added extents must follow final output order.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-drop-unit-dims",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The transformation requires a semantic reshape that inserts/deletes/splits/merges dimensions (and sometimes concat). Current axis identity mappings alone do not justify that coordinate conversion.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-reshape-empty",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The bundled shape-only reshape is insufficient for semantic verification. General reshape needs split/merged-axis coordinate reconstruction; deleting/inserting unit axes also lacks a supplied semantic reshape and unit-domain equivalence proof.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-reshape-identity",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The bundled shape-only reshape is insufficient for semantic verification. General reshape needs split/merged-axis coordinate reconstruction; deleting/inserting unit axes also lacks a supplied semantic reshape and unit-domain equivalence proof.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-reshape-compose",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The bundled shape-only reshape is insufficient for semantic verification. General reshape needs split/merged-axis coordinate reconstruction; deleting/inserting unit axes also lacks a supplied semantic reshape and unit-domain equivalence proof.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-reshape-transpose-cancel-chain",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The bundled shape-only reshape is insufficient for semantic verification. General reshape needs split/merged-axis coordinate reconstruction; deleting/inserting unit axes also lacks a supplied semantic reshape and unit-domain equivalence proof.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-reshape-hoist-transpose",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The bundled shape-only reshape is insufficient for semantic verification. General reshape needs split/merged-axis coordinate reconstruction; deleting/inserting unit axes also lacks a supplied semantic reshape and unit-domain equivalence proof.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-reshape-broadcast",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The transformation requires a semantic reshape that inserts/deletes/splits/merges dimensions (and sometimes concat). Current axis identity mappings alone do not justify that coordinate conversion.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-reshape-iota",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "iota",
+        "literal",
+        "nonpolynomial"
+      ],
+      "reason": "iota requires exposing coordinates as tensor values; literal recognition or modulo arithmetic is also needed by some cases. Read coordinates are not scalar value expressions.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-reshape-update",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "A semantic unit/split/merged reshape is required; reverse and affine reads alone do not provide it. The update case additionally needs piecewise data-dependent writes.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-transpose-identity",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "axis_order"
+      ],
+      "reason": "Transpose preserves reads and changes the ordered output interface. Identity and gather composition are represented directly; explicit permutation constructors are accepted.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-transpose-compose",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "axis_order"
+      ],
+      "reason": "Transpose preserves reads and changes the ordered output interface. Identity and gather composition are represented directly; explicit permutation constructors are accepted.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-transpose-unit-dims",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The bundled shape-only reshape is insufficient for semantic verification. General reshape needs split/merged-axis coordinate reconstruction; deleting/inserting unit axes also lacks a supplied semantic reshape and unit-domain equivalence proof.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-transpose-broadcast",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "broadcast",
+        "axis_order"
+      ],
+      "reason": "Ordered axis insertion and permutations express the complete mathematical mapping. Composition uses gather of broadcast positions; added extents must follow final output order.",
+      "restriction": ""
+    },
+    {
+      "id": "transpose-reshape-space-depth-to-slices",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The bundled shape-only reshape is insufficient for semantic verification. General reshape needs split/merged-axis coordinate reconstruction; deleting/inserting unit axes also lacks a supplied semantic reshape and unit-domain equivalence proof.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-concat-unary",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "variadic"
+      ],
+      "reason": "General concat reads select an operand by output coordinate. There is no piecewise Read/value selection primitive; arbitrary operand-list rewrites also need variadic pattern support. A unary identity-only declaration would not model concat generally.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-concat-empty",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "variadic"
+      ],
+      "reason": "General concat reads select an operand by output coordinate. There is no piecewise Read/value selection primitive; arbitrary operand-list rewrites also need variadic pattern support. A unary identity-only declaration would not model concat generally.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-concat-flatten",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "variadic"
+      ],
+      "reason": "General concat reads select an operand by output coordinate. There is no piecewise Read/value selection primitive; arbitrary operand-list rewrites also need variadic pattern support. A unary identity-only declaration would not model concat generally.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-concat-adjacent-slices",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "variadic"
+      ],
+      "reason": "General concat reads select an operand by output coordinate. There is no piecewise Read/value selection primitive; arbitrary operand-list rewrites also need variadic pattern support. A unary identity-only declaration would not model concat generally.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-concat-splat-to-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "variadic"
+      ],
+      "reason": "General concat reads select an operand by output coordinate. There is no piecewise Read/value selection primitive; arbitrary operand-list rewrites also need variadic pattern support. A unary identity-only declaration would not model concat generally.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-concat-repeat-unit-axis",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "The transformation requires a semantic reshape that inserts/deletes/splits/merges dimensions (and sometimes concat). Current axis identity mappings alone do not justify that coordinate conversion.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-iota-trivial",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "iota",
+        "literal",
+        "nonpolynomial"
+      ],
+      "reason": "iota requires exposing coordinates as tensor values; literal recognition or modulo arithmetic is also needed by some cases. Read coordinates are not scalar value expressions.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-pad-empty",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise"
+      ],
+      "reason": "General padding needs a boundary predicate selecting input or padding value (including interior gaps), absent from the semantic vocabulary. Naming an identity-only pad would specialize away the source operation.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-pad-interior-unit",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise"
+      ],
+      "reason": "General padding needs a boundary predicate selecting input or padding value (including interior gaps), absent from the semantic vocabulary. Naming an identity-only pad would specialize away the source operation.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-pad-identity",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise"
+      ],
+      "reason": "General padding needs a boundary predicate selecting input or padding value (including interior gaps), absent from the semantic vocabulary. Naming an identity-only pad would specialize away the source operation.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-pad-broadcast",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "window"
+      ],
+      "reason": "Padding/window boundary behavior needs conditional reads or domain masking, absent from the current scalar/index vocabulary.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-pad-negative",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise"
+      ],
+      "reason": "General padding needs a boundary predicate selecting input or padding value (including interior gaps), absent from the semantic vocabulary. Naming an identity-only pad would specialize away the source operation.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-reverse-trivial",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "reverse"
+      ],
+      "reason": "The Reverse simplifier removes selected axes when their original extents are proved one. Existing tests establish that fact inside a restricted dialect; a general public rule guard and all ranks still need evaluation.",
+      "restriction": "Known singleton extents; the checked general rule interface is not yet established."
+    },
+    {
+      "id": "indexing-reverse-compose",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "reverse"
+      ],
+      "reason": "The compiler cancels nested reversals with matching ordered selectors and matching original extent domains. General symmetric-difference composition, including differing selectors, is not implemented.",
+      "restriction": "Identical ordered dimension lists only; disjoint/partially overlapping sets require additional coordinate identities."
+    },
+    {
+      "id": "indexing-reverse-elementwise",
+      "assessment": "proof_gap",
+      "route": "compiler",
+      "requires": [
+        "reverse",
+        "polynomial",
+        "broadcast"
+      ],
+      "reason": "Add/multiply distribution and scalar-broadcast reversal removal verify separately in existing tests, but the directly combined pattern has a correspondence limitation. Other elementwise operators also lack semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-reverse-inserted-unit-dims",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "A semantic unit/split/merged reshape is required; reverse and affine reads alone do not provide it. The update case additionally needs piecewise data-dependent writes.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-rotate-compose",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "modular"
+      ],
+      "reason": "Rotation requires modular coordinate arithmetic and wraparound. Reverse is reflection, and does not implement rotate or modulo indexing.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-rotate-canonicalize",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "modular"
+      ],
+      "reason": "Rotation requires modular coordinate arithmetic and wraparound. Reverse is reflection, and does not implement rotate or modulo indexing.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-identity",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "slice"
+      ],
+      "reason": "Positive-size affine reads express identity and composition. The supplied slice declaration rejects zero sizes; explicit computed descriptors may also hit semantic-constructor interpretation limits.",
+      "restriction": "Positive output sizes; the pilot uses rank one and unit strides."
+    },
+    {
+      "id": "indexing-slice-pad-only",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise"
+      ],
+      "reason": "General padding needs a boundary predicate selecting input or padding value (including interior gaps), absent from the semantic vocabulary. Naming an identity-only pad would specialize away the source operation.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-pad-cancel",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise"
+      ],
+      "reason": "General padding needs a boundary predicate selecting input or padding value (including interior gaps), absent from the semantic vocabulary. Naming an identity-only pad would specialize away the source operation.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-inside-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise"
+      ],
+      "reason": "General padding needs a boundary predicate selecting input or padding value (including interior gaps), absent from the semantic vocabulary. Naming an identity-only pad would specialize away the source operation.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-update-cancel",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-inside-update",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-compose",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "slice"
+      ],
+      "reason": "Positive-size affine reads express identity and composition. The supplied slice declaration rejects zero sizes; explicit computed descriptors may also hit semantic-constructor interpretation limits.",
+      "restriction": "Positive output sizes; the pilot uses rank one and unit strides."
+    },
+    {
+      "id": "broadcast-slice-broadcast-only",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "broadcast",
+        "slice"
+      ],
+      "reason": "Static calculated reads can select mapped input axes or only newly broadcast axes. Output shape and projected starts/sizes/strides must be constructed explicitly.",
+      "restriction": "Positive-size static slices and insertion-only broadcast; empty-slice cases are excluded."
+    },
+    {
+      "id": "broadcast-slice-broadcast",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "broadcast",
+        "slice"
+      ],
+      "reason": "Static calculated reads can select mapped input axes or only newly broadcast axes. Output shape and projected starts/sizes/strides must be constructed explicitly.",
+      "restriction": "Positive-size static slices and insertion-only broadcast; empty-slice cases are excluded."
+    },
+    {
+      "id": "indexing-slice-concat-scalar",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "variadic"
+      ],
+      "reason": "General concat reads select an operand by output coordinate. There is no piecewise Read/value selection primitive; arbitrary operand-list rewrites also need variadic pattern support. A unary identity-only declaration would not model concat generally.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-concat",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "variadic"
+      ],
+      "reason": "General concat reads select an operand by output coordinate. There is no piecewise Read/value selection primitive; arbitrary operand-list rewrites also need variadic pattern support. A unary identity-only declaration would not model concat generally.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-reshape",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape"
+      ],
+      "reason": "A semantic unit/split/merged reshape is required; reverse and affine reads alone do not provide it. The update case additionally needs piecewise data-dependent writes.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-reverse",
+      "assessment": "proof_gap",
+      "route": "compiler",
+      "requires": [
+        "slice",
+        "reverse"
+      ],
+      "reason": "Both operations are representable, but equality relates reflection about the original tensor extent to reflection about the selected extent plus an affine offset. The current Reverse simplifier does not generally prove that identity.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-slice-singleton-stride",
+      "assessment": "proof_gap",
+      "route": "compiler",
+      "requires": [
+        "slice"
+      ],
+      "reason": "The transformation needs the fact that coordinates of a singleton selected domain are zero. Positive affine read normalization alone does not generally identify two strides on that restricted domain; zero-size cases are also excluded.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-dynamic-slice-broadcast",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic"
+      ],
+      "reason": "Dynamic starts are tensor values and require clamping and data-dependent reads; current read parameters are metadata.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-dynamic-slice-identity",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-dynamic-slice-zero-index",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-dynamic-slice-unit-reshape",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-dynamic-slice-transpose",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-dynamic-slice-static",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-dynamic-slice-iota",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-dynamic-slice-compose",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-update-broadcast-to-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-update-full",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-update-pad-to-concat",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-update-zero-index",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-update-empty",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-update-compose",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-gather-empty",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-gather-scalar",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "reshape"
+      ],
+      "reason": "General gather needs data-dependent reads; effective-scalar removal additionally needs semantic unit reshaping. A constant-output declaration would only specialize away gather itself.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-gather-small",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-gather-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-gather-reshape-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "piecewise"
+      ],
+      "reason": "Dynamic slice/update/gather consume tensor-valued indices and clamping, and updates require piecewise base/update selection. Current Read indices use symbolic coordinates and metadata, not tensor-read values. Even constant-start subcases need a faithful source-op semantic definition.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-scatter-empty-update",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "reduction_other"
+      ],
+      "reason": "Scatter semantics need data-dependent update destinations and combining computations; multiple-output/variadic cases also exceed the supplied tensor semantic model.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-scatter-scalar-map",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "reduction_other"
+      ],
+      "reason": "Scatter semantics need data-dependent update destinations and combining computations; multiple-output/variadic cases also exceed the supplied tensor semantic model.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-sort-trivial",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "sort"
+      ],
+      "reason": "Sort has neither a faithful declared semantic operation nor an ordering/comparator proof system. Shape-only deletion could be an unchecked structural rule but does not establish semantic coverage.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-transpose-scatter",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "reduction_other"
+      ],
+      "reason": "Scatter semantics need data-dependent update destinations and combining computations; multiple-output/variadic cases also exceed the supplied tensor semantic model.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-empty",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "empty"
+      ],
+      "reason": "Generalized dot is a sum of products and empty domains have zero semantics. The complete XLA schema also covers mixed element/result types and precision behavior.",
+      "restriction": "Same-type mathematical dot; constructing and proving a shaped zero for every empty-input/output configuration remains untested."
+    },
+    {
+      "id": "dot-no-contraction",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "broadcast",
+        "reduction"
+      ],
+      "reason": "Broadcast, transpose, multiplication and summation can express the arithmetic decomposition. XLA also inserts conversions and chooses accumulation types.",
+      "restriction": "Same-type ideal arithmetic; omit mixed-type conversion, widened accumulation and target precision algorithms."
+    },
+    {
+      "id": "dot-reduce-product",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "broadcast",
+        "reduction"
+      ],
+      "reason": "Broadcast, transpose, multiplication and summation can express the arithmetic decomposition. XLA also inserts conversions and chooses accumulation types.",
+      "restriction": "Same-type ideal arithmetic; omit mixed-type conversion, widened accumulation and target precision algorithms."
+    },
+    {
+      "id": "dot-drop-unit-dims",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape",
+        "dot"
+      ],
+      "reason": "These require reshaping dot operands or outputs and reconstructing contraction coordinates across split/merged axes.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-transpose-both-operands",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "axis_order"
+      ],
+      "reason": "Permutations, operand swap, batch/contraction mappings and an output transpose express the tensor-algebra equation under its declared canonical-axis restrictions.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-swap-parameter-operand",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "axis_order"
+      ],
+      "reason": "The tensor identity follows from swapping paired lists and transposing output free-axis blocks. Parameter-like classification is source policy for choosing an orientation, not a value-equivalence condition.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-concat-contraction",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "dot"
+      ],
+      "reason": "Breaking a dot over concatenated contraction chunks needs piecewise concat reads, absent from semantic lowering.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-constant-dynamic-slice",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "dynamic",
+        "dot"
+      ],
+      "reason": "The dynamic-slice operation consumes data-valued starts and clamping. Constant operands alone do not turn these starts into metadata.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-move-contracting-permutation",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape",
+        "dot"
+      ],
+      "reason": "These require reshaping dot operands or outputs and reconstructing contraction coordinates across split/merged axes.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-move-reverse",
+      "assessment": "proof_gap",
+      "route": "compiler",
+      "requires": [
+        "reverse",
+        "reduction_reindex"
+      ],
+      "reason": "Reverse reads and dot are expressible. Proving the moved reversal requires a bijective change of reduction coordinates, which the current normalizer does not implement.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-move-zero-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "dot"
+      ],
+      "reason": "Padding requires piecewise coordinate/value semantics before the slice/dot equivalence can be checked.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-move-broadcast",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "broadcast",
+        "reduction"
+      ],
+      "reason": "Broadcast-created contracting coordinates can be reduced on the other operand. Sum/product normalization and axis mappings provide the required vocabulary; explicit renumbering and all cases still need checking.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-associate",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "reduction",
+        "axis_order"
+      ],
+      "reason": "Current source mappings and sum-of-products normalization support reassociation under explicit sufficient routing conditions. Full XLA case coverage, corrective permutations and explicit attribute formulas have not been established.",
+      "restriction": "The pilot is ordinary rank-two matrix multiplication. Existing auto examples require preserving the entire inner batch group, a stronger restriction than the full catalog schema."
+    },
+    {
+      "id": "dot-slice-output",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "slice"
+      ],
+      "reason": "Calculated static reads can be projected from result axes to both operand interfaces. Legality/bounds and hidden full contraction axes need an explicit checked construction.",
+      "restriction": "Positive-size static slices and same-type mathematical dot; empty slices excluded."
+    },
+    {
+      "id": "dot-reduce-output-free",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "reduction",
+        "axis_order"
+      ],
+      "reason": "Reduction-domain concatenation, batch-to-contraction reassignment and ordered output interfaces express these sum/dot equations. Explicit constructors and general cases remain to be checked.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-reduce-output-batch",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "reduction",
+        "axis_order"
+      ],
+      "reason": "Reduction-domain concatenation, batch-to-contraction reassignment and ordered output interfaces express these sum/dot equations. Explicit constructors and general cases remain to be checked.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-transpose-output",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "axis_order"
+      ],
+      "reason": "Swap dot operands, exchange paired contraction lists, reorder batches when permitted, and retain free-axis block order. These operations already have declared semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "dot-scalar-multipliers",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "dot",
+        "convolution",
+        "polynomial"
+      ],
+      "reason": "Bilinearity is expressible for supported dot/convolution and scalar broadcasts; constant factors may be captures. HLO path discovery and BF16/F32 rounding behavior are not modeled.",
+      "restriction": "Supported bilinear operators and same-type ideal arithmetic; source precision and shared-user profitability screening are outside the proof."
+    },
+    {
+      "id": "reduction-empty",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "reduction",
+        "empty"
+      ],
+      "reason": "A sum with implicit zero init has a well-defined empty domain and zero result. The catalog also includes arbitrary initializers/combiners and tuple results.",
+      "restriction": "Only single-result zero-initialized sum; explicit shaped-zero construction and empty-domain simplification still need a rule check."
+    },
+    {
+      "id": "reduction-unit-axes",
+      "assessment": "proof_gap",
+      "route": "compiler",
+      "requires": [
+        "reduction",
+        "reshape"
+      ],
+      "reason": "Even for sum, eliminating a singleton bound coordinate and rebuilding the ordered output requires unit-domain equivalence. The existing normal form generally retains reductions; there is no general unit-axis reshape rule.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-negate",
+      "assessment": "candidate",
+      "route": "bundled",
+      "requires": [
+        "polynomial",
+        "reduction"
+      ],
+      "reason": "reduce_sum with implicit zero initialization and multiplication by -1 expresses the exact-arithmetic linearity law.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-argextreme-splat",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reduction_other"
+      ],
+      "reason": "The schema uses a non-sum combiner, argmin/argmax or tuple outputs. Reduce is specifically summation, not a generic HLO combining computation.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-transpose",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "reduction",
+        "axis_order",
+        "broadcast"
+      ],
+      "reason": "Axis transport and reduction-domain concatenation represent these transformations for sum. The catalog permits other combining computations and initial values.",
+      "restriction": "Only single-output sum with zero initializer; explicit attribute construction must be verified separately."
+    },
+    {
+      "id": "reduction-compose",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "reduction",
+        "axis_order",
+        "broadcast"
+      ],
+      "reason": "Axis transport and reduction-domain concatenation represent these transformations for sum. The catalog permits other combining computations and initial values.",
+      "restriction": "Only single-output sum with zero initializer; explicit attribute construction must be verified separately."
+    },
+    {
+      "id": "reduction-reshape-reduced",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape",
+        "reduction"
+      ],
+      "reason": "Both sides need a semantic reshape with split/merged axis transport, beyond the current axis-map vocabulary.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-reshape-free",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reshape",
+        "reduction"
+      ],
+      "reason": "Both sides need a semantic reshape with split/merged axis transport, beyond the current axis-map vocabulary.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-concat",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "reduction"
+      ],
+      "reason": "The rule needs piecewise concat reads and a combining computation; neither is a general supported semantic primitive.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-reuse-argmax",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reduction_other"
+      ],
+      "reason": "The schema uses a non-sum combiner, argmin/argmax or tuple outputs. Reduce is specifically summation, not a generic HLO combining computation.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-reuse-argmin",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reduction_other"
+      ],
+      "reason": "The schema uses a non-sum combiner, argmin/argmax or tuple outputs. Reduce is specifically summation, not a generic HLO combining computation.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-splat-min",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reduction_other"
+      ],
+      "reason": "The schema uses a non-sum combiner, argmin/argmax or tuple outputs. Reduce is specifically summation, not a generic HLO combining computation.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-splat-max",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reduction_other"
+      ],
+      "reason": "The schema uses a non-sum combiner, argmin/argmax or tuple outputs. Reduce is specifically summation, not a generic HLO combining computation.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-splat-and",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reduction_other"
+      ],
+      "reason": "The schema uses a non-sum combiner, argmin/argmax or tuple outputs. Reduce is specifically summation, not a generic HLO combining computation.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-splat-or",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "reduction_other"
+      ],
+      "reason": "The schema uses a non-sum combiner, argmin/argmax or tuple outputs. Reduce is specifically summation, not a generic HLO combining computation.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-broadcast-original-axes",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "reduction",
+        "axis_order",
+        "broadcast"
+      ],
+      "reason": "Axis transport and reduction-domain concatenation represent these transformations for sum. The catalog permits other combining computations and initial values.",
+      "restriction": "Only single-output sum with zero initializer; explicit attribute construction must be verified separately."
+    },
+    {
+      "id": "reduction-broadcast-replication-axes",
+      "assessment": "proof_gap",
+      "route": "compiler",
+      "requires": [
+        "reduction",
+        "cardinality"
+      ],
+      "reason": "Both the reduction and broadcast can be represented for sum, but replacing a reduction over unused axes by a product of symbolic extents requires a metadata-valued scalar coefficient. Const only accepts fixed integers.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-window-empty",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-window-scalar",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-window-splat-cumsum",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-window-singleton-add",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-window-singleton-min",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-window-singleton-max",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-window-to-reduce",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-slice-window-to-reduce",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "reduction-window-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "window",
+        "piecewise",
+        "reduction_other"
+      ],
+      "reason": "There is no supplied reduce_window semantic operation. General window semantics require boundary padding/dilation and sometimes non-sum reducers or coordinate-valued outputs. Special valid sum windows could be a future dialect declaration, not established coverage here.",
+      "restriction": ""
+    },
+    {
+      "id": "broadcast-window-padded-unit-broadcast",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "piecewise",
+        "window"
+      ],
+      "reason": "Padding/window boundary behavior needs conditional reads or domain masking, absent from the current scalar/index vocabulary.",
+      "restriction": ""
+    },
+    {
+      "id": "convolution-empty",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "convolution",
+        "empty"
+      ],
+      "reason": "Valid ungrouped convolution is a sum of products. Empty batch/channel domains can be represented; zero spatial windows and padded/general-layout convolution are outside the supplied declaration.",
+      "restriction": "Fixed NH...C/window...CF layouts, valid convolution and positive windows; same-type mathematical values; empty cases need explicit checks."
+    },
+    {
+      "id": "convolution-fold-input-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "convolution",
+        "piecewise"
+      ],
+      "reason": "The schema needs edge/interior padding, base dilation, window reversal and/or changed dimension roles beyond the supplied valid fixed-layout convolution. Reverse alone does not provide those semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "convolution-fold-filter-pad",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "convolution",
+        "piecewise"
+      ],
+      "reason": "The schema needs edge/interior padding, base dilation, window reversal and/or changed dimension roles beyond the supplied valid fixed-layout convolution. Reverse alone does not provide those semantics.",
+      "restriction": ""
+    },
+    {
+      "id": "convolution-pointwise-dot",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "convolution",
+        "reshape"
+      ],
+      "reason": "The catalog replacement flattens spatial/batch axes and reshapes the output. A different rank-preserving convolution-to-dot schema might be expressible but is not this cataloged replacement.",
+      "restriction": ""
+    },
+    {
+      "id": "convolution-depthwise-product",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "convolution",
+        "reshape"
+      ],
+      "reason": "The supplied convolution has no feature/batch grouping; the replacement also uses reshape and feature-specific routing.",
+      "restriction": ""
+    },
+    {
+      "id": "convolution-scale-filter-bias",
+      "assessment": "restricted",
+      "route": "bundled",
+      "requires": [
+        "convolution",
+        "polynomial",
+        "broadcast"
+      ],
+      "reason": "The polynomial identity and kernel/output-feature broadcasts fit the current semantic vocabulary for its fixed layouts. Arbitrary XLA convolution layouts, groups and padding are absent.",
+      "restriction": "Valid ungrouped fixed-layout convolution and ideal arithmetic; constant filter/scale can remain captures; explicit maps and proof still needed."
+    },
+    {
+      "id": "elementwise-divide-converted-predicate",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-remainder-compose",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-remainder-power-two-unsigned",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "elementwise-remainder-power-two-signed",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "nonpolynomial",
+        "bitwise"
+      ],
+      "reason": "Division/remainder, reciprocals, shifts or fixed-width bit operations are outside Add/Product/Const. Literal arithmetic in metadata is not tensor-value arithmetic.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-remainder-iota",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "iota",
+        "literal",
+        "nonpolynomial"
+      ],
+      "reason": "iota requires exposing coordinates as tensor values; literal recognition or modulo arithmetic is also needed by some cases. Read coordinates are not scalar value expressions.",
+      "restriction": ""
+    },
+    {
+      "id": "indexing-remainder-offset-iota",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "iota",
+        "literal",
+        "nonpolynomial"
+      ],
+      "reason": "iota requires exposing coordinates as tensor values; literal recognition or modulo arithmetic is also needed by some cases. Read coordinates are not scalar value expressions.",
+      "restriction": ""
+    },
+    {
+      "id": "convolution-swap-operands",
+      "assessment": "unsupported",
+      "route": "compiler",
+      "requires": [
+        "convolution",
+        "piecewise"
+      ],
+      "reason": "The schema needs edge/interior padding, base dilation, window reversal and/or changed dimension roles beyond the supplied valid fixed-layout convolution. Reverse alone does not provide those semantics.",
+      "restriction": ""
+    }
+  ],
+  "revision_review": {
+    "previous_revision": "d3a944d0a20b41b55f33330e39ab4a93445898ca",
+    "reviewed_revision": "992048d9d368d953ce6aaadfacd2470f63eccff9",
+    "summary": "Evaluation now owns its HLO dialect and project-root configuration. The full 209-case corpus has been submitted to semantic verification using unchanged compiler primitives; manual capability classifications remain historical context, not measured acceptance."
+  }
+}
