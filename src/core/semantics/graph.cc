@@ -1,5 +1,6 @@
 #include "src/core/semantics/graph.h"
 
+#include <charconv>
 #include <functional>
 #include <stdexcept>
 #include <type_traits>
@@ -130,16 +131,89 @@ E expression(Expr::Kind k, std::vector<E> args, S axes) {
 E constant(std::int64_t n) {
   return std::make_shared<Expr>(Expr{Expr::Kind::Const, 0, 0, {}, {}, n});
 }
+E scalarCall(ScalarFunction function, std::vector<E> args,
+             std::vector<S> parameters, S dtype) {
+  Expr value{Expr::Kind::Call, 0, 0, {}, std::move(args)};
+  value.function = function;
+  value.parameters = std::move(parameters);
+  value.dtype = std::move(dtype);
+  return std::make_shared<Expr>(std::move(value));
+}
+E number(std::string text, S dtype) {
+  auto typedInteger = [&](std::int64_t n) -> E {
+    auto value = std::make_shared<Expr>(*constant(n));
+    value->dtype = dtype;
+    return value;
+  };
+  if (text.starts_with("+")) text.erase(0, 1);
+  std::int64_t integer;
+  auto [end, ec] =
+      std::from_chars(text.data(), text.data() + text.size(), integer);
+  if (ec == std::errc{} && end == text.data() + text.size())
+    return typedInteger(integer);
+  // Canonical decimal digits and exponent; no host floating-point rounding.
+  bool negative = text.starts_with("-");
+  if (negative) text.erase(0, 1);
+  std::int64_t exponent = 0;
+  if (auto e = text.find_first_of("eE"); e != std::string::npos) {
+    auto spelling = text.substr(e + 1);
+    if (spelling.starts_with("+")) spelling.erase(0, 1);
+    auto [last, error] = std::from_chars(
+        spelling.data(), spelling.data() + spelling.size(), exponent);
+    if (error != std::errc{} || last != spelling.data() + spelling.size())
+      throw ProofFailure(
+          "numeric literal exponent is outside the supported range");
+    text.resize(e);
+  }
+  if (auto dot = text.find('.'); dot != std::string::npos) {
+    auto places = static_cast<std::int64_t>(text.size() - dot - 1);
+    if (__builtin_sub_overflow(exponent, places, &exponent))
+      throw ProofFailure("numeric literal exponent overflow");
+    text.erase(dot, 1);
+  }
+  auto first = text.find_first_not_of('0');
+  if (first == std::string::npos) return typedInteger(0);
+  text.erase(0, first);
+  while (text.size() > 1 && text.back() == '0') {
+    text.pop_back();
+    if (__builtin_add_overflow(exponent, std::int64_t{1}, &exponent))
+      throw ProofFailure("numeric literal exponent overflow");
+  }
+  // Integral decimal spellings participate in existing coefficient arithmetic.
+  if (exponent >= 0 && exponent <= 18 && text.size() + exponent <= 19) {
+    auto digits = (negative ? "-" : "") + text + std::string(exponent, '0');
+    auto [last, error] =
+        std::from_chars(digits.data(), digits.data() + digits.size(), integer);
+    if (error == std::errc{} && last == digits.data() + digits.size())
+      return typedInteger(integer);
+  }
+  Expr value{Expr::Kind::Number};
+  value.number = (negative ? "-" : "") + text + "e" + std::to_string(exponent);
+  value.dtype = dtype;
+  return std::make_shared<Expr>(std::move(value));
+}
+std::vector<E> tensorReads(const E& value) {
+  std::vector<E> out;
+  std::function<void(const E&)> visit = [&](const E& e) {
+    if (e->kind == Expr::Kind::Read) out.push_back(e);
+    for (const auto& a : e->args) visit(a);
+  };
+  visit(value);
+  return out;
+}
 S freeAxes(const E& e) {
-  if (e->kind == Expr::Kind::Const) return call("empty_axes", {});
+  if (e->kind == Expr::Kind::Const || e->kind == Expr::Kind::Number)
+    return call("empty_axes", {});
   if (e->kind == Expr::Kind::Read)
     return e->access ? indexDependencies(e->access) : e->axes;
-  auto a = freeAxes(e->args[0]);
   if (e->kind == Expr::Kind::Reduce)
-    return call("difference_axes", {a, e->axes});
-  return call("union_axes", {a, freeAxes(e->args[1])});
+    return call("difference_axes", {freeAxes(e->args[0]), e->axes});
+  std::vector<S> axes;
+  for (const auto& arg : e->args) axes.push_back(freeAxes(arg));
+  return call("union_axes", std::move(axes));
 }
 std::string show(const E& e) {
+  if (e->kind == Expr::Kind::Number) return e->number;
   if (e->kind == Expr::Kind::Const)
     return "Const(" + std::to_string(e->constant) + ")";
   if (e->kind == Expr::Kind::Read)
@@ -149,16 +223,21 @@ std::string show(const E& e) {
   std::string out = e->kind == Expr::Kind::Add       ? "Add("
                     : e->kind == Expr::Kind::Product ? "Product("
                                                      : "Reduce(";
+  if (e->kind == Expr::Kind::Call)
+    out = std::string(scalarSignature(e->function).name) + "(";
   if (e->kind == Expr::Kind::Reduce) out += format(*e->axes) + ", ";
   for (std::size_t i = 0; i < e->args.size(); ++i) {
     if (i) out += ", ";
     out += show(e->args[i]);
   }
+  for (const auto& p : e->parameters) out += ", parameter=" + format(*p);
   return out + ")";
 }
 E Lowerer::rename(const E& e, const S& from, const S& to) {
   context.tick();
-  if (e->kind == Expr::Kind::Const || equal(from, to)) return e;
+  if ((e->kind == Expr::Kind::Const || e->kind == Expr::Kind::Number) ||
+      equal(from, to))
+    return e;
   context.transportFrame(from, to);
   if (e->kind == Expr::Kind::Read) {
     auto axes = context.transportInterface(from, to, e->axes);
@@ -178,7 +257,9 @@ E Lowerer::rename(const E& e, const S& from, const S& to) {
   }
   std::vector<E> args;
   for (const auto& a : e->args) args.push_back(rename(a, from, to));
-  return expression(e->kind, std::move(args), e->axes);
+  auto out = std::make_shared<Expr>(*e);
+  out->args = std::move(args);
+  return out;
 }
 I Lowerer::indexValue(const IndexValue& v, const Instance& n,
                       const std::vector<TensorMeaning>& inputs,
@@ -223,7 +304,7 @@ I Lowerer::indexValue(const IndexValue& v, const Instance& n,
 }
 E Lowerer::evaluateAt(const E& e, const S& frame, const I& access) {
   context.tick();
-  if (e->kind == Expr::Kind::Const) return e;
+  if (e->kind == Expr::Kind::Const || e->kind == Expr::Kind::Number) return e;
   if (e->kind == Expr::Kind::Read) {
     auto composed = indexSubstitute(
         context, e->access ? e->access : coordinates(e->axes), frame, access);
@@ -235,14 +316,20 @@ E Lowerer::evaluateAt(const E& e, const S& frame, const I& access) {
                     GuardKind::ReductionDomain);
   std::vector<E> args;
   for (const auto& a : e->args) args.push_back(evaluateAt(a, frame, access));
-  return expression(e->kind, args, e->axes);
+  auto out = std::make_shared<Expr>(*e);
+  out->args = std::move(args);
+  return out;
 }
 E Lowerer::value(const Value& v, const Instance& n,
                  const std::vector<TensorMeaning>& inputs,
                  const std::vector<S>& groups) {
   context.tick();
   if (v.kind == Value::Kind::Const) return constant(v.constant);
-  if (v.kind == Value::Kind::Operand) return inputs.at(v.index).value;
+  if (v.kind == Value::Kind::Operand) {
+    auto out = std::make_shared<Expr>(*inputs.at(v.index).value);
+    out->dtype = inputs.at(v.index).dtype;
+    return out;
+  }
   if (v.kind == Value::Kind::Read) {
     const auto& input = inputs.at(v.index);
     auto access = indexValue(*v.access, n, inputs, groups);
@@ -263,6 +350,86 @@ E Lowerer::value(const Value& v, const Instance& n,
   }
   std::vector<E> args;
   for (const auto& a : v.args) args.push_back(value(*a, n, inputs, groups));
+  if (v.kind == Value::Kind::Call) {
+    const auto& signature = scalarSignature(v.function);
+    std::vector<S> types;
+    std::function<S(const Value&)> typeOf = [&](const Value& x) -> S {
+      if (x.kind == Value::Kind::Operand || x.kind == Value::Kind::Read)
+        return inputs[x.index].dtype;
+      if (x.kind == Value::Kind::Const) return {};
+      if (x.kind == Value::Kind::Call) {
+        auto f = scalarSignature(x.function);
+        if (f.types == ScalarTypes::Boolean || f.types == ScalarTypes::Compare)
+          return call("dtype_bool", {});
+        if (f.types == ScalarTypes::Select) return typeOf(*x.args[1]);
+      }
+      for (const auto& a : x.args)
+        if (auto t = typeOf(*a)) return t;
+      return {};
+    };
+    for (const auto& a : v.args) types.push_back(typeOf(*a));
+    S result;
+    if (signature.types == ScalarTypes::Boolean) {
+      result = call("dtype_bool", {});
+      for (const auto& t : types)
+        if (t) context.require(call("==", {t, result}));
+    } else if (signature.types == ScalarTypes::Select) {
+      auto boolean = call("dtype_bool", {});
+      if (types[0]) context.require(call("==", {types[0], boolean}));
+      result = types[1] ? types[1] : types[2];
+      if (types[1] && types[2])
+        context.require(call("==", {types[1], types[2]}));
+    } else {
+      for (const auto& t : types)
+        if (t) {
+          if (result)
+            context.require(call("==", {result, t}));
+          else
+            result = t;
+        }
+      if (result)
+        context.require(
+            signature.types == ScalarTypes::Compare
+                ? call("||", {call("is_numeric", {result}),
+                              call("==", {result, call("dtype_bool", {})})})
+                : call(signature.types == ScalarTypes::Floating ? "is_float"
+                                                                : "is_numeric",
+                       {result}));
+      if (signature.types == ScalarTypes::Compare)
+        result = call("dtype_bool", {});
+    }
+    if (!result && signature.types != ScalarTypes::Compare)
+      result = dtype(n, inputs);
+    if (signature.types == ScalarTypes::Floating)
+      context.require(call("is_float", {result}));
+    if (signature.types == ScalarTypes::Numeric)
+      context.require(call("is_numeric", {result}));
+    auto booleanConstant = [&](const E& value) {
+      if ((value->kind == Expr::Kind::Const && value->constant != 0 &&
+           value->constant != 1) ||
+          value->kind == Expr::Kind::Number)
+        throw ProofFailure("Boolean scalar constants must be zero or one");
+    };
+    if (signature.types == ScalarTypes::Boolean)
+      for (const auto& a : args) booleanConstant(a);
+    if (signature.types == ScalarTypes::Compare)
+      for (const auto& t : types)
+        if (t && context.entails(call("==", {t, call("dtype_bool", {})})))
+          for (const auto& a : args) booleanConstant(a);
+    if (signature.types == ScalarTypes::Select) {
+      booleanConstant(args[0]);
+      if (result &&
+          context.entails(call("==", {result, call("dtype_bool", {})}))) {
+        booleanConstant(args[1]);
+        booleanConstant(args[2]);
+      }
+    }
+    std::vector<S> parameters;
+    for (const auto& p : v.parameters)
+      parameters.push_back(metadata(*p, n, inputs, groups));
+    return scalarCall(v.function, std::move(args), std::move(parameters),
+                      result);
+  }
   auto k = v.kind == Value::Kind::Add       ? Expr::Kind::Add
            : v.kind == Value::Kind::Product ? Expr::Kind::Product
                                             : Expr::Kind::Reduce;
@@ -523,11 +690,42 @@ TensorMeaning Lowerer::operation(std::size_t id,
   outputChecks(*n.definition->output);
   auto axes = metadata(*n.definition->output, n, inputs, groups);
   auto shape = metadata(*n.definition->output, n, inputs, domains);
+  S peer;
+  for (const auto& in : inputs)
+    if (in.dtype) {
+      peer = in.dtype;
+      break;
+    }
+  for (std::size_t i = 0; i < inputs.size(); ++i)
+    if (!inputs[i].dtype) {
+      auto inferred =
+          peer ? peer
+               : (expected_dtype ? expected_dtype : call("dtype_i64", {}));
+      if (n.definition->value->kind == Value::Kind::Call) {
+        auto types = scalarSignature(n.definition->value->function).types;
+        if (types == ScalarTypes::Boolean ||
+            (types == ScalarTypes::Select && i == 0))
+          inferred = call("dtype_bool", {});
+      }
+      inputs[i].dtype = inferred;
+      auto literal = std::make_shared<Expr>(*inputs[i].value);
+      literal->dtype = inferred;
+      inputs[i].value = literal;
+    }
+  auto dtype_begin = obligations.size();
   auto dt = dtype(n, inputs);
+  if (!anchors)
+    for (std::size_t i = dtype_begin; i < obligations.size(); ++i)
+      context.learn(obligations[i]);
   auto body = value(*n.definition->value, n, inputs, groups);
+  if (body->dtype) context.require(call("==", {body->dtype, dt}));
+  auto typed_body = std::make_shared<Expr>(*body);
+  typed_body->dtype = dt;
+  body = typed_body;
   obligations.push_back(call("distinct_axes", {axes}));
   auto hasConstant = [&](auto&& self, const E& e) -> bool {
-    if (e->kind == Expr::Kind::Const) return true;
+    if (e->kind == Expr::Kind::Const || e->kind == Expr::Kind::Number)
+      return true;
     for (const auto& a : e->args)
       if (self(self, a)) return true;
     return false;
@@ -596,6 +794,17 @@ TensorMeaning Lowerer::operation(std::size_t id,
 TensorMeaning Lowerer::lower(std::size_t id) {
   context.tick();
   const auto& n = context.plan.nodes.at(id);
+  if (n.literal) {
+    auto axes = call("empty_axes", {}), shape = make(Symbol::Kind::List);
+    S dt = n.literal_dtype
+               ? call("dtype_" + std::string(dtypeName(*n.literal_dtype)), {})
+               : S{};
+    if (!dt && id == context.plan.rhs) dt = expected_dtype;
+    return {
+        axes, shape, dt, number(*n.literal, dt), context.tensorInterface(axes),
+        {},   true};
+  }
+
   if (n.capture) {
     auto shape = make(Symbol::Kind::Shape, {}, n.capture->value);
     auto axes = anchors ? anchors->at(id)
@@ -616,6 +825,7 @@ TensorMeaning Lowerer::lower(std::size_t id) {
 }
 E arithmeticSkeleton(const Plan& p, std::size_t id) {
   const auto& n = p.nodes.at(id);
+  if (n.literal) return number(*n.literal);
   if (n.capture)
     return std::make_shared<Expr>(Expr{
         Expr::Kind::Read, n.capture->value, id, call("empty_axes", {}), {}});
@@ -627,6 +837,31 @@ E arithmeticSkeleton(const Plan& p, std::size_t id) {
       return inputs.at(v.index);
     std::vector<E> args;
     for (const auto& a : v.args) args.push_back(lower(*a));
+    if (v.kind == Value::Kind::Call) {
+      std::function<S(const Meta&)> parameter = [&](const Meta& m) -> S {
+        if (m.kind == Meta::Kind::Integer)
+          return make(Symbol::Kind::Integer, m.name);
+        if (m.kind == Meta::Kind::Attribute) {
+          if (n.descriptor && p.attributes.contains(n.descriptor->value))
+            return p.attributes.at(n.descriptor->value).at(m.index);
+          if (n.descriptor)
+            return make(Symbol::Kind::Field, m.name, n.descriptor->value,
+                        m.index);
+        }
+        if (m.kind == Meta::Kind::Call || m.kind == Meta::Kind::List) {
+          std::vector<S> args;
+          for (const auto& a : m.args) args.push_back(parameter(*a));
+          return m.kind == Meta::Kind::Call
+                     ? call(m.name, std::move(args))
+                     : make(Symbol::Kind::List, {}, 0, 0, std::move(args));
+        }
+        throw ProofFailure(
+            "unsupported scalar parameter in arithmetic skeleton");
+      };
+      std::vector<S> parameters;
+      for (const auto& m : v.parameters) parameters.push_back(parameter(*m));
+      return scalarCall(v.function, std::move(args), std::move(parameters));
+    }
     return expression(
         v.kind == Value::Kind::Add       ? Expr::Kind::Add
         : v.kind == Value::Kind::Product ? Expr::Kind::Product

@@ -1,4 +1,5 @@
 #pragma once
+#include "src/core/semantics/scalar.h"
 #include "src/shared/metadata/axes.h"
 namespace tepl::core::semantics {
 using axis::Binding;
@@ -26,12 +27,14 @@ struct IndexValue {
 struct Value;
 using ValuePtr = std::shared_ptr<const Value>;
 struct Value {
-  enum class Kind { Operand, Read, Add, Product, Reduce, Const } kind;
+  enum class Kind { Operand, Read, Add, Product, Reduce, Const, Call } kind;
   std::size_t index = 0;  // operand or reduction group
   std::vector<ValuePtr> args;
   SourceOrigin origin;
   std::int64_t constant = 0;
   IndexValuePtr access;
+  ScalarFunction function = ScalarFunction::Invalid;
+  std::vector<MetaPtr> parameters;
 };
 struct Definition : axis::ShapeContract {
   ValuePtr value;

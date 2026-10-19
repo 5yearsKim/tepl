@@ -4,6 +4,8 @@
 #include <functional>
 #include <stdexcept>
 
+#include "src/core/semantics/symbolic/scalar_normalize.h"
+
 namespace tepl::core::semantics {
 namespace {
 std::int64_t multiply(std::int64_t a, std::int64_t b) {
@@ -21,15 +23,12 @@ std::int64_t add(std::int64_t a, std::int64_t b) {
 bool sameMonomial(Context& c, const Term& a, const Term& b) {
   if (footprint(a) != footprint(b)) return false;
   if (!c.entails(call("same_set", {a.reductions, b.reductions}))) return false;
-  std::vector<bool> used(b.reads.size());
-  for (const auto& r : a.reads) {
+  std::vector<bool> used(b.factors.size());
+  if (a.factors.size() != b.factors.size()) return false;
+  for (const auto& factor : a.factors) {
     bool found = false;
-    for (std::size_t i = 0; i < b.reads.size(); ++i) {
-      if (used[i] || r->capture != b.reads[i]->capture) continue;
-      auto left_access = r->access ? r->access : coordinates(r->axes);
-      auto right_access = b.reads[i]->access ? b.reads[i]->access
-                                             : coordinates(b.reads[i]->axes);
-      if (equalIndex(c, left_access, right_access)) {
+    for (std::size_t i = 0; i < b.factors.size(); ++i) {
+      if (!used[i] && equivalentValue(c, factor, b.factors[i])) {
         used[i] = true;
         found = true;
         break;
@@ -48,11 +47,20 @@ S readAxes(const Term& t) {
 Terms normalize(Context& c, const E& e,
                 std::vector<RuleProof::RewriteStep>* rewrites) {
   c.tick();
-  if (e->kind == Expr::Kind::Read) return {{call("empty_axes", {}), {e}}};
-  if (!c.plan.algebraic)
-    throw ProofFailure("arithmetic normalization requires algebraic policy");
+  if (e->kind == Expr::Kind::Read)
+    return {{call("empty_axes", {}), {e}, 1, {e}}};
+  if (e->kind == Expr::Kind::Call) {
+    auto simplified = normalizeScalar(c, e);
+    if (simplified->kind != Expr::Kind::Call)
+      return normalize(c, simplified, rewrites);
+    return {{call("empty_axes", {}), tensorReads(simplified), 1, {simplified}}};
+  }
+  if (e->kind == Expr::Kind::Number)
+    return {{call("empty_axes", {}), {}, 1, {e}}};
   if (e->kind == Expr::Kind::Const)
     return {{call("empty_axes", {}), {}, e->constant}};
+  if (!c.plan.algebraic)
+    throw ProofFailure("arithmetic normalization requires algebraic policy");
   auto record = [&](const std::string& law, const Terms& out,
                     std::vector<S> conditions = {}) {
     c.note(law);
@@ -105,6 +113,8 @@ Terms normalize(Context& c, const E& e,
       Term t{call("concat", {a.reductions, b.reductions}), a.reads,
              multiply(a.coefficient, b.coefficient)};
       t.reads.insert(t.reads.end(), b.reads.begin(), b.reads.end());
+      t.factors = a.factors;
+      t.factors.insert(t.factors.end(), b.factors.begin(), b.factors.end());
       out.push_back(std::move(t));
     }
   if (left.size() > 1 || right.size() > 1)
@@ -123,8 +133,15 @@ Terms normalize(Context& c, const E& e,
 Terms collectTerms(Context& c, const Terms& raw,
                    std::vector<RuleProof::RewriteStep>* rewrites) {
   Terms out;
-  for (const auto& t : raw) {
+  for (auto t : raw) {
     c.tick();
+    if (t.factors.empty() && !t.reads.empty()) t.factors = t.reads;
+    scalarProductLaws(c, t.factors);
+    t.reads.clear();
+    for (const auto& f : t.factors) {
+      auto rs = tensorReads(f);
+      t.reads.insert(t.reads.end(), rs.begin(), rs.end());
+    }
     if (!t.coefficient) {
       c.note("zero-multiplication");
       if (rewrites)
@@ -189,16 +206,16 @@ std::string show(const Terms& terms) {
     if (!out.empty()) out += " + ";
     if (!callIs(t.reductions, "empty_axes"))
       out += "Reduce(" + format(*t.reductions) + ", ";
-    if (t.reads.empty())
+    if (t.factors.empty())
       out += "Const(" + std::to_string(t.coefficient) + ")";
     else if (t.coefficient != 1)
       out += std::to_string(t.coefficient) + " * ";
-    if (t.reads.size() > 1) out += "Product(";
-    for (std::size_t i = 0; i < t.reads.size(); ++i) {
+    if (t.factors.size() > 1) out += "Product(";
+    for (std::size_t i = 0; i < t.factors.size(); ++i) {
       if (i) out += ", ";
-      out += show(t.reads[i]);
+      out += show(t.factors[i]);
     }
-    if (t.reads.size() > 1) out += ")";
+    if (t.factors.size() > 1) out += ")";
     if (!callIs(t.reductions, "empty_axes")) out += ")";
   }
   return out;

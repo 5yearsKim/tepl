@@ -20,6 +20,7 @@ struct Checker {
   Definition result;
   std::map<std::string, MetaPtr> locals;
   std::map<std::string, std::size_t> groups, operands, fields;
+  std::map<std::string, Type> field_types;
   SourceOrigin at;
 
   [[noreturn]] void fail(const std::string& text) {
@@ -121,7 +122,10 @@ struct Checker {
                     v.value->value) ||
                 !fields.contains(v.field))
               fail("unknown axis attribute '" + v.field + "'");
-            return make(Meta::Kind::Attribute, Type::Positions, v.field,
+            if (!field_types.contains(v.field))
+              fail("axis attribute is not a required numeric field: " +
+                   v.field);
+            return make(Meta::Kind::Attribute, field_types.at(v.field), v.field,
                         fields.at(v.field));
           } else if constexpr (std::is_same_v<T, syntax::MetadataCall>) {
             std::vector<MetaPtr> args;
@@ -163,7 +167,10 @@ struct Checker {
     if (expr.kind == K::kAttribute) {
       if (!fields.contains(expr.text))
         fail("unknown axis attribute '" + expr.text + "'");
-      return make(Meta::Kind::Attribute, Type::Positions, expr.text,
+      if (!field_types.contains(expr.text))
+        fail("semantic parameter is not a required numeric field: " +
+             expr.text);
+      return make(Meta::Kind::Attribute, field_types.at(expr.text), expr.text,
                   fields.at(expr.text));
     }
     if (expr.kind == K::kName) {
@@ -286,7 +293,9 @@ struct Checker {
       return node(Value::Kind::Operand, operands.at(expr.text));
     }
     if (expr.kind != syntax::SemanticExpr::Kind::kCall)
-      fail("axis semantics expects Operand, Const, Add, Product, or Reduce");
+      fail(
+          "value semantics expects an operand, Const, Add, Product, Reduce, or "
+          "a registered scalar function");
     if (expr.text == "Read") {
       if (expr.arguments.size() != 2 ||
           expr.arguments[0]->kind != syntax::SemanticExpr::Kind::kName ||
@@ -325,14 +334,44 @@ struct Checker {
       auto body = value(*expr.arguments[1]);
       return node(Value::Kind::Reduce, groups.at(g.text), {body});
     }
-    if ((expr.text != "Add" && expr.text != "Product") ||
-        expr.arguments.size() != 2)
-      fail("unsupported index semantic primitive or arity: '" + expr.text +
-           "'");
-    auto l = value(*expr.arguments[0]), r = value(*expr.arguments[1]);
-    return node(expr.text == "Add" ? Value::Kind::Add : Value::Kind::Product, 0,
-                {l, r});
+    if (expr.text == "Add" || expr.text == "Product") {
+      if (expr.arguments.size() != 2)
+        fail("binary arithmetic requires two arguments");
+      return node(expr.text == "Add" ? Value::Kind::Add : Value::Kind::Product,
+                  0, {value(*expr.arguments[0]), value(*expr.arguments[1])});
+    }
+    const auto* function = scalarSignature(expr.text);
+    if (!function)
+      fail("unknown scalar semantic function: '" + expr.text + "'");
+    if (expr.arguments.size() != function->arity + function->parameters)
+      fail("wrong scalar function arity: '" + expr.text + "'");
+    std::vector<ValuePtr> args;
+    for (std::size_t i = 0; i < function->arity; ++i)
+      args.push_back(value(*expr.arguments[i]));
+    if (function->id == ScalarFunction::Add ||
+        function->id == ScalarFunction::Multiply)
+      return node(function->id == ScalarFunction::Add ? Value::Kind::Add
+                                                      : Value::Kind::Product,
+                  0, args);
+    if (function->id == ScalarFunction::Negate ||
+        function->id == ScalarFunction::Subtract) {
+      auto minus =
+          std::make_shared<Value>(Value{Value::Kind::Const, 0, {}, at, -1});
+      auto neg = node(Value::Kind::Product, 0, {minus, args.back()});
+      return function->id == ScalarFunction::Negate
+                 ? neg
+                 : node(Value::Kind::Add, 0, {args.front(), neg});
+    }
+    Value out{Value::Kind::Call, 0, args, at};
+    out.function = function->id;
+    for (std::size_t i = function->arity; i < expr.arguments.size(); ++i) {
+      auto parameter = semanticMetadata(*expr.arguments[i]);
+      type(parameter, Type::Integer);
+      out.parameters.push_back(parameter);
+    }
+    return std::make_shared<Value>(std::move(out));
   }
+
   bool constantValue(const Value& v) {
     if (v.kind == Value::Kind::Const) return true;
     if (v.kind == Value::Kind::Operand || v.kind == Value::Kind::Read)
@@ -356,6 +395,19 @@ struct Checker {
       if (!out.erase(v.index) && !constantValue(*v.args[0]))
         fail("Reduce group is not free in its body");
       return out;
+    }
+    if (v.kind == Value::Kind::Call) {
+      std::optional<std::set<std::size_t>> frame;
+      for (const auto& a : v.args) {
+        if (constantValue(*a)) continue;
+        auto f = free(*a);
+        if (frame && *frame != f)
+          fail(
+              "scalar function arguments must have identical free logical "
+              "groups");
+        frame = f;
+      }
+      return frame.value_or(std::set<std::size_t>{});
     }
     auto right = free(*v.args[1]);
     if (v.kind == Value::Kind::Add && out != right &&
@@ -396,10 +448,14 @@ struct Checker {
           context.output.attribute_schemas.at(operation.attributes->value);
       for (std::size_t i = 0; i < schema.fields.size(); ++i) {
         const auto& f = schema.fields[i];
-        if (f.type != "index" || f.list_depth != 1 || f.optional)
-          fail(
-              "initial axis semantics supports required index[] attributes "
-              "only");
+        if (!f.optional) {
+          if (f.type == "index" && f.list_depth == 1)
+            field_types[f.name] = Type::Positions;
+          if ((f.type == "index" || f.type == "i64") && f.list_depth == 0)
+            field_types[f.name] = Type::Integer;
+          if (f.type == "bool" && f.list_depth == 0)
+            field_types[f.name] = Type::Boolean;
+        }
         fields[f.name] = i;
         result.fields.push_back(f.name);
       }

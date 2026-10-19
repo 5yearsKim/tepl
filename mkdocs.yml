@@ -68,6 +68,7 @@ nav:
       - CLI: references/cli.md
       - Shapes: references/shape.md
       - Dtypes: references/dtype.md
+      - Scalar semantics: references/scalar-semantics.md
       - Built-in functions: references/built-ins.md
   - Contributing:
       - Developer guide: developer_guide.md

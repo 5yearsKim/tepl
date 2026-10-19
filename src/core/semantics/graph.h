@@ -6,12 +6,16 @@ namespace tepl::core::semantics {
 struct Expr;
 using E = std::shared_ptr<const Expr>;
 struct Expr {
-  enum class Kind { Read, Add, Product, Reduce, Const } kind;
+  enum class Kind { Read, Add, Product, Reduce, Const, Call, Number } kind;
   std::size_t capture = 0, occurrence = 0;
   S axes;  // Read: physical-dimension order. Reduce: bound coordinates.
   std::vector<E> args;
   std::int64_t constant = 0;
   I access;  // Optional calculated read; axes remains the capture interface.
+  ScalarFunction function = ScalarFunction::Invalid;
+  std::vector<S> parameters;
+  S dtype;
+  std::string number;
 };
 struct TensorMeaning {
   S axes, shape, dtype;
@@ -27,6 +31,7 @@ struct Lowerer {
   const std::map<std::size_t, S>* anchors = nullptr;
   std::vector<S> obligations;
   const std::map<std::size_t, S>* interfaces = nullptr;
+  S expected_dtype;
   S metadata(const Meta&, const Instance&, const std::vector<TensorMeaning>&,
              const std::vector<S>&);
   S dtype(const Instance&, const std::vector<TensorMeaning>&);
@@ -44,6 +49,9 @@ struct Lowerer {
 };
 E expression(Expr::Kind, std::vector<E>, S = {});
 E constant(std::int64_t);
+E scalarCall(ScalarFunction, std::vector<E>, std::vector<S> = {}, S = {});
+E number(std::string, S = {});
+std::vector<E> tensorReads(const E&);
 S freeAxes(const E&);
 std::string show(const E&);
 E arithmeticSkeleton(const Plan&, std::size_t);

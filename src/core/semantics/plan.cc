@@ -313,7 +313,17 @@ struct Builder {
     plan.nodes.push_back(std::move(n));
     return plan.nodes.size() - 1;
   }
+  std::size_t literal(const GraphLiteral& value, const SourceOrigin& origin) {
+    Instance n;
+    n.literal = value.spelling;
+    n.literal_dtype = value.dtype;
+    n.origin = origin;
+    plan.nodes.push_back(std::move(n));
+    return plan.nodes.size() - 1;
+  }
   std::size_t source(const Pattern& p) {
+    if (const auto* l = std::get_if<GraphLiteral>(&p.value))
+      return literal(*l, p.origin);
     if (const auto* c = std::get_if<CapturePattern>(&p.value))
       return capture(c->capture, p.origin);
     if (const auto* b = std::get_if<BindPattern>(&p.value))
@@ -329,6 +339,8 @@ struct Builder {
         "applications");
   }
   std::size_t target(const BuildExpr& p) {
+    if (const auto* l = std::get_if<GraphLiteral>(&p.value))
+      return literal(*l, p.origin);
     if (const auto* c = std::get_if<CaptureRef>(&p.value))
       return capture(c->capture, p.origin);
     if (const auto* op = std::get_if<BuildOperation>(&p.value)) {

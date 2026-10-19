@@ -33,6 +33,8 @@ struct Instance {
   std::vector<std::optional<Pin>> pins;
   SourceOrigin origin;
   std::shared_ptr<const metadata::Program> dtype;
+  std::optional<std::string> literal;
+  std::optional<DType> literal_dtype;
 };
 enum class ProofStatus { Proved, Unknown };
 enum class GuardKind { Legality, CoordinateOrder, ReductionDomain };

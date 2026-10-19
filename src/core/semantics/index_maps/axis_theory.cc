@@ -169,6 +169,35 @@ bool Context::deriveEvidence(const S& f) {
   return structuralEvidence(f, QueryMode::Evidence);
 }
 bool Context::structuralEvidence(const S& f, QueryMode mode) {
+  if (callIs(f, "==") || callIs(f, "same_set") || callIs(f, "subset")) {
+    auto empty = [](const S& x) {
+      return callIs(x, "empty_axes") ||
+             (x->kind == Symbol::Kind::List && x->args.empty());
+    };
+    auto sequence = [](const S& x) {
+      return x->sort == Symbol::Sort::Axes ||
+             x->sort == Symbol::Sort::Extents ||
+             x->sort == Symbol::Sort::Positions;
+    };
+    auto a = f->args[0], b = f->args[1];
+    // Scalars have a unique empty shape/interface. Prove this relationship
+    // without replacing named coordinate views or losing their origin maps.
+    if ((empty(a) || empty(b)) && sequence(a) && sequence(b) &&
+        query(call("==", {call("len", {a}), integer(0)}), mode) &&
+        query(call("==", {call("len", {b}), integer(0)}), mode))
+      return true;
+  }
+  if (callIs(f, "&&"))
+    return query(f->args[0], mode) && query(f->args[1], mode);
+  if (callIs(f, "||"))
+    return query(f->args[0], mode) || query(f->args[1], mode);
+  // Scalar function signatures use the same dtype families as contracts.
+  if (callIs(f, "is_numeric"))
+    return query(call("is_float", f->args), mode) ||
+           query(call("is_integer", f->args), mode);
+  if (callIs(f, "is_integer"))
+    return query(call("is_signed_integer", f->args), mode) ||
+           query(call("is_unsigned_integer", f->args), mode);
   if (callIs(f, "extent_le") &&
       extentBoundArithmetic(*this, f->args[0], f->args[1], mode))
     return true;

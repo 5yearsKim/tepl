@@ -39,7 +39,7 @@ Plan plan(const std::string& rule, bool algebraic = true,
   for (const auto& d : result.diagnostics) std::cerr << d.message << '\n';
   expect(result.ok(), "reverse fixture checks");
   auto p = *result.program->rules.at(0).semantic_plan;
-  expect(p.proof.status == ProofStatus::Proved, p.proof.reason);
+  expect(p.proof.status == ProofStatus::Proved, p.proof.reason + " in " + rule);
   expect(p.proof.guard.empty(), "no inferred applicability restrictions");
   auto verified = verify(p, p.proof);
   expect(verified.status == ProofStatus::Proved, verified.reason);

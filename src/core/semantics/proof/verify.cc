@@ -55,6 +55,7 @@ RuleProof check(const Plan& plan, const ConstructorCandidate& candidate,
     auto correspondence = correspond(c, lhs, lt, rt);
     Lowerer target{c, &correspondence.anchors};
     target.interfaces = &correspondence.interfaces;
+    target.expected_dtype = lhs.dtype;
     auto rhs = target.lower(plan.rhs);
     auto checked = normalize(c, rhs.value);
     auto simplified_lhs = collectTerms(c, lt);

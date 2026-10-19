@@ -107,7 +107,7 @@ struct Constructor {
   TensorMeaning build(std::size_t id) {
     c.tick();
     const auto& n = c.plan.nodes[id];
-    if (n.capture) return lowerer.lower(id);
+    if (n.capture || n.literal) return lowerer.lower(id);
     std::vector<TensorMeaning> inputs;
     for (auto child : n.inputs) inputs.push_back(build(child));
     if (!n.automatic) return lowerer.operation(id, std::move(inputs));
@@ -261,6 +261,7 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
     for (const auto& t : lt) all.push_back(t.reductions);
     Lowerer target{c, &match.anchors};
     target.interfaces = &match.interfaces;
+    target.expected_dtype = lhs.dtype;
     Constructor ctor{c,
                      target,
                      match,

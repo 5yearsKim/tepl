@@ -52,6 +52,18 @@ std::string format(const Value& v, const Definition& d) {
         };
     return "Read(" + d.operands.at(v.index) + ", " + index(*v.access) + ")";
   }
+  if (v.kind == Value::Kind::Call) {
+    std::string s = std::string(scalarSignature(v.function).name) + "(";
+    for (const auto& a : v.args) {
+      if (s.back() != '(') s += ", ";
+      s += format(*a, d);
+    }
+    for (const auto& p : v.parameters) {
+      if (s.back() != '(') s += ", ";
+      s += format(*p);
+    }
+    return s + ")";
+  }
   std::string s = v.kind == Value::Kind::Add       ? "Add("
                   : v.kind == Value::Kind::Product ? "Product("
                                                    : "Reduce(";

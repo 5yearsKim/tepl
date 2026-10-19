@@ -102,6 +102,7 @@ std::string format(const Plan& p) {
   };
   std::function<std::string(std::size_t)> graph = [&](std::size_t n) {
     const auto& node = p.nodes.at(n);
+    if (node.literal) return std::string("Literal(") + *node.literal + ")";
     if (node.capture)
       return "Input(#" + std::to_string(node.capture->value) + ")";
     std::function<std::string(const Value&)> value = [&](const Value& v) {
@@ -117,6 +118,8 @@ std::string format(const Plan& p) {
       std::string s = v.kind == Value::Kind::Add       ? "Add("
                       : v.kind == Value::Kind::Product ? "Product("
                                                        : "Reduce(";
+      if (v.kind == Value::Kind::Call)
+        s = std::string(scalarSignature(v.function).name) + "(";
       if (v.kind == Value::Kind::Reduce)
         s += "n" + std::to_string(n) + "." +
              node.definition->groups.at(v.index).name + ", ";
@@ -124,6 +127,7 @@ std::string format(const Plan& p) {
         if (i) s += ", ";
         s += value(*v.args[i]);
       }
+      for (const auto& parameter : v.parameters) s += ", " + format(*parameter);
       return s + ")";
     };
     return value(*node.definition->value);

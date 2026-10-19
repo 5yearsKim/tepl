@@ -3,7 +3,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 cc_library(
     name = "definitions",
     srcs = ["definition.cc"],
-    hdrs = ["definition.h"],
+    hdrs = ["definition.h", "scalar.h"],
     deps = ["//src/shared/metadata"],
     visibility = ["//visibility:public"],
 )
@@ -46,6 +46,7 @@ cc_library(
             "materialize.h",
             "inspection.h",
             "definition.h",
+            "scalar.h",
             "report.h",
             "metadata_print.h",
             "completion.h",

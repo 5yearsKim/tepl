@@ -5,6 +5,10 @@ struct Term {
   S reductions;
   std::vector<E> reads;
   std::int64_t coefficient = 1;
+  // Polynomial factors may be reads or opaque scalar calls. reads retains all
+  // nested tensor accesses for coordinate correspondence and attribute
+  // inference.
+  std::vector<E> factors;
 };
 using Terms = std::vector<Term>;
 Terms normalize(Context&, const E&,
