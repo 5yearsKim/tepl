@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "src/core/semantics/context.h"
+#include "src/core/semantics/symbolic/metadata_sequences.h"
 
 namespace tepl::core::semantics {
 bool Context::orderedPositions(const S& p) const {
@@ -34,8 +35,16 @@ bool Context::nonnegative(const S& s) {
         std::from_chars(n->name.data(), n->name.data() + n->name.size(), value);
     return parsed.ec == std::errc{} && value >= 0;
   }
-  if (callIs(n, "+")) return nonnegative(n->args[0]) && nonnegative(n->args[1]);
-  if (callIs(n, "-") && callIs(n->args[1], "len") &&
+  if (callIs(n, "index")) {
+    auto interval = queries_.intervals.find(key(n));
+    return interval != queries_.intervals.end() && interval->second.first >= 0;
+  }
+  if (callIs(n, "+")) {
+    for (const auto& a : n->args)
+      if (!nonnegative(a)) return false;
+    return true;
+  }
+  if (callIs(n, "-") && n->args.size() == 2 && callIs(n->args[1], "len") &&
       evidence(call("is_valid_axis_list", {n->args[1]->args[0], n->args[0]})))
     return true;
   // Factory simplifications may hide a sequence-length witness. All indexed
@@ -260,7 +269,38 @@ S Context::canonical(const S& s) {
   for (const auto& a : s->args) args.push_back(canonical(a));
   S out = s;
   if (s->kind == Symbol::Kind::Call) {
-    if (s->name == "ordered_complement")
+    if (s->name == "slice" && equal(args[1], integer(0)) &&
+        equal(args[2], canonical(call("len", {args[0]}))))
+      out = args[0];
+    else if (s->name == "index" &&
+             (callIs(args[0], "extent_add") || callIs(args[0], "extent_sub") ||
+              callIs(args[0], "extent_mul")))
+      out = call(callIs(args[0], "extent_add")   ? "+"
+                 : callIs(args[0], "extent_sub") ? "-"
+                                                 : "*",
+                 {call("index", {args[0]->args[0], args[1]}),
+                  call("index", {args[0]->args[1], args[1]})});
+    else if (s->name == "index" && (callIs(args[0], "offset_extents") ||
+                                    callIs(args[0], "scale_extents")))
+      out =
+          call(callIs(args[0], "offset_extents") ? "+" : "*",
+               {call("index", {args[0]->args[0], args[1]}), args[0]->args[1]});
+    else if (s->name == "index" && callIs(args[0], "gather") &&
+             evidence(
+                 call("is_valid_axis_list",
+                      {args[0]->args[1], call("len", {args[0]->args[0]})})))
+      out = call("index", {args[0]->args[0],
+                           call("index", {args[0]->args[1], args[1]})});
+    else if (s->name == "index" && callIs(args[0], "slice") &&
+             evidence(call("<=", {integer(0), args[1]})) &&
+             evidence(call("<", {args[1], call("-", {args[0]->args[2],
+                                                     args[0]->args[1]})})))
+      out = call("index",
+                 {args[0]->args[0], call("+", {args[0]->args[1], args[1]})});
+    else if (s->name == "ordered_complement" &&
+             evidence(call("is_disjoint", {args[0], args[1]})))
+      out = args[0];
+    else if (s->name == "ordered_complement")
       out = complementBlocks(args[0], args[1]);
     else if (s->name == "==")
       out = sequenceEquality(args[0], args[1]);
@@ -317,6 +357,8 @@ S Context::canonical(const S& s) {
                             call("inverse", {args[0]->args[0]})});
     else
       out = call(s->name, std::move(args));
+    if (callIs(out, "sequence_map") || callIs(out, "all") || callIs(out, "any"))
+      out = simplifyMetadataSequence(*this, out);
     if (callIs(out, "ordered_complement") && callIs(out->args[0], "range") &&
         callIs(out->args[1], "concat") && out->args[1]->args.size() == 2) {
       auto excluded = out->args[1]->args;
@@ -336,6 +378,8 @@ S Context::canonical(const S& s) {
     }
   } else if (!args.empty())
     out = make(s->kind, s->name, s->owner, s->index, std::move(args));
+  if (out->kind == Symbol::Kind::List)
+    out = simplifyMetadataSequence(*this, out);
   found = facts_.representatives.find(key(out));
   auto result =
       found == facts_.representatives.end() ? out : canonical(found->second);

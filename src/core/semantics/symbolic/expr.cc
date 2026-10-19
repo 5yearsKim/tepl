@@ -139,6 +139,52 @@ S call(std::string name, std::vector<S> args) {
       return {};
     return value;
   };
+  if ((name == "+" || name == "-") && args.size() == 1) {
+    if (auto n = literal(args[0])) {
+      if (name == "+") return args[0];
+      std::int64_t result;
+      if (!__builtin_sub_overflow(std::int64_t(0), *n, &result))
+        return make(Symbol::Kind::Integer, std::to_string(result));
+    }
+    return make(Symbol::Kind::Call, std::move(name), 0, 0, std::move(args));
+  }
+  if (args.size() == 2) {
+    auto a = literal(args[0]), b = literal(args[1]);
+    if (a && b) {
+      if (name == "==") return boolean(*a == *b);
+      if (name == "!=") return boolean(*a != *b);
+      if (name == "<") return boolean(*a < *b);
+      if (name == "<=") return boolean(*a <= *b);
+      if (name == ">") return boolean(*a > *b);
+      if (name == ">=") return boolean(*a >= *b);
+    }
+    if (args[0]->kind == Symbol::Kind::Boolean &&
+        args[1]->kind == Symbol::Kind::Boolean) {
+      bool a = truth(args[0]), b = truth(args[1]);
+      if (name == "&&") return boolean(a && b);
+      if (name == "||") return boolean(a || b);
+      if (name == "==") return boolean(a == b);
+      if (name == "!=") return boolean(a != b);
+    }
+  }
+  if (name == "!" && args[0]->kind == Symbol::Kind::Boolean)
+    return boolean(!truth(args[0]));
+  if (name == "if" && args[0]->kind == Symbol::Kind::Boolean)
+    return args[truth(args[0]) ? 1 : 2];
+  if (name == "index" && args[0]->kind == Symbol::Kind::List) {
+    auto i = literal(args[1]);
+    if (i && *i >= 0 && std::uint64_t(*i) < args[0]->args.size())
+      return args[0]->args[*i];
+  }
+  if (name == "slice") {
+    auto b = literal(args[1]), e = literal(args[2]);
+    if (args[0]->kind == Symbol::Kind::List && b && e && *b >= 0 && *b <= *e &&
+        std::uint64_t(*e) <= args[0]->args.size())
+      return make(Symbol::Kind::List, {}, 0, 0,
+                  std::vector<S>(args[0]->args.begin() + *b,
+                                 args[0]->args.begin() + *e));
+    if (b && *b == 0 && equal(args[2], call("len", {args[0]}))) return args[0];
+  }
   if (name == "range") {
     auto n = literal(args[0]);
     // Small constants only; arbitrary ranks remain symbolic.

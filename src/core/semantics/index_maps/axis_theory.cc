@@ -58,6 +58,8 @@ void Context::invalidate() {
   queries_.canonical.clear();
   queries_.entailment.clear();
   queries_.evidence.clear();
+  queries_.intervals.clear();
+  queries_.uniform_elements.clear();
   queries_.support.clear();
   queries_.positions.clear();
   if (!active_sets_) {
@@ -169,6 +171,26 @@ bool Context::deriveEvidence(const S& f) {
   return structuralEvidence(f, QueryMode::Evidence);
 }
 bool Context::structuralEvidence(const S& f, QueryMode mode) {
+  if (callIs(f, "is_disjoint")) {
+    auto a = f->args[0], b = f->args[1];
+    if (facts_.normalized.contains(key(call("is_disjoint", {b, a}))))
+      return true;
+    auto subset = [&](auto&& self, const S& x, const S& y) -> bool {
+      if (equal(x, y)) return true;
+      if (callIs(x, "ordered_complement")) return self(self, x->args[0], y);
+      if (callIs(x, "concat")) {
+        for (const auto& p : x->args)
+          if (!self(self, p, y)) return false;
+        return true;
+      }
+      return x->kind == Symbol::Kind::List && x->args.empty();
+    };
+    for (const auto& [x, y] : {std::pair{a, b}, std::pair{b, a}})
+      if (callIs(x, "ordered_complement") && subset(subset, y, x->args[1]))
+        return true;
+  }
+  if (callIs(f, "<") || callIs(f, "<=") || callIs(f, ">") || callIs(f, ">="))
+    return integerComparison(f, mode);
   if (callIs(f, "==") || callIs(f, "same_set") || callIs(f, "subset")) {
     auto empty = [](const S& x) {
       return callIs(x, "empty_axes") ||
@@ -222,10 +244,12 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
   }
   if (callIs(f, "is_positive_extents")) {
     auto domain = canonical(f->args[0]);
+    if (auto value = uniformElement(domain);
+        value && truth(canonical(call(">", {value, integer(0)}))))
+      return true;
     if (domain->kind == Symbol::Kind::List) {
       for (const auto& n : domain->args)
-        if (n->kind != Symbol::Kind::Integer || std::stoll(n->name) <= 0)
-          return false;
+        if (!query(call(">", {n, integer(0)}), mode)) return false;
       return true;
     }
     if (callIs(domain, "extent_mul"))
@@ -247,6 +271,9 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
   }
   if (callIs(f, "is_valid_extents")) {
     auto domain = canonical(f->args[0]);
+    if (auto value = uniformElement(domain);
+        value && truth(canonical(call(">=", {value, integer(0)}))))
+      return true;
     if (query(call("is_positive_extents", {domain}), mode)) return true;
     if (callIs(domain, "extent_sub"))
       return query(call("extent_le", {domain->args[1], domain->args[0]}), mode);
@@ -288,7 +315,8 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
     }
     if (domain->kind == Symbol::Kind::List) {
       for (const auto& n : domain->args)
-        if (!nonnegative(n)) return false;
+        if (!nonnegative(n) && !query(call(">=", {n, integer(0)}), mode))
+          return false;
       return true;
     }
     if (callIs(domain, "concat")) {
@@ -406,6 +434,18 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
       for (const auto& n : found->second)
         if (equal(canonical(n), canonical(f->args[1]))) return true;
     auto p = f->args[0], n = f->args[1];
+    if (callIs(p, "ordered_complement") &&
+        query(call("is_valid_axis_list", {p->args[0], n}), mode))
+      return true;
+    if (callIs(p, "concat")) {
+      bool valid = true;
+      for (std::size_t i = 0; i < p->args.size(); ++i) {
+        valid &= query(call("is_valid_axis_list", {p->args[i], n}), mode);
+        for (std::size_t j = 0; j < i; ++j)
+          valid &= query(call("is_disjoint", {p->args[i], p->args[j]}), mode);
+      }
+      if (valid) return true;
+    }
     if (p->kind == Symbol::Kind::List && p->args.empty() && nonnegative(n))
       return true;
     if (auto block = positionBlock(p)) {

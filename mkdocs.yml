@@ -69,6 +69,7 @@ nav:
       - Shapes: references/shape.md
       - Dtypes: references/dtype.md
       - Scalar semantics: references/scalar-semantics.md
+      - Metadata reasoning: references/metadata-reasoning.md
       - Built-in functions: references/built-ins.md
   - Contributing:
       - Developer guide: developer_guide.md

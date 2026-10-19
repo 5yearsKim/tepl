@@ -14,6 +14,7 @@
 #include "src/shared/catalog/ids.h"
 #include "src/shared/metadata/ir.h"
 #include "src/shared/source/source.h"
+#include "src/shared/types/types.h"
 
 namespace tepl::core::semantics {
 
@@ -72,6 +73,11 @@ struct Plan {
   std::vector<SymbolPtr> assumptions;
   // Explicit derived descriptors, lowered entirely to LHS metadata.
   std::map<std::size_t, std::vector<SymbolPtr>> attributes;
+  // Original programs survive normalization so invalid indexing or checked
+  // arithmetic cannot disappear from a derived descriptor's legality checks.
+  std::vector<SymbolPtr> derived_metadata;
+  std::vector<std::pair<SymbolPtr, core::Type>> constructed_metadata;
+  std::map<std::pair<std::size_t, std::size_t>, core::Type> metadata_types;
 };
 
 // Every law has a direction, an arithmetic requirement, and explicit side

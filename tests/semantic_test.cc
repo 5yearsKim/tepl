@@ -531,7 +531,7 @@ void explicitConditionTests() {
   };
   auto rejected = [&](const std::string& source, const std::string& message) {
     auto result = check(source);
-    expect(!result.ok(), "normal analysis rejects unverified rules");
+    expect(!result.ok(), "normal analysis rejects unverified rules: " + source);
     for (const auto& d : result.diagnostics)
       if (d.message.find(message) != std::string::npos) return;
     throw std::runtime_error("missing rule diagnostic: " + message);
@@ -564,10 +564,11 @@ void explicitConditionTests() {
       "rule r {(transpose[@p] A) => (transpose[@copy] A) derive { @copy = "
       "@p->S; }}",
       "only supported in where");
-  rejected(
-      "rule r {(transpose[@p] A) => (transpose[auto] A) where { all([true for "
-      "i in [0]]) }}",
-      "unsupported semantic-rule condition");
+  expect(check("rule r {(transpose[@p] A) => (transpose[auto] A) where { "
+               "all([true for "
+               "i in [0]]) }}")
+             .ok(),
+         "constant comprehension guard is understood by semantic checking");
   rejected(
       "rule r {(dot[@d] A B) => (dot[@new] A B) where { len(@new->B) == 0 } "
       "derive { @new = { ..@d }; }}",

@@ -34,6 +34,9 @@ RuleProof check(const Plan& plan, const ConstructorCandidate& candidate,
     Lowerer composed{c};
     auto lhs = composed.lower(plan.lhs);
     c.enableSetReasoning();
+    for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
+    for (const auto& [value, type] : plan.constructed_metadata)
+      c.checkMetadataType(value, type);
     auto lt = normalize(c, lhs.value);
     for (const auto& [id, fields] : candidate.constructors)
       for (const auto& f : fields) c.wellFormed(f);

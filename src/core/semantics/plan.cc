@@ -117,6 +117,9 @@ struct Builder {
       throw std::runtime_error("unknown output-axis group '" + ref.group + "'");
     };
     std::map<std::size_t, S> locals;
+    auto rawCall = [](std::string name, std::vector<S> args) {
+      return make(Symbol::Kind::Call, std::move(name), 0, 0, std::move(args));
+    };
     std::function<S(const TypedExpr&)> lower = [&](const TypedExpr& e) -> S {
       return std::visit(
           [&](const auto& v) -> S {
@@ -124,6 +127,9 @@ struct Builder {
             if constexpr (std::is_same_v<T, OutputAxisGroupRef>) {
               return outputPositions(v);
             } else if constexpr (std::is_same_v<T, DescriptorFieldRef>) {
+              plan.metadata_types.emplace(
+                  std::pair{v.descriptor.value, v.field},
+                  context.output.types.at(e.type.value));
               if (auto found = plan.attributes.find(v.descriptor.value);
                   found != plan.attributes.end())
                 return found->second.at(v.field);
@@ -153,10 +159,11 @@ struct Builder {
               return v.decimal ? S{} : make(Symbol::Kind::Integer, v.spelling);
             else if constexpr (std::is_same_v<T, BinaryExpr>) {
               auto a = lower(*v.lhs), b = lower(*v.rhs);
-              return a && b ? call(std::string(spelling(v.op)), {a, b}) : S{};
+              return a && b ? rawCall(std::string(spelling(v.op)), {a, b})
+                            : S{};
             } else if constexpr (std::is_same_v<T, UnaryExpr>) {
               auto a = lower(*v.operand);
-              return a ? call(std::string(spelling(v.op)), {a}) : S{};
+              return a ? rawCall(std::string(spelling(v.op)), {a}) : S{};
             } else if constexpr (std::is_same_v<T, BuiltinCall>) {
               std::vector<S> args;
               for (const auto& a : v.arguments) {
@@ -164,10 +171,11 @@ struct Builder {
                 if (!x) return {};
                 args.push_back(x);
               }
-              return call(v.builtin == builtins::Builtin::kExclude
-                              ? "ordered_complement"
-                              : std::string(builtins::builtinName(v.builtin)),
-                          std::move(args));
+              return rawCall(
+                  v.builtin == builtins::Builtin::kExclude
+                      ? "ordered_complement"
+                      : std::string(builtins::builtinName(v.builtin)),
+                  std::move(args));
             } else if constexpr (std::is_same_v<T, LocalRef>) {
               auto found = locals.find(v.local.value);
               return found != locals.end() ? found->second : S{};
@@ -179,14 +187,31 @@ struct Builder {
                 values.push_back(value);
               }
               return make(Symbol::Kind::List, {}, 0, 0, std::move(values));
-            } else if constexpr (std::is_same_v<T, IndexExpr>) {
+            } else if constexpr (std::is_same_v<T, core::IndexExpr>) {
               auto value = lower(*v.value), index = lower(*v.index);
-              return value && index ? call("index", {value, index}) : S{};
+              return value && index ? rawCall("index", {value, index}) : S{};
             } else if constexpr (std::is_same_v<T, ConditionalExpr>) {
               auto condition = lower(*v.condition), yes = lower(*v.then_value),
                    no = lower(*v.else_value);
-              return condition && yes && no ? call("if", {condition, yes, no})
-                                            : S{};
+              return condition && yes && no
+                         ? rawCall("if", {condition, yes, no})
+                         : S{};
+            } else if constexpr (std::is_same_v<T, ComprehensionExpr>) {
+              auto iterable = lower(*v.iterable);
+              if (!iterable) return {};
+              auto variable =
+                  call("sequence_variable", {integer(v.variable.value)});
+              auto previous = locals.find(v.variable.value);
+              std::optional<S> old;
+              if (previous != locals.end()) old = previous->second;
+              locals[v.variable.value] = variable;
+              auto body = lower(*v.element);
+              if (old)
+                locals[v.variable.value] = *old;
+              else
+                locals.erase(v.variable.value);
+              return body ? rawCall("sequence_map", {iterable, variable, body})
+                          : S{};
             } else
               return {};
           },
@@ -219,6 +244,7 @@ struct Builder {
           throw std::runtime_error(
               "unsupported semantic-rule local expression");
         locals[local.local.value] = value;
+        plan.derived_metadata.push_back(value);
         continue;
       }
       std::vector<S> fields;
@@ -233,6 +259,9 @@ struct Builder {
                 "cannot interpret explicit descriptor constructor");
           }
           fields.push_back(value);
+          plan.derived_metadata.push_back(value);
+          plan.constructed_metadata.emplace_back(
+              value, context.output.types.at(f->type.value));
         }
       } else if (const auto* ref =
                      std::get_if<DescriptorRef>(&derivation.value->value)) {

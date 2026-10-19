@@ -37,6 +37,27 @@ bool indexLess(const I& a, const I& b) {
 S signedInteger(std::int64_t n) {
   return make(Symbol::Kind::Integer, std::to_string(n));
 }
+// Reflection selectors are sets of positions. This normalization is local to
+// reflections: ordinary coordinate and position sequences retain their order.
+S reflectionPositions(Context& c, const S& raw) {
+  auto x = c.canonical(raw);
+  if (x->kind == Symbol::Kind::List) {
+    auto values = x->args;
+    std::sort(values.begin(), values.end(), symbolLess);
+    return make(Symbol::Kind::List, {}, 0, 0, values);
+  }
+  if (callIs(x, "concat")) {
+    std::vector<S> parts;
+    for (const auto& a : x->args) parts.push_back(reflectionPositions(c, a));
+    std::sort(parts.begin(), parts.end(), symbolLess);
+    return c.canonical(call("concat", std::move(parts)));
+  }
+  if (callIs(x, "gather") &&
+      c.entails(
+          call("axis_partition", {x->args[1], call("len", {x->args[0]})})))
+    return reflectionPositions(c, x->args[0]);
+  return x;
+}
 // A partial reflection preserves the box [0,extent-1]. Keep this conservative
 // bound only after proving that the incoming tuple lies in that box. Empty
 // axes have the empty interval [0,-1], which is also preserved. More general
@@ -160,7 +181,7 @@ I indexReverse(Context& c, const I& e, const S& raw_extents,
                const S& raw_dimensions) {
   c.tick();
   auto extents = c.canonical(raw_extents);
-  auto dimensions = c.canonical(raw_dimensions);
+  auto dimensions = reflectionPositions(c, raw_dimensions);
   if (equal(c.canonical(call("len", {dimensions})), integer(0))) return e;
   if (equal(c.canonical(indexLength(e)), integer(0))) return e;
   if (e->kind == IndexExpr::Kind::Reverse &&
@@ -168,6 +189,17 @@ I indexReverse(Context& c, const I& e, const S& raw_extents,
       c.entails(call("==", {dimensions, e->dimensions}))) {
     c.note("index-reverse-cancellation");
     return e->args[0];
+  }
+  if (e->kind == IndexExpr::Kind::Reverse &&
+      equalExtentArithmetic(c, extents, e->axes)) {
+    auto remaining = call(
+        "concat", {call("ordered_complement", {e->dimensions, dimensions}),
+                   call("ordered_complement", {dimensions, e->dimensions})});
+    auto parity = reflectionPositions(c, remaining);
+    c.note("index-reflection-parity");
+    if (equal(c.canonical(call("len", {parity})), integer(0)))
+      return e->args[0];
+    return node(IndexExpr::Kind::Reverse, extents, {e->args[0]}, 1, parity);
   }
   // An extent-one coordinate is necessarily zero. Do not apply this law to
   // arbitrary calculated expressions just because their reflection extent is 1.

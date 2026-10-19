@@ -10,6 +10,9 @@
 namespace tepl::core::semantics {
 
 enum class QueryMode { Evidence, Entailment };
+using MetadataInteger = __int128;
+using IntegerInterval = std::pair<MetadataInteger, MetadataInteger>;
+std::optional<MetadataInteger> metadataInteger(const S&);
 
 struct SourceCoordinates {
   std::map<std::size_t, std::size_t> fields;
@@ -39,6 +42,10 @@ class Context {
   const std::vector<std::string>& steps() const { return steps_; }
   // Snapshot established vector inequalities; consumers cannot add premises.
   std::vector<std::pair<S, S>> extentBounds() const;
+  std::vector<S> arithmeticFacts() const;
+  std::optional<IntegerInterval> integerInterval(const S&);
+  IntegerInterval fieldIntegerInterval(const S&) const;
+  S uniformElement(const S&);
   void registerCoordinates(std::size_t node, std::size_t group, const S&);
   void recordInputs(std::size_t node, std::vector<S> shapes);
   void recordTensor(std::size_t node, const S& axes, std::vector<S> groups);
@@ -50,6 +57,8 @@ class Context {
   void sourceScope(std::size_t);
   void validateSource(const S&);
   void wellFormed(const S&);
+  void checkMetadata(const S&);
+  void checkMetadataType(const S&, core::Type);
   void note(const std::string&);
   S canonical(const S&);
   void learn(const S&);
@@ -97,10 +106,13 @@ class Context {
   struct QueryState {
     std::map<Key, S> canonical;
     std::map<Key, bool> entailment, evidence;
+    std::map<Key, IntegerInterval> intervals;
+    std::map<Key, S> uniform_elements;
     std::map<std::pair<QueryMode, Key>, S> support;
     std::map<std::tuple<QueryMode, Key, Key>, S> positions;
     std::set<Key> active_queries, active_canonical, active_support,
-        active_positions, active_premises, active_set_operations;
+        active_positions, active_premises, active_set_operations,
+        active_intervals;
     std::size_t start_budget = 0;
     std::map<Key, std::pair<std::size_t, std::size_t>> term_order;
   } queries_;
@@ -136,6 +148,7 @@ class Context {
   bool established(const S&);
   bool deriveEvidence(const S&);
   bool structuralEvidence(const S&, QueryMode);
+  bool integerComparison(const S&, QueryMode);
   bool query(const S&, QueryMode);
   bool prove(const S&);
   bool partitionPiece(const S&) const;

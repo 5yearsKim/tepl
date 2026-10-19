@@ -252,6 +252,10 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
     Lowerer composed{c};
     auto lhs = composed.lower(plan.lhs);
     c.enableSetReasoning();
+    phase = "metadata definedness";
+    for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
+    for (const auto& [value, type] : plan.constructed_metadata)
+      c.checkMetadataType(value, type);
     auto lt = normalize(c, lhs.value, &rewrites);
     phase = "coordinate correspondence";
     auto rt = normalize(c, arithmeticSkeleton(plan, plan.rhs));

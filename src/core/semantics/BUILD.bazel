@@ -17,6 +17,7 @@ cc_library(
         ":symbolic_model",
         "//src/shared/catalog:ids",
         "//src/shared/metadata",
+        "//src/shared/types",
     ],
     visibility = ["//visibility:public"],
 )

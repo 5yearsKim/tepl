@@ -3,6 +3,13 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_test(
+    name = "reasoning_test",
+    size = "small",
+    srcs = ["reasoning_test.cc"],
+    deps = ["//src/core/semantics:proof", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/executable"],
+)
+
+cc_test(
     name = "scalar_test",
     size = "small",
     srcs = ["scalar_test.cc"],
@@ -61,7 +68,7 @@ cc_test(
 
 sh_test(
     name = "semantic_cli_test",
-    size = "small",
+    size = "medium",
     srcs = ["semantic_cli_test.sh"],
     args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/rules/algebraic.tepl)", "$(rootpath //:examples/semantic/rules/scalars.tepl)", "$(rootpath //:examples/semantic/rules/broadcast.tepl)", "$(rootpath //:examples/semantic/rules/convolution.tepl)", "$(rootpath //:examples/semantic/rules/slice.tepl)", "$(rootpath //:examples/semantic/rules/reverse.tepl)"],
     data = ["//:tepl", "//:examples/semantic/tepl.toml", "//:examples/semantic/rules/basic.tepl", "//:examples/semantic/rules/algebraic.tepl", "//:examples/semantic/rules/scalars.tepl", "//:examples/semantic/rules/broadcast.tepl", "//:examples/semantic/rules/convolution.tepl", "//:examples/semantic/rules/slice.tepl", "//:examples/semantic/rules/reverse.tepl", "//:examples/semantic/dialects/tensor.tepl"],
