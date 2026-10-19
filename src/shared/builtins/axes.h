@@ -22,8 +22,9 @@ struct AxisSignature {
     return variadic ? count >= arguments.size() : count == arguments.size();
   }
 };
-// Public functions callable only in operation axes blocks. Shared functions
-// reference the same Builtin ID; specialized operations lower explicitly.
+// Public functions for operation axes blocks and metadata arguments of
+// calculated reads. Shared functions reference the same Builtin ID;
+// specialized operations lower explicitly.
 std::span<const AxisSignature> axisCatalog();
 const AxisSignature* resolveAxisBuiltin(std::string_view);
 }  // namespace tepl::core::builtins

@@ -303,8 +303,9 @@ so they cannot be relied upon to discharge a proof obligation.
 
 Required `index[]` fields, fixed operand arity, and the scalar primitives
 `Operand`, `Read`, `Const`, `Add`, `Product`, and `Reduce`
-form the operation fragment. Calculated reads support addition of coordinate
-tuples. Size-one expansion, reshape, general affine access inversion,
+form the operation fragment. Calculated reads support tuple addition,
+concatenation, position selection, positive scales, and nonnegative offsets.
+Size-one expansion, reshape, general affine access inversion,
 value-dependent domains, and arbitrary external computation are outside this language.
 
 ## Constants and cancellation
@@ -385,6 +386,54 @@ General synthesis with multiple output-only groups and arbitrary interface
 changes remains limited. Reducing an inserted axis retains a reduction in the
 semantic graph; the symbolic cardinality scaling law is deferred.
 
+## Calculated read expressions
+
+`Read(input, coordinates)` supplies coordinates in the input's dimension order.
+`Coords(G)` gives the coordinate tuple for an exported axis group. `IndexAdd`
+adds tuples elementwise, and `Concat` joins them.
+
+`IndexScale(values, coordinates)` and `IndexOffset(values, coordinates)` accept
+metadata expressions, including nested calls to the existing axes builtins:
+
+```tepl
+IndexScale(gather(attrs.strides, attrs.positions), Coords(G))
+IndexOffset(extent_add(attrs.starts, attrs.extra), Coords(G))
+IndexScale(offset_extents(range(rank(input)), 1), Coords(G))
+```
+
+Use function-call syntax for metadata here. Attributes, operand queries such as
+`shape(input)` and `rank(input)`, and exported groups are available; axes-block
+`let` bindings remain private. Scale and offset expressions must produce integer
+sequences of the same length as their coordinate tuple. Scales must be positive
+and offsets nonnegative, including when calculated from other metadata.
+
+`IndexSelect(coordinates, positions)` selects coordinate entries in list order.
+Positions must be distinct and in range. A full permutation rearranges a tuple;
+a shorter list selects a subset. The resulting `Read` must still supply the
+input's full rank and stay within its bounds.
+
+```tepl
+IndexSelect(Coords(G), attrs.positions)
+IndexSelect(IndexSelect(Coords(G), attrs.first), attrs.second)
+```
+
+For example, selecting positions `[2, 0]` from coordinates `[i, j, k]` gives
+`[k, i]`. Nested selections compose using
+`gather(attrs.first, attrs.second)`. Selection through scales and offsets also
+selects their metadata entries:
+
+```text
+IndexSelect(IndexScale(s, coordinates), p)
+  = IndexScale(gather(s, p), IndexSelect(coordinates, p))
+```
+
+These expressions use the existing coordinate normalizer and independent
+verification. `auto` can reuse direct calculated-read matching, including
+constructing a scale or offset from a source expression. Solving general inverse
+or coupled metadata equations remains outside its scope; supply explicit
+attributes for those cases. Selection positions may also need explicit
+attributes or pins.
+
 ## Convolution and calculated reads
 
 The dialect defines `convolution`, with alias `conv`, for arbitrary spatial
@@ -423,8 +472,8 @@ Read(input,
 ```
 
 `Coords(G)` is the current integer coordinate tuple of group G. `IndexAdd`
-adds paired coordinates elementwise. `IndexScale(attrs.field, tuple)` multiplies
-each coordinate by the corresponding attribute member. `Concat` joins tuples
+adds paired coordinates elementwise. `IndexScale(values, tuple)` multiplies
+each coordinate by the corresponding metadata value. `Concat` joins tuples
 in physical input-dimension order. For 2D, the read is
 `input[n, sh*h+dh*r, sw*w+dw*s, c]`.
 

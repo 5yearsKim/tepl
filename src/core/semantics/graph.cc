@@ -20,6 +20,9 @@ S Lowerer::metadata(const Meta& m, const Instance& n,
   for (const auto& a : m.args) args.push_back(metadata(*a, n, inputs, groups));
   if (m.kind == Meta::Kind::List)
     return make(Symbol::Kind::List, {}, 0, 0, std::move(args));
+  if (m.name == "gather")
+    obligations.push_back(
+        call("is_valid_axis_list", {args[1], call("len", {args[0]})}));
   if (m.name == "extent_add" || m.name == "extent_sub" ||
       m.name == "extent_le" || m.name == "extent_mul" ||
       m.name == "extent_floor_div")
@@ -185,6 +188,13 @@ I Lowerer::indexValue(const IndexValue& v, const Instance& n,
   std::vector<I> args;
   for (const auto& a : v.args)
     args.push_back(indexValue(*a, n, inputs, groups));
+  if (v.kind == IndexValue::Kind::Select) {
+    auto positions = metadata(*v.parameter, n, inputs, groups);
+    obligations.push_back(
+        call("is_valid_axis_list", {positions, indexLength(args[0])}));
+    context.note("index-selection-normalization");
+    return indexSelect(context, args[0], positions);
+  }
   if (v.kind == IndexValue::Kind::Scale || v.kind == IndexValue::Kind::Offset) {
     auto scale = metadata(*v.parameter, n, inputs, groups);
     obligations.push_back(

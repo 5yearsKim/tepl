@@ -154,26 +154,85 @@ struct Checker {
         },
         expr.value);
   }
+  // Semantics has a separate scope: operands and exported groups are visible,
+  // while axes-block let bindings remain private. Reuse the axes builtin
+  // signatures and checked metadata IR for function-call expressions.
+  MetaPtr semanticMetadata(const syntax::SemanticExpr& expr) {
+    at = detail::origin(source, expr.span);
+    using K = syntax::SemanticExpr::Kind;
+    if (expr.kind == K::kAttribute) {
+      if (!fields.contains(expr.text))
+        fail("unknown axis attribute '" + expr.text + "'");
+      return make(Meta::Kind::Attribute, Type::Positions, expr.text,
+                  fields.at(expr.text));
+    }
+    if (expr.kind == K::kName) {
+      if (operands.contains(expr.text))
+        return make(Meta::Kind::Operand, Type::Operand, expr.text,
+                    operands.at(expr.text));
+      if (groups.contains(expr.text))
+        return make(Meta::Kind::Group, Type::Axes, expr.text,
+                    groups.at(expr.text));
+      fail("unknown semantic metadata name '" + expr.text +
+           "'; axes let locals are private");
+    }
+    if (expr.kind == K::kInteger) {
+      try {
+        std::stoll(expr.text);
+      } catch (...) {
+        fail("integer out of range");
+      }
+      return make(Meta::Kind::Integer, Type::Integer, expr.text);
+    }
+    std::vector<MetaPtr> args;
+    for (const auto& arg : expr.arguments)
+      args.push_back(semanticMetadata(*arg));
+    at = detail::origin(source, expr.span);
+    return call(expr.text, std::move(args));
+  }
+  // Only attributes supplying numeric sequence values may receive extent
+  // constructors. In gather(values, positions), positions are still selectors.
+  void extentFields(const Meta& m) {
+    if (m.kind == Meta::Kind::Attribute) {
+      result.extent_fields.insert(m.index);
+      return;
+    }
+    if (m.kind != Meta::Kind::Call) return;
+    if (m.name == "gather" || m.name == "scale_extents" ||
+        m.name == "offset_extents") {
+      extentFields(*m.args[0]);
+    } else if (m.name == "concat" || m.name == "extent_add" ||
+               m.name == "extent_sub" || m.name == "extent_mul" ||
+               m.name == "extent_floor_div") {
+      for (const auto& arg : m.args) extentFields(*arg);
+    }
+  }
   IndexValuePtr indexValue(const syntax::SemanticExpr& expr) {
     at = detail::origin(source, expr.span);
     if (expr.kind != syntax::SemanticExpr::Kind::kCall)
-      fail("read indices require Coords, IndexAdd, or Concat");
+      fail("read indices require a coordinate expression");
     if (expr.text == "IndexScale" || expr.text == "IndexOffset") {
-      if (expr.arguments.size() != 2 ||
-          expr.arguments[0]->kind != syntax::SemanticExpr::Kind::kAttribute ||
-          !fields.contains(expr.arguments[0]->text))
+      if (expr.arguments.size() != 2)
         fail(expr.text +
-             " requires an index[] attribute and a coordinate tuple");
-      auto name = expr.arguments[0]->text;
-      result.extent_fields.insert(fields.at(name));
-      auto scale =
-          make(Meta::Kind::Attribute, Type::Positions, name, fields.at(name));
+             " requires a metadata sequence and a coordinate tuple");
+      auto scale = semanticMetadata(*expr.arguments[0]);
+      type(scale, Type::Positions);
+      extentFields(*scale);
       return std::make_shared<IndexValue>(
           IndexValue{expr.text == "IndexScale" ? IndexValue::Kind::Scale
                                                : IndexValue::Kind::Offset,
                      0,
                      {indexValue(*expr.arguments[1])},
                      scale});
+    }
+    if (expr.text == "IndexSelect") {
+      if (expr.arguments.size() != 2)
+        fail("IndexSelect requires a coordinate tuple and a position sequence");
+      auto coordinates = indexValue(*expr.arguments[0]);
+      auto positions = semanticMetadata(*expr.arguments[1]);
+      type(positions, Type::Positions);
+      return std::make_shared<IndexValue>(
+          IndexValue{IndexValue::Kind::Select, 0, {coordinates}, positions});
     }
     if (expr.text == "Coords") {
       if (expr.arguments.size() != 1 ||
@@ -362,8 +421,7 @@ struct Checker {
             fail("an output-only binding requires group(extents)");
           g.domain = metadata(*call->arguments[0]);
           type(g.domain, Type::Positions);
-          if (g.domain->kind == Meta::Kind::Attribute)
-            result.extent_fields.insert(g.domain->index);
+          extentFields(*g.domain);
         }
         std::set<std::size_t> seen;
         for (const auto& binding : b.bindings) {

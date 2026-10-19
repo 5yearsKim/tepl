@@ -50,6 +50,8 @@
 // Read(t, tuple) evaluates t at calculated integer coordinates. Coords(G)
 // returns G's coordinate tuple, IndexAdd is elementwise index addition, and
 // Concat joins coordinate tuples. These are separate from scalar arithmetic.
+// IndexScale and IndexOffset accept metadata expressions for per-axis values.
+// IndexSelect(tuple, positions) selects distinct in-range entries in list order.
 // Reduce([], e) = e. A domain with any zero extent has sum zero.
 // This describes a value and its interface, not storage allocation. Operation
 // operands and attrs are visible in both blocks.

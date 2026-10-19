@@ -10,10 +10,10 @@ using axis::Type;
 struct IndexValue;
 using IndexValuePtr = std::shared_ptr<const IndexValue>;
 struct IndexValue {
-  enum class Kind { Coordinates, Add, Concat, Scale, Offset } kind;
+  enum class Kind { Coordinates, Add, Concat, Scale, Offset, Select } kind;
   std::size_t group = 0;
   std::vector<IndexValuePtr> args;
-  MetaPtr parameter;  // Per-axis coefficients or offsets; no tensor values.
+  MetaPtr parameter;  // Coefficients, offsets, or selectors; no tensor values.
 };
 struct Value;
 using ValuePtr = std::shared_ptr<const Value>;

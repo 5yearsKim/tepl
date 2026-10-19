@@ -3,6 +3,13 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 cc_test(
+    name = "calculated_read_test",
+    size = "small",
+    srcs = ["calculated_read_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],
+    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof"],
+)
+
+cc_test(
     name = "slice_test",
     size = "small",
     srcs = ["slice_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],

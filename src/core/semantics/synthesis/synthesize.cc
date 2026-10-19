@@ -18,9 +18,13 @@ struct Constructor {
   const Terms& source_terms;
   bool unresolvedIndexAttributes(const Instance& n) {
     bool found = false;
+    auto metadata = [&](auto&& self, const Meta& m) -> void {
+      if (m.kind == Meta::Kind::Attribute)
+        found |= containsHole(c.field(n, m.index));
+      for (const auto& a : m.args) self(self, *a);
+    };
     auto indices = [&](auto&& self, const IndexValue& v) -> void {
-      if (v.parameter && v.parameter->kind == Meta::Kind::Attribute)
-        found |= containsHole(c.field(n, v.parameter->index));
+      if (v.parameter) metadata(metadata, *v.parameter);
       for (const auto& a : v.args) self(self, *a);
     };
     auto values = [&](auto&& self, const Value& v) -> void {

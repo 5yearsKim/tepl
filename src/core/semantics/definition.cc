@@ -30,6 +30,9 @@ std::string format(const Value& v, const Definition& d) {
         [&](const IndexValue& a) {
           if (a.kind == IndexValue::Kind::Coordinates)
             return "Coords(" + d.groups.at(a.group).name + ")";
+          if (a.kind == IndexValue::Kind::Select)
+            return "IndexSelect(" + index(*a.args[0]) + ", " +
+                   format(*a.parameter) + ")";
           if (a.kind == IndexValue::Kind::Scale ||
               a.kind == IndexValue::Kind::Offset)
             return std::string(a.kind == IndexValue::Kind::Scale
