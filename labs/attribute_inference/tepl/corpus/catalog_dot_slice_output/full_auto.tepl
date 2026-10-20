@@ -1,0 +1,11 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: dot-slice-output
+// Scope: Rank-two dot with arbitrary output starts, sizes and positive strides.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_dot_slice_output {
+    X: [M,K] Y: [K,N]
+     (hlo.slice[@s] (hlo.dot[@d] X Y)) => (hlo.dot[auto] (hlo.slice[auto] X) (hlo.slice[auto] Y))
+     where { @d.lhs_batching_dimensions==[] && @d.rhs_batching_dimensions==[] && @d.lhs_contracting_dimensions==[1] && @d.rhs_contracting_dimensions==[0] }
+
+}

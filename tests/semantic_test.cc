@@ -215,6 +215,99 @@ List evaluate(const Symbol& s, const Metadata& m) {
   }
   throw std::runtime_error("unsupported test constructor expression");
 }
+void selectedShapeAssociationTests() {
+  const std::string prefix = R"(
+rule selected_shape_association {
+  A: f32[Batch,M,K] B: f32[Batch,K,L] C: f32[Batch,L,N]
+  (dot[@outer] (dot[@inner] A B) C)
+  =>
+)";
+  const std::string conditions = R"(
+  where {
+    Batch > 0 && M > 0 && K > 0 && L > 0 && N > 0
+    && @inner.lhs_contracting_dimensions == [2]
+    && @inner.rhs_contracting_dimensions == [1]
+    && @inner.lhs_batching_dimensions == [0]
+    && @inner.rhs_batching_dimensions == [0]
+    && @outer.lhs_contracting_dimensions == [2]
+    && @outer.rhs_contracting_dimensions == [1]
+    && @outer.lhs_batching_dimensions == [0]
+    && @outer.rhs_batching_dimensions == [0]
+  }
+)";
+  const std::string constructor = R"({
+    lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1],
+    lhs_batching_dimensions: [0], rhs_batching_dimensions: [0]
+  })";
+  const auto explicit_rule = prefix + "(dot[@r1] A (dot[@r2] B C))" +
+                             conditions + "derive { @r1 = " + constructor +
+                             "; @r2 = " + constructor + "; }}";
+  auto explicit_plan = symbolicPlan(explicit_rule);
+  proved(explicit_plan);
+  expect(
+      verify(explicit_plan, explicit_plan.proof).status == ProofStatus::Proved,
+      "explicit fixed-layout reassociation independently verifies");
+  auto inferred =
+      symbolicPlan(prefix + "(dot[auto] A (dot[auto] B C))" + conditions + "}");
+  proved(inferred);
+  expect(inferred.proof.constructors.size() == 2,
+         "both reassociated dot descriptors are synthesized");
+  expect(verify(inferred, inferred.proof).status == ProofStatus::Proved,
+         "inferred fixed-layout reassociation independently verifies");
+  auto wrong = replace(explicit_rule,
+                       "A: f32[Batch,M,K] B: f32[Batch,K,L] C: f32[Batch,L,N]",
+                       "A: f32[Batch,K,K] B: f32[Batch,K,K] C: f32[Batch,K,K]");
+  wrong = replace(wrong, "Batch > 0 && M > 0 && K > 0 && L > 0 && N > 0",
+                  "Batch > 0 && K > 0");
+  wrong = replace(wrong, "@r2 = " + constructor,
+                  "@r2 = {lhs_contracting_dimensions:[1], "
+                  "rhs_contracting_dimensions:[2], "
+                  "lhs_batching_dimensions:[0], rhs_batching_dimensions:[0]}");
+  expect(symbolicPlan(wrong).proof.status == ProofStatus::Unknown,
+         "equal extents cannot justify contracting different logical axes");
+}
+void dotChainAssociationTests() {
+  const std::string constructor =
+      "{lhs_contracting_dimensions:[2], rhs_contracting_dimensions:[1], "
+      "lhs_batching_dimensions:[0], rhs_batching_dimensions:[0]}";
+  for (int count : {4, 5}) {
+    for (bool automatic : {false, true}) {
+      std::string rule = "rule dot_chain { ";
+      for (int i = 1; i <= count; ++i)
+        rule += "A" + std::to_string(i) + ": f32[Batch,D" +
+                std::to_string(i - 1) + ",D" + std::to_string(i) + "] ";
+      std::string lhs = "A1", rhs = "A" + std::to_string(count);
+      for (int i = 2; i <= count; ++i)
+        lhs = "(dot[@l" + std::to_string(i) + "] " + lhs + " A" +
+              std::to_string(i) + ")";
+      for (int i = count - 1; i >= 1; --i)
+        rhs = "(dot[" +
+              (automatic ? std::string("auto") : "@r" + std::to_string(i)) +
+              "] A" + std::to_string(i) + " " + rhs + ")";
+      rule += lhs + " => " + rhs + " where { Batch > 0";
+      for (int i = 0; i <= count; ++i)
+        rule += " && D" + std::to_string(i) + " > 0";
+      for (int i = 2; i <= count; ++i) {
+        auto d = "@l" + std::to_string(i);
+        rule += " && " + d + ".lhs_contracting_dimensions == [2] && " + d +
+                ".rhs_contracting_dimensions == [1] && " + d +
+                ".lhs_batching_dimensions == [0] && " + d +
+                ".rhs_batching_dimensions == [0]";
+      }
+      rule += " }";
+      if (!automatic) {
+        rule += " derive {";
+        for (int i = 1; i < count; ++i)
+          rule += " @r" + std::to_string(i) + " = " + constructor + ";";
+        rule += " }";
+      }
+      auto plan = symbolicPlan(rule + " }");
+      proved(plan);
+      expect(plan.proof.guard.empty(),
+             "whole dot chains prove without additional conditions");
+    }
+  }
+}
 void symbolicTests() {
   const std::string distribute =
       "rule r { (dot[@d] (add A B) C) => (add (dot[auto] A C) (dot[auto] B C)) "
@@ -993,6 +1086,15 @@ void broadcastTests() {
   auto after = symbolicPlan(
       "rule r {(transpose[@p] (broadcast[@b] A)) => (broadcast[auto] A)}",
       false);
+  auto scalar_after = symbolicPlan(
+      "rule r {(transpose[@p] (broadcast[@b] A)) => (broadcast[auto] A) "
+      "where {@b.dimensions == []}}",
+      false);
+  auto scalar_rank_two = symbolicPlan(
+      "rule r {(transpose[@p] (broadcast[@b] A)) => (broadcast[auto] A) "
+      "where {@b.dimensions == [] && len(@b.new_extents) == 2 && "
+      "@p.permutation == [1,0]}}",
+      false);
   auto before = symbolicPlan(
       "rule r {(broadcast[@b] (transpose[@p] A)) => (broadcast[auto] A)}",
       false);
@@ -1002,6 +1104,8 @@ void broadcastTests() {
       false);
   proved(compose);
   proved(after);
+  proved(scalar_after);
+  proved(scalar_rank_two);
   proved(before);
   proved(triple);
   proved(
@@ -1078,6 +1182,15 @@ void broadcastTests() {
       std::reverse(permutation.begin(), permutation.end());
       witness(after, {{shape}, {{0, {permutation}}, {1, {positions, added}}}},
               transpose(first, permutation));
+      if (shape.empty()) {
+        witness(scalar_after,
+                {{shape}, {{0, {permutation}}, {1, {positions, added}}}},
+                transpose(first, permutation));
+        if (rank == 2)
+          witness(scalar_rank_two,
+                  {{shape}, {{0, {permutation}}, {1, {positions, added}}}},
+                  transpose(first, permutation));
+      }
       List input_permutation(shape.size());
       std::iota(input_permutation.begin(), input_permutation.end(), 0);
       std::reverse(input_permutation.begin(), input_permutation.end());
@@ -1266,6 +1379,8 @@ int main(int argc, char** argv) {
     proved(
         symbolicPlan("rule r { (transpose (transpose A)) => (transpose A) }"));
     symbolicTests();
+    selectedShapeAssociationTests();
+    dotChainAssociationTests();
     explicitConditionTests();
     partialAssociationTests();
     contextStateTests();

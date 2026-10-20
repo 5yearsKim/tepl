@@ -150,6 +150,10 @@ I indexOffset(Context& c, const S& raw, const I& e) {
         return x->kind == Symbol::Kind::Integer && x->name == "0";
       }))
     return e;
+  if (auto value = c.uniformElement(offsets);
+      value && equal(value, integer(0)) &&
+      c.entails(call("==", {call("len", {offsets}), indexLength(e)})))
+    return e;
   if (e->kind == IndexExpr::Kind::Offset)
     return indexOffset(c, call("extent_add", {offsets, e->axes}), e->args[0]);
   return node(IndexExpr::Kind::Offset, offsets, {e});
@@ -161,6 +165,10 @@ I indexScale(Context& c, const S& raw, const I& e) {
       std::all_of(factors->args.begin(), factors->args.end(), [](const S& x) {
         return x->kind == Symbol::Kind::Integer && x->name == "1";
       }))
+    return e;
+  if (auto value = c.uniformElement(factors);
+      value && equal(value, integer(1)) &&
+      c.entails(call("==", {call("len", {factors}), indexLength(e)})))
     return e;
   if (e->kind == IndexExpr::Kind::Offset)
     return indexOffset(c, call("extent_mul", {factors, e->axes}),

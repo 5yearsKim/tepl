@@ -11,6 +11,7 @@
 #include "src/core/pipeline.h"
 #include "src/core/semantics/proof/verify.h"
 #include "src/core/semantics/symbolic/normalize.h"
+#include "src/core/semantics/synthesis/index_inference.h"
 #include "src/core/syntax/parse.h"
 #include "tests/index_graph_eval.h"
 
@@ -167,6 +168,13 @@ int main(int argc, char** argv) {
         "rule r {(reverse[@outer] (reverse[@inner] A))=>A "
         "where {@outer.dimensions == @inner.dimensions}}",
         false);
+    auto composed = plan(
+        "rule r {(reverse[@outer] (reverse[@inner] A)) "
+        "=> (reverse[auto] A)}");
+    auto composed_cancel = plan(
+        "rule r {(reverse[@outer] (reverse[@inner] A)) "
+        "=> (reverse[auto] A) "
+        "where {@outer.dimensions == @inner.dimensions}}");
     auto empty = plan(
         "rule r {(reverse[@r] A)=>A "
         "where {@r.dimensions == []}}",
@@ -206,7 +214,28 @@ int main(int argc, char** argv) {
                 reverse(multiply(a, constant), dimensions));
       }
       compare(empty, {a}, {{"r", {{}}}}, a);
+      if (rank <= 3)
+        for (std::size_t inner_mask = 0; inner_mask < (std::size_t{1} << rank);
+             ++inner_mask)
+          for (std::size_t outer_mask = 0;
+               outer_mask < (std::size_t{1} << rank); ++outer_mask) {
+            List inner, outer;
+            for (std::size_t i = rank; i > 0; --i) {
+              if (inner_mask & (std::size_t{1} << (i - 1)))
+                inner.push_back(i - 1);
+              if (outer_mask & (std::size_t{1} << (i - 1)))
+                outer.push_back(i - 1);
+            }
+            auto attributes =
+                Attributes{{"inner", {inner}}, {"outer", {outer}}};
+            auto expected = reverse(reverse(a, inner), outer);
+            compare(composed, {a}, attributes, expected);
+            if (inner == outer) compare(composed_cancel, {a}, attributes, a);
+          }
     }
+    auto rank_four = data({2, 3, 4, 5}, 3);
+    compare(composed, {rank_four}, {{"inner", {{2, 0}}}, {"outer", {{3, 2}}}},
+            reverse(reverse(rank_four, {2, 0}), {3, 2}));
     for (auto shape : {List{0}, List{0, 3}, List{2, 0, 3}, List{1, 1, 1}}) {
       auto a = data(shape, 1), b = data(shape, 2);
       List dimensions(shape.size());
@@ -259,6 +288,17 @@ int main(int argc, char** argv) {
     auto axes = make(Symbol::Kind::AxisGroup, "test", 42, 0, {domain});
     auto coords = coordinates(axes);
     auto reflected = indexReverse(c, coords, domain, vector({2, 0}));
+    auto selector = make(Symbol::Kind::Hole, "unknown", 101, 0);
+    auto unknown = indexReverse(c, coords, domain, selector);
+    auto match = matchIndexAttributes(c, unknown, reflected);
+    expect(match && match->size() == 1 &&
+               equal(match->at({101, 0}), vector({0, 2})),
+           "reverse selector matching constructs source dimensions");
+    auto other_axes = make(Symbol::Kind::AxisGroup, "other", 46, 0, {domain});
+    auto other =
+        indexReverse(c, coordinates(other_axes), domain, vector({2, 0}));
+    expect(!matchIndexAttributes(c, unknown, other),
+           "reverse inference rejects a different coordinate frame");
     auto selected = indexSelect(c, reflected, vector({2, 1, 0}));
     auto expected = indexReverse(c, indexSelect(c, coords, vector({2, 1, 0})),
                                  vector({5, 4, 3}), vector({0, 2}));

@@ -1,0 +1,12 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+use hlo::{dot, broadcast, mul};
+
+rule dot_no_contraction {
+    X: [M]
+    Y: [N]
+    (dot[@d] X Y) => (mul (broadcast[auto] X) (broadcast[auto] Y))
+    where { @d.lhs_batching_dimensions == [] && @d.rhs_batching_dimensions == []
+         && @d.lhs_contracting_dimensions == []
+         && @d.rhs_contracting_dimensions == [] }
+
+}

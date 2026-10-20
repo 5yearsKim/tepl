@@ -16,18 +16,33 @@
 
 ### 1.1 Motivation
 
-- Algebraic tensor rewriting is used for tensor optimization.
-- A rule is simple in algebraic form, but its implementation can be complex. XLA's dot reassociation is an example: a short equation requires substantial dimension-mapping logic. [XLA implementation](https://github.com/openxla/xla/blob/main/xla/hlo/transforms/simplifiers/algebraic_simplifier.cc)
-- Frameworks such as egg support concise symbolic operation rewriting, but tensor operations have rich attributes that also need to be transformed.
-- egg can represent attributes; its symbolic patterns do not automatically derive their transformations from tensor semantics. Users must provide additional expressions or custom host-language logic. [egg's rewrite application interface](https://docs.rs/egg/latest/egg/trait.Applier.html)
-- Simply matching LHS operations and attributes does not determine the attributes needed by RHS operations.
-- Users therefore need additional expressions or complex rewrite logic in Rust to support these tensor transformations.
-- A major source of this complexity is manual attribute transformation; legality checks, numerical policy, and profitability also contribute.
-- Cascaded operations change axis positions, pairings, and output order. Equal dimension sizes do not establish equal coordinate identities.
-- These transformations must work for arbitrary-rank tensors; concrete-rank examples cannot establish general correctness.
-- **Research question:** What if we could design a language that makes tensor rewriting as easy and intuitive as writing its algebraic form, while leaving complex attribute transformation to the compiler?
-- TEPL pursues this through operation semantics, symbolic axis mapping, and automatic RHS attribute inference under explicit conditions.
+Tensor compilers optimize computations by applying algebraic rewrite rules.
+Although these rules are often concise as equations, implementing them requires
+more than replacing one sequence of operations with another. Tensor operations
+carry attributes such as permutations, contraction dimensions, and broadcast
+dimensions, which must change with the computation. XLA's dot reassociation
+illustrates this gap: a short algebraic identity requires substantial logic to
+map dimensions and construct the replacement operations' attributes.
+[XLA implementation](https://github.com/openxla/xla/blob/main/xla/hlo/transforms/simplifiers/algebraic_simplifier.cc)
+
+The difficulty comes from tracking logical axes through composed operations.
+Each operation can change axis positions, pairings, and output order, so
+matching the source pattern does not by itself determine the attributes of the
+replacement. Equal dimension sizes also do not imply that two axes represent
+the same coordinates. Users must therefore write attribute transformations
+that preserve these relationships across arbitrary tensor ranks, alongside
+the rule's legality conditions and numerical requirements. This work motivates
+a language that expresses attribute computations directly and can derive them
+from operation semantics when supported.
+
+- **Research question:** Can a tensor rewrite language let users express an algebraic transformation and its applicability conditions while deriving the required replacement attributes from operation semantics?
+- TEPL combines explicit attribute construction with symbolic axis mapping and automatic RHS attribute inference under user-written conditions.
 - **Evidence to prepare:** Pin the XLA example to a specific revision and identify the attribute-transformation code separately from other checks before reporting a line count.
+
+**Figure 1 — Why TEPL?**
+
+- [Four-panel storyboard](figures/why_tepl.yaml): symbolic rewriting, handwritten compiler code, TEPL manual, and TEPL automatic.
+- **Caption:** TEPL combines concise rewrite rules with explicit or inferred attribute handling. The distribution example reuses dot attributes; automatic mode infers them from operation semantics.
 
 ### 1.2 Central Thesis
 
@@ -114,6 +129,11 @@ use t::{transpose};
 - Transpose composition binds `@inner` and `@outer`; copying either alone generally cannot construct the replacement permutation.
 - Descriptor compatibility checks attribute structure, not mathematical correctness.
 
+**Figure 2 — Attribute binding with `@d`**
+
+- [Storyboard](figures/attribute_binding.yaml): input graph → rule pattern → binding table. The matched dot's `{ l_dim: 2, r_dim: 1 }` descriptor is captured as `@d`, then read in `where` and reused on the RHS. These short field names belong to a schematic dot dialect.
+- **Caption:** Matching `dot[@d]` binds the dot's attributes to `@d`. Conditions can read its fields, and replacement operations can reuse the descriptor.
+
 ### 3.4 Writing Attribute Changes
 
 - Write conditions and compute replacement attributes directly in the language.
@@ -181,6 +201,11 @@ rule compose_transposes_auto {
 - Users still define operation semantics and any required correctness conditions. Unsupported inference is rejected with a diagnostic.
 - Constructor synthesis occurs at compile time; application evaluates the constructor on matched metadata.
 - Completed constructors execute in the greedy rewrite engine or generated Rust with the shared runtime. C++ generation remains unavailable.
+
+**Introducing `auto` figure**
+
+- [Storyboard](figures/introducing_auto.yaml): half-width introduction using transpose absorption into matrix dot. The TEPL compiler encloses synthesis, verification, and the generated function; runtime explicitly applies captured metadata to `f(p, q)` and attaches the resulting descriptor to the replacement dot.
+- **Caption:** The `auto` keyword requests a replacement-attribute function. TEPL synthesizes and verifies that function from the rule and operation semantics at compile time. At runtime, the captured transpose permutation p and dot descriptor q feed `f(p, q)`, which constructs the replacement dot attributes. In this matrix example, the left contraction axis changes from 0 to 1 as the transpose is absorbed into the dot; only the changing field is shown.
 
 ### 3.8 From `auto` to Attribute Synthesis
 
@@ -278,6 +303,11 @@ A symbolic axis group represents an ordered sequence of axes without fixing how 
 TEPL declares a group using `bind`, which associates the group with axis positions in one or more operands. When a binding includes two operands, their selected axes are paired in list order. The operation's attributes determine the positions, so the same definition can describe tensors of different ranks and axis arrangements.
 
 Operands bound to the same group must select the same number of axes, with matching sizes at corresponding positions. Equal sizes alone do not establish a pairing; the binding specifies it.
+
+**Figure 4 — Symbolic axis groups**
+
+- [Storyboard](figures/symbolic_axis_groups.yaml): half-width figure with three stacked sections for arbitrary-length ordered groups, one concrete dot binding with a full-width position table, and output construction. Contraction axes appear in reversed physical order in Y, so K binds X positions `[2, 3]` to Y positions `[5, 2]`.
+- **Caption:** Symbolic groups represent ordered axis sequences of arbitrary length. In this concrete instance, batch axes `b_a` and `b_b` share group `B`, and the contraction lists `[2, 3]` in X and `[5, 2]` in Y pair axes in list order despite their different physical arrangements. Reducing over `K` produces the ordered output `B ++ I ++ J`.
 
 We describe these bindings using the following notation:
 
@@ -651,6 +681,11 @@ Addition exposes one axis group, making the correspondence straightforward. When
 
 #### 5.2.2 Symbolic Axis Partitioning
 
+**Symbolic axis partitioning figure**
+
+- [Storyboard](figures/symbolic_axis_partitioning.yaml): full-width 1000 × 600 px figure organized as selection, partition by producer origin, and preservation of contraction pairings, followed by a symbolic mapping table.
+- **Caption:** Partitioning retains three distinct descriptions of each selected axis: its position within the producer group, its slot in the consumer's contraction list, and its partner's position in Z. In this unbatched instance, left positions `[3, 0]` pair with right positions `[2, 0]`, making contraction slots distinct from tensor-axis positions. The retained mappings identify the subgroups needed by the reassociated dots.
+
 **1. Why reassociation requires splitting groups**
 
 - Dot reassociation changes the grouping of a product:
@@ -775,7 +810,7 @@ Addition exposes one axis group, making the correspondence straightforward. When
   \operatorname{gather}(c_R^{\mathrm{outer}},u_J).
   \]
 
-- For example, suppose the outer dot contracts \(\langle j_1,i_0\rangle\) with axes at positions \(\langle z_0,z_1\rangle\) in `Z`. Then \(j_1\) occupies slot `0` and pairs with position \(z_0\); \(i_0\) occupies slot `1` and pairs with position \(z_1\).
+- In the figure's unbatched example, `Z` has axes `[z₀, f, z₁]` and right contraction positions `[2, 0]`. The left contraction list selects `[j₁, i₀]`: `j₁` occupies slot `0` and pairs with `z₁` at Z position `2`; `i₀` occupies slot `1` and pairs with `z₀` at Z position `0`.
 - We can now extend the subgroup mapping table with positions in `Z`:
 
 | Selected group | Positions within producer group | Slots in \(L\) | Positions in `Z` |
@@ -1060,7 +1095,7 @@ def build_symbolic_axis_mapping(graph):
 
 - After matching operand reads, we know which logical axes occur in each RHS input. However, the replacement combines these inputs through new operations. Which axes should each operation reduce, and which should it preserve in its output? We must assign the known axes to the groups declared by each replacement operation.
 - Consider dot reassociation, `(XY)Z` → `X(YZ)`. On the LHS, the first dot contracts \(K\), and the second contracts \(L\). Section 5.2.2 splits \(L\) into \(I_{\mathrm{sel}}\) and \(J_{\mathrm{sel}}\), while the final output retains \(B,I_{\mathrm{rem}},J_{\mathrm{rem}},F\).
-- The source mappings also tell us which groups occur in the inputs of the new intermediate `U = dot(Y, Z)`: `Y` contains \(B,K,J_{\mathrm{sel}},J_{\mathrm{rem}}\), and `Z` contains \(B,I_{\mathrm{sel}},J_{\mathrm{sel}},F\). These lists identify group membership, not physical axis order. Which groups should become `U`'s batch, contraction, left-free, and right-free axes? Their roles can change: for example, \(K\) was contracted by the original inner dot, but `U` must keep it so the final dot can pair it with `X`.
+- The source mappings also tell us which groups occur in the inputs of the new intermediate `U = dot(Y, Z)`: `Y` contains \(B,K,J_{\mathrm{sel}},J_{\mathrm{rem}}\), and `Z` contains \(B,I_{\mathrm{sel}},J_{\mathrm{sel}},F\). These lists identify which groups occur in each operand; they do not specify physical axis order. Which groups should become `U`'s batch, contraction, left-free, and right-free axes? Their roles can change: for example, \(K\) was contracted by the original inner dot, but `U` must keep it so the final dot can pair it with `X`.
 
 
 **General Rule for Preserving Axes**
@@ -1148,7 +1183,7 @@ def build_symbolic_axis_mapping(graph):
   \end{aligned}
   \]
 
-  Here, \(m\) is the number of operands, and \(\operatorname{Axes}_g\) is the set of logical axes assigned to group \(g\). This determines group membership; ordered positions are determined afterward.
+  Here, \(m\) is the number of operands, and \(\operatorname{Axes}_g\) is the set of logical axes assigned to group \(g\). This assigns axes to groups; their ordered positions are determined afterward.
 
 - This reasoning follows the operation definition. A dot's batch and contraction groups occur in both operands; its free groups occur in only one. The required output set distinguishes the shared axes that survive from those that are reduced.
 - More generally, let \(\operatorname{Axes}_i\) be operand \(i\)'s axis set, and let \(E_g\) be the nonempty set of operands bound to a declared group \(g\). First find axes present in exactly those operands:
@@ -1169,7 +1204,7 @@ def build_symbolic_axis_mapping(graph):
   \]
 
 - For a dot with operands `a` and `b`, these rules give batch axes \((\operatorname{Axes}_a\cap \operatorname{Axes}_b)\cap \operatorname{KeepAxes}(t)\) and contraction axes \((\operatorname{Axes}_a\cap \operatorname{Axes}_b)\setminus \operatorname{KeepAxes}(t)\). The two free groups come from \((\operatorname{Axes}_a\setminus \operatorname{Axes}_b)\cap \operatorname{KeepAxes}(t)\) and \((\operatorname{Axes}_b\setminus \operatorname{Axes}_a)\cap \operatorname{KeepAxes}(t)\).
-- The result for reassociation is the following group assignment. Entries identify group membership; free axes still follow their operand's physical order.
+- The result for reassociation is the following group assignment. Entries show which axes are assigned to each group; free axes still follow their operand's physical order.
 
   | Replacement operation | Batch | Contracted | Left free | Right free |
   | --- | --- | --- | --- | --- |
@@ -1177,6 +1212,11 @@ def build_symbolic_axis_mapping(graph):
   | `O' = dot(X, U)` | \(B\) | \(K,I_{\mathrm{sel}}\) | \(I_{\mathrm{rem}}\) | \(J_{\mathrm{rem}},F\) |
 
 #### 5.3.3 Construct Attributes from the Mapping Table
+
+**Attribute construction figure**
+
+- [Storyboard](figures/attribute_construction.yaml): half-width portrait layout with aligned paired queries, a central P_U interface bridge, and a final symbolic attribute table. G abbreviates the ordered group I_sel ++ K; the preserved-group chips show which groups are preserved, without specifying axis order.
+- **Caption:** Both operands query the same ordered contraction group. The inner replacement's attributes determine P_U, whose extended mappings then support the final dot's query. The table summarizes both descriptors; resolving the queries into executable attribute programs and verifying the completed rewrite follow afterward.
 
 - The groups above identify which axes each dot uses. Its attributes must instead specify ordered positions in its actual operands. How do we turn a group assignment into those position sequences?
 - Write \(\operatorname{positions}(P,G)\) for a mapping-table query that returns \(p\) satisfying:
@@ -1337,7 +1377,7 @@ def synthesize_attribute_programs(rule):
 ```
 
 - `correspond` matches normalized operand reads. `required_output_axes` computes the sets \(\operatorname{KeepAxes}(t)\), identifying which axes each RHS tensor must preserve for computations outside it or for the final result.
-- `select_groups` applies the operand-membership and reduction rules from Section 5.3.2. Groups with an explicit output domain are handled separately: their axes come from the required output axes absent from all operands, and their sizes determine the domain attributes. Ambiguous group assignments remain unresolved.
+- `select_groups` applies the rules from Section 5.3.2 based on which operands contain each axis and whether it must be reduced. Groups with an explicit output domain are handled separately: their axes come from the required output axes absent from all operands, and their sizes determine the domain attributes. Ambiguous group assignments remain unresolved.
 - `order_groups` respects fixed bindings and otherwise uses source and operand orders. `positions` retrieves or derives mappings for these ordered groups; the notation stands for the implementation's mapping lookup and position-construction steps.
 - `complete_other_attributes` handles supported index coefficients, offsets, output domains, and output permutations. `lower_and_check` checks the completed operation and publishes its interface and mappings for consumers.
 - `check_equivalence` compares the fully lowered values, reduction domains, output order, shape, and dtype. `source_only_expressions` resolves the proposed constructors to source metadata. The final verification reconstructs the completed rule in a fresh context, as described in Section 5.4.
@@ -1407,6 +1447,11 @@ def synthesize_attribute_programs(rule):
 
 ### 6.1 High-Level Architecture
 
+**Figure 3 — TEPL architecture**
+
+- [Storyboard](figures/tepl_architecture.yaml): half-width overview led by three equally prominent input cards, Rule, Dialect, and Graph. Rule and Dialect feed the compiler; Graph bypasses compilation and feeds the TEPL engine directly. Compiled JSON contains patterns, guards, and attribute programs, while a dashed adapter branch shows the extension point for additional engines.
+- **Caption:** TEPL takes three inputs: a rule specifying the rewrite, a dialect defining operations and their semantics, and a graph to rewrite. The compiler lowers and normalizes the semantics, synthesizes missing attributes, verifies completed rules, and exports reusable rewrite programs. At runtime, the TEPL engine matches patterns, checks guards, evaluates attribute programs, and applies replacements to the input graph. Additional engines, such as an e-graph engine, can integrate through adapters; the dashed branch denotes an extension target.
+
 - TEPL is implemented in **C++20** and uses **ANTLR** to parse operation definitions and rewrite rules. The system separates rule compilation from rewrite execution.
 - During compilation, the compiler resolves names and checks types, then constructs missing attributes and verifies semantic rules. It lowers the completed rules into an executable representation that can be exported as JSON.
 
@@ -1456,43 +1501,107 @@ def synthesize_attribute_programs(rule):
 - The builder reuses captured nodes and constructs new RHS operations with the computed attributes. Construction takes place on a candidate graph, allowing the engine to validate operation contracts and output compatibility before committing the replacement.
 - After a successful replacement, the engine restarts its search. Rewriting stops when no candidate changes the graph, a configured limit is reached, or execution is cancelled.
 
-## 7. Evaluation Plan
+## 7. Limitations and Future Work
 
-### 7.1 Research Questions
+**Coordinate semantics for automatic inference.** TEPL supports coordinate
+transformations such as static slice and reverse, but its current semantic
+language cannot describe every tensor access pattern. Dynamic slice requires
+tensor-valued indices; pad and concatenate require coordinate-dependent
+branches; and general reshape requires coordinate flattening and unflattening
+using division and modulo. Without these operation semantics, TEPL cannot
+automatically infer attributes or semantically verify rewrites involving them.
+Extending the coordinate language and its associated reasoning is future work.
 
-- **RQ1 — Authoring effort:** How much does TEPL simplify writing rewrites, and how much additional attribute logic does inference remove? What explicit expressions, conditions, and semantic definitions remain necessary?
-- **RQ2 — Coverage:** Which practical rewrites can be executed, verified, and synthesized, including those that require newly constructed rather than copied descriptors?
-- **RQ3 — Scalability:** How do composition depth, partition overlap, and expression size affect synthesis?
-- **RQ4 — Generality:** Can new operations be supported through semantic definitions alone?
-- **RQ5 — Reliability:** Does verification reject incorrect user-written constructors, corrupted synthesized constructors, and invalid rewrites?
+These restrictions concern the semantic verification and inference machinery.
+Users can still express structural rewrites for these operations, specify
+applicability conditions, and construct RHS attributes explicitly using TEPL's
+attribute expressions. Manual rewrite authoring therefore remains useful
+beyond the automatic inference fragment: TEPL can match patterns, evaluate
+guards and attribute programs, and build replacement graphs. Such structural
+rewrites do not carry the tensor-equivalence guarantee of semantically verified
+rules.
 
-### 7.2 Workloads and Comparisons
+**No completeness guarantee.** TEPL does not guarantee that it can verify every
+valid rewrite or discover every valid attribute construction. A correct rule
+may remain unproved because coordinate correspondence is ambiguous or a
+required metadata relationship lies outside the supported reasoning. Likewise,
+verifying a manually supplied constructor does not guarantee that synthesis
+can discover it. The correctness argument concerns accepted rules; a proof
+of completeness is outside this paper's scope. Future work can expand the
+supported reasoning and establish completeness for a precisely defined
+fragment.
 
-- Select and document a production-derived corpus with explicit inclusion/exclusion criteria.
-- Include distribution, transpose/dot, guarded reassociation, reductions, broadcasts, slices, and supported convolution rewrites.
-- Compare equivalent rewrites in three forms: handwritten host-language implementations, TEPL with explicit `derive` expressions, and TEPL with inferred attributes. Keep applicability conditions and numerical policies aligned.
-- Use the explicit TEPL baseline to measure the language's benefit, then compare it with inference to measure the additional work synthesis removes.
-- Include simple descriptor reuse and complex attribute reconstruction; report them separately.
-- Use a feasible bounded-search baseline to assess synthesis cost, with its rank and attribute-domain limits stated.
-- Compare related verifiers on shared expressible tasks; distinguish verification coverage from synthesis coverage.
-- Report required user guards and semantic-definition effort, not only rule length.
-- Pin production examples to revisions; separate attribute transformation from profitability, graph construction, and unrelated infrastructure.
+**Reasoning cost and scalability.** Long rewrite compositions and overlapping
+axis relationships can increase the number of symbolic partitions and the
+size of normalized expressions. Verification and inference use finite proof
+budgets, so a rule may remain unresolved when the required reasoning exceeds
+those budgets. The XLA evaluation measures coverage; it does not establish
+scalability across arbitrary composition depths or expression sizes. Future
+work includes systematic scaling experiments and more efficient symbolic
+representations and proof search.
 
-### 7.3 Measurements and Ablations
+## 8. XLA Evaluation
 
-- Per-rule attribute-code size and remaining explicit attribute expressions; distinguish eliminated logic from logic moved into shared builtins or semantic definitions.
-- User-supplied guards and operation-definition size; report both initial semantic-specification cost and reuse across multiple rules.
-- Compare total authored code for a rule corpus as well as per-rule savings; treat code size as an effort proxy, not evidence of usability by itself.
-- Separate execution, verification, and synthesis coverage with explicit denominators; classify accepted, unsupported, invalid, and budget-limited cases.
-- Synthesis/verification time, peak memory, constructor size, and matching-time cost in the greedy engine and generated Rust.
-- Scale source composition depth, overlap patterns, repeated factors, and concrete constructor inputs.
-- Disable reusable interfaces, lazy refinement, or mapping caches to isolate their effects.
-- Test interleaved selections, empty groups, multiple contractions, rank-zero cases, and supported zero extents.
-- Use independent numerical references, incorrect explicit constructors, and synthesized-constructor mutation tests as implementation evidence.
-- Numerical testing supplements universal reasoning; it does not replace it.
-- Leave all performance and coverage numbers unfilled until measured.
+We evaluate TEPL on 209 concrete rewrite cases adapted from XLA's algebraic
+simplifier. The evaluation measures operation-semantic coverage, verification
+with explicit RHS attributes, and automatic attribute inference. Counts refer
+to concrete cases, which may specialize broader catalog rules.
 
-## 8. Related Work and Novelty Positioning
+| Stage | Result |
+|---|---:|
+| Semantic coverage | 118/209 |
+| Explicit verification | 86/118 |
+| Auto inference (axis/extent) | 20/20 (100%) |
+
+**Semantic coverage.** A case is eligible for verification when every required
+operation has a semantic definition in TEPL. This holds for 118 of the 209
+cases; the remaining 91 lack at least one required definition. TEPL combines
+axis bindings, scalar expressions, reductions, and calculated operand reads
+to describe both value computations and supported coordinate transformations.
+For example, transpose permutes axes, dot sums products over contracting axes,
+and static slice computes input coordinates from starts and strides.
+
+Supported operations include elementwise arithmetic, transpose, axis-inserting
+broadcast, sum reduction, dot, reverse, and static slice with positive sizes
+and strides. Convolution support uses fixed layouts, positive strides and
+dilations, and no padding or groups. General reshape is unsupported because
+it requires coordinate flattening and unflattening using division and modulo.
+Pad and concatenate require coordinate-dependent branches, while dynamic slice
+requires tensor-valued indices. These capabilities are outside the current
+semantic support.
+
+**Explicit verification.** We first supply RHS attributes through captured
+descriptors or handwritten attribute constructions, without using `auto`.
+TEPL checks that these constructions are evaluable, the RHS operations are
+legal, and both sides agree in output shape and values under the declared
+guards and arithmetic policy. The recorded full-corpus sweep verifies 86 of
+the 118 eligible cases.
+
+The other 32 cases remain unproved. This does not establish that their rewrites
+are incorrect: TEPL may lack the required shape, axis, index, or scalar
+reasoning, or the rule may need an additional applicability condition.
+Successful verification is relative to the declared operation semantics and
+arithmetic policy, rather than a claim about every aspect of XLA's numerical
+behavior.
+
+**Automatic inference.** Of the 86 verified cases, 63 have no RHS attributes
+to infer. Another three require scalar settings, such as comparison direction.
+The remaining 20 require only axis or extent lists, including permutations,
+reduction dimensions, broadcast dimensions and extents, and slice parameters.
+
+For these 20 cases, we replace the RHS attribute specifications with `auto`
+and remove the corresponding handwritten constructions while retaining the
+same patterns, guards, and operation semantics. TEPL constructs all required
+attributes and independently verifies each completed rule. All 20 succeed
+without RHS attribute hints, including both descriptor reuse and computed
+attribute programs.
+
+The 100% result measures inference conditional on explicit verification:
+these 20 cases are the verified subset of 38 eligible axis/extent cases.
+The verification count comes from the recorded full-corpus sweep; the
+inference result comes from the current compiler recheck.
+
+## 9. Related Work and Novelty Positioning
 
 - **TensorRight:** Aggregated axes and arbitrary-rank rewrite verification are prior work; axis grouping alone is not a novelty claim. [POPL 2025](https://doi.org/10.1145/3704865)
 - **Tensor rewrite synthesis and equality saturation:** Compare TASO/TENSAT on generated artifacts, semantic assumptions, and treatment of attributes; examine primary papers before asserting distinctions.
@@ -1501,17 +1610,6 @@ def synthesize_attribute_programs(rule):
 - **Rewrite DSLs and host callbacks:** Compare declarative authoring with manually implemented attribute transformations.
 - Candidate distinction to substantiate: compositional synthesis of reusable, rank-polymorphic attribute programs from user-defined tensor semantics.
 - Avoid “first” claims until a systematic literature review supports them.
-
-## 9. Limitations and Future Work
-
-- Incomplete inference; ambiguity and finite proof budgets can reject valid rules.
-- Partition and normalized-expression growth across long compositions.
-- Restricted convolution, broadcasting, and positive-size/positive-stride slice semantics.
-- General padding, data-dependent indexing, coupled attribute equations, and unsupported numerical policies.
-- Attribute computations and application conditions that the metadata language cannot express.
-- Executable expressions outside the semantic checker's supported fragment; extending runtime support alone does not extend verification coverage.
-- A smaller trusted verification kernel and broader expression verification.
-- Further backend support and validation that expression semantics are preserved across execution paths.
 
 ## 10. Conclusion
 

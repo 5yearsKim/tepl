@@ -1,0 +1,11 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: dot-scalar-multipliers
+// Scope: Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_dot_scalar_multipliers {
+    X: f32[M,K] Y: f32[K,N] Scale: f32[]
+     (hlo.dot[@d] (hlo.multiply (hlo.broadcast[@b] Scale) X) Y) => (hlo.multiply (hlo.broadcast[@out] Scale) (hlo.dot[@d] X Y))
+     where { @b.dimensions==[] && @b.new_extents==[M,K] && @d.lhs_batching_dimensions==[] && @d.rhs_batching_dimensions==[] && @d.lhs_contracting_dimensions==[1] && @d.rhs_contracting_dimensions==[0] }
+     derive { @out={dimensions:[],new_extents:[M,N]}; }
+}

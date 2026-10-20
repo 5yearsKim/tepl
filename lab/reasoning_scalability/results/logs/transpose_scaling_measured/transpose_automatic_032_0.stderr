@@ -1,0 +1,1 @@
+lab/reasoning_scalability/inputs/transpose_scaling/transpose_automatic_032.tepl:4:1: cannot verify rule 'transpose_automatic_032': attribute construction: budget exhausted: symbolic proof work limit exceeded. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.

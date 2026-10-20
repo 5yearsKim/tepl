@@ -1,0 +1,10 @@
+from "../../../../examples/semantic/dialects/tensor.tepl" import TensorLang as t;
+use t::{transpose};
+
+rule transpose_automatic_004 {
+    A: f32[D0,D1,D2]
+    (transpose[@p4] (transpose[@p3] (transpose[@p2] (transpose[@p1] A))))
+    =>
+    (transpose[auto] A)
+    where { D0 > 0 && D1 > 0 && D2 > 0 }
+}

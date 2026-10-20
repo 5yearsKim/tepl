@@ -242,6 +242,34 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
           if (query(call("==", {x, y}), mode)) return true;
     }
   }
+  if (callIs(f, "==")) {
+    auto a = f->args[0], b = f->args[1];
+    auto metadataSequence = [](const S& x) {
+      return x->sort == Symbol::Sort::Extents ||
+             x->sort == Symbol::Sort::Positions;
+    };
+    // Shape constraints record scalar dimension equalities. Lift those facts
+    // to ordered extent sequences without identifying their coordinate frames.
+    // Only the expression factory's bounded literal ranges are enumerated;
+    // arbitrary-rank equality continues to use symbolic witnesses above.
+    if (metadataSequence(a) && metadataSequence(b) &&
+        (a->sort == Symbol::Sort::Extents || b->sort == Symbol::Sort::Extents)) {
+      auto length = canonical(call("len", {a}));
+      auto indices = call("range", {length});
+      if (indices->kind == Symbol::Kind::List &&
+          equal(length, canonical(call("len", {b})))) {
+        bool matched = true;
+        for (const auto& index : indices->args)
+          if (!query(call("==", {call("index", {a, index}),
+                                 call("index", {b, index})}),
+                     mode)) {
+            matched = false;
+            break;
+          }
+        if (matched) return true;
+      }
+    }
+  }
   if (callIs(f, "is_positive_extents")) {
     auto domain = canonical(f->args[0]);
     if (auto value = uniformElement(domain);

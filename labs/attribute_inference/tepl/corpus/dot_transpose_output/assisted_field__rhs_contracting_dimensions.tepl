@@ -1,0 +1,14 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule dot_transpose_output {
+    X: [M, K]
+    Y: [K, N]
+    (transpose[@p] (dot[@d] X Y)) => (dot[auto, rhs_contracting_dimensions = [1]] Y X)
+    where { @p.permutation == [1, 0]
+         && @d.lhs_batching_dimensions == [] && @d.rhs_batching_dimensions == []
+         && @d.lhs_contracting_dimensions == [1]
+         && @d.rhs_contracting_dimensions == [0] }
+
+}

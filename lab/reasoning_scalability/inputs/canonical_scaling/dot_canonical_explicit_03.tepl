@@ -1,0 +1,31 @@
+from "../../../../examples/semantic/dialects/tensor.tepl" import TensorLang as t;
+use t::{dot, add, mul};
+
+rule dot_canonical_explicit_03 {
+    A1: f32[B, D0, D1]
+    A2: f32[B, D1, D2]
+    A3: f32[B, D2, D3]
+
+    (dot[@l2] (dot[@l1] A1 A2) A3)
+    =>
+    (dot[@r1] A1 (dot[@r2] A2 A3))
+    where {
+        B > 0
+        && D0 > 0
+        && D1 > 0
+        && D2 > 0
+        && D3 > 0
+        && @l1.lhs_contracting_dimensions == [2]
+        && @l1.rhs_contracting_dimensions == [1]
+        && @l1.lhs_batching_dimensions == [0]
+        && @l1.rhs_batching_dimensions == [0]
+        && @l2.lhs_contracting_dimensions == [2]
+        && @l2.rhs_contracting_dimensions == [1]
+        && @l2.lhs_batching_dimensions == [0]
+        && @l2.rhs_batching_dimensions == [0]
+    }
+    derive {
+        @r2 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r1 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+    }
+}

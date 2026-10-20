@@ -1,0 +1,11 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-slice-broadcast-only
+// Scope: Rank-one X maps to axis zero; only newly created axes are sliced.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_slice_broadcast_only {
+    X: [N]
+     (hlo.slice[@s] (hlo.broadcast[@b] X)) => (hlo.broadcast[auto] X)
+     where { @b.dimensions == [0] && @s.starts[0]==0 && @s.sizes[0]==N && @s.strides[0]==1 }
+
+}

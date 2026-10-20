@@ -115,6 +115,48 @@ void shapes() {
            "out-of-range shape index rejected");
   }
 }
+void selectedShapeEquality() {
+  Plan p;
+  Context c{p, 1000000};
+  auto a = make(Symbol::Kind::Shape, {}, 0);
+  auto b = make(Symbol::Kind::Shape, {}, 1);
+  for (const auto& shape : {a, b})
+    c.learn(call("==", {call("len", {shape}), integer(3)}));
+  auto element = [](const S& shape, std::size_t i) {
+    return call("index", {shape, integer(i)});
+  };
+  auto lhs = call("gather", {a, list({0, 2})});
+  auto rhs = call("gather", {b, list({0, 1})});
+  auto equality = call("==", {lhs, rhs});
+  c.learn(call("==", {element(a, 0), element(b, 0)}));
+  expect(!c.entails(equality), "one matching dimension cannot prove a pair");
+  c.learn(call("==", {element(a, 2), element(b, 1)}));
+  expect(c.entails(equality),
+         "matching dimensions establish equality of selected shape lists");
+  expect(c.entails(call(
+             "==", {a, make(Symbol::Kind::List, {}, 0, 0,
+                            {element(a, 0), element(a, 1), element(a, 2)})})),
+         "shape reconstruction preserves element equalities");
+  expect(!c.entails(call("==", {lhs, call("gather", {b, list({1, 0})})})),
+         "equal shape lists still require matching element order");
+  expect(!c.entails(call("==", {lhs, call("gather", {b, list({0})})})),
+         "equal shape lists still require matching lengths");
+  expect(!c.entails(call("==", {a, b})),
+         "matching selected dimensions do not identify whole shapes");
+  auto intermediate = call("concat", {lhs, call("gather", {b, list({2})})});
+  expect(c.entails(
+             call("==", {call("gather", {intermediate, list({0, 1})}), rhs})),
+         "selected intermediate shapes project through concatenation");
+  expect(equal(c.canonical(call("index", {intermediate, integer(2)})),
+               c.canonical(element(b, 2))),
+         "concatenation indexing crosses an extent block boundary");
+  expect(!c.integerInterval(call("index", {intermediate, integer(3)})),
+         "out-of-range concatenation indices remain invalid");
+  auto axes_a = make(Symbol::Kind::AxisGroup, "first", 0, 0, {lhs});
+  auto axes_b = make(Symbol::Kind::AxisGroup, "second", 1, 0, {rhs});
+  expect(!c.entails(call("==", {axes_a, axes_b})),
+         "equal extents never identify unrelated coordinate frames");
+}
 void sequences() {
   Plan p;
   Instance input;
@@ -159,6 +201,126 @@ void sequences() {
       call("sequence_map", {duplicates, v, call("index", {list({7, 9}), v})}));
   expect(equal(selected, list({7, 7, 9})),
          "metadata indexing permits repetition");
+}
+void uniformVectors() {
+  Plan p;
+  Context c{p, 1000000};
+  auto shape = make(Symbol::Kind::Shape, {}, 0);
+  auto zero = call("extent_sub", {shape, shape});
+  auto one = call("offset_extents", {zero, integer(1)});
+  auto two = call("extent_add", {one, one});
+  auto negative =
+      call("offset_extents", {zero, make(Symbol::Kind::Integer, "-1")});
+  expect(equal(c.uniformElement(zero), integer(0)), "symbolic zero vector");
+  expect(equal(c.uniformElement(one), integer(1)), "symbolic unit vector");
+  expect(equal(c.uniformElement(two), integer(2)), "uniform vector addition");
+  expect(equal(c.uniformElement(call("extent_mul", {two, two})), integer(4)),
+         "uniform vector multiplication");
+  expect(c.entails(call("is_positive_extents", {one})),
+         "unit vector is positive at arbitrary length");
+  expect(!c.entails(call("is_positive_extents", {zero})),
+         "unknown length zero vector is not necessarily positive");
+  expect(!c.entails(call("is_valid_extents", {negative})),
+         "negative uniform vector is not necessarily nonnegative");
+  expect(!c.uniformElement(shape), "arbitrary extents are not uniform");
+  auto axes = make(Symbol::Kind::AxisGroup, "frame", 0, 0, {shape});
+  auto index = coordinates(axes);
+  expect(equalIndex(c, indexScale(c, one, index), index),
+         "symbolic unit scaling preserves coordinates");
+  expect(equalIndex(c, indexOffset(c, zero, index), index),
+         "symbolic zero offset preserves coordinates");
+  auto other = make(Symbol::Kind::Shape, {}, 1);
+  auto other_one =
+      call("offset_extents", {call("extent_sub", {other, other}), integer(1)});
+  expect(!equalIndex(c, indexScale(c, other_one, index), index),
+         "unit scaling cannot erase an unproved length match");
+  auto selector = make(Symbol::Kind::Field, "selector", 0, 0);
+  c.learn(call("is_valid_axis_list", {selector, call("len", {shape})}));
+  expect(equal(c.uniformElement(call("gather", {one, selector})), integer(1)),
+         "legal selection preserves uniform elements");
+  expect(equal(c.uniformElement(call("concat", {one, other_one})), integer(1)),
+         "concatenation preserves a common uniform value");
+  expect(!c.uniformElement(call("concat", {one, two})),
+         "different uniform values cannot be merged");
+}
+void emptyAxes() {
+  Plan p;
+  Context c{p, 1000000};
+  auto shape = make(Symbol::Kind::Shape, {}, 0);
+  auto group = make(Symbol::Kind::AxisGroup, "group", 0, 0, {shape});
+  auto parent = make(Symbol::Kind::AxisGroup, "parent", 1, 0,
+                     {make(Symbol::Kind::Shape, {}, 1)});
+  auto selector = make(Symbol::Kind::Field, "selector", 0, 0);
+  c.bind(parent, group, selector);
+  c.learn(call("==", {call("len", {group}), call("len", {selector})}));
+  expect(!callIs(c.canonical(group), "empty_axes"),
+         "unknown cardinality is preserved");
+  c.learn(call("==", {selector, list({})}));
+  expect(callIs(c.canonical(group), "empty_axes"),
+         "registered view normalizes after its cardinality becomes zero");
+  expect(equal(c.canonical(c.positions(parent, group)), list({})),
+         "empty group has no positions");
+  expect(callIs(c.canonical(call("gather", {group, list({})})), "empty_axes"),
+         "selection of an empty group remains empty");
+  auto zero_extent =
+      make(Symbol::Kind::AxisGroup, "zero_extent", 2, 0, {list({0})});
+  expect(!callIs(c.canonical(zero_extent), "empty_axes"),
+         "one zero-sized dimension is still one coordinate axis");
+}
+void registeredAxisEquality() {
+  Plan p;
+  Context c{p, 1000000};
+  auto batch = make(Symbol::Kind::AxisGroup, "batch", 0, 0, {list({7})});
+  auto row = make(Symbol::Kind::AxisGroup, "row", 1, 0, {list({7})});
+  auto col = make(Symbol::Kind::AxisGroup, "col", 2, 0, {list({7})});
+  auto nested = [&](S x) {
+    for (int i = 0; i < 3; ++i) {
+      auto view = call("gather", {x, list({0})});
+      c.bind(x, view, list({0}));
+      x = view;
+    }
+    return x;
+  };
+  auto b = nested(batch), r = nested(row);
+  auto frame = call("concat", {b, r, col});
+  auto physical_b = call("filter_axes", {frame, b});
+  auto physical_r = call("filter_axes", {frame, r});
+  c.bind(frame, physical_b, list({0}));
+  c.bind(frame, physical_r, list({1}));
+  auto actual = call("concat", {physical_b, physical_r});
+  auto expected = call("concat", {batch, row});
+  expect(c.entails(call("==", {actual, expected})),
+         "registered filters and nested selections preserve coordinate order");
+  expect(equal(c.canonical(physical_b), physical_b),
+         "equality checking preserves registered coordinate witnesses");
+  expect(!c.entails(call("==", {actual, call("concat", {row, batch})})),
+         "equal-sized axes cannot be swapped");
+  expect(!c.entails(call("==", {actual, call("concat", {batch, col})})),
+         "equal-sized axes cannot be substituted");
+  c.learn(call("distinct_axes", {frame}));
+  expect(equal(c.canonical(c.positions(physical_b, b)), list({0})),
+         "an ordered retained group has identity positions in its filter");
+  auto reversed = call("concat", {r, b});
+  auto physical_pair = call("filter_axes", {frame, reversed});
+  c.bind(frame, physical_pair, list({0, 1}));
+  expect(
+      !equal(c.canonical(c.positions(physical_pair, reversed)), list({0, 1})),
+      "a filter cannot claim identity positions for a reversed group");
+  expect(!c.entails(call("==", {physical_pair, reversed})),
+         "physical filtering does not inherit the requested group's order");
+  auto permutation = list({1, 0, 2});
+  auto permuted = call("gather", {frame, permutation});
+  c.bind(frame, permuted, permutation);
+  auto selected = call("filter_axes", {permuted, b});
+  c.bind(permuted, selected, list({1}));
+  expect(c.entails(call("==", {selected, batch})),
+         "registered filters project through a permuted concatenation");
+  auto selected_pair = call("filter_axes", {permuted, call("concat", {b, r})});
+  c.bind(permuted, selected_pair, list({0, 1}));
+  expect(c.entails(call("==", {selected_pair, call("concat", {row, batch})})),
+         "a permuted filter retains its parent's physical axis order");
+  expect(!c.entails(call("==", {selected_pair, expected})),
+         "filtering a permutation cannot silently restore the original order");
 }
 void definedness() {
   Plan p;
@@ -206,6 +368,38 @@ void definedness() {
     failed = true;
   }
   expect(failed, "unused invalid list replacement remains rejected");
+  auto bad_gather =
+      make(Symbol::Kind::Call, "gather", 0, 0, {list({2}), list({1})});
+  auto cancelled_vector =
+      make(Symbol::Kind::Call, "extent_sub", 0, 0, {bad_gather, bad_gather});
+  failed = false;
+  try {
+    c.checkMetadata(cancelled_vector);
+  } catch (const ProofFailure&) {
+    failed = true;
+  }
+  expect(failed, "uniform zero reasoning cannot erase an invalid gather");
+  auto mismatched =
+      make(Symbol::Kind::Call, "extent_add", 0, 0, {list({1}), list({1, 1})});
+  failed = false;
+  try {
+    c.checkMetadata(mismatched);
+  } catch (const ProofFailure&) {
+    failed = true;
+  }
+  expect(failed, "uniform arithmetic cannot erase a vector length mismatch");
+  auto huge = call("offset_extents", {list({0}), max});
+  auto overflowing_vector =
+      make(Symbol::Kind::Call, "extent_add", 0, 0, {huge, huge});
+  expect(!c.uniformElement(overflowing_vector),
+         "overflow is not a uniform literal coefficient");
+  failed = false;
+  try {
+    c.checkMetadata(overflowing_vector);
+  } catch (const ProofFailure&) {
+    failed = true;
+  }
+  expect(failed, "uniform vector overflow remains rejected");
   auto shape = make(Symbol::Kind::Shape, {}, 0);
   failed = false;
   try {
@@ -314,7 +508,11 @@ int main() {
     arithmetic();
     bounds();
     shapes();
+    selectedShapeEquality();
+    registeredAxisEquality();
     sequences();
+    uniformVectors();
+    emptyAxes();
     definedness();
     reflections();
     pipeline();

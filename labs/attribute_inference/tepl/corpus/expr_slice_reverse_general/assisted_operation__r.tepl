@@ -1,0 +1,8 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_slice_reverse_general {
+    X: [Dims...] (hlo.slice[@s] (hlo.reverse[@r] X)) => (hlo.reverse[auto] (hlo.slice[@out] X)) where { all([n > 0 for n in @s.sizes]) } derive {
+        @out = { ..@s, starts: [if contains(@r.dimensions, i) then Dims[i] - 1 - (@s.starts[i] + (@s.sizes[i] - 1) * @s.strides[i]) else @s.starts[i] for i in range(len(Dims))] };
+    }
+}

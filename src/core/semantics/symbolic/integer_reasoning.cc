@@ -47,6 +47,10 @@ S Context::uniformElement(const S& seq) {
   if (auto found = queries_.uniform_elements.find(id);
       found != queries_.uniform_elements.end())
     return found->second;
+  if (!queries_.active_uniform_elements.insert(id).second) return {};
+  ActiveKey active{queries_.active_uniform_elements, id};
+  if (queries_.active_uniform_elements.size() > ProofLimits::query_depth)
+    return {};
   S result;
   auto constant = [&](const S& a) -> S {
     if (callIs(a, "sequence_map") && a->args[2]->kind == Symbol::Kind::Integer)
@@ -59,6 +63,46 @@ S Context::uniformElement(const S& seq) {
     return {};
   };
   result = constant(x);
+  // Track an element value independently of the symbolic tuple length. These
+  // are value facts only: constructor definedness still checks every original
+  // operand, length, selection and arithmetic intermediate.
+  if (!result && callIs(x, "extent_sub") && equal(x->args[0], x->args[1]))
+    result = integer(0);
+  if (!result && (callIs(x, "offset_extents") || callIs(x, "scale_extents"))) {
+    if (auto value = uniformElement(x->args[0]))
+      result =
+          call(callIs(x, "offset_extents") ? "+" : "*", {value, x->args[1]});
+  }
+  if (!result &&
+      (callIs(x, "extent_add") || callIs(x, "extent_sub") ||
+       callIs(x, "extent_mul")) &&
+      evidence(
+          call("==", {call("len", {x->args[0]}), call("len", {x->args[1]})}))) {
+    auto a = uniformElement(x->args[0]), b = uniformElement(x->args[1]);
+    if (a && b)
+      result = call(callIs(x, "extent_add")   ? "+"
+                    : callIs(x, "extent_sub") ? "-"
+                                              : "*",
+                    {a, b});
+  }
+  if (!result && callIs(x, "gather") &&
+      evidence(
+          call("is_valid_axis_list", {x->args[1], call("len", {x->args[0]})})))
+    result = uniformElement(x->args[0]);
+  if (!result && callIs(x, "concat")) {
+    for (const auto& part : x->args) {
+      if (equal(canonical(call("len", {part})), integer(0))) continue;
+      auto value = uniformElement(part);
+      if (!value || (result && !equal(result, value))) {
+        result = {};
+        break;
+      }
+      result = value;
+    }
+  }
+  // Checked scalar folding leaves an expression on overflow. Such a value
+  // must not become a literal coefficient in extent polynomial reasoning.
+  if (result && !metadataInteger(result)) result = {};
   if (!result)
     for (const auto& f : facts_.raw) {
       if (!callIs(f, "==")) continue;

@@ -1,0 +1,8 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule scalar_broadcast_reverse {
+    (reverse[@r] (broadcast[@b] C)) => (broadcast[@b] C)
+    where { @b.dimensions == [] }
+}

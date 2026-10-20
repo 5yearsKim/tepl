@@ -169,6 +169,16 @@ S Context::lookupPositions(const S& a, const S& b, QueryMode mode) {
                        FailureKind::BudgetExceeded);
   if (callIs(y, "empty_axes")) return make(Symbol::Kind::List);
   if (equal(x, y)) return canonical(call("range", {call("len", {x})}));
+  // Filtering visits the parent in physical order. If the retained group's
+  // established positions are increasing, that traversal is its own order,
+  // even when the filter is a preserved coordinate-view node.
+  if (callIs(x, "filter_axes") && equal(canonical(x->args[1]), y)) {
+    auto p = canonical(positions(x->args[0], y, mode));
+    if (orderedPositions(p) &&
+        query(call("distinct_axes", {x->args[0]}), mode) &&
+        query(call("is_valid_axis_list", {p, call("len", {x->args[0]})}), mode))
+      return canonical(call("range", {call("len", {y})}));
+  }
   if (callIs(y, "gather") && equal(x, y->args[0])) return y->args[1];
   if (callIs(y, "gather")) {
     const auto& base = y->args[0];

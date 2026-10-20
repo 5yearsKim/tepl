@@ -1,0 +1,67 @@
+SemanticRule product_03
+    semantic-inference: policy=algebraic status=proved
+      lhs-graph: Product(align[n10:lhs](Product(align[n6:lhs](Add(align[n2:lhs](Input(#0)), align[n2:rhs](Input(#1)))), align[n6:rhs](Add(align[n5:lhs](Input(#2)), align[n5:rhs](Input(#3)))))), align[n10:rhs](Add(align[n9:lhs](Input(#4)), align[n9:rhs](Input(#5)))))
+      rhs-graph: Product(align[n21:lhs](Product(align[n17:lhs](Add(align[n13:lhs](Input(#4)), align[n13:rhs](Input(#5)))), align[n17:rhs](Add(align[n16:lhs](Input(#2)), align[n16:rhs](Input(#3)))))), align[n21:rhs](Add(align[n20:lhs](Input(#0)), align[n20:rhs](Input(#1)))))
+      law: ordered-axis-split
+      law: paired-axis-selection
+      law: ordered-partition-traversal
+      law: product-distributivity
+      law: product-associativity
+      law: commutative-matching
+      law: axis-map-restriction
+      law: ordered-view-equality
+      verified: capture access + reduction domains + ordered axes + shape + dtype + legality
+      lhs-normalized: Product(Read(#0, access@0), Read(#2, access@3), Read(#4, access@7)) + Product(Read(#0, access@0), Read(#2, access@3), Read(#5, access@8)) + Product(Read(#0, access@0), Read(#3, access@4), Read(#4, access@7)) + Product(Read(#0, access@0), Read(#3, access@4), Read(#5, access@8)) + Product(Read(#1, access@1), Read(#2, access@3), Read(#4, access@7)) + Product(Read(#1, access@1), Read(#2, access@3), Read(#5, access@8)) + Product(Read(#1, access@1), Read(#3, access@4), Read(#4, access@7)) + Product(Read(#1, access@1), Read(#3, access@4), Read(#5, access@8))
+      rhs-normalized: Product(Read(#4, access@11), Read(#2, access@14), Read(#0, access@18)) + Product(Read(#4, access@11), Read(#2, access@14), Read(#1, access@19)) + Product(Read(#4, access@11), Read(#3, access@15), Read(#0, access@18)) + Product(Read(#4, access@11), Read(#3, access@15), Read(#1, access@19)) + Product(Read(#5, access@12), Read(#2, access@14), Read(#0, access@18)) + Product(Read(#5, access@12), Read(#2, access@14), Read(#1, access@19)) + Product(Read(#5, access@12), Read(#3, access@15), Read(#0, access@18)) + Product(Read(#5, access@12), Read(#3, access@15), Read(#1, access@19))
+      declared-conditions:
+        ==(len(shape(Input(#0))), 2)
+        ==(dtype(Input(#0)), dtype_f32())
+        ==(len(shape(Input(#1))), 2)
+        ==(index(shape(Input(#0)), 0), index(shape(Input(#1)), 0))
+        ==(index(shape(Input(#0)), 1), index(shape(Input(#1)), 1))
+        ==(dtype(Input(#1)), dtype_f32())
+        ==(len(shape(Input(#2))), 2)
+        ==(index(shape(Input(#0)), 0), index(shape(Input(#2)), 0))
+        ==(index(shape(Input(#0)), 1), index(shape(Input(#2)), 1))
+        ==(dtype(Input(#2)), dtype_f32())
+        ==(len(shape(Input(#3))), 2)
+        ==(index(shape(Input(#0)), 0), index(shape(Input(#3)), 0))
+        ==(index(shape(Input(#0)), 1), index(shape(Input(#3)), 1))
+        ==(dtype(Input(#3)), dtype_f32())
+        ==(len(shape(Input(#4))), 2)
+        ==(index(shape(Input(#0)), 0), index(shape(Input(#4)), 0))
+        ==(index(shape(Input(#0)), 1), index(shape(Input(#4)), 1))
+        ==(dtype(Input(#4)), dtype_f32())
+        ==(len(shape(Input(#5))), 2)
+        ==(index(shape(Input(#0)), 0), index(shape(Input(#5)), 0))
+        ==(index(shape(Input(#0)), 1), index(shape(Input(#5)), 1))
+        ==(dtype(Input(#5)), dtype_f32())
+        &&(>(index(shape(Input(#0)), 0), 0), >(index(shape(Input(#0)), 1), 0))
+      additional-guard: true
+      reason: valid for all legal LHS metadata satisfying the declared conditions under the selected arithmetic policy
+      coordinate frame (fresh identities; domain lengths remain symbolic):
+        input0 = group(extents=shape(Input(#0)))
+        input1 = group(extents=shape(Input(#1)))
+        n2.S = group(extents=shape(Input(#0)))
+        input3 = group(extents=shape(Input(#2)))
+        input4 = group(extents=shape(Input(#3)))
+        n5.S = group(extents=shape(Input(#2)))
+        n6.S = group(extents=shape(Input(#0)))
+        input7 = group(extents=shape(Input(#4)))
+        input8 = group(extents=shape(Input(#5)))
+        n9.S = group(extents=shape(Input(#4)))
+        n10.S = group(extents=shape(Input(#0)))
+        access@0 = n10.S
+        access@1 = gather(gather(gather(n10.S, range(len(shape(Input(#4))))), [0, 1]), [0, 1])
+        access@3 = gather(gather(n10.S, range(len(shape(Input(#4))))), [0, 1])
+        access@4 = n10.S
+        access@7 = gather(n10.S, range(len(shape(Input(#4)))))
+        access@8 = gather(gather(gather(n10.S, range(len(shape(Input(#4))))), [0, 1]), [0, 1])
+        access@11 = gather(n10.S, range(len(shape(Input(#4)))))
+        access@12 = gather(gather(gather(n10.S, range(len(shape(Input(#4))))), [0, 1]), [0, 1])
+        access@14 = gather(gather(n10.S, range(len(shape(Input(#4))))), [0, 1])
+        access@15 = n10.S
+        access@18 = n10.S
+        access@19 = gather(gather(gather(n10.S, range(len(shape(Input(#4))))), [0, 1]), [0, 1])
+        lhs-output = n10.S
+        rhs-output = gather(gather(gather(n10.S, range(len(shape(Input(#4))))), [0, 1]), [0, 1])

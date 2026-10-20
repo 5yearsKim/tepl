@@ -131,6 +131,18 @@ int main(int argc, char** argv) {
         "B))}");
     auto composition =
         plan("rule r {(slice[@outer] (slice[@inner] A)) => (slice[auto] A)}");
+    auto zero_start_composition = plan(
+        "rule r {(slice[@outer] (slice[@inner] A)) => (slice[auto] A) "
+        "where {@inner.starts == [0] && @outer.starts == [0] && "
+        "@inner.strides == [1] && @outer.strides == [1]}}",
+        {}, tepl::core::SemanticPolicy::kStrict);
+    auto unit_composition = plan(
+        "rule r {(slice[@outer] (slice[@inner] A)) => (slice[auto] A) "
+        "where {@inner.strides == [1 for d in @inner.sizes] && "
+        "@outer.strides == @inner.strides}}");
+    auto rank_one_unit = plan(
+        "rule r {A:[N] (slice[@outer] (slice[@inner] A)) => (slice[auto] A) "
+        "where {@inner.strides == [1] && @outer.strides == [1]}}");
     auto permuted = plan(
         "rule r {(slice[@s] (transpose[@p] (add A B))) => (add (slice[auto] "
         "(transpose[@p] A)) (slice[auto] (transpose[@p] B)))}");
@@ -140,6 +152,9 @@ int main(int argc, char** argv) {
     auto identity = plan("rule r {(slice[@s] A) => (slice[auto] A)}");
     proved(distribution);
     proved(composition);
+    proved(zero_start_composition);
+    proved(unit_composition);
+    proved(rank_one_unit);
     proved(permuted);
     proved(chain);
     proved(identity);
@@ -174,6 +189,21 @@ int main(int argc, char** argv) {
       compare(composition, {input},
               {{"inner", fields(inner)}, {"outer", fields(outer)}},
               reference(reference(input, inner), outer));
+      Slice unit_inner{List(rank, 1), List(rank, 5), List(rank, 1)},
+          unit_outer{List(rank, 1), List(rank, 2), List(rank, 1)};
+      compare(unit_composition, {input},
+              {{"inner", fields(unit_inner)}, {"outer", fields(unit_outer)}},
+              reference(reference(input, unit_inner), unit_outer));
+      if (rank == 1)
+        compare(rank_one_unit, {input},
+                {{"inner", fields(unit_inner)}, {"outer", fields(unit_outer)}},
+                reference(reference(input, unit_inner), unit_outer));
+      if (rank == 1) {
+        Slice zero_inner{{0}, {5}, {1}}, zero_outer{{0}, {2}, {1}};
+        compare(zero_start_composition, {input},
+                {{"inner", fields(zero_inner)}, {"outer", fields(zero_outer)}},
+                reference(reference(input, zero_inner), zero_outer));
+      }
       Slice deep_inner{List(rank, 1), List(rank, 8), List(rank, 2)},
           middle{List(rank, 1), List(rank, 4), List(rank, 2)};
       auto deep = data(List(rank, 16), 4);

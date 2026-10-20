@@ -1,0 +1,18 @@
+from "../../../examples/semantic/dialects/tensor.tepl" import TensorLang as t;
+use t::{dot, add, mul};
+
+rule product_04 {
+    A1: f32[M, N]
+    B1: f32[M, N]
+    A2: f32[M, N]
+    B2: f32[M, N]
+    A3: f32[M, N]
+    B3: f32[M, N]
+    A4: f32[M, N]
+    B4: f32[M, N]
+
+    (mul (mul (mul (add A1 B1) (add A2 B2)) (add A3 B3)) (add A4 B4))
+    =>
+    (mul (mul (mul (add A4 B4) (add A3 B3)) (add A2 B2)) (add A1 B1))
+    where { M > 0 && N > 0 }
+}

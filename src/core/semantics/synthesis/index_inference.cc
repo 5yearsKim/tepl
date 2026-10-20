@@ -38,8 +38,15 @@ Coefficient peel(Context& c, I expression) {
 bool sameBasis(Context& c, const I& pattern, const I& source) {
   c.tick();
   auto a = peel(c, pattern).base, b = peel(c, source).base;
-  if (a->kind != b->kind || a->args.size() != b->args.size()) return false;
+  // A reversal with an unknown selector can represent an unchanged access.
+  // This supplies the empty selector only when the child already has the
+  // source's coordinate identity; final verification checks the constructor.
   if (a->kind == IndexExpr::Kind::Reverse &&
+      b->kind != IndexExpr::Kind::Reverse &&
+      a->dimensions->kind == Symbol::Kind::Hole)
+    return sameBasis(c, a->args[0], b);
+  if (a->kind != b->kind || a->args.size() != b->args.size()) return false;
+  if (a->kind == IndexExpr::Kind::Reverse && !containsHole(a->dimensions) &&
       !c.entails(call("==", {a->dimensions, b->dimensions})))
     return false;
   if (a->axes && !c.entails(call("==", {a->axes, b->axes}))) return false;
@@ -105,6 +112,27 @@ bool bindMetadata(Context& c, const S& pattern, const S& source,
         "or coupled solving)");
   return equalExtentArithmetic(c, left, right);
 }
+bool bindReverseSelector(Context& c, const S& pattern, const S& source,
+                         IndexAssignments& assignments) {
+  c.tick();
+  auto left = c.canonical(pattern), right = c.canonical(source);
+  if (left->kind == Symbol::Kind::Hole) {
+    if (containsHole(right))
+      throw ProofFailure("reverse selector depends on unresolved RHS metadata");
+    c.validateSource(right);
+    auto id = std::pair(left->owner, left->index);
+    auto [old, inserted] = assignments.emplace(id, right);
+    if (!inserted && !c.entails(call("==", {old->second, right})))
+      throw ProofFailure("conflicting reverse selector constructors",
+                         FailureKind::InvalidCandidate);
+    return true;
+  }
+  if (containsHole(left))
+    throw ProofFailure(
+        "reverse selector equation is outside direct matching (requires "
+        "inverse or coupled solving)");
+  return c.entails(call("==", {left, right}));
+}
 bool match(Context& c, const I& pattern, const I& source,
            IndexAssignments& assignments) {
   c.tick();
@@ -128,6 +156,17 @@ bool match(Context& c, const I& pattern, const I& source,
                       assignments))
       return false;
   }
+  if (a.base->kind == IndexExpr::Kind::Reverse &&
+      b.base->kind != IndexExpr::Kind::Reverse) {
+    if (!bindReverseSelector(c, a.base->dimensions, make(Symbol::Kind::List),
+                             assignments))
+      return false;
+    return match(c, a.base->args[0], b.base, assignments);
+  }
+  if (a.base->kind == IndexExpr::Kind::Reverse &&
+      !bindReverseSelector(c, a.base->dimensions, b.base->dimensions,
+                           assignments))
+    return false;
   if (a.base->kind == IndexExpr::Kind::Add) {
     std::vector<bool> used(b.base->args.size());
     for (const auto& x : a.base->args) {

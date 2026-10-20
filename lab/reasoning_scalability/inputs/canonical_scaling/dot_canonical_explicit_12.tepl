@@ -1,0 +1,94 @@
+from "../../../../examples/semantic/dialects/tensor.tepl" import TensorLang as t;
+use t::{dot, add, mul};
+
+rule dot_canonical_explicit_12 {
+    A1: f32[B, D0, D1]
+    A2: f32[B, D1, D2]
+    A3: f32[B, D2, D3]
+    A4: f32[B, D3, D4]
+    A5: f32[B, D4, D5]
+    A6: f32[B, D5, D6]
+    A7: f32[B, D6, D7]
+    A8: f32[B, D7, D8]
+    A9: f32[B, D8, D9]
+    A10: f32[B, D9, D10]
+    A11: f32[B, D10, D11]
+    A12: f32[B, D11, D12]
+
+    (dot[@l11] (dot[@l10] (dot[@l9] (dot[@l8] (dot[@l7] (dot[@l6] (dot[@l5] (dot[@l4] (dot[@l3] (dot[@l2] (dot[@l1] A1 A2) A3) A4) A5) A6) A7) A8) A9) A10) A11) A12)
+    =>
+    (dot[@r1] A1 (dot[@r2] A2 (dot[@r3] A3 (dot[@r4] A4 (dot[@r5] A5 (dot[@r6] A6 (dot[@r7] A7 (dot[@r8] A8 (dot[@r9] A9 (dot[@r10] A10 (dot[@r11] A11 A12)))))))))))
+    where {
+        B > 0
+        && D0 > 0
+        && D1 > 0
+        && D2 > 0
+        && D3 > 0
+        && D4 > 0
+        && D5 > 0
+        && D6 > 0
+        && D7 > 0
+        && D8 > 0
+        && D9 > 0
+        && D10 > 0
+        && D11 > 0
+        && D12 > 0
+        && @l1.lhs_contracting_dimensions == [2]
+        && @l1.rhs_contracting_dimensions == [1]
+        && @l1.lhs_batching_dimensions == [0]
+        && @l1.rhs_batching_dimensions == [0]
+        && @l2.lhs_contracting_dimensions == [2]
+        && @l2.rhs_contracting_dimensions == [1]
+        && @l2.lhs_batching_dimensions == [0]
+        && @l2.rhs_batching_dimensions == [0]
+        && @l3.lhs_contracting_dimensions == [2]
+        && @l3.rhs_contracting_dimensions == [1]
+        && @l3.lhs_batching_dimensions == [0]
+        && @l3.rhs_batching_dimensions == [0]
+        && @l4.lhs_contracting_dimensions == [2]
+        && @l4.rhs_contracting_dimensions == [1]
+        && @l4.lhs_batching_dimensions == [0]
+        && @l4.rhs_batching_dimensions == [0]
+        && @l5.lhs_contracting_dimensions == [2]
+        && @l5.rhs_contracting_dimensions == [1]
+        && @l5.lhs_batching_dimensions == [0]
+        && @l5.rhs_batching_dimensions == [0]
+        && @l6.lhs_contracting_dimensions == [2]
+        && @l6.rhs_contracting_dimensions == [1]
+        && @l6.lhs_batching_dimensions == [0]
+        && @l6.rhs_batching_dimensions == [0]
+        && @l7.lhs_contracting_dimensions == [2]
+        && @l7.rhs_contracting_dimensions == [1]
+        && @l7.lhs_batching_dimensions == [0]
+        && @l7.rhs_batching_dimensions == [0]
+        && @l8.lhs_contracting_dimensions == [2]
+        && @l8.rhs_contracting_dimensions == [1]
+        && @l8.lhs_batching_dimensions == [0]
+        && @l8.rhs_batching_dimensions == [0]
+        && @l9.lhs_contracting_dimensions == [2]
+        && @l9.rhs_contracting_dimensions == [1]
+        && @l9.lhs_batching_dimensions == [0]
+        && @l9.rhs_batching_dimensions == [0]
+        && @l10.lhs_contracting_dimensions == [2]
+        && @l10.rhs_contracting_dimensions == [1]
+        && @l10.lhs_batching_dimensions == [0]
+        && @l10.rhs_batching_dimensions == [0]
+        && @l11.lhs_contracting_dimensions == [2]
+        && @l11.rhs_contracting_dimensions == [1]
+        && @l11.lhs_batching_dimensions == [0]
+        && @l11.rhs_batching_dimensions == [0]
+    }
+    derive {
+        @r11 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r10 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r9 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r8 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r7 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r6 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r5 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r4 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r3 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r2 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+        @r1 = { lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [0], rhs_batching_dimensions: [0] };
+    }
+}

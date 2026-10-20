@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <charconv>
 #include <functional>
+#include <limits>
 
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/symbolic/metadata_sequences.h"
@@ -117,6 +118,82 @@ S Context::complementBlocks(const S& universe, const S& excluded) {
   return call("ordered_complement", {universe, excluded});
 }
 S Context::sequenceEquality(const S& a, const S& b) {
+  // Registered views retain their spelling in canonical() so their origin
+  // maps remain available. Compare their sequence meaning separately, also
+  // inside concatenations: preserving a graph node must not hide an identity
+  // selection or a physical-order filter from equality checking.
+  if (a->sort == Symbol::Sort::Axes && b->sort == Symbol::Sort::Axes) {
+    std::map<Key, S> memo;
+    auto comparison = [&](auto&& self, const S& x, std::size_t depth) -> S {
+      tick();
+      if (depth > ProofLimits::expression_depth)
+        throw ProofFailure("axis comparison depth limit exceeded",
+                           FailureKind::BudgetExceeded);
+      if (auto it = memo.find(key(x)); it != memo.end()) return it->second;
+      S result = x;
+      if (callIs(x, "concat")) {
+        std::vector<S> parts;
+        for (const auto& part : x->args)
+          parts.push_back(self(self, part, depth + 1));
+        result = call("concat", std::move(parts));
+      } else if (callIs(x, "gather")) {
+        auto base = x->args[0], selector = canonical(x->args[1]);
+        while (callIs(base, "gather")) {
+          tick();
+          selector = canonical(call("gather", {base->args[1], selector}));
+          base = base->args[0];
+        }
+        base = self(self, base, depth + 1);
+        result =
+            equal(selector, canonical(call("range", {call("len", {base})})))
+                ? base
+                : call("gather", {base, selector});
+        if (callIs(base, "concat") && selector->kind == Symbol::Kind::List &&
+            selector->args.size() > 1 && !equal(result, base)) {
+          std::vector<S> parts;
+          bool resolved = true;
+          for (const auto& position : selector->args) {
+            auto part =
+                call("gather",
+                     {base, make(Symbol::Kind::List, {}, 0, 0, {position})});
+            // Expand only selections that project into known producer
+            // blocks. Unknown symbolic offsets retain their original view.
+            if (callIs(part, "gather") && equal(part->args[0], base)) {
+              resolved = false;
+              break;
+            }
+            parts.push_back(self(self, part, depth + 1));
+          }
+          if (resolved) result = call("concat", std::move(parts));
+        }
+      } else if (callIs(x, "filter_axes")) {
+        auto order = self(self, x->args[0], depth + 1);
+        auto wanted = self(self, x->args[1], depth + 1);
+        // Keep this comparison structural. Running the full set prover here
+        // can recursively ask for the same sequence equality.
+        bool retained = equal(order, wanted);
+        if (callIs(wanted, "concat") || callIs(wanted, "union_axes"))
+          for (const auto& part : wanted->args) retained |= equal(order, part);
+        if (retained)
+          result = order;
+        else if (independent(order, wanted))
+          result = call("empty_axes", {});
+        else if (callIs(order, "concat")) {
+          std::vector<S> parts;
+          for (const auto& part : order->args)
+            parts.push_back(
+                self(self, call("filter_axes", {part, wanted}), depth + 1));
+          result = call("concat", std::move(parts));
+        } else
+          result = call("filter_axes", {order, wanted});
+      }
+      memo.emplace(key(x), result);
+      return result;
+    };
+    auto left = comparison(comparison, a, 0);
+    auto right = comparison(comparison, b, 0);
+    if (equal(left, right)) return boolean(true);
+  }
   for (const auto& [placed, interface] : {std::pair{a, b}, std::pair{b, a}}) {
     if (!callIs(placed, "place_axes") || interface->sort != Symbol::Sort::Axes)
       continue;
@@ -258,6 +335,15 @@ S Context::canonical(const S& s) {
                        FailureKind::BudgetExceeded);
   auto found = facts_.representatives.find(key(s));
   if (found != facts_.representatives.end()) return canonical(found->second);
+  // Cardinality zero determines an ordered coordinate sequence completely.
+  // Do this before preserving registered views: a view's selectors or domain
+  // may have become empty after source metadata equalities were learned.
+  if (s->sort == Symbol::Sort::Axes && !callIs(s, "empty_axes") &&
+      equal(canonical(call("len", {s})), integer(0))) {
+    auto empty = call("empty_axes", {});
+    queries_.canonical[original] = empty;
+    return empty;
+  }
   // Established coordinate views are graph nodes. Preserve their origin
   // maps instead of re-expanding their expression spelling after scalar
   // metadata aliases change. Scalar selectors still normalize independently.
@@ -272,9 +358,24 @@ S Context::canonical(const S& s) {
     if (s->name == "slice" && equal(args[1], integer(0)) &&
         equal(args[2], canonical(call("len", {args[0]}))))
       out = args[0];
-    else if (s->name == "index" &&
-             (callIs(args[0], "extent_add") || callIs(args[0], "extent_sub") ||
-              callIs(args[0], "extent_mul")))
+    else if (s->name == "index" && callIs(args[0], "concat") &&
+             args[0]->sort != Symbol::Sort::Axes) {
+      out = call("index", args);
+      auto position = metadataInteger(args[1]);
+      if (position && *position >= 0 &&
+          *position <= std::numeric_limits<std::size_t>::max())
+        for (const auto& part : args[0]->args) {
+          auto length = metadataInteger(canonical(call("len", {part})));
+          if (!length || *length < 0) break;
+          if (*position < *length) {
+            out = call("index", {part, integer(std::size_t(*position))});
+            break;
+          }
+          *position -= *length;
+        }
+    } else if (s->name == "index" &&
+               (callIs(args[0], "extent_add") ||
+                callIs(args[0], "extent_sub") || callIs(args[0], "extent_mul")))
       out = call(callIs(args[0], "extent_add")   ? "+"
                  : callIs(args[0], "extent_sub") ? "-"
                                                  : "*",

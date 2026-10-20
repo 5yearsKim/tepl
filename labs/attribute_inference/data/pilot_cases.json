@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "selection": "Five purpose-selected XLA cases covering composition, multiple RHS descriptors, and known inference limitations; not representative coverage.",
+  "policy": "algebraic",
+  "cases": [
+    {
+      "name": "transpose_compose",
+      "source": "labs/xla_rewrite/tepl/rules/semantic/transpose_compose.tepl",
+      "mechanism": "Computed permutation composition at symbolic rank",
+      "rhs_descriptors": {"combined": ["permutation"]},
+      "assisted": []
+    },
+    {
+      "name": "expr_slice_compose_general",
+      "source": "labs/xla_rewrite/tepl/rules/semantic/expr_slice_compose_general.tepl",
+      "mechanism": "Computed slice offsets and extents with the original unit-stride guards",
+      "rhs_descriptors": {"out": ["starts", "sizes", "strides"]},
+      "assisted": []
+    },
+    {
+      "name": "dot_swap_operands",
+      "source": "labs/xla_rewrite/tepl/rules/semantic/dot_swap_operands.tepl",
+      "mechanism": "Two replacement descriptors under the original rank-two dot restrictions",
+      "rhs_descriptors": {"p": ["permutation"], "out": ["lhs_batching_dimensions", "rhs_batching_dimensions", "lhs_contracting_dimensions", "rhs_contracting_dimensions"]},
+      "assisted": [
+        {"mode": "assisted_operation", "infer": ["out"], "keep_derived": ["p"]}
+      ]
+    },
+    {
+      "name": "expr_reverse_compose_general",
+      "source": "labs/xla_rewrite/tepl/rules/semantic/expr_reverse_compose_general.tepl",
+      "mechanism": "Explicit symmetric-difference axis construction; inference limitation probe",
+      "rhs_descriptors": {"out": ["dimensions"]},
+      "assisted": []
+    },
+    {
+      "name": "scalar_broadcast_transpose",
+      "source": "labs/xla_rewrite/tepl/rules/semantic/scalar_broadcast_transpose.tepl",
+      "mechanism": "Broadcast dimensions/extents under original scalar and rank-two guards",
+      "rhs_descriptors": {"out": ["dimensions", "new_extents"]},
+      "assisted": [
+        {"mode": "assisted_field", "infer": ["out"], "pins": {"out": {"dimensions": "[]"}}, "keep_derived": []}
+      ]
+    }
+  ],
+  "control": {
+    "source_case": "transpose_compose",
+    "replace": "gather(@inner.permutation, @outer.permutation)",
+    "with": "gather(@outer.permutation, @inner.permutation)",
+    "reason": "Reverses permutation-composition order; incorrect for noncommuting permutations."
+  }
+}

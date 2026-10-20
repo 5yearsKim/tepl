@@ -1,0 +1,11 @@
+from "../../../../examples/semantic/dialects/tensor.tepl" import TensorLang as t;
+use t::{transpose};
+
+rule transpose_explicit_032 {
+    A: f32[D0,D1,D2]
+    (transpose[@p32] (transpose[@p31] (transpose[@p30] (transpose[@p29] (transpose[@p28] (transpose[@p27] (transpose[@p26] (transpose[@p25] (transpose[@p24] (transpose[@p23] (transpose[@p22] (transpose[@p21] (transpose[@p20] (transpose[@p19] (transpose[@p18] (transpose[@p17] (transpose[@p16] (transpose[@p15] (transpose[@p14] (transpose[@p13] (transpose[@p12] (transpose[@p11] (transpose[@p10] (transpose[@p9] (transpose[@p8] (transpose[@p7] (transpose[@p6] (transpose[@p5] (transpose[@p4] (transpose[@p3] (transpose[@p2] (transpose[@p1] A))))))))))))))))))))))))))))))))
+    =>
+    (transpose[@combined] A)
+    where { D0 > 0 && D1 > 0 && D2 > 0 }
+    derive { @combined = { permutation: gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(gather(@p1.permutation, @p2.permutation), @p3.permutation), @p4.permutation), @p5.permutation), @p6.permutation), @p7.permutation), @p8.permutation), @p9.permutation), @p10.permutation), @p11.permutation), @p12.permutation), @p13.permutation), @p14.permutation), @p15.permutation), @p16.permutation), @p17.permutation), @p18.permutation), @p19.permutation), @p20.permutation), @p21.permutation), @p22.permutation), @p23.permutation), @p24.permutation), @p25.permutation), @p26.permutation), @p27.permutation), @p28.permutation), @p29.permutation), @p30.permutation), @p31.permutation), @p32.permutation) }; }
+}

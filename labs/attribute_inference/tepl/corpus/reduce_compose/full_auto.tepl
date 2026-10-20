@@ -1,0 +1,10 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule reduce_compose {
+    X: [I, J, K]
+    (reduce_sum[@outer] (reduce_sum[@inner] X)) => (reduce_sum[auto] X)
+    where { @inner.dimensions == [1] && @outer.dimensions == [1] }
+
+}

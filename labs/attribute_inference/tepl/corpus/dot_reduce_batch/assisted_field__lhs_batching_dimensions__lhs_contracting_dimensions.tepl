@@ -1,0 +1,12 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+use hlo::{dot, reduce_sum};
+
+rule dot_reduce_batch {
+    X: [K]
+    Y: [K]
+    (reduce_sum[@r] (dot[@d] X Y)) => (dot[auto, lhs_batching_dimensions = [], lhs_contracting_dimensions = [0]] X Y)
+    where { @d.lhs_batching_dimensions == [0] && @d.rhs_batching_dimensions == [0]
+         && @d.lhs_contracting_dimensions == []
+         && @d.rhs_contracting_dimensions == [] && @r.dimensions == [0] }
+
+}

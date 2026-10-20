@@ -112,7 +112,7 @@ class Context {
     std::map<std::tuple<QueryMode, Key, Key>, S> positions;
     std::set<Key> active_queries, active_canonical, active_support,
         active_positions, active_premises, active_set_operations,
-        active_intervals;
+        active_intervals, active_uniform_elements;
     std::size_t start_budget = 0;
     std::map<Key, std::pair<std::size_t, std::size_t>> term_order;
   } queries_;

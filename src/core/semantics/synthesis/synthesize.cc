@@ -136,6 +136,12 @@ struct Constructor {
         for (const auto& input : inputs) operand_axes.push_back(input.axes);
         auto wanted = c.difference(match.boundaries.at(id),
                                    call("union_axes", std::move(operand_axes)));
+        // A single non-reduced domain covers the output interface even when
+        // an identity coordinate map reuses axes from its input. Subtracting
+        // input axes would erase that frame before calculated-read matching.
+        if (infer_indices && !reduced.contains(g) &&
+            n.definition->groups.size() == 1)
+          wanted = match.interfaces.at(id);
         auto order = c.filter(match.interfaces.at(id), wanted);
         auto domain = lowerer.metadata(*group.domain, n, inputs, groups);
         if (infer_indices && containsHole(c.resolve(domain)) &&

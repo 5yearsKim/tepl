@@ -1,0 +1,9 @@
+from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-compare-min
+// Scope: Written operand/opcode variant under the catalog conditions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_compare_min {
+    (hlo.compare[@c] A (hlo.minimum A B)) => (hlo.compare[auto] A B)
+     where { @c.direction == 3 }
+}
