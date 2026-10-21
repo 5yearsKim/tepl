@@ -6,6 +6,7 @@ cc_library(
     hdrs = ["program.h", "ir.h"],
     deps = [
         "//src/shared/catalog",
+        "//src/inference",
         "//src/shared/builtins:intrinsics",
         "@nlohmann_json//:json",
     ],

@@ -1,0 +1,25 @@
+from "dialects/tensor.tepl" import TensorLang as t;
+use t::{dot, transpose};
+
+// Compile with --semantic-policy=algebraic --infer-applicability.
+// Some matches admit the RHS layout; others require a permutation the RHS
+// cannot express. The generated check distinguishes them using axis identity.
+rule remove_output_permutation {
+    (transpose[@p] (dot[@d] A B)) => (dot[auto] A B)
+}
+
+graph feasible {
+    input A: f32[2];
+    input B: f32[2];
+    let product = (dot[lhs_contracting_dimensions=[], rhs_contracting_dimensions=[],
+                       lhs_batching_dimensions=[], rhs_batching_dimensions=[]] A B);
+    yield (transpose[permutation=[0,1]] product);
+}
+
+graph infeasible {
+    input A: f32[2];
+    input B: f32[2];
+    let product = (dot[lhs_contracting_dimensions=[], rhs_contracting_dimensions=[],
+                       lhs_batching_dimensions=[], rhs_batching_dimensions=[]] A B);
+    yield (transpose[permutation=[1,0]] product);
+}

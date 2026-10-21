@@ -59,7 +59,7 @@ cc_library(
             "symbolic/key.h",
         ],
     ),
-    deps = [":model", "//src/shared/builtins", "//src/shared/types"],
+    deps = [":model", "//src/inference", "//src/shared/builtins", "//src/shared/types"],
     visibility = ["//visibility:public"],
 )
 

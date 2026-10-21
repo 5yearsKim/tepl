@@ -6,6 +6,7 @@
 
 #include "src/core/semantics/proof/verify.h"
 #include "src/core/semantics/synthesis/index_inference.h"
+#include "src/core/semantics/synthesis/ordered/construct.h"
 
 namespace tepl::core::semantics {
 namespace {
@@ -244,7 +245,8 @@ struct Constructor {
 };
 }  // namespace
 namespace {
-RuleProof run(const Plan& plan, std::size_t max_work) {
+RuleProof run(const Plan& plan, std::size_t max_work,
+              const ordered::Admission* admitted = nullptr) {
   Context c{plan, max_work};
   ConstructorCandidate candidate;
   std::vector<RuleProof::RewriteStep> rewrites;
@@ -278,7 +280,11 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
                      lhs,
                      call("unique_axes", {call("concat", std::move(all))}),
                      lt};
-    auto rhs = ctor.build(plan.rhs);
+    auto rhs = admitted ? ordered::construct(c, target, *admitted,
+                                             ordered::deriveRequirements(
+                                                 c, *admitted, match, lhs.axes),
+                                             ctor.reductions)
+                        : ctor.build(plan.rhs);
     auto checked = normalize(c, rhs.value, &rewrites);
     auto simplified_lhs = collectTerms(c, lt, &rewrites);
     auto simplified_rhs = collectTerms(c, checked, &rewrites);
@@ -311,6 +317,8 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
             c.steps().end())
       proof.steps.push_back(coefficient_law);
     proof.rewrites = std::move(rewrites);
+    if (admitted && proof.status == ProofStatus::Proved)
+      proof.steps.push_back("law: ordered-requirements-construction");
     return proof;
   } catch (const ProofFailure& e) {
     RuleProof unknown;
@@ -321,6 +329,15 @@ RuleProof run(const Plan& plan, std::size_t max_work) {
 }
 }  // namespace
 RuleProof synthesize(const Plan& plan, std::size_t max_work) {
+  const auto admitted = ordered::admit(plan);
+  if (admitted.admitted()) {
+    auto proof = run(plan, max_work, &admitted);
+    if (proof.status == ProofStatus::Proved) return proof;
+    // A bounded symbolic attempt is not an impossibility decision. Keep the
+    // generic path and its established behavior while correspondence and the
+    // structural certificate checker are developed independently.
+    return run(plan, max_work);
+  }
   return run(plan, max_work);
 }
 }  // namespace tepl::core::semantics

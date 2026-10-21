@@ -150,6 +150,57 @@ S Context::sequenceEquality(const S& a, const S& b) {
                 : call("gather", {base, selector});
         if (callIs(base, "concat") && selector->kind == Symbol::Kind::List &&
             selector->args.size() > 1 && !equal(result, base)) {
+          // Context-known block lengths need not be literal in the expression
+          // factory. Project an explicit selector into those blocks while
+          // preserving its order (including repeated visits to a block).
+          std::vector<std::size_t> sizes;
+          std::size_t total = 0;
+          bool known = true;
+          for (const auto& part : base->args) {
+            auto size = metadataInteger(canonical(call("len", {part})));
+            if (!size || *size < 0 ||
+                *size > std::numeric_limits<std::size_t>::max() - total) {
+              known = false;
+              break;
+            }
+            sizes.push_back(static_cast<std::size_t>(*size));
+            total += sizes.back();
+          }
+          std::vector<S> projected;
+          std::vector<S> local;
+          std::size_t block = base->args.size();
+          auto flush = [&] {
+            if (local.empty()) return;
+            projected.push_back(self(
+                self,
+                call("gather", {base->args[block],
+                                make(Symbol::Kind::List, {}, 0, 0, local)}),
+                depth + 1));
+            local.clear();
+          };
+          if (known)
+            for (const auto& index : selector->args) {
+              auto position = metadataInteger(index);
+              if (!position || *position < 0 || *position >= total) {
+                known = false;
+                break;
+              }
+              auto remaining = static_cast<std::size_t>(*position);
+              std::size_t next = 0;
+              while (next < sizes.size() && remaining >= sizes[next])
+                remaining -= sizes[next++];
+              if (next != block) {
+                flush();
+                block = next;
+              }
+              local.push_back(integer(remaining));
+            }
+          if (known) {
+            flush();
+            result = call("concat", std::move(projected));
+            memo.emplace(key(x), result);
+            return result;
+          }
           std::vector<S> parts;
           bool resolved = true;
           for (const auto& position : selector->args) {

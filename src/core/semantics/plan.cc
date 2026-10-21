@@ -6,6 +6,7 @@
 #include "src/core/semantics/compilation_context.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
+#include "src/core/semantics/synthesis/ordered/compile.h"
 #include "src/core/semantics/synthesis/synthesize.h"
 
 namespace tepl::core::semantics {
@@ -308,6 +309,7 @@ struct Builder {
     if (!op.dtype)
       throw std::runtime_error("index operation requires dtype contract");
     Instance n;
+    n.operation = id;
     n.definition = op.semantic_definition;
     n.dtype = std::make_shared<metadata::Program>(*op.dtype);
     n.descriptor = descriptor;
@@ -419,17 +421,41 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
     b.plan.rhs = b.target(*rule.rhs);
     for (const auto& d : rule.descriptors)
       b.plan.descriptor_names[d.id.value] = d.name;
-    b.assumptions();
     const bool selected = context.options.semantic_rule.empty() ||
                           context.options.semantic_rule == rule.name;
-    if (selected) b.plan.proof = synthesize(b.plan);
+    if (context.options.inferred_applicability) {
+      if (selected) {
+        bool automatic = false;
+        for (const auto& n : b.plan.nodes) automatic |= n.automatic;
+        auto compiled =
+            ordered::compile(b.plan, automatic ? inference::Mode::Synthesize
+                                               : inference::Mode::Validate);
+        if (compiled.program) {
+          b.plan.proof.inference = std::move(compiled.program);
+          b.plan.proof.status = ProofStatus::Proved;
+          b.plan.proof.reason =
+              "generated structural applicability check; equivalence is "
+              "conditional on legal metadata, extents >= 2, and check success";
+          b.plan.proof.steps.push_back(
+              "verified: ordered semantic templates and completed inference "
+              "schedule");
+        } else
+          b.plan.proof.reason = "inferred applicability: " + compiled.reason;
+      }
+    } else {
+      b.assumptions();
+      if (selected) b.plan.proof = synthesize(b.plan);
+    }
     if (selected && !context.options.inspect_semantic_rules &&
-        b.plan.proof.status != ProofStatus::Proved)
-      context.report(rule.origin,
-                     "cannot verify rule '" + rule.name +
-                         "': " + b.plan.proof.reason +
-                         ". Add an explicit where condition establishing the "
-                         "unresolved requirement, or change the rewrite.");
+        b.plan.proof.status != ProofStatus::Proved) {
+      auto message =
+          "cannot verify rule '" + rule.name + "': " + b.plan.proof.reason;
+      if (!context.options.inferred_applicability)
+        message +=
+            ". Add an explicit where condition establishing the unresolved "
+            "requirement, or change the rewrite.";
+      context.report(rule.origin, std::move(message));
+    }
     rule.semantic_plan = std::make_shared<Plan>(std::move(b.plan));
   } catch (const std::runtime_error& e) {
     context.report(rule.origin, std::string("semantic inference: ") + e.what());

@@ -4,14 +4,106 @@
 #include <stdexcept>
 
 #include "src/executable/program.h"
+#include "src/inference/evaluate.h"
 #include "src/shared/builtins/axes.h"
 #include "src/shared/builtins/intrinsics/catalog.h"
+#include "src/shared/metadata/ordered.h"
 #include "src/shared/types/literal.h"
 
 namespace tepl::executable {
 namespace {
 void require(bool b, const std::string& s) {
   if (!b) throw std::invalid_argument("compiled program: " + s);
+}
+
+// Bind completed instructions to the actual rule and operation axis contracts.
+// Runtime validation cannot trust a serialized schedule's claimed roles.
+void validateInference(const ProgramData& p, const Rule& r) {
+  using namespace core;
+  if (!r.inference) return;
+  const auto& program = *r.inference;
+  std::map<std::size_t, PatternPtr> bound;
+  auto instruction = [&](const std::vector<inference::Instruction>& code,
+                         std::size_t& next, std::optional<CaptureId> capture,
+                         std::optional<OpId> operation,
+                         std::optional<DescriptorId> descriptor,
+                         std::vector<std::size_t> inputs) {
+    require(next < code.size(), "truncated inference schedule");
+    const auto id = next++;
+    const auto& n = code[id];
+    require(n.inputs == inputs, "inference operand schedule mismatch");
+    if (capture) {
+      require(n.kind == inference::Kind::Input && n.capture == capture->value,
+              "inference capture mismatch");
+      return id;
+    }
+    require(operation && operation->value < p.operations.size() && descriptor &&
+                n.operation == operation->value &&
+                n.descriptor == descriptor->value,
+            "inference operation/descriptor mismatch");
+    const auto& op = p.operations[operation->value];
+    require(bool(op.axis_contract), "inference operation lacks axis contract");
+    auto c = core::axis::recognizeOrdered(*op.axis_contract);
+    require(c.has_value(), "inference operation is outside ordered templates");
+    auto kind = c->kind == core::axis::OrderedContract::Kind::Permutation
+                    ? inference::Kind::Permutation
+                    : inference::Kind::Contraction;
+    auto fields =
+        kind == inference::Kind::Permutation
+            ? std::vector<std::size_t>{c->permutation}
+            : std::vector<std::size_t>{c->left_batch, c->right_batch,
+                                       c->left_contract, c->right_contract};
+    require(n.kind == kind && n.fields == fields,
+            "inference field adapter mismatch");
+    require(op.attributes && descriptor->value < r.descriptors.size(),
+            "invalid inference descriptor");
+    for (const auto& field :
+         p.attribute_schemas.at(op.attributes->value).fields)
+      require((field.type == "index" || field.type == "i64") &&
+                  field.list_depth == 1 && !field.optional,
+              "inference requires nonoptional position-list fields");
+    return id;
+  };
+  std::function<std::size_t(const PatternPtr&,
+                            const std::vector<inference::Instruction>&,
+                            std::size_t&)>
+      pattern;
+  pattern = [&](const auto& e, const auto& code, auto& next) -> std::size_t {
+    if (const auto* b = std::get_if<core::BindPattern>(&e->value)) {
+      bound[b->capture.value] = b->expression;
+      return pattern(b->expression, code, next);
+    }
+    if (const auto* c = std::get_if<core::CapturePattern>(&e->value))
+      return instruction(code, next, c->capture, {}, {}, {});
+    const auto* op = std::get_if<core::MatchOperation>(&e->value);
+    require(op != nullptr, "inference does not support literal patterns");
+    std::vector<std::size_t> inputs;
+    for (const auto& child : op->operands)
+      inputs.push_back(pattern(child, code, next));
+    return instruction(code, next, {}, op->operation, op->descriptor,
+                       std::move(inputs));
+  };
+  std::size_t next = 0;
+  pattern(r.lhs, program.source, next);
+  require(next == program.source.size(), "extra source inference instructions");
+  next = 0;
+  std::function<std::size_t(const core::BuildExprPtr&)> build =
+      [&](const auto& e) -> std::size_t {
+    if (const auto* c = std::get_if<core::CaptureRef>(&e->value)) {
+      if (auto it = bound.find(c->capture.value); it != bound.end())
+        return pattern(it->second, program.replacement, next);
+      return instruction(program.replacement, next, c->capture, {}, {}, {});
+    }
+    const auto* op = std::get_if<core::BuildOperation>(&e->value);
+    require(op != nullptr, "inference does not support literal replacements");
+    std::vector<std::size_t> inputs;
+    for (const auto& child : op->operands) inputs.push_back(build(child));
+    return instruction(program.replacement, next, {}, op->operation,
+                       op->descriptor, std::move(inputs));
+  };
+  build(r.rhs);
+  require(next == program.replacement.size(),
+          "extra RHS inference instructions");
 }
 // Loaded source axes expressions and lowered symbolic instructions use their
 // respective catalogs. Internal operations never grant source permissions.
@@ -350,6 +442,11 @@ void validate(const ExecutableProgram& program) {
       require(operand < op.operands.size(), "unknown implicit operand");
   }
   for (const auto& r : p.rules) {
+    if (r.inference) {
+      require(program.policy() == "algebraic",
+              "inferred applicability requires algebraic policy");
+      inference::validate(*r.inference);
+    }
     ids(r.captures);
     ids(r.dimensions);
     ids(r.descriptors);
@@ -671,6 +768,16 @@ void validate(const ExecutableProgram& program) {
         descriptors.insert(d.target->value);
       }
     }
+    if (r.inference && r.inference->mode == inference::Mode::Synthesize)
+      for (const auto& n : r.inference->replacement)
+        if (n.descriptor) {
+          require(*n.descriptor < r.descriptors.size() &&
+                      r.descriptors[*n.descriptor].kind ==
+                          completed::Descriptor::Kind::kDerived,
+                  "inferred RHS descriptor must be derived");
+          require(descriptors.insert(*n.descriptor).second,
+                  "inferred descriptor already assigned");
+        }
     std::function<void(const BuildExprPtr&)> build = [&](const auto& e) {
       require(bool(e), "null replacement");
       type(e->type);
@@ -695,6 +802,7 @@ void validate(const ExecutableProgram& program) {
           e->value);
     };
     build(r.rhs);
+    validateInference(p, r);
   }
   for (const auto& g : p.graphs) validateGraph(p, g);
 }

@@ -253,7 +253,8 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
     // Only the expression factory's bounded literal ranges are enumerated;
     // arbitrary-rank equality continues to use symbolic witnesses above.
     if (metadataSequence(a) && metadataSequence(b) &&
-        (a->sort == Symbol::Sort::Extents || b->sort == Symbol::Sort::Extents)) {
+        (a->sort == Symbol::Sort::Extents ||
+         b->sort == Symbol::Sort::Extents)) {
       auto length = canonical(call("len", {a}));
       auto indices = call("range", {length});
       if (indices->kind == Symbol::Kind::List &&

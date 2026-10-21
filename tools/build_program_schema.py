@@ -93,7 +93,11 @@ variant('expr_value','decltype(core::completed::TypedExpr::value)','capture:capt
 struct('expr','core::completed::TypedExpr','origin:origin type:id value:expr_value')
 struct('local','core::Local','id:id name:string type:id')
 struct('derivation','core::completed::Derivation','target:id? value:expr* origin:origin')
-struct('rule','Rule','id:id name:string source_name:string origin:origin captures:capture[] dimensions:dimension[] descriptors:descriptor[] lhs:pattern* constraints:constraint[] conditions:expr*[] locals:local[] derivations:derivation[] rhs:build* dtypes:dtype_variable[]')
+enum('inference_mode','inference::Mode','synthesize:Synthesize validate:Validate')
+enum('inference_kind','inference::Kind','input:Input permutation:Permutation contraction:Contraction')
+struct('inference_instruction','inference::Instruction','kind:inference_kind node:id capture:id? descriptor:id? operation:id? inputs:id[] captures:id[] fields:id[]')
+struct('inference_program','inference::Program','mode:inference_mode source:inference_instruction[] replacement:inference_instruction[]')
+struct('rule','Rule','id:id name:string source_name:string origin:origin captures:capture[] dimensions:dimension[] descriptors:descriptor[] lhs:pattern* constraints:constraint[] conditions:expr*[] locals:local[] derivations:derivation[] rhs:build* dtypes:dtype_variable[] inference:inference_program?')
 struct('attribute','core::AttributeValue','kind:attribute_kind text:string elements:attribute[]')
 struct('graph_node','core::ConcreteNode','kind:node_kind origin:origin text:string dtype:dtype? shape:extent[]? operation:id? operands:id[] attributes:attribute[]')
 struct('graph','core::ConcreteGraph','id:id name:string source_name:string origin:origin nodes:graph_node[] bindings:binding[] root:id')
@@ -148,6 +152,7 @@ for name,(typ,values) in E.items():
     code += ['throw std::invalid_argument("invalid '+name+'"); }};']
 for name,(typ,fields,init) in D.items():
     defs[name]=obj({key:ref(t) for key,t in fields.items()})
+    if name == 'rule': defs[name]['required'].remove('inference')
     code += ['template<> struct Codec<'+typ+'> { static Json pack(const '+typ+'&); static '+typ+' unpack(const Json&); };']
 for name,(typ,values) in V.items():
     defs[name]={'oneOf':[obj({'kind':{'const':tag},'data':ref(t)}) for tag,t in values.items()]}
@@ -161,13 +166,17 @@ for name,(typ,values) in V.items():
 for name,(typ,fields,init) in D.items():
     code+=['inline Json Codec<'+typ+'>::pack(const '+typ+'& v) { Json j=Json::object();']
     for key in fields:
-        if name=='graph_node' and key=='shape':
+        if name=='rule' and key=='inference':
+            code+=['if(v.inference) j[\"inference\"] = detail::pack(v.inference);']
+        elif name=='graph_node' and key=='shape':
             code+=['j["shape"]=nullptr; if(v.shape){j["shape"]=Json::array();for(auto d:*v.shape)j["shape"].push_back(std::to_string(d));}']
         elif name=='axis_value' and key=='constant': code+=['j["constant"]=std::to_string(v.constant);']
         else: code+=['j["'+key+'"] = detail::pack(v.'+key+');']
     code+=['return j; }','inline '+typ+' Codec<'+typ+'>::unpack(const Json& j) { '+typ+' v{'+(init or '')+'};']
     for key in fields:
-        if name=='graph_node' and key=='shape':
+        if name=='rule' and key=='inference':
+            code+=['if(j.contains(\"inference\")) v.inference = detail::unpack<decltype(v.inference)>(j.at(\"inference\"));']
+        elif name=='graph_node' and key=='shape':
             code+=['if(!j.at("shape").is_null()){v.shape.emplace();for(const auto& d:j.at("shape"))v.shape->push_back(parseExtent(d.get<std::string>()));}']
         elif name=='axis_value' and key=='constant': code+=['v.constant=parseSigned(j.at("constant").get<std::string>());']
         else: code+=['v.'+key+' = detail::unpack<decltype(v.'+key+')>(j.at("'+key+'"));']
@@ -181,7 +190,7 @@ if 'Codec<std::set<T>>' not in header:
 };
 '''
 (ROOT/'src/executable/codec.h').write_text(header+'\n'.join(code)+'\n} // namespace tepl::executable::detail\n')
-schema={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'TEPL compiled rewrite program v2',**obj({'format':{'const':'tepl.rewrite'},'version':{'const':2},'policy':{'enum':['strict','algebraic']},'capabilities':{'const':['tepl.core.v2','tepl.axis-metadata.v2']},'program':ref('ir'),'axis_definitions':ref('symbol*[][]')}),'$defs':defs}
+schema={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'TEPL compiled rewrite program v2',**obj({'format':{'const':'tepl.rewrite'},'version':{'const':2},'policy':{'enum':['strict','algebraic']},'capabilities':{'anyOf':[{'const':['tepl.core.v2','tepl.axis-metadata.v2']},{'const':['tepl.core.v2','tepl.axis-metadata.v2','tepl.inferred-applicability.v1']}]},'program':ref('ir'),'axis_definitions':ref('symbol*[][]')}),'$defs':defs}
 text=json.dumps(schema,indent=2)+'\n'
 (ROOT/'schema/rewrite-program.schema.json').write_text(text)
 (ROOT/'src/executable/schema_data.h').write_text('// Generated by tools/build_program_schema.py. Do not edit.\n#pragma once\n#include <string_view>\nnamespace tepl::executable::detail {\ninline constexpr std::string_view kSchema = R"TEPL_SCHEMA('+text+')TEPL_SCHEMA";\n}\n')

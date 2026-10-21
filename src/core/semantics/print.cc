@@ -153,14 +153,27 @@ std::string format(const Plan& p) {
       out << "        " << definition->fields.at(f) << " = "
           << render(*fields[f]) << '\n';
   }
-  out << "      declared-conditions:" << (p.assumptions.empty() ? " true" : "")
+  out << "      declared-conditions:"
+      << (p.proof.inference       ? " evaluated at match time"
+          : p.assumptions.empty() ? " true"
+                                  : "")
       << '\n';
   for (const auto& a : p.assumptions) out << "        " << render(*a) << '\n';
   out << "      additional-guard: "
-      << (p.proof.status == ProofStatus::Unknown ? "unresolved"
-          : p.proof.guard.empty()                ? "true"
-                                                 : "")
+      << (p.proof.inference
+              ? "generated match-time structural check (extents >= 2)"
+          : p.proof.status == ProofStatus::Unknown ? "unresolved"
+          : p.proof.guard.empty()                  ? "true"
+                                                   : "")
       << '\n';
+  if (p.proof.inference)
+    out << "      inference-program: "
+        << (p.proof.inference->mode == inference::Mode::Synthesize
+                ? "synthesize"
+                : "validate explicit attributes")
+        << ", source=" << p.proof.inference->source.size()
+        << ", replacement=" << p.proof.inference->replacement.size()
+        << " instructions; declared conditions evaluated at match time\n";
   for (const auto& g : p.proof.guard) out << "        " << render(*g) << '\n';
   if (!p.proof.guard_origins.empty()) {
     out << "      guard-origins (unresolved obligations):\n";

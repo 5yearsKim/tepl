@@ -18,6 +18,25 @@ tepl rewrite <file-or-project-or-json> [--rules file-or-directory] [--rule name]
 tepl generate <file-or-project-or-json> --out <directory> [options]
 ```
 
+`check`, `compile`, and source `rewrite` accept `--infer-applicability` with
+`--semantic-policy=algebraic`. For the supported read-once contraction/permutation
+fragment, this generates a match-time feasibility check and an attribute
+constructor, or validates supplied attributes for a fully explicit RHS. The
+rewrite applies only when the declared conditions and generated check pass,
+with physical extents at least two. Mixed explicit/automatic RHS descriptors
+and pinned automatic fields are outside this mode. The default mode continues
+to require compile-time proof of coverage under declared conditions.
+
+```sh
+tepl compile examples/semantic/inferred_applicability.tepl \
+  --semantic-policy=algebraic --infer-applicability -o inferred.json
+tepl rewrite inferred.json --graph feasible --trace
+```
+
+The mode and completed program are stored in JSON; replay needs no flag.
+Native C++ execution is supported. Code generation for these programs is deferred
+and is rejected explicitly. See the [implementation and domain details](../../src/core/semantics/synthesis/ordered/README.md).
+
 | Command | Purpose | Input |
 | --- | --- | --- |
 | `init` | Create a minimal project with a dialect and rewrite rule. | A destination directory. |

@@ -20,9 +20,20 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
       ]
     },
     "capabilities": {
-      "const": [
-        "tepl.core.v2",
-        "tepl.axis-metadata.v2"
+      "anyOf": [
+        {
+          "const": [
+            "tepl.core.v2",
+            "tepl.axis-metadata.v2"
+          ]
+        },
+        {
+          "const": [
+            "tepl.core.v2",
+            "tepl.axis-metadata.v2",
+            "tepl.inferred-applicability.v1"
+          ]
+        }
       ]
     },
     "program": {
@@ -269,6 +280,19 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
         "axes",
         "extents",
         "dtype"
+      ]
+    },
+    "inference_mode": {
+      "enum": [
+        "synthesize",
+        "validate"
+      ]
+    },
+    "inference_kind": {
+      "enum": [
+        "input",
+        "permutation",
+        "contraction"
       ]
     },
     "position": {
@@ -1248,6 +1272,102 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
       ],
       "additionalProperties": false
     },
+    "inference_instruction": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/inference_kind"
+        },
+        "node": {
+          "$ref": "#/$defs/id"
+        },
+        "capture": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "descriptor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "captures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "node",
+        "capture",
+        "descriptor",
+        "operation",
+        "inputs",
+        "captures",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "inference_program": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/inference_mode"
+        },
+        "source": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference_instruction"
+          }
+        },
+        "replacement": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference_instruction"
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "source",
+        "replacement"
+      ],
+      "additionalProperties": false
+    },
     "rule": {
       "type": "object",
       "properties": {
@@ -1316,6 +1436,16 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
           "items": {
             "$ref": "#/$defs/dtype_variable"
           }
+        },
+        "inference": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/inference_program"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

@@ -104,6 +104,11 @@ int main(int argc, char** argv) {
                     "Report applied rules on stderr");
   std::string semantic_policy = "strict";
   std::string semantic_rule;
+  bool inferred_applicability = false;
+  for (auto* command : {check, compile, rewrite})
+    command->add_flag("--infer-applicability", inferred_applicability,
+                      "Generate match-time applicability checks for ordered "
+                      "contraction/permutation rules (algebraic policy)");
   check->add_option("--rule", semantic_rule,
                     "Select a semantic rule for compile-time proof");
   for (auto* command : {check, generate, compile, rewrite}) {
@@ -272,8 +277,9 @@ int main(int argc, char** argv) {
       }
     };
     if (*check) {
-      auto inspected =
-          tepl::core::inspect(*result.program, {policy, false, semantic_rule});
+      auto inspected = tepl::core::inspect(
+          *result.program,
+          {policy, false, semantic_rule, inferred_applicability});
       diagnostics(inspected.diagnostics);
       if (!inspected.ok()) return 1;
       if (semantic_rule.empty())
@@ -281,7 +287,8 @@ int main(int argc, char** argv) {
       return tepl::checkSemanticRules(*inspected.program, semantic_rule,
                                       std::cout);
     }
-    auto compiled = tepl::core::compile(*result.program, {policy});
+    auto compiled =
+        tepl::core::compile(*result.program, {policy, inferred_applicability});
     diagnostics(compiled.diagnostics);
     if (!compiled.ok()) return 1;
     return execute(*compiled.program);

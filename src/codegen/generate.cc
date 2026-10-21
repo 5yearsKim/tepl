@@ -15,6 +15,12 @@ std::string_view targetName(Target target) {
 }
 GenerationResult generate(const executable::ExecutableProgram& program,
                           const Options& options) {
+  for (const auto& r : program.ir().rules)
+    if (r.inference)
+      return {{},
+              {{r.origin,
+                "inferred applicability programs currently support native C++ "
+                "execution; code generation is deferred"}}};
   if (options.target != Target::kRust)
     return {{},
             {{{},

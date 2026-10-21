@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "src/rewrite/builder.h"
+#include "src/rewrite/inference.h"
 #include "src/rewrite/matcher.h"
 
 namespace tepl::rewrite {
@@ -89,6 +90,7 @@ Result run(const executable::ExecutableProgram& program,
                 bindings.descriptors[d.target->value] =
                     std::get<DescriptorValue>(value.data);
             }
+            if (!inferAttributes(p, rule, out.graph, bindings, work)) continue;
             auto candidate = out.graph;
             auto root = build(p, *rule.rhs, candidate, bindings, work,
                               options.max_nodes);

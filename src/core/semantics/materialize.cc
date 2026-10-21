@@ -31,6 +31,11 @@ Materialized materialize(InspectionData checked) {
                                     "' has no verified semantic plan");
       axes = plan->proof.axis_definitions;
     }
+    const bool generated = plan && plan->proof.inference.has_value();
+    if (generated)
+      output.kinds.back() = VerificationKind::InferredApplicability;
+    std::optional<inference::Program> inference_program;
+    if (generated) inference_program = plan->proof.inference;
     std::unique_ptr<core::semantics::Context> coordinates;
     Completion completion(
         [&](const OutputAxisGroupRef& ref) -> symbolic::SymbolPtr {
@@ -64,6 +69,11 @@ Materialized materialize(InspectionData checked) {
             core::TypedExpr{r.origin, typeId(core::Type{core::TypeKind::kBool}),
                             core::SymbolicExpr{guard}}));
     for (const auto& hole : r.attribute_holes) {
+      if (generated) {
+        r.descriptors.at(hole.descriptor.value).kind =
+            core::Descriptor::Kind::kDerived;
+        continue;
+      }
       if (!plan || !plan->proof.constructors.contains(hole.descriptor.value))
         throw std::invalid_argument("auto constructor is unresolved in rule '" +
                                     r.name + "'");
@@ -93,6 +103,7 @@ Materialized materialize(InspectionData checked) {
     }
     r.attribute_holes.clear();
     auto completed_rule = completion.rule(std::move(static_cast<RuleData&>(r)));
+    completed_rule.inference = std::move(inference_program);
     if (coordinates)
       for (const auto& [key, value] : coordinates->source().groups)
         axes.push_back(value);

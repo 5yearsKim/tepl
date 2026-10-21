@@ -12,6 +12,7 @@
 #include "src/core/semantics/definition.h"
 #include "src/core/semantics/symbolic/symbol.h"
 #include "src/shared/catalog/ids.h"
+#include "src/shared/metadata/inference.h"
 #include "src/shared/metadata/ir.h"
 #include "src/shared/source/source.h"
 #include "src/shared/types/types.h"
@@ -26,6 +27,7 @@ struct Pin {
   std::size_t field = 0;
 };
 struct Instance {
+  std::optional<OpId> operation;
   std::optional<CaptureId> capture;
   std::optional<DescriptorId> descriptor;
   std::shared_ptr<const Definition> definition;
@@ -45,6 +47,7 @@ struct ConstructorCandidate {
   std::vector<SymbolPtr> guard;
 };
 struct RuleProof : ConstructorCandidate {
+  std::optional<inference::Program> inference;
   ProofStatus status = ProofStatus::Unknown;
   std::string reason;
   struct GuardOrigin {

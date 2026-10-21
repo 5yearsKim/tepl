@@ -121,6 +121,10 @@ ExecutableProgram load(std::string_view text) {
     ExecutableProgram p;
     p.policy_ = j.at("policy");
     p.ir_ = detail::unpack<ProgramData>(j.at("program"));
+    bool inference = false;
+    for (const auto& r : p.ir_.rules) inference |= r.inference.has_value();
+    if (inference && j.at("capabilities").size() != 3)
+      throw std::invalid_argument("missing inferred-applicability capability");
     p.axes_ = detail::unpack<decltype(p.axes_)>(j.at("axis_definitions"));
     validate(p);
     return p;
@@ -137,6 +141,11 @@ std::string serialize(const ExecutableProgram& p) {
             {"capabilities", {"tepl.core.v2", "tepl.axis-metadata.v2"}},
             {"program", detail::pack(p.ir_)},
             {"axis_definitions", detail::pack(p.axes_)}};
+  for (const auto& r : p.ir_.rules)
+    if (r.inference) {
+      j["capabilities"].push_back("tepl.inferred-applicability.v1");
+      break;
+    }
   const auto spec = Json::parse(schema());
   check(j, spec, spec, "$");
   return j.dump(2) + "\n";

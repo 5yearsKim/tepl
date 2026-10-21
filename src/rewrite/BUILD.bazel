@@ -5,6 +5,7 @@ cc_library(
     srcs = [
         "builder.cc",
         "engine.cc",
+        "inference.cc",
         "evaluator.cc",
         "matcher.cc",
         "printer.cc",
@@ -21,6 +22,7 @@ cc_library(
     hdrs = [
         "builder.h",
         "engine.h",
+        "inference.h",
         "evaluator.h",
         "matcher.h",
         "printer.h",
@@ -32,7 +34,7 @@ cc_library(
         "evaluation_support.h",
     ],
     visibility = ["//visibility:public"],
-    deps = ["//src/shared/catalog", "//src/executable"],
+    deps = ["//src/shared/catalog", "//src/executable", "//src/inference"],
 )
 
 cc_library(

@@ -2,7 +2,7 @@
 #include "src/core/tables.h"
 #include "src/shared/catalog/completed.h"
 namespace tepl::core::semantics {
-enum class VerificationKind { Structural, Semantic };
+enum class VerificationKind { Structural, Semantic, InferredApplicability };
 struct VerifiedData : ProgramTables {
   std::vector<completed::RuleData> rules;
 };

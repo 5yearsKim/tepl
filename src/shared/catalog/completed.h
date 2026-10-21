@@ -1,5 +1,6 @@
 #pragma once
 #include "src/shared/catalog/rules.h"
+#include "src/shared/metadata/inference.h"
 #include "src/shared/metadata/instruction.h"
 namespace tepl::core::completed {
 struct Descriptor {
@@ -128,6 +129,7 @@ struct RuleData {
   std::vector<Derivation> derivations;
   BuildExprPtr rhs;
   std::vector<DTypeVariable> dtypes;
+  std::optional<inference::Program> inference;
 };
 
 }  // namespace tepl::core::completed

@@ -596,6 +596,43 @@ struct Codec<core::completed::Symbol::Sort> {
   }
 };
 template <>
+struct Codec<inference::Mode> {
+  static Json pack(inference::Mode v) {
+    switch (v) {
+      case inference::Mode::Synthesize:
+        return "synthesize";
+      case inference::Mode::Validate:
+        return "validate";
+    }
+    throw std::invalid_argument("invalid inference_mode");
+  }
+  static inference::Mode unpack(const Json& j) {
+    if (j == "synthesize") return inference::Mode::Synthesize;
+    if (j == "validate") return inference::Mode::Validate;
+    throw std::invalid_argument("invalid inference_mode");
+  }
+};
+template <>
+struct Codec<inference::Kind> {
+  static Json pack(inference::Kind v) {
+    switch (v) {
+      case inference::Kind::Input:
+        return "input";
+      case inference::Kind::Permutation:
+        return "permutation";
+      case inference::Kind::Contraction:
+        return "contraction";
+    }
+    throw std::invalid_argument("invalid inference_kind");
+  }
+  static inference::Kind unpack(const Json& j) {
+    if (j == "input") return inference::Kind::Input;
+    if (j == "permutation") return inference::Kind::Permutation;
+    if (j == "contraction") return inference::Kind::Contraction;
+    throw std::invalid_argument("invalid inference_kind");
+  }
+};
+template <>
 struct Codec<SourcePosition> {
   static Json pack(const SourcePosition&);
   static SourcePosition unpack(const Json&);
@@ -824,6 +861,16 @@ template <>
 struct Codec<core::completed::Derivation> {
   static Json pack(const core::completed::Derivation&);
   static core::completed::Derivation unpack(const Json&);
+};
+template <>
+struct Codec<inference::Instruction> {
+  static Json pack(const inference::Instruction&);
+  static inference::Instruction unpack(const Json&);
+};
+template <>
+struct Codec<inference::Program> {
+  static Json pack(const inference::Program&);
+  static inference::Program unpack(const Json&);
 };
 template <>
 struct Codec<Rule> {
@@ -1918,6 +1965,46 @@ inline core::completed::Derivation Codec<core::completed::Derivation>::unpack(
   v.origin = detail::unpack<decltype(v.origin)>(j.at("origin"));
   return v;
 }
+inline Json Codec<inference::Instruction>::pack(
+    const inference::Instruction& v) {
+  Json j = Json::object();
+  j["kind"] = detail::pack(v.kind);
+  j["node"] = detail::pack(v.node);
+  j["capture"] = detail::pack(v.capture);
+  j["descriptor"] = detail::pack(v.descriptor);
+  j["operation"] = detail::pack(v.operation);
+  j["inputs"] = detail::pack(v.inputs);
+  j["captures"] = detail::pack(v.captures);
+  j["fields"] = detail::pack(v.fields);
+  return j;
+}
+inline inference::Instruction Codec<inference::Instruction>::unpack(
+    const Json& j) {
+  inference::Instruction v{};
+  v.kind = detail::unpack<decltype(v.kind)>(j.at("kind"));
+  v.node = detail::unpack<decltype(v.node)>(j.at("node"));
+  v.capture = detail::unpack<decltype(v.capture)>(j.at("capture"));
+  v.descriptor = detail::unpack<decltype(v.descriptor)>(j.at("descriptor"));
+  v.operation = detail::unpack<decltype(v.operation)>(j.at("operation"));
+  v.inputs = detail::unpack<decltype(v.inputs)>(j.at("inputs"));
+  v.captures = detail::unpack<decltype(v.captures)>(j.at("captures"));
+  v.fields = detail::unpack<decltype(v.fields)>(j.at("fields"));
+  return v;
+}
+inline Json Codec<inference::Program>::pack(const inference::Program& v) {
+  Json j = Json::object();
+  j["mode"] = detail::pack(v.mode);
+  j["source"] = detail::pack(v.source);
+  j["replacement"] = detail::pack(v.replacement);
+  return j;
+}
+inline inference::Program Codec<inference::Program>::unpack(const Json& j) {
+  inference::Program v{};
+  v.mode = detail::unpack<decltype(v.mode)>(j.at("mode"));
+  v.source = detail::unpack<decltype(v.source)>(j.at("source"));
+  v.replacement = detail::unpack<decltype(v.replacement)>(j.at("replacement"));
+  return v;
+}
 inline Json Codec<Rule>::pack(const Rule& v) {
   Json j = Json::object();
   j["id"] = detail::pack(v.id);
@@ -1934,6 +2021,7 @@ inline Json Codec<Rule>::pack(const Rule& v) {
   j["derivations"] = detail::pack(v.derivations);
   j["rhs"] = detail::pack(v.rhs);
   j["dtypes"] = detail::pack(v.dtypes);
+  if (v.inference) j["inference"] = detail::pack(v.inference);
   return j;
 }
 inline Rule Codec<Rule>::unpack(const Json& j) {
@@ -1952,6 +2040,8 @@ inline Rule Codec<Rule>::unpack(const Json& j) {
   v.derivations = detail::unpack<decltype(v.derivations)>(j.at("derivations"));
   v.rhs = detail::unpack<decltype(v.rhs)>(j.at("rhs"));
   v.dtypes = detail::unpack<decltype(v.dtypes)>(j.at("dtypes"));
+  if (j.contains("inference"))
+    v.inference = detail::unpack<decltype(v.inference)>(j.at("inference"));
   return v;
 }
 inline Json Codec<core::AttributeValue>::pack(const core::AttributeValue& v) {
