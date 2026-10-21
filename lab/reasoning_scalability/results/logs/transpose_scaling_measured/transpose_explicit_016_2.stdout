@@ -1,0 +1,29 @@
+SemanticRule transpose_explicit_016
+    semantic-inference: policy=algebraic status=proved
+      lhs-graph: align[n16:input](align[n15:input](align[n14:input](align[n13:input](align[n12:input](align[n11:input](align[n10:input](align[n9:input](align[n8:input](align[n7:input](align[n6:input](align[n5:input](align[n4:input](align[n3:input](align[n2:input](align[n1:input](Input(#0)))))))))))))))))
+      rhs-graph: align[n18:input](Input(#0))
+      law: ordered-axis-split
+      law: paired-axis-selection
+      law: ordered-partition-traversal
+      law: axis-map-restriction
+      verified: capture access + reduction domains + ordered axes + shape + dtype + legality
+      lhs-normalized: Read(#0, access@0)
+      rhs-normalized: Read(#0, access@17)
+      declared-conditions:
+        ==(len(shape(Input(#0))), 3)
+        ==(dtype(Input(#0)), dtype_f32())
+        m0
+      additional-guard: true
+      reason: valid for all legal LHS metadata satisfying the declared conditions under the selected arithmetic policy
+      let m0 = &&(&&(>(index(shape(Input(#0)), 0), 0), >(index(shape(Input(#0)), 1), 0)), >(index(shape(Input(#0)), 2), 0))
+      let m1 = gather(@p13.permutation, gather(@p14.permutation, gather(@p15.permutation, @p16.permutation)))
+      let m2 = gather(@p9.permutation, gather(@p10.permutation, gather(@p11.permutation, gather(@p12.permutation, m1))))
+      let m3 = gather(@p5.permutation, gather(@p6.permutation, gather(@p7.permutation, gather(@p8.permutation, m2))))
+      let m4 = gather(@p1.permutation, gather(@p2.permutation, gather(@p3.permutation, gather(@p4.permutation, m3))))
+      coordinate frame (fresh identities; domain lengths remain symbolic):
+        input0 = group(extents=shape(Input(#0)))
+        input0 = group(extents=shape(Input(#0)))
+        access@0 = input0
+        access@17 = input0
+        lhs-output = gather(input0, m4)
+        rhs-output = gather(input0, m4)

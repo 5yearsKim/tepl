@@ -1,0 +1,15 @@
+n,mode,outcome,diagnostic,median_seconds,min_seconds,max_seconds,median_rss_mib,min_rss_mib,max_rss_mib
+2,explicit,proved,,0.10449960298137739,0.10096902603982016,0.144767779042013,12.87890625,12.7109375,13.0390625
+2,automatic,proved,,0.11140601400984451,0.09986405295785517,0.12094260100275278,12.921875,12.73828125,13.05078125
+4,explicit,proved,,0.286395650007762,0.28086263802833855,0.2941946259816177,16.04296875,15.546875,16.22265625
+4,automatic,proved,,0.3308619220042601,0.3240198030252941,0.3421706180088222,16.47265625,16.20703125,16.828125
+8,explicit,proved,,1.0975507000111975,0.9799922870006412,1.1925197480013594,30.09375,29.9375,30.23046875
+8,automatic,proved,,1.233815109997522,1.1840983290458098,1.3595475089969113,33.40625,33.28125,33.703125
+16,explicit,proved,,5.368442589009646,5.297657538030762,5.557502817013301,111.125,110.82421875,111.21875
+16,automatic,proved,,7.10553575202357,6.683143199014012,7.255232019990217,129.5078125,129.2421875,129.79296875
+32,explicit,budget_exhausted,"attribute construction: budget exhausted: symbolic proof work limit exceeded. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",18.413077224977314,18.06646585400449,20.722073892015032,310.5859375,310.28125,310.8671875
+32,automatic,budget_exhausted,"attribute construction: budget exhausted: symbolic proof work limit exceeded. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",18.319559022027534,17.656445236003492,19.259430710051674,310.61328125,310.26171875,310.70703125
+64,explicit,budget_exhausted,"source lowering: budget exhausted: symbolic proof work limit exceeded. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",16.85813806700753,16.527695467986632,16.976457892975304,261.73046875,261.09375,262.09765625
+64,automatic,budget_exhausted,"source lowering: budget exhausted: symbolic proof work limit exceeded. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",17.225356757990085,16.586159344005864,17.571798867022153,261.56640625,260.94921875,261.8203125
+128,explicit,budget_exhausted,"source lowering: budget exhausted: symbolic proof work limit exceeded. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",16.757551547023468,16.610902222979348,18.506344168970827,262.69921875,261.828125,263.015625
+128,automatic,budget_exhausted,"source lowering: budget exhausted: symbolic proof work limit exceeded. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",16.73087145102909,16.559137011005078,16.959148494992405,261.84765625,261.44140625,262.15625
