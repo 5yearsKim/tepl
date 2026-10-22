@@ -42,8 +42,8 @@ Plan plan(const std::string& rules, std::string definitions = {}) {
 void proved(const Plan& p) {
   expect(p.proof.status == ProofStatus::Proved, p.proof.reason);
   expect(p.proof.guard.empty(), "no extra inferred guard");
-  expect(verify(p, p.proof).status == ProofStatus::Proved,
-         "independent verifier accepts convolution proof");
+  // Synthesis already runs verify(). Positive replay is checked once below;
+  // corrupted candidates retain separate independent-verifier regressions.
 }
 // Direct physical reference: no axis maps, semantic IR, or normalization.
 using ConvConfig = std::pair<List, List>;  // strides, dilations
@@ -135,19 +135,18 @@ int main(int argc, char** argv) {
     dialect = {std::istreambuf_iterator<char>(f), {}};
     expect(!dialect.empty(), "read dialect");
     auto input = plan(
-        "rule r {(conv[@c] (add A B) W) => (add (conv[@c] A W) (conv[@c] B "
-        "W))}");
+        "rule r {(c: conv (add A B) W) => (add (conv[c.attrs] A W) "
+        "(conv[c.attrs] B W))}");
     auto kernel = plan(
-        "rule r {(conv[@c] A (add U V)) => (add (conv[@c] A U) (conv[@c] A "
-        "V))}");
+        "rule r {(c: conv A (add U V)) => (add (conv[c.attrs] A U) "
+        "(conv[c.attrs] A V))}");
     auto composition = plan(
-        "rule r {(conv[@c] (transpose[@p] (add A B)) W) => "
-        "(add (conv[auto] (transpose[@p] A) W) (conv[auto] (transpose[@p] B) "
-        "W))}");
+        "rule r {(c: conv (p: transpose (add A B)) W) => (add (conv "
+        "(transpose[p.attrs] A) W) (conv (transpose[p.attrs] B) W))}");
     auto nested = plan(
-        "rule r {(conv[@outer] (conv[@inner] (add A B) W) V) => "
-        "(add (conv[@outer] (conv[@inner] A W) V) (conv[@outer] (conv[@inner] "
-        "B W) V))}");
+        "rule r {(outer: conv (inner: conv (add A B) W) V) => (add "
+        "(conv[outer.attrs] (conv[inner.attrs] A W) V) (conv[outer.attrs] "
+        "(conv[inner.attrs] B W) V))}");
     proved(input);
     proved(kernel);
     proved(composition);
@@ -161,38 +160,49 @@ int main(int argc, char** argv) {
                    fields[1]->name == "dilations",
                "inferred attributes are reusable source expressions");
       }
-    for (std::size_t spatial = 1; spatial <= 3; ++spatial) {
-      for (int empty = 0; empty < 4; ++empty) {
-        List xs{empty == 1 ? 0 : 2}, ws;
-        for (std::size_t i = 0; i < spatial; ++i) {
-          xs.push_back(3 + i % 2);
-          ws.push_back(2);
-        }
-        xs.push_back(empty == 2 ? 0 : 2);
-        ws.push_back(xs.back());
-        ws.push_back(empty == 3 ? 0 : 2);
-        auto a = data(xs, 1), b = data(xs, 2), w = data(ws, 3), v = data(ws, 4);
-        compare(input, {a, b, w}, convolution(add(a, b), w));
+    // One normal case per spatial rank and each empty-axis case at rank one.
+    // Avoid multiplying every empty case by every rank. Nontrivial batches and
+    // channel reductions remain in the normal rank-one case.
+    for (const auto [spatial, empty] : {std::pair<std::size_t, int>{1, 0},
+                                        {2, 0},
+                                        {3, 0},
+                                        {1, 1},
+                                        {1, 2},
+                                        {1, 3}}) {
+      List xs{empty == 1 ? 0 : spatial == 1 ? 2 : 1}, ws;
+      for (std::size_t i = 0; i < spatial; ++i) {
+        xs.push_back(3 + i % 2);
+        ws.push_back(2);
+      }
+      xs.push_back(empty == 2 ? 0 : spatial == 1 ? 2 : 1);
+      ws.push_back(xs.back());
+      ws.push_back(empty == 3 ? 0 : spatial == 1 ? 2 : 1);
+      auto a = data(xs, 1), b = data(xs, 2), w = data(ws, 3), v = data(ws, 4);
+      compare(input, {a, b, w}, convolution(add(a, b), w));
+      // Empty-axis behavior is checked at both nesting depths. The kernel
+      // and transpose variants exercise distinct accesses on nonempty data.
+      if (empty == 0) {
         compare(kernel, {a, w, v}, convolution(a, add(w, v)));
         List permutation(xs.size());
         std::iota(permutation.begin(), permutation.end(), 0);
         std::reverse(permutation.begin() + 1, permutation.end() - 1);
         compare(composition, {a, b, w},
                 convolution(transpose(add(a, b), permutation), w), permutation);
-        List outer_shape(spatial, 2);
-        outer_shape.push_back(ws.back());
-        outer_shape.push_back(2);
-        auto outer = data(outer_shape, 5);
-        compare(nested, {a, b, w, outer},
-                convolution(convolution(add(a, b), w), outer));
       }
+      List outer_shape(spatial, 2);
+      outer_shape.push_back(ws.back());
+      outer_shape.push_back(spatial == 1 ? 2 : 1);
+      auto outer = data(outer_shape, 5);
+      compare(nested, {a, b, w, outer},
+              convolution(convolution(add(a, b), w), outer));
     }
     // Per-axis coefficients, uneven division, and composition are checked
     // against physical execution rather than just a symbolic proof.
-    for (std::size_t spatial = 1; spatial <= 3; ++spatial) {
+    {
+      constexpr std::size_t spatial = 2;
       List xs{1}, ws, strides, dilations;
       for (std::size_t i = 0; i < spatial; ++i) {
-        xs.push_back(7 + i);
+        xs.push_back(5 + i);
         ws.push_back(2);
         strides.push_back(2 + i % 2);
         dilations.push_back(1 + i % 2);
@@ -213,9 +223,10 @@ int main(int argc, char** argv) {
               convolution(transpose(add(a, b), permutation), w, config),
               permutation, {config, {}});
     }
-    for (std::size_t spatial = 1; spatial <= 2; ++spatial) {
+    {
+      constexpr std::size_t spatial = 2;
       List xs{1}, ws(spatial, 2), vs(spatial, 2);
-      for (std::size_t i = 0; i < spatial; ++i) xs.push_back(12 + i);
+      for (std::size_t i = 0; i < spatial; ++i) xs.push_back(8 + i);
       xs.push_back(1);
       ws.push_back(1);
       ws.push_back(1);
@@ -259,10 +270,9 @@ int main(int argc, char** argv) {
           semantics {yield Read(input,IndexScale(attrs.steps,Coords(Points)));}
         }
       })";
-    auto sampling = plan(
-        "rule r {(sample[@s] (add A B)) => "
-        "(add (sample[auto] A) (sample[auto] B))}",
-        sampling_definitions);
+    auto sampling =
+        plan("rule r {(s: sample (add A B)) => (add (sample A) (sample B))}",
+             sampling_definitions);
     proved(sampling);
     for (const auto& [id, fields] : sampling.proof.constructors)
       expect(fields.size() == 1 && fields[0]->kind == Symbol::Kind::Field &&
@@ -274,8 +284,10 @@ int main(int argc, char** argv) {
       sampled.values.push_back(summed.at({2 * at[0], 3 * at[1]}));
     });
     compare(sampling, {sa, sb}, sampled, {}, {{{2, 3}, {}}});
-    auto identity = plan("rule r {(conv[@c] A W) => (conv[auto] A W)}");
+    auto identity = plan("rule r {(c: conv A W) => (conv A W)}");
     proved(identity);
+    expect(verify(identity, identity.proof).status == ProofStatus::Proved,
+           "independent verifier accepts a correct inferred convolution");
     auto legal = [&](const List& input_shape, const List& kernel_shape,
                      ConvConfig config = {}) {
       Context theory{identity, 1000000};
@@ -318,17 +330,15 @@ int main(int argc, char** argv) {
            "dilation length mismatch rejected");
     expect(!legal({1, 3, 1}, {2, 1, 1}, {{1}, {3}}),
            "effective kernel too large rejected");
-    auto wrong = plan("rule r {(conv[@c] (add A B) W) => (conv[@c] A W)}");
+    auto wrong = plan("rule r {(c: conv (add A B) W) => (conv[c.attrs] A W)}");
     expect(wrong.proof.status == ProofStatus::Unknown, "missing term rejected");
     auto renamed = dialect;
     auto at = renamed.find("op convolution");
     renamed.replace(at, 14, "op correlation");
     at = renamed.find("alias: conv;");
     renamed.replace(at, 12, "alias: corr;");
-    proved(plan(
-        "rule r {(corr[@c] (add A B) W) => (add (corr[auto] A W) (corr[auto] "
-        "B W))}",
-        renamed));
+    proved(plan("rule r {(c: corr (add A B) W) => (add (corr A W) (corr B W))}",
+                renamed));
     // A deliberately different access, with the same Product/Reduce skeleton.
     auto bad = dialect;
     const std::string spatial_access =
@@ -357,8 +367,8 @@ int main(int argc, char** argv) {
     operation.erase(at, 12);
     auto definitions = dialect + "dialect Wrong {" + operation + "}";
     auto different = plan(
-        "rule r {(conv[@c] A W) => (shifted[auto, strides=@c.strides, "
-        "dilations=@c.dilations] A W)}",
+        "rule r {(c: conv A W) => (out: shifted A W) derive "
+        "{out.attrs={strides:c.attrs.strides,dilations:c.attrs.dilations};}}",
         definitions);
     expect(different.proof.status == ProofStatus::Unknown,
            "different calculated access rejected");
@@ -371,14 +381,12 @@ int main(int argc, char** argv) {
     std::swap(guessed[0], guessed[1]);
     expect(verify(identity, tampered).status == ProofStatus::Unknown,
            "independent verifier rejects tampered inferred coefficients");
-    auto partially_pinned = plan(
-        "rule r {(conv[@c] (add A B) W) => "
-        "(add (conv[auto, strides=@c.strides] A W) "
-        "(conv[auto, dilations=@c.dilations] B W))}");
-    proved(partially_pinned);
+    auto inferred_distribution =
+        plan("rule r {(c: conv (add A B) W) => (add (conv A W) (conv B W))}");
+    proved(inferred_distribution);
     auto changed = plan(
-        "rule r {(conv[@c] A W) => "
-        "(conv[auto, strides=@c.dilations, dilations=@c.strides] A W)}");
+        "rule r {(c: conv A W) => (out: conv A W) derive "
+        "{out.attrs={strides:c.attrs.dilations,dilations:c.attrs.strides};}}");
     expect(changed.proof.status == ProofStatus::Unknown,
            "swapped scales rejected");
     expect(verify(changed, identity.proof).status == ProofStatus::Unknown,

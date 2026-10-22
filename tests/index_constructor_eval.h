@@ -18,11 +18,11 @@ using Datum = std::variant<std::int64_t, bool, List, Coordinates, std::string>;
 struct ConstructorEvaluator {
   const Metadata& metadata;
   const RuleProof& proof;
-  std::vector<S> assumptions;
+  std::vector<SymbolPtr> assumptions;
   std::map<const Symbol*, Datum> cache;
   // Keep queried nodes alive: synthesized temporary expressions can otherwise
   // reuse an address and collide with the pointer-keyed cache.
-  std::map<const Symbol*, S> retained;
+  std::map<const Symbol*, SymbolPtr> retained;
   std::map<std::pair<std::size_t, std::size_t>, SymbolPtr> groups;
   ConstructorEvaluator(const Metadata& m, const RuleProof& p)
       : metadata(m), proof(p) {

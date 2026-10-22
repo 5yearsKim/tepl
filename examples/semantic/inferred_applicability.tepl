@@ -5,7 +5,7 @@ use t::{dot, transpose};
 // Some matches admit the RHS layout; others require a permutation the RHS
 // cannot express. The generated check distinguishes them using axis identity.
 rule remove_output_permutation {
-    (transpose[@p] (dot[@d] A B)) => (dot[auto] A B)
+    (source: transpose (dot A B)) => (result: dot A B)
 }
 
 graph feasible {

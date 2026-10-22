@@ -481,24 +481,24 @@ void pipeline() {
     }
   };
   check(
-      "rule unrelated_name {(Q.reorder[@a] X)=>(Q.reorder[@b] X) derive "
-      "{@b={p:[x for x in @a.p]};}}",
+      "rule unrelated_name {(a: Q.reorder X)=>(b: Q.reorder X) derive "
+      "{b.attrs={p:[x for x in a.attrs.p]};}}",
       true);
   check(
-      "rule indexing {X:[N] (Q.reorder[@a] X)=>(Q.reorder[@b] X) derive "
-      "{@b={p:[@a.p[0]]};}}",
+      "rule indexing {X:[N] (a: Q.reorder X)=>(b: Q.reorder X) derive "
+      "{b.attrs={p:[a.attrs.p[0]]};}}",
       true);
   check(
-      "rule bad {X:[N] (Q.reorder[@a] X)=>(Q.reorder[@b] X) derive "
-      "{@b={p:[@a.p[1]]};}}",
+      "rule bad {X:[N] (a: Q.reorder X)=>(b: Q.reorder X) derive "
+      "{b.attrs={p:[a.attrs.p[1]]};}}",
       false);
   check(
-      "rule wide_intermediate {X:[N] (Q.reorder[@a] X)=>(Q.reorder[@b] X) "
-      "derive {let t=18446744073709551615+1; @b={p:[@a.p[0]+(t-t)]};}}",
+      "rule wide_intermediate {X:[N] (a: Q.reorder X)=>(b: Q.reorder X) derive "
+      "{let t=18446744073709551615+1; b.attrs={p:[a.attrs.p[0]+(t-t)]};}}",
       true);
   check(
-      "rule bad_overflow {X:[N] (Q.reorder[@a] X)=>(Q.reorder[@b] X) derive "
-      "{let t=18446744073709551615*18446744073709551615; @b={p:[t-t]};}}",
+      "rule bad_overflow {X:[N] (a: Q.reorder X)=>(b: Q.reorder X) derive {let "
+      "t=18446744073709551615*18446744073709551615; b.attrs={p:[t-t]};}}",
       false);
 }
 

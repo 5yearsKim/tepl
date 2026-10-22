@@ -71,63 +71,143 @@ TypedExprPtr ExpressionChecker::lower(const syntax::NameRef& name,
   return nullptr;
 }
 
-TypedExprPtr ExpressionChecker::lower(const syntax::AttributeRef& reference,
+TypedExprPtr ExpressionChecker::lower(const syntax::NodeProperty& property,
                                       const SourceOrigin& origin,
                                       std::optional<TypeId> expected) {
-  const auto found = scope_.descriptors.find(reference.name);
-  if (found == scope_.descriptors.end() ||
-      !scope_.available_descriptors.contains(found->second.value)) {
-    context_.report(
-        origin, "descriptor '@" + reference.name + "' is not available here");
-    return nullptr;
-  }
-  const auto& descriptor = rule_.descriptors.at(found->second.value);
-  return make(origin, descriptor.type, DescriptorRef{descriptor.id}, expected);
-}
-
-TypedExprPtr ExpressionChecker::lower(const syntax::DescriptorField& field,
-                                      const SourceOrigin& origin,
-                                      std::optional<TypeId> expected) {
-  auto descriptor = lower(field.descriptor, origin, {});
-  if (!descriptor) return nullptr;
-  if (field.output_group) {
-    if (section_ != builtins::Context::kWhere) {
-      context_.report(origin,
-                      "output-axis group references are only supported in "
-                      "where conditions");
-      return nullptr;
+  auto node = scope_.nodes.find(property.node);
+  const auto& path = property.path;
+  if (node != scope_.nodes.end() && !path.empty() && path[0] == "attrs") {
+    if (!node->second.descriptor) {
+      context_.report(origin, "node has no attribute schema");
+      return {};
     }
-    return make(
-        origin, context_.types.concrete({TypeKind::kIndexList}, origin),
-        OutputAxisGroupRef{
-            std::get<DescriptorRef>(descriptor->value).descriptor, field.field},
-        expected);
+    auto id = *node->second.descriptor;
+    const auto& descriptor = rule_.descriptors.at(id.value);
+    if (descriptor.kind == Descriptor::Kind::kInferred) {
+      context_.report(
+          origin,
+          "automatic RHS attributes are unavailable before construction");
+      return {};
+    }
+    // Explicit RHS fields may be read in where after their derivations.
+    if (!scope_.available_descriptors.contains(id.value) &&
+        section_ != builtins::Context::kWhere) {
+      context_.report(origin,
+                      "derived attributes are not available yet (forward "
+                      "reference or cycle)");
+      return {};
+    }
+    if (path.size() == 1)
+      return make(origin, descriptor.type, DescriptorRef{id}, expected);
+    if (path.size() == 2) {
+      auto type = context_.types.known(descriptor.type);
+      if (type && type->schema) {
+        const auto& schema =
+            context_.output.attribute_schemas.at(type->schema->value);
+        for (std::size_t f = 0; f < schema.fields.size(); ++f) {
+          const auto& field = schema.fields[f];
+          if (field.name != path[1]) continue;
+          auto t =
+              resolveType(field.type)
+                  .value_or(Type{TypeKind::kOpaque, {}, 0, false, field.type});
+          for (std::size_t d = 0; d < field.list_depth; ++d) t = listType(t);
+          t.optional = field.optional;
+          return make(origin, context_.types.concrete(t, origin),
+                      DescriptorFieldRef{id, schema.id, f}, expected);
+        }
+      }
+    }
+    context_.report(origin, "unknown node attribute property");
+    return {};
   }
-  auto type = context_.types.known(descriptor->type);
-  if (!type || !type->schema) {
+  if (section_ != builtins::Context::kWhere) {
     context_.report(
-        origin, "descriptor field access requires a known attribute schema");
-    return nullptr;
+        origin, "logical axis properties are available in where conditions");
+    return {};
   }
-  const auto& schema =
-      context_.output.attribute_schemas.at(type->schema->value);
-  for (std::size_t i = 0; i < schema.fields.size(); ++i) {
-    const auto& attribute = schema.fields[i];
-    if (attribute.name != field.field) continue;
-    auto field_type =
-        resolveType(attribute.type)
-            .value_or(Type{TypeKind::kOpaque, {}, 0, false, attribute.type});
-    for (std::size_t depth = 0; depth < attribute.list_depth; ++depth)
-      field_type = listType(field_type);
-    field_type.optional = attribute.optional;
-    return make(origin, context_.types.concrete(field_type, origin),
-                DescriptorFieldRef{
-                    std::get<DescriptorRef>(descriptor->value).descriptor,
-                    schema.id, i},
-                expected);
+  NodeAxisRef ref;
+  ref.node = property.node;
+  if (node == scope_.nodes.end()) {
+    auto capture = scope_.captures.find(property.node);
+    if (capture == scope_.captures.end() ||
+        path != std::vector<std::string>{"axes", "order"}) {
+      context_.report(origin, "unknown node or unsupported input property '" +
+                                  property.node + "'");
+      return {};
+    }
+    ref.capture = capture->second;
+    ref.projection = "order";
+  } else {
+    ref.rhs = node->second.rhs;
+    if ((path == std::vector<std::string>{"axes", "partition"}) ||
+        (path == std::vector<std::string>{"legal"} && ref.rhs)) {
+      ref.projection = path.back();
+    } else if (path == std::vector<std::string>{"required_order"} && ref.rhs) {
+      ref.projection = "required_order";
+    } else if (path == std::vector<std::string>{"axes", "order"}) {
+      ref.projection = "order";
+    } else if (path.size() == 3 && path[0] == "axes") {
+      ref.group = path[1];
+      ref.projection = path[2];
+      const auto& op =
+          context_.output.operations.at(node->second.operation.value);
+      if (!op.semantic_definition ||
+          std::none_of(op.semantic_definition->groups.begin(),
+                       op.semantic_definition->groups.end(),
+                       [&](const auto& g) { return g.name == ref.group; })) {
+        context_.report(origin,
+                        "unknown semantic axis group '" + ref.group + "'");
+        return {};
+      }
+      if (ref.projection != "members" && ref.projection != "order" &&
+          ref.projection != "positions") {
+        context_.report(origin, "unknown axis group projection");
+        return {};
+      }
+      if (ref.projection == "positions") {
+        auto group =
+            std::find_if(op.semantic_definition->groups.begin(),
+                         op.semantic_definition->groups.end(),
+                         [&](const auto& g) { return g.name == ref.group; });
+        const auto id = static_cast<std::size_t>(
+            group - op.semantic_definition->groups.begin());
+        bool exposed = false;
+        auto visit = [&](auto&& self, const semantics::Meta& m) -> void {
+          if (m.kind == semantics::Meta::Kind::Group && m.index == id)
+            exposed = true;
+          for (const auto& arg : m.args) self(self, *arg);
+        };
+        visit(visit, *op.semantic_definition->output);
+        if (!exposed) {
+          context_.report(origin,
+                          "semantic group is absent from the operation output");
+          return {};
+        }
+      }
+      if (!ref.rhs && ref.projection == "positions")
+        return make(origin,
+                    context_.types.concrete({TypeKind::kIndexList}, origin),
+                    OutputAxisGroupRef{property.node, ref.group}, expected);
+    } else {
+      context_.report(origin, "unknown semantic node property");
+      return {};
+    }
+    if (ref.rhs && ref.projection != "members" &&
+        ref.projection != "required_order" && node->second.descriptor &&
+        rule_.descriptors.at(node->second.descriptor->value).kind ==
+            Descriptor::Kind::kInferred) {
+      context_.report(origin,
+                      "actual automatic RHS order and positions are "
+                      "unavailable before construction; use group.members");
+      return {};
+    }
   }
-  context_.report(origin, "unknown descriptor field '" + field.field + "'");
-  return nullptr;
+  auto t = ref.projection == "legal" ? Type{TypeKind::kBool}
+           : ref.projection == "positions" || ref.projection == "partition"
+               ? Type{TypeKind::kIndexList}
+           : ref.projection == "members" ? logicalAxisSetType()
+                                         : listType(logicalAxisType());
+  return make(origin, context_.types.concrete(t, origin), ref, expected);
 }
 
 TypedExprPtr ExpressionChecker::number(std::string spelling, bool decimal,
@@ -231,6 +311,10 @@ TypedExprPtr ExpressionChecker::builtin(const syntax::Call& call,
         return types.list(genericElement(), origin);
       case S::kBoolean:
         return types.concrete({TypeKind::kBool}, origin);
+      case S::kAxisSet:
+        return types.concrete(logicalAxisSetType(), origin);
+      case S::kAxisList:
+        return types.concrete(listType(logicalAxisType()), origin);
       case S::kBooleanList:
         return types.concrete({TypeKind::kBool, {}, 1}, origin);
     }
@@ -318,10 +402,10 @@ TypedExprPtr ExpressionChecker::lower(const syntax::BinaryExpr& binary,
 TypedExprPtr ExpressionChecker::local(const std::string& name,
                                       const syntax::ConstraintExpr& value,
                                       const SourceOrigin& origin) {
-  if (locals_.contains(name) || scope_.captures.contains(name) ||
-      scope_.dimensions.contains(name) || scope_.dtypes.contains(name) ||
-      resolveDType(name) || name == "none" || name == "default" ||
-      name == "high" || name == "highest") {
+  if (scope_.nodes.contains(name) || locals_.contains(name) ||
+      scope_.captures.contains(name) || scope_.dimensions.contains(name) ||
+      scope_.dtypes.contains(name) || resolveDType(name) || name == "none" ||
+      name == "default" || name == "high" || name == "highest") {
     context_.report(origin,
                     "duplicate or conflicting local name '" + name + "'");
     return nullptr;
@@ -407,7 +491,9 @@ TypedExprPtr ExpressionChecker::lower(const syntax::DescriptorConstructor& v,
                                       const SourceOrigin& origin,
                                       std::optional<TypeId> expected) {
   TypedExprPtr spread;
-  if (v.spread) spread = lower(*v.spread, origin, expected);
+  if (v.spread)
+    spread =
+        lower(syntax::NodeProperty{*v.spread, {"attrs"}}, origin, expected);
   auto type =
       expected ? context_.types.known(*expected) : std::optional<Type>{};
   if ((!type || !type->schema) && spread)

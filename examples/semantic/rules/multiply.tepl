@@ -14,6 +14,6 @@ rule multiply_factor {
 }
 
 rule transpose_multiply {
-    (transpose[@p] (mul A B))
-    => (mul (transpose[auto] A) (transpose[auto] B))
+    (p: transpose (mul A B))
+    => (mul (transpose A) (transpose B))
 }

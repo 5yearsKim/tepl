@@ -48,7 +48,9 @@ completed::TypedExprPtr Completion::expression(const TypedExprPtr& e) {
           for (const auto& x : input) result.push_back(expression(x));
           return result;
         };
-        if constexpr (std::is_same_v<T, OutputAxisGroupRef>) {
+        if constexpr (std::is_same_v<T, NodeAxisRef>) {
+          throw std::invalid_argument("unlowered semantic node property");
+        } else if constexpr (std::is_same_v<T, OutputAxisGroupRef>) {
           if (!groups_)
             throw std::invalid_argument("unresolved output-axis reference");
           out.value = completed::SymbolicExpr{symbol(groups_(v))};

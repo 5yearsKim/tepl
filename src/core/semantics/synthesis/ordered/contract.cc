@@ -56,8 +56,6 @@ Admission admit(const Plan& p, inference::Mode mode) {
           !target_descriptors.insert(n.descriptor->value).second)
         return fail(
             "ordered RHS descriptors must be independent automatic fields");
-      for (const auto& pin : n.pins)
-        if (pin) return fail("pinned RHS fields are outside ordered synthesis");
     } else if (rhs) {
       if (n.automatic)
         return fail(

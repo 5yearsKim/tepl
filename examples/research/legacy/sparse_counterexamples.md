@@ -209,9 +209,9 @@ cutoff. Unbounded scalar attribute domains need a separate treatment.
 Consider a rule that drops the `XW` contribution:
 
 ```tepl
-(dot[@outer] X (add W (dot[@inner] A B)))
+(outer: dot X (add W (inner: dot A B)))
 =>
-(dot[auto] (dot[auto] X A) B)
+(dot (dot X A) B)
 ```
 
 Choose ordinary matrix multiplication on the LHS and compatible nonempty

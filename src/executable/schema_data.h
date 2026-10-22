@@ -224,7 +224,31 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
         "min",
         "max",
         "floor_div",
-        "ceil_div"
+        "ceil_div",
+        "axis_domain",
+        "axis_required",
+        "axis_batch",
+        "axis_left_free",
+        "axis_right_free",
+        "axis_input_order",
+        "filter",
+        "subsequence",
+        "axis_rhs_legal",
+        "axis_source_partition",
+        "axis_rhs_partition",
+        "axis_source_order",
+        "axis_rhs_order",
+        "axis_capture_order",
+        "axis_source_node_order",
+        "axis_source_group_order",
+        "axis_source_group_members",
+        "axis_rhs_node_order",
+        "axis_rhs_group_order",
+        "axis_rhs_group_members",
+        "axis_rhs_group_positions",
+        "axis_contract",
+        "axis_live",
+        "difference"
       ]
     },
     "meta_kind": {
@@ -799,6 +823,9 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
           "items": {
             "$ref": "#/$defs/pattern"
           }
+        },
+        "label": {
+          "$ref": "#/$defs/string"
         }
       },
       "required": [
@@ -877,6 +904,9 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
           "items": {
             "$ref": "#/$defs/build"
           }
+        },
+        "label": {
+          "$ref": "#/$defs/string"
         }
       },
       "required": [

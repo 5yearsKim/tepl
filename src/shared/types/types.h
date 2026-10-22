@@ -54,6 +54,9 @@ struct Type {
   bool operator==(const Type&) const = default;
 };
 
+// Logical identity values cannot be confused with numeric positions/extents.
+Type logicalAxisType();
+Type logicalAxisSetType();
 Type listType(Type element);
 std::optional<Type> elementType(Type list);
 std::string typeName(const Type& type);

@@ -81,6 +81,24 @@ Type checking publishes its complete type table before semantic verification.
 attribute constructors, and `proof/` verifies their equivalence and legality.
 Each proof context owns its facts, work budget, and caches.
 
+Optional operation labels survive checking as occurrence metadata, separately
+from tensor captures and descriptors. Source spellings remain compiler-only
+metadata for suggestions. `node.attrs` resolves to a descriptor reference;
+`derive` assignments define explicit RHS descriptors and omission creates holes.
+Logical axis properties stay typed until both semantic trees exist, then lower
+to closed queries over the shared axis analysis. Source group positions can
+also use the general symbolic mapper. Membership uses `LogicalAxisSet`,
+sequences use `LogicalAxis[]`, and positions use `index[]`.
+
+`suggestion.*` prints a complete named source rule with the generated feasibility
+conditions. It preserves operation qualification, existing node names, original
+conditions and explicit constructors, and chooses fresh local names. The
+`--infer-applicability` path emits the corresponding typed conjunction;
+`shared/catalog/axis_conditions.*` owns both its recognition and the shared
+source/derived-condition schedule. Runtime evaluation and executable validation
+use that same schedule. Actual inferred layouts cannot be read before
+construction; boundary membership and required subsequences can.
+
 Symbolic keys are immutable DAGs. Their deterministic digests accelerate lookup;
 structural comparison distinguishes hash collisions. Each proof context owns its
 canonical-key arena, so repeated DAGs do not expand into trees. No process-wide identity

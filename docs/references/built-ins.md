@@ -63,6 +63,10 @@ section access. The axes overloads are listed separately below.
 | `any` | list | `(Bool[]) -> Bool` | `(bool[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
 | `contains` | list | `(T[], T) -> Bool` | `(T[], T) -> bool` | `shape`, `dtype`, `where`, `derive` |
 | `is_disjoint` | list | `(T[], T[]) -> Bool` | `(T[], T[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
+| `axis_domain` | list | `() -> Bool` | `() -> bool` | `where` |
+| `filter` | list | `(LogicalAxis[], LogicalAxisSet) -> LogicalAxis[]` | `(LogicalAxis[], LogicalAxisSet) -> LogicalAxis[]` | `where`, `derive` |
+| `subsequence` | list | `(LogicalAxis[], LogicalAxis[]) -> Bool` | `(LogicalAxis[], LogicalAxis[]) -> bool` | `where`, `derive` |
+| `difference` | list | `(LogicalAxisSet, LogicalAxisSet) -> LogicalAxisSet` | `(LogicalAxisSet, LogicalAxisSet) -> LogicalAxisSet` | `where`, `derive` |
 | `sum` | integer | `(Integer[]) -> Integer` | `(index[]) -> index` | `shape`, `dtype`, `where`, `derive` |
 | `product` | integer | `(Integer[]) -> Integer` | `(index[]) -> index` | `shape`, `dtype`, `where`, `derive` |
 | `min` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
@@ -251,7 +255,7 @@ Internal proof operations such as `axis_partition`, `inverse`, and
 `matched_positions` cannot be called from source. Public axes functions can
 lower to internal operations without exposing those operations elsewhere.
 For implementation ownership and shared identities, see the
-[developer architecture guide](../../src/core/builtins/README.md).
+[developer architecture guide](../../src/shared/builtins/README.md).
 
 ## Using builtins in each context
 
@@ -281,7 +285,7 @@ constructs descriptors with schema-checked field expressions:
 
 ```tepl
 derive {
-    @out = { ..@source, permutation: gather(@source.permutation, axes) };
+    result.attrs = { ..source.attrs, permutation: gather(source.attrs.permutation, axes) };
 }
 ```
 
@@ -352,5 +356,32 @@ dimensions that fit `u64`.
 
 For tensor metadata concepts and operation examples, see the
 [shape reference](shape.md) and [dtype reference](dtype.md).
-The [builtin catalog](../../src/core/builtins/catalog.def) defines the supported
+The [builtin catalog](../../src/shared/builtins/catalog.def) defines the supported
 names, signatures, and contexts.
+
+## Logical-axis conditions
+
+Named node properties expose logical axes without compiler node numbers. See
+[the syntax and complete example](../advanced/attributes_and_conditions.md#semantic-axis-properties).
+`node.axes.G.members` is a `LogicalAxisSet`; `node.axes.G.order` and
+`node.axes.order` are `LogicalAxis[]`. Identities represent source-port
+classes, independently of extents and numeric positions.
+
+`filter(sequence, members)` preserves the sequence's order;
+`difference(members, other)` returns a logical set;
+`subsequence(required, actual)` tests relative order. `axis_domain()` checks
+source legality and the admitted metadata domain. Query implementations taking
+numeric node IDs are internal and cannot be called from source.
+
+Use `check --semantic-policy=algebraic --infer-applicability` to obtain a
+complete suggested rule with readable bindings and conditions. Copying that
+rule into source permits compilation without the flag. Required conjuncts are
+recognized through local bindings and conjunctions; arbitrary equivalent
+predicates may exceed the implication prover. Loading JSON repeats validation.
+
+Inferred RHS group membership and required subsequences are available before
+construction. Actual fully explicit RHS properties execute after descriptor
+derivations. Axis analysis is cached per match and shared with construction.
+Missing or outside-domain metadata skips a match; resource exhaustion is a
+separate limit result. Native C++ execution supports these programs; code
+generation remains deferred.

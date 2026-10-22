@@ -3,6 +3,8 @@
 namespace tepl::rewrite {
 Value evaluateBuiltin(core::builtins::Builtin id,
                       const std::vector<Value>& args, Budget& budget) {
+  if (core::builtins::isAxisQuery(id))
+    throw EvaluationError("axis queries require a per-match analysis context");
   const auto& entry = core::builtins::signature(id);
   detail::ensure(entry.acceptsArity(args.size()), "invalid builtin arity");
   detail::chargeArguments(args, budget);

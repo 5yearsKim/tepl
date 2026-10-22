@@ -59,13 +59,13 @@ from "dialects/tensor.tepl" import TensorLang as t;
 rule transpose_negate {
     X: f32[Dims...]
 
-    (t.transpose[@perm] (t.negate X))
+    (source: t.transpose (t.negate X))
     =>
-    (t.negate (t.transpose[@perm] X))
+    (t.negate (t.transpose[source.attrs] X))
 }
 ```
 
-`X` captures an `f32` tensor of any rank. `@perm` captures the transpose's
+`X` captures an `f32` tensor of any rank. `source.attrs` captures the transpose's
 attributes and reuses them in the replacement.
 
 !!! note "Shape, dtype, and legality"

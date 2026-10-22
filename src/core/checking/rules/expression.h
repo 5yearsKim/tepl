@@ -44,9 +44,7 @@ class ExpressionChecker {
                       std::optional<TypeId> expected);
   TypedExprPtr lower(const syntax::NameRef&, const SourceOrigin&,
                      std::optional<TypeId>);
-  TypedExprPtr lower(const syntax::AttributeRef&, const SourceOrigin&,
-                     std::optional<TypeId>);
-  TypedExprPtr lower(const syntax::DescriptorField&, const SourceOrigin&,
+  TypedExprPtr lower(const syntax::NodeProperty&, const SourceOrigin&,
                      std::optional<TypeId>);
   TypedExprPtr lower(const syntax::IntegerLiteral&, const SourceOrigin&,
                      std::optional<TypeId>);

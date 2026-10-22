@@ -2,26 +2,26 @@ from "dialects/tensor.tepl" import TensorLang as t;
 use t::{reverse, add, mul, broadcast};
 
 rule reverse_twice {
-    (reverse[@outer] (reverse[@inner] A)) => A
-    where { @outer.dimensions == @inner.dimensions }
+    (outer: reverse (inner: reverse A)) => A
+    where { outer.attrs.dimensions == inner.attrs.dimensions }
 }
 
 rule reverse_empty_axes {
-    (reverse[@r] A) => A
-    where { @r.dimensions == [] }
+    (r: reverse A) => A
+    where { r.attrs.dimensions == [] }
 }
 
 rule reverse_add {
-    (reverse[@r] (add A B)) => (add (reverse[@r] A) (reverse[@r] B))
+    (r: reverse (add A B)) => (add (reverse[r.attrs] A) (reverse[r.attrs] B))
 }
 
 rule reverse_multiply {
-    (reverse[@r] (mul A B)) => (mul (reverse[@r] A) (reverse[@r] B))
+    (r: reverse (mul A B)) => (mul (reverse[r.attrs] A) (reverse[r.attrs] B))
 }
 
 rule reverse_scalar_broadcast {
-    (reverse[@r] (broadcast[@b] C)) => (broadcast[@b] C)
-    where { @b.dimensions == [] }
+    (r: reverse (b: broadcast C)) => (broadcast[b.attrs] C)
+    where { b.attrs.dimensions == [] }
 }
 
 // Applying reverse_add or reverse_multiply followed by

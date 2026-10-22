@@ -1,5 +1,6 @@
 #include "src/shared/builtins/catalog.h"
 
+#include <array>
 #include <stdexcept>
 
 namespace tepl::core::builtins {
@@ -20,6 +21,11 @@ constexpr S kBooleans[] = {S::kBooleanList};
 constexpr S kContains[] = {S::kListT, S::kT};
 constexpr S kAxes[] = {S::kIntegerList, S::kInteger};
 constexpr S kShapes[] = {S::kIntegerList, S::kIntegerList};
+constexpr std::array<S, 0> kNoArguments{};
+constexpr S kAxisFilter[] = {S::kAxisList, S::kAxisSet};
+constexpr S kAxisSets[] = {S::kAxisSet, S::kAxisSet};
+constexpr S kNodeGroup[] = {S::kInteger, S::kInteger};
+constexpr S kAxisLists[] = {S::kAxisList, S::kAxisList};
 constexpr S kPair[] = {S::kInteger, S::kInteger};
 constexpr BuiltinSignature kBuiltins[] = {
 #define TEPL_BUILTIN(id, name, feature, args, result, variadic, domain, \
@@ -49,7 +55,8 @@ std::string_view contextName(Context context) {
 
 const BuiltinSignature* resolveBuiltin(std::string_view name) {
   for (const auto& builtin : kBuiltins)
-    if (builtin.name == name) return &builtin;
+    if (builtin.name == name && isPublicBuiltin(builtin.builtin))
+      return &builtin;
   return nullptr;
 }
 
@@ -63,6 +70,36 @@ std::string_view builtinName(Builtin builtin) {
   return signature(builtin).name;
 }
 
+bool isPublicBuiltin(Builtin b) {
+  return b == Builtin::kAxisDomain || !isAxisQuery(b);
+}
+bool isAxisQuery(Builtin b) {
+  switch (b) {
+    case Builtin::kAxisCaptureOrder:
+    case Builtin::kAxisSourceNodeOrder:
+    case Builtin::kAxisSourceGroupOrder:
+    case Builtin::kAxisSourceGroupMembers:
+    case Builtin::kAxisContract:
+    case Builtin::kAxisLive:
+    case Builtin::kAxisDomain:
+    case Builtin::kAxisRequired:
+    case Builtin::kAxisBatch:
+    case Builtin::kAxisLeftFree:
+    case Builtin::kAxisRightFree:
+    case Builtin::kAxisInputOrder:
+    case Builtin::kAxisSourcePartition:
+    case Builtin::kAxisSourceOrder:
+      return true;
+    default:
+      return isReplacementAxisQuery(b);
+  }
+}
+bool isReplacementAxisQuery(Builtin b) {
+  return b == Builtin::kAxisRhsNodeOrder || b == Builtin::kAxisRhsGroupOrder ||
+         b == Builtin::kAxisRhsGroupMembers ||
+         b == Builtin::kAxisRhsGroupPositions || b == Builtin::kAxisRhsLegal ||
+         b == Builtin::kAxisRhsPartition || b == Builtin::kAxisRhsOrder;
+}
 std::string_view featureName(Feature feature) {
   switch (feature) {
     case Feature::kList:

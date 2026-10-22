@@ -115,31 +115,26 @@ from "tensor.tepl" import TensorLang as t;
 use t::{transpose};
 ```
 
-- Running pattern: `(transpose[@outer] (transpose[@inner] X))`.
+- Running pattern: `(outer: transpose (inner: transpose X))`.
 - Its intended replacement is one transpose of `X`; the remaining task is to construct its permutation.
 - Tensor declarations may additionally constrain shape and dtype; equal dimension sizes alone do not establish coordinate identity.
 
-### 3.3 Attribute Binding and Reuse
+### 3.3 Named Nodes and Attribute Reuse
 
-- `op[@name]` binds the operation's attribute descriptor on the LHS.
-- Omitting LHS attributes captures each operation's descriptor independently and anonymously; name captures when expressions or RHS operations need to refer to them.
-- Captured attributes are available in `where` conditions, `derive` expressions, and RHS operations.
-- Field access, such as `@outer.permutation`, refers to an individual attribute where supported by the expression context.
-- Reusing `@name` on a compatible RHS operation reuses its descriptor; derived descriptors can also configure RHS operations.
-- Transpose composition binds `@inner` and `@outer`; copying either alone generally cannot construct the replacement permutation.
-- Descriptor compatibility checks attribute structure, not mathematical correctness.
-
-**Figure 2 — Attribute binding with `@d`**
-
-- [Storyboard](figures/attribute_binding.yaml): input graph → rule pattern → binding table. The matched dot's `{ l_dim: 2, r_dim: 1 }` descriptor is captured as `@d`, then read in `where` and reused on the RHS. These short field names belong to a schematic dot dialect.
-- **Caption:** Matching `dot[@d]` binds the dot's attributes to `@d`. Conditions can read its fields, and replacement operations can reuse the descriptor.
+- `(name: operation operands...)` optionally names an operation occurrence on either side.
+- Every LHS operation captures its descriptor implicitly; a label does not capture an extra tensor.
+- `source.attrs` refers to a whole descriptor and `source.attrs.permutation` to one field.
+- `[source.attrs]` reuses the descriptor on a schema-compatible operation.
+- `node.axes.G.members`, `.order`, and `.positions` distinguish logical membership, declaration order, and output positions.
+- Unknown RHS descriptors are independent holes when attributes are omitted. Explicit `derive` assignments supply whole descriptors instead.
+- Descriptor compatibility checks attribute structure; semantic verification establishes correctness.
 
 ### 3.4 Writing Attribute Changes
 
 - Write conditions and compute replacement attributes directly in the language.
 - Expressions can read captured attributes and available shape and dtype bindings; they do not execute tensor computations.
 - Introduce local bindings, builtins, lists, indexing, conditionals, and comprehensions as examples need them.
-- For transpose composition, `gather(@inner.permutation, @outer.permutation)` computes the replacement permutation.
+- For transpose composition, `gather(inner.attrs.permutation, outer.attrs.permutation)` computes the replacement permutation.
 - Descriptor constructors collect computed fields into immutable attributes for an RHS operation.
 - Some expressions can execute but cannot yet be checked for semantic correctness by the compiler.
 
@@ -151,15 +146,15 @@ use t::{transpose};
 
 ```tepl
 where {
-  let rank = len(@inner.permutation);
-  len(@outer.permutation) == rank
+  let rank = len(inner.attrs.permutation);
+  len(outer.attrs.permutation) == rank
 }
 ```
 
 - The length condition illustrates attribute access; for a legal transpose composition it already follows from operation legality.
 - Omit `where` when no additional condition is needed.
 - A condition may express applicability or application policy; the compiler does not infer profitability decisions.
-- Semantic rules can state axis-routing conditions such as `@outer.lhs_batching_dimensions == @inner->B`; introduce their meaning with the mapping algorithm.
+- Semantic rules can state axis-routing conditions such as `outer.attrs.lhs_batching_dimensions == inner.axes.B.positions`; introduce their meaning with the mapping algorithm.
 - For verified rules, every correctness obligation must follow from operation legality and supported user-written conditions.
 
 ### 3.6 Attribute Construction with `derive`
@@ -169,11 +164,11 @@ where {
 
 ```tepl
 rule compose_transposes_explicit {
-  (transpose[@outer] (transpose[@inner] X))
-  => (transpose[@combined] X)
+  (outer: transpose (inner: transpose X))
+  => (combined: transpose X)
   derive {
-    @combined = {
-      permutation: gather(@inner.permutation, @outer.permutation)
+    combined.attrs = {
+      permutation: gather(inner.attrs.permutation, outer.attrs.permutation)
     };
   }
 }
@@ -181,13 +176,13 @@ rule compose_transposes_explicit {
 
 - If the inner permutation is `p` and the outer permutation is `q`, the expression constructs a descriptor with permutation `r[i] = p[q[i]]`.
 - `where` decides applicability; `derive` constructs attributes; the RHS specifies the replacement computation.
-- Local bindings can name intermediate computations. A spread such as `{ ..@outer, permutation: permutation }` copies fields before applying explicit overrides.
+- Local bindings can name intermediate computations. A spread such as `{ ..outer.attrs, permutation: permutation }` copies fields before applying explicit overrides.
 - `where` and `derive` have separate local scopes; derivations may read captured and earlier derived descriptors.
 - With the transpose semantics, this explicit constructor is supported by semantic verification. Checking attribute types alone does not prove that the rewrite preserves the result.
 
-### 3.7 Automatic Attributes with `auto`
+### 3.7 Default Attribute Inference
 
-- Omit replacement attributes when operation semantics support synthesis. An explicit `[auto]` annotation requests the same inference.
+- Omit replacement attributes to request synthesis from operation semantics. Node labels remain optional.
 
 ```tepl
 rule compose_transposes_auto {
@@ -197,15 +192,15 @@ rule compose_transposes_auto {
 
 - Matching supplies tensor captures and LHS descriptors; semantic compilation derives a reusable program for the RHS permutation.
 - In the explicit rule, the user writes how to combine the permutations. In this rule, the compiler derives that computation from transpose semantics: `r[i] = p[q[i]]`.
-- Each omitted RHS descriptor is inferred independently. Use `[@name]` to reuse an existing descriptor or `[auto, field = value]` to pin a field during inference.
+- Each omitted RHS descriptor is inferred independently. Use `[source.attrs]` for reuse or assign a complete `result.attrs` in `derive`. Partial attribute pins are not part of the language.
 - Users still define operation semantics and any required correctness conditions. Unsupported inference is rejected with a diagnostic.
 - Constructor synthesis occurs at compile time; application evaluates the constructor on matched metadata.
-- Completed constructors execute in the greedy rewrite engine or generated Rust with the shared runtime. C++ generation remains unavailable.
+- Completed constructors execute in the greedy rewrite engine in native C++. Code-generation backend migration remains deferred.
 
-**Introducing `auto` figure**
+**Introducing attribute inference figure**
 
 - [Storyboard](figures/introducing_auto.yaml): half-width introduction using transpose absorption into matrix dot. The TEPL compiler encloses synthesis, verification, and the generated function; runtime explicitly applies captured metadata to `f(p, q)` and attaches the resulting descriptor to the replacement dot.
-- **Caption:** The `auto` keyword requests a replacement-attribute function. TEPL synthesizes and verifies that function from the rule and operation semantics at compile time. At runtime, the captured transpose permutation p and dot descriptor q feed `f(p, q)`, which constructs the replacement dot attributes. In this matrix example, the left contraction axis changes from 0 to 1 as the transpose is absorbed into the dot; only the changing field is shown.
+- **Caption:** Omitting RHS attributes requests a replacement-attribute function. TEPL synthesizes and verifies that function from the rule and operation semantics at compile time. At runtime, the captured transpose permutation p and dot descriptor q feed `f(p, q)`, which constructs the replacement dot attributes. In this matrix example, the left contraction axis changes from 0 to 1 as the transpose is absorbed into the dot; only the changing field is shown.
 
 ### 3.8 From `auto` to Attribute Synthesis
 
@@ -698,15 +693,15 @@ Addition exposes one axis group, making the correspondence straightforward. When
 
   ```tepl
   rule associate {
-    (dot[@outer] (dot[@inner] X Y) Z)
-    => (dot[auto] X (dot[auto] Y Z))
+    (outer: dot (inner: dot X Y) Z)
+    => (dot X (dot Y Z))
     where {
-      @outer.lhs_batching_dimensions == @inner->B
+      outer.attrs.lhs_batching_dimensions == inner.axes.B.positions
     }
   }
   ```
 
-- Generalized-dot reassociation can change the result if the two dots use incompatible batch axes. Here, the `where` clause requires the outer dot to use the inner dot's batch axes as its left batch axes, in the same order. `@inner->B` gives their positions in the inner result. The rule applies only when this condition holds.
+- Generalized-dot reassociation can change the result if the two dots use incompatible batch axes. Here, the `where` clause requires the outer dot to use the inner dot's batch axes as its left batch axes, in the same order. `inner.axes.B.positions` gives their positions in the inner result. The rule applies only when this condition holds.
 - The batch condition restricts when the rule applies; the completed replacement is checked for correctness as described in Section 5.3.
 - Let `T = dot_general(X, Y)`. The inner dot contracts group \(K\) and produces the interface
 

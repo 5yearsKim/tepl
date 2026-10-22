@@ -7,6 +7,7 @@
 #include "src/inference/evaluate.h"
 #include "src/shared/builtins/axes.h"
 #include "src/shared/builtins/intrinsics/catalog.h"
+#include "src/shared/catalog/axis_conditions.h"
 #include "src/shared/metadata/ordered.h"
 #include "src/shared/types/literal.h"
 
@@ -685,6 +686,14 @@ void validate(const ExecutableProgram& program) {
                             require(value == Type{TypeKind::kIndex},
                                     "builtin expects index");
                           break;
+                        case S::kAxisSet:
+                          require(value == logicalAxisSetType(),
+                                  "builtin expects logical axis set");
+                          break;
+                        case S::kAxisList:
+                          require(value == listType(logicalAxisType()),
+                                  "builtin expects logical axis list");
+                          break;
                         case S::kIntegerList:
                           require(value == Type{TypeKind::kIndexList},
                                   "builtin expects index list");
@@ -748,12 +757,14 @@ void validate(const ExecutableProgram& program) {
               },
               e->value);
         };
-    for (const auto& e : r.conditions) {
+    auto where_schedule = completed::scheduleWhere(r);
+    for (const auto& e : where_schedule.source) {
       expr(e);
       if (!std::holds_alternative<completed::LocalLet>(e->value))
         require(type(e->type) == Type{TypeKind::kBool},
                 "where result must be bool");
     }
+    auto where_locals = locals;
     locals.clear();
     for (const auto& d : r.derivations) {
       expr(d.value);
@@ -767,6 +778,13 @@ void validate(const ExecutableProgram& program) {
                 "descriptor assigned twice");
         descriptors.insert(d.target->value);
       }
+    }
+    locals = std::move(where_locals);
+    for (const auto& e : where_schedule.replacement) {
+      expr(e);
+      if (!std::holds_alternative<completed::LocalLet>(e->value))
+        require(type(e->type) == Type{TypeKind::kBool},
+                "where result must be bool");
     }
     if (r.inference && r.inference->mode == inference::Mode::Synthesize)
       for (const auto& n : r.inference->replacement)
@@ -803,6 +821,7 @@ void validate(const ExecutableProgram& program) {
     };
     build(r.rhs);
     validateInference(p, r);
+    completed::validateAxisConditions(r);
   }
   for (const auto& g : p.graphs) validateGraph(p, g);
 }

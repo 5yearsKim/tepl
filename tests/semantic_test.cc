@@ -219,36 +219,35 @@ void selectedShapeAssociationTests() {
   const std::string prefix = R"(
 rule selected_shape_association {
   A: f32[Batch,M,K] B: f32[Batch,K,L] C: f32[Batch,L,N]
-  (dot[@outer] (dot[@inner] A B) C)
+  (outer: dot (inner: dot A B) C)
   =>
 )";
   const std::string conditions = R"(
   where {
     Batch > 0 && M > 0 && K > 0 && L > 0 && N > 0
-    && @inner.lhs_contracting_dimensions == [2]
-    && @inner.rhs_contracting_dimensions == [1]
-    && @inner.lhs_batching_dimensions == [0]
-    && @inner.rhs_batching_dimensions == [0]
-    && @outer.lhs_contracting_dimensions == [2]
-    && @outer.rhs_contracting_dimensions == [1]
-    && @outer.lhs_batching_dimensions == [0]
-    && @outer.rhs_batching_dimensions == [0]
+    && inner.attrs.lhs_contracting_dimensions == [2]
+    && inner.attrs.rhs_contracting_dimensions == [1]
+    && inner.attrs.lhs_batching_dimensions == [0]
+    && inner.attrs.rhs_batching_dimensions == [0]
+    && outer.attrs.lhs_contracting_dimensions == [2]
+    && outer.attrs.rhs_contracting_dimensions == [1]
+    && outer.attrs.lhs_batching_dimensions == [0]
+    && outer.attrs.rhs_batching_dimensions == [0]
   }
 )";
   const std::string constructor = R"({
     lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1],
     lhs_batching_dimensions: [0], rhs_batching_dimensions: [0]
   })";
-  const auto explicit_rule = prefix + "(dot[@r1] A (dot[@r2] B C))" +
-                             conditions + "derive { @r1 = " + constructor +
-                             "; @r2 = " + constructor + "; }}";
+  const auto explicit_rule = prefix + "(r1: dot A (r2: dot B C))" + conditions +
+                             "derive { r1.attrs = " + constructor +
+                             "; r2.attrs = " + constructor + "; }}";
   auto explicit_plan = symbolicPlan(explicit_rule);
   proved(explicit_plan);
   expect(
       verify(explicit_plan, explicit_plan.proof).status == ProofStatus::Proved,
       "explicit fixed-layout reassociation independently verifies");
-  auto inferred =
-      symbolicPlan(prefix + "(dot[auto] A (dot[auto] B C))" + conditions + "}");
+  auto inferred = symbolicPlan(prefix + "(dot A (dot B C))" + conditions + "}");
   proved(inferred);
   expect(inferred.proof.constructors.size() == 2,
          "both reassociated dot descriptors are synthesized");
@@ -259,8 +258,8 @@ rule selected_shape_association {
                        "A: f32[Batch,K,K] B: f32[Batch,K,K] C: f32[Batch,K,K]");
   wrong = replace(wrong, "Batch > 0 && M > 0 && K > 0 && L > 0 && N > 0",
                   "Batch > 0 && K > 0");
-  wrong = replace(wrong, "@r2 = " + constructor,
-                  "@r2 = {lhs_contracting_dimensions:[1], "
+  wrong = replace(wrong, "r2.attrs = " + constructor,
+                  "r2.attrs = {lhs_contracting_dimensions:[1], "
                   "rhs_contracting_dimensions:[2], "
                   "lhs_batching_dimensions:[0], rhs_batching_dimensions:[0]}");
   expect(symbolicPlan(wrong).proof.status == ProofStatus::Unknown,
@@ -270,48 +269,46 @@ void dotChainAssociationTests() {
   const std::string constructor =
       "{lhs_contracting_dimensions:[2], rhs_contracting_dimensions:[1], "
       "lhs_batching_dimensions:[0], rhs_batching_dimensions:[0]}";
-  for (int count : {4, 5}) {
-    for (bool automatic : {false, true}) {
-      std::string rule = "rule dot_chain { ";
-      for (int i = 1; i <= count; ++i)
-        rule += "A" + std::to_string(i) + ": f32[Batch,D" +
-                std::to_string(i - 1) + ",D" + std::to_string(i) + "] ";
-      std::string lhs = "A1", rhs = "A" + std::to_string(count);
-      for (int i = 2; i <= count; ++i)
-        lhs = "(dot[@l" + std::to_string(i) + "] " + lhs + " A" +
-              std::to_string(i) + ")";
-      for (int i = count - 1; i >= 1; --i)
-        rhs = "(dot[" +
-              (automatic ? std::string("auto") : "@r" + std::to_string(i)) +
-              "] A" + std::to_string(i) + " " + rhs + ")";
-      rule += lhs + " => " + rhs + " where { Batch > 0";
-      for (int i = 0; i <= count; ++i)
-        rule += " && D" + std::to_string(i) + " > 0";
-      for (int i = 2; i <= count; ++i) {
-        auto d = "@l" + std::to_string(i);
-        rule += " && " + d + ".lhs_contracting_dimensions == [2] && " + d +
-                ".rhs_contracting_dimensions == [1] && " + d +
-                ".lhs_batching_dimensions == [0] && " + d +
-                ".rhs_batching_dimensions == [0]";
-      }
-      rule += " }";
-      if (!automatic) {
-        rule += " derive {";
-        for (int i = 1; i < count; ++i)
-          rule += " @r" + std::to_string(i) + " = " + constructor + ";";
-        rule += " }";
-      }
-      auto plan = symbolicPlan(rule + " }");
-      proved(plan);
-      expect(plan.proof.guard.empty(),
-             "whole dot chains prove without additional conditions");
+  // One longer chain covers recursive mapping; keep both descriptor policies.
+  constexpr int count = 4;
+  for (bool automatic : {false, true}) {
+    std::string rule = "rule dot_chain { ";
+    for (int i = 1; i <= count; ++i)
+      rule += "A" + std::to_string(i) + ": f32[Batch,D" +
+              std::to_string(i - 1) + ",D" + std::to_string(i) + "] ";
+    std::string lhs = "A1", rhs = "A" + std::to_string(count);
+    for (int i = 2; i <= count; ++i)
+      lhs = "(l" + std::to_string(i) + ": dot " + lhs + " A" +
+            std::to_string(i) + ")";
+    for (int i = count - 1; i >= 1; --i)
+      rhs = "(" + (automatic ? std::string{} : "r" + std::to_string(i) + ": ") +
+            "dot A" + std::to_string(i) + " " + rhs + ")";
+    rule += lhs + " => " + rhs + " where { Batch > 0";
+    for (int i = 0; i <= count; ++i)
+      rule += " && D" + std::to_string(i) + " > 0";
+    for (int i = 2; i <= count; ++i) {
+      auto d = "l" + std::to_string(i) + ".attrs";
+      rule += " && " + d + ".lhs_contracting_dimensions == [2] && " + d +
+              ".rhs_contracting_dimensions == [1] && " + d +
+              ".lhs_batching_dimensions == [0] && " + d +
+              ".rhs_batching_dimensions == [0]";
     }
+    rule += " }";
+    if (!automatic) {
+      rule += " derive {";
+      for (int i = 1; i < count; ++i)
+        rule += " r" + std::to_string(i) + ".attrs = " + constructor + ";";
+      rule += " }";
+    }
+    auto plan = symbolicPlan(rule + " }");
+    proved(plan);
+    expect(plan.proof.guard.empty(),
+           "whole dot chains prove without additional conditions");
   }
 }
 void symbolicTests() {
   const std::string distribute =
-      "rule r { (dot[@d] (add A B) C) => (add (dot[auto] A C) (dot[auto] B C)) "
-      "}";
+      "rule r { (d: dot (add A B) C) => (add (dot A C) (dot B C)) }";
   auto p = symbolicPlan(distribute);
   proved(p);
   expect(p.proof.constructors.size() == 2, "two symbolic descriptors");
@@ -368,23 +365,22 @@ void symbolicTests() {
              ProofStatus::Unknown,
          "false algebraic rewrite is not proved");
   auto sum = symbolicPlan(
-      "rule r {(reduce_sum[@d] (add A B)) => (add (reduce_sum[auto] A) "
-      "(reduce_sum[auto] B))}");
+      "rule r {(d: reduce_sum (add A B)) => (add (reduce_sum A) (reduce_sum "
+      "B))}");
   proved(sum);
   for (const auto& [id, fields] : sum.proof.constructors)
     expect(fields[0]->kind == Symbol::Kind::Field && fields[0]->owner == 0,
            "symbolic reduction dimensions copied");
   auto nonlinear = replace(dialect, "yield Reduce(K, input);",
                            "yield Reduce(K, Product(input, input));");
-  expect(symbolicPlan("rule r {(reduce_sum[@d] (add A B)) => (add "
-                      "(reduce_sum[auto] A) (reduce_sum[auto] B))}",
+  expect(symbolicPlan("rule r {(d: reduce_sum (add A B)) => (add (reduce_sum "
+                      "A) (reduce_sum B))}",
                       true, nonlinear)
                  .proof.status == ProofStatus::Unknown,
          "linearity follows semantics, not operation name");
 
   auto composition = symbolicPlan(
-      "rule r {(transpose[@outer] (transpose[@inner] A)) => (transpose[auto] "
-      "A)}",
+      "rule r {(outer: transpose (inner: transpose A)) => (transpose A)}",
       false);
   proved(composition);
   auto constructor = composition.proof.constructors.at(2)[0];
@@ -411,28 +407,29 @@ void symbolicTests() {
   editedCopy.constructors.at(2)[0] = edited;
   expect(verify(composition, editedCopy).status == ProofStatus::Unknown,
          "copied-and-edited IR cannot spoof structural cache");
-  auto unguardedPin = symbolicPlan(
-      "rule r {(reduce_sum[@d] A) => (reduce_sum[auto, dimensions=[]] A)}");
-  expect(unguardedPin.proof.status == ProofStatus::Unknown,
-         "unrestricted pin rejected");
-  auto pinned = symbolicPlan(
-      "rule r {(reduce_sum[@d] A) => (reduce_sum[auto, dimensions=[]] A) where "
-      "{ @d.dimensions == range(0) }}");
-  proved(pinned);
-  auto withoutCondition = pinned;
+  auto unguardedExplicit = symbolicPlan(
+      "rule r {(d: reduce_sum A) => (out: reduce_sum A) derive "
+      "{out.attrs={dimensions:[]};}}");
+  expect(unguardedExplicit.proof.status == ProofStatus::Unknown,
+         "unguarded explicit reduction rejected");
+  auto explicit_reduction = symbolicPlan(
+      "rule r {(d: reduce_sum A) => (out: reduce_sum A) where { "
+      "d.attrs.dimensions == range(0) } derive {out.attrs={dimensions:[]};}}");
+  proved(explicit_reduction);
+  auto withoutCondition = explicit_reduction;
   withoutCondition.assumptions.clear();
-  auto forged = pinned.proof;
-  forged.guard = pinned.assumptions;
+  auto forged = explicit_reduction.proof;
+  forged.guard = explicit_reduction.assumptions;
   expect(verify(withoutCondition, forged).status == ProofStatus::Unknown,
          "candidate guards cannot supply a missing user condition");
-  expect(symbolicPlan("rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A "
-                      "(dot[auto] B C))}")
-                 .proof.status == ProofStatus::Unknown,
-         "unguarded reassociation rejected");
+  expect(
+      symbolicPlan("rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C))}")
+              .proof.status == ProofStatus::Unknown,
+      "unguarded reassociation rejected");
   auto association = symbolicPlan(
-      "rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B C)) "
-      "where { @d.lhs_batching_dimensions == @inner->B && "
-      "@d.lhs_contracting_dimensions == @inner->J }}");
+      "rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C)) where { "
+      "d.attrs.lhs_batching_dimensions == inner.axes.B.positions && "
+      "d.attrs.lhs_contracting_dimensions == inner.axes.J.positions }}");
   expect(association.proof.status == ProofStatus::Proved,
          "reassociation has a checked routing guard");
   Metadata matrix{{{2, 3}, {3, 4}, {4, 5}},
@@ -462,9 +459,9 @@ void symbolicTests() {
         dot(ma, dot(mb, mc, constructed.at(3)), constructed.at(2)));
   }
   auto reverse = symbolicPlan(
-      "rule r {(dot[@outer] A (dot[@inner] B C)) => (dot[auto] (dot[auto] A B) "
-      "C) where { @outer.rhs_batching_dimensions == @inner->B && "
-      "@outer.rhs_contracting_dimensions == @inner->I }}");
+      "rule r {(outer: dot A (inner: dot B C)) => (dot (dot A B) C) where { "
+      "outer.attrs.rhs_batching_dimensions == inner.axes.B.positions && "
+      "outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions }}");
   expect(reverse.proof.status == ProofStatus::Proved,
          "reverse association supported with guard");
   tepl::test::ConstructorEvaluator reverseEval(matrix, reverse);
@@ -474,10 +471,10 @@ void symbolicTests() {
       dot(aa, dot(ab, ac, matrix.descriptors.at(1)), matrix.descriptors.at(0)),
       dot(dot(aa, ab, reverseAttrs.at(3)), ac, reverseAttrs.at(2)));
   auto lora = symbolicPlan(
-      "rule r {(dot[@outer] X (add W (dot[@inner] A B))) => (add (dot[auto] X "
-      "W) (dot[auto] (dot[auto] X A) B)) where { "
-      "@outer.rhs_batching_dimensions == @inner->B && "
-      "@outer.rhs_contracting_dimensions == @inner->I }}");
+      "rule r {(outer: dot X (add W (inner: dot A B))) => (add (dot X W) (dot "
+      "(dot X A) B)) where { outer.attrs.rhs_batching_dimensions == "
+      "inner.axes.B.positions && outer.attrs.rhs_contracting_dimensions == "
+      "inner.axes.I.positions }}");
   proved(lora);
   Metadata lm{{{2, 3}, {3, 4}, {3, 2}, {2, 4}},
               {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}};
@@ -489,13 +486,13 @@ void symbolicTests() {
   equal(dot(lx, add(lw, dot(lla, lb, lm.descriptors.at(1))),
             lm.descriptors.at(0)),
         add(dot(lx, lw, la.at(2)), dot(dot(lx, lla, la.at(4)), lb, la.at(3))));
-  auto trans = symbolicPlan(
-      "rule r {(dot[@d] A B) => (dot[auto] (transpose[auto] A) B)}");
+  auto trans = symbolicPlan("rule r {(d: dot A B) => (dot (transpose A) B)}");
   proved(trans);
   auto cycle = symbolicPlan(
-      "rule r { A: [K, M, N] (dot[@d] A B) => (dot[auto] (transpose[auto, "
-      "permutation=[1,2,0]] A) B) where { @d.lhs_batching_dimensions == "
-      "range(0) && @d.lhs_contracting_dimensions == range(1) }}");
+      "rule r { A: [K, M, N] (d: dot A B) => (dot (cycle: transpose A) B) "
+      "where { d.attrs.lhs_batching_dimensions == range(0) && "
+      "d.attrs.lhs_contracting_dimensions == range(1) } derive "
+      "{cycle.attrs={permutation:[1,2,0]};}}");
   proved(cycle);
   Metadata good{{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}};
   tepl::test::ConstructorEvaluator goodEval(good, cycle);
@@ -504,7 +501,7 @@ void symbolicTests() {
   auto ca = goodEval.construct();
   auto ga = data(good.shapes[0], 1), gb = data(good.shapes[1], 2);
   equal(dot(ga, gb, good.descriptors.at(0)),
-        dot(transpose(ga, ca.at(2)[0]), gb, ca.at(1)));
+        dot(transpose(ga, {1, 2, 0}), gb, ca.at(2)));
   Metadata bad{{{2, 4, 3}, {3, 5}}, {{0, {{2}, {0}, {}, {}}}}};
   tepl::test::ConstructorEvaluator badEval(bad, cycle);
   expect(!badEval.applicable(),
@@ -551,7 +548,7 @@ void symbolicTests() {
   renamed = replace(renamed, "bind K", "bind Reduction");
   renamed = replace(renamed, "Reduce(K,", "Reduce(Reduction,");
   proved(
-      symbolicPlan(replace(distribute, "dot[", "arbitrary["), true, renamed));
+      symbolicPlan(replace(distribute, "dot ", "arbitrary "), true, renamed));
   auto alternate = replace(dialect, "dialect TensorLang", "dialect Alternate");
   alternate = replace(alternate, "op dot_general(", "op dot_variant(");
   alternate = replace(alternate, "op add(", "op other_add(");
@@ -574,11 +571,11 @@ void symbolicTests() {
       "bind B { lhs: lb, rhs: rb };\n            bind K { lhs: lc, rhs: rc };",
       "bind K { lhs: lc, rhs: rc };\n            bind B { lhs: lb, rhs: rb };");
   alternate = replace(alternate, "lhs_contracting_dimensions", "left_axes");
-  proved(symbolicPlan("rule r {(dot[@d] A B) => (other[auto] A B)}", true,
+  proved(symbolicPlan("rule r {(d: dot A B) => (other A B)}", true,
                       dialect + alternate));
   auto declared = symbolicPlan(
-      "rule r { A: [N,M,K] (transpose[@p] A) => (transpose[auto] A) where { N "
-      "> 0 && M == K } }");
+      "rule r { A: [N,M,K] (p: transpose A) => (transpose A) where { N > 0 && "
+      "M == K } }");
   proved(declared);
   expect(
       declared.assumptions.size() >= 2 &&
@@ -586,16 +583,17 @@ void symbolicTests() {
                       [](const S& s) { return callIs(s, "&&"); }),
       "tensor declarations and final where expression imported");
   auto copied = symbolicPlan(
-      "rule r {(transpose[@p] X) => (transpose[@copy] X) derive {@copy = "
-      "{ ..@p };} }");
+      "rule r {(p: transpose X) => (copy: transpose X) derive {copy.attrs = { "
+      "..p.attrs };} }");
   proved(copied);
 
-  proved(symbolicPlan(
-      "rule r {(transpose[@outer] (transpose[@inner] X)) => "
-      "(transpose[@combined] X) derive { let p = gather(@inner.permutation, "
-      "@outer.permutation); @combined = { ..@outer, permutation: p }; }}"));
+  proved(
+      symbolicPlan("rule r {(outer: transpose (inner: transpose X)) => "
+                   "(combined: transpose X) derive { let p = "
+                   "gather(inner.attrs.permutation, outer.attrs.permutation); "
+                   "combined.attrs = { ..outer.attrs, permutation: p }; }}"));
   auto incorrect = symbolicPlan(
-      "rule r {(transpose[@p] X) => (transpose[@out] X) derive { @out = { "
+      "rule r {(p: transpose X) => (out: transpose X) derive { out.attrs = { "
       "permutation: [0] }; }}");
   expect(incorrect.proof.status == ProofStatus::Unknown,
          "typed constructors do not bypass semantic verification");
@@ -630,61 +628,58 @@ void explicitConditionTests() {
     throw std::runtime_error("missing rule diagnostic: " + message);
   };
   const std::string association =
-      "rule r {(dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B C))";
+      "rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C))";
   rejected(association + "}", "cannot verify rule 'r'");
-  auto accepted = check(association + R"( where {
-    @d.lhs_batching_dimensions == @inner->B
-    && @d.lhs_contracting_dimensions == @inner->J
-  }})");
-  expect(accepted.ok(), "declared group routing accepted by normal analysis");
   rejected(association + R"( where {
-    (@d.lhs_batching_dimensions == @inner->B
-     && @d.lhs_contracting_dimensions == @inner->J) || true
+    (d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+     && d.attrs.lhs_contracting_dimensions == inner.axes.J.positions) || true
   }})",
            "cannot verify rule 'r'");
   auto wrong = check(association + R"( where {
-    @d.lhs_batching_dimensions == @inner->B
-    && @d.lhs_contracting_dimensions == @inner->I
+    d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+    && d.attrs.lhs_contracting_dimensions == inner.axes.I.positions
   }})");
   expect(wrong.ok(), "whole lhs-free contraction also admits reassociation");
-  rejected(
-      association + " where { @d.lhs_contracting_dimensions == @inner->K }}",
-      "absent from the operation output");
   rejected(association +
-               " where { @d.lhs_contracting_dimensions == @inner->Missing }}",
-           "unknown output-axis group");
+               " where { d.attrs.lhs_contracting_dimensions == "
+               "inner.axes.K.positions }}",
+           "absent from the operation output");
+  rejected(association +
+               " where { d.attrs.lhs_contracting_dimensions == "
+               "inner.axes.Missing.positions }}",
+           "unknown semantic axis group");
   rejected(
-      "rule r {(transpose[@p] A) => (transpose[@copy] A) derive { @copy = "
-      "@p->S; }}",
-      "only supported in where");
-  expect(check("rule r {(transpose[@p] A) => (transpose[auto] A) where { "
-               "all([true for "
-               "i in [0]]) }}")
+      "rule r {(p: transpose A) => (copy: transpose A) derive { copy.attrs = "
+      "p.axes.S.positions; }}",
+      "where conditions");
+  expect(check("rule r {(p: transpose A) => (transpose A) where { all([true "
+               "for i in [0]]) }}")
              .ok(),
          "constant comprehension guard is understood by semantic checking");
   rejected(
-      "rule r {(dot[@d] A B) => (dot[@new] A B) where { len(@new->B) == 0 } "
-      "derive { @new = { ..@d }; }}",
-      "not available here");
-  rejected(
-      "rule r {(dot[@d] (dot[@d] A B) C) => (dot[auto] A (dot[auto] B C)) "
-      "where { len(@d->B) == 0 }}",
-      "ambiguous output-axis reference");
+      "rule r {(d: dot A B) => (new: dot A B) where { "
+      "len(new.axes.B.positions) == 0 } derive { new.attrs = { ..d.attrs }; }}",
+      "missing axis feasibility condition");
+  expect(check("rule r {(d: dot (inner: dot[d.attrs] A B) C) => (dot[d.attrs] "
+               "(dot[d.attrs] A B) C) where { len(d.axes.B.positions) == 0 }}")
+             .ok(),
+         "group positions identify a node occurrence even when descriptors are "
+         "shared");
 
   // Group names come from definitions, not a hard-coded B/I/J convention.
   auto renamed = replace(dialect, "bind J", "bind RightFree");
   renamed = replace(renamed, "B ++ I ++ J", "B ++ I ++ RightFree");
   auto named = symbolicPlan(association + R"( where {
-    @d.lhs_batching_dimensions == @inner->B
-    && @d.lhs_contracting_dimensions == @inner->RightFree
+    d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+    && d.attrs.lhs_contracting_dimensions == inner.axes.RightFree.positions
   }})",
                             true, renamed);
   proved(named);
 
   // The group follows its declared coordinate order through a permutation.
   auto permutation = symbolicPlan(
-      "rule r {(transpose[@p] A) => (transpose[auto] A) where { @p.permutation "
-      "== @p->S }}",
+      "rule r {(p: transpose A) => (transpose A) where { p.attrs.permutation "
+      "== p.axes.S.positions }}",
       false);
   proved(permutation);
   Metadata cycle{{{2, 3, 4}}, {{0, {{2, 0, 1}}}}};
@@ -695,22 +690,14 @@ void explicitConditionTests() {
   tepl::test::ConstructorEvaluator involution(swap, permutation);
   expect(involution.applicable(),
          "declared permutation condition evaluated independently");
-
-  // A guard is required only when legality alone cannot establish the rule.
-  expect(check("rule r {(dot[@d] (add A B) C) => (add (dot[auto] A C) "
-               "(dot[auto] B C))}")
-             .ok(),
-         "unrestricted distribution remains accepted");
 }
 void partialAssociationTests() {
   const std::string rule = R"(rule r {
-    (dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] B C))
-    where { @d.lhs_batching_dimensions == @inner->B }
+    (d: dot (inner: dot A B) C) => (dot A (dot B C))
+    where { d.attrs.lhs_batching_dimensions == inner.axes.B.positions }
   })";
   auto plan = symbolicPlan(rule);
   proved(plan);
-  expect(synthesize(plan, 750000).status == ProofStatus::Proved,
-         "partial reassociation fits a bounded proof-work budget");
   expect(verify(plan, plan.proof, 750000).status == ProofStatus::Proved,
          "partial reassociation independently verifies within budget");
   std::vector<Metadata> cases{
@@ -762,7 +749,7 @@ void partialAssociationTests() {
   definitions = replace(definitions, "alias: dot;", "alias: arbitrary;");
   definitions = replace(definitions, "bind I", "bind LeftFree");
   definitions = replace(definitions, "B ++ I ++ J", "B ++ LeftFree ++ J");
-  proved(symbolicPlan(replace(rule, "dot[", "arbitrary["), true, definitions));
+  proved(symbolicPlan(replace(rule, "dot ", "arbitrary "), true, definitions));
 }
 void contextStateTests() {
   Plan plan;
@@ -852,8 +839,7 @@ void scalarTests() {
         "rule r {(add A A) => (negate (negate (add A A)))}",
         "rule r {(add (mul A A) (mul A A)) => (mul (add A A) A)}",
         "rule r {(zero_like A) => (zero_like A)}",
-        "rule r {(transpose[@p] (zero_like A)) => (zero_like (transpose[auto] "
-        "A))}"})
+        "rule r {(p: transpose (zero_like A)) => (zero_like (transpose A))}"})
     proved(symbolicPlan(rule));
   auto canceled = symbolicPlan("rule r {(subtract A A) => (zero_like A)}");
   expect(canceled.proof.lhs_normalized == "Const(0)" &&
@@ -880,8 +866,8 @@ void scalarTests() {
   for (const auto* rule :
        {"rule r {(add A A) => A}", "rule r {(negate A) => A}",
         "rule r {(subtract A B) => (zero_like A)}",
-        "rule r {(subtract (transpose[@p] A) A) => (zero_like A)}",
-        "rule r {(zero_like (reduce_sum[@r] A)) => (zero_like A)}",
+        "rule r {(subtract (p: transpose A) A) => (zero_like A)}",
+        "rule r {(zero_like (r: reduce_sum A)) => (zero_like A)}",
         "rule r {(mul A A) => A}"})
     expect(symbolicPlan(rule).proof.status == ProofStatus::Unknown,
            "incorrect coefficients, accesses, or interfaces rejected");
@@ -985,14 +971,14 @@ void scalarTests() {
   expect(
       run("rule r {(negate A) => A}", {{{2, 3}}, {}}).status == Status::Unknown,
       "independent concrete verifier compares coefficients");
-  found(run("rule r {(dot[@d] (negate A) B) => (negate (dot[auto] A B))}",
+  found(run("rule r {(d: dot (negate A) B) => (negate (dot A B))}",
             {{{2, 3}, {3, 4}}, {{0, {{1}, {0}, {}, {}}}}}));
   auto trans = symbolicPlan(
-      "rule r {(transpose[@p] (negate A)) => (negate (transpose[auto] A))}");
+      "rule r {(p: transpose (negate A)) => (negate (transpose A))}");
   auto reduce = symbolicPlan(
-      "rule r {(reduce_sum[@r] (negate A)) => (negate (reduce_sum[auto] A))}");
-  auto contract = symbolicPlan(
-      "rule r {(dot[@d] (negate A) B) => (negate (dot[auto] A B))}");
+      "rule r {(r: reduce_sum (negate A)) => (negate (reduce_sum A))}");
+  auto contract =
+      symbolicPlan("rule r {(d: dot (negate A) B) => (negate (dot A B))}");
   proved(trans);
   proved(reduce);
   proved(contract);
@@ -1080,27 +1066,24 @@ Dense broadcast(const Dense& input, const List& positions,
 }
 void broadcastTests() {
   auto compose = symbolicPlan(
-      "rule r {(broadcast[@outer] (broadcast[@inner] A)) => (broadcast[auto] "
-      "A)}",
+      "rule r {(outer: broadcast (inner: broadcast A)) => (broadcast A)}",
       false);
   auto after = symbolicPlan(
-      "rule r {(transpose[@p] (broadcast[@b] A)) => (broadcast[auto] A)}",
-      false);
+      "rule r {(p: transpose (b: broadcast A)) => (broadcast A)}", false);
   auto scalar_after = symbolicPlan(
-      "rule r {(transpose[@p] (broadcast[@b] A)) => (broadcast[auto] A) "
-      "where {@b.dimensions == []}}",
+      "rule r {(p: transpose (b: broadcast A)) => (broadcast A) where "
+      "{b.attrs.dimensions == []}}",
       false);
   auto scalar_rank_two = symbolicPlan(
-      "rule r {(transpose[@p] (broadcast[@b] A)) => (broadcast[auto] A) "
-      "where {@b.dimensions == [] && len(@b.new_extents) == 2 && "
-      "@p.permutation == [1,0]}}",
+      "rule r {(p: transpose (b: broadcast A)) => (broadcast A) where "
+      "{b.attrs.dimensions == [] && len(b.attrs.new_extents) == 2 && "
+      "p.attrs.permutation == [1,0]}}",
       false);
   auto before = symbolicPlan(
-      "rule r {(broadcast[@b] (transpose[@p] A)) => (broadcast[auto] A)}",
-      false);
+      "rule r {(b: broadcast (p: transpose A)) => (broadcast A)}", false);
   auto triple = symbolicPlan(
-      "rule r {(broadcast[@outer] (broadcast[@middle] (broadcast[@inner] A))) "
-      "=> (broadcast[auto] A)}",
+      "rule r {(outer: broadcast (middle: broadcast (inner: broadcast A))) => "
+      "(broadcast A)}",
       false);
   proved(compose);
   proved(after);
@@ -1108,23 +1091,21 @@ void broadcastTests() {
   proved(scalar_rank_two);
   proved(before);
   proved(triple);
+  proved(symbolicPlan(
+      "rule r {(p: transpose (b: broadcast A)) => (transpose (broadcast A))}",
+      false));
   proved(
-      symbolicPlan("rule r {(transpose[@p] (broadcast[@b] A)) => "
-                   "(transpose[auto] (broadcast[auto] A))}",
-                   false));
-  proved(
-      symbolicPlan("rule r {(add (broadcast[@b] A) (broadcast[@b] B)) => (add "
-                   "(broadcast[auto] A) (broadcast[auto] B))}"));
+      symbolicPlan("rule r {(add (b: broadcast A) (broadcast[b.attrs] B)) => "
+                   "(add (broadcast A) (broadcast B))}"));
   auto renamed = replace(dialect, "op broadcast_in_dim(", "op expand(");
   renamed = replace(renamed, "alias: broadcast;", "alias: spread;");
   renamed = replace(renamed, "new_extents", "added_sizes");
-  proved(symbolicPlan(
-      "rule r {(spread[@outer] (spread[@inner] A)) => (spread[auto] A)}", false,
-      renamed));
   proved(
-      symbolicPlan("rule r {(broadcast[@b] (zero_like A)) => (zero_like "
-                   "(broadcast[auto] A))}"));
-  expect(symbolicPlan("rule r {(broadcast[@b] A) => A}", false).proof.status ==
+      symbolicPlan("rule r {(outer: spread (inner: spread A)) => (spread A)}",
+                   false, renamed));
+  proved(symbolicPlan(
+      "rule r {(b: broadcast (zero_like A)) => (zero_like (broadcast A))}"));
+  expect(symbolicPlan("rule r {(b: broadcast A) => A}", false).proof.status ==
              ProofStatus::Unknown,
          "broadcast cannot be discarded without an interface restriction");
   auto corrupt = compose.proof;
@@ -1223,12 +1204,11 @@ void broadcastTests() {
 
 void axisAndMultiplyTests() {
   auto merge = symbolicPlan(
-      "rule r {(reduce_sum[@outer] (reduce_sum[@inner] A)) => "
-      "(reduce_sum[auto] A)}");
+      "rule r {(outer: reduce_sum (inner: reduce_sum A)) => (reduce_sum A)}");
   proved(merge);
   auto move = symbolicPlan(
-      "rule r {(reduce_sum[@r] (transpose[@p] A)) => "
-      "(transpose[auto] (reduce_sum[auto] A))}");
+      "rule r {(r: reduce_sum (p: transpose A)) => (transpose (reduce_sum "
+      "A))}");
   proved(move);
   expect(synthesize(move, 50000).status == ProofStatus::Proved,
          "transpose/reduction inference fits a bounded metadata budget");
@@ -1291,8 +1271,7 @@ void axisAndMultiplyTests() {
   proved(
       symbolicPlan("rule r {(add (mul A C) (mul B C)) => (mul (add A B) C)}"));
   auto trans = symbolicPlan(
-      "rule r {(transpose[@p] (mul A B)) => "
-      "(mul (transpose[auto] A) (transpose[auto] B))}");
+      "rule r {(p: transpose (mul A B)) => (mul (transpose A) (transpose B))}");
   proved(trans);
   expect(symbolicPlan("rule r {(mul A B) => (add A B)}").proof.status ==
              ProofStatus::Unknown,
@@ -1371,13 +1350,6 @@ int main(int argc, char** argv) {
     std::ifstream input(files->Rlocation(argv[1]));
     dialect = {std::istreambuf_iterator<char>(input), {}};
     expect(!dialect.empty(), "read dialect");
-    const auto implicit = symbolicPlan(
-        "rule r { (dot (add A B) C) => (add (dot A C) (dot B C)) }");
-    proved(implicit);
-    expect(implicit.proof.constructors.size() == 2,
-           "omitted RHS attributes synthesize independently");
-    proved(
-        symbolicPlan("rule r { (transpose (transpose A)) => (transpose A) }"));
     symbolicTests();
     selectedShapeAssociationTests();
     dotChainAssociationTests();
@@ -1388,13 +1360,16 @@ int main(int argc, char** argv) {
     scalarTests();
     broadcastTests();
     const std::string distribute =
-        "rule r { (dot[@d] (add A B) C) => (add (dot[auto] A C) (dot[auto] B "
-        "C)) }";
+        "rule r { (d: dot (add A B) C) => (add (dot A C) (dot B C)) }";
+    // Compile once, then specialize the same plan across ranks and
+    // legal/illegal metadata.
+    const auto distribution_plan = symbolicPlan(distribute);
     const std::vector<List> matrix{{1}, {0}, {}, {}};
-    auto result = run(distribute, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}});
+    auto result =
+        infer(distribution_plan, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}});
     found(result);
     expect(result.attributes.size() == 2, "two auto descriptors");
-    found(run("rule r { (dot[@d] (let T = (add A B)) C) => (dot[auto] T C) }",
+    found(run("rule r { (d: dot (let T = (add A B)) C) => (dot T C) }",
               {{{2, 3}, {2, 3}, {}, {3, 4}}, {{0, matrix}}}));
     for (const auto& [id, fields] : result.attributes)
       expect(fields == matrix, "distribution mappings reconstructed");
@@ -1410,8 +1385,8 @@ int main(int argc, char** argv) {
 
     std::vector<List> mixed{{1, 3}, {2, 0}, {2}, {3}};
     auto multi =
-        run(distribute,
-            {{{7, 3, 5, 11}, {7, 3, 5, 11}, {11, 13, 3, 5}}, {{0, mixed}}});
+        infer(distribution_plan,
+              {{{7, 3, 5, 11}, {7, 3, 5, 11}, {11, 13, 3, 5}}, {{0, mixed}}});
     found(multi);
     auto ma = data({7, 3, 5, 11}, 1), mb = data({7, 3, 5, 11}, 2),
          mc = data({11, 13, 3, 5}, 3);
@@ -1421,83 +1396,75 @@ int main(int argc, char** argv) {
     for (auto rank : {0, 1, 20, 100}) {
       List s(rank, 2), axes(rank);
       std::iota(axes.begin(), axes.end(), 0);
-      found(run(distribute, {{s, s, s}, {{0, {{}, {}, axes, axes}}}}));
+      found(infer(distribution_plan, {{s, s, s}, {{0, {{}, {}, axes, axes}}}}));
     }
-    found(run(distribute, {{{2, 0}, {2, 0}, {0, 4}}, {{0, matrix}}}));
-    expect(run(distribute, {{{2, 3}, {2, 4}, {3, 4}}, {{0, matrix}}}).status ==
-               Status::IllegalMetadata,
+    found(infer(distribution_plan, {{{2, 0}, {2, 0}, {0, 4}}, {{0, matrix}}}));
+    expect(infer(distribution_plan, {{{2, 3}, {2, 4}, {3, 4}}, {{0, matrix}}})
+                   .status == Status::IllegalMetadata,
            "source addition shape mismatch");
-    expect(run(distribute, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}}, {1, 1000})
+    expect(infer(distribution_plan, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}},
+                 {1, 1000})
                    .status == Status::Unknown,
            "term budget is unknown");
-    expect(run(distribute, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}}, {256, 1})
+    expect(infer(distribution_plan, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}},
+                 {256, 1})
                    .status == Status::Unknown,
            "work budget is unknown");
 
     auto sum =
-        run("rule r { (reduce_sum[@d] (add A B)) => (add (reduce_sum[auto] A) "
-            "(reduce_sum[auto] B)) }",
+        run("rule r { (d: reduce_sum (add A B)) => (add (reduce_sum A) "
+            "(reduce_sum B)) }",
             {{{2, 3, 4, 5}, {2, 3, 4, 5}}, {{0, {{1, 3}}}}});
     found(sum);
     for (const auto& [id, fields] : sum.attributes)
       expect(fields == std::vector<List>{{1, 3}}, "reduction attributes");
-    found(run("rule r { (reduce_sum[@d] A) => (reduce_sum[auto] A) }",
+    found(run("rule r { (d: reduce_sum A) => (reduce_sum A) }",
               {{{2, 3}}, {{0, {{}}}}}));
-    found(run("rule r { (reduce_sum[@d] A) => (reduce_sum[auto] A) }",
+    found(run("rule r { (d: reduce_sum A) => (reduce_sum A) }",
               {{{2, 3}}, {{0, {{0, 1}}}}}));
 
-    found(run("rule r { (transpose[@p] A) => (transpose[auto] A) }",
+    found(run("rule r { (p: transpose A) => (transpose A) }",
               {{{2, 3, 4}}, {{0, {{2, 0, 1}}}}}));
-    auto composed =
-        run("rule r { (transpose[@outer] (transpose[@inner] A)) => "
-            "(transpose[auto] A) }",
-            {{{2, 3, 4}}, {{0, {{1, 0, 2}}}, {1, {{2, 0, 1}}}}});
+    auto composed = run(
+        "rule r { (outer: transpose (inner: transpose A)) => (transpose A) }",
+        {{{2, 3, 4}}, {{0, {{1, 0, 2}}}, {1, {{2, 0, 1}}}}});
     found(composed);
     auto input_tensor = data({2, 3, 4}, 1);
     equal(transpose(transpose(input_tensor, {2, 0, 1}), {1, 0, 2}),
           transpose(input_tensor, composed.attributes.at(2)[0]));
     auto trans =
-        run("rule r { (dot[@d] A B) => (dot[auto] (transpose[auto, "
-            "permutation=[1,2,0]] A) B) }",
+        run("rule r { (d: dot A B) => (dot (cycle: transpose A) B) derive "
+            "{cycle.attrs={permutation:[1,2,0]};} }",
             {{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}});
     found(trans);
-    expect(trans.attributes.at(1) == std::vector<List>{{2}, {0}, {}, {}},
+    expect(trans.attributes.at(2) == std::vector<List>{{2}, {0}, {}, {}},
            "inverse contraction positions after transpose");
     auto ta = data({3, 2, 4}, 1), tb = data({3, 5}, 2);
     equal(dot(ta, tb, {{0}, {0}, {}, {}}),
-          dot(transpose(ta, trans.attributes.at(2)[0]), tb,
-              trans.attributes.at(1)));
-    expect(run("rule r { (dot[@d] A B) => (dot[auto] (transpose[auto, "
-               "permutation=[1,2,0]] A) B) }",
+          dot(transpose(ta, trans.attributes.at(1)[0]), tb,
+              trans.attributes.at(2)));
+    expect(run("rule r { (d: dot A B) => (dot (cycle: transpose A) B) derive "
+               "{cycle.attrs={permutation:[1,2,0]};} }",
                {{{2, 4, 3}, {3, 5}}, {{0, {{2}, {0}, {}, {}}}}})
                    .status == Status::Unknown,
            "output-order obstruction is not a general impossibility claim");
-    found(run("rule r { (dot[@d] A B) => (dot[auto] (transpose[auto] A) B) }",
+    found(run("rule r { (d: dot A B) => (dot (transpose A) B) }",
               {{{2, 3}, {3, 4}}, {{0, matrix}}}));
     found(
-        run("rule r { (transpose[@p] (dot[@d] A B)) => (dot[auto] "
-            "(transpose[auto] B) (transpose[auto] A)) }",
+        run("rule r { (p: transpose (d: dot A B)) => (dot (transpose B) "
+            "(transpose A)) }",
             {{{2, 3}, {3, 4}}, {{0, {{1, 0}}}, {1, matrix}}}));
-    expect(run("rule r { (transpose[@p] A) => (transpose[auto] A) }",
+    expect(run("rule r { (p: transpose A) => (transpose A) }",
                {{{2, 3}}, {{0, {{0, 0}}}}})
                    .status == Status::IllegalMetadata,
            "bad source permutation");
-    expect(run("rule r { (transpose[@p] A) => (transpose[auto, "
-               "permutation=[0,0]] A) }",
+    expect(run("rule r { (p: transpose A) => (out: transpose A) derive "
+               "{out.attrs={permutation:[0,0]};} }",
                {{{2, 3}}, {{0, {{1, 0}}}}})
                    .status == Status::Unknown,
-           "bad pin rejected");
-    auto rhs_pin =
-        run("rule r { (dot[@d] A B) => (dot[auto, "
-            "rhs_contracting_dimensions=[0,1]] A B) }",
-            {{{2, 3, 5}, {5, 3, 7}}, {{0, {{1, 2}, {1, 0}, {}, {}}}}});
-    found(rhs_pin);
-    expect(rhs_pin.attributes.at(1)[0] == List({2, 1}),
-           "rhs pin controls shared contraction-group ordering");
-
+           "illegal explicit permutation rejected");
     auto association =
-        run("rule r { (dot[@d] (dot[@inner] A B) C) => (dot[auto] A (dot[auto] "
-            "B C)) }",
+        run("rule r { (d: dot (inner: dot A B) C) => (dot A (dot B C)) }",
             {{{2, 3}, {3, 4}, {4, 5}}, {{0, matrix}, {1, matrix}}});
     found(association);
     auto aa = data({2, 3}, 1), ab = data({3, 4}, 2), ac = data({4, 5}, 3);
@@ -1505,8 +1472,8 @@ int main(int argc, char** argv) {
           dot(aa, dot(ab, ac, association.attributes.at(3)),
               association.attributes.at(2)));
     auto lora =
-        run("rule r { (dot[@outer] X (add W (dot[@inner] A B))) => (add "
-            "(dot[auto] X W) (dot[auto] (dot[auto] X A) B)) }",
+        run("rule r { (outer: dot X (add W (inner: dot A B))) => (add (dot X "
+            "W) (dot (dot X A) B)) }",
             {{{3, 4}, {4, 5}, {4, 2}, {2, 5}}, {{0, matrix}, {1, matrix}}});
     found(lora);
     auto lx = data({3, 4}, 1), lw = data({4, 5}, 2), la = data({4, 2}, 3),
@@ -1520,10 +1487,10 @@ int main(int argc, char** argv) {
     expect(run("rule r { (add A B) => A }", {{{2, 3}, {2, 3}}, {}}).status ==
                Status::Unknown,
            "unequal terms never produce a witness");
-    expect(run("rule r { (dot[@d] A A) => (dot[auto] A A) }",
-               {{{2, 2}}, {{0, matrix}}})
-                   .status == Status::Unknown,
-           "repeated-factor matching is explicitly unsupported");
+    expect(
+        run("rule r { (d: dot A A) => (dot A A) }", {{{2, 2}}, {{0, matrix}}})
+                .status == Status::Unknown,
+        "repeated-factor matching is explicitly unsupported");
     auto strict = analyze(distribute, false);
     expect(strict.ok(), "strict plan compiles");
     expect(infer(*strict.program->rules[0].semantic_plan,
@@ -1537,8 +1504,8 @@ int main(int argc, char** argv) {
     renamed = replace(renamed, "bind K", "bind Reduction");
     renamed = replace(renamed, "Reduce(K,", "Reduce(Reduction,");
     found(
-        run("rule r { (arbitrary[@d] (add A B) C) => (add (arbitrary[auto] A "
-            "C) (arbitrary[auto] B C)) }",
+        run("rule r { (d: arbitrary (add A B) C) => (add (arbitrary A C) "
+            "(arbitrary B C)) }",
             {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}}, {}, renamed));
     error(
         "dialect D { op f(x:tensor)->tensor { axes { bind S {missing: "

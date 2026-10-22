@@ -4,6 +4,7 @@
 
 #include "src/core/checking/rules/check_context.h"
 #include "src/core/checking/rules/descriptors.h"
+#include "src/shared/source/identity.h"
 #include "src/shared/types/literal.h"
 
 namespace tepl::core::detail {
@@ -32,6 +33,21 @@ CaptureId capture(RuleCheckContext& context, const std::string& name,
 OpId graphOperation(RuleCheckContext& context, const syntax::GraphExpr& node,
                     const syntax::Operator& op) {
   const auto id = context.input.graphs.at(node.resolution_id).operation.value();
+  auto spelling = op.name;
+  const auto& scopes = context.analysis.resolved.data().operations;
+  if (auto scope = scopes.find(sourceKey(context.input.source_name));
+      scope != scopes.end()) {
+    auto original = scope->second.find(spelling);
+    if (original == scope->second.end() || original->second != id) {
+      std::optional<std::string> best;
+      for (const auto& [name, operation] : scope->second)
+        if (operation == id && (!best || name.size() < best->size() ||
+                                (name.size() == best->size() && name < *best)))
+          best = name;
+      if (best) spelling = *best;
+    }
+  }
+  context.rule.operation_spellings.try_emplace(id.value, spelling);
   const auto& operation = context.analysis.output.operations[id.value];
   const bool variadic =
       !operation.operands.empty() && operation.operands.back().variadic;
@@ -44,6 +60,20 @@ OpId graphOperation(RuleCheckContext& context, const syntax::GraphExpr& node,
                                 std::to_string(minimum) + " operands, got " +
                                 std::to_string(op.operands.size()));
   return id;
+}
+
+void registerNode(RuleCheckContext& c, const syntax::Operator& op, OpId id,
+                  std::optional<DescriptorId> descriptor, bool rhs,
+                  const SourceOrigin& at) {
+  if (!op.label) return;
+  const auto& name = *op.label;
+  if (c.scope.captures.contains(name) || c.scope.dimensions.contains(name) ||
+      c.scope.dtypes.contains(name) || resolveDType(name) || name == "lhs" ||
+      name == "rhs")
+    c.analysis.report(at, "node label '" + name +
+                              "' conflicts with an existing or reserved name");
+  if (!c.scope.nodes.emplace(name, NodeBinding{id, descriptor, rhs}).second)
+    c.analysis.report(at, "duplicate node label '" + name + "'");
 }
 
 template <typename Literal>
@@ -101,6 +131,8 @@ PatternPtr checkPattern(RuleCheckContext& context,
   } else if (const auto* op = std::get_if<syntax::Operator>(&node.value)) {
     const auto id = graphOperation(context, node, *op);
     MatchOperation match{id, checkDescriptor(context, *op, id, true, at), {}};
+    match.label = op->label.value_or("");
+    registerNode(context, *op, id, match.descriptor, false, at);
     for (const auto& child : op->operands) {
       auto checked = checkPattern(context, *child);
       if (!checked) return nullptr;
@@ -141,6 +173,8 @@ BuildExprPtr checkBuild(RuleCheckContext& context,
     const auto id = graphOperation(context, node, *op);
     BuildOperation construction{
         id, checkDescriptor(context, *op, id, false, at), {}};
+    construction.label = op->label.value_or("");
+    registerNode(context, *op, id, construction.descriptor, true, at);
     for (const auto& child : op->operands) {
       auto checked = checkBuild(context, *child);
       if (!checked) return nullptr;

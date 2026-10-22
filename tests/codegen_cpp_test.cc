@@ -37,8 +37,8 @@ int main() {
   std::set<std::string> paths;
   for (const auto& file : result.files) {
     assert(paths.insert(file.path).second);
-    assert(file.contents.find("@TEPL_NAMESPACE") == std::string::npos);
-    assert(file.contents.find("// @tepl:") == std::string::npos);
+    assert(file.contents.find("TEPL_NAMESPACE.attrs") == std::string::npos);
+    assert(file.contents.find("// tepl.attrs:") == std::string::npos);
   }
   for (auto path :
        {"generated.h", "op_node.h", "types.h", "rules/nested/example.h",

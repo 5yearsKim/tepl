@@ -236,7 +236,7 @@ check_exit 0 parse "$bad_arity"
 printf 'from "%s" import TensorLang as t; rule r { (t.add X Y) => (t.add Y X) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
-printf 'from "%s" import TensorLang as t; rule r { (t.dot[@d] X Y) => (t.dot[@d] X Y) }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t; rule r { (d: t.dot X Y) => (t.dot[d.attrs] X Y) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
 # Parsing preserves unresolved operation names; check resolves them through core.

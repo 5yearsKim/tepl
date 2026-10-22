@@ -5,8 +5,8 @@ namespace tepl::core {
 enum class SemanticPolicy { kStrict, kAlgebraic };
 struct SemanticOptions {
   SemanticPolicy semantic_policy = SemanticPolicy::kStrict;
-  // Explicitly permit match-time structural applicability checks. Declared
-  // conditions retain their existing universal-coverage meaning by default.
+  // Explicitly emit feasibility obligations into completed where conditions.
+  // Without this option the required conditions must be declared in source.
   bool inferred_applicability = false;
 };
 

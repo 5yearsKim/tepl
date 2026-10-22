@@ -51,10 +51,6 @@ struct NameRef {
   std::string name;
 };
 
-struct AttributeRef {
-  std::string name;
-};
-
 struct IntegerLiteral {
   // Preserve decimal spelling until numeric range validation. Graph literals
   // may include a sign; constraint signs are represented by UnaryExpr.
@@ -85,28 +81,11 @@ struct ConstraintExpr;
 using GraphExprPtr = std::shared_ptr<const GraphExpr>;
 using ConstraintExprPtr = std::shared_ptr<const ConstraintExpr>;
 
-struct AutoField {
-  SourceSpan span;
-  std::string name;
-  std::optional<AttributeRef> descriptor;
-  std::string field;
-  // Literal values use an owning tree, independent of rule expressions.
-  struct Literal {
-    enum class Kind { kInteger, kBool, kString, kName, kList, kFloat } kind;
-    std::string text;
-    std::vector<Literal> elements;
-  } value;
-};
-struct AutoAttribute {
-  SourceSpan span;
-  std::vector<AutoField> fields;
-};
-
 struct Operator {
   std::string name;
-  std::optional<AttributeRef> attribute;
   std::vector<GraphExprPtr> operands;
-  std::optional<AutoAttribute> automatic;
+  std::optional<std::string> label;
+  std::optional<std::string> descriptor_node;
 };
 
 struct Binding {
@@ -147,10 +126,9 @@ struct BinaryExpr {
   ConstraintExprPtr rhs;
 };
 
-struct DescriptorField {
-  AttributeRef descriptor;
-  std::string field;
-  bool output_group = false;
+struct NodeProperty {
+  std::string node;
+  std::vector<std::string> path;
 };
 
 struct StringLiteral {
@@ -171,7 +149,7 @@ struct ComprehensionExpr {
   ConstraintExprPtr iterable;
 };
 struct DescriptorConstructor {
-  std::optional<AttributeRef> spread;
+  std::optional<std::string> spread;
   struct Field {
     SourceSpan span;
     std::string name;
@@ -187,10 +165,10 @@ struct LocalBinding {
 
 struct ConstraintExpr {
   SourceSpan span;
-  std::variant<NameRef, AttributeRef, DescriptorField, IntegerLiteral,
-               FloatLiteral, BooleanLiteral, Call, UnaryExpr, BinaryExpr,
-               StringLiteral, ListExpr, IndexExpr, ConditionalExpr,
-               ComprehensionExpr, DescriptorConstructor, LocalBinding>
+  std::variant<NameRef, NodeProperty, IntegerLiteral, FloatLiteral,
+               BooleanLiteral, Call, UnaryExpr, BinaryExpr, StringLiteral,
+               ListExpr, IndexExpr, ConditionalExpr, ComprehensionExpr,
+               DescriptorConstructor, LocalBinding>
       value;
   std::size_t resolution_id = 0;
 };
@@ -309,7 +287,7 @@ struct SemanticDefinition {
 
 struct Derivation {
   SourceSpan span;
-  AttributeRef target;
+  std::string target;
   ConstraintExprPtr value;
   bool local = false;
 };

@@ -22,13 +22,13 @@ rule combine_repeated_terms {
 }
 
 rule transpose_negate {
-    (transpose[@p] (negate A)) => (negate (transpose[auto] A))
+    (p: transpose (negate A)) => (negate (transpose A))
 }
 
 rule reduce_negate {
-    (reduce_sum[@r] (negate A)) => (negate (reduce_sum[auto] A))
+    (r: reduce_sum (negate A)) => (negate (reduce_sum A))
 }
 
 rule dot_negate {
-    (dot[@d] (negate A) B) => (negate (dot[auto] A B))
+    (d: dot (negate A) B) => (negate (dot A B))
 }

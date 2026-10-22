@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <variant>
 
+#include "tests/index_constructor_eval.h"
 #include "tests/index_reference.h"
 
 namespace tepl::core::semantics {
@@ -716,6 +717,13 @@ struct Engine {
       for (const auto& f : fields) values.push_back(f);
       attrs[id] = values;
     }
+    tepl::test::ConstructorEvaluator explicit_values{metadata, plan};
+    for (const auto& [id, fields] : plan.attributes) {
+      std::vector<std::optional<List>> values;
+      for (const auto& field : fields)
+        values.push_back(std::get<List>(explicit_values.eval(field)));
+      attrs[id] = std::move(values);
+    }
     for (const auto& n : plan.nodes) {
       if (!n.descriptor || !n.definition) continue;
       auto id = n.descriptor->value;
@@ -725,23 +733,6 @@ struct Engine {
       if (!n.automatic) {
         for (const auto& f : attrs.at(id))
           if (!f) bad("missing known descriptor field");
-      } else {
-        for (std::size_t f = 0; f < n.pins.size(); ++f) {
-          if (!n.pins[f]) continue;
-          const auto& p = *n.pins[f];
-          auto v = p.literal;
-          if (p.descriptor) {
-            if (!attrs.contains(p.descriptor->value) ||
-                p.field >= attrs.at(p.descriptor->value).size() ||
-                !attrs.at(p.descriptor->value)[p.field])
-              bad("missing pinned descriptor field");
-            v = attrs.at(p.descriptor->value)[p.field];
-          }
-          auto& slot = attrs.at(id)[f];
-          if (slot && slot != v)
-            throw Failure("auto pin conflicts with supplied metadata");
-          slot = v;
-        }
       }
     }
   }
@@ -774,7 +765,8 @@ struct Engine {
           "independent normalized equivalence check did not establish "
           "equality");
     for (const auto& n : plan.nodes)
-      if (n.automatic) {
+      if (n.automatic ||
+          (n.descriptor && plan.attributes.contains(n.descriptor->value))) {
         std::vector<List> fields;
         for (const auto& value : attrs.at(n.descriptor->value)) {
           if (!value) throw Failure("an auto field remains unresolved");

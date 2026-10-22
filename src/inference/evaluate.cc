@@ -91,6 +91,7 @@ struct Replay {
   SourceNetwork network;
   AxisSequence parent;
   std::map<std::size_t, AxisSequence> outputs;
+  std::map<std::size_t, std::vector<AxisSequence>> groups;
 
   Replay(const Program& p, const Metadata& m, const Attributes& a, Work& w,
          Status error = Status::InvalidSource)
@@ -161,8 +162,11 @@ struct Replay {
         if (fields.size() != n.fields.size())
           throw Failure{invalid, "descriptor field count differs"};
         const auto& left = layouts[n.inputs[0]];
+        auto& g = groups[n.node];
+        g.resize(5);
         AxisSet left_used, right_used;
         if (n.kind == Kind::Permutation) {
+          g[4] = left;
           const auto& permutation = fields[n.fields[0]];
           selection(permutation, left.size(), left_used);
           if (permutation.size() != left.size())
@@ -184,14 +188,24 @@ struct Replay {
             join(left[lb[i]], right[rb[i]]);
           for (std::size_t i = 0; i < lk.size(); ++i)
             join(left[lk[i]], right[rk[i]]);
-          for (auto i : lb) out.push_back(left[i]);
+          for (auto i : lb) {
+            out.push_back(left[i]);
+            g[0].push_back(left[i]);
+          }
+          for (auto i : lk) g[1].push_back(left[i]);
           for (std::size_t i = 0; i < left.size(); ++i) {
             work.tick();
-            if (!left_used.contains(i)) out.push_back(left[i]);
+            if (!left_used.contains(i)) {
+              out.push_back(left[i]);
+              g[2].push_back(left[i]);
+            }
           }
           for (std::size_t i = 0; i < right.size(); ++i) {
             work.tick();
-            if (!right_used.contains(i)) out.push_back(right[i]);
+            if (!right_used.contains(i)) {
+              out.push_back(right[i]);
+              g[3].push_back(right[i]);
+            }
           }
         }
       }
@@ -209,6 +223,8 @@ struct Replay {
     normalize(network.output);
     for (auto& [_, a] : network.inputs) normalize(a);
     for (auto& [_, a] : outputs) normalize(a);
+    for (auto& [_, values] : groups)
+      for (auto& a : values) normalize(a);
     return std::move(network);
   }
 };
@@ -350,14 +366,24 @@ Attributes explicitAttributes(const Program& p, const Metadata& m) {
 }
 
 Result run(const Program& p, const Metadata& m, const Limits& limits,
-           bool construct) {
+           bool construct, bool analyze_only = false) {
   Work work(limits);
   Result out;
   try {
     validate(p);
     Replay replay(p, m, m.descriptors, work);
     auto source = replay.run(p.source);
-    if (p.mode == Mode::Validate) {
+    if (analyze_only) {
+      Analysis a(p, work, std::move(source));
+      if (p.mode == Mode::Synthesize) {
+        a.boundaries();
+        a.ordering();
+      }
+      a.result.replay_layouts = std::move(replay.outputs);
+      a.result.replay_groups = std::move(replay.groups);
+      a.result.status = Status::Analyzed;
+      out = std::move(a.result);
+    } else if (p.mode == Mode::Validate) {
       auto attrs = explicitAttributes(p, m);
       Replay rhs(p, m, attrs, work, Status::InvalidReplacement);
       auto target = rhs.run(p.replacement);
@@ -402,6 +428,51 @@ Result run(const Program& p, const Metadata& m, const Limits& limits,
 
 Result evaluate(const Program& p, const Metadata& m, const Limits& limits) {
   return run(p, m, limits, true);
+}
+Result analyze(const Program& p, const Metadata& m, const Limits& limits) {
+  return run(p, m, limits, false, true);
+}
+Result construct(const Program& p, const Result& analysis,
+                 const Limits& limits) {
+  Work work(limits);
+  Result out;
+  try {
+    if (p.mode != Mode::Synthesize || analysis.status != Status::Analyzed)
+      throw std::invalid_argument(
+          "constructor requires analyzed synthesis metadata");
+    Analysis a(p, work, analysis.source);
+    a.result.requirements = analysis.requirements;
+    a.construct();
+    a.result.status = Status::Solved;
+    out = std::move(a.result);
+  } catch (const Failure& f) {
+    out.status = f.status;
+    out.reason = f.reason;
+  }
+  out.work = work.initial - work.remaining;
+  return out;
+}
+Result replayReplacement(const Program& p, const Metadata& m,
+                         const Limits& limits) {
+  Work work(limits);
+  Result out;
+  try {
+    validate(p);
+    auto attrs = explicitAttributes(p, m);
+    Replay replay(p, m, attrs, work, Status::InvalidReplacement);
+    out.source = replay.run(p.replacement);
+    out.replay_layouts = replay.outputs;
+    out.replay_groups = std::move(replay.groups);
+    out.layouts = std::move(replay.outputs);
+    out.attributes = std::move(attrs);
+    out.status = Status::Analyzed;
+  } catch (const Failure& f) {
+    out = {};
+    out.status = f.status;
+    out.reason = f.reason;
+  }
+  out.work = work.initial - work.remaining;
+  return out;
 }
 Result feasibility(const Program& p, const Metadata& m, const Limits& limits) {
   return run(p, m, limits, false);

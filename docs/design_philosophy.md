@@ -35,12 +35,12 @@ patterns, builtins, and explicit attribute construction:
 from "dialects/tensor.tepl" import TensorLang as t;
 
 rule compose_transposes {
-    (t.transpose[@outer] (t.transpose[@inner] X))
-    => (t.transpose[@combined] X)
+    (outer: t.transpose (inner: t.transpose X))
+    => (combined: t.transpose X)
     derive {
-        @combined = {
-            ..@outer,
-            permutation: gather(@inner.permutation, @outer.permutation)
+        combined.attrs = {
+            ..outer.attrs,
+            permutation: gather(inner.attrs.permutation, outer.attrs.permutation)
         };
     }
 }
@@ -70,14 +70,14 @@ or imply promotion; an omitted dtype is unrestricted.
 
 Calls resolve to reusable builtins. Rules do not call application functions.
 
-Descriptors hold operation attributes. A pattern captures them with `@name`;
+Descriptors hold operation attributes. A pattern captures them with `name.attrs`;
 the replacement can reuse them or use derived descriptors.
 
 ```javascript
-(dot[@outer] X W)
+(outer: dot X W)
 ```
 
-Here, `@outer` captures the dot operation's attributes, separately from `X`
+Here, `outer.attrs` captures the dot operation's attributes, separately from `X`
 and `W`. Descriptors contain operation attributes, not output tensor metadata.
 
 ### Explicit conditions and derivations
@@ -90,7 +90,7 @@ where {
     K % 128 == 0
 }
 derive {
-    @xa = { ..@outer };
+    xa.attrs = { ..outer.attrs };
 }
 ```
 

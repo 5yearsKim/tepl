@@ -65,6 +65,7 @@ struct MatchOperation {
   OpId operation;
   std::optional<DescriptorId> descriptor;
   std::vector<PatternPtr> operands;
+  std::string label;
 };
 struct BindPattern {
   CaptureId capture;
@@ -84,6 +85,7 @@ struct BuildOperation {
   OpId operation;
   std::optional<DescriptorId> descriptor;
   std::vector<BuildExprPtr> operands;
+  std::string label;
 };
 struct BuildExpr {
   SourceOrigin origin;

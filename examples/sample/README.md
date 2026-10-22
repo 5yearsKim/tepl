@@ -54,8 +54,8 @@ replacement descriptors with constructors and immutable copy/update expressions:
 
 ```tepl
 derive {
-    let permutation = gather(@inner.permutation, @outer.permutation);
-    @combined = { ..@outer, permutation: permutation };
+    let permutation = gather(inner.attrs.permutation, outer.attrs.permutation);
+    combined.attrs = { ..outer.attrs, permutation: permutation };
 }
 ```
 

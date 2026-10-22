@@ -25,6 +25,10 @@ std::string typeName(SignatureType type, bool rule, bool pair) {
       return rule ? "index[]" : "Integer[]";
     case T::kBooleanList:
       return rule ? "bool[]" : "Bool[]";
+    case T::kAxisSet:
+      return "LogicalAxisSet";
+    case T::kAxisList:
+      return "LogicalAxis[]";
     case T::kT:
       return "T";
     case T::kListT:
@@ -70,7 +74,7 @@ std::string publicReference() {
   for (auto feature :
        {Feature::kList, Feature::kInteger, Feature::kShape, Feature::kDType})
     for (const auto& entry : catalog()) {
-      if (entry.feature != feature) continue;
+      if (entry.feature != feature || !isPublicBuiltin(entry.builtin)) continue;
       out << "| `" << entry.name << "` | " << featureName(feature) << " | `"
           << signatureText(entry, false) << "` | `"
           << signatureText(entry, true) << "` | ";

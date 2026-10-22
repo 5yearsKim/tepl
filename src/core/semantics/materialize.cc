@@ -7,6 +7,7 @@
 #include "src/core/semantics/completion.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
+#include "src/shared/catalog/axis_conditions.h"
 namespace tepl::core::semantics {
 Materialized materialize(InspectionData checked) {
   Materialized output;
@@ -49,7 +50,7 @@ Materialized materialize(InspectionData checked) {
           }
           std::optional<std::size_t> node;
           for (auto id : coordinates->source().nodes)
-            if (plan->nodes[id].descriptor == ref.descriptor) {
+            if (plan->nodes[id].label == ref.node) {
               if (node) throw std::invalid_argument("ambiguous output group");
               node = id;
             }
@@ -104,6 +105,13 @@ Materialized materialize(InspectionData checked) {
     r.attribute_holes.clear();
     auto completed_rule = completion.rule(std::move(static_cast<RuleData&>(r)));
     completed_rule.inference = std::move(inference_program);
+    if (completed_rule.inference && plan->proof.append_axis_conditions) {
+      auto conditions = completed::axisConditions(
+          *completed_rule.inference, completed_rule.origin, typeId);
+      completed_rule.conditions.insert(completed_rule.conditions.end(),
+                                       conditions.begin(), conditions.end());
+    }
+    completed::validateAxisConditions(completed_rule);
     if (coordinates)
       for (const auto& [key, value] : coordinates->source().groups)
         axes.push_back(value);

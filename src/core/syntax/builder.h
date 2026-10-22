@@ -103,8 +103,8 @@ class AstBuilder final : public tepl_generated::TeplBaseVisitor {
       tepl_generated::TeplParser::CallPrimaryContext*) override;
   std::any visitNamePrimary(
       tepl_generated::TeplParser::NamePrimaryContext*) override;
-  std::any visitAttributePrimary(
-      tepl_generated::TeplParser::AttributePrimaryContext*) override;
+  std::any visitNodePropertyPrimary(
+      tepl_generated::TeplParser::NodePropertyPrimaryContext*) override;
   std::any visitIntegerPrimary(
       tepl_generated::TeplParser::IntegerPrimaryContext*) override;
   std::any visitFloatPrimary(

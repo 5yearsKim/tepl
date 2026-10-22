@@ -106,9 +106,10 @@ int main(int argc, char** argv) {
   std::string semantic_rule;
   bool inferred_applicability = false;
   for (auto* command : {check, compile, rewrite})
-    command->add_flag("--infer-applicability", inferred_applicability,
-                      "Generate match-time applicability checks for ordered "
-                      "contraction/permutation rules (algebraic policy)");
+    command->add_flag(
+        "--infer-applicability", inferred_applicability,
+        "Emit explicit where constraints and attribute constructors "
+        "for ordered rules (algebraic policy)");
   check->add_option("--rule", semantic_rule,
                     "Select a semantic rule for compile-time proof");
   for (auto* command : {check, generate, compile, rewrite}) {

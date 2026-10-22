@@ -46,9 +46,8 @@ void setDot(const Plan& p, ord::Metadata& m, std::size_t id, List lb = {},
   m.descriptors[n.descriptor->value] = dotFields(*n.definition, lb, rb, lk, rk);
 }
 void admission() {
-  auto p = parse(
-      "rule r {(transpose[@p] (dot[@d] A B)) => "
-      "(transpose[auto] (dot[auto] B A))}");
+  auto p =
+      parse("rule r {(p: transpose (d: dot A B)) => (transpose (dot B A))}");
   expect(ord::admit(p).admitted(), "semantic dot/permutation admission");
   auto d = *p.nodes[p.nodes[p.lhs].inputs[0]].definition;
   d.fields = {"alpha", "beta", "gamma", "delta"};
@@ -64,18 +63,14 @@ void admission() {
   shared.nodes[p.rhs].descriptor =
       shared.nodes[shared.nodes[p.rhs].inputs[0]].descriptor;
   expect(!ord::admit(shared).admitted(), "shared RHS descriptors rejected");
-  auto pinned = p;
-  pinned.nodes[p.rhs].pins = {Pin{List{}, {}, 0}};
-  expect(!ord::admit(pinned).admitted(), "pinned RHS descriptor rejected");
   p.algebraic = false;
   expect(!ord::admit(p).admitted(), "no strict-arithmetic completeness claim");
-  auto repeated = parse("rule r {(dot[@d] A A) => (dot[auto] A A)}");
+  auto repeated = parse("rule r {(d: dot A A) => (dot A A)}");
   expect(!ord::admit(repeated).admitted(), "repeated captures rejected");
 }
 void matricesAndDomains() {
-  auto p = parse(
-      "rule r {(dot[@outer] (dot[@inner] A B) C) => "
-      "(dot[auto] A (dot[auto] B C))}");
+  auto p =
+      parse("rule r {(outer: dot (inner: dot A B) C) => (dot A (dot B C))}");
   ord::Metadata m{{{0, {2, 3}}, {1, {3, 4}}, {2, {4, 5}}}, {}};
   auto inner = p.nodes[p.lhs].inputs[0];
   setDot(p, m, inner, {}, {}, {1}, {0});
@@ -114,7 +109,7 @@ void matricesAndDomains() {
          "work exhaustion is not impossibility");
 }
 void layouts() {
-  auto p = parse("rule r {(transpose[@p] (dot[@d] A B)) => (dot[auto] A B)}");
+  auto p = parse("rule r {(p: transpose (d: dot A B)) => (dot A B)}");
   ord::Metadata m{{{0, {2}}, {1, {2}}}, {}};
   setDot(p, m, p.nodes[p.lhs].inputs[0]);
   m.descriptors[p.nodes[p.lhs].descriptor->value] = {{1, 0}};
@@ -124,15 +119,13 @@ void layouts() {
   auto corrupt = result;
   std::swap(corrupt.obstruction->first, corrupt.obstruction->second);
   expect(!ord::check(p, m, corrupt), "false ordering obstruction rejected");
-  auto repair = parse(
-      "rule r {(transpose[@p] (dot[@d] A B)) => "
-      "(transpose[auto] (dot[auto] A B))}");
+  auto repair =
+      parse("rule r {(p: transpose (d: dot A B)) => (transpose (dot A B))}");
   auto fixed = ord::solve(repair, m);
   expect(fixed.status == ord::Status::Solved && ord::check(repair, m, fixed),
          "output transpose repairs an impossible ordering");
-  auto internal = parse(
-      "rule r {(transpose[@p] (dot[@d] A B)) => "
-      "(dot[auto] (transpose[auto] A) B)}");
+  auto internal =
+      parse("rule r {(p: transpose (d: dot A B)) => (dot (transpose A) B)}");
   ord::Metadata im{{{0, {2, 3}}, {1, {5}}}, {}};
   setDot(internal, im, internal.nodes[internal.lhs].inputs[0]);
   im.descriptors[internal.nodes[internal.lhs].descriptor->value] = {{1, 0, 2}};
@@ -145,9 +138,7 @@ void layouts() {
                  .at(0) == List({1, 0}),
          "internal permutation is constructed from its required subsequence");
 
-  auto high = parse(
-      "rule r {(transpose[@p] A) => "
-      "(transpose[auto] (transpose[auto] A))}");
+  auto high = parse("rule r {(p: transpose A) => (transpose (transpose A))}");
   ord::Metadata hm{{{0, std::vector<std::uint64_t>(128, 2)}}, {}};
   List permutation(128);
   std::iota(permutation.rbegin(), permutation.rend(), 0);
@@ -159,9 +150,7 @@ void layouts() {
 }
 
 void multiplePairings() {
-  auto p = parse(
-      "rule r {(dot[@d] A B) => "
-      "(transpose[auto] (dot[auto] B A))}");
+  auto p = parse("rule r {(d: dot A B) => (transpose (dot B A))}");
   ord::Metadata m{{{0, {2, 3, 5, 7, 11}}, {1, {11, 13, 2, 5, 7}}}, {}};
   setDot(p, m, p.lhs, {2}, {3}, {4, 0, 3}, {0, 2, 4});
   auto result = ord::solve(p, m);
@@ -218,7 +207,7 @@ void sequenceComparison() {
 }
 
 void compiledPrograms() {
-  auto p = parse("rule r {(transpose[@p] A) => (transpose[auto] A)}");
+  auto p = parse("rule r {(p: transpose A) => (transpose A)}");
   ord::Metadata m{{{0, {2, 2}}}, {}};
   m.descriptors[p.nodes[p.lhs].descriptor->value] = {{1, 0}};
   auto code = ord::compile(p);
@@ -397,9 +386,8 @@ std::vector<Oracle> enumerate(const Plan& p, std::size_t id,
 }
 
 void exhaustive() {
-  auto fixture = parse(
-      "rule r {(transpose[@p] (dot[@d] A B)) => "
-      "(transpose[auto] (dot[auto] B A))}");
+  auto fixture =
+      parse("rule r {(p: transpose (d: dot A B)) => (transpose (dot B A))}");
   auto transpose = fixture.nodes[fixture.lhs].definition;
   auto dot = fixture.nodes[fixture.nodes[fixture.lhs].inputs[0]].definition;
   std::size_t decisions = 0, impossible = 0;
@@ -488,14 +476,14 @@ void compilerIntegration() {
   auto p = parse(R"(
 rule internal_order {
   A: [M,N] B: [K]
-  (transpose[@p] (dot[@d] A B))
-  => (dot[auto] (transpose[auto] A) B)
+  (p: transpose (d: dot A B))
+  => (dot (transpose A) B)
   where {
-    @d.lhs_contracting_dimensions == range(0)
-    && @d.rhs_contracting_dimensions == range(0)
-    && @d.lhs_batching_dimensions == range(0)
-    && @d.rhs_batching_dimensions == range(0)
-    && @p.permutation == [1,0,2]
+    d.attrs.lhs_contracting_dimensions == range(0)
+    && d.attrs.rhs_contracting_dimensions == range(0)
+    && d.attrs.lhs_batching_dimensions == range(0)
+    && d.attrs.rhs_batching_dimensions == range(0)
+    && p.attrs.permutation == [1,0,2]
   }
 })");
   expect(p.proof.status == ProofStatus::Proved,

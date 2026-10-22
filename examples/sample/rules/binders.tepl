@@ -4,18 +4,18 @@ use t::{add, dot, mul, transpose};
 // `let Y` names the dot result. Both later references share that value.
 rule shared_expression {
     Y: f32[M, N]
-    (add (let Y = (dot[@d] X W)) (mul Y Z)) => (add (mul Y Z) Y)
+    (add (let Y = (d: dot X W)) (mul Y Z)) => (add (mul Y Z) Y)
 
     where {
         M == 2 && N == 2
-        && @d.lhs_contracting_dimensions == [1]
-        && @d.rhs_contracting_dimensions == [0]
-        && @d.lhs_batching_dimensions == []
-        && @d.rhs_batching_dimensions == []
+        && d.attrs.lhs_contracting_dimensions == [1]
+        && d.attrs.rhs_contracting_dimensions == [0]
+        && d.attrs.lhs_batching_dimensions == []
+        && d.attrs.rhs_batching_dimensions == []
     }
 }
 
 // A root binding needs no parentheses. This rule demonstrates an identity rewrite.
 rule root_binding {
-    let Y = (transpose[@t] X) => Y
+    let Y = (t: transpose X) => Y
 }

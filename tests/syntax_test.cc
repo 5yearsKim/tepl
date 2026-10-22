@@ -32,8 +32,8 @@ void testValidSyntax() {
       {"root literals", "rule r { 1 => 1.0 }"},
       {"bound literal", "rule r { let Y = -1.0 => Y }"},
       {"float constraints",
-       "rule r { X => X where { f(1.0, -0.5) && 0.25 + 0.5 < 1.0 } derive { @d "
-       "= infer(2.0); } }"},
+       "rule r { X => X where { f(1.0, -0.5) && 0.25 + 0.5 < 1.0 } derive { "
+       "d.attrs = infer(2.0); } }"},
       {"abstract operation",
        "abstract rule commute(F: op<(tensor, tensor) -> tensor>) { "
        "(F X Y) => (F Y X) }"},
@@ -57,7 +57,7 @@ void testValidSyntax() {
       {"leading sequence", "rule r { X: [..., M, K] X => X }"},
       {"middle sequence", "rule r { X: [M, Batch..., K] X => X }"},
       {"trailing sequence", "rule r { X: [M, K, Tail...] X => X }"},
-      {"descriptor", "rule r { (dot[@d] X W) => (dot[@d] X W) }"},
+      {"descriptor", "rule r { (d: dot X W) => (dot[d.attrs] X W) }"},
       {"nullary operator", "rule r { (zero) => (zero) }"},
       {"root binding", "rule r { let Y = (dot X W) => Y }"},
       {"nested binding", "rule r { (add (let Y = (dot X W)) Y) => (mul Y Y) }"},
@@ -67,11 +67,12 @@ void testValidSyntax() {
       {"final boolean", "rule r { X => X where { true } }"},
       {"local bindings and final expression",
        "rule r { X => X where { let n = 1; let m = n + 1; m > n } }"},
-      {"derive only", "rule r { X => (copy[@t] X) derive { @t = infer(X); } }"},
+      {"derive only",
+       "rule r { X => (t: copy X) derive { t.attrs = infer(X); } }"},
       {"rule expressions",
-       "rule r { X => X where { f(g(X, @d), Y, 4) && K % 128 == 0 && -K + +N / "
-       "2 != 0 && M - 1 < N && (rank(X) >= 2 && !(N <= 0) || true) && M > N } "
-       "derive { @out = infer(Y, @d); } }"},
+       "rule r { X => X where { f(g(X, d.attrs), Y, 4) && K % 128 == 0 && -K + "
+       "+N / 2 != 0 && M - 1 < N && (rank(X) >= 2 && !(N <= 0) || true) && M > "
+       "N } derive { out.attrs = infer(Y, d.attrs); } }"},
       {"nested builtin syntax", "rule r { X => X where { f(f(X), g(X)) } }"},
       {"comments", "// rule\nrule r { /* graph */ X => X } // end\n"},
       {"multiple rules", "rule a { X => X } rule b { Y => Y }"},
@@ -85,8 +86,8 @@ void testValidSyntax() {
        "attrs: CollectiveReduce; } "
        "op concat(first: tensor, rest: tensor...) -> tensor; }"},
       {"named dialect import",
-       "from \"tensor.tepl\" import TensorLang as t; "
-       "use t::{add, dot}; rule r { (t.dot[@d] X Y) => (add X Y) }"},
+       "from \"tensor.tepl\" import TensorLang as t; use t::{add, dot}; rule r "
+       "{ (d: t.dot X Y) => (add X Y) }"},
       {"attributes before alias",
        "dialect t { op dot_general(lhs: tensor, rhs: tensor) -> tensor { "
        "attrs { axes: index[] = []; } alias: dot; } }"},
@@ -113,13 +114,23 @@ void testValidSyntax() {
 
 void testInvalidSyntax() {
   const Case cases[] = {
+      {"removed descriptor capture", "rule r {(transpose[@p] X)=>X}"},
+      {"removed explicit auto", "rule r {(transpose X)=>(transpose[auto] X)}"},
+      {"removed attribute pin",
+       "rule r {(transpose X)=>(transpose[auto,permutation=[]] X)}"},
+      {"removed descriptor field", "rule r {X=>X where {@p.permutation==[]}}"},
+      {"removed group arrow", "rule r {X=>X where {@p->S==[]}}"},
+      {"removed descriptor assignment",
+       "rule r {X=>X derive {@p={permutation:[]};}}"},
+
       {"removed host call", "rule r { X => X where { $legal(X) } }"},
       {"removed function parameter",
        "abstract rule r(f: fn<(tensor) -> bool>) { X => X }"},
       {"removed host binding", "rule r extends a(f = $legal);"},
       {"spread after field",
-       "rule r { X => X derive { @d = { x: 1, ..@a }; } }"},
-      {"multiple spreads", "rule r { X => X derive { @d = { ..@a, ..@b }; } }"},
+       "rule r { X => X derive { d.attrs = { x: 1, ..a.attrs }; } }"},
+      {"multiple spreads",
+       "rule r { X => X derive { d.attrs = { ..a.attrs, ..b.attrs }; } }"},
 
       {"bare RHS binding", "rule r { X => let Y = (negate X) }"},
       {"parenthesized RHS binding", "rule r { X => (let Y = (negate X)) }"},
@@ -154,7 +165,7 @@ void testInvalidSyntax() {
       {"inherited trailing comma", "rule r extends base(F = t.add,);"},
       {"inherited graph replacement", "rule r extends base() { X => X }"},
       {"inherited derivation",
-       "rule r extends base() { derive { @d = f(); } }"},
+       "rule r extends base() { derive { d.attrs = f(); } }"},
       {"empty selected rule imports", "from \"abstract.tepl\" import {};"},
       {"selected rule import trailing comma",
        "from \"abstract.tepl\" import {a,};"},
@@ -164,7 +175,7 @@ void testInvalidSyntax() {
       {"missing rhs", "rule r { X => }"},
       {"unclosed rule", "rule r { X => X"},
       {"unclosed graph", "rule r { (add X Y => X }"},
-      {"unclosed attribute", "rule r { (dot[@d X W) => X }"},
+      {"unclosed attribute", "rule r { (dot[d.attrs X W) => X }"},
       {"missing attribute sigil", "rule r { (dot[d] X W) => X }"},
       {"empty binder", "rule r { let = X => X }"},
       {"legacy binder sigil", "rule r { ?Y = X => Y }"},
@@ -192,9 +203,10 @@ void testInvalidSyntax() {
       {"chained comparison", "rule r { X => X where { M < N < K } }"},
       {"chained equality", "rule r { X => X where { M == N == K } }"},
       {"trailing call comma", "rule r { X => X where { f(X,) } }"},
-      {"assignment in where", "rule r { X => X where { @d = f(X) } }"},
+      {"assignment in where", "rule r { X => X where { d.attrs = f(X) } }"},
       {"derive without descriptor", "rule r { X => X derive { d = f(X); } }"},
-      {"derive without terminator", "rule r { X => X derive { @d = f(X) } }"},
+      {"derive without terminator",
+       "rule r { X => X derive { d.attrs = f(X) } }"},
       {"wrong section order", "rule r { X => X derive {} where {} }"},
       {"duplicate section", "rule r { X => X where {} where {} }"},
       {"negative tuple index", "rule r { (get[-1] X) => X }"},

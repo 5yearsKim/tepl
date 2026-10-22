@@ -24,52 +24,8 @@ syntax::ConstraintExprPtr makeConstraint(
       syntax::ConstraintExpr{getSpan(context), std::move(value)});
 }
 
-syntax::AutoField::Literal autoLiteral(Parser::ConcreteValueContext* value) {
-  using L = syntax::AutoField::Literal;
-  L out{};
-  out.text = value->getText();
-  if (!value->concreteValue().empty() || out.text == "[]") {
-    out.kind = L::Kind::kList;
-    for (auto* child : value->concreteValue())
-      out.elements.push_back(autoLiteral(child));
-  } else if (value->INT())
-    out.kind = L::Kind::kInteger;
-  else if (value->FLOAT())
-    out.kind = L::Kind::kFloat;
-  else if (value->TRUE() || value->FALSE())
-    out.kind = L::Kind::kBool;
-  else if (value->STRING()) {
-    out.kind = L::Kind::kString;
-    std::string decoded;
-    for (std::size_t i = 1; i + 1 < out.text.size(); ++i) {
-      if (out.text[i] == '\\') ++i;
-      decoded += out.text[i];
-    }
-    out.text = std::move(decoded);
-  } else
-    out.kind = L::Kind::kName;
-  return out;
-}
 void graphAttribute(syntax::Operator& op, Parser::AttributeContext* attribute) {
-  if (!attribute) return;
-  if (attribute->attrRef()) {
-    op.attribute = syntax::AttributeRef{attribute->attrRef()->ID()->getText()};
-    return;
-  }
-  syntax::AutoAttribute out{getSpan(attribute), {}};
-  for (auto* input : attribute->autoField()) {
-    syntax::AutoField field{};
-    field.span = getSpan(input);
-    field.name = input->ID(0)->getText();
-    if (input->attrRef()) {
-      field.descriptor =
-          syntax::AttributeRef{input->attrRef()->ID()->getText()};
-      field.field = input->ID(1)->getText();
-    } else
-      field.value = autoLiteral(input->concreteValue());
-    out.fields.push_back(std::move(field));
-  }
-  op.automatic = std::move(out);
+  if (attribute) op.descriptor_node = attribute->nodeAttrs()->ID()->getText();
 }
 
 using detail::binaryOperator;
@@ -147,13 +103,13 @@ std::any AstBuilder::visitRuleDecl(Parser::RuleDeclContext* context) {
   if (auto* derive = body ? body->deriveBlock() : nullptr) {
     for (auto* statement : derive->deriveStatement()) {
       const bool local = statement->LET() != nullptr;
-      rule.derivations.push_back(
-          {getSpan(statement),
-           syntax::AttributeRef{local ? statement->ID()->getText()
-                                      : statement->attrRef()->ID()->getText()},
-           std::any_cast<syntax::ConstraintExprPtr>(
-               visit(statement->constraintExpr())),
-           local});
+      rule.derivations.push_back({getSpan(statement),
+                                  local
+                                      ? statement->ID()->getText()
+                                      : statement->nodeAttrs()->ID()->getText(),
+                                  std::any_cast<syntax::ConstraintExprPtr>(
+                                      visit(statement->constraintExpr())),
+                                  local});
     }
   }
   return rule;
@@ -237,7 +193,8 @@ std::any AstBuilder::visitGetGraph(Parser::GetGraphContext* context) {
 }
 
 std::any AstBuilder::visitOperatorGraph(Parser::OperatorGraphContext* context) {
-  syntax::Operator op{context->opRef()->getText(), std::nullopt, {}};
+  syntax::Operator op{context->opRef()->getText(), {}};
+  if (context->nodeLabel()) op.label = context->nodeLabel()->ID()->getText();
   graphAttribute(op, context->attribute());
   for (auto* operand : context->graphExpr()) {
     op.operands.push_back(std::any_cast<syntax::GraphExprPtr>(visit(operand)));
@@ -281,7 +238,8 @@ std::any AstBuilder::visitRhsGetGraph(Parser::RhsGetGraphContext* context) {
 
 std::any AstBuilder::visitRhsOperatorGraph(
     Parser::RhsOperatorGraphContext* context) {
-  syntax::Operator op{context->opRef()->getText(), std::nullopt, {}};
+  syntax::Operator op{context->opRef()->getText(), {}};
+  if (context->nodeLabel()) op.label = context->nodeLabel()->ID()->getText();
   graphAttribute(op, context->attribute());
   for (auto* operand : context->rhsGraphExpr()) {
     op.operands.push_back(std::any_cast<syntax::GraphExprPtr>(visit(operand)));
@@ -369,15 +327,13 @@ std::any AstBuilder::visitNamePrimary(Parser::NamePrimaryContext* context) {
   return makeConstraint(context, syntax::NameRef{context->ID()->getText()});
 }
 
-std::any AstBuilder::visitAttributePrimary(
-    Parser::AttributePrimaryContext* context) {
-  const syntax::AttributeRef descriptor{context->attrRef()->ID()->getText()};
-  if (context->ID())
-    return makeConstraint(
-        context,
-        syntax::DescriptorField{descriptor, context->ID()->getText(),
-                                context->children.at(1)->getText() == "->"});
-  return makeConstraint(context, descriptor);
+std::any AstBuilder::visitNodePropertyPrimary(
+    Parser::NodePropertyPrimaryContext* context) {
+  syntax::NodeProperty property;
+  property.node = context->ID(0)->getText();
+  for (std::size_t i = 2; i < context->children.size(); i += 2)
+    property.path.push_back(context->children[i]->getText());
+  return makeConstraint(context, std::move(property));
 }
 
 std::any AstBuilder::visitIntegerPrimary(
@@ -441,8 +397,7 @@ std::any AstBuilder::visitComprehensionPrimary(
 }
 template <class Context>
 syntax::ConstraintExprPtr descriptorConstructor(
-    AstBuilder& builder, Context* context,
-    std::optional<syntax::AttributeRef> spread) {
+    AstBuilder& builder, Context* context, std::optional<std::string> spread) {
   syntax::DescriptorConstructor value{spread, {}};
   for (auto* f : context->descriptorField())
     value.fields.push_back({getSpan(f), f->ID()->getText(),
@@ -452,9 +407,8 @@ syntax::ConstraintExprPtr descriptorConstructor(
 }
 std::any AstBuilder::visitDescriptorPrimary(
     Parser::DescriptorPrimaryContext* context) {
-  std::optional<syntax::AttributeRef> spread;
-  if (context->attrRef())
-    spread = syntax::AttributeRef{context->attrRef()->ID()->getText()};
+  std::optional<std::string> spread;
+  if (context->nodeAttrs()) spread = context->nodeAttrs()->ID()->getText();
   return descriptorConstructor(*this, context, spread);
 }
 std::any AstBuilder::visitDescriptorFieldsPrimary(

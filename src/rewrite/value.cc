@@ -134,6 +134,14 @@ Value checkType(Value v, const core::Type& t) {
       ensure(std::holds_alternative<std::string>(v.data), "expected string");
       break;
     case K::kOpaque:
+      if (t == core::logicalAxisSetType()) {
+        for (const auto& x : list(v)) checkType(x, core::logicalAxisType());
+        break;
+      }
+      if (t == core::logicalAxisType()) {
+        ensure(std::holds_alternative<Axis>(v.data), "expected logical axis");
+        break;
+      }
       throw EvaluationError("opaque attribute values are unavailable");
     case K::kIndexList:
       break;

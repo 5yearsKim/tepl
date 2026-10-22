@@ -21,19 +21,14 @@ namespace tepl::core::semantics {
 
 using symbolic::Symbol;
 using symbolic::SymbolPtr;
-struct Pin {
-  std::optional<std::vector<std::int64_t>> literal;
-  std::optional<DescriptorId> descriptor;
-  std::size_t field = 0;
-};
 struct Instance {
+  std::string label, operation_name;
   std::optional<OpId> operation;
   std::optional<CaptureId> capture;
   std::optional<DescriptorId> descriptor;
   std::shared_ptr<const Definition> definition;
   std::vector<std::size_t> inputs;
   bool automatic = false;
-  std::vector<std::optional<Pin>> pins;
   SourceOrigin origin;
   std::shared_ptr<const metadata::Program> dtype;
   std::optional<std::string> literal;
@@ -48,6 +43,7 @@ struct ConstructorCandidate {
 };
 struct RuleProof : ConstructorCandidate {
   std::optional<inference::Program> inference;
+  bool append_axis_conditions = false;
   ProofStatus status = ProofStatus::Unknown;
   std::string reason;
   struct GuardOrigin {
@@ -69,6 +65,7 @@ struct RuleProof : ConstructorCandidate {
 };
 struct Plan {
   std::vector<Instance> nodes;
+  std::string suggested_rule;
   std::size_t lhs = 0, rhs = 0;
   bool algebraic = false;
   RuleProof proof;

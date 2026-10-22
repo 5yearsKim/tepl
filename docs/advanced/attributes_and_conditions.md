@@ -1,114 +1,31 @@
-# Attributes, conditions, and derivations
+# Nodes, attributes, conditions, and derivations
 
-Operation attributes describe configuration such as transpose permutations and
-contraction axes. A descriptor holds the operation's complete attributes,
-separately from operands and tensor metadata.
+Name an operation occurrence with `(name: operation operands...)`. Names are
+optional on both sides of a rule. They identify nodes, without capturing extra
+tensors or changing the operation's semantics. A name must be unique within the
+rule and must not conflict with a tensor, dimension, dtype, or local binding.
 
-## Capture and reuse
+## Match and reuse attributes
 
-Omitting attributes on the LHS captures that operation's complete descriptor
-anonymously. Each omission is a separate capture, so two operations may match
-different attributes. Name a capture with `@name` when a condition, derivation,
-or RHS operation needs to refer to it.
-
-Capture a descriptor on the LHS with `@name`, then reuse it on the RHS:
+Every LHS operation captures its attributes implicitly. Use a node's `attrs`
+property when a condition or replacement needs them:
 
 ```tepl
 rule transpose_negate {
-    (t.transpose[@p] (t.negate X))
-    => (t.negate (t.transpose[@p] X))
+    (source: t.transpose (t.negate X))
+    => (t.negate (t.transpose[source.attrs] X))
 }
 ```
 
-These examples assume the tensor dialect is imported as `t`. Repeated captures
-of one descriptor require matching attributes. Every RHS operation must accept
-the descriptor's schema.
+`source.attrs` is the complete descriptor, and `source.attrs.permutation` reads
+one field. An inline `[source.attrs]` copies the descriptor to an operation with
+the same schema. Two unnamed LHS operations have independent attribute captures.
+Reusing `[source.attrs]` on another LHS operation requires equal descriptors.
 
-## Construct and update descriptors
+## Infer or construct replacement attributes
 
-Use a constructor in `derive` to calculate attributes directly:
-
-```tepl
-rule compose_transposes {
-    (t.transpose[@outer] (t.transpose[@inner] X))
-    => (t.transpose[@combined] X)
-
-    derive {
-        let permutation = gather(@inner.permutation, @outer.permutation);
-        @combined = { ..@outer, permutation: permutation };
-    }
-}
-```
-
-`gather(p, q)` computes `[p[q[i]] for i in range(len(q))]`. No application
-callback is required.
-
-- The RHS operation determines the expected schema. A spread can also supply it.
-- One spread is allowed, before explicit fields, and must use the same schema.
-- Explicit fields override copied values. Duplicate explicit fields are errors.
-- Without a spread, declared defaults apply and omitted optional fields become
-  `none`. Missing required fields are errors.
-- Descriptors are immutable. Derivations can read captures and earlier derived
-  descriptors, but cannot reference themselves or later derivations.
-- Spreading preserves every field, including precision and algorithm settings.
-  The rule author must ensure preserving those settings is valid.
-
-A constructor without a spread uses the same rules:
-
-```tepl
-derive {
-    @combined = {
-        permutation: gather(@inner.permutation, @outer.permutation)
-    };
-}
-```
-
-Schema inference can follow chains of descriptor copies. A constructor with
-neither a schema-constraining use nor a spread is rejected as ambiguous.
-Opaque values such as regions may be copied from existing descriptors; there
-is no constructor for arbitrary region bodies or tensor payloads.
-
-## Guards and local expressions
-
-`where` contains ordered local bindings followed by one Boolean expression:
-
-```tepl
-where {
-    let rank = len(Dims);
-    len(@p.permutation) == rank
-    && all([@p.permutation[i] == i for i in range(rank)])
-}
-```
-
-The final expression decides whether the rule applies. It has no trailing
-semicolon and needs no `return`. Combine conditions with `&&` and `||`; use
-parentheses to group them. Only local bindings end with `;`. Empty blocks and
-blocks containing only bindings are errors. Omit `where` for unconditional
-rules. An inherited rule requires both the base guard and its own guard to hold.
-
-Rule expressions support arithmetic, Boolean operators, homogeneous nested
-lists, indexing, conditionals, comprehensions, and
-[builtins](../references/built-ins.md). Comprehensions iterate over lists and
-their variables are scoped to the body. `++` is shorthand for `concat`.
-
-Locals are visible after their declaration within their own block. `where`
-locals are unavailable in `derive`. A local cannot redefine an existing local,
-tensor capture, dimension, or dtype binding. Comprehension variables may shadow
-names within their body. Optional fields can be copied, assigned `none`, or
-compared for equality; numeric/list operations require nonoptional values.
-
-Integer arithmetic stays checked: indices use unsigned 64-bit values and signed
-integers use `i64`, without implicit signed/unsigned conversion. Invalid indexing,
-overflow, or failed builtin evaluation rejects a candidate before insertion.
-`&&`, `||`, and conditionals preserve short-circuit evaluation. Every executed
-local initializer is evaluated in source order, including unused locals.
-
-## Explicit construction and auto
-
-An explicit constructor specifies how attributes are computed. `[auto]` asks
-the compiler to synthesize supported attributes from operation semantics.
-For an RHS operation with attributes, omitting the annotation also requests
-`[auto]`. Each RHS operation gets its own synthesized descriptor. For example:
+Omitting RHS attributes requests inference from operation semantics. No `auto`
+annotation or node name is needed:
 
 ```tepl
 rule compose_transposes {
@@ -116,20 +33,131 @@ rule compose_transposes {
 }
 ```
 
-The anonymous LHS captures still supply their values to synthesis. The rule
-must pass the same semantic checks as an explicitly annotated rule. Keep
-`[auto, field = value]` when synthesis needs a pinned field, and use `[@name]`
-to copy a captured descriptor. Operations without an attribute schema need no
-annotation on either side.
+To specify attributes instead, name the RHS node and assign its whole descriptor
+in `derive`:
 
-Explicit constructors and automatic synthesis remain separate forms. Both must
-satisfy operation legality and the applicable semantic checks. Matching output
-shape and dtype alone does not prove numerical equivalence; distribution and
-reassociation require an explicit arithmetic policy.
+```tepl
+rule compose_transposes_explicit {
+    (outer: t.transpose (inner: t.transpose X))
+    => (result: t.transpose X)
+    derive {
+        let permutation = gather(inner.attrs.permutation, outer.attrs.permutation);
+        result.attrs = { ..outer.attrs, permutation: permutation };
+    }
+}
+```
 
-The frontend and symbolic checker support explicit constructors. The symbolic
-checker accepts its supported metadata fragment and diagnoses expressions it
-cannot lower or prove. The [greedy engine](greedy_rewriting.md) executes rule
-constructors and extended expressions. Their Rust/C++ code generation remains
-pending and reports a diagnostic before writing files. `$` host calls and host `fn`
-parameters are no longer part of TEPL.
+`gather(p, q)` computes `[p[q[i]] for i in range(len(q))]`. A complete copy can
+also be written `result.attrs = outer.attrs;`. An explicit definition replaces
+default inference for that node; competing definitions are errors. LHS
+attributes are read-only. Derivations can read source attributes and earlier
+derived descriptors, but cannot read themselves, later derivations, or pending
+inferred attributes.
+
+The RHS operation supplies the expected descriptor schema. A constructor permits
+one initial spread of the same schema; explicit fields override copied fields.
+Duplicate explicit fields are errors. Without a spread, defaults apply and
+omitted optional fields become `none`; missing required fields are errors.
+Spreading preserves every field, including precision and algorithm settings.
+Opaque fields may be copied but cannot be constructed arbitrarily.
+
+## Semantic axis properties
+
+Group names come from the operation's axis declaration. For the example tensor
+dialect, a dot has batch group `B`, left-free `I`, right-free `J`, and reduced `K`.
+
+| Property | Meaning | Type |
+| --- | --- | --- |
+| `node.axes.B.members` | Logical identities in group `B`, without order | `LogicalAxisSet` |
+| `node.axes.B.order` | Identities in the group's declared order | `LogicalAxis[]` |
+| `node.axes.B.positions` | Those identities' positions in the node's output | `index[]` |
+| `node.axes.order` | Complete actual output order | `LogicalAxis[]` |
+| `node.required_order` | Relative output order required by the replacement context | `LogicalAxis[]` |
+| `A.axes.order` | Input capture `A`'s physical order, in logical identities | `LogicalAxis[]` |
+| `node.attrs.field` | Actual operation attribute | Declared field type |
+
+For a dot output ordered `[batch0, batch1, left0, right0]`, `node.axes.B.order`
+is `[batch0, batch1]` and `node.axes.B.positions` is `[0, 1]`. These logical
+identities are not integer positions or extents. Distinct equal-sized axes
+remain distinct; source batch/contraction attributes establish shared identities.
+A reduced group has no output positions, so `node.axes.K.positions` is rejected.
+A group's order need not equal its order in the output, for example after a
+permutation.
+
+Logical membership and order properties use the admitted read-once
+contraction/permutation fragment under algebraic semantics. Source group
+positions also use the general symbolic mapper, including operations without
+attributes. Inferred RHS group
+**membership** and `required_order` are available before attribute construction.
+Actual inferred RHS attributes, complete order, and group order/positions are
+unavailable at that stage. Explicit RHS attributes and actual axis properties
+can be tested after their derivations. `required_order` is a subsequence, not a
+choice of the complete intermediate layout.
+
+## Readable feasibility conditions
+
+Run `check --semantic-policy=algebraic --infer-applicability` to obtain a complete
+suggested rule. It preserves declared conditions and derivations and supplies
+names for operations that need references. For example:
+
+```tepl
+rule remove_output_permutation {
+    (source: transpose (dot A B)) => (result: dot A B)
+    where {
+        let wanted = source.axes.order;
+        let batches = filter(wanted, result.axes.B.members);
+        let fromA = filter(wanted, result.axes.I.members);
+        let fromB = filter(wanted, result.axes.J.members);
+        axis_domain()
+        && subsequence(fromA, A.axes.order)
+        && subsequence(fromB, B.axes.order)
+        && wanted == concat(batches, fromA, fromB)
+    }
+}
+```
+
+This says that the retained input axes must already have the required relative
+order, and that a dot must output batches, then left-free axes, then right-free
+axes. `filter` preserves sequence order; `difference` operates on logical sets.
+Group names follow the declared operation semantics rather than fixed aliases.
+
+The generated conjunction is exact within the supported fragment and metadata
+domain (legal source metadata, extents at least two, scalar inputs allowed).
+Additional user conditions can restrict applicability further. The compiler
+recognizes required conjuncts through local bindings and conjunctions; it does
+not prove every equivalent spelling of a condition. Copying the suggested rule
+permits compilation without the inference flag. The flag explicitly requests
+adding these conditions to the compiled program; ordinary compilation does not
+silently strengthen the source rule. See the
+[complete example](../../examples/semantic/explicit_axis_conditions.tepl).
+
+Fully explicit RHS validation uses `result.legal`,
+`source.axes.partition == result.axes.partition`, and equal output orders.
+These properties currently apply to the respective whole-rule roots; partitions
+encode all physical-port equivalences, including reduced axes. They validate
+the supplied assignment rather than searching for another assignment.
+
+## Guards and local expressions
+
+`where` contains ordered local bindings followed by one Boolean expression.
+Only bindings end with `;`. Combine predicates with `&&` or `||`. Omit the block
+for unconditional rules; inherited rules require both guards. Locals are visible
+after their declaration within their own block; `where` locals are unavailable
+in `derive`. Comprehensions have their own variable scopes.
+
+Expressions support arithmetic, lists, indexing, comprehensions, conditionals,
+and [builtins](../references/built-ins.md). `++` means `concat`. Indices use
+unsigned 64-bit integers, signed integers use `i64`, and arithmetic is checked.
+Invalid indexing, overflow, or failed evaluation rejects a match before
+insertion. Boolean operators and conditionals short-circuit. Local initializers
+execute in their phase even when unused. Conditions depending on explicit RHS
+descriptors execute after derivation; independent source conditions execute
+first. Cached axis analysis is shared by feasibility and attribute construction.
+
+Both inferred and explicit attributes must satisfy legality and semantic checks
+under the selected arithmetic policy. Native C++ execution supports the new
+conditions; Rust/code-generation backend migration remains deferred.
+
+Legacy `@` descriptor bindings, `->` group projections, `[auto]`, and partial
+attribute pins have been removed. Name nodes, use `.attrs` or `.axes`, and
+provide either a complete descriptor in `derive` or leave it for inference.

@@ -3,7 +3,7 @@ use t::{add, dot, transpose};
 
 // Explicit attributes are checked through the same symbolic coordinate graph.
 rule distribute_explicit {
-    (dot[@d] (add A B) C)
+    (d: dot (add A B) C)
     =>
-    (add (dot[@d] A C) (dot[@d] B C))
+    (add (dot[d.attrs] A C) (dot[d.attrs] B C))
 }

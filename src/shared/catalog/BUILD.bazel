@@ -8,7 +8,8 @@ cc_library(
 
 cc_library(
     name = "catalog",
-    hdrs = ["data.h", "operations.h", "rules.h", "completed.h", "graphs.h"],
+    srcs = ["axis_conditions.cc"],
+    hdrs = ["axis_conditions.h", "data.h", "operations.h", "rules.h", "completed.h", "graphs.h"],
     deps = [":ids", "//src/shared/types", "//src/shared/metadata", "//src/shared/source"],
     visibility = ["//visibility:public"],
 )

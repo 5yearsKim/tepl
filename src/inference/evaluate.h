@@ -41,6 +41,7 @@ struct Obstruction {
   bool operator==(const Obstruction&) const = default;
 };
 enum class Status {
+  Analyzed,
   Feasible,
   Solved,
   Impossible,
@@ -57,6 +58,10 @@ struct Result {
   std::string reason;
   SourceNetwork source;
   std::map<std::size_t, Requirements> requirements;
+  // Actual operation interfaces and canonical B/K/left-free/right-free/full
+  // groups.
+  std::map<std::size_t, AxisSequence> replay_layouts;
+  std::map<std::size_t, std::vector<AxisSequence>> replay_groups;
   std::map<std::size_t, AxisSequence> layouts;
   Attributes attributes;
   std::optional<Obstruction> obstruction;
@@ -72,6 +77,13 @@ void validate(const Program&);
 // Analyze once and either construct attributes or replay the explicit RHS.
 // Impossible is used only for exact synthesis infeasibility in the domain.
 Result evaluate(const Program&, const Metadata&, const Limits& = {});
+// Shared analysis performs no feasibility decision and chooses no attributes.
+Result analyze(const Program&, const Metadata&, const Limits& = {});
+// Used after the explicit where obligations have passed. No predicate is run.
+Result construct(const Program&, const Result& analysis, const Limits& = {});
+// Interpret supplied RHS attributes, exposing its network without comparison.
+Result replayReplacement(const Program&, const Metadata&, const Limits& = {});
+
 // Evaluate only the generated predicate. Synthesis returns Feasible with no
 // attributes/layouts on success. Explicit validation necessarily replays RHS.
 Result feasibility(const Program&, const Metadata&, const Limits& = {});

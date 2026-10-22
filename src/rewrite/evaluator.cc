@@ -7,6 +7,7 @@
 #include "src/rewrite/intrinsics.h"
 #include "src/rewrite/operators.h"
 #include "src/shared/builtins/axes.h"
+#include "src/shared/catalog/axis_conditions.h"
 
 namespace tepl::rewrite {
 namespace {
@@ -249,6 +250,8 @@ Value Evaluator::eval(const core::completed::TypedExpr& e) {
         else if constexpr (std::is_same_v<T, core::completed::BuiltinCall>) {
           std::vector<Value> a;
           for (const auto& x : v.arguments) a.push_back(eval(*x));
+          if (core::builtins::isAxisQuery(v.builtin))
+            return axis_analysis_.query(v.builtin, a);
           return evaluateBuiltin(v.builtin, a, budget_);
         } else if constexpr (std::is_same_v<T, core::completed::UnaryExpr>)
           return evaluateOperator(spelling(v.op), {eval(*v.operand)}, budget_);
@@ -301,6 +304,39 @@ Value Evaluator::eval(const core::completed::TypedExpr& e) {
       e.value);
   // A let node's expression type is its initialized value's type.
   return checkType(std::move(value), p.types.at(e.type.value));
+}
+bool Evaluator::evaluateWhere() {
+  const auto& rule = program_.ir().rules.at(rule_);
+  bool allowed = true;
+  auto schedule = core::completed::scheduleWhere(rule);
+  for (const auto& condition : schedule.source) {
+    auto value = eval(*condition);
+    if (!std::holds_alternative<core::completed::LocalLet>(condition->value) &&
+        !boolean(value)) {
+      allowed = false;
+      break;
+    }
+  }
+  if (!allowed) return false;
+  auto where_locals = std::move(bindings_.locals);
+  bindings_.locals.clear();
+  for (const auto& d : rule.derivations) {
+    auto value = eval(*d.value);
+    if (d.target)
+      bindings_.descriptors[d.target->value] =
+          std::get<DescriptorValue>(value.data);
+  }
+  bindings_.locals = std::move(where_locals);
+  for (const auto& condition : schedule.replacement) {
+    auto value = eval(*condition);
+    if (!std::holds_alternative<core::completed::LocalLet>(condition->value) &&
+        !boolean(value)) {
+      allowed = false;
+      break;
+    }
+  }
+  if (!allowed) return false;
+  return true;
 }
 Value Evaluator::symbolic(const core::completed::Symbol& s) {
   budget_.tick();

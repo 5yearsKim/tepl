@@ -244,7 +244,7 @@ void testInvalidShapeSyntax() {
       "shape(...) { yield []; }",
       "shape(s) { yield $f(s); }",
       "shape(s) { yield gather(s, $axes()); }",
-      "shape(s) { yield @d; }",
+      "shape(s) { yield d.attrs; }",
       "shape(s) { yield 1.5; }",
       "shape(s) { yield [s,]; }",
       "shape(s) { yield [s s]; }",

@@ -2,14 +2,14 @@
 
 `tepl check` compiles a rewrite into attribute constructors and a checked
 semantic graph under the rule’s explicit conditions. No concrete shapes,
-attributes, or tensor values are supplied. Generated Rust executes the completed
-constructors through the shared runtime crate. The [greedy engine](../../docs/advanced/greedy_rewriting.md)
+attributes, or tensor values are supplied. Native C++ executes completed
+constructors; Rust generation remains deferred. The [greedy engine](../../docs/advanced/greedy_rewriting.md)
 can execute compiled constructors on concrete graphs; see
 [`examples/rewrite/auto.tepl`](../rewrite/auto.tepl).
 
 Attributes may be omitted in rules: each LHS omission captures that operation's
 attributes anonymously, and each RHS omission requests automatic synthesis.
-Use a named capture when a `where` condition, derivation, or RHS descriptor copy
+Use an optional node label when a `where` condition, derivation, or RHS descriptor copy
 needs to refer to it. For example, `transpose_compose` in
 [`rules/reductions.tepl`](rules/reductions.tepl) composes two anonymous source
 permutations into a synthesized replacement permutation.
@@ -29,7 +29,7 @@ Distribution returns `status=proved`. Both RHS descriptors copy the four source
 fields through expressions such as:
 
 ```text
-lhs_contracting_dimensions = @d.lhs_contracting_dimensions
+lhs_contracting_dimensions = d.attrs.lhs_contracting_dimensions
 additional-guard: true
 ```
 
@@ -52,7 +52,7 @@ inference is retained only in test support; it is not a compiler fallback.
 
 ## Declare conditions using output groups
 
-`@operation->Group` returns the ordered output-axis positions of a named
+`operation.axes.Group.positions` returns the ordered output-axis positions of a named
 logical group. The name is resolved from that operation's dialect definition;
 it is not a built-in batch or contraction keyword.
 
@@ -60,10 +60,10 @@ For a dot whose output is `B ++ I ++ J`:
 
 ```tepl
 rule associate {
-    (dot[@d] (dot[@inner] A B) C)
-    => (dot[auto] A (dot[auto] B C))
+    (d: dot (inner: dot A B) C)
+    => (dot A (dot B C))
     where {
-        @d.lhs_batching_dimensions == @inner->B
+        d.attrs.lhs_batching_dimensions == inner.axes.B.positions
     }
 }
 ```
@@ -75,14 +75,15 @@ empty. This is a supported sufficient restriction, not a weakest-condition
 characterization of every valid reassociation.
 
 The compiler lowers group references to metadata expressions. For example,
-`@inner->J` gives positions after the batch and LHS-free groups. Such a reference
-can still enforce whole-group routing, as in reverse reassociation and LoRA.
+`inner.axes.J.positions` gives positions after the batch and LHS-free groups.
+Such a reference can still enforce whole-group routing, as in reverse reassociation and LoRA.
 RHS attributes are inferred and checked independently.
 
 References are allowed in `where` conditions and must identify a unique LHS
 operation occurrence. Unknown groups, groups absent from the output (such as a
-contracted `K`), and RHS-only references are errors. A group retains its declared
-coordinate order: for a transpose with group `S`, `@p->S` gives the inverse
+contracted `K`), are errors. For inferred RHS nodes, use group membership rather
+than positions. A group retains its declared coordinate order: for a transpose
+with group `S`, `p.axes.S.positions` gives the inverse
 permutation, locating each original coordinate in the output. An empty output
 group yields an empty position list.
 
@@ -92,7 +93,10 @@ references and other index-list expressions in `where` conditions. Unsupported c
 being treated as symbolic facts.
 
 Only declared conditions and LHS legality are proof assumptions. Missing facts
-produce errors; the compiler never adds applicability restrictions to a rule.
+produce errors; ordinary compilation never adds applicability restrictions to a rule.
+`--infer-applicability` explicitly requests generated conditions for the supported
+fragment and prints a complete named rule; see
+[`explicit_axis_conditions.tepl`](explicit_axis_conditions.tepl).
 The greedy engine checks the declared conditions and compiled proof conditions
 before applying the rule. Axis-semantic Rust/C++ generation is still unsupported.
 
@@ -380,7 +384,7 @@ bazel run //:tepl -- check examples/semantic/rules/broadcast.tepl --rule broadca
 ```
 
 The three structural examples prove under strict policy. Composition constructs
-`dimensions = gather(@outer.dimensions, @inner.dimensions)`. New extents are
+`dimensions = gather(outer.attrs.dimensions, inner.attrs.dimensions)`. New extents are
 collected and reordered using their positions in the final output. Transpose
 before or after broadcast also lowers to one inferred broadcast.
 
@@ -564,12 +568,12 @@ bazel run //:tepl -- check examples/semantic/rules/convolution.tepl \
 
 These four examples require no concrete metadata and introduce no additional
 applicability guards. Input distribution, kernel distribution, and transpose
-composition use `conv[auto]`. The compiler matches scoped coordinate bases in
+composition use `conv` with omitted attributes. The compiler matches scoped coordinate bases in
 calculated reads and constructs both RHS coefficients from the LHS attributes:
 
 ```text
-strides   = @c.strides
-dilations = @c.dilations
+strides   = c.attrs.strides
+dilations = c.attrs.dilations
 ```
 
 This mechanism uses the semantic IR, not convolution names or attribute names.
@@ -584,7 +588,7 @@ ordered interfaces, dtype, and legality. Trial matches add no proof premises.
 Conflicting equations, ambiguous coordinate matches, and inverse or coupled
 coefficient equations are rejected as unproved.
 
-Nested convolution distribution still reuses `@inner` and `@outer`: general
+Nested convolution distribution still reuses `inner.attrs` and `outer.attrs`: general
 inversion of composed coefficients and intermediate-domain correspondence
 remain outside direct matching. Padding and configurable layouts remain
 deferred. General calculated-access matching is bounded and incomplete;

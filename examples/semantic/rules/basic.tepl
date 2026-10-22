@@ -5,36 +5,37 @@ use t::{dot, transpose};
 
 // Symbolic construction chooses an identity transpose and preserves dot attrs.
 rule transpose_dot_lhs {
-    (dot[@d] A B)
+    (d: dot A B)
     =>
-    (dot[auto] (transpose[auto] A) B)
+    (dot (transpose A) B)
 }
 
 // Rank three; contract axis 0 so the cycle preserves the two free axes in order.
 rule transpose_dot_cycle {
     A: [K, M, N]
-    (dot[@d] A B)
+    (d: dot A B)
     =>
-    (dot[auto] (transpose[auto, permutation = [1, 2, 0]] A) B)
+    (dot (cycle: transpose A) B)
     where {
-        @d.lhs_batching_dimensions == range(0)
-        && @d.lhs_contracting_dimensions == range(1)
+        d.attrs.lhs_batching_dimensions == range(0)
+        && d.attrs.lhs_contracting_dimensions == range(1)
     }
+    derive { cycle.attrs = { permutation: [1, 2, 0] }; }
 }
 
 // A sufficient restriction: absorb an identity transpose. More general input
 // permutations need an explicit condition preserving surviving free-axis order.
 rule absorb_transpose {
-    (dot[@d] (transpose[@p] A) B) => (dot[auto] A B)
+    (d: dot (p: transpose A) B) => (dot A B)
     where {
-        @p.permutation == range(len(@p.permutation))
+        p.attrs.permutation == range(len(p.attrs.permutation))
     }
 }
 
 // Swap the free-axis blocks while preserving the batch and within-block order.
 rule transpose_dot_swap {
-    (transpose[@p] (dot[@d] A B)) => (dot[auto] B A)
+    (p: transpose (d: dot A B)) => (dot B A)
     where {
-        @p.permutation == concat(@d->B, @d->J, @d->I)
+        p.attrs.permutation == concat(d.axes.B.positions, d.axes.J.positions, d.axes.I.positions)
     }
 }

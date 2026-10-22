@@ -3,7 +3,6 @@
 #include <functional>
 
 #include "src/rewrite/builder.h"
-#include "src/rewrite/inference.h"
 #include "src/rewrite/matcher.h"
 
 namespace tepl::rewrite {
@@ -72,25 +71,8 @@ Result run(const executable::ExecutableProgram& program,
             if (!match(p, rule, out.graph, node, bindings, work)) continue;
             Evaluator evaluator(program, out.graph, rule.id.value, bindings,
                                 work);
-            bool allowed = true;
-            for (const auto& condition : rule.conditions) {
-              auto value = evaluator.eval(*condition);
-              if (!std::holds_alternative<core::completed::LocalLet>(
-                      condition->value) &&
-                  !boolean(value)) {
-                allowed = false;
-                break;
-              }
-            }
-            if (!allowed) continue;
-            bindings.locals.clear();
-            for (const auto& d : rule.derivations) {
-              auto value = evaluator.eval(*d.value);
-              if (d.target)
-                bindings.descriptors[d.target->value] =
-                    std::get<DescriptorValue>(value.data);
-            }
-            if (!inferAttributes(p, rule, out.graph, bindings, work)) continue;
+            if (!evaluator.evaluateWhere()) continue;
+            evaluator.constructAttributes();
             auto candidate = out.graph;
             auto root = build(p, *rule.rhs, candidate, bindings, work,
                               options.max_nodes);
@@ -113,6 +95,8 @@ Result run(const executable::ExecutableProgram& program,
             if (options.trace) out.trace.push_back({rule.name, node});
             changed = true;
             break;
+          } catch (const ConditionUnavailable&) {
+            continue;
           } catch (const EvaluationError&) {
             continue;
           }

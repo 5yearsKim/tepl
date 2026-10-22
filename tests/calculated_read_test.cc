@@ -221,24 +221,27 @@ void invalid(const std::string& access, const std::string& message) {
 int main() {
   try {
     auto computed = plan(
-        "rule r { (computed[@c] A) => (expanded[@e] A) derive { @e = { starts: "
-        "@c.starts, extra: @c.extra, sizes: @c.sizes, strides: @c.strides, "
-        "factors: @c.factors }; } }");
-    auto automatic = plan("rule r { (computed[@c] A) => (slice[auto] A) }");
+        "rule r { (c: computed A) => (e: expanded A) derive { e.attrs = { "
+        "starts: c.attrs.starts, extra: c.attrs.extra, sizes: c.attrs.sizes, "
+        "strides: c.attrs.strides, factors: c.attrs.factors }; } }");
+    auto automatic = plan("rule r { (c: computed A) => (slice A) }");
     auto selected = plan(
-        "rule r { (selected[@s] A) => (distributed[@d] A) derive { @d = { "
-        "starts: @s.starts, sizes: @s.sizes, strides: @s.strides, positions: "
-        "@s.positions }; } }");
-    auto selected_auto = plan(
-        "rule r { (selected[@s] A) => "
-        "(distributed[auto, positions=@s.positions] A) }");
+        "rule r { (s: selected A) => (d: distributed A) derive { d.attrs = { "
+        "starts: s.attrs.starts, sizes: s.attrs.sizes, strides: "
+        "s.attrs.strides, positions: s.attrs.positions }; } }");
+    auto selection_without_metadata =
+        analyze(dialect, "rule r { (s: selected A) => (distributed A) }");
+    expect(selection_without_metadata.ok() &&
+               selection_without_metadata.program->rules[0]
+                       .semantic_plan->proof.status == ProofStatus::Unknown,
+           "unrestricted selector inference remains unsupported");
     auto nested = plan(
-        "rule r { (nested[@s] A) => (flattened[@f] A) derive { @f = { starts: "
-        "@s.starts, sizes: @s.sizes, strides: @s.strides, first: @s.first, "
-        "second: @s.second }; } }");
-    auto identity = plan("rule r { (selected[@s] A) => (selected[@s] A) }");
+        "rule r { (s: nested A) => (f: flattened A) derive { f.attrs = { "
+        "starts: s.attrs.starts, sizes: s.attrs.sizes, strides: "
+        "s.attrs.strides, first: s.attrs.first, second: s.attrs.second }; } }");
+    auto identity = plan("rule r { (s: selected A) => (selected[s.attrs] A) }");
     auto computed_identity =
-        plan("rule r { (computed[@s] A) => (computed[@s] A) }");
+        plan("rule r { (s: computed A) => (computed[s.attrs] A) }");
 
     for (std::size_t rank = 0; rank <= 4; ++rank) {
       List sizes, starts, extra, strides, factors, effective_starts,
@@ -275,8 +278,6 @@ int main() {
       expected = reference(input, sizes, starts, strides, positions);
       compare(selected, input, {{"s", {starts, sizes, strides, positions}}},
               expected);
-      compare(selected_auto, input,
-              {{"s", {starts, sizes, strides, positions}}}, expected);
       List second(rank), composed;
       std::iota(second.rbegin(), second.rend(), 0);
       for (auto p : second) composed.push_back(positions[p]);
@@ -314,7 +315,7 @@ int main() {
            "computed zero scale rejected");
 
     auto queries = plan(
-        "rule r { (f[@s] A) => (f[@s] A) }",
+        "rule r { (s: f A) => (f[s.attrs] A) }",
         withRead(
             "IndexOffset(offset_extents(all_axes(input), 1), "
             "IndexScale(offset_extents(range(rank(input)), 1), Coords(O)))"));
@@ -322,7 +323,7 @@ int main() {
     compare(queries, input, {{"s", {{2, 3}, {}}}},
             reference(input, {2, 3}, {1, 2}, {1, 2}, {0, 1}));
     auto gathered = plan(
-        "rule r { (f[@s] A) => (f[@s] A) }",
+        "rule r { (s: f A) => (f[s.attrs] A) }",
         withRead(
             "IndexScale(gather(attrs.sizes, attrs.positions), Coords(O))"));
     expect(legal(gathered, {4, 5}, {{2, 3}, {1, 0}}),
@@ -364,11 +365,11 @@ int main() {
     fields[0] = call("offset_extents", {fields[0], integer(1)});
     expect(verify(automatic, tampered).status == ProofStatus::Unknown,
            "independent verifier rejects changed calculated reads");
-    auto wrong_selector = selected_auto.proof;
-    wrong_selector.constructors.begin()->second[3] =
-        call("range", {integer(0)});
-    expect(verify(selected_auto, wrong_selector).status == ProofStatus::Unknown,
-           "independent verifier rejects changed selection positions");
+    auto wrong_selector = selected;
+    wrong_selector.attributes.begin()->second[3] = call("range", {integer(0)});
+    expect(
+        verify(wrong_selector, selected.proof).status == ProofStatus::Unknown,
+        "independent verifier rejects changed selection positions");
     std::cout << "calculated read tests passed\n";
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

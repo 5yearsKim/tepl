@@ -23,6 +23,11 @@ Value ints(std::initializer_list<Integer> values) {
   for (auto value : values) xs.emplace_back(value);
   return xs;
 }
+Value axes(std::initializer_list<std::size_t> values) {
+  List out;
+  for (auto id : values) out.emplace_back(Axis{0, 0, id, 2});
+  return out;
+}
 Value bools(std::initializer_list<bool> values) {
   List xs;
   for (auto value : values) xs.emplace_back(value);
@@ -45,6 +50,9 @@ void nativeContracts() {
     Value result;
   };
   const std::vector<Case> cases = {
+      {B::kAxisDifference, {axes({2, 0, 1}), axes({0, 2})}, axes({1})},
+      {B::kAxisFilter, {axes({2, 0, 1}), axes({0, 2})}, axes({2, 0})},
+      {B::kAxisSubsequence, {axes({2, 1}), axes({2, 0, 1})}, true},
       {B::kLen, {ints({4, 5})}, Integer(2)},
       {B::kRange, {Integer(3)}, ints({0, 1, 2})},
       {B::kConcat, {ints({1}), ints({2}), ints({3})}, ints({1, 2, 3})},
@@ -80,7 +88,21 @@ void nativeContracts() {
     too_few.resize(core::builtins::signature(c.id).arguments.size() - 1);
     fails([&] { evaluateBuiltin(c.id, too_few, budget); });
   }
-  assert(covered.size() == core::builtins::catalog().size());
+  std::size_t contextual = 0;
+  for (const auto& entry : core::builtins::catalog())
+    if (core::builtins::isAxisQuery(entry.builtin)) {
+      assert(!covered.contains(entry.builtin));
+      std::vector<Value> args(entry.arguments.size(), Integer(0));
+      fails([&] { evaluateBuiltin(entry.builtin, args, budget); });
+      ++contextual;
+    }
+  assert(covered.size() + contextual == core::builtins::catalog().size());
+  assert(!boolean(evaluateBuiltin(B::kAxisSubsequence,
+                                  {axes({1, 2}), axes({2, 0, 1})}, budget)));
+  assert(boolean(evaluateBuiltin(B::kAxisSubsequence,
+                                 {axes({}), axes({2, 0, 1})}, budget)));
+  fails(
+      [&] { evaluateBuiltin(B::kAxisFilter, {ints({0}), ints({0})}, budget); });
   assert(boolean(evaluateBuiltin(B::kAll, {bools({})}, budget)));
   assert(!boolean(evaluateBuiltin(B::kAny, {bools({})}, budget)));
   assert(integer(evaluateBuiltin(B::kSum, {ints({})}, budget)) == 0);
@@ -144,7 +166,8 @@ void visibility() {
   std::set<std::string_view> names;
   for (const auto& entry : catalog()) {
     assert(names.insert(entry.name).second);
-    assert(resolveBuiltin(entry.name) == &entry);
+    assert(resolveBuiltin(entry.name) ==
+           (isPublicBuiltin(entry.builtin) ? &entry : nullptr));
     assert(&signature(entry.builtin) == &entry);
   }
   names.clear();

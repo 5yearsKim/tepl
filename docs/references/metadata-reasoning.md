@@ -33,8 +33,8 @@ The semantic checker lowers metadata indexing and list comprehensions into
 internal sequence expressions. These use the existing rule syntax:
 
 ```tepl
-[x for x in @a.dims]
-[@a.starts[i] + @b.starts[i] for i in range(len(@a.starts))]
+[x for x in a.attrs.dims]
+[a.attrs.starts[i] + b.attrs.starts[i] for i in range(len(a.attrs.starts))]
 ```
 
 An identity comprehension preserves its sequence. Pointwise indexing and

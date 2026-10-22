@@ -84,9 +84,12 @@ rule r {
   assert(formatProgram(*result.program).find("Builtin(len") !=
          std::string::npos);
   for (const auto& signature : builtins::catalog()) {
-    assert(builtins::resolveBuiltin(signature.name) == &signature);
+    assert(
+        builtins::resolveBuiltin(signature.name) ==
+        (builtins::isPublicBuiltin(signature.builtin) ? &signature : nullptr));
     assert(signature.availableIn(builtins::Context::kWhere));
-    assert(signature.availableIn(builtins::Context::kDerive));
+    assert(signature.availableIn(builtins::Context::kDerive) ==
+           !builtins::isAxisQuery(signature.builtin));
   }
   expectError("rule r { X => X where { len() } }", "expects exactly 1");
   expectError("rule r { X: [B...] X => X where { concat(B) } }",
@@ -184,12 +187,12 @@ void descriptorsAndTypes() {
 rule r {
   X: [Batch..., M, K]
   Y: [Batch..., K, N]
-  (dot[@d] X Y) => (dot[@out] X Y)
+  (d: dot X Y) => (out: dot (first: dot X Y) Y)
   where { M % 8 == 0 && N >= 1 }
   derive {
-    let axes = gather(@d.axes, range(len(@d.axes)));
-    @first = { ..@d, axes: axes };
-    @out = { ..@first };
+    let axes = gather(d.attrs.axes, range(len(d.attrs.axes)));
+    first.attrs = { ..d.attrs, axes: axes };
+    out.attrs = { ..first.attrs };
   }
 }
 )");
@@ -209,39 +212,44 @@ rule r {
   assert(program.attribute_schemas[0].fields[0].empty_default);
   assert(program.types[rule.dimensions[0].type.value].kind ==
          TypeKind::kIndexList);
-  // Schemas can flow backwards from later RHS uses without allowing forward
-  // values.
-  assert(analyzeText("rule r { X => (reshape[@out] X) derive { @first = { "
-                     "shape: [] }; @out = { ..@first }; } }")
+  // Every explicit node supplies its schema; values still follow declaration
+  // order.
+  assert(analyzeText(
+             "rule r { X => (out: reshape (first: reshape X)) derive { "
+             "first.attrs = { shape: [] }; out.attrs = { ..first.attrs }; } }")
              .ok());
-  assert(analyzeText("rule r { X => (dot[@out] X X) derive { @out = {}; } }")
-             .ok());
-  expectError("rule r { X => (reshape[@out] X) derive { @out = {}; } }",
+  assert(
+      analyzeText("rule r { X => (out: dot X X) derive { out.attrs = {}; } }")
+          .ok());
+  expectError("rule r { X => (out: reshape X) derive { out.attrs = {}; } }",
               "missing required");
   expectError(
-      "rule r { X => (reshape[@out] X) derive { @out = { shape: [], shape: [] "
-      "}; } }",
+      "rule r { X => (out: reshape X) derive { out.attrs = { shape: [], shape: "
+      "[] }; } }",
       "duplicate constructor field");
   expectError(
-      "rule r { X => (reshape[@out] X) derive { @out = { wrong: [] }; } }",
+      "rule r { X => (out: reshape X) derive { out.attrs = { wrong: [] }; } }",
       "unknown constructor field");
   expectError(
-      "rule r { X => (reshape[@out] X) derive { @out = { shape: true }; } }",
-      "type mismatch");
-  expectError("rule r { X => (reshape[@out] X) derive { @out = { ..@out }; } }",
-              "not available here");
-  expectError(
-      "rule r { X => (reshape[@out] X) derive { @out = { ..@later }; @later = "
-      "{ shape: [] }; } }",
-      "not available here");
-  expectError(
-      "rule r { (dot[@d] X X) => (reshape[@out] X) derive { @out = { ..@d }; } "
+      "rule r { X => (out: reshape X) derive { out.attrs = { shape: true }; } "
       "}",
       "type mismatch");
   expectError(
-      "rule r { X => (reshape[@out] X) where { len(@out.shape) == 0 } derive { "
-      "@out = { shape: [] }; } }",
-      "not available here");
+      "rule r { X => (out: reshape X) derive { out.attrs = { ..out.attrs }; } "
+      "}",
+      "forward reference or cycle");
+  expectError(
+      "rule r { X => (out: reshape (later: reshape X)) derive { out.attrs = { "
+      "..later.attrs }; later.attrs = { shape: [] }; } }",
+      "forward reference or cycle");
+  expectError(
+      "rule r { (d: dot X X) => (out: reshape X) derive { out.attrs = { "
+      "..d.attrs }; } }",
+      "type mismatch");
+  assert(
+      analyzeText("rule r { X => (out: reshape X) where "
+                  "{len(out.attrs.shape)==0} derive {out.attrs={shape:[]};}}")
+          .ok());
 }
 
 void constructorFieldTypes() {
@@ -252,10 +260,10 @@ dialect D {
   op copy(x: tensor) -> tensor { attrs: A; }
 }
 rule r {
-  (copy[@a] X) => (copy[@b] X)
-  where { @a.region == none && none == @a.axis && len(@a.flags) >= 0 }
+  (a: copy X) => (b: copy X)
+  where { a.attrs.region == none && none == a.attrs.axis && len(a.attrs.flags) >= 0 }
   derive {
-    @b = { name: "tensor", padding: [[-1, 2], [0, 3]], flags: [true, false],
+    b.attrs = { name: "tensor", padding: [[-1, 2], [0, 3]], flags: [true, false],
            dtype: f32, precision: [default, high], axis: if true then 1 else none };
   }
 }
@@ -271,17 +279,21 @@ rule r {
   assert(std::get<ListExpr>(ctor.fields[6]->value).elements.empty());
   assert(std::holds_alternative<NoneConstant>(ctor.fields[7]->value));
   assert(std::holds_alternative<OptionalValue>(ctor.fields[8]->value));
-  expectError("rule r { X => X derive { @a = { axes: [] }; } }",
-              "requires a schema");
-  expectError("rule r { X => (dot[@a] X X) derive { @a = { axes: [true] }; } }",
-              "type mismatch");
-  expectError("rule r { X => (dot[@a] X X) derive { @a = {}; @a = {}; } }",
-              "duplicate descriptor");
-  expectError("rule r { X => (dot[@a] (reshape[@a] X) X) derive { @a = {}; } }",
-              "type mismatch");
+  expectError("rule r { X => X derive { a.attrs = { axes: [] }; } }",
+              "unknown RHS node");
+  expectError(
+      "rule r { X => (a: dot X X) derive { a.attrs = { axes: [true] }; } }",
+      "type mismatch");
+  expectError(
+      "rule r { X => (a: dot X X) derive { a.attrs = {}; a.attrs = {}; } }",
+      "duplicate attribute definition");
+  expectError(
+      "rule r { X => (a: dot (reshape[a.attrs] X) X) derive { a.attrs = {}; } "
+      "}",
+      "type mismatch");
   expectError(
       "dialect D { op copy(x:tensor)->tensor { attrs { axes:index[]?; } } } "
-      "rule r { (copy[@a] X) => X where { @a.axes[0] == 0 } }",
+      "rule r { (a: copy X) => X where { a.attrs.axes[0] == 0 } }",
       "expected a list", false);
 }
 
@@ -322,8 +334,8 @@ rule r {
               "local name");
   expectError("rule r { X => X where { let X = 1; true } }", "local name");
   expectError(
-      "rule r { X => (reshape[@out] X) where { let dims = [1]; true } derive { "
-      "@out = { shape: dims }; } }",
+      "rule r { X => (out: reshape X) where { let dims = [1]; true } derive { "
+      "out.attrs = { shape: dims }; } }",
       "unknown constraint name");
   expectError("rule r { X => X where { all([true for i in [1]]) && i > 0 } }",
               "unknown constraint name");
@@ -482,11 +494,11 @@ void invalidRules() {
            {"rule r { -1:u64 => 0:u64 }", "invalid for dtype"},
            {"rule r { 1.0:i32 => 1:i32 }", "invalid for dtype"},
            {"rule r { 1:unknown => X }", "unknown dtype"},
-           {"rule r { (add[@d] X Y) => X }", "has no attributes"},
-           {"rule r { (dot[@d] X Y) => (dot[@missing] X Y) }",
-            "unknown RHS descriptor"},
-           {"rule r { (dot[@d] X Y) => (reshape[@d] X) }", "type mismatch"},
-           {"rule r { X => X derive { @d = true; } }", "type mismatch"},
+           {"rule r {(d: dot X Y)=>(add[d.attrs] X Y)}", "has no attributes"},
+           {"rule r { (d: dot X Y) => (dot[missing.attrs] X Y) }",
+            "available named source or derived node"},
+           {"rule r { (d: dot X Y) => (reshape[d.attrs] X) }", "type mismatch"},
+           {"rule r {X=>(d: dot X X) derive {d.attrs=true;}}", "type mismatch"},
            {"rule r { (tuple X Y) => X }", "tuple semantics"},
            {"rule r { (get[0] X) => X }", "projection semantics"},
            {"rule r { X => X } rule r { Y => Y }", "duplicate rule"},

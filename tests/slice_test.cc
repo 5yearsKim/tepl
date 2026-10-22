@@ -126,30 +126,29 @@ int main(int argc, char** argv) {
     std::ifstream file(runfiles->Rlocation(argv[1]));
     dialect = {std::istreambuf_iterator<char>(file), {}};
     expect(!dialect.empty(), "dialect loads");
-    auto distribution = plan(
-        "rule r {(slice[@s] (add A B)) => (add (slice[auto] A) (slice[auto] "
-        "B))}");
+    auto distribution =
+        plan("rule r {(s: slice (add A B)) => (add (slice A) (slice B))}");
     auto composition =
-        plan("rule r {(slice[@outer] (slice[@inner] A)) => (slice[auto] A)}");
+        plan("rule r {(outer: slice (inner: slice A)) => (slice A)}");
     auto zero_start_composition = plan(
-        "rule r {(slice[@outer] (slice[@inner] A)) => (slice[auto] A) "
-        "where {@inner.starts == [0] && @outer.starts == [0] && "
-        "@inner.strides == [1] && @outer.strides == [1]}}",
+        "rule r {(outer: slice (inner: slice A)) => (slice A) where "
+        "{inner.attrs.starts == [0] && outer.attrs.starts == [0] && "
+        "inner.attrs.strides == [1] && outer.attrs.strides == [1]}}",
         {}, tepl::core::SemanticPolicy::kStrict);
     auto unit_composition = plan(
-        "rule r {(slice[@outer] (slice[@inner] A)) => (slice[auto] A) "
-        "where {@inner.strides == [1 for d in @inner.sizes] && "
-        "@outer.strides == @inner.strides}}");
+        "rule r {(outer: slice (inner: slice A)) => (slice A) where "
+        "{inner.attrs.strides == [1 for d in inner.attrs.sizes] && "
+        "outer.attrs.strides == inner.attrs.strides}}");
     auto rank_one_unit = plan(
-        "rule r {A:[N] (slice[@outer] (slice[@inner] A)) => (slice[auto] A) "
-        "where {@inner.strides == [1] && @outer.strides == [1]}}");
+        "rule r {A:[N] (outer: slice (inner: slice A)) => (slice A) where "
+        "{inner.attrs.strides == [1] && outer.attrs.strides == [1]}}");
     auto permuted = plan(
-        "rule r {(slice[@s] (transpose[@p] (add A B))) => (add (slice[auto] "
-        "(transpose[@p] A)) (slice[auto] (transpose[@p] B)))}");
+        "rule r {(s: slice (p: transpose (add A B))) => (add (slice "
+        "(transpose[p.attrs] A)) (slice (transpose[p.attrs] B)))}");
     auto chain = plan(
-        "rule r {(slice[@outer] (slice[@middle] (slice[@inner] A))) => "
-        "(slice[auto] A)}");
-    auto identity = plan("rule r {(slice[@s] A) => (slice[auto] A)}");
+        "rule r {(outer: slice (middle: slice (inner: slice A))) => (slice "
+        "A)}");
+    auto identity = plan("rule r {(s: slice A) => (slice A)}");
     proved(distribution);
     proved(composition);
     proved(zero_start_composition);
@@ -158,8 +157,8 @@ int main(int argc, char** argv) {
     proved(permuted);
     proved(chain);
     proved(identity);
-    proved(plan("rule r {(slice[@outer] (slice[@inner] A)) => (slice[auto] A)}",
-                {}, tepl::core::SemanticPolicy::kStrict));
+    proved(plan("rule r {(outer: slice (inner: slice A)) => (slice A)}", {},
+                tepl::core::SemanticPolicy::kStrict));
     for (std::size_t rank = 0; rank <= 3; ++rank) {
       List shape, starts, sizes, strides;
       for (std::size_t i = 0; i < rank; ++i) {
@@ -224,16 +223,17 @@ int main(int argc, char** argv) {
     expect(!legal(identity, {8}, {{2}, {4}, {2}}), "out of bounds rejected");
     expect(!legal(identity, {8}, {{1, 2}, {3}, {1}}),
            "attribute length mismatch rejected");
-    auto pinned = plan(
-        "rule r {(slice[@s] (add A B)) => (add (slice[auto, starts=@s.starts] "
-        "A) (slice[auto, strides=@s.strides] B))}");
-    proved(pinned);
-    auto wrong =
-        plan("rule r {(slice[@s] A) => (slice[auto, starts=@s.strides] A)}");
+    auto inferred_distribution =
+        plan("rule r {(s: slice (add A B)) => (add (slice A) (slice B))}");
+    proved(inferred_distribution);
+    auto wrong = plan(
+        "rule r {(s: slice A) => (out: slice A) derive "
+        "{out.attrs={..s.attrs,starts:s.attrs.strides};}}");
     expect(wrong.proof.status == ProofStatus::Unknown,
            "wrong start is not proved");
-    auto wrong_sizes =
-        plan("rule r {(slice[@s] A) => (slice[auto, sizes=[1]] A)}");
+    auto wrong_sizes = plan(
+        "rule r {(s: slice A) => (out: slice A) derive "
+        "{out.attrs={..s.attrs,sizes:[1]};}}");
     expect(wrong_sizes.proof.status == ProofStatus::Unknown,
            "wrong output size is not proved");
     for (auto field : {0, 1, 2}) {
@@ -254,9 +254,8 @@ int main(int argc, char** argv) {
       renamed.replace(position, 12, "attrs.begins");
       position += 12;
     }
-    proved(plan(
-        "rule r {(crop[@s] (add A B)) => (add (crop[auto] A) (crop[auto] B))}",
-        renamed));
+    proved(plan("rule r {(s: crop (add A B)) => (add (crop A) (crop B))}",
+                renamed));
     Context arithmetic{identity, 1000000};
     auto x = make(Symbol::Kind::Field, "x", 0, 0),
          y = make(Symbol::Kind::Field, "y", 0, 1);

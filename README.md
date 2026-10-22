@@ -147,16 +147,16 @@ from "dialects/tensor.tepl" import TensorLang as t;
 rule transpose_negate {
     X: f32[Dims...]
 
-    (t.transpose[@perm] (t.negate X))
+    (source: t.transpose (t.negate X))
     =>
-    (t.negate (t.transpose[@perm] X))
+    (t.negate (t.transpose[source.attrs] X))
 }
 ```
 
 TEPL keeps tensor rewrites concise while supporting the features needed for real tensor optimizations:
 
 - **Readable rules:** Write the match and replacement directly, without manually building nested Rust trees.
-- **Attribute capture and reuse:** `@perm` carries the transpose attributes from the match into the replacement.
+- **Attribute capture and reuse:** `source.attrs` carries the transpose attributes from the match into the replacement.
 - **Shape and dtype analysis:** `f32[Dims...]` matches an `f32` tensor of any rank; generated checks require the replacement to preserve the output shape and dtype.
 - **Custom rewrite conditions:** Use `where` to express legality checks and `derive` to compute new attributes.
 - **Multiple dialects:** Define and import your own operation dialects, and write rules that rewrite between them.

@@ -335,7 +335,7 @@ graphExpr
     | ('+' | '-')? (INT | FLOAT) (':' dtypeName)? # NumberGraph
     | '(' binding ')'                        # ParenthesizedBindingGraph
     | '(' GET '[' INT ']' graphExpr ')'       # GetGraph
-    | '(' opRef attribute? graphExpr* ')'     # OperatorGraph
+    | '(' nodeLabel? opRef attribute? graphExpr* ')'     # OperatorGraph
     ;
 
 // RHS expressions construct operations from LHS captures; they introduce no bindings.
@@ -343,25 +343,25 @@ rhsGraphExpr
     : ID                                     # RhsVariableGraph
     | ('+' | '-')? (INT | FLOAT) (':' dtypeName)? # RhsNumberGraph
     | '(' GET '[' INT ']' rhsGraphExpr ')'    # RhsGetGraph
-    | '(' opRef attribute? rhsGraphExpr* ')'  # RhsOperatorGraph
+    | '(' nodeLabel? opRef attribute? rhsGraphExpr* ')'  # RhsOperatorGraph
     ;
 
 binding
     : LET ID '=' graphExpr
     ;
 
+nodeLabel
+    : ID ':'
+    ;
+
+nodeAttrs
+    : ID '.' ATTRS
+    ;
+
 attribute
-    : '[' attrRef ']'
-    | '[' {getCurrentToken()->getText() == "auto"}? ID (',' autoField)* ']'
+    : '[' nodeAttrs ']'
     ;
 
-autoField
-    : ID '=' (attrRef '.' ID | concreteValue)
-    ;
-
-attrRef
-    : '@' ID
-    ;
 
 // Rule semantics: legality conditions and derived metadata
 
@@ -378,7 +378,7 @@ whereStatement
     ;
 deriveStatement
     : LET ID '=' constraintExpr ';'
-    | attrRef '=' constraintExpr ';'
+    | nodeAttrs '=' constraintExpr ';'
     ;
 
 // Pure expressions shared by where and derive
@@ -425,8 +425,8 @@ postfix
 
 primary
     : ID '(' arguments? ')' # CallPrimary
+    | ID '.' (ATTRS | ID) ('.' ID)*            # NodePropertyPrimary
     | ID                                     # NamePrimary
-    | attrRef (('.' | '->') ID)?                      # AttributePrimary
     | INT                                    # IntegerPrimary
     | FLOAT                                  # FloatPrimary
     | TRUE                                   # TruePrimary
@@ -435,7 +435,7 @@ primary
     | STRING                                 # StringPrimary
     | '[' (constraintExpr (',' constraintExpr)*)? ']' # ListPrimary
     | '[' constraintExpr FOR ID IN constraintExpr ']' # ComprehensionPrimary
-    | '{' ('..' attrRef (',' descriptorField)*)? '}' # DescriptorPrimary
+    | '{' ('..' nodeAttrs (',' descriptorField)*)? '}' # DescriptorPrimary
     | '{' descriptorField (',' descriptorField)* '}' # DescriptorFieldsPrimary
     ;
 

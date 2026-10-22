@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <functional>
 #include <set>
 #include <stdexcept>
@@ -6,8 +7,11 @@
 #include "src/core/semantics/compilation_context.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
+#include "src/core/semantics/suggestion.h"
 #include "src/core/semantics/synthesis/ordered/compile.h"
 #include "src/core/semantics/synthesis/synthesize.h"
+#include "src/shared/catalog/axis_conditions.h"
+#include "src/shared/metadata/ordered.h"
 
 namespace tepl::core::semantics {
 namespace {
@@ -76,11 +80,9 @@ struct Builder {
       }
       std::optional<std::size_t> operation;
       for (auto id : coordinates->source().nodes)
-        if (plan.nodes[id].descriptor == ref.descriptor) {
+        if (plan.nodes[id].label == ref.node) {
           if (operation)
-            throw std::runtime_error(
-                "ambiguous output-axis reference: descriptor names multiple "
-                "LHS operations");
+            throw std::runtime_error("duplicate semantic node label");
           operation = id;
         }
       if (!operation)
@@ -299,8 +301,8 @@ struct Builder {
     return plan.nodes.size() - 1;
   }
   std::size_t operation(OpId id, std::optional<DescriptorId> descriptor,
-                        std::vector<std::size_t> inputs,
-                        const SourceOrigin& at) {
+                        std::vector<std::size_t> inputs, const SourceOrigin& at,
+                        const std::string& label = "") {
     const auto& op = context.output.operations.at(id.value);
     if (!op.semantic_definition)
       throw std::runtime_error("operation '" + op.name +
@@ -310,6 +312,10 @@ struct Builder {
       throw std::runtime_error("index operation requires dtype contract");
     Instance n;
     n.operation = id;
+    n.label = label;
+    n.operation_name = rule.operation_spellings.contains(id.value)
+                           ? rule.operation_spellings.at(id.value)
+                           : op.alias.value_or(op.name);
     n.definition = op.semantic_definition;
     n.dtype = std::make_shared<metadata::Program>(*op.dtype);
     n.descriptor = descriptor;
@@ -318,28 +324,6 @@ struct Builder {
     for (const auto& h : rule.attribute_holes) {
       if (!descriptor || h.descriptor != *descriptor) continue;
       n.automatic = true;
-      n.pins.resize(h.overrides.size());
-      for (std::size_t f = 0; f < h.overrides.size(); ++f) {
-        const auto& v = h.overrides[f];
-        if (!v) continue;
-        Pin pin;
-        if (v->kind == AttributePin::Kind::kField) {
-          pin.descriptor = v->descriptor;
-          pin.field = v->field;
-        } else if (v->kind == AttributePin::Kind::kLiteral &&
-                   v->text == "list") {
-          List values;
-          for (const auto& element : v->arguments) {
-            if (element->kind != AttributePin::Kind::kLiteral)
-              throw std::runtime_error("unsupported nonliteral auto pin");
-            values.push_back(std::stoll(element->text));
-          }
-          pin.literal = values;
-        } else
-          throw std::runtime_error(
-              "index auto pins must be index lists or known descriptor fields");
-        n.pins[f] = pin;
-      }
     }
     plan.nodes.push_back(std::move(n));
     return plan.nodes.size() - 1;
@@ -363,7 +347,7 @@ struct Builder {
       std::vector<std::size_t> inputs;
       for (const auto& input : op->operands) inputs.push_back(source(*input));
       return operation(op->operation, op->descriptor, std::move(inputs),
-                       p.origin);
+                       p.origin, op->label);
     }
     throw std::runtime_error(
         "semantic graphs support tensor captures and operation "
@@ -378,7 +362,7 @@ struct Builder {
       std::vector<std::size_t> inputs;
       for (const auto& input : op->operands) inputs.push_back(target(*input));
       return operation(op->operation, op->descriptor, std::move(inputs),
-                       p.origin);
+                       p.origin, op->label);
     }
     throw std::runtime_error(
         "semantic graphs support captures and operation applications");
@@ -421,9 +405,145 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
     b.plan.rhs = b.target(*rule.rhs);
     for (const auto& d : rule.descriptors)
       b.plan.descriptor_names[d.id.value] = d.name;
+    // Public properties retain symbolic node names until both trees exist.
+    // Resolve them once to the same closed queries used by generated guards.
+    auto indexType = [&] {
+      core::Type t{TypeKind::kIndex};
+      for (std::size_t i = 0; i < context.output.types.size(); ++i)
+        if (context.output.types[i] == t) return TypeId{i};
+      context.output.types.push_back(t);
+      return TypeId{context.output.types.size() - 1};
+    }();
+    auto number = [&](std::size_t i, const SourceOrigin& at) -> TypedExprPtr {
+      return std::make_shared<TypedExpr>(
+          TypedExpr{at, indexType, NumericConstant{std::to_string(i), false}});
+    };
+    std::function<TypedExprPtr(const TypedExprPtr&)> properties =
+        [&](const TypedExprPtr& e) -> TypedExprPtr {
+      auto out = *e;
+      if (const auto* ref = std::get_if<NodeAxisRef>(&e->value)) {
+        using B = builtins::Builtin;
+        B query;
+        std::vector<TypedExprPtr> args;
+        if (ref->capture) {
+          query = B::kAxisCaptureOrder;
+          args.push_back(number(ref->capture->value, e->origin));
+        } else {
+          auto it =
+              std::find_if(b.plan.nodes.begin(), b.plan.nodes.end(),
+                           [&](const auto& n) { return n.label == ref->node; });
+          if (it == b.plan.nodes.end())
+            throw std::runtime_error("unknown semantic node '" + ref->node +
+                                     "'");
+          auto id = static_cast<std::size_t>(it - b.plan.nodes.begin());
+          args.push_back(number(id, e->origin));
+          if (ref->projection == "partition" || ref->projection == "legal") {
+            if (id != (ref->rhs ? b.plan.rhs : b.plan.lhs))
+              throw std::runtime_error(
+                  "network partition and legality queries require a rule root");
+            query = ref->projection == "legal" ? B::kAxisRhsLegal
+                    : ref->rhs                 ? B::kAxisRhsPartition
+                                               : B::kAxisSourcePartition;
+            args.clear();
+          } else if (ref->projection == "required_order")
+            query = B::kAxisRequired;
+          else if (ref->group.empty())
+            query = ref->rhs ? B::kAxisRhsNodeOrder : B::kAxisSourceNodeOrder;
+          else {
+            auto contract = axis::recognizeOrdered(*it->definition);
+            if (!contract)
+              throw std::runtime_error(
+                  "logical group access is outside the supported operation "
+                  "templates");
+            auto g = std::find_if(
+                it->definition->groups.begin(), it->definition->groups.end(),
+                [&](const auto& group) { return group.name == ref->group; });
+            auto group =
+                static_cast<std::size_t>(g - it->definition->groups.begin());
+            std::size_t role = 4;
+            if (contract->kind == axis::OrderedContract::Kind::Contraction) {
+              if (group == contract->batch_group)
+                role = 0;
+              else if (group == contract->contract_group)
+                role = 1;
+              else if (group == contract->left_free_group)
+                role = 2;
+              else if (group == contract->right_free_group)
+                role = 3;
+              else
+                throw std::runtime_error("unrecognized semantic axis group");
+            }
+            if (ref->rhs && it->automatic) {
+              query = role == 0   ? B::kAxisBatch
+                      : role == 1 ? B::kAxisContract
+                      : role == 2 ? B::kAxisLeftFree
+                      : role == 3 ? B::kAxisRightFree
+                                  : B::kAxisLive;
+            } else {
+              args.push_back(number(role, e->origin));
+              if (ref->rhs)
+                query = ref->projection == "members" ? B::kAxisRhsGroupMembers
+                        : ref->projection == "positions"
+                            ? B::kAxisRhsGroupPositions
+                            : B::kAxisRhsGroupOrder;
+              else
+                query = ref->projection == "members"
+                            ? B::kAxisSourceGroupMembers
+                            : B::kAxisSourceGroupOrder;
+            }
+          }
+        }
+        out.value = BuiltinCall{query, std::move(args)};
+      } else
+        std::visit(
+            [&](auto& v) {
+              if constexpr (requires { v.arguments; })
+                for (auto& a : v.arguments) a = properties(a);
+              if constexpr (requires { v.elements; })
+                for (auto& a : v.elements) a = properties(a);
+              if constexpr (requires { v.fields; })
+                for (auto& a : v.fields) a = properties(a);
+              if constexpr (requires { v.operand; })
+                v.operand = properties(v.operand);
+              if constexpr (requires { v.lhs; }) {
+                v.lhs = properties(v.lhs);
+                v.rhs = properties(v.rhs);
+              }
+              if constexpr (requires { properties(v.value); })
+                v.value = properties(v.value);
+              if constexpr (requires { properties(v.index); }) {
+                v.value = properties(v.value);
+                v.index = properties(v.index);
+              }
+              if constexpr (requires { v.condition; }) {
+                v.condition = properties(v.condition);
+                v.then_value = properties(v.then_value);
+                v.else_value = properties(v.else_value);
+              }
+              if constexpr (requires { v.iterable; }) {
+                v.iterable = properties(v.iterable);
+                v.element = properties(v.element);
+              }
+            },
+            out.value);
+      return std::make_shared<TypedExpr>(std::move(out));
+    };
+    for (auto& c : rule.conditions) c = properties(c);
     const bool selected = context.options.semantic_rule.empty() ||
                           context.options.semantic_rule == rule.name;
-    if (context.options.inferred_applicability) {
+    std::function<bool(const TypedExpr&)> axisQueries =
+        [&](const TypedExpr& e) {
+          bool found = false;
+          if (auto* b = std::get_if<BuiltinCall>(&e.value))
+            found = builtins::isAxisQuery(b->builtin);
+          forEachExpressionChild(
+              e, [&](const auto& child) { found |= axisQueries(child); });
+          return found;
+        };
+    bool explicit_axis_conditions = false;
+    for (const auto& c : rule.conditions)
+      explicit_axis_conditions |= axisQueries(*c);
+    if (context.options.inferred_applicability || explicit_axis_conditions) {
       if (selected) {
         bool automatic = false;
         for (const auto& n : b.plan.nodes) automatic |= n.automatic;
@@ -431,10 +551,58 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
             ordered::compile(b.plan, automatic ? inference::Mode::Synthesize
                                                : inference::Mode::Validate);
         if (compiled.program) {
+          b.plan.proof.inference = compiled.program;
+          b.plan.suggested_rule = suggestRule(b.plan, rule, context.output);
+          if (!context.options.inferred_applicability) {
+            // Project only the expression forms needed for syntactic law
+            // recognition. Other well-typed user predicates remain independent
+            // conjuncts and are checked normally at execution.
+            std::function<completed::TypedExprPtr(const TypedExprPtr&)>
+                project =
+                    [&](const TypedExprPtr& e) -> completed::TypedExprPtr {
+              completed::TypedExpr out{e->origin, e->type, false};
+              std::visit(
+                  [&](const auto& v) {
+                    using V = std::decay_t<decltype(v)>;
+                    if constexpr (std::is_same_v<V, BuiltinCall>) {
+                      completed::BuiltinCall call{v.builtin, {}};
+                      for (const auto& a : v.arguments)
+                        call.arguments.push_back(project(a));
+                      out.value = std::move(call);
+                    } else if constexpr (std::is_same_v<V, BinaryExpr>)
+                      out.value = completed::BinaryExpr{v.op, project(v.lhs),
+                                                        project(v.rhs)};
+                    else if constexpr (std::is_same_v<V, LocalLet>)
+                      out.value =
+                          completed::LocalLet{v.local, project(v.value)};
+                    else if constexpr (std::is_same_v<V, NumericConstant> ||
+                                       std::is_same_v<V, LocalRef> ||
+                                       std::is_same_v<V, bool>)
+                      out.value = v;
+                  },
+                  e->value);
+              return std::make_shared<completed::TypedExpr>(std::move(out));
+            };
+            completed::RuleData obligations;
+            obligations.name = rule.name;
+            obligations.inference = compiled.program;
+            for (const auto& c : rule.conditions)
+              obligations.conditions.push_back(project(c));
+            try {
+              completed::validateAxisConditions(obligations);
+            } catch (const std::invalid_argument&) {
+              throw std::runtime_error(
+                  "missing axis feasibility condition. Suggested rule:\n" +
+                  b.plan.suggested_rule);
+            }
+          }
           b.plan.proof.inference = std::move(compiled.program);
+          b.plan.proof.append_axis_conditions =
+              context.options.inferred_applicability;
           b.plan.proof.status = ProofStatus::Proved;
           b.plan.proof.reason =
-              "generated structural applicability check; equivalence is "
+              "generated explicit where obligations and attribute constructor; "
+              "equivalence is "
               "conditional on legal metadata, extents >= 2, and check success";
           b.plan.proof.steps.push_back(
               "verified: ordered semantic templates and completed inference "
@@ -457,7 +625,7 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
       context.report(rule.origin, std::move(message));
     }
     rule.semantic_plan = std::make_shared<Plan>(std::move(b.plan));
-  } catch (const std::runtime_error& e) {
+  } catch (const std::exception& e) {
     context.report(rule.origin, std::string("semantic inference: ") + e.what());
   }
   return true;

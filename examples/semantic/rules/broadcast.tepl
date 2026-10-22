@@ -2,13 +2,13 @@ from "dialects/tensor.tepl" import TensorLang as t;
 use t::{broadcast, transpose};
 
 rule broadcast_compose {
-    (broadcast[@outer] (broadcast[@inner] A)) => (broadcast[auto] A)
+    (outer: broadcast (inner: broadcast A)) => (broadcast A)
 }
 
 rule transpose_broadcast {
-    (transpose[@p] (broadcast[@b] A)) => (broadcast[auto] A)
+    (p: transpose (b: broadcast A)) => (broadcast A)
 }
 
 rule broadcast_transpose {
-    (broadcast[@b] (transpose[@p] A)) => (broadcast[auto] A)
+    (b: broadcast (p: transpose A)) => (broadcast A)
 }

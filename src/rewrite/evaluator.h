@@ -2,6 +2,7 @@
 #include <map>
 
 #include "src/executable/program.h"
+#include "src/rewrite/axis_analysis.h"
 #include "src/rewrite/value.h"
 
 namespace tepl::rewrite {
@@ -19,7 +20,13 @@ class Evaluator {
         graph_(graph),
         rule_(rule),
         bindings_(bindings),
-        budget_(budget) {}
+        budget_(budget),
+        axis_analysis_(program.ir(), program.ir().rules.at(rule), graph,
+                       bindings, budget) {}
+  // Evaluate source conditions first, then derivations and dependent
+  // conditions.
+  bool evaluateWhere();
+  void constructAttributes() { axis_analysis_.constructAttributes(); }
   Value eval(const core::completed::TypedExpr&);
   Value symbolic(const core::completed::Symbol&);
 
@@ -31,6 +38,7 @@ class Evaluator {
   Budget& budget_;
   std::map<std::pair<std::size_t, std::size_t>, Value> axis_cache_;
   std::set<std::pair<std::size_t, std::size_t>> active_axes_;
+  AxisAnalysis axis_analysis_;
 };
 // Infer and validate metadata from operation contracts. Missing input metadata
 // stays unknown; a violated available contract is an error.

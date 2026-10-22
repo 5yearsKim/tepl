@@ -6,40 +6,40 @@ use t::{dot, add};
 
 // Requires --semantic-policy=algebraic; exact real arithmetic, no FP error claim.
 rule distribute {
-  (dot[@d] (add A B) C)
+  (d: dot (add A B) C)
   =>
-  (add (dot[auto] A C) (dot[auto] B C))
+  (add (dot A C) (dot B C))
 }
 
 // Preserve the producer batch group. Contraction may select any subset of
 // either free group, in any paired order; axis maps preserve the output order.
 rule associate {
-  (dot[@d] (dot[@inner] A B) C)
+  (d: dot (inner: dot A B) C)
   =>
-  (dot[auto] A (dot[auto] B C))
+  (dot A (dot B C))
   where {
-    @d.lhs_batching_dimensions == @inner->B
+    d.attrs.lhs_batching_dimensions == inner.axes.B.positions
   }
 }
 
 // Distribution plus reassociation, restricted to whole-group routing.
 rule lora {
-  (dot[@outer] X (add W (dot[@inner] A B)))
+  (outer: dot X (add W (inner: dot A B)))
   =>
-  (add (dot[auto] X W) (dot[auto] (dot[auto] X A) B))
+  (add (dot X W) (dot (dot X A) B))
   where {
-    @outer.rhs_batching_dimensions == @inner->B
-    && @outer.rhs_contracting_dimensions == @inner->I
+    outer.attrs.rhs_batching_dimensions == inner.axes.B.positions
+    && outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions
   }
 }
 
 // Reverse routing consumes the producer LHS-free group.
 rule associate_reverse {
-  (dot[@outer] A (dot[@inner] B C))
+  (outer: dot A (inner: dot B C))
   =>
-  (dot[auto] (dot[auto] A B) C)
+  (dot (dot A B) C)
   where {
-    @outer.rhs_batching_dimensions == @inner->B
-    && @outer.rhs_contracting_dimensions == @inner->I
+    outer.attrs.rhs_batching_dimensions == inner.axes.B.positions
+    && outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions
   }
 }

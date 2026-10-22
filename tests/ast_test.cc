@@ -101,22 +101,20 @@ void testLora(const std::string& source, const std::string& path) {
 
   const auto& lhs =
       as<tepl::syntax::Operator>(rule.lhs->value, "LHS is not dot");
-  check(lhs.name == "dot" && lhs.attribute && lhs.attribute->name == "outer" &&
-            lhs.operands.size() == 2,
+  check(lhs.name == "dot" && lhs.label == "outer" && lhs.operands.size() == 2,
         "LHS dot or descriptor is wrong");
   const auto& rhs =
       as<tepl::syntax::Operator>(rule.rhs->value, "RHS is not add");
   check(rhs.name == "add" && rhs.operands.size() == 2, "RHS addition is wrong");
   const auto& final_dot = as<tepl::syntax::Operator>(
       rhs.operands[1]->value, "Second add operand is not dot");
-  check(final_dot.name == "dot" && final_dot.attribute &&
-            final_dot.attribute->name == "inner" &&
+  check(final_dot.name == "dot" && final_dot.descriptor_node == "inner" &&
             final_dot.operands.size() == 2,
         "Final dot must reuse inner attributes");
   const auto& inner_rhs_dot = as<tepl::syntax::Operator>(
       final_dot.operands[0]->value, "Expected nested RHS dot");
-  check(inner_rhs_dot.name == "dot" && inner_rhs_dot.attribute &&
-            inner_rhs_dot.attribute->name == "outer" &&
+  check(inner_rhs_dot.name == "dot" &&
+            inner_rhs_dot.descriptor_node == "outer" &&
             inner_rhs_dot.operands.size() == 2,
         "Nested dot or descriptor was not preserved");
   check(final_dot.operands[0]->span.begin.line == rule.rhs->span.begin.line,
@@ -124,12 +122,11 @@ void testLora(const std::string& source, const std::string& path) {
 
   const auto& xw =
       as<tepl::syntax::Operator>(rhs.operands[0]->value, "Expected X W dot");
-  check(xw.attribute && xw.attribute->name == "outer",
-        "X W dot must reuse outer attributes");
+  check(xw.descriptor_node == "outer", "X W dot must reuse outer attributes");
   check(rule.conditions.size() == 1 && rule.derivations.empty(),
         "LoRA where/derive counts are wrong");
   auto printed = tepl::formatAst(*loaded.program);
-  check(printed.find("operator dot @inner") != std::string::npos,
+  check(printed.find("operator dot [inner.attrs]") != std::string::npos,
         "Formatted AST is missing captured attribute reuse");
 }
 
@@ -170,8 +167,10 @@ dialect D {
 
 void testRuleConstructors() {
   auto parsed = tepl::parse(
-      "rule r { X => (transpose[@out] X) where { let rank = len([1, 2]); rank "
-      "> 0 } derive { @out = { permutation: [i for i in range(2)] }; } }");
+      "rule r { (source: transpose X) => (result: transpose X) where { let "
+      "rank = len([1, 2]); rank "
+      "> 0 } derive { result.attrs = { ..source.attrs, permutation: [i for i "
+      "in range(2)] }; } }");
   check(parsed.ok(), "Constructor fixture parses");
   const auto& rule = parsed.program->rules[0];
   check(std::holds_alternative<tepl::syntax::LocalBinding>(
@@ -179,17 +178,22 @@ void testRuleConstructors() {
         "Where preserves let statements");
   const auto& ctor = as<tepl::syntax::DescriptorConstructor>(
       rule.derivations[0].value->value, "Expected constructor");
-  check(ctor.fields.size() == 1 && !ctor.spread &&
+  check(ctor.fields.size() == 1 && ctor.spread && *ctor.spread == "source" &&
+            rule.derivations[0].target == "result" &&
             std::holds_alternative<tepl::syntax::ComprehensionExpr>(
                 ctor.fields[0].value->value),
         "Constructor preserves comprehension");
+  const auto printed = tepl::formatAst(*parsed.program);
+  check(printed.find("derive result.attrs") != std::string::npos &&
+            printed.find("descriptor ..source.attrs") != std::string::npos,
+        "Named attribute derivations and spreads print with public syntax");
 }
 
 void testExpressionsAndSpans() {
   auto parsed = tepl::parse(
       "rule r {\n  X: [M, Tail..., _]\n  S: []\n  (get[000] (tuple (let Y = "
-      "(dot[@d] X S)) Y)) => Y\n  where { (K + 2 * N >= 128 && !false || "
-      "true)\n          && -(M + N) < 0 && f(X, @d, Y, "
+      "(d: dot X S)) Y)) => Y\n  where { (K + 2 * N >= 128 && !false || "
+      "true)\n          && -(M + N) < 0 && f(X, d.attrs, Y, "
       "999999999999999999999999) }\n}\n",
       "math.tepl");
   check(parsed.ok() && parsed.program.has_value(), "Expression fixture failed");

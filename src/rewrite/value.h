@@ -12,6 +12,11 @@ using Integer = __int128;
 struct EvaluationError : std::runtime_error {
   using std::runtime_error::runtime_error;
 };
+// Unavailable or out-of-domain metadata skips a match, not a proof of
+// impossibility.
+struct ConditionUnavailable : std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
 struct LimitError : std::runtime_error {
   using std::runtime_error::runtime_error;
 };

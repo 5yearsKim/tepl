@@ -1,8 +1,8 @@
 from "../semantic/dialects/tensor.tepl" import TensorLang as t;
 
 rule compose_transposes {
-    (t.transpose[@outer] (t.transpose[@inner] X))
-    => (t.transpose[auto] X)
+    (outer: t.transpose (inner: t.transpose X))
+    => (t.transpose X)
 }
 
 graph example {

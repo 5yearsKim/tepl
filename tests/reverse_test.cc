@@ -163,32 +163,28 @@ int main(int argc, char** argv) {
     std::ifstream file(runfiles->Rlocation(argv[1]));
     dialect = {std::istreambuf_iterator<char>(file), {}};
     expect(!dialect.empty(), "dialect loads");
-    auto identity = plan("rule r {(reverse[@r] A)=>(reverse[@r] A)}", false);
+    auto identity =
+        plan("rule r {(r: reverse A)=>(reverse[r.attrs] A)}", false);
     auto twice = plan(
-        "rule r {(reverse[@outer] (reverse[@inner] A))=>A "
-        "where {@outer.dimensions == @inner.dimensions}}",
+        "rule r {(outer: reverse (inner: reverse A))=>A where "
+        "{outer.attrs.dimensions == inner.attrs.dimensions}}",
         false);
-    auto composed = plan(
-        "rule r {(reverse[@outer] (reverse[@inner] A)) "
-        "=> (reverse[auto] A)}");
+    auto composed =
+        plan("rule r {(outer: reverse (inner: reverse A)) => (reverse A)}");
     auto composed_cancel = plan(
-        "rule r {(reverse[@outer] (reverse[@inner] A)) "
-        "=> (reverse[auto] A) "
-        "where {@outer.dimensions == @inner.dimensions}}");
+        "rule r {(outer: reverse (inner: reverse A)) => (reverse A) where "
+        "{outer.attrs.dimensions == inner.attrs.dimensions}}");
     auto empty = plan(
-        "rule r {(reverse[@r] A)=>A "
-        "where {@r.dimensions == []}}",
-        false);
+        "rule r {(r: reverse A)=>A where {r.attrs.dimensions == []}}", false);
     auto addition = plan(
-        "rule r {(reverse[@r] (add A B)) "
-        "=> (add (reverse[@r] A) (reverse[@r] B))}");
+        "rule r {(r: reverse (add A B)) => (add (reverse[r.attrs] A) "
+        "(reverse[r.attrs] B))}");
     auto product = plan(
-        "rule r {(reverse[@r] (mul A B)) "
-        "=> (mul (reverse[@r] A) (reverse[@r] B))}");
+        "rule r {(r: reverse (mul A B)) => (mul (reverse[r.attrs] A) "
+        "(reverse[r.attrs] B))}");
     auto broadcast = plan(
-        "rule r {(reverse[@r] (broadcast[@b] C)) "
-        "=> (broadcast[@b] C) "
-        "where {len(@b.dimensions)==0}}",
+        "rule r {(r: reverse (b: broadcast C)) => (broadcast[b.attrs] C) where "
+        "{len(b.attrs.dimensions)==0}}",
         false);
 
     for (std::size_t rank = 0; rank <= 4; ++rank) {
@@ -264,17 +260,17 @@ int main(int argc, char** argv) {
         "assert selected_sizes == offset_extents("
         "extent_sub(selected_sizes, selected_sizes), 1);");
     auto singleton =
-        plan("rule r {(reverse[@r] A)=>A}", false, singleton_dialect);
+        plan("rule r {(r: reverse A)=>A}", false, singleton_dialect);
     auto singleton_input = data({1, 4, 1}, 2);
     compare(singleton, {singleton_input}, {{"r", {{2, 0}}}}, singleton_input);
 
     auto reverse_slice = plan(
-        "rule r {(reverse[@r] (slice[@s] A)) "
-        "=> (reverse[@r] (slice[@s] A))}",
+        "rule r {(r: reverse (s: slice A)) => (reverse[r.attrs] "
+        "(slice[s.attrs] A))}",
         false);
     auto slice_reverse = plan(
-        "rule r {(slice[@s] (reverse[@r] A)) "
-        "=> (slice[@s] (reverse[@r] A))}",
+        "rule r {(s: slice (r: reverse A)) => (slice[s.attrs] "
+        "(reverse[r.attrs] A))}",
         false);
     auto a = data({9, 11}, 2);
     Attributes attrs{{"r", {{1, 0}}}, {"s", {{1, 2}, {3, 4}, {2, 2}}}};
@@ -347,15 +343,13 @@ int main(int argc, char** argv) {
     expect(rejected,
            "bounds cannot assume arbitrary incoming coordinates are valid");
 
-    auto unguarded =
-        analyze("rule r {(reverse[@outer] (reverse[@inner] A))=>A}");
+    auto unguarded = analyze("rule r {(outer: reverse (inner: reverse A))=>A}");
     expect(unguarded.ok() &&
                unguarded.program->rules[0].semantic_plan->proof.status ==
                    ProofStatus::Unknown,
            "reversal cancellation requires matching axis selections");
     auto wrong = analyze(
-        "rule r {(reverse[@r] (add A B)) "
-        "=> (add (reverse[@r] A) B)}");
+        "rule r {(r: reverse (add A B)) => (add (reverse[r.attrs] A) B)}");
     expect(wrong.ok() && wrong.program->rules[0].semantic_plan->proof.status ==
                              ProofStatus::Unknown,
            "dropping reversal from an operand is rejected");

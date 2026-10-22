@@ -9,18 +9,12 @@ rule lora {
     A: [Batch..., K, R]
     B: [Batch..., R, N]
 
-    (dot[@outer] X (add W (dot[@inner] A B)))
+    (outer: dot X (add W (inner: dot A B)))
     =>
-    (add (dot[@outer] X W) (dot[@inner] (dot[@outer] X A) B))
+    (add (dot[outer.attrs] X W) (dot[inner.attrs] (dot[outer.attrs] X A) B))
 
     where {
-        @outer.lhs_batching_dimensions == range(len(Batch))
-        && @outer.rhs_batching_dimensions == range(len(Batch))
-        && @inner.lhs_batching_dimensions == range(len(Batch))
-        && @inner.rhs_batching_dimensions == range(len(Batch))
-        && @outer.lhs_contracting_dimensions == [len(Batch) + 1]
-        && @outer.rhs_contracting_dimensions == [len(Batch)]
-        && @inner.lhs_contracting_dimensions == [len(Batch) + 1]
-        && @inner.rhs_contracting_dimensions == [len(Batch)]
+        outer.attrs.rhs_batching_dimensions == inner.axes.B.positions
+        && outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions
     }
 }

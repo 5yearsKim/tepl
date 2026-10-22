@@ -289,7 +289,7 @@ transformation. By contrast, swapping only one contracting list changes the
 pairing and generally changes the value, even when both dimensions have equal
 size.
 
-Another example is `A => transpose[auto](transpose[auto](A))`: a rank-`r`
+Another example is `A => (transpose (transpose A))`: a rank-`r`
 input admits `r!` inner permutations, with the inverse forced outside. Removing
 reduction-order ambiguity does not make these attributes unique.
 

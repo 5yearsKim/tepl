@@ -2,8 +2,8 @@
 
 This directory separates axis membership, ordering requirements, and descriptor
 construction. It implements the compilation side of
-[the completeness plan](../../../../../docs/complete_attribute_synthesis_plan.md).
-The [completeness proof draft](../../../../../docs/complete_attribute_synthesis_proof.md)
+[the completeness plan](../../../../../examples/research/complete_attribute_synthesis_plan.md).
+The [completeness proof draft](../../../../../examples/research/complete_attribute_synthesis_proof.md)
 proves the concrete algorithm's necessity, constructive sufficiency,
 termination, and certificate properties in its stated domain. Section 12 also
 proves correctness of a specified abstract generator for feasibility and
@@ -51,28 +51,48 @@ used to reject an entire rank-polymorphic rule schema.
 The explicit `SemanticOptions::inferred_applicability` option selects the new
 path instead. The CLI exposes it as `--infer-applicability` on `check`,
 `compile`, and source `rewrite`; it requires `--semantic-policy=algebraic`.
-An admitted rule receives a completed `inference::Program`. No general
-symbolic correspondence or condition implication search is needed to generate
-this program. Rule conditions are still evaluated before attribute derivations
-and inference. Mixed explicit/automatic or pinned RHS fields are rejected.
+An admitted rule receives a completed `inference::Program` containing the
+source/replacement schedules. Its feasibility formula is emitted as ordinary
+typed `where` conditions by `shared/catalog/axis_conditions.*`; there is no
+separate runtime checker call. `check --infer-applicability` prints a suggested
+complete named rule. Copying it into source permits normal compilation without the
+flag. The flag explicitly requests insertion of the conditions into the
+completed program; ordinary compilation never silently adds them.
 
-At a match, the native engine runs source analysis, boundaries, order
-propagation, feasibility, and construction once, sharing the analysis. A false
-feasibility result skips the match before positional construction. Backend
-shape/dtype checks still validate the replacement before graph mutation.
-`VerificationKind::InferredApplicability` and inspection output identify the
-conditional guarantee; the mode does not promise feasibility for every match
-satisfying the user's conditions.
+Named node properties expose required subsequences, batch/free sets, and
+physical input order. Sequences have type `LogicalAxis[]`; membership has the
+distinct type `LogicalAxisSet`. `filter`, `concat`, equality, and `subsequence`
+express the checks. Public syntax uses `result.axes.B.members`,
+`result.required_order`, and `A.axes.order`. The compiler lowers these to closed
+queries with internal node IDs; numeric query calls are not source builtins.
+Identities are canonical physical-port classes determined by captured source
+attributes at each match. Labels do not add tensor captures or alter synthesis.
 
-Fully explicit RHS rules use the same compiled schedules in `Mode::Validate`.
-After ordinary descriptor derivations, the evaluator replays the supplied RHS
-attributes and compares the complete source/RHS network and output order. It
-does not substitute another feasible assignment. Such rules need no constructor.
+The compiler and executable loader regenerate the required formula and check
+its conjuncts after expanding local bindings and conjunctions. Removing a
+condition or hiding it under a disjunction fails verification. This route does
+not claim complete implication reasoning for differently spelled predicates;
+the existing symbolic prover remains available for ordinary rules. Mixed
+explicit/automatic RHS attributes remain outside admission.
+
+At a match, `rewrite::AxisAnalysis` caches source replay, boundaries, and order
+propagation. The ordinary condition evaluator decides feasibility. Only after
+conditions pass does the constructor use the same analysis to assign positions;
+it does not repeat a feasibility decision. Backend shape/dtype checks validate
+the replacement before graph mutation.
+
+Fully explicit RHS rules use the same schedules in `Mode::Validate`.
+`result.legal` exposes descriptor legality; equality of source/RHS
+`axes.partition` and `axes.order` properties establishes equivalence. RHS queries and dependent
+local bindings execute after ordinary descriptor derivations. Independent
+source conditions execute first, and `where`/`derive` local scopes remain
+separate. These rules need no constructor and never substitute a different
+assignment.
 
 Compiled JSON stores the completed schedules and declares the
 `tepl.inferred-applicability.v1` capability. Loading checks tree structure,
 capture sets, field bijections, references to the actual rule, and field-role
-adapters against operation axis contracts. Deferred code-generation backends
+adapters against operation axis contracts, and the mandatory explicit conditions. Deferred code-generation backends
 reject these programs explicitly; native C++ execution is currently supported.
 
 For example, from the repository root:
@@ -103,7 +123,7 @@ Plan APIs used by compiler-side callers.
 3. Ordering analysis propagates required subsequences from the root. A
    contraction requires nondecreasing batch/left-free/right-free roles;
    a transpose removes the child's ordering requirement.
-4. Feasibility checks exact local role/physical-order inversions.
+4. Ordinary `where` expressions check subsequences and batch/free block order.
 5. Construction chooses complete layouts only after those checks succeed and
    converts the same logical pairing sequences into positions on both operands.
 
@@ -112,8 +132,11 @@ capture-support set alone. Equal-sized axes remain distinct. The concrete
 metadata domain requires every extent to be at least two; rank-zero tensors
 and empty attribute lists are allowed.
 
-The native API offers `feasibility` (no construction) and `evaluate` (analysis
-plus guarded construction/explicit validation). Its result reports `Feasible`,
+The native API separates `analyze`, `construct`, and `replayReplacement`.
+Analysis makes no applicability decision; construction requires established
+preconditions. The standalone `feasibility` (no construction) and `evaluate`
+(analysis plus guarded construction/explicit validation) APIs remain available
+for mathematical solver tests and certificates. Results report `Analyzed`, `Feasible`,
 `Solved`, `Impossible`, `Unsupported`,
 `OutsideDomain`, `InvalidSource`, `MissingMetadata`, or `ResourceLimit`.
 Explicit validation additionally reports `InvalidReplacement` or `NotEquivalent`.
@@ -149,3 +172,19 @@ source descriptor sharing, unsupported schemas, and corrupted program rejection.
 These finite tests corroborate the implementation; they do not prove
 arbitrary-rank completeness or formal compiler refinement. The general verifier
 remains the acceptance boundary for the default declared-condition mode.
+
+## Explicit condition workflow
+
+```sh
+bazel-bin/tepl check examples/semantic/inferred_applicability.tepl \
+  --semantic-policy=algebraic --infer-applicability --rule remove_output_permutation
+bazel-bin/tepl compile examples/semantic/explicit_axis_conditions.tepl \
+  --semantic-policy=algebraic -o /tmp/explicit.json
+bazel-bin/tepl rewrite /tmp/explicit.json --graph feasible --trace
+```
+
+`axis_domain()` checks source legality and the theorem's metadata domain.
+Outside-domain data is not mathematical infeasibility. Missing data skips a
+match; work exhaustion remains a distinct resource limit. Extra user conditions
+may intentionally exclude feasible matches; exactness concerns the generated
+conjunction itself within its domain.

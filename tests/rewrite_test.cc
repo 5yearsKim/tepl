@@ -58,10 +58,10 @@ void expectInvalid(nlohmann::json j, std::string_view message = {}) {
 }
 void constructors() {
   auto p = compile(R"(
-rule compose {(transpose[@outer] (transpose[@inner] X)) => (transpose[@out] X)
- derive {let permutation=gather(@inner.permutation,@outer.permutation); @out={..@outer,permutation:permutation};}}
-rule identity {X:[Dims...] (transpose[@p] X)=>X
- where {let axes=range(len(Dims)); @p.permutation==axes}}
+rule compose {(outer: transpose (inner: transpose X)) => (out: transpose X)
+ derive {let permutation=gather(inner.attrs.permutation,outer.attrs.permutation); out.attrs={..outer.attrs,permutation:permutation};}}
+rule identity {X:[Dims...] (p: transpose X)=>X
+ where {let axes=range(len(Dims)); p.attrs.permutation==axes}}
 graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
  let b=(transpose[permutation=[1,0]] a);yield (add b b);}
 )");
@@ -164,7 +164,8 @@ void guardsAndFailure() {
   p = compile("rule r {(copy X)=>(scalar X)}" + graph);
   assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 0);
   p = compile(
-      "rule r {(copy X)=>(transpose[@p] X) derive {@p={permutation:[9]};}}" +
+      "rule r {(copy X)=>(p: transpose X) derive "
+      "{p.attrs={permutation:[9]};}}" +
       graph);
   assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 0);
   p = compile("rule r {(copy X)=>(copy X)}" + graph);
@@ -267,7 +268,7 @@ graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (tran
          implicit_attrs[1].text == "1" && implicit_attrs[2].text == "2");
 
   auto p = compile(definitions + R"(
-rule compose {(transpose[@a] (transpose[@b] X)) => (transpose[auto] X)}
+rule compose {(a: transpose (b: transpose X)) => (transpose X)}
 graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (transpose[permutation=[2,0,1]] a);}
 )",
                    false);
@@ -278,7 +279,7 @@ graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (tran
   assert(out.graph.nodes[out.graph.root].shape ==
          std::optional<std::vector<std::uint64_t>>({2, 3, 4}));
   p = compile(definitions + R"(
-rule move_reduce {(reduce_sum[@r] (transpose[@p] A)) => (transpose[auto] (reduce_sum[auto] A))}
+rule move_reduce {(r: reduce_sum (p: transpose A)) => (transpose (reduce_sum A))}
 graph g {input A:f32[2,3,4];yield (reduce_sum[dimensions=[1]] (transpose[permutation=[2,0,1]] A));}
 )",
               false, core::SemanticPolicy::kAlgebraic);

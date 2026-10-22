@@ -96,12 +96,12 @@ void run() {
   check("rule r {X:i32[] (D.min (D.add X X) 2147483647:i32)=>(D.add X X)}",
         false);
   check("rule r {(D.exp X)=>(D.exp X)}", true, false);
-  check("rule r {(D.compare[@c] X Y)=>(D.compare[@c] X Y)}", true);
+  check("rule r {(c: D.compare X Y)=>(D.compare[c.attrs] X Y)}", true);
   check(
-      "rule r {(D.compare[@c] X Y)=>(D.compare[@d] X Y) derive "
-      "{@d={direction:@c.direction};}}",
+      "rule r {(c: D.compare X Y)=>(d: D.compare X Y) derive "
+      "{d.attrs={direction:c.attrs.direction};}}",
       true);
-  check("rule r {(D.compare[@c] X Y)=>(D.compare[@d] X Y)}", false);
+  check("rule r {(c: D.compare X Y)=>(D.compare[d.attrs] X Y)}", false);
   check("rule r {(D.min (D.exp X) (D.exp Y))=>(D.exp (D.min X Y))}", true);
 
   check("rule r {(D.exp (D.add X (D.zero X)))=>(D.exp X)}", true);
@@ -110,23 +110,23 @@ void run() {
   check("rule r {(D.exp (D.add X Y))=>(D.exp (D.add Y X))}", false, false);
   check("rule r {(D.exp (D.add (D.add X Y) Z))=>(D.exp (D.add X (D.add Y Z)))}",
         false, false);
-  check("rule r {(D.transpose[@t] (D.exp X))=>(D.exp (D.transpose[@t] X))}",
+  check("rule r {(t: D.transpose (D.exp X))=>(D.exp (D.transpose[t.attrs] X))}",
         true);
-  check("rule r {(D.transpose[@t] (D.exp X))=>(D.exp (D.transpose[@t] X))}",
+  check("rule r {(t: D.transpose (D.exp X))=>(D.exp (D.transpose[t.attrs] X))}",
         true, false);
   check(
-      "rule r {X:[M,N] (D.transpose[@t] (D.exp X))=>(D.exp X) where "
-      "{@t.p==[1,0]}}",
+      "rule r {X:[M,N] (t: D.transpose (D.exp X))=>(D.exp X) where "
+      "{t.attrs.p==[1,0]}}",
       false);
-  check("rule r {(D.reverse[@r] (D.exp X))=>(D.exp (D.reverse[@r] X))}", true);
-  check("rule r {(D.transpose[@t] (D.exp X))=>(D.exp (D.transpose[auto] X))}",
+  check("rule r {(r: D.reverse (D.exp X))=>(D.exp (D.reverse[r.attrs] X))}",
         true);
+  check("rule r {(t: D.transpose (D.exp X))=>(D.exp (D.transpose X))}", true);
   check("rule r {(D.exp X)=>(D.log X)}", false);
   check(
-      "rule r {(D.compare[@c] X Y)=>(D.compare[@out] X Y) where "
-      "{@c.direction==0} derive {@out={direction:1};}}",
+      "rule r {(c: D.compare X Y)=>(out: D.compare X Y) where "
+      "{c.attrs.direction==0} derive {out.attrs={direction:1};}}",
       false);
-  check("rule r {(D.sum[@s] (D.exp X))=>(D.exp (D.sum[@s] X))}", false);
+  check("rule r {(s: D.sum (D.exp X))=>(D.exp (D.sum[s.attrs] X))}", false);
   check("rule r {(D.min X X)=>X}", false, false);
   check("rule r {X:[] (D.mul X 1)=>X}", true);
   check("rule r {X:[] (D.pow X 2)=>(D.mul X X)}", true);

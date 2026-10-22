@@ -402,6 +402,54 @@ struct Codec<core::builtins::Builtin> {
         return "floor_div";
       case core::builtins::Builtin::kCeilDiv:
         return "ceil_div";
+      case core::builtins::Builtin::kAxisDomain:
+        return "axis_domain";
+      case core::builtins::Builtin::kAxisRequired:
+        return "axis_required";
+      case core::builtins::Builtin::kAxisBatch:
+        return "axis_batch";
+      case core::builtins::Builtin::kAxisLeftFree:
+        return "axis_left_free";
+      case core::builtins::Builtin::kAxisRightFree:
+        return "axis_right_free";
+      case core::builtins::Builtin::kAxisInputOrder:
+        return "axis_input_order";
+      case core::builtins::Builtin::kAxisFilter:
+        return "filter";
+      case core::builtins::Builtin::kAxisSubsequence:
+        return "subsequence";
+      case core::builtins::Builtin::kAxisRhsLegal:
+        return "axis_rhs_legal";
+      case core::builtins::Builtin::kAxisSourcePartition:
+        return "axis_source_partition";
+      case core::builtins::Builtin::kAxisRhsPartition:
+        return "axis_rhs_partition";
+      case core::builtins::Builtin::kAxisSourceOrder:
+        return "axis_source_order";
+      case core::builtins::Builtin::kAxisRhsOrder:
+        return "axis_rhs_order";
+      case core::builtins::Builtin::kAxisCaptureOrder:
+        return "axis_capture_order";
+      case core::builtins::Builtin::kAxisSourceNodeOrder:
+        return "axis_source_node_order";
+      case core::builtins::Builtin::kAxisSourceGroupOrder:
+        return "axis_source_group_order";
+      case core::builtins::Builtin::kAxisSourceGroupMembers:
+        return "axis_source_group_members";
+      case core::builtins::Builtin::kAxisRhsNodeOrder:
+        return "axis_rhs_node_order";
+      case core::builtins::Builtin::kAxisRhsGroupOrder:
+        return "axis_rhs_group_order";
+      case core::builtins::Builtin::kAxisRhsGroupMembers:
+        return "axis_rhs_group_members";
+      case core::builtins::Builtin::kAxisRhsGroupPositions:
+        return "axis_rhs_group_positions";
+      case core::builtins::Builtin::kAxisContract:
+        return "axis_contract";
+      case core::builtins::Builtin::kAxisLive:
+        return "axis_live";
+      case core::builtins::Builtin::kAxisDifference:
+        return "difference";
     }
     throw std::invalid_argument("invalid builtin");
   }
@@ -433,6 +481,42 @@ struct Codec<core::builtins::Builtin> {
     if (j == "max") return core::builtins::Builtin::kMax;
     if (j == "floor_div") return core::builtins::Builtin::kFloorDiv;
     if (j == "ceil_div") return core::builtins::Builtin::kCeilDiv;
+    if (j == "axis_domain") return core::builtins::Builtin::kAxisDomain;
+    if (j == "axis_required") return core::builtins::Builtin::kAxisRequired;
+    if (j == "axis_batch") return core::builtins::Builtin::kAxisBatch;
+    if (j == "axis_left_free") return core::builtins::Builtin::kAxisLeftFree;
+    if (j == "axis_right_free") return core::builtins::Builtin::kAxisRightFree;
+    if (j == "axis_input_order")
+      return core::builtins::Builtin::kAxisInputOrder;
+    if (j == "filter") return core::builtins::Builtin::kAxisFilter;
+    if (j == "subsequence") return core::builtins::Builtin::kAxisSubsequence;
+    if (j == "axis_rhs_legal") return core::builtins::Builtin::kAxisRhsLegal;
+    if (j == "axis_source_partition")
+      return core::builtins::Builtin::kAxisSourcePartition;
+    if (j == "axis_rhs_partition")
+      return core::builtins::Builtin::kAxisRhsPartition;
+    if (j == "axis_source_order")
+      return core::builtins::Builtin::kAxisSourceOrder;
+    if (j == "axis_rhs_order") return core::builtins::Builtin::kAxisRhsOrder;
+    if (j == "axis_capture_order")
+      return core::builtins::Builtin::kAxisCaptureOrder;
+    if (j == "axis_source_node_order")
+      return core::builtins::Builtin::kAxisSourceNodeOrder;
+    if (j == "axis_source_group_order")
+      return core::builtins::Builtin::kAxisSourceGroupOrder;
+    if (j == "axis_source_group_members")
+      return core::builtins::Builtin::kAxisSourceGroupMembers;
+    if (j == "axis_rhs_node_order")
+      return core::builtins::Builtin::kAxisRhsNodeOrder;
+    if (j == "axis_rhs_group_order")
+      return core::builtins::Builtin::kAxisRhsGroupOrder;
+    if (j == "axis_rhs_group_members")
+      return core::builtins::Builtin::kAxisRhsGroupMembers;
+    if (j == "axis_rhs_group_positions")
+      return core::builtins::Builtin::kAxisRhsGroupPositions;
+    if (j == "axis_contract") return core::builtins::Builtin::kAxisContract;
+    if (j == "axis_live") return core::builtins::Builtin::kAxisLive;
+    if (j == "difference") return core::builtins::Builtin::kAxisDifference;
     throw std::invalid_argument("invalid builtin");
   }
 };
@@ -1593,6 +1677,7 @@ inline Json Codec<core::MatchOperation>::pack(const core::MatchOperation& v) {
   j["operation"] = detail::pack(v.operation);
   j["descriptor"] = detail::pack(v.descriptor);
   j["operands"] = detail::pack(v.operands);
+  if (!v.label.empty()) j["label"] = v.label;
   return j;
 }
 inline core::MatchOperation Codec<core::MatchOperation>::unpack(const Json& j) {
@@ -1600,6 +1685,7 @@ inline core::MatchOperation Codec<core::MatchOperation>::unpack(const Json& j) {
   v.operation = detail::unpack<decltype(v.operation)>(j.at("operation"));
   v.descriptor = detail::unpack<decltype(v.descriptor)>(j.at("descriptor"));
   v.operands = detail::unpack<decltype(v.operands)>(j.at("operands"));
+  if (j.contains("label")) v.label = j.at("label").get<std::string>();
   return v;
 }
 inline Json Codec<core::BindPattern>::pack(const core::BindPattern& v) {
@@ -1643,6 +1729,7 @@ inline Json Codec<core::BuildOperation>::pack(const core::BuildOperation& v) {
   j["operation"] = detail::pack(v.operation);
   j["descriptor"] = detail::pack(v.descriptor);
   j["operands"] = detail::pack(v.operands);
+  if (!v.label.empty()) j["label"] = v.label;
   return j;
 }
 inline core::BuildOperation Codec<core::BuildOperation>::unpack(const Json& j) {
@@ -1650,6 +1737,7 @@ inline core::BuildOperation Codec<core::BuildOperation>::unpack(const Json& j) {
   v.operation = detail::unpack<decltype(v.operation)>(j.at("operation"));
   v.descriptor = detail::unpack<decltype(v.descriptor)>(j.at("descriptor"));
   v.operands = detail::unpack<decltype(v.operands)>(j.at("operands"));
+  if (j.contains("label")) v.label = j.at("label").get<std::string>();
   return v;
 }
 inline Json Codec<core::BuildExpr>::pack(const core::BuildExpr& v) {

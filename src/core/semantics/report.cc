@@ -183,8 +183,8 @@ class Printer {
             out_ << "DescriptorField(@#" << value.descriptor.value << '.'
                  << value.field << ')';
           else if constexpr (std::is_same_v<T, OutputAxisGroupRef>)
-            out_ << "OutputAxes(@#" << value.descriptor.value << "->"
-                 << value.group << ')';
+            out_ << "OutputAxes(" << value.node << ".axes." << value.group
+                 << ".positions)";
           else if constexpr (std::is_same_v<T, NumericConstant>)
             out_ << value.spelling;
           else if constexpr (std::is_same_v<T, bool>)

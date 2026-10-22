@@ -220,20 +220,6 @@ S Context::field(const Instance& n, std::size_t f) {
     validateSource(value);
     return resolve(value);
   }
-  if (n.automatic && f < n.pins.size() && n.pins[f]) {
-    const auto& pin = *n.pins[f];
-    if (pin.literal) {
-      std::vector<S> xs;
-      for (auto i : *pin.literal)
-        xs.push_back(make(Symbol::Kind::Integer, std::to_string(i)));
-      return make(Symbol::Kind::List, {}, 0, 0, std::move(xs));
-    }
-    std::string name;
-    for (const auto& source : plan.nodes)
-      if (source.descriptor == pin.descriptor && source.definition)
-        name = source.definition->fields.at(pin.field);
-    return make(Symbol::Kind::Field, name, pin.descriptor->value, pin.field);
-  }
   return resolve(make(n.automatic ? Symbol::Kind::Hole : Symbol::Kind::Field,
                       n.definition->fields.at(f), n.descriptor->value, f));
 }

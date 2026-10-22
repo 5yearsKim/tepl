@@ -2,14 +2,14 @@ from "dialects/tensor.tepl" import TensorLang as t;
 use t::{slice, add, transpose};
 
 rule slice_add {
-  (slice[@s] (add A B)) => (add (slice[auto] A) (slice[auto] B))
+  (s: slice (add A B)) => (add (slice A) (slice B))
 }
 
 rule compose_slice {
-  (slice[@outer] (slice[@inner] A)) => (slice[auto] A)
+  (outer: slice (inner: slice A)) => (slice A)
 }
 
 rule slice_transposed_input {
-  (slice[@s] (transpose[@p] (add A B)))
-  => (add (slice[auto] (transpose[@p] A)) (slice[auto] (transpose[@p] B)))
+  (s: slice (p: transpose (add A B)))
+  => (add (slice (transpose[p.attrs] A)) (slice (transpose[p.attrs] B)))
 }

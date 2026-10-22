@@ -25,6 +25,17 @@ std::string_view dtypeName(DType dtype) {
   return "<invalid dtype>";
 }
 
+Type logicalAxisSetType() {
+  Type t{TypeKind::kOpaque};
+  t.opaque_name = "LogicalAxisSet";
+  return t;
+}
+Type logicalAxisType() {
+  Type t{TypeKind::kOpaque};
+  t.opaque_name = "LogicalAxis";
+  return t;
+}
+
 Type listType(Type element) {
   if (element.kind == TypeKind::kIndexList) {
     element.kind = TypeKind::kIndex;

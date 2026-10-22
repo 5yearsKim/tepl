@@ -2,7 +2,7 @@
 
 **Status: mathematical proof draft, October 21, 2026.** This document gives a
 self-contained hand proof of the concrete structural algorithm implemented in
-[`synthesis/ordered`](../src/core/semantics/synthesis/ordered/README.md). It proves
+[`synthesis/ordered`](../../src/core/semantics/synthesis/ordered/README.md). It proves
 necessity, constructive sufficiency, termination, and certificate properties for
 the fragment defined below. Section 12 adds a specified abstract program
 generator and proves that its generated feasibility checks and constructors
@@ -34,9 +34,11 @@ predicate decides attribute existence exactly, and the generated constructor
 terminates with valid attributes whenever that predicate holds. Here a generated
 predicate denotes a finite metadata program, not an enumerated table of ranks.
 
-Theorem 4 connects that abstract result to the information expressed by
-supported TEPL declarations. It concerns the specified translation and
-generator; implementation of this path in the current compiler remains open.
+Theorem 4 connects that abstract result to the symbolic axis specification
+\(\Sigma=E(T)\) extracted from supported TEPL declarations. It constructs
+\(\Phi_\Sigma\) and an attribute program using only this specification and
+runtime source metadata. Formal verification of the current compiler's
+correspondence to this translation and generator remains open.
 
 ## 1. Domain, legality, and quantifiers
 
@@ -639,7 +641,7 @@ all extents at least two. The source forms their outer product and permutes
 its output to \([j,i,k]\). Consider
 
 ```text
-dot[auto](transpose[auto](A), B)
+(dot (transpose A) B)
 ```
 
 At the root, \(LF=\{i,j\}\), \(RF=\{k\}\), and \(B=K=\varnothing\).
@@ -649,14 +651,14 @@ The left transpose receives \([j,i]\) and sends an empty requirement to
 yielding the exact required order. Attributes were constructed after the
 attribute-free constraints passed.
 
-For the same source with replacement `dot[auto](A, B)`, the root check still
+For the same source with replacement `(dot A B)`, the root check still
 passes, but the leaf requires \([j,i]\preceq[i,j]\), which fails. The
 certificate is the leaf and adjacent pair \((j,i)\). By Theorem 1, no other
 batching or contracting attributes can repair it: they would change the
 source's port partition or output interface.
 
 For a failure at a binary node, use vector captures and source
-\(L[j,i]=A[i]B[j]\), with replacement `dot[auto](A, B)`. The root has
+\(L[j,i]=A[i]B[j]\), with replacement `(dot A B)`. The root has
 \(LF=\{i\}\), \(RF=\{j\}\), and requires \([j,i]\), whose roles
 \(RF,LF\) descend. This remains impossible when both extents are two.
 
@@ -708,16 +710,17 @@ review map, not a mechanically checked refinement proof.
 
 | Proof component | Implementation | Correspondence to audit |
 | --- | --- | --- |
-| Section 1 operation/schema domain | [`contract.cc`](../src/core/semantics/synthesis/ordered/contract.cc), `recognize`, `admit` | Recognized group bindings, output, and scalar value have exactly the two operation meanings; no extra legality restriction is accepted. Captures are read-once and RHS descriptors independent. |
-| Lemmas 1–2 source extraction | [`evaluate.cc`](../src/inference/evaluate.cc), `Replay` | Validate physical lists and extents, union both batch and contract pairs, retain reduced classes, normalize all interfaces. Canonical representative is the least physical port ID. |
+| Section 1 operation/schema domain | [`contract.cc`](../../src/core/semantics/synthesis/ordered/contract.cc), `recognize`, `admit` | Recognized group bindings, output, and scalar value have exactly the two operation meanings; no extra legality restriction is accepted. Captures are read-once and RHS descriptors independent. |
+| Lemmas 1–2 source extraction | [`evaluate.cc`](../../src/inference/evaluate.cc), `Replay` | Validate physical lists and extents, union both batch and contract pairs, retain reduced classes, normalize all interfaces. Canonical representative is the least physical port ID. |
 | Lemmas 4–5 | `Analysis::boundaries` | Compute support using capture IDs, retain class identity separately, implement (2) and (3). |
 | Lemma 6 | `Analysis::ordering`, `Analysis::obstruction` | Root requirement is the source output; transpose resets it; free-axis filtering propagates it; all local checks are exact. |
 | Lemmas 7–9 | `extend`, `positions`, `Analysis::construct` | Same logical lists on both sides of each pairing, total position lookup, legal permutations, preserved child free-axis order. |
 | Lemma 10 / Theorem 1 | `inference::evaluate`, `Work` | Every in-domain instance reaches construction or an order inversion when resources suffice. Other statuses are not logical impossibility. |
 | Theorem 2 | `inference::check`, `Replay` | Success replays actual attributes; failure rederives the deterministic inversion. Claimed source/requirements/layouts are not trusted. |
-| Theorems 3–4 program generation | [`compile.cc`](../src/core/semantics/synthesis/ordered/compile.cc), [`inference.h`](../src/shared/metadata/inference.h) | Emit completed schedules, field adapters, and subtree capture sets without evaluating source metadata. |
-| Generated-program execution | [`evaluate.cc`](../src/inference/evaluate.cc), [`rewrite/inference.cc`](../src/rewrite/inference.cc) | Execute the five passes once per match, or replay fully explicit attributes; keep resource/domain failures distinct. |
-| Symbolic versions of (3), (5), (8) | [`requirements.cc`](../src/core/semantics/synthesis/ordered/requirements.cc), [`construct.cc`](../src/core/semantics/synthesis/ordered/construct.cc) | Requires exact symbolic source correspondence and faithful metadata primitive evaluation. The proof permits their different deterministic enumeration choices. |
+| Theorems 3–4 program generation | [`compile.cc`](../../src/core/semantics/synthesis/ordered/compile.cc), [`inference.h`](../../src/shared/metadata/inference.h) | Emit completed schedules, field adapters, and subtree capture sets without evaluating source metadata. |
+| Generated-program execution | [`evaluate.cc`](../../src/inference/evaluate.cc), [`axis_analysis.cc`](../../src/rewrite/axis_analysis.cc) | Cache source/requirement analysis, evaluate explicit where conditions, then construct or expose supplied-RHS replay facts; keep resource/domain failures distinct. |
+| Lemma 17 / explicit condition emission | [`axis_conditions.cc`](../../src/shared/catalog/axis_conditions.cc), [`evaluator.cc`](../../src/rewrite/evaluator.cc) | Emit and recognize the required conjuncts, evaluate logical-axis queries and typed sequence operations, and schedule RHS-dependent conditions after derivation. |
+| Symbolic versions of (3), (5), (8) | [`requirements.cc`](../../src/core/semantics/synthesis/ordered/requirements.cc), [`construct.cc`](../../src/core/semantics/synthesis/ordered/construct.cc) | Requires exact symbolic source correspondence and faithful metadata primitive evaluation. The proof permits their different deterministic enumeration choices. |
 
 `recognize` inspects axis/value templates rather than operation names. The
 semantic adapter follows Section 1: permutation output selects the all-axis
@@ -753,7 +756,7 @@ remains deferred.
 
 ## 11. Validation and paper statement
 
-The dedicated [C++ test](../tests/ordered_synthesis_test.cc) compares the
+The dedicated [C++ test](../../tests/ordered_synthesis_test.cc) compares the
 solver with exhaustive positional-attribute enumeration on small instances
 and checks positive and negative certificates. It also exercises equal
 extents, multiple pairings, scalar cases, high ranks, internal permutations,
@@ -786,8 +789,8 @@ whole TEPL compiler as formally verified or complete on the basis of this hand
 proof. Theorem 2 additionally supplies certificates for concrete outcomes.
 
 Related repository documents: [refactoring and proof plan](complete_attribute_synthesis_plan.md),
-[general verification soundness](soundness_proof.md), and the earlier
-[ordered-contraction research draft](../examples/research/ordered_contractions.md).
+[general verification soundness](../../docs/soundness_proof.md), and the earlier
+[ordered-contraction research draft](ordered_contractions.md).
 
 ## 12. Generation of feasibility and attribute programs
 
@@ -1013,8 +1016,8 @@ This section answers the language-level question: what information must a
 rule expose so that an exact feasibility checker can be generated? Define a
 restricted declarative language, give its translation, and prove that the
 translation preserves both tensor meanings and the available attribute
-assignments. This strengthens the abstract result without claiming that the
-current C++ compiler has already implemented the resulting generator.
+assignments. This strengthens the abstract result without claiming formal
+verification of the current C++ implementation.
 
 ### 13.1 Declarative fragment \(\mathcal F_T\)
 
@@ -1041,7 +1044,8 @@ fragment. No general semantic-equivalence oracle is part of admission.
 
 The two expression trees must satisfy Section 1.3's capture and descriptor
 restrictions. Source field references name captured metadata; RHS descriptors
-have exactly the template fields and every field is unrestricted `auto`.
+have exactly the template fields and every field is an unrestricted independent
+hole (represented by omitted RHS attributes in the current surface syntax).
 Value assumptions, such as symmetry of an input, are excluded. The declaration
 semantics is the ideal axis/value semantics used here; additional backend
 dtype or precision restrictions are not included in this theorem.
@@ -1067,17 +1071,75 @@ The logical partition need not be known at compilation: references specify
 how to compute it from runtime metadata. The claim is sufficiency of this
 information, not necessity of TEPL's particular surface notation.
 
-### 13.2 Translation and attribute adapters
+### 13.2 Symbolic axis specification expressed by TEPL
 
-Define a translation \(\tau\) recursively. Preserve each capture and operand
-connection. Replace a matched permutation template by `Perm`, and a matched
+For an admitted rule \(T\), define its extracted specification
+
+\[
+\Sigma=E(T)=(\mathcal C,\mathcal G_L,\mathcal G_R,
+             \mathcal D,\mathcal R,\mathcal H).
+\]
+
+Here \(\mathcal C\) names the captures; \(\mathcal G_L,\mathcal G_R\)
+record the source and replacement trees with ordered operand connections;
+\(\mathcal D\) records the resolved operation templates, including axis
+groups, ordered outputs, legality, and value semantics; \(\mathcal R\)
+records the captured source-field references and their sharing; and
+\(\mathcal H\) records the independent RHS `auto` fields and their ownership.
+All components are expressed by the admitted rule and its declarations.
+Extraction copies this finite information without inspecting runtime ranks or
+choosing RHS attributes. This is a mathematical representation of existing
+semantic information, not a proposal for new parser syntax.
+
+Input-axis sequences are symbolic, variable-length references. At a match,
+\(p\) supplies capture shapes and the values of the source fields named in
+\(\mathcal R\). Source analysis then defines
+
+\[
+I_c=I_c(\Sigma,p),\qquad F=F(\Sigma,p),\qquad
+(P_v,B_v,K_v,LF_v,RF_v,Q_v)=\operatorname{Analyze}(\Sigma,p,v),
+\]
+
+using the source classes, boundaries, roles, and propagation in Sections 2–4;
+the role sets \(B_v,K_v,LF_v,RF_v\) are needed only at contraction nodes.
+These quantities are computed bindings, not existential RHS attributes.
+In particular, \(Q_v\) is a required subsequence; it does not choose a complete
+intermediate layout. Lemmas 6–8 establish that this deterministic propagation
+and subsequent extension preserve the existence of solutions.
+
+With these bindings, the checker predicate is
+
+\[
+\Phi_\Sigma(p)=
+\bigwedge_{\text{capture }c}[Q_c\preceq I_c]
+\;\land\;
+\bigwedge_{\text{contraction }v}
+\left[Q_v=(Q_v|_{B_v})\Vert(Q_v|_{LF_v})\Vert(Q_v|_{RF_v})\right].
+\tag{12}
+\]
+
+Automatic permutations impose no local check and reset their child's required
+sequence. Equation (12) is interpreted on legal, in-domain source metadata.
+The generator emits a finite program evaluating these bindings and checks;
+it does not enumerate their runtime values. Retaining \(\mathcal G_R\) and
+\(\mathcal D\) is essential: adding an RHS permutation can change feasibility
+while leaving every source-metadata value unchanged.
+
+### 13.3 Translation and attribute adapters
+
+Define a translation \(\kappa\) from \(\Sigma\) recursively. Preserve each
+capture and operand connection. Replace a matched permutation template by `Perm`, and a matched
 contraction template by `Dot`. Read the template's semantic field bindings to
 record, for each operation \(v\), a field-order adapter \(\rho_v\): the
 permutation field, or the ordered tuple \((b_L,b_R,k_L,k_R)\). Because the
 fields are distinct and exhaust the descriptor, this adapter is a bijection
 between declaration-field tuples and canonical tuples.
 
-The translation returns an abstract schema \(S=\tau(T)\) and two adapters:
+The translation returns an abstract schema \(S=\kappa(\Sigma)\) and two
+adapters \(\alpha_\Sigma,h_\Sigma\). For compatibility with the earlier
+notation, define \(\tau(T)=\kappa(E(T))\),
+\(\alpha_T=\alpha_{E(T)}\), and \(h_T=h_{E(T)}\). Thus every translation
+and adapter below depends on \(T\) only through its extracted specification:
 
 - \(\alpha_T(p)\) preserves capture shapes and supplies source fields to their
   canonical roles through the recorded references. A shared source reference
@@ -1101,14 +1163,17 @@ exactly the physical-extent condition of Section 1.3.
 ### Lemma 15. Decidable admission and total translation
 
 Membership in \(\mathcal F_T\) is decidable by finite structural checks. For
-every member \(T\), translation terminates with \(\tau(T)\in\mathcal F_0\)
+every member \(T\), extraction terminates with \(\Sigma=E(T)\), and
+translation terminates with \(\kappa(\Sigma)=\tau(T)\in\mathcal F_0\)
 and the adapters above.
 
 **Proof.** Normalize only the finite syntactic variations explicitly permitted
 above, then compare each finite declaration against the two templates. Count
 capture occurrences and check descriptor ownership, field distinctness,
 operand arities, and source/RHS references. These checks do not inspect input
-values or ask whether attributes exist. Translation visits strict subtrees,
+values or ask whether attributes exist. Extraction records the admitted trees,
+templates, references, and holes by a finite traversal; these contain every
+datum used by translation. Translation visits strict subtrees,
 and each operation emits one canonical node and a finite field map. The
 templates give the Section 1.1 contracts; structural checks give Section
 1.3's remaining requirements. Thus the output lies in \(\mathcal F_0\).
@@ -1162,62 +1227,65 @@ valid assignment. The bijection is what excludes that source of false negatives.
 
 ### Theorem 4. Exact checker generation from declared TEPL information
 
-There is a terminating generation procedure for every \(T\in\mathcal F_T\)
-that returns a feasibility program \(\Psi_T\) and a guarded attribute program
-\(g_T\). For every source metadata configuration \(p\) satisfying source
+For every \(T\in\mathcal F_T\), let \(\Sigma=E(T)\). There is a
+terminating generation procedure using only \(\Sigma\) that returns a
+feasibility program \(\Phi_\Sigma\) and a guarded attribute program
+\(g_\Sigma\). For every source metadata configuration \(p\) satisfying source
 legality and \(D_T(p)\), their evaluations terminate, and
 
 \[
 \boxed{
-\operatorname{Eval}(\Psi_T,p)=\mathrm{true}
+\operatorname{Eval}(\Phi_\Sigma,p)=\mathrm{true}
 \iff
 \exists\beta\;\operatorname{Valid}_T(T,p,\beta).
 }
 \]
 
-If the result is true, \(g_T\) returns a valid declaration-level assignment;
-if false, \(g_T\) returns `NotApplicable` and no valid assignment exists.
+If the result is true, \(g_\Sigma\) returns a valid declaration-level assignment;
+if false, \(g_\Sigma\) returns `NotApplicable` and no valid assignment exists.
 One generated pair handles every finite rank in the domain for each fixed rule.
 
-**Construction.** Translate \(S=\tau(T)\) and generate
+**Construction.** Translate \(S=\kappa(\Sigma)\) and generate
 \((\Phi_S,f_S)=\operatorname{Generate}(S)\) as in Section 12. Emit adapters
 around these programs:
 
 \[
 \begin{aligned}
-\Psi_T(p)&=\Phi_S(\alpha_T(p)),\\
-g_T(p)&=
+\Phi_\Sigma(p)&=\Phi_S(\alpha_\Sigma(p)),\\
+g_\Sigma(p)&=
 \begin{cases}
-\operatorname{Solved}(h_T^{-1}(\gamma)),
-  & f_S(\alpha_T(p))=\operatorname{Solved}(\gamma),\\
+\operatorname{Solved}(h_\Sigma^{-1}(\gamma)),
+  & f_S(\alpha_\Sigma(p))=\operatorname{Solved}(\gamma),\\
 \operatorname{NotApplicable},
-  & f_S(\alpha_T(p))=\operatorname{NotApplicable}.
+  & f_S(\alpha_\Sigma(p))=\operatorname{NotApplicable}.
 \end{cases}
 \end{aligned}
 \]
 
 These equations specify composition of generated programs, not compile-time
 evaluation on unknown metadata. Both programs use only source metadata and
-the fixed declaration/tree information.
+the information recorded in \(\Sigma\). By the definitions of extraction
+and the adapters, the composed checker evaluates exactly (12): it computes
+the same source classes, boundaries, roles, and required subsequences.
 
 **Proof.** Lemma 15 and Theorem 3 establish terminating generation. Lemma 16
-makes \(\alpha_T(p)\) legal and in-domain for the abstract schema, so
+makes \(\alpha_\Sigma(p)\) legal and in-domain for the abstract schema, so
 Theorem 3 applies. Its equivalence and Lemma 16 give
 
 \[
-\operatorname{Eval}(\Psi_T,p)=\mathrm{true}
-\iff\exists\gamma\;\operatorname{Valid}(S,\alpha_T(p),\gamma)
+\operatorname{Eval}(\Phi_\Sigma,p)=\mathrm{true}
+\iff\exists\gamma\;\operatorname{Valid}(S,\alpha_\Sigma(p),\gamma)
 \iff\exists\beta\;\operatorname{Valid}_T(T,p,\beta).
 \]
 
 On success Theorem 3 returns valid \(\gamma\); Lemma 16 makes
-\(h_T^{-1}(\gamma)\) valid in the declarations. On failure the equivalence
+\(h_\Sigma^{-1}(\gamma)\) valid in the declarations. On failure the equivalence
 excludes every declaration-level assignment. Finite adapter operations and
 Theorem 3 give evaluation termination. The translation and emitted templates
 depend on syntax and references, while ranks determine only finite runtime
 list lengths. This establishes rank uniformity. ∎
 
-### 13.3 Meaning of acceptance, conditions, and current implementation
+### 13.4 Meaning of acceptance, conditions, and current implementation
 
 There are three different decisions:
 
@@ -1225,15 +1293,15 @@ There are three different decisions:
 | --- | --- |
 | \(T\in\mathcal F_T\), decided at compilation | The declarations contain the supported information, so the specified generator can produce a checker and constructor. It does not assert feasibility for all matches. |
 | \(\operatorname{Legal}_L(p)\land D_T(p)\), checked or guaranteed at matching | The actual metadata is in the theorem's domain. Failure is not the checker's mathematical claim of infeasibility. |
-| \(\Psi_T(p)\), evaluated on an in-domain match | True exactly when a legal equivalent RHS assignment exists. |
+| \(\Phi_\Sigma(p)\), evaluated on an in-domain match | True exactly when a legal equivalent RHS assignment exists. |
 
 For example, consider the admitted schematic rule
 
 ```text
-transpose[@p](dot[@d](A, B)) => dot[auto](A, B)
+(p: transpose (d: dot A B)) => (dot A B)
 ```
 
-At two-vector matches with empty batch/contract lists in `@d`, an identity
+At two-vector matches with empty batch/contract lists in `d.attrs`, an identity
 source permutation is feasible; swapping the two source output axes is
 infeasible. In the latter case the target must retain both free axes, and
 their declared output order cannot be reversed. This remains true when the
@@ -1241,8 +1309,8 @@ vector lengths are equal. Both metadata cases belong to the same admitted
 rule and domain; Theorem 4 requires the generated checker to distinguish them.
 
 An explicitly inferred applicability condition can combine \(C(p)\) with
-\(\Psi_T(p)\) after establishing the domain. Exactness concerns
-\(\Psi_T\), conditional on that domain. A false user condition, unsupported
+\(\Phi_\Sigma(p)\) after establishing the domain. Exactness concerns
+\(\Phi_\Sigma\), conditional on that domain. A false user condition, unsupported
 metadata, or resource exhaustion must not be reported as proof that RHS
 attributes do not exist. Proving that every match satisfying arbitrary \(C\)
 is feasible remains separate future work.
@@ -1252,11 +1320,155 @@ machinery, but \(\mathcal F_T\) is the mathematical definition above, not an
 assumption that these routines or the frontend have been formally verified.
 The default compiler still proves obligations under declared conditions.
 The explicit inferred-applicability mode now compiles role adapters and
-postorder schedules, precomputes capture sets, and evaluates feasibility before
-constructing descriptors in the native engine. Fully explicit RHS descriptors
+postorder schedules, precomputes capture sets, and emits the explicit `where`
+conditions described in Section 14 before constructing descriptors in the native engine. Fully explicit RHS descriptors
 use replay validation, justified by Lemma 3 rather than existential synthesis.
 Mixed explicit/automatic synthesis remains outside the implementation's admitted
 fragment. The native tests exercise these paths and altered-program rejection;
 formally verifying the frontend and primitive/compiler/evaluator correspondence
 remains open. The theorem is about the specified mathematical translation and
 generator, not a claim of formal verification of the current compiler.
+
+## 14. Explicit feasibility conditions in `where`
+
+The generated predicate can be represented as a `where` expression rather than
+an additional applicability decision outside the rule's conditions. Fix an
+admitted specification \(\Sigma\). Give referenced operation occurrences distinct
+optional labels using `(name: operation operands...)`. Labels only name occurrences;
+they neither add tensor captures nor constrain layouts. Interpret the following
+properties on legal, in-domain source metadata. Group names below stand for the
+roles declared by the particular operation, not reserved group spellings.
+
+| Property | Mathematical value |
+| --- | --- |
+| `node.required_order` | \(Q_v(\Sigma,p)\), a required subsequence |
+| `node.axes.B.members` | \(B_v(\Sigma,p)\) |
+| `node.axes.I.members`, `node.axes.J.members` | \(LF_v,RF_v\) |
+| `A.axes.order` for input capture \(c\) | \(I_c(\Sigma,p)\) |
+| `source.axes.order` at the source root | \(O_\Sigma(p)\) |
+
+Members have set type `LogicalAxisSet`; orders have sequence type
+`LogicalAxis[]`. Identities are source-port classes, not numeric positions or
+extents. `filter(q,a)` retains entries of \(q\) belonging to set \(a\);
+`concat` concatenates lists; `subsequence(q,w)` interprets \(q\preceq w\);
+equality compares complete sequences (or membership when applied to sets).
+A group's `.order` is its declared ordered identity sequence; `.positions` maps
+that sequence into the actual output and exists only for output groups.
+
+Inferred RHS membership and required subsequences depend on \(\Sigma,p\), not
+on a chosen full layout. Actual inferred RHS attributes, full output order,
+and group order/positions are unavailable before construction. Omitting RHS
+attributes denotes an independent attribute hole; assigning `node.attrs` in
+`derive`, or reusing `[other.attrs]`, instead specifies an explicit assignment.
+These surface forms must still satisfy the fragment's attribute policy.
+
+The compiler lowers named properties to closed queries referring to occurrence
+IDs in \(\Sigma\). Resolving a unique label selects exactly its corresponding
+occurrence; by the query definitions this lowering preserves denotation.
+Renaming labels or introducing fresh labels for unnamed occurrences leaves
+\(\Sigma\), \(\Phi_\Sigma\), and the constructor unchanged up to occurrence
+renaming. This naming observation supplies the surface-to-query step below;
+it does not assert that all intermediate layouts are uniquely determined.
+Source analysis, boundaries, and required subsequences are shared with the
+constructor; none of these properties chooses replacement attributes.
+
+For example, removing the output transpose from a dot emits the condition
+below, using the example declaration's batch/left-free/right-free group names:
+
+```tepl
+(source: transpose (dot A B)) => (result: dot A B)
+where {
+    let wanted = source.axes.order;
+    let batches = filter(wanted, result.axes.B.members);
+    let fromA = filter(wanted, result.axes.I.members);
+    let fromB = filter(wanted, result.axes.J.members);
+    axis_domain()
+    && subsequence(fromA, A.axes.order)
+    && subsequence(fromB, B.axes.order)
+    && wanted == concat(batches, fromA, fromB)
+}
+```
+
+Define \(\operatorname{EmitWhere}(\Sigma)\) by replacing each mathematical
+binding and primitive in (12) with its corresponding query or operation and
+conjoining the resulting checks. Include `axis_domain()` as an entry guard;
+it checks source legality and the supported metadata domain. Thus unsupported
+metadata does not constitute a proof of mathematical infeasibility.
+
+### Lemma 17. Preservation by explicit condition emission
+
+For every admitted \(\Sigma\) and legal in-domain \(p\),
+
+\[
+\operatorname{Eval}(\operatorname{EmitWhere}(\Sigma),p)
+=\Phi_\Sigma(p).
+\]
+
+**Proof.** Unique-label resolution preserves occurrence references, and property
+interpretation gives the exact bindings in (12). Each filter,
+concatenation, equality, and subsequence expression has the mathematical
+primitive's denotation by definition. Structural induction over the generated
+expressions therefore preserves each local check, and conjunction preserves
+their conjunction. The domain guard is true under the assumptions. All queries
+and list operations terminate by the analysis and finite-list termination
+arguments of Lemmas 10 and 12–13. ∎
+
+Combining Lemma 17 with Theorem 4 shows that the explicit generated condition
+accepts exactly the in-domain matches admitting valid attributes. After it
+passes, the constructor returns valid attributes without another feasibility
+decision. With an additional defined, terminating condition \(C\), applicability
+is exactly \(C(p)\land\Phi_\Sigma(p)\); no completeness claim is made for
+matches intentionally excluded by \(C\).
+
+The initial compiler recognition procedure expands `where` local bindings and
+conjunctions and requires every generated conjunct to be present. This finite
+recognition rule is sufficient for applying the theorem, but is not a complete
+prover for arbitrary logically equivalent expressions. Compilation and loading
+regenerate the obligation from the actual rule. Removing a necessary conjunct
+or placing it only under a disjunction does not establish the constructor's
+preconditions.
+
+For fully explicit RHS attributes, the corresponding conditions require legal
+RHS replay and equality of the complete source/RHS partitions and output orders.
+Lemma 3 justifies those conditions. Replay uses actual derived descriptors;
+RHS queries and dependent local bindings are evaluated after their derivations,
+while independent source conditions are evaluated first. This validates the
+supplied assignment rather than deciding existential attribute synthesis.
+
+The C++ path now emits these ordinary typed conditions and shares cached
+analysis between the condition evaluator and constructor. As in Section 13,
+formal refinement of the frontend, queries, emitter, and evaluator to their
+specified mathematical meanings remains an implementation proof obligation.
+
+### Corollary 5. Surface rule to guarded constructor
+
+Let \(T\in\mathcal F_T\) use optional unique node labels and omitted RHS
+attributes, and let \(\Sigma=E(T)\). The specified frontend and emitter produce
+\(W_T=\operatorname{EmitWhere}(\Sigma)\) and constructor \(f_T\) such that,
+for every legal in-domain match \(p\),
+
+\[
+\operatorname{Eval}(W_T,p)
+\iff \exists a\;\operatorname{Valid}_T(T,p,a),
+\qquad
+\operatorname{Eval}(W_T,p)\Rightarrow
+\operatorname{Valid}_T(T,p,f_T(p)).
+\]
+
+**Proof.** Source `.attrs` references interpret captured metadata; unique node
+labels identify operation occurrences without adding captures or constraints.
+Omitted RHS descriptors introduce exactly the independent, unrestricted holes
+required by \(\mathcal F_T\). Extraction preservation (Theorem 4) identifies
+source/RHS denotations and valid assignments with those of \(\Sigma\).
+Named-property lowering and Lemma 17 identify the generated condition with
+\(\Phi_\Sigma\). Necessity and constructive sufficiency then give the two
+claims, and the finite-program argument gives termination. ∎
+
+This corollary concerns the specified translation on the admitted fragment,
+not completeness of arbitrary user-condition implication or formal verification
+of the C++ implementation. Explicit attribute reuse and whole-descriptor
+`derive` assignments are frontend features but are outside the existential
+all-inferred theorem; fully explicit validation checks the supplied assignment.
+Legacy descriptor bindings and partial attribute pins are not surface forms in
+the current implementation. An extra condition \(C\) yields applicability
+\(C\land W_T\), which may intentionally exclude otherwise feasible matches.

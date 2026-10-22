@@ -16,10 +16,16 @@ using TypedExprPtr = std::shared_ptr<const TypedExpr>;
 
 // A reference to an operation occurrence, not merely its attribute schema.
 struct OutputAxisGroupRef {
-  DescriptorId descriptor;
-  std::string group;
+  std::string node, group;
 };
 
+// A typed semantic property of a named operation or an input capture.
+// Lowered to closed metadata queries after the rule's axis plan is built.
+struct NodeAxisRef {
+  std::string node, group, projection;
+  bool rhs = false;
+  std::optional<CaptureId> capture;
+};
 struct BuiltinCall {
   builtins::Builtin builtin;
   std::vector<TypedExprPtr> arguments;
@@ -67,11 +73,11 @@ struct TypedExpr {
   SourceOrigin origin;
   TypeId type;
   std::variant<CaptureRef, DimensionRef, DescriptorRef, DescriptorFieldRef,
-               OutputAxisGroupRef, DTypeVariableRef, DType, NumericConstant,
-               bool, BuiltinCall, UnaryExpr, BinaryExpr, LocalRef, LocalLet,
-               ListExpr, IndexExpr, ConditionalExpr, ComprehensionExpr,
-               StringConstant, EnumConstant, NoneConstant, OptionalValue,
-               DescriptorConstruct, SymbolicExpr>
+               OutputAxisGroupRef, NodeAxisRef, DTypeVariableRef, DType,
+               NumericConstant, bool, BuiltinCall, UnaryExpr, BinaryExpr,
+               LocalRef, LocalLet, ListExpr, IndexExpr, ConditionalExpr,
+               ComprehensionExpr, StringConstant, EnumConstant, NoneConstant,
+               OptionalValue, DescriptorConstruct, SymbolicExpr>
       value;
 };
 

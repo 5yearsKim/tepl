@@ -50,18 +50,9 @@ void printGraph(std::ostream& out, const syntax::GraphExpr& expression,
           out << '\n';
         } else if constexpr (std::is_same_v<T, syntax::Operator>) {
           out << "operator " << value.name;
-          if (value.attribute) out << " @" << value.attribute->name;
-          if (value.automatic) {
-            out << " [auto";
-            for (const auto& field : value.automatic->fields) {
-              out << ", " << field.name << " = ";
-              if (field.descriptor)
-                out << '@' << field.descriptor->name << '.' << field.field;
-              else
-                out << field.value.text;
-            }
-            out << ']';
-          }
+          if (value.label) out << " as " << *value.label;
+          if (value.descriptor_node)
+            out << " [" << *value.descriptor_node << ".attrs]";
           out << '\n';
           for (const auto& operand : value.operands) {
             printGraph(out, *operand, depth + 1);
@@ -129,11 +120,10 @@ void printConstraint(std::ostream& out,
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, syntax::NameRef>) {
           out << "name " << value.name << '\n';
-        } else if constexpr (std::is_same_v<T, syntax::DescriptorField>) {
-          out << "field @" << value.descriptor.name
-              << (value.output_group ? "->" : ".") << value.field << '\n';
-        } else if constexpr (std::is_same_v<T, syntax::AttributeRef>) {
-          out << "attribute @" << value.name << '\n';
+        } else if constexpr (std::is_same_v<T, syntax::NodeProperty>) {
+          out << "property " << value.node;
+          for (const auto& part : value.path) out << "." << part;
+          out << '\n';
         } else if constexpr (std::is_same_v<T, syntax::IntegerLiteral>) {
           out << "integer " << value.digits;
           if (value.dtype) out << ":" << value.dtype->name;
@@ -180,7 +170,7 @@ void printConstraint(std::ostream& out,
           out << "string " << value.value << '\n';
         } else if constexpr (std::is_same_v<T, syntax::DescriptorConstructor>) {
           out << "descriptor";
-          if (value.spread) out << " ..@" << value.spread->name;
+          if (value.spread) out << " .." << *value.spread << ".attrs";
           out << '\n';
           for (const auto& f : value.fields) {
             indent(out, depth + 1);
@@ -330,8 +320,8 @@ void printRule(std::ostream& out, const syntax::Rule& rule) {
       printConstraint(out, *condition, 3);
   }
   for (const auto& derivation : rule.derivations) {
-    out << (derivation.local ? "    derive let " : "    derive @")
-        << derivation.target.name << '\n';
+    out << (derivation.local ? "    derive let " : "    derive ")
+        << derivation.target << (derivation.local ? "" : ".attrs") << '\n';
     printConstraint(out, *derivation.value, 3);
   }
 }

@@ -20,11 +20,14 @@ tepl generate <file-or-project-or-json> --out <directory> [options]
 
 `check`, `compile`, and source `rewrite` accept `--infer-applicability` with
 `--semantic-policy=algebraic`. For the supported read-once contraction/permutation
-fragment, this generates a match-time feasibility check and an attribute
-constructor, or validates supplied attributes for a fully explicit RHS. The
-rewrite applies only when the declared conditions and generated check pass,
+fragment, this emits explicit `where` constraints and an attribute constructor,
+or conditions validating supplied attributes for a fully explicit RHS.
+`check` prints a complete suggested rule using optional node labels and semantic
+axis properties; a rule
+containing the required axis conditions compiles without the flag. The rewrite
+applies only when its `where` conditions pass,
 with physical extents at least two. Mixed explicit/automatic RHS descriptors
-and pinned automatic fields are outside this mode. The default mode continues
+are outside this mode. The default mode continues
 to require compile-time proof of coverage under declared conditions.
 
 ```sh
@@ -188,7 +191,7 @@ programs are type-checked here; evaluating them for concrete tensor metadata is
 the greedy engine or generated runtime's responsibility. Numerical rewrite legality also depends
 on the dialect and application semantics.
 
-For operations with axis semantics, the checker also constructs RHS `auto`
+For operations with axis semantics, the checker also constructs inferred RHS
 attributes and proves rewrite correctness under explicit conditions:
 
 ```sh

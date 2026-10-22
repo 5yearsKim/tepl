@@ -116,6 +116,10 @@ Format Rust runtime changes with `cargo fmt --manifest-path runtime/rust/Cargo.t
 
 ## Validate changes
 
+See [native test coverage](../tests/README.md) for focused inference checks and
+the active native suite. Operator semantics are checked in C++; CLI tests
+cover command behavior and diagnostics.
+
 | Command | Coverage |
 | --- | --- |
 | `bazel test //...` | Parser, imports, semantic analysis, CLI, and code generation. |

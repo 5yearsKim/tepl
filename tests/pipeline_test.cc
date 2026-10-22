@@ -152,8 +152,8 @@ int main() {
   const SourceFile groups{"/virtual/groups.tepl", R"(
     from "dialect.tepl" import D as d;
     rule compose {
-      (d.transpose[@p] (d.transpose[@q] X)) => (d.transpose X)
-      where { @p->S == @q->S && len(@p->S) == len(@q->S) }
+      (p: d.transpose (q: d.transpose X)) => (d.transpose X)
+      where { p.axes.S.positions == q.axes.S.positions && len(p.axes.S.positions) == len(q.axes.S.positions) }
     }
     graph g { input X:f32[2,3,4]; yield (d.transpose[permutation=[2,0,1]] (d.transpose[permutation=[1,2,0]] X)); }
     graph identity { input X:f32[2,3,4]; yield (d.transpose[permutation=[0,1,2]] (d.transpose[permutation=[0,1,2]] X)); }

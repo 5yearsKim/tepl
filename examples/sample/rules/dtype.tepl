@@ -6,10 +6,10 @@ rule remove_identity_convert {
     dtype T;
     X: T[...]
 
-    (convert[@c] X) => X
+    (c: convert X) => X
 
     where {
         is_numeric(T)
-        && @c.to == T
+        && c.attrs.to == T
     }
 }

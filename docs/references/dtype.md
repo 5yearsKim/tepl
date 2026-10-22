@@ -94,16 +94,16 @@ rule remove_identity_convert {
     dtype T;
     X: T[...]
 
-    (d.convert[@c] X) => X
+    (c: d.convert X) => X
 
     where {
         is_numeric(T)
-        && @c.to == T
+        && c.attrs.to == T
     }
 }
 ```
 
-`T` binds the matched tensor's dtype, and `@c.to` reads the captured conversion's
+`T` binds the matched tensor's dtype, and `c.attrs.to` reads the captured conversion's
 target type. This dialect defines same-type numeric conversion as identity.
 Repeated `T` in other tensor declarations requires equal dtypes. A dtype variable
 is local to its rule and must be bound by a matched tensor before use.

@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <set>
+#include <tuple>
 
 #include "src/rewrite/builtins/implementation.h"
 #include "src/rewrite/evaluation_support.h"
@@ -58,6 +60,36 @@ Value listBuiltin(core::builtins::Builtin id, const std::vector<Value>& a,
       for (const auto& v : list(a.at(0)))
         if (boolean(v) != (id == B::kAll)) return id == B::kAny;
       return out;
+    }
+    case B::kAxisDifference:
+    case B::kAxisFilter: {
+      using Key = std::tuple<std::size_t, std::size_t, std::size_t, Integer>;
+      auto key = [](const Value& x) -> Key {
+        auto a = std::get_if<Axis>(&x.data);
+        ensure(a, "axis_filter expects logical axes");
+        return {a->owner, a->group, a->member, a->extent};
+      };
+      std::set<Key> members;
+      for (const auto& x : list(a.at(1))) {
+        budget.tick();
+        members.insert(key(x));
+      }
+      List out;
+      for (const auto& x : list(a.at(0))) {
+        budget.tick();
+        if (members.contains(key(x)) == (id == B::kAxisFilter))
+          out.push_back(x);
+      }
+      return out;
+    }
+    case B::kAxisSubsequence: {
+      const auto& q = list(a.at(0));
+      std::size_t i = 0;
+      for (const auto& x : list(a.at(1))) {
+        budget.tick();
+        if (i < q.size() && q[i] == x) ++i;
+      }
+      return i == q.size();
     }
     case B::kExclude: {
       List out;

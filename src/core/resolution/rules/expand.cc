@@ -40,7 +40,7 @@ class RuleExpander {
     if (body_ != &instance_) appendRestrictions(instance_, 1);
     for (const auto& derivation : body_->derivations)
       output_.derivations.push_back(
-          {derivation.target.name, cloneExpression(*derivation.value, *body_),
+          {derivation.target, cloneExpression(*derivation.value, *body_),
            location(*body_, derivation.span), derivation.local});
     if (context_.diagnostics.size() != diagnostic_count) return std::nullopt;
     return std::move(output_);

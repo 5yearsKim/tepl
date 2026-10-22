@@ -300,9 +300,9 @@ from "dialects/tensor.tepl" import TensorLang as t;
 rule transpose_negate {
     X: f32[Dims...]
 
-    (t.transpose[@perm] (t.negate X))
+    (source: t.transpose (t.negate X))
     =>
-    (t.negate (t.transpose[@perm] X))
+    (t.negate (t.transpose[source.attrs] X))
 }
 ```
 
@@ -315,7 +315,7 @@ metadata definitions from the [tensor dialect](../examples/sample/dialects/tenso
 - **Tensor constraints:** `X: f32[Dims...]` matches an `f32` tensor of any rank.
   Named dimensions enforce equality; dimension sequences support varying ranks.
   Dtype constraints do not insert casts.
-- **Operation attributes:** `@perm` captures and reuses the transpose's
+- **Operation attributes:** `source.attrs` captures and reuses the transpose's
   attributes as a descriptor. These are separate from tensor shape and dtype.
 - **Checked replacements:** Generated checks validate replacement operations
   and preserve the root's shape and dtype. The author remains responsible for

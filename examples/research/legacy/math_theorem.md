@@ -7,8 +7,8 @@ Goal: Prove that verifying tensor rewrites up to a finite rank \\(K\\) is suffic
 For example, in TEPL:
 
 ```
-LHS: dot[@outer] (dot[@inner] A B) C
-RHS: dot[auto] A (dot[auto] B C)
+LHS: (outer: dot (inner: dot A B) C)
+RHS: (dot A (dot B C))
 ```
 
 The LHS attributes are known, while RHS attributes must be inferred automatically.

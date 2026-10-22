@@ -34,6 +34,8 @@ enum class SignatureType {
   kBoolean,
   kIntegerList,
   kBooleanList,
+  kAxisList,
+  kAxisSet,
   kT,
   kListT
 };
@@ -62,5 +64,8 @@ std::span<const BuiltinSignature> catalog();
 const BuiltinSignature& signature(Builtin builtin);
 const BuiltinSignature* resolveBuiltin(std::string_view name);
 std::string_view builtinName(Builtin builtin);
+bool isPublicBuiltin(Builtin);
+bool isAxisQuery(Builtin);
+bool isReplacementAxisQuery(Builtin);
 
 }  // namespace tepl::core::builtins

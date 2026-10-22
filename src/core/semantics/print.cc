@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include "src/core/semantics/ir.h"
+#include "src/shared/catalog/axis_conditions.h"
 namespace tepl::core::semantics {
 std::string format(const Symbol& s) {
   if (s.kind == Symbol::Kind::AxisGroup) return s.name;
@@ -25,7 +26,13 @@ std::string format(const Plan& p) {
     auto text = format(s);
     for (const auto& [id, name] : p.descriptor_names) {
       const auto from = "@#" + std::to_string(id) + ".";
-      const auto to = "@" + name + ".";
+      std::string to = "@" + name + ".";
+      for (const auto& node : p.nodes)
+        if (node.descriptor && node.descriptor->value == id &&
+            !node.label.empty()) {
+          to = node.label + ".attrs.";
+          break;
+        }
       std::size_t pos = 0;
       while ((pos = text.find(from, pos)) != std::string::npos) {
         text.replace(pos, from.size(), to);
@@ -161,7 +168,7 @@ std::string format(const Plan& p) {
   for (const auto& a : p.assumptions) out << "        " << render(*a) << '\n';
   out << "      additional-guard: "
       << (p.proof.inference
-              ? "generated match-time structural check (extents >= 2)"
+              ? "explicit where feasibility constraints (extents >= 2)"
           : p.proof.status == ProofStatus::Unknown ? "unresolved"
           : p.proof.guard.empty()                  ? "true"
                                                    : "")
@@ -173,7 +180,9 @@ std::string format(const Plan& p) {
                 : "validate explicit attributes")
         << ", source=" << p.proof.inference->source.size()
         << ", replacement=" << p.proof.inference->replacement.size()
-        << " instructions; declared conditions evaluated at match time\n";
+        << " instructions; applicability is evaluated by where\n";
+  if (p.proof.inference)
+    out << "      suggested-rule:\n" << p.suggested_rule << "\n";
   for (const auto& g : p.proof.guard) out << "        " << render(*g) << '\n';
   if (!p.proof.guard_origins.empty()) {
     out << "      guard-origins (unresolved obligations):\n";

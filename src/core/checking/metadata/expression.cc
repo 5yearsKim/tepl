@@ -1,6 +1,7 @@
 #include "src/core/checking/metadata/expression.h"
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace tepl::core::metadata::detail {
 
@@ -117,6 +118,10 @@ ExprPtr ExpressionChecker::lower(const syntax::MetadataCall& call,
   std::optional<TypeId> list;
   const auto type = [&](builtins::SignatureType pattern) -> TypeId {
     switch (pattern) {
+      case builtins::SignatureType::kAxisSet:
+      case builtins::SignatureType::kAxisList:
+        throw std::logic_error(
+            "axis values are unavailable in operation metadata");
       case builtins::SignatureType::kDType:
         return concrete(Type::Kind::kDType, origin);
       case builtins::SignatureType::kInteger:
