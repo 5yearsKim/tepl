@@ -72,7 +72,6 @@ dialect, a dot has batch group `B`, left-free `I`, right-free `J`, and reduced `
 | `node.axes.B.order` | Identities in the group's declared order | `LogicalAxis[]` |
 | `node.axes.B.positions` | Those identities' positions in the node's output | `index[]` |
 | `node.axes.order` | Complete actual output order | `LogicalAxis[]` |
-| `node.required_order` | Relative output order required by the replacement context | `LogicalAxis[]` |
 | `A.axes.order` | Input capture `A`'s physical order, in logical identities | `LogicalAxis[]` |
 | `node.attrs.field` | Actual operation attribute | Declared field type |
 
@@ -84,58 +83,38 @@ A reduced group has no output positions, so `node.axes.K.positions` is rejected.
 A group's order need not equal its order in the output, for example after a
 permutation.
 
-Logical membership and order properties use the admitted read-once
-contraction/permutation fragment under algebraic semantics. Source group
-positions also use the general symbolic mapper, including operations without
-attributes. Inferred RHS group
-**membership** and `required_order` are available before attribute construction.
-Actual inferred RHS attributes, complete order, and group order/positions are
-unavailable at that stage. Explicit RHS attributes and actual axis properties
-can be tested after their derivations. `required_order` is a subsequence, not a
-choice of the complete intermediate layout.
+Logical membership and group-order properties currently recognize source
+contraction/permutation groups. Source group positions also use the general
+symbolic mapper, including operations without attributes. RHS attributes must be constructed and verified from source metadata.
+Runtime RHS feasibility queries are not supported; use source restrictions
+that the compiler can prove sufficient.
 
-## Readable feasibility conditions
+## Verified restriction suggestions
 
-Run `check --semantic-policy=algebraic --infer-applicability` to obtain a complete
-suggested rule. It preserves declared conditions and derivations and supplies
-names for operations that need references. For example:
+Run `check --semantic-policy=algebraic --suggest-where --rule NAME` to search
+for a concise sufficient source restriction. For example, reassociation can
+be proved under:
 
 ```tepl
-rule remove_output_permutation {
-    (source: transpose (dot A B)) => (result: dot A B)
-    where {
-        let wanted = source.axes.order;
-        let batches = filter(wanted, result.axes.B.members);
-        let fromA = filter(wanted, result.axes.I.members);
-        let fromB = filter(wanted, result.axes.J.members);
-        axis_domain()
-        && subsequence(fromA, A.axes.order)
-        && subsequence(fromB, B.axes.order)
-        && wanted == concat(batches, fromA, fromB)
-    }
+where {
+    outer.attrs.lhs_batching_dimensions == inner.axes.B.positions
 }
 ```
 
-This says that the retained input axes must already have the required relative
-order, and that a dot must output batches, then left-free axes, then right-free
-axes. `filter` preserves sequence order; `difference` operates on logical sets.
-Group names follow the declared operation semantics rather than fixed aliases.
+The compiler verifies the whole rule under each proposed restriction using a
+fresh proof context. It also finds a concrete legal metadata witness to avoid
+vacuous recommendations. It tries individual predicates and small conjunctions,
+then removes clauses when verification still succeeds. The search is bounded;
+a recommendation is verified sufficient, not necessarily weakest or shortest.
+An unproved rule remains unproved until the user adds a restriction and the
+normal compiler verifies it.
 
-The generated conjunction is exact within the supported fragment and metadata
-domain (legal source metadata, extents at least two, scalar inputs allowed).
-Additional user conditions can restrict applicability further. The compiler
-recognizes required conjuncts through local bindings and conjunctions; it does
-not prove every equivalent spelling of a condition. Copying the suggested rule
-permits compilation without the inference flag. The flag explicitly requests
-adding these conditions to the compiled program; ordinary compilation does not
-silently strengthen the source rule. See the
-[complete example](../../examples/semantic/explicit_axis_conditions.tepl).
-
-Fully explicit RHS validation uses `result.legal`,
-`source.axes.partition == result.axes.partition`, and equal output orders.
-These properties currently apply to the respective whole-rule roots; partitions
-encode all physical-port equivalences, including reduced axes. They validate
-the supplied assignment rather than searching for another assignment.
+Only written conditions control applicability. `axis_domain()` and runtime
+RHS feasibility queries have been removed. Source group order, membership,
+positions, and input axis order lower to ordinary metadata expressions.
+Singleton and zero extents remain valid where operation semantics permit them.
+Explicit RHS descriptors may be combined with automatic descriptors; final
+verification checks all definitions and generated constructors together.
 
 ## Guards and local expressions
 

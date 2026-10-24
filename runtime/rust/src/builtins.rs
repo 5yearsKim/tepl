@@ -120,7 +120,8 @@ pub fn call(name: &str, a: Vec<Value>, b: &mut Budget) -> EvalResult<Value> {
     let arity = match name {
         "concat" => None,
         "gather" | "exclude" | "contains" | "is_disjoint" | "is_valid_axis_list"
-        | "broadcast_shape" | "min" | "max" | "floor_div" | "ceil_div" => Some(2),
+        | "broadcast_shape" | "min" | "max" | "floor_div" | "ceil_div" | "filter"
+        | "difference" | "subsequence" => Some(2),
         "slice" | "replace" => Some(3),
         _ => Some(1),
     };
@@ -167,6 +168,35 @@ pub fn call(name: &str, a: Vec<Value>, b: &mut Budget) -> EvalResult<Value> {
             Ok(Value::List(xs))
         }
         "contains" => Ok(Value::Boolean(contains(a[0].list()?, &a[1], b)?)),
+        "filter" | "difference" => {
+            let source = a[0].list()?;
+            let members = a[1].list()?;
+            for value in source.iter().chain(members) {
+                require(
+                    matches!(value, Value::Axis(_)),
+                    "axis_filter expects logical axes",
+                )?;
+            }
+            let mut out = Vec::new();
+            for value in source {
+                b.tick()?;
+                if contains(members, value, b)? == (name == "filter") {
+                    out.push(value.clone());
+                }
+            }
+            Ok(Value::List(out))
+        }
+        "subsequence" => {
+            let required = a[0].list()?;
+            let mut index = 0;
+            for value in a[1].list()? {
+                b.tick()?;
+                if required.get(index) == Some(value) {
+                    index += 1;
+                }
+            }
+            Ok(Value::Boolean(index == required.len()))
+        }
         "exclude" => exclude(&a, b),
         "is_disjoint" => disjoint(&a, b),
         "all" | "any" => {

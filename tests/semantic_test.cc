@@ -659,7 +659,7 @@ void explicitConditionTests() {
   rejected(
       "rule r {(d: dot A B) => (new: dot A B) where { "
       "len(new.axes.B.positions) == 0 } derive { new.attrs = { ..d.attrs }; }}",
-      "missing axis feasibility condition");
+      "runtime feasibility queries are unsupported");
   expect(check("rule r {(d: dot (inner: dot[d.attrs] A B) C) => (dot[d.attrs] "
                "(dot[d.attrs] A B) C) where { len(d.axes.B.positions) == 0 }}")
              .ok(),

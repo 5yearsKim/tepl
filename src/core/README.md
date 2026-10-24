@@ -85,19 +85,28 @@ Optional operation labels survive checking as occurrence metadata, separately
 from tensor captures and descriptors. Source spellings remain compiler-only
 metadata for suggestions. `node.attrs` resolves to a descriptor reference;
 `derive` assignments define explicit RHS descriptors and omission creates holes.
-Logical axis properties stay typed until both semantic trees exist, then lower
-to closed queries over the shared axis analysis. Source group positions can
-also use the general symbolic mapper. Membership uses `LogicalAxisSet`,
-sequences use `LogicalAxis[]`, and positions use `index[]`.
+Source logical-axis properties stay typed until both semantic trees exist,
+then lower to pure source metadata expressions. Group membership uses
+`LogicalAxisSet`, ordered sequences use `LogicalAxis[]`, and positions use
+`index[]`. No runtime feasibility program is emitted.
 
-`suggestion.*` prints a complete named source rule with the generated feasibility
-conditions. It preserves operation qualification, existing node names, original
-conditions and explicit constructors, and chooses fresh local names. The
-`--infer-applicability` path emits the corresponding typed conjunction;
-`shared/catalog/axis_conditions.*` owns both its recognition and the shared
-source/derived-condition schedule. Runtime evaluation and executable validation
-use that same schedule. Actual inferred layouts cannot be read before
-construction; boundary membership and required subsequences can.
+`restrictions.cc` performs bounded search over source-group equalities and
+identity permutations. Every suggestion is checked by fresh synthesis and an
+independent verifier under the original assumptions plus the proposed
+restriction. A separate bounded concrete metadata search establishes that the
+proposal permits a legal source match, including dtype legality. This witness
+is never used as evidence for universal equivalence. `suggestion.cc` renders
+complete reviewable source while preserving user restrictions and derivations.
+`check --suggest-where` reports suggestions without accepting the original rule
+or changing compiled applicability. Search failure means no suggestion found.
+
+The identity candidate path copies source descriptors for matching trees.
+The independent verifier proves operation/operand/attribute identity directly,
+including repeated captures, before attempting general access correspondence.
+All accepted semantic rules have zero unresolved obligations; materialization
+rejects an attempt to turn them into runtime guards. The complete ordered
+solver remains a separate specialized mathematical tool with its original
+admission restrictions. Practical synthesis falls back to general verification.
 
 Symbolic keys are immutable DAGs. Their deterministic digests accelerate lookup;
 structural comparison distinguishes hash collisions. Each proof context owns its

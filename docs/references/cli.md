@@ -18,27 +18,24 @@ tepl rewrite <file-or-project-or-json> [--rules file-or-directory] [--rule name]
 tepl generate <file-or-project-or-json> --out <directory> [options]
 ```
 
-`check`, `compile`, and source `rewrite` accept `--infer-applicability` with
-`--semantic-policy=algebraic`. For the supported read-once contraction/permutation
-fragment, this emits explicit `where` constraints and an attribute constructor,
-or conditions validating supplied attributes for a fully explicit RHS.
-`check` prints a complete suggested rule using optional node labels and semantic
-axis properties; a rule
-containing the required axis conditions compiles without the flag. The rewrite
-applies only when its `where` conditions pass,
-with physical extents at least two. Mixed explicit/automatic RHS descriptors
-are outside this mode. The default mode continues
-to require compile-time proof of coverage under declared conditions.
+`check --suggest-where --semantic-policy=algebraic` searches for a verified
+sufficient source restriction when a rule is unproved. Select a rule with
+`--rule NAME`. Suggestions preserve the original conditions and derivations;
+review and add them to source before compiling. The original unproved rule
+still exits with status 1. Search is bounded and does not promise a weakest
+condition or a suggestion for every rule.
 
 ```sh
-tepl compile examples/semantic/inferred_applicability.tepl \
-  --semantic-policy=algebraic --infer-applicability -o inferred.json
-tepl rewrite inferred.json --graph feasible --trace
+tepl check examples/semantic/restriction_suggestions.tepl \
+  --semantic-policy=algebraic --suggest-where --rule remove_output_permutation
+tepl compile examples/semantic/explicit_axis_conditions.tepl \
+  --semantic-policy=algebraic -o verified.json
+tepl rewrite verified.json --graph feasible --trace
 ```
 
-The mode and completed program are stored in JSON; replay needs no flag.
-Native C++ execution is supported. Code generation for these programs is deferred
-and is rejected explicitly. See the [implementation and domain details](../../src/core/semantics/synthesis/ordered/README.md).
+`compile` and `rewrite` require proof under the source's written conditions.
+The old `--infer-applicability` condition-insertion mode has been removed.
+Runtime feasibility programs from that mode are rejected when loading JSON.
 
 | Command | Purpose | Input |
 | --- | --- | --- |

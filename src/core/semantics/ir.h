@@ -12,7 +12,6 @@
 #include "src/core/semantics/definition.h"
 #include "src/core/semantics/symbolic/symbol.h"
 #include "src/shared/catalog/ids.h"
-#include "src/shared/metadata/inference.h"
 #include "src/shared/metadata/ir.h"
 #include "src/shared/source/source.h"
 #include "src/shared/types/types.h"
@@ -42,8 +41,6 @@ struct ConstructorCandidate {
   std::vector<SymbolPtr> guard;
 };
 struct RuleProof : ConstructorCandidate {
-  std::optional<inference::Program> inference;
-  bool append_axis_conditions = false;
   ProofStatus status = ProofStatus::Unknown;
   std::string reason;
   struct GuardOrigin {

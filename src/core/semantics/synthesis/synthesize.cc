@@ -322,6 +322,8 @@ RuleProof run(const Plan& plan, std::size_t max_work,
     return proof;
   } catch (const ProofFailure& e) {
     RuleProof unknown;
+    unknown.guard = c.guards();
+    unknown.guard_origins = c.guardOrigins();
     unknown.reason = phase + ": " + e.describe();
     unknown.steps = c.steps();
     return unknown;
@@ -329,6 +331,49 @@ RuleProof run(const Plan& plan, std::size_t max_work,
 }
 }  // namespace
 RuleProof synthesize(const Plan& plan, std::size_t max_work) {
+  // Propose descriptor copies for structurally identical trees. Correctness is
+  // still checked in a fresh verifier, including explicit RHS definitions.
+  try {
+    Context c{plan, max_work};
+    c.sourceScope(plan.lhs);
+    Lowerer source{c};
+    source.lower(plan.lhs);
+    ConstructorCandidate candidate;
+    std::function<bool(std::size_t, std::size_t)> copy = [&](std::size_t a,
+                                                             std::size_t b) {
+      c.tick();
+      const auto& left = plan.nodes.at(a);
+      const auto& right = plan.nodes.at(b);
+      if (left.capture || right.capture) return left.capture == right.capture;
+      if (left.literal || right.literal)
+        return left.literal == right.literal &&
+               left.literal_dtype == right.literal_dtype;
+      if (left.operation != right.operation ||
+          left.inputs.size() != right.inputs.size())
+        return false;
+      for (std::size_t i = 0; i < left.inputs.size(); ++i)
+        if (!copy(left.inputs[i], right.inputs[i])) return false;
+      if (right.automatic) {
+        std::vector<S> fields;
+        for (std::size_t f = 0; f < right.definition->fields.size(); ++f)
+          fields.push_back(c.field(left, f));
+        auto [found, added] =
+            candidate.constructors.emplace(right.descriptor->value, fields);
+        if (!added) {
+          if (found->second.size() != fields.size()) return false;
+          for (std::size_t f = 0; f < fields.size(); ++f)
+            if (!equal(found->second[f], fields[f])) return false;
+        }
+      }
+      return true;
+    };
+    if (copy(plan.lhs, plan.rhs)) {
+      auto proof = verify(plan, candidate, max_work);
+      if (proof.status == ProofStatus::Proved) return proof;
+    }
+  } catch (const ProofFailure&) {
+    // Failed candidate construction is not an impossibility result.
+  }
   const auto admitted = ordered::admit(plan);
   if (admitted.admitted()) {
     auto proof = run(plan, max_work, &admitted);

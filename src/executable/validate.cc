@@ -443,11 +443,9 @@ void validate(const ExecutableProgram& program) {
       require(operand < op.operands.size(), "unknown implicit operand");
   }
   for (const auto& r : p.rules) {
-    if (r.inference) {
-      require(program.policy() == "algebraic",
-              "inferred applicability requires algebraic policy");
-      inference::validate(*r.inference);
-    }
+    require(!r.inference,
+            "runtime applicability inference is unsupported; compile a rule "
+            "with verified source conditions");
     ids(r.captures);
     ids(r.dimensions);
     ids(r.descriptors);

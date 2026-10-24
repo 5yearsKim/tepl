@@ -36,19 +36,11 @@ class Suggestion {
         names[i] = name;
       }
   }
-  std::string run() {
+  std::string run(const std::vector<TypedExprPtr>& restrictions) {
     auto left = graph(p.lhs, false);
     auto right = graph(p.rhs, true);
-    std::vector<std::string> checks{"axis_domain()"};
-    if (p.proof.inference->mode == inference::Mode::Synthesize) {
-      propagate(p.rhs, names.at(p.lhs) + ".axes.order", checks);
-    } else {
-      checks.push_back(names.at(p.rhs) + ".legal");
-      checks.push_back(names.at(p.lhs) + ".axes.partition == " +
-                       names.at(p.rhs) + ".axes.partition");
-      checks.push_back(names.at(p.lhs) + ".axes.order == " + names.at(p.rhs) +
-                       ".axes.order");
-    }
+    std::vector<std::string> checks;
+    for (const auto& e : restrictions) checks.push_back(expression(*e));
     std::ostringstream out;
     out << "rule " << r.name << " {\n";
     for (const auto& dtype : r.dtypes) out << "  dtype " << dtype.name << ";\n";
@@ -88,7 +80,6 @@ class Suggestion {
     }
     checks.insert(checks.begin(), original_checks.begin(),
                   original_checks.end());
-    for (const auto& binding : bindings) out << "    " << binding << "\n";
     for (std::size_t i = 0; i < checks.size(); ++i)
       out << "    (" << checks[i] << ")"
           << (i + 1 < checks.size() ? " &&\n" : "\n");
@@ -103,7 +94,7 @@ class Suggestion {
               << expression(*l.value) << ";\n";
         } else {
           for (const auto& [id, node] : names)
-            if (isRhs(id) && p.nodes[id].descriptor == d.target &&
+            if (p.nodes[id].descriptor == d.target &&
                 !sourceDescriptors.contains(d.target->value))
               out << "    " << node << ".attrs = " << expression(*d.value)
                   << ";\n";
@@ -120,9 +111,8 @@ class Suggestion {
   const Rule& r;
   const ProgramTables& tables;
   std::map<std::size_t, std::string> names, sourceDescriptors, rhsDescriptors;
-  std::map<std::size_t, std::string> required, local_names;
+  std::map<std::size_t, std::string> local_names;
   std::set<std::string> used;
-  std::vector<std::string> bindings;
   std::string fresh(std::string base) {
     for (auto& c : base)
       if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_') c = '_';
@@ -132,11 +122,6 @@ class Suggestion {
     return result;
   }
   std::string capture(std::size_t c) const { return r.captures.at(c).name; }
-  bool isRhs(std::size_t id) const {
-    for (const auto& n : p.proof.inference->replacement)
-      if (n.node == id) return true;
-    return false;
-  }
   std::string graph(std::size_t id, bool rhs) {
     const auto& n = p.nodes.at(id);
     if (n.capture) return capture(n.capture->value);
@@ -169,45 +154,6 @@ class Suggestion {
     return names.at(id) + ".axes." + n.definition->groups.at(group).name +
            ".members";
   }
-  std::string bind(const std::string& base, const std::string& value) {
-    auto name = fresh(base);
-    bindings.push_back("let " + name + " = " + value + ";");
-    return name;
-  }
-  void propagate(std::size_t id, const std::string& q,
-                 std::vector<std::string>& checks) {
-    const auto& n = p.nodes[id];
-    required[id] = q;
-    if (n.capture) {
-      checks.push_back("subsequence(" + q + ", " + capture(n.capture->value) +
-                       ".axes.order)");
-      return;
-    }
-    auto c = *axis::recognizeOrdered(*n.definition);
-    if (c.kind == axis::OrderedContract::Kind::Permutation) {
-      propagate(n.inputs[0], "[]", checks);
-      return;
-    }
-    auto wanted = bind(id == p.rhs ? "wanted" : names.at(id) + "_wanted", q);
-    required[id] = wanted;
-    auto prefix = id == p.rhs ? std::string{} : names.at(id) + "_";
-    auto batches = bind(prefix + "batches",
-                        "filter(" + wanted + ", " + member(id, 0) + ")");
-    auto leftName = p.nodes[n.inputs[0]].capture
-                        ? "from" + capture(p.nodes[n.inputs[0]].capture->value)
-                        : "from_left";
-    auto rightName = p.nodes[n.inputs[1]].capture
-                         ? "from" + capture(p.nodes[n.inputs[1]].capture->value)
-                         : "from_right";
-    auto left = bind(prefix + leftName,
-                     "filter(" + wanted + ", " + member(id, 2) + ")");
-    auto right = bind(prefix + rightName,
-                      "filter(" + wanted + ", " + member(id, 3) + ")");
-    checks.push_back(wanted + " == concat(" + batches + ", " + left + ", " +
-                     right + ")");
-    propagate(n.inputs[0], left, checks);
-    propagate(n.inputs[1], right, checks);
-  }
   std::string descriptor(std::size_t id) {
     if (sourceDescriptors.contains(id))
       return sourceDescriptors.at(id) + ".attrs";
@@ -221,44 +167,16 @@ class Suggestion {
     };
     if (v.builtin == B::kAxisSourceOrder)
       return names.at(p.lhs) + ".axes.order";
-    if (v.builtin == B::kAxisRhsOrder) return names.at(p.rhs) + ".axes.order";
-    if (v.builtin == B::kAxisRhsLegal) return names.at(p.rhs) + ".legal";
-    if (v.builtin == B::kAxisSourcePartition)
-      return names.at(p.lhs) + ".axes.partition";
-    if (v.builtin == B::kAxisRhsPartition)
-      return names.at(p.rhs) + ".axes.partition";
     if (v.builtin == B::kAxisCaptureOrder)
       return capture(integer(0)) + ".axes.order";
-    if (v.builtin == B::kAxisSourceNodeOrder ||
-        v.builtin == B::kAxisRhsNodeOrder)
+    if (v.builtin == B::kAxisSourceNodeOrder)
       return names.at(integer(0)) + ".axes.order";
-    if (v.builtin == B::kAxisRequired) {
-      auto id = integer(0);
-      if (p.nodes.at(id).capture) return required.at(id);
-      return names.at(id) + ".required_order";
-    }
-    if (v.builtin == B::kAxisInputOrder)
-      return capture(p.nodes.at(integer(0)).capture->value) + ".axes.order";
-    if (v.builtin == B::kAxisBatch || v.builtin == B::kAxisContract ||
-        v.builtin == B::kAxisLeftFree || v.builtin == B::kAxisRightFree ||
-        v.builtin == B::kAxisLive)
-      return member(integer(0), v.builtin == B::kAxisBatch       ? 0
-                                : v.builtin == B::kAxisContract  ? 1
-                                : v.builtin == B::kAxisLeftFree  ? 2
-                                : v.builtin == B::kAxisRightFree ? 3
-                                                                 : 4);
     if (v.builtin == B::kAxisSourceGroupOrder ||
-        v.builtin == B::kAxisSourceGroupMembers ||
-        v.builtin == B::kAxisRhsGroupOrder ||
-        v.builtin == B::kAxisRhsGroupMembers ||
-        v.builtin == B::kAxisRhsGroupPositions) {
+        v.builtin == B::kAxisSourceGroupMembers) {
       auto base = member(integer(0), integer(1));
       base.resize(base.size() - std::string("members").size());
-      return base + (v.builtin == B::kAxisSourceGroupMembers ||
-                             v.builtin == B::kAxisRhsGroupMembers
-                         ? "members"
-                     : v.builtin == B::kAxisRhsGroupPositions ? "positions"
-                                                              : "order");
+      return base +
+             (v.builtin == B::kAxisSourceGroupMembers ? "members" : "order");
     }
     std::string result(builtins::builtinName(v.builtin));
     result += "(";
@@ -284,6 +202,8 @@ class Suggestion {
             return r.dtypes.at(v.variable.value).name;
           else if constexpr (std::is_same_v<T, DType>)
             return std::string(dtypeName(v));
+          else if constexpr (std::is_same_v<T, OutputAxisGroupRef>)
+            return v.node + ".axes." + v.group + ".positions";
           else if constexpr (std::is_same_v<T, DescriptorRef>)
             return descriptor(v.descriptor.value);
           else if constexpr (std::is_same_v<T, DescriptorFieldRef>) {
@@ -291,9 +211,7 @@ class Suggestion {
                    tables.attribute_schemas.at(v.schema.value)
                        .fields.at(v.field)
                        .name;
-          } else if constexpr (std::is_same_v<T, OutputAxisGroupRef>)
-            return v.node + ".axes." + v.group + ".positions";
-          else if constexpr (std::is_same_v<T, BuiltinCall>)
+          } else if constexpr (std::is_same_v<T, BuiltinCall>)
             return query(v);
           else if constexpr (std::is_same_v<T, BinaryExpr>)
             return "(" + expression(*v.lhs) + " " +
@@ -341,15 +259,16 @@ class Suggestion {
           else if constexpr (std::is_same_v<T, OptionalValue>)
             return expression(*v.value);
           else
-            throw std::runtime_error(
+            throw std::invalid_argument(
                 "unprintable source condition in generated suggestion");
         },
         e.value);
   }
 };
 }  // namespace
-std::string suggestRule(const Plan& p, const Rule& r,
-                        const ProgramTables& tables) {
-  return Suggestion(p, r, tables).run();
+std::string restrictedRule(const Plan& p, const Rule& r,
+                           const ProgramTables& tables,
+                           const std::vector<TypedExprPtr>& restrictions) {
+  return Suggestion(p, r, tables).run(restrictions);
 }
 }  // namespace tepl::core::semantics

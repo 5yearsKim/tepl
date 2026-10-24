@@ -32,11 +32,6 @@ Materialized materialize(InspectionData checked) {
                                     "' has no verified semantic plan");
       axes = plan->proof.axis_definitions;
     }
-    const bool generated = plan && plan->proof.inference.has_value();
-    if (generated)
-      output.kinds.back() = VerificationKind::InferredApplicability;
-    std::optional<inference::Program> inference_program;
-    if (generated) inference_program = plan->proof.inference;
     std::unique_ptr<core::semantics::Context> coordinates;
     Completion completion(
         [&](const OutputAxisGroupRef& ref) -> symbolic::SymbolPtr {
@@ -64,17 +59,10 @@ Materialized materialize(InspectionData checked) {
                   coordinates->source().tensor_groups.at(*node).at(g));
           throw std::invalid_argument("unknown output group");
         });
-    if (plan)
-      for (const auto& guard : plan->proof.guard)
-        r.conditions.push_back(std::make_shared<core::TypedExpr>(
-            core::TypedExpr{r.origin, typeId(core::Type{core::TypeKind::kBool}),
-                            core::SymbolicExpr{guard}}));
+    if (plan && !plan->proof.guard.empty())
+      throw std::invalid_argument(
+          "unresolved obligations cannot become runtime guards");
     for (const auto& hole : r.attribute_holes) {
-      if (generated) {
-        r.descriptors.at(hole.descriptor.value).kind =
-            core::Descriptor::Kind::kDerived;
-        continue;
-      }
       if (!plan || !plan->proof.constructors.contains(hole.descriptor.value))
         throw std::invalid_argument("auto constructor is unresolved in rule '" +
                                     r.name + "'");
@@ -104,13 +92,6 @@ Materialized materialize(InspectionData checked) {
     }
     r.attribute_holes.clear();
     auto completed_rule = completion.rule(std::move(static_cast<RuleData&>(r)));
-    completed_rule.inference = std::move(inference_program);
-    if (completed_rule.inference && plan->proof.append_axis_conditions) {
-      auto conditions = completed::axisConditions(
-          *completed_rule.inference, completed_rule.origin, typeId);
-      completed_rule.conditions.insert(completed_rule.conditions.end(),
-                                       conditions.begin(), conditions.end());
-    }
     completed::validateAxisConditions(completed_rule);
     if (coordinates)
       for (const auto& [key, value] : coordinates->source().groups)

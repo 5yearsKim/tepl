@@ -16,7 +16,9 @@ int checkSemanticRules(const core::semantics::InspectionData& program,
       output << "error: cannot verify rule '" << rule.name
              << "': " << proof.reason
              << "\nAdd an explicit where condition that establishes the "
-                "unresolved requirement, or change the rewrite.\n";
+                "unresolved requirement, or change the rewrite.\n"
+                "Use --suggest-where to search for a verified sufficient "
+                "restriction.\n";
       proved = false;
     }
   }

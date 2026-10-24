@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <limits>
@@ -73,6 +74,8 @@ void builtin(B id, std::vector<Value> a) {
 int main() {
   std::cout << "use tepl_runtime::{self as rt,Value};\n#[test]\nfn "
                "executable_evaluator_reference(){\n";
+  const Value x = Axis{0, 0, 0, 2}, y = Axis{0, 1, 0, 2};
+  const Value xy = List{x, y}, yx = List{y, x}, xx = List{x, x}, empty = List{};
   std::vector<std::pair<B, std::vector<Value>>> cases = {
       {B::kLen, {ints({4, 5})}},
       {B::kRange, {Integer(3)}},
@@ -97,8 +100,16 @@ int main() {
       {B::kIsInteger, {std::string("u8")}},
       {B::kIsSignedInteger, {std::string("i64")}},
       {B::kIsUnsignedInteger, {std::string("u64")}},
-      {B::kIsNumeric, {std::string("bool")}}};
-  assert(cases.size() == core::builtins::catalog().size());
+      {B::kIsNumeric, {std::string("bool")}},
+      {B::kAxisFilter, {xy, List{x}}},
+      {B::kAxisDifference, {xy, List{y}}},
+      {B::kAxisSubsequence, {List{x}, xy}}};
+  const auto public_count =
+      std::count_if(core::builtins::catalog().begin(),
+                    core::builtins::catalog().end(), [](const auto& entry) {
+                      return core::builtins::isPublicBuiltin(entry.builtin);
+                    });
+  assert(cases.size() == static_cast<std::size_t>(public_count));
   for (auto [id, a] : cases) {
     builtin(id, a);
     a.resize(core::builtins::signature(id).arguments.size() - 1);
@@ -115,8 +126,6 @@ int main() {
            {B::kBroadcastShape, {ints({0}), ints({1})}},
            {B::kBroadcastShape, {ints({2}), ints({3})}}})
     builtin(id, a);
-  const Value x = Axis{0, 0, 0, 2}, y = Axis{0, 1, 0, 2};
-  const Value xy = List{x, y}, yx = List{y, x}, xx = List{x, x}, empty = List{};
   std::vector<std::pair<I, std::vector<Value>>> internal = {
       {I::kConcat, {}},
       {I::kIndex, {ints({4, 5}), Integer(1)}},

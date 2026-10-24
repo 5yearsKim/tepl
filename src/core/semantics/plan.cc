@@ -8,9 +8,7 @@
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
 #include "src/core/semantics/suggestion.h"
-#include "src/core/semantics/synthesis/ordered/compile.h"
 #include "src/core/semantics/synthesis/synthesize.h"
-#include "src/shared/catalog/axis_conditions.h"
 #include "src/shared/metadata/ordered.h"
 
 namespace tepl::core::semantics {
@@ -71,13 +69,67 @@ struct Builder {
       }
     }
     std::unique_ptr<Context> coordinates;
-    auto outputPositions = [&](const OutputAxisGroupRef& ref) -> S {
+    std::map<std::size_t, S> capture_axes;
+    E source_value;
+    auto sourceCoordinates = [&]() -> Context& {
       if (!coordinates) {
         coordinates = std::make_unique<Context>(plan, 1000000);
         coordinates->sourceScope(plan.lhs);
         Lowerer source{*coordinates};
-        source.lower(plan.lhs);
+        source_value = source.lower(plan.lhs).value;
       }
+      return *coordinates;
+    };
+    auto sourceQuery = [&](const BuiltinCall& query) -> S {
+      using B = builtins::Builtin;
+      if (query.builtin != B::kAxisCaptureOrder &&
+          query.builtin != B::kAxisSourceNodeOrder &&
+          query.builtin != B::kAxisSourceGroupOrder &&
+          query.builtin != B::kAxisSourceGroupMembers &&
+          query.builtin != B::kAxisSourceOrder)
+        return {};
+      auto& c = sourceCoordinates();
+      auto argument = [&](std::size_t i) {
+        return std::stoull(
+            std::get<NumericConstant>(query.arguments.at(i)->value).spelling);
+      };
+      if (query.builtin == B::kAxisSourceOrder)
+        return c.source().tensor_axes.at(plan.lhs);
+      if (query.builtin == B::kAxisCaptureOrder) {
+        if (capture_axes.empty())
+          for (const auto& term : normalize(c, source_value))
+            for (const auto& read : term.reads) {
+              auto [found, added] =
+                  capture_axes.try_emplace(read->capture, read->axes);
+              if (!added && !c.entails(call("==", {found->second, read->axes})))
+                throw std::runtime_error(
+                    "logical axis order requires an unambiguous source capture "
+                    "occurrence");
+            }
+        auto found = capture_axes.find(argument(0));
+        if (found == capture_axes.end())
+          throw std::runtime_error("source capture has no logical axis frame");
+        return found->second;
+      }
+      auto id = argument(0);
+      if (query.builtin == B::kAxisSourceNodeOrder)
+        return c.source().tensor_axes.at(id);
+      auto contract = axis::recognizeOrdered(*plan.nodes.at(id).definition);
+      if (!contract) throw std::runtime_error("unsupported source group query");
+      auto role = argument(1);
+      auto group = contract->kind == axis::OrderedContract::Kind::Permutation
+                       ? 0
+                   : role == 0 ? contract->batch_group
+                   : role == 1 ? contract->contract_group
+                   : role == 2 ? contract->left_free_group
+                               : contract->right_free_group;
+      auto axes = c.source().tensor_groups.at(id).at(group);
+      return query.builtin == B::kAxisSourceGroupMembers
+                 ? call("unique_axes", {axes})
+                 : axes;
+    };
+    auto outputPositions = [&](const OutputAxisGroupRef& ref) -> S {
+      sourceCoordinates();
       std::optional<std::size_t> operation;
       for (auto id : coordinates->source().nodes)
         if (plan.nodes[id].label == ref.node) {
@@ -129,6 +181,8 @@ struct Builder {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, OutputAxisGroupRef>) {
               return outputPositions(v);
+            } else if constexpr (std::is_same_v<T, SymbolicExpr>) {
+              return v.value;
             } else if constexpr (std::is_same_v<T, DescriptorFieldRef>) {
               plan.metadata_types.emplace(
                   std::pair{v.descriptor.value, v.field},
@@ -162,12 +216,19 @@ struct Builder {
               return v.decimal ? S{} : make(Symbol::Kind::Integer, v.spelling);
             else if constexpr (std::is_same_v<T, BinaryExpr>) {
               auto a = lower(*v.lhs), b = lower(*v.rhs);
-              return a && b ? rawCall(std::string(spelling(v.op)), {a, b})
-                            : S{};
+              if (!a || !b) return {};
+              if ((v.op == BinaryOp::kEqual || v.op == BinaryOp::kNotEqual) &&
+                  context.output.types.at(v.lhs->type.value) ==
+                      logicalAxisSetType()) {
+                auto same = rawCall("same_set", {a, b});
+                return v.op == BinaryOp::kEqual ? same : rawCall("!", {same});
+              }
+              return rawCall(std::string(spelling(v.op)), {a, b});
             } else if constexpr (std::is_same_v<T, UnaryExpr>) {
               auto a = lower(*v.operand);
               return a ? rawCall(std::string(spelling(v.op)), {a}) : S{};
             } else if constexpr (std::is_same_v<T, BuiltinCall>) {
+              if (auto axes = sourceQuery(v)) return axes;
               std::vector<S> args;
               for (const auto& a : v.arguments) {
                 auto x = lower(*a);
@@ -177,6 +238,9 @@ struct Builder {
               return rawCall(
                   v.builtin == builtins::Builtin::kExclude
                       ? "ordered_complement"
+                  : v.builtin == builtins::Builtin::kAxisFilter ? "filter_axes"
+                  : v.builtin == builtins::Builtin::kAxisDifference
+                      ? "difference_axes"
                       : std::string(builtins::builtinName(v.builtin)),
                   std::move(args));
             } else if constexpr (std::is_same_v<T, LocalRef>) {
@@ -238,6 +302,57 @@ struct Builder {
       }
       plan.assumptions.push_back(value);
     }
+    std::function<TypedExprPtr(const TypedExprPtr&)> completeQueries =
+        [&](const TypedExprPtr& e) -> TypedExprPtr {
+      auto out = *e;
+      if (auto* comparison = std::get_if<BinaryExpr>(&out.value);
+          comparison &&
+          (comparison->op == BinaryOp::kEqual ||
+           comparison->op == BinaryOp::kNotEqual) &&
+          context.output.types.at(comparison->lhs->type.value) ==
+              logicalAxisSetType()) {
+        out.value = SymbolicExpr{lower(*e)};
+        return std::make_shared<TypedExpr>(std::move(out));
+      }
+      if (auto* query = std::get_if<BuiltinCall>(&out.value)) {
+        if (auto axes = sourceQuery(*query)) {
+          out.value = SymbolicExpr{axes};
+          return std::make_shared<TypedExpr>(std::move(out));
+        }
+      }
+      std::visit(
+          [&](auto& v) {
+            if constexpr (requires { v.arguments; })
+              for (auto& a : v.arguments) a = completeQueries(a);
+            if constexpr (requires { v.elements; })
+              for (auto& a : v.elements) a = completeQueries(a);
+            if constexpr (requires { v.operand; })
+              v.operand = completeQueries(v.operand);
+            if constexpr (requires { v.lhs; }) {
+              v.lhs = completeQueries(v.lhs);
+              v.rhs = completeQueries(v.rhs);
+            }
+            if constexpr (requires { completeQueries(v.value); })
+              v.value = completeQueries(v.value);
+            if constexpr (requires { v.iterable; }) {
+              v.element = completeQueries(v.element);
+              v.iterable = completeQueries(v.iterable);
+            }
+            if constexpr (requires { v.condition; }) {
+              v.condition = completeQueries(v.condition);
+              v.then_value = completeQueries(v.then_value);
+              v.else_value = completeQueries(v.else_value);
+            }
+            if constexpr (requires { completeQueries(v.index); }) {
+              v.value = completeQueries(v.value);
+              v.index = completeQueries(v.index);
+            }
+          },
+          out.value);
+      return std::make_shared<TypedExpr>(std::move(out));
+    };
+    for (auto& condition : rule.conditions)
+      condition = completeQueries(condition);
     locals.clear();  // where and derive have independent local scopes.
     for (const auto& derivation : rule.derivations) {
       if (!derivation.target) {
@@ -535,7 +650,9 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
         [&](const TypedExpr& e) {
           bool found = false;
           if (auto* b = std::get_if<BuiltinCall>(&e.value))
-            found = builtins::isAxisQuery(b->builtin);
+            found = builtins::isReplacementAxisQuery(b->builtin) ||
+                    b->builtin == builtins::Builtin::kAxisDomain ||
+                    b->builtin == builtins::Builtin::kAxisSourcePartition;
           forEachExpressionChild(
               e, [&](const auto& child) { found |= axisQueries(child); });
           return found;
@@ -543,85 +660,33 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
     bool explicit_axis_conditions = false;
     for (const auto& c : rule.conditions)
       explicit_axis_conditions |= axisQueries(*c);
-    if (context.options.inferred_applicability || explicit_axis_conditions) {
-      if (selected) {
-        bool automatic = false;
-        for (const auto& n : b.plan.nodes) automatic |= n.automatic;
-        auto compiled =
-            ordered::compile(b.plan, automatic ? inference::Mode::Synthesize
-                                               : inference::Mode::Validate);
-        if (compiled.program) {
-          b.plan.proof.inference = compiled.program;
-          b.plan.suggested_rule = suggestRule(b.plan, rule, context.output);
-          if (!context.options.inferred_applicability) {
-            // Project only the expression forms needed for syntactic law
-            // recognition. Other well-typed user predicates remain independent
-            // conjuncts and are checked normally at execution.
-            std::function<completed::TypedExprPtr(const TypedExprPtr&)>
-                project =
-                    [&](const TypedExprPtr& e) -> completed::TypedExprPtr {
-              completed::TypedExpr out{e->origin, e->type, false};
-              std::visit(
-                  [&](const auto& v) {
-                    using V = std::decay_t<decltype(v)>;
-                    if constexpr (std::is_same_v<V, BuiltinCall>) {
-                      completed::BuiltinCall call{v.builtin, {}};
-                      for (const auto& a : v.arguments)
-                        call.arguments.push_back(project(a));
-                      out.value = std::move(call);
-                    } else if constexpr (std::is_same_v<V, BinaryExpr>)
-                      out.value = completed::BinaryExpr{v.op, project(v.lhs),
-                                                        project(v.rhs)};
-                    else if constexpr (std::is_same_v<V, LocalLet>)
-                      out.value =
-                          completed::LocalLet{v.local, project(v.value)};
-                    else if constexpr (std::is_same_v<V, NumericConstant> ||
-                                       std::is_same_v<V, LocalRef> ||
-                                       std::is_same_v<V, bool>)
-                      out.value = v;
-                  },
-                  e->value);
-              return std::make_shared<completed::TypedExpr>(std::move(out));
-            };
-            completed::RuleData obligations;
-            obligations.name = rule.name;
-            obligations.inference = compiled.program;
-            for (const auto& c : rule.conditions)
-              obligations.conditions.push_back(project(c));
-            try {
-              completed::validateAxisConditions(obligations);
-            } catch (const std::invalid_argument&) {
-              throw std::runtime_error(
-                  "missing axis feasibility condition. Suggested rule:\n" +
-                  b.plan.suggested_rule);
-            }
-          }
-          b.plan.proof.inference = std::move(compiled.program);
-          b.plan.proof.append_axis_conditions =
-              context.options.inferred_applicability;
-          b.plan.proof.status = ProofStatus::Proved;
-          b.plan.proof.reason =
-              "generated explicit where obligations and attribute constructor; "
-              "equivalence is "
-              "conditional on legal metadata, extents >= 2, and check success";
-          b.plan.proof.steps.push_back(
-              "verified: ordered semantic templates and completed inference "
-              "schedule");
-        } else
-          b.plan.proof.reason = "inferred applicability: " + compiled.reason;
-      }
-    } else {
-      b.assumptions();
-      if (selected) b.plan.proof = synthesize(b.plan);
+    if (explicit_axis_conditions)
+      throw std::runtime_error(
+          "runtime feasibility queries are unsupported; use source metadata "
+          "restrictions "
+          "and check --suggest-where for a verified suggestion");
+    const Rule suggestion_source = rule;
+    b.assumptions();
+    if (selected) {
+      b.plan.proof = synthesize(b.plan);
+      if (b.plan.proof.status != ProofStatus::Proved &&
+          context.options.suggest_conditions)
+        b.plan.suggested_rule =
+            suggestRestrictions(b.plan, suggestion_source, context.output);
     }
     if (selected && !context.options.inspect_semantic_rules &&
         b.plan.proof.status != ProofStatus::Proved) {
       auto message =
           "cannot verify rule '" + rule.name + "': " + b.plan.proof.reason;
-      if (!context.options.inferred_applicability)
+      message +=
+          ". Add an explicit where condition establishing the unresolved "
+          "requirement, or change the rewrite. Use check --suggest-where to "
+          "search for a verified restriction.";
+      if (!b.plan.suggested_rule.empty())
         message +=
-            ". Add an explicit where condition establishing the unresolved "
-            "requirement, or change the rewrite.";
+            "\nVerified sufficient restriction (bounded search; not "
+            "necessarily weakest):\n" +
+            b.plan.suggested_rule;
       context.report(rule.origin, std::move(message));
     }
     rule.semantic_plan = std::make_shared<Plan>(std::move(b.plan));

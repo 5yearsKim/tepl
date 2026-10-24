@@ -38,6 +38,7 @@ cc_library(
             "metadata_print.cc",
             "completion.cc",
             "suggestion.cc",
+            "restrictions.cc",
         ],
     ),
     hdrs = glob(
@@ -69,7 +70,7 @@ cc_library(
 cc_library(
     name = "semantics",
     srcs = (
-        ["plan.cc", "program.cc", "materialize.cc", "completion.cc", "suggestion.cc", "suggestion.h"] +
+        ["plan.cc", "program.cc", "materialize.cc", "completion.cc", "suggestion.cc", "restrictions.cc", "suggestion.h"] +
         ["compilation_context.h", "materialize.h", "completion.h"]
     ),
     hdrs = ["verify.h", "inspect.h"],
@@ -78,6 +79,7 @@ cc_library(
         ":proof",
         ":verified_model",
         ":inspection_model",
+        "//src/inference",
         "//src/core/checking:model",
         "//src/core/checking:ir",
         "//src/shared/diagnostics",

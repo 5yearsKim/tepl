@@ -1,5 +1,6 @@
 #include "src/core/semantics/proof/verify.h"
 
+#include <functional>
 #include <stdexcept>
 
 namespace tepl::core::semantics {
@@ -37,7 +38,6 @@ RuleProof check(const Plan& plan, const ConstructorCandidate& candidate,
     for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
     for (const auto& [value, type] : plan.constructed_metadata)
       c.checkMetadataType(value, type);
-    auto lt = normalize(c, lhs.value);
     for (const auto& [id, fields] : candidate.constructors)
       for (const auto& f : fields) c.wellFormed(f);
     for (const auto& g : candidate.guard) {
@@ -54,6 +54,54 @@ RuleProof check(const Plan& plan, const ConstructorCandidate& candidate,
         for (std::size_t f = 0; f < fields.size(); ++f)
           c.require(call("==", {c.field(n, f), fields[f]}));
       }
+    // Identical operation trees need no access-correspondence search. This
+    // also preserves repeated capture identity and works for singleton/empty
+    // extents without invoking a completeness-domain assumption.
+    std::function<bool(std::size_t, std::size_t)> identical =
+        [&](std::size_t a, std::size_t b) {
+          c.tick();
+          const auto& left = plan.nodes.at(a);
+          const auto& right = plan.nodes.at(b);
+          if (left.capture || right.capture)
+            return left.capture == right.capture;
+          if (left.literal || right.literal)
+            return left.literal == right.literal &&
+                   left.literal_dtype == right.literal_dtype;
+          if (left.operation != right.operation ||
+              left.definition != right.definition ||
+              left.inputs.size() != right.inputs.size())
+            return false;
+          for (std::size_t i = 0; i < left.inputs.size(); ++i)
+            if (!identical(left.inputs[i], right.inputs[i])) return false;
+          if (bool(left.descriptor) != bool(right.descriptor)) return false;
+          if (left.descriptor)
+            for (std::size_t f = 0; f < left.definition->fields.size(); ++f)
+              if (!c.entails(call("==", {c.field(left, f), c.field(right, f)})))
+                return false;
+          return true;
+        };
+    if (identical(plan.lhs, plan.rhs)) {
+      proof.constructors = candidate.constructors;
+      proof.status = ProofStatus::Proved;
+      proof.reason =
+          "identical operations, operands, and verified attributes under "
+          "declared conditions";
+      proof.steps = c.steps();
+      proof.steps.push_back(
+          "verified: identical operation tree, including repeated captures");
+      proof.lhs_axes = proof.rhs_axes = lhs.axes;
+      // Keep diagnostic normal forms when available. The identity proof above
+      // does not depend on arithmetic normalization succeeding.
+      try {
+        proof.lhs_normalized = show(collectTerms(c, normalize(c, lhs.value)));
+        proof.rhs_normalized = proof.lhs_normalized;
+      } catch (const ProofFailure&) {
+      }
+      for (const auto& [id, group] : c.source().groups)
+        proof.axis_definitions.push_back(group);
+      return proof;
+    }
+    auto lt = normalize(c, lhs.value);
     auto rt = normalize(c, arithmeticSkeleton(plan, plan.rhs));
     auto correspondence = correspond(c, lhs, lt, rt);
     Lowerer target{c, &correspondence.anchors};
@@ -91,6 +139,8 @@ RuleProof check(const Plan& plan, const ConstructorCandidate& candidate,
     return proof;
   } catch (const ProofFailure& e) {
     proof = RuleProof{};
+    proof.guard = c.guards();
+    proof.guard_origins = c.guardOrigins();
     proof.reason = e.describe();
     proof.steps = c.steps();
     return proof;

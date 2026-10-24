@@ -27,7 +27,7 @@ TEPL_BUILTIN(kFloorDiv, "floor_div", kInteger, kPair, kInteger, false, kCommon, 
 TEPL_BUILTIN(kCeilDiv, "ceil_div", kInteger, kPair, kInteger, false, kCommon, kAllContexts, true)
 
 // Closed logical-axis queries are lowered from named node properties.
-// Numeric node arguments remain internal; axis_domain is a public entry guard.
+// Legacy inference query IDs remain internal; executable rules cannot use them.
 TEPL_BUILTIN(kAxisDomain, "axis_domain", kList, kNoArguments, kBoolean, false, kCommon, 2, false)
 TEPL_BUILTIN(kAxisRequired, "axis_required", kList, kInteger, kAxisList, false, kCommon, 2, false)
 TEPL_BUILTIN(kAxisBatch, "axis_batch", kList, kInteger, kAxisSet, false, kCommon, 2, false)

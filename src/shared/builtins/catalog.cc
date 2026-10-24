@@ -70,9 +70,7 @@ std::string_view builtinName(Builtin builtin) {
   return signature(builtin).name;
 }
 
-bool isPublicBuiltin(Builtin b) {
-  return b == Builtin::kAxisDomain || !isAxisQuery(b);
-}
+bool isPublicBuiltin(Builtin b) { return !isAxisQuery(b); }
 bool isAxisQuery(Builtin b) {
   switch (b) {
     case Builtin::kAxisCaptureOrder:

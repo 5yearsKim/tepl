@@ -3,7 +3,7 @@
 For changes to attribute inference, start with:
 
 ```sh
-bazel test //tests:named_nodes_test //tests:inferred_applicability_test \
+bazel test //tests:named_nodes_test //tests:attribute_reasoning_test \
   //tests:ordered_synthesis_test //tests:rewrite_test \
   //tests:syntax_test //tests:core_test
 ```
@@ -20,8 +20,8 @@ runtime tests are outside the current native implementation scope.
 
 | Test | Main responsibility |
 | --- | --- |
-| `named_nodes_test` | Node properties, descriptor reuse/derivation, suggested-rule round trips, and nested feasible/infeasible replacements. |
-| `inferred_applicability_test` | Generated conditions and constructors across ranks, JSON replay, unsupported cases, and corrupted-program rejection. |
+| `named_nodes_test` | Source node properties, descriptor reuse/derivation, logical-axis evaluation, and invalid reference diagnostics. |
+| `attribute_reasoning_test` | Verified restriction suggestions, practical metadata domains, mixed attributes, repeated-capture identity, and independent constructor verification. |
 | `ordered_synthesis_test` | Independent exhaustive attribute oracle, positive/negative certificates, paired contraction order, and high-rank cases. |
 | `semantic_test` | Symbolic laws, arithmetic policy, sufficient user conditions, partial routing, and independent dense references. |
 | `convolution_test` | Calculated reads, coefficient inference, spatial ranks 1–3, empty batch/channel cases, and illegal or corrupted metadata. |

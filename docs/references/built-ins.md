@@ -63,7 +63,6 @@ section access. The axes overloads are listed separately below.
 | `any` | list | `(Bool[]) -> Bool` | `(bool[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
 | `contains` | list | `(T[], T) -> Bool` | `(T[], T) -> bool` | `shape`, `dtype`, `where`, `derive` |
 | `is_disjoint` | list | `(T[], T[]) -> Bool` | `(T[], T[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
-| `axis_domain` | list | `() -> Bool` | `() -> bool` | `where` |
 | `filter` | list | `(LogicalAxis[], LogicalAxisSet) -> LogicalAxis[]` | `(LogicalAxis[], LogicalAxisSet) -> LogicalAxis[]` | `where`, `derive` |
 | `subsequence` | list | `(LogicalAxis[], LogicalAxis[]) -> Bool` | `(LogicalAxis[], LogicalAxis[]) -> bool` | `where`, `derive` |
 | `difference` | list | `(LogicalAxisSet, LogicalAxisSet) -> LogicalAxisSet` | `(LogicalAxisSet, LogicalAxisSet) -> LogicalAxisSet` | `where`, `derive` |
@@ -367,21 +366,15 @@ Named node properties expose logical axes without compiler node numbers. See
 `node.axes.order` are `LogicalAxis[]`. Identities represent source-port
 classes, independently of extents and numeric positions.
 
-`filter(sequence, members)` preserves the sequence's order;
+`filter(sequence, members)` preserves sequence order;
 `difference(members, other)` returns a logical set;
-`subsequence(required, actual)` tests relative order. `axis_domain()` checks
-source legality and the admitted metadata domain. Query implementations taking
-numeric node IDs are internal and cannot be called from source.
+`subsequence(required, actual)` tests relative order. Source logical-axis
+properties lower to pure metadata expressions and do not impose an extent >= 2
+restriction. Numeric node-query functions are internal.
 
-Use `check --semantic-policy=algebraic --infer-applicability` to obtain a
-complete suggested rule with readable bindings and conditions. Copying that
-rule into source permits compilation without the flag. Required conjuncts are
-recognized through local bindings and conjunctions; arbitrary equivalent
-predicates may exceed the implication prover. Loading JSON repeats validation.
-
-Inferred RHS group membership and required subsequences are available before
-construction. Actual fully explicit RHS properties execute after descriptor
-derivations. Axis analysis is cached per match and shared with construction.
-Missing or outside-domain metadata skips a match; resource exhaustion is a
-separate limit result. Native C++ execution supports these programs; code
-generation remains deferred.
+Use `check --semantic-policy=algebraic --suggest-where --rule NAME` to search
+for a verified sufficient source restriction. Every suggestion is proved under
+the original conditions and checked for a legal witness; the bounded search
+does not guarantee a weakest condition. Add a reviewed suggestion to source
+before compiling. Runtime feasibility queries, including `axis_domain()` and
+inferred RHS boundary queries, are unsupported.

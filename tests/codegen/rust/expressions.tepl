@@ -29,25 +29,25 @@ dialect D {
 }
 rule compose {
   X:[Dims...]
-  (D.transpose[@outer] (D.transpose[@inner] X)) => (D.transpose[@combined] X)
+  (outer: D.transpose (inner: D.transpose X)) => (combined: D.transpose X)
   where {
     let rank=len(Dims);
-    len(@outer.permutation)==rank && @outer.enabled && @inner.enabled
+    len(outer.attrs.permutation)==rank && outer.attrs.enabled && inner.attrs.enabled
   }
   derive {
-    let composed=if len(@outer.permutation)==0 then [] else gather(@inner.permutation,@outer.permutation);
-    @combined={..@outer,permutation:composed,note:"derived",precision:high,signed:-1};
+    let composed=if len(outer.attrs.permutation)==0 then [] else gather(inner.attrs.permutation,outer.attrs.permutation);
+    combined.attrs={..outer.attrs,permutation:composed,note:"derived",precision:high,signed:-1};
   }
 }
 rule identity {
   X:[Dims...]
-  (D.transpose[@p] X)=>X
-  where {let axes=range(len(Dims));all([@p.permutation[i]==i for i in axes])}
+  (p: D.transpose X)=>X
+  where {let axes=range(len(Dims));all([p.attrs.permutation[i]==i for i in axes])}
 }
 rule short_circuit {(D.copy X)=>X where {true || len(range(18446744073709551615))==0}}
 rule false_guard {(D.sink X)=>X where {false && len(range(18446744073709551615))==0}}
 rule invalid_guard {(D.sink X)=>X where {1 / 0 == 0}}
-rule invalid_rhs {(D.sink X)=>(D.transpose[@p] X) derive {@p={permutation:[9],enabled:true,note:none,precision:default,signed:0};}}
+rule invalid_rhs {(D.sink X)=>(p: D.transpose X) derive {p.attrs={permutation:[9],enabled:true,note:none,precision:default,signed:0};}}
 rule incompatible_rhs {(D.sink X)=>(D.scalar X)}
 rule require_shape {X:[Dims...] (D.unknown X)=>X where {len(Dims)>0}}
 rule concrete_dtype {X:f32[Dims...] (D.copy X)=>X}

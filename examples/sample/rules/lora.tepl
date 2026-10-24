@@ -14,7 +14,13 @@ rule lora {
     (add (dot[outer.attrs] X W) (dot[inner.attrs] (dot[outer.attrs] X A) B))
 
     where {
-        outer.attrs.rhs_batching_dimensions == inner.axes.B.positions
-        && outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions
+        outer.attrs.lhs_batching_dimensions == range(len(Batch))
+        && outer.attrs.rhs_batching_dimensions == range(len(Batch))
+        && inner.attrs.lhs_batching_dimensions == range(len(Batch))
+        && inner.attrs.rhs_batching_dimensions == range(len(Batch))
+        && outer.attrs.lhs_contracting_dimensions == [len(Batch) + 1]
+        && outer.attrs.rhs_contracting_dimensions == [len(Batch)]
+        && inner.attrs.lhs_contracting_dimensions == [len(Batch) + 1]
+        && inner.attrs.rhs_contracting_dimensions == [len(Batch)]
     }
 }

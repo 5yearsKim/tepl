@@ -11,5 +11,5 @@ dialect Type {
 }
 dialect Std {op std_copy(x:tensor)->tensor;}
 dialect Egg {op egg_copy(x:tensor)->tensor;}
-rule match {(Type.type[@d] X)=>(Type.type[@d] X) where {@d.match}}
+rule match {(d: Type.type X)=>(Type.type[d.attrs] X) where {d.attrs.match}}
 graph type { input X:f32[2];yield (Type.type[type=1,match=true,gen=1] X); }

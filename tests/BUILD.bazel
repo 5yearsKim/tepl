@@ -12,20 +12,20 @@ cc_test(
 )
 
 sh_test(
-    name = "inferred_applicability_cli_test",
+    name = "where_suggestions_cli_test",
     size = "small",
-    srcs = ["inferred_applicability_cli_test.sh"],
-    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/inferred_applicability.tepl)", "$(rootpath //:examples/semantic/explicit_axis_conditions.tepl)"],
-    data = ["//:tepl", "//:examples/semantic/explicit_axis_conditions.tepl", "//:examples/semantic/inferred_applicability.tepl", "//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    srcs = ["where_suggestions_cli_test.sh"],
+    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/restriction_suggestions.tepl)", "$(rootpath //:examples/semantic/explicit_axis_conditions.tepl)"],
+    data = ["//:tepl", "//:examples/semantic/explicit_axis_conditions.tepl", "//:examples/semantic/restriction_suggestions.tepl", "//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
 )
 
 cc_test(
-    name = "inferred_applicability_test",
-    size = "small",
-    srcs = ["inferred_applicability_test.cc"],
+    name = "attribute_reasoning_test",
+    size = "medium",
+    srcs = ["attribute_reasoning_test.cc"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//src/core:pipeline", "//src/inference", "//src/rewrite", "//src/codegen", "@nlohmann_json//:json", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core:pipeline", "//src/core/semantics:proof", "//src/rewrite", "@rules_cc//cc/runfiles"],
 )
 
 cc_test(

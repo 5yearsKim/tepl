@@ -3,12 +3,13 @@
 This directory separates axis membership, ordering requirements, and descriptor
 construction. It implements the compilation side of
 [the completeness plan](../../../../../examples/research/complete_attribute_synthesis_plan.md).
-The [completeness proof draft](../../../../../examples/research/complete_attribute_synthesis_proof.md)
-proves the concrete algorithm's necessity, constructive sufficiency,
-termination, and certificate properties in its stated domain. Section 12 also
-proves correctness of a specified abstract generator for feasibility and
-attribute programs. The C++ implementation now provides the corresponding
-compiled-plan path; formal implementation refinement remains separate work.
+The [unified completeness proof draft](../../../../../examples/research/complete_attribute_synthesis_proof.md)
+proves exact feasibility and constructive synthesis for a mathematical
+contraction/permutation/unary-summation algorithm and separated additive
+components. Section 6 gives the metadata-program generation argument.
+This implementation covers its original contraction/permutation specialization;
+unary summation and additive component support on the exact path remain
+extension work. Formal implementation refinement remains separate work.
 
 This implementation stage covers the C++ compiler and structural solver.
 Rust code-generation and runtime changes are deferred.
@@ -48,64 +49,21 @@ or the final general verifier. Both paths still preserve the selected dtype
 and arithmetic checks. Concrete impossibility certificates are not currently
 used to reject an entire rank-polymorphic rule schema.
 
-The explicit `SemanticOptions::inferred_applicability` option selects the new
-path instead. The CLI exposes it as `--infer-applicability` on `check`,
-`compile`, and source `rewrite`; it requires `--semantic-policy=algebraic`.
-An admitted rule receives a completed `inference::Program` containing the
-source/replacement schedules. Its feasibility formula is emitted as ordinary
-typed `where` conditions by `shared/catalog/axis_conditions.*`; there is no
-separate runtime checker call. `check --infer-applicability` prints a suggested
-complete named rule. Copying it into source permits normal compilation without the
-flag. The flag explicitly requests insertion of the conditions into the
-completed program; ordinary compilation never silently adds them.
+TEPL accepts semantic rules only after independent verification under source
+legality and the written conditions. It never materializes additional runtime
+feasibility guards. `check --suggest-where` performs bounded search for a
+verified sufficient restriction; review and add a suggestion before normal
+compilation. `restrictions.cc` checks proposals with fresh synthesis and
+verification, and rejects suggestions without a concrete legal witness.
+Runtime inference programs and the old `--infer-applicability` mode are retired.
 
-Named node properties expose required subsequences, batch/free sets, and
-physical input order. Sequences have type `LogicalAxis[]`; membership has the
-distinct type `LogicalAxisSet`. `filter`, `concat`, equality, and `subsequence`
-express the checks. Public syntax uses `result.axes.B.members`,
-`result.required_order`, and `A.axes.order`. The compiler lowers these to closed
-queries with internal node IDs; numeric query calls are not source builtins.
-Identities are canonical physical-port classes determined by captured source
-attributes at each match. Labels do not add tensor captures or alter synthesis.
-
-The compiler and executable loader regenerate the required formula and check
-its conjuncts after expanding local bindings and conjunctions. Removing a
-condition or hiding it under a disjunction fails verification. This route does
-not claim complete implication reasoning for differently spelled predicates;
-the existing symbolic prover remains available for ordinary rules. Mixed
-explicit/automatic RHS attributes remain outside admission.
-
-At a match, `rewrite::AxisAnalysis` caches source replay, boundaries, and order
-propagation. The ordinary condition evaluator decides feasibility. Only after
-conditions pass does the constructor use the same analysis to assign positions;
-it does not repeat a feasibility decision. Backend shape/dtype checks validate
-the replacement before graph mutation.
-
-Fully explicit RHS rules use the same schedules in `Mode::Validate`.
-`result.legal` exposes descriptor legality; equality of source/RHS
-`axes.partition` and `axes.order` properties establishes equivalence. RHS queries and dependent
-local bindings execute after ordinary descriptor derivations. Independent
-source conditions execute first, and `where`/`derive` local scopes remain
-separate. These rules need no constructor and never substitute a different
-assignment.
-
-Compiled JSON stores the completed schedules and declares the
-`tepl.inferred-applicability.v1` capability. Loading checks tree structure,
-capture sets, field bijections, references to the actual rule, and field-role
-adapters against operation axis contracts, and the mandatory explicit conditions. Deferred code-generation backends
-reject these programs explicitly; native C++ execution is currently supported.
-
-For example, from the repository root:
-
-```sh
-bazel-bin/tepl compile examples/semantic/inferred_applicability.tepl \
-  --semantic-policy=algebraic --infer-applicability -o /tmp/inferred.json
-bazel-bin/tepl rewrite /tmp/inferred.json --graph feasible --trace
-bazel-bin/tepl rewrite /tmp/inferred.json --graph infeasible --trace
-```
-
-The first graph rewrites; the second retains its required output permutation,
-even though both inputs and outputs have equal extents.
+The complete concrete solver below remains available for mathematical
+experiments and structural certificates in its admitted extent >= 2 domain.
+Those restrictions do not constrain the general symbolic verifier. Identical
+operation trees, including repeated captures, use verified attribute copies;
+other practical cases use general construction and independent verification.
+Mixed explicit/automatic RHS descriptors, singleton extents, and zero extents
+may therefore be accepted without extending the completeness claim.
 
 ## Native metadata-program evaluator
 
@@ -153,38 +111,13 @@ backend dtype restrictions and coverage of user conditions are separate.
 ## Validation
 
 ```sh
-bazel test //tests:ordered_synthesis_test
-bazel test //tests:inferred_applicability_test //tests:inferred_applicability_cli_test
+bazel test //tests:ordered_synthesis_test //tests:attribute_reasoning_test \
+  //tests:where_suggestions_cli_test //tests:named_nodes_test
 ```
 
-The test enumerates positional attributes using a separate equivalence-matrix
-oracle. It checks 1,584 decisions across scalar/vector inputs, tree shapes,
-capture orders, and optional transposes, including 240 impossible layouts.
-Additional regressions cover multiple unsorted contracting axes, equal extents,
-rank-128 permutations, corrupted certificates, and an internal transpose
-required by a parent's output order. The compiler regression evaluates the
-generated metadata constructors under the original declared conditions.
-
-Native integration tests cover actual source and serialized-JSON rewriting,
-one program across scalar through rank-128 inputs, impossible equal-shaped
-layouts, internal transpose construction, explicit assignment validation,
-source descriptor sharing, unsupported schemas, and corrupted program rejection.
-These finite tests corroborate the implementation; they do not prove
-arbitrary-rank completeness or formal compiler refinement. The general verifier
-remains the acceptance boundary for the default declared-condition mode.
-
-## Explicit condition workflow
-
-```sh
-bazel-bin/tepl check examples/semantic/inferred_applicability.tepl \
-  --semantic-policy=algebraic --infer-applicability --rule remove_output_permutation
-bazel-bin/tepl compile examples/semantic/explicit_axis_conditions.tepl \
-  --semantic-policy=algebraic -o /tmp/explicit.json
-bazel-bin/tepl rewrite /tmp/explicit.json --graph feasible --trace
-```
-
-`axis_domain()` checks source legality and the theorem's metadata domain.
-Outside-domain data is not mathematical infeasibility. Missing data skips a
-match; work exhaustion remains a distinct resource limit. Extra user conditions
-may intentionally exclude feasible matches; exactness concerns the generated
-conjunction itself within its domain.
+The ordered-solver tests exercise its original completeness domain. Attribute
+reasoning tests cover normal rule acceptance, descriptor-copy identity,
+singleton/zero extents, mixed attributes, repeated inputs, independent
+verification, and sufficient restriction suggestions. CLI tests ensure that
+suggestions never silently accept or strengthen a rule. Tests provide evidence
+for implementation correspondence, not a formal compiler refinement proof.

@@ -43,8 +43,9 @@ S make(Symbol::Kind k, std::string name, std::size_t owner, std::size_t index,
     else if (name == "==" || name == "!=" || name == "&&" || name == "||" ||
              name == "!" || name == "<" || name == "<=" || name == ">" ||
              name == ">=" || name == "axis_partition" ||
-             name == "is_valid_axis_list" || name == "same_set" ||
-             name == "disjoint" || name == "subset" || name.starts_with("is_"))
+             name == "subsequence" || name == "is_valid_axis_list" ||
+             name == "same_set" || name == "disjoint" || name == "subset" ||
+             name.starts_with("is_"))
       sort = Symbol::Sort::Boolean;
     else if (name == "extent_le")
       sort = Symbol::Sort::Boolean;
@@ -110,6 +111,25 @@ bool containsHole(const S& s) {
   return false;
 }
 S call(std::string name, std::vector<S> args) {
+  if (args.size() == 1 && args[0]->kind == Symbol::Kind::Call &&
+      args[0]->args.empty() && args[0]->name.starts_with("dtype_")) {
+    if (auto type = core::resolveDType(args[0]->name.substr(6))) {
+      const bool floating = *type == DType::kF16 || *type == DType::kBF16 ||
+                            *type == DType::kF32 || *type == DType::kF64;
+      const bool signed_integer = *type == DType::kI8 || *type == DType::kI16 ||
+                                  *type == DType::kI32 || *type == DType::kI64;
+      const bool unsigned_integer =
+          *type == DType::kU8 || *type == DType::kU16 || *type == DType::kU32 ||
+          *type == DType::kU64;
+      if (name == "is_float") return boolean(floating);
+      if (name == "is_signed_integer") return boolean(signed_integer);
+      if (name == "is_unsigned_integer") return boolean(unsigned_integer);
+      if (name == "is_integer")
+        return boolean(signed_integer || unsigned_integer);
+      if (name == "is_numeric")
+        return boolean(floating || signed_integer || unsigned_integer);
+    }
+  }
   if (name == "len" && callIs(args[0], "matched_positions"))
     return call("len", {call("membership_positions", args[0]->args)});
   if (name == "membership_positions" || name == "matched_positions") {

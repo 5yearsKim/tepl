@@ -43,9 +43,7 @@ Result<InspectionData> inspect(const checking::TypedProgram& input,
 }
 Result<VerifiedProgram> verify(const checking::TypedProgram& input,
                                const SemanticOptions& options) {
-  auto inspected = inspect(
-      input,
-      {options.semantic_policy, false, {}, options.inferred_applicability});
+  auto inspected = inspect(input, {options.semantic_policy, false, {}});
   Result<VerifiedProgram> result;
   result.diagnostics = std::move(inspected.diagnostics);
   if (!inspected.program) return result;

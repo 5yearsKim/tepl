@@ -1,280 +1,162 @@
-# Exact Feasibility Generation and Attribute Synthesis
+# Exact Feasibility and Constructive Attribute Synthesis
 
-## Setting and theorem
+**Fragment.** Operations are generalized contraction, full permutation,
+unary summation, and elementwise addition. A contraction pairs equal-extent
+batch and reduction axes using in-range, duplicate-free position lists,
+disjoint on each operand. It outputs batches in list order, then left-free
+and right-free axes in operand order. Unary summation removes an in-range,
+duplicate-free selection of axes and preserves survivor order.
+Addition requires identical ordered shapes.
+These are the complete contracts, with exact-real sum-of-products semantics.
 
-Let \(S=(L,R)\) be a rewrite whose source and replacement are finite trees
-over the same named, independently variable tensor inputs, each used exactly
-once per tree. Operations are full axis permutations and generalized
-contractions. A contraction selects disjoint, duplicate-free batching and
-contracting position lists on each operand, pairs lists of equal length and
-matching extents, and computes the sum of operand products over contracted
-coordinates. Its output order is batching-list order, followed by unselected
-left axes and unselected right axes, each in operand order. These are the
-entire operation legality conditions. Every RHS descriptor is an independent,
-unrestricted unknown.
+Let \(\Sigma\) specify source and RHS trees, declared axis semantics, and
+attribute references. Linearity expands the source to \(L=\sum_{j\in J}L_j\).
+Require an explicit RHS sum \(R=\sum_{j\in J}R_j\), where each pair
+\(L_j,R_j\) uses the same nonempty input set \(U_j\), once per input, through
+contraction, permutation, and unary summation. The sets \(U_j\) are distinct
+but may overlap. Every RHS descriptor is an independent unrestricted unknown;
+no other operators or value assumptions are admitted. A single term includes
+the original non-additive fragment.
 
-Metadata \(p\) supplies input shapes and legal source descriptors. Ranks are
-arbitrary and finite; physical extents are at least two. Scalars and empty
-axis lists are permitted. Arithmetic is exact over the reals. Define
+Metadata \(p\) supplies shapes and legal source attributes. Inputs vary
+independently; ranks are arbitrary and finite, physical extents are at least
+two, and scalars are allowed. Let \(\operatorname{Valid}_\Sigma(p,\beta)\)
+mean that attributes \(\beta\) make the RHS legal with the source's ordered
+output shape and equal to the source for every input value.
 
-\[
-\operatorname{Valid}(S,p,\beta)\iff
-\operatorname{Legal}_R(p,\beta)
-\land\operatorname{Shape}_R(p,\beta)=\operatorname{Shape}_L(p)
-\land\forall X:\llbracket R\rrbracket_{p,\beta,X}
-                  =\llbracket L\rrbracket_{p,X}.
-\]
-
-Here legality includes every intermediate operation, shapes are ordered,
-and attributes \(\beta\) depend only on metadata, not tensor values \(X\).
-
-**Theorem (Exact feasibility generation and constructive synthesis).**
-There is a terminating generator that, for each schema \(S\) above, produces
-finite metadata programs \((\Phi_S,f_S)\). For every legal \(p\) in this
-domain, both programs terminate and
+**Theorem (Exact feasibility generation).** A terminating generator produces
+metadata programs \((\Phi_\Sigma,f_\Sigma)\) such that, for every legal
+in-domain \(p\),
 
 \[
-\Phi_S(p)\iff\exists\beta\;\operatorname{Valid}(S,p,\beta).
-\]
-
-If \(\Phi_S(p)\) holds, \(f_S(p)\) returns a valid assignment; otherwise
-it returns `NotApplicable`. The same generated programs handle all finite
-ranks for each fixed schema.
-
-## Constraint and program generation
-
-Give every physical input axis a named port. Replay source attributes,
-identifying paired batch and contraction ports while retaining reduced
-classes. Permutations rearrange interfaces. This yields logical classes
-\(\mathcal A\), their extents, each input's ordered class sequence \(I_c\),
-and the ordered final interface \(F\). Let \(\sigma(a)\) be the inputs
-containing class \(a\), and \(\bar F\) the set underlying \(F\).
-
-For a RHS subtree containing input set \(U\), compute its boundary
-
-\[
-\partial U=\{a:\sigma(a)\cap U\ne\varnothing
-          \land(a\in\bar F\ \lor\ \sigma(a)\nsubseteq U)\}.
+\boxed{
+\begin{aligned}
+\Phi_\Sigma(p)&\iff\exists\beta\;\operatorname{Valid}_\Sigma(p,\beta),\\
+\Phi_\Sigma(p)&\Rightarrow
+\operatorname{Valid}_\Sigma(p,f_\Sigma(p)).
+\end{aligned}
+}
 \tag{1}
 \]
 
-At a binary node with child boundaries \(A_\ell,A_r\) and parent boundary
-\(P\), compute
+Both programs terminate; the constructor returns NotApplicable on failure.
+The same programs handle all finite ranks.
+
+**Generated constraints.** Analyze each source term separately. Source
+pairings identify physical input-axis ports; retain these classes even after
+reduction. Let \(I_c\) be input \(c\)'s ordered class sequence, \(F\) the
+ordered output, and \(\sigma(a)\) the inputs containing class \(a\).
+For a RHS node \(v\) with input set \(V_v\), the mandatory axes are
 
 \[
-\begin{aligned}
-B&=A_\ell\cap A_r\cap P,& K&=(A_\ell\cap A_r)\setminus P,\\
-LF&=A_\ell\setminus A_r,& RF&=A_r\setminus A_\ell.
-\end{aligned}
+M_v=\{a:\sigma(a)\cap V_v\ne\varnothing
+ \land(a\in\operatorname{set}(F)\lor\sigma(a)\nsubseteq V_v)\}.
 \tag{2}
 \]
 
-Write \(q|_A\) for filtering a sequence by a set, \(\Vert\) for
-concatenation, and \(\preceq\) for the subsequence relation. Propagate a
-required sequence \(Q\) downward, starting with \(Q=F\). A contraction
-passes \(Q|_{LF}\) left and \(Q|_{RF}\) right; a permutation passes an
-empty requirement to its child. The predicate \(\Phi_S\) conjoins
-
-\[
-\begin{cases}
-Q\preceq I_c,&\text{at input }c,\\
-Q=(Q|_B)\Vert(Q|_{LF})\Vert(Q|_{RF}),&\text{at a contraction}.
-\end{cases}
-\tag{3}
-\]
-
-Permutations impose no additional check. These calculations use source
-metadata and RHS structure, without knowing any RHS attribute values.
-
-If (3) holds, construct layouts bottom-up. A leaf retains \(I_c\). A
-permutation orders its child's axes with \(Q\) first and the remaining axes
-in child order. At a contraction, choose a batch enumeration \(b\) beginning
-with \(Q|_B\) and a contraction enumeration \(k\); enumerate remaining
-axes by a fixed canonical class order. Given child layouts \(W_\ell,W_r\),
-emit
+Compute canonical live sets \(P_v\) bottom-up. An input keeps
+\(P_v=\operatorname{set}(I_c)\); a permutation keeps its child's set;
+a unary sum sets \(P_v=P_{\mathrm{child}}\cap M_v\).
+At a contraction, set
 
 \[
 \begin{aligned}
-b_\ell&=\operatorname{pos}(W_\ell,b),&
-b_r&=\operatorname{pos}(W_r,b),\\
-k_\ell&=\operatorname{pos}(W_\ell,k),&
-k_r&=\operatorname{pos}(W_r,k),\\
-W&=b\Vert(W_\ell|_{LF})\Vert(W_r|_{RF}),
+B_v&=P_\ell\cap P_r\cap M_v,&
+K_v&=(P_\ell\cap P_r)\setminus M_v,\\
+LF_v&=P_\ell\setminus P_r,&
+RF_v&=P_r\setminus P_\ell,\\
+P_v&=B_v\cup LF_v\cup RF_v.&&
 \end{aligned}
+\tag{3}
+\]
+
+Thus completed non-output axes disappear at the first operation that can
+remove them. Require \(P_{\mathrm{root}}=\operatorname{set}(F)\).
+
+Propagate a required subsequence \(Q\), starting with \(F\).
+A contraction passes \(Q|_{LF}\) and \(Q|_{RF}\) to its children;
+a unary sum passes \(Q\) unchanged; a permutation passes the empty sequence.
+Here \(Q|_A\) filters by set \(A\), \(\Vert\) concatenates, and \(\preceq\)
+denotes subsequence. Check
+
+\[
+\begin{cases}
+Q\preceq I_c,&\text{at an input }c,\\
+Q=(Q|_B)\Vert(Q|_{LF})\Vert(Q|_{RF}),&\text{at a contraction}.
+\end{cases}
 \tag{4}
 \]
 
-where \(\operatorname{pos}(W,q)\) lists the positions of \(q\)'s axes
-in \(W\). Permutation descriptors use the same positional conversion.
+Let \(\phi_j\) conjoin the root-set and order checks for term \(j\).
+Then \(\Phi_\Sigma=\bigwedge_j\phi_j\), using only source metadata and the
+fixed RHS structure.
 
-The generator emits these traversals as finite programs over metadata reads,
-finite partitions, sets, and sequences. Instructions have their mathematical
-meanings: merge classes, select positions, filter, concatenate, compare, and
-iterate over finite collections. Source replay and boundary construction use
-postorder; requirement propagation uses preorder; attribute construction uses
-postorder. Axis loops retain runtime bounds. The predicate returns (3); the
-constructor executes the same analysis, returns `NotApplicable` if (3) fails,
-and otherwise executes (4) and the permutation cases.
+**Proof.**
+*Separate terms.* Scale each input \(X_c\) by an independent real \(z_c\).
+Term \(j\) is multiplied by \(\prod_{c\in U_j}z_c\). Distinct input sets give
+distinct monomials, so coefficient uniqueness makes equality of the sums
+equivalent to equality of every paired term. Source expansion preserves
+legality and shapes by the operation contracts.
 
-**Algorithm 1. Generation and execution of feasibility and attribute programs.**
-`emit` translates the routine templates below into metadata instructions: tree
-traversals are expanded using the fixed schema, while operations on axis lists
-retain their runtime lengths. Its arguments describe code; they do not execute
-that code during generation. `ReplaySource` performs the source replay above:
-create input ports, select permutation positions, merge each batch/contract
-pair, form ordered outputs, and finally canonicalize classes and compute their
-supports. `enum` lists a set in canonical class order, and
-`extend(q,A,w) = concat(q, filter(w, A \ set(q)))`. The returned analysis state
-contains the network, boundaries, roles, requirements, and Boolean result.
+*Recover axis relationships.* Each read-once term denotes a sum of products,
+with one factor per input and every index class observed by an input port.
+Equal partitions and ordered output attachments therefore give equal tensors.
+Conversely, attach a named port to each output position. If two partitions
+differ, assign coordinates 0 and 1 to classes separated in one but identified
+in the other. One-hot inputs at the resulting tuples produce 1 versus 0:
+every reduction coordinate is fixed by an input port. Hence equality for all
+inputs forces the same partition and output order.
 
-```text
-GENERATE(S = (L, R)):                         // compile time; no metadata p
-    U[v] ← input captures below v, for every RHS node v
-    A ← emit ANALYZE(L, R, U; p)              // p is a runtime parameter
-    D ← emit CONSTRUCT(R; state)
-    emit ΦS(p): state ← A(p); return state.ok
-    emit fS(p): state ← A(p)
-                if not state.ok: return NotApplicable
-                return D(state)
-    return (ΦS, fS)
+*Normalize axis lifetimes.* Every valid replacement retains (2), but may
+keep additional axes until a later unary sum. Project its layout at each
+node onto \(P_v\). This projection is realizable: a unary sum can remove
+completed non-output axes, and a dot can contract a completed shared class
+instead of batching it. Every surviving class keeps its batch/free role;
+filtering preserves the relative order of survivors. Permutations can realize
+any projected order, while input layouts are unchanged. Induction therefore
+gives an equivalent realization with exactly the canonical live sets.
+Its root must have precisely \(F\), and its block and input orders satisfy
+(4). Thus every valid assignment passes the generated checks.
 
-ANALYZE(L, R, U; p):                         // match time
-    (classes, support, I, F) ← ReplaySource(L, p)       // pass 1
-    for v in postorder(R):                            // pass 2
-        P[v] ← {a in classes | support[a] intersects U[v]
-                  and (a in set(F) or support[a] is not a subset of U[v])}
-        if v = dot(l, r):
-            B[v]  ← P[l] ∩ P[r] ∩ P[v]
-            K[v]  ← (P[l] ∩ P[r]) \ P[v]
-            LF[v] ← P[l] \ P[r]; RF[v] ← P[r] \ P[l]
-    Q[root(R)] ← F                                    // pass 3
-    for v in preorder(R):
-        if v = perm(u): Q[u] ← []
-        if v = dot(l, r):
-            Q[l] ← filter(Q[v], LF[v]); Q[r] ← filter(Q[v], RF[v])
-    ok ← true                                         // pass 4
-    for v in nodes(R):
-        if v = input(c): ok ← ok and subsequence(Q[v], I[c])
-        if v = dot(l, r):
-            qb ← filter(Q[v], B[v])
-            ql ← filter(Q[v], LF[v]); qr ← filter(Q[v], RF[v])
-            ok ← ok and equal(Q[v], concat(qb, ql, qr))
-    return {classes, support, I, F, P, B, K, LF, RF, Q, ok}
+*Construct attributes.* Build layouts bottom-up. Inputs retain their order;
+a permutation places \(Q\) first. At a dot, choose a batch order beginning
+with \(Q|_B\), any common order of \(K\), and translate those lists into
+positions in the child layouts. Append child free axes in their existing
+order. At a unary sum, reduce the positions of
+\(P_{\mathrm{child}}\setminus P_v\).
+Inductively each layout contains exactly \(P_v\) and contains \(Q\) as a
+subsequence, by (4). All lookups are defined, paired extents match, and
+the descriptors are legal. Only occurrences of the same source class merge;
+a class disappears only after its supporting ports have joined.
+At the root the layout is exactly \(F\), establishing term equality.
 
-CONSTRUCT(R; state):                         // match time; requires state.ok
-    β ← empty attribute map                           // pass 5
-    for v in postorder(R):
-        if v = input(c): W[v] ← I[c]
-        if v = perm(u):
-            W[v] ← extend(Q[v], P[v], W[u])
-            β[v] ← pos(W[u], W[v])
-        if v = dot(l, r):
-            b ← extend(filter(Q[v], B[v]), B[v], enum(B[v]))
-            k ← enum(K[v])
-            β[v] ← (pos(W[l], b), pos(W[r], b), pos(W[l], k), pos(W[r], k))
-            W[v] ← concat(b, filter(W[l], LF[v]), filter(W[r], RF[v]))
-    return Solved(β)
-```
+Independent descriptors let the term assignments combine; their output
+shapes agree, so the full sum is legal and equal. Finally, finite source
+expansion and emitted tree traversals implement (2)--(4) and the construction
+using finite metadata operations. Rank affects loop bounds, not program
+structure. This proves (1), termination, and uniform generation. \(\square\)
 
-Here `CONSTRUCT` reads the named entries of `state`, `dot` denotes the specified
-generalized contraction, and `β[v]` is stored in that node's independent
-descriptor fields. The five passes satisfy these
-invariants, established in proof part 4:
+For LoRA, \(X(W+AB)\to XW+(XA)B\), the distinct input sets are
+\(\{X,W\}\) and \(\{X,A,B\}\); only the latter needs reassociation analysis.
+Unary summation additionally permits
+\(\sum_{i,j}(AB)_{ij}=\sum_k(\sum_i A_{ik})(\sum_j B_{kj})\),
+with reduction and contraction attributes inferred together.
 
-| Pass | Invariant on completion | Definition |
-| --- | --- | --- |
-| 1. Source analysis | Classes and ordered interfaces equal the source network. | Source replay |
-| 2. Boundary analysis | Each stored boundary and role set equals its mathematical definition. | (1)–(2) |
-| 3. Order propagation | Each `Q[v]` equals the required subsequence at that node. | Root, permutation, and contraction propagation |
-| 4. Constraint checking | `ok` equals the conjunction of all feasibility constraints. | (3) |
-| 5. Attribute construction | Layouts and attributes equal the mathematical constructor's results. | (4) and permutation construction |
+**Scope.** Additional conditions give mathematical-solver applicability
+\(C(p)\land\Phi_\Sigma(p)\). The theorem concerns the specified generator,
+not C++ implementation verification. The
+[unified proof](complete_attribute_synthesis_proof.md) gives the full argument.
 
-## Proof
-
-**1. Exactness of the axis representation.** Legal pairings merge distinct
-components from disjoint input subtrees. Each merged component has at most
-one continuing wire; contraction removes that wire. Consequently each final
-class contains at most one port per input, and each intermediate exposes at
-most one occurrence of that class. Distinct wires of one intermediate cannot
-be merged later: at every ancestor they arrive through the same operand.
-Every class contains an input port; every reduced class involves at least
-two inputs.
-
-Expanding finite contractions gives the network denotation
-
-\[
-T(X)[y]=
-\sum_{\substack{t_a\in[0,d_a)\ (a\in\mathcal A)\\t_{F_j}=y_j}}
-\prod_c X_c[(t_a)_{a\in I_c}],
-\tag{5}
-\]
-
-with each input tuple ordered by \(I_c\). Thus equal port partitions and
-ordered outputs imply tensor equality. Conversely, for equally shaped outputs,
-attach a named port for each output position to its class. If these augmented
-partitions differ, some pair is identified in one and separated in the other.
-Assign the separated classes coordinates 0 and 1, and all remaining classes 0.
-Choose each input to be one-hot at its resulting tuple and evaluate at the
-resulting output coordinate. The separating network returns 1: every summed
-coordinate is fixed by an input port, so precisely one term contributes.
-The identifying network returns 0. Both coordinates exist because extents
-are at least two. Different output shapes already violate equality. Hence
-semantic equality is equivalent to equality of the complete axis representation.
-
-**2. Necessity of the constraints.** In any valid replacement, a class needed
-outside a subtree or at the final output must remain exposed. A non-output
-class supported entirely inside the subtree must be reduced at the lowest
-common ancestor of its supporting inputs. Its two incoming components must
-join there; above that node, no outside occurrence remains with which to
-contract it. Permutations cannot eliminate it, and pairing another class
-would change the representation. Therefore (1) is the exact boundary, forcing
-the roles and same-class pairings in (2).
-
-A contraction's output consists of batch, left-free, and right-free blocks.
-Any required subsequence must respect this block order, giving (3); free-axis
-subsequences must also occur in the respective children. Batch position lists
-can select axes in any order and impose no child-order requirement. A full
-permutation can reorder its child freely. At a leaf the physical order is
-fixed. Induction from the root therefore proves that every valid assignment
-satisfies every generated check.
-
-**3. Sufficiency and construction.** From (1)–(2), the parent boundary is
-the disjoint union \(B\mathbin{\dot\cup}LF\mathbin{\dot\cup}RF\).
-Induct bottom-up: each constructed layout lists exactly its boundary and
-contains its required subsequence. The leaf case is (3). A permutation
-places its requirement first. At a contraction, the chosen batch order
-contains \(Q|_B\); the child induction hypotheses supply the required free
-subsequences. Equation (3) makes their concatenation contain \(Q\).
-
-All position lookups are defined and duplicate-free. Batch and contraction
-lists are disjoint, and paired positions select the same logical classes,
-hence equal extents. The descriptors are therefore legal. The construction
-merges precisely the same-class components, reduces non-output classes at
-their support's lowest common ancestor, and never merges distinct classes.
-Induction preserves the source partition restricted to each subtree's ports.
-At the root, the layout contains \(F\) and has exactly its underlying set,
-so it equals \(F\). By (5), the resulting replacement is equivalent for
-every input value. This proves sufficiency.
-
-**4. Correctness and termination of generation.** Prove Algorithm 1's five
-invariants by induction over each emitted traversal. Source instructions
-reproduce the replayed partition and interfaces;
-after each pairing loop prefix, exactly that prefix's identifications have
-been added. Boundary loops accumulate exactly the visited classes satisfying
-(1). Preorder assignments reproduce the required sequences, and the Boolean
-accumulator conjoins exactly the visited instances of (3). On the successful
-branch, postorder construction reproduces (4) and the permutation layouts,
-using identical enumeration conventions. Part 3 establishes the preconditions
-of every positional lookup. A false check bypasses construction.
-
-Generation visits a finite schema and emits finite templates. Execution
-visits finite trees and iterates over finite metadata collections, so both
-terminate. Ranks affect loop lengths, not the generated program's structure.
-Parts 1–3 give exact feasibility and correct attributes; this traversal
-induction transfers those properties to the generated programs. ∎
-
-**Scope.** The theorem concerns the specified mathematical generator. Applying
-it to TEPL additionally requires semantics-preserving frontend translation and
-compiler/evaluator correspondence; it does not establish completeness of the
-current compiler or of reasoning about arbitrary user conditions. An explicit
-inferred-condition feature may apply a rule under \(C(p)\land\Phi_S(p)\).
+**Practical TEPL integration.** The complete generator is a specialized reasoning
+procedure. TEPL's general synthesis path may support additional cases without
+complete search, but each accepted semantic rule must be verified for every
+legal match satisfying its written conditions. Constructor definedness, RHS
+legality, ordered shape and dtype, and equivalence under the selected arithmetic
+policy are proof obligations, never hidden applicability filters. Singleton and
+zero extents, mixed descriptors, and repeated-capture identity may be supported
+through direct verification without broadening this theorem's completeness
+claim. Unknown proofs remain failures to establish the rule, not impossibility
+results. A bounded restriction recommender verifies each suggestion afresh and
+requires a legal metadata witness; users add reviewed restrictions explicitly.
+The proof's Section 10 describes the implemented acceptance contract and the
+separate implementation-correspondence obligation.

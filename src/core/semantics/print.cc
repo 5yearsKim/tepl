@@ -160,28 +160,13 @@ std::string format(const Plan& p) {
       out << "        " << definition->fields.at(f) << " = "
           << render(*fields[f]) << '\n';
   }
-  out << "      declared-conditions:"
-      << (p.proof.inference       ? " evaluated at match time"
-          : p.assumptions.empty() ? " true"
-                                  : "")
+  out << "      declared-conditions:" << (p.assumptions.empty() ? " true" : "")
       << '\n';
   for (const auto& a : p.assumptions) out << "        " << render(*a) << '\n';
   out << "      additional-guard: "
-      << (p.proof.inference
-              ? "explicit where feasibility constraints (extents >= 2)"
-          : p.proof.status == ProofStatus::Unknown ? "unresolved"
-          : p.proof.guard.empty()                  ? "true"
-                                                   : "")
+      << (p.proof.status == ProofStatus::Unknown ? "unresolved" : "true")
       << '\n';
-  if (p.proof.inference)
-    out << "      inference-program: "
-        << (p.proof.inference->mode == inference::Mode::Synthesize
-                ? "synthesize"
-                : "validate explicit attributes")
-        << ", source=" << p.proof.inference->source.size()
-        << ", replacement=" << p.proof.inference->replacement.size()
-        << " instructions; applicability is evaluated by where\n";
-  if (p.proof.inference)
+  if (!p.suggested_rule.empty())
     out << "      suggested-rule:\n" << p.suggested_rule << "\n";
   for (const auto& g : p.proof.guard) out << "        " << render(*g) << '\n';
   if (!p.proof.guard_origins.empty()) {
@@ -190,6 +175,9 @@ std::string format(const Plan& p) {
       out << "        [" << guardKindName(g.kind) << "] "
           << render(*g.condition) << '\n';
   }
+  if (!p.suggested_rule.empty())
+    out << "      suggestion: verified sufficient restriction; bounded search, "
+           "not necessarily weakest\n";
   out << "      reason: " << p.proof.reason << '\n';
   std::ostringstream bindings;
   if (!p.proof.axis_definitions.empty())

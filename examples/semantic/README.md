@@ -92,13 +92,29 @@ dot attributes. Required `index[]` descriptor fields can be compared with group
 references and other index-list expressions in `where` conditions. Unsupported condition expressions are rejected by this checker rather than
 being treated as symbolic facts.
 
-Only declared conditions and LHS legality are proof assumptions. Missing facts
-produce errors; ordinary compilation never adds applicability restrictions to a rule.
-`--infer-applicability` explicitly requests generated conditions for the supported
-fragment and prints a complete named rule; see
-[`explicit_axis_conditions.tepl`](explicit_axis_conditions.tepl).
-The greedy engine checks the declared conditions and compiled proof conditions
-before applying the rule. Axis-semantic Rust/C++ generation is still unsupported.
+Only declared conditions and LHS legality are proof assumptions. Every accepted
+semantic rule has defined attribute constructors and a legal, equivalent RHS
+for all legal matches satisfying its written `where`, under the selected
+arithmetic policy. Compilation never inserts additional applicability guards.
+
+Use `check --suggest-where --semantic-policy=algebraic --rule NAME` to search
+for a verified sufficient restriction when a proof fails. This command retains
+the failure status: review and add the suggested condition before compiling.
+The bounded search tries source-group equalities and identity permutations,
+checks each proposal with fresh synthesis and independent verification, and
+requires a concrete legal metadata witness. Suggestions are not guaranteed
+weakest, and no suggestion is produced when the search or witness check cannot
+establish one. Unresolved obligations remain available in the report.
+
+Identical operation trees use verified descriptor copies, including repeated
+captures. Explicit and automatic RHS descriptors can coexist through the
+general synthesizer. Singleton and zero extents are supported in verified
+cases; the standalone complete solver's extent >= 2 restriction is not a TEPL
+language restriction. Failure outside complete coverage means not proved,
+not impossible. Runtime feasibility queries such as `axis_domain()`, inferred
+RHS membership, and `required_order` are no longer an executable rule path.
+See [`explicit_axis_conditions.tepl`](explicit_axis_conditions.tepl) for a
+source restriction that compiles normally.
 
 ## Define operation semantics
 
