@@ -525,9 +525,9 @@ attribute search.
 
 | Component | Existing implementation and remaining work |
 | --- | --- |
-| Admission and declaration roles | [contract.cc](../../src/core/semantics/synthesis/ordered/contract.cc) recognizes contraction/permutation contracts. Extend templates, descriptor adapters, and admission for sums and additive components. |
+| Admission and declaration roles | [contract.cc](../../src/core/attr_synth/ordered/contract.cc) recognizes contraction/permutation contracts. Extend templates, descriptor adapters, and admission for sums and additive components. |
 | Runtime analysis and construction | [evaluate.cc](../../src/inference/evaluate.cc) and [axis_analysis.cc](../../src/rewrite/axis_analysis.cc) implement the original source replay, forced boundaries, orders, and constructor. Generalization requires (3)--(7), unary instructions, and the root-set check. |
-| Compilation | [compile.cc](../../src/core/semantics/synthesis/ordered/compile.cc) emits the original schedules. Add component expansion/scopes and the generalized schedules. |
+| Compilation | [compile.cc](../../src/core/attr_synth/ordered/compile.cc) emits the original schedules. Add component expansion/scopes and the generalized schedules. |
 | Source restrictions | [restrictions.cc](../../src/core/semantics/restrictions.cc) searches a bounded vocabulary and verifies sufficient source restrictions. Complete generalized feasibility analysis remains a separate extension. |
 
 The general semantic verifier already proves some additive/reduction rules;

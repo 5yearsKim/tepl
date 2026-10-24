@@ -1,9 +1,10 @@
 #pragma once
 
-#include "src/core/semantics/synthesis/ordered/compile.h"
+#include "src/core/attr_synth/ordered/compile.h"
 #include "src/inference/evaluate.h"
 
-namespace tepl::core::semantics::ordered {
+namespace tepl::core::attr_synth::ordered {
+
 using inference::Attributes;
 using inference::AxisId;
 using inference::AxisSequence;
@@ -22,4 +23,4 @@ ConcreteResult solve(
     const Plan&, const Metadata&,
     std::size_t max_work = std::numeric_limits<std::size_t>::max());
 bool check(const Plan&, const Metadata&, const ConcreteResult&);
-}  // namespace tepl::core::semantics::ordered
+}  // namespace tepl::core::attr_synth::ordered

@@ -6,8 +6,8 @@
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
 #include "src/core/semantics/suggestion.h"
-#include "src/core/semantics/synthesis/ordered/compile.h"
-#include "src/core/semantics/synthesis/synthesize.h"
+#include "src/core/attr_synth/ordered/compile.h"
+#include "src/core/attr_synth/synthesize.h"
 #include "src/inference/evaluate.h"
 
 namespace tepl::core::semantics {

@@ -233,7 +233,7 @@ The Boolean projection supplies the generated where predicate; successful
 construction supplies the attributes. No tensor values are evaluated.
 
 The general compiler's
-[index_inference.cc](../../src/core/semantics/synthesis/index_inference.cc)
+[index_inference.cc](../../src/core/attr_synth/index_inference.cc)
 already matches some coordinate coefficients and proposes constructors, but
 that procedure explicitly rejects some ambiguous, inverse, or coupled cases.
 This theorem does not establish that procedure's completeness. Implementation

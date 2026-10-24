@@ -4,7 +4,11 @@
 
 #include "src/core/semantics/symbolic/index_expr.h"
 
-namespace tepl::core::semantics {
+namespace tepl::core::attr_synth {
+using semantics::Context;
+using semantics::I;
+using semantics::S;
+
 using IndexAssignments = std::map<std::pair<std::size_t, std::size_t>, S>;
 // Match scoped coordinate bases and solve whole, per-axis coefficient/offset
 // holes. Returns no match for a different access. Never installs facts or
@@ -12,4 +16,4 @@ using IndexAssignments = std::map<std::pair<std::size_t, std::size_t>, S>;
 // unsupported.
 std::optional<IndexAssignments> matchIndexAttributes(Context&, const I& pattern,
                                                      const I& source);
-}  // namespace tepl::core::semantics
+}  // namespace tepl::core::attr_synth

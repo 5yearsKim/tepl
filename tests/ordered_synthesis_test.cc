@@ -10,13 +10,13 @@
 #include "src/core/pipeline.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/symbolic/expr.h"
-#include "src/core/semantics/synthesis/ordered/concrete.h"
+#include "src/core/attr_synth/ordered/concrete.h"
 #include "src/core/syntax/parse.h"
 #include "tests/index_constructor_eval.h"
 
 namespace {
 using namespace tepl::core::semantics;
-namespace ord = tepl::core::semantics::ordered;
+namespace ord = tepl::core::attr_synth::ordered;
 using ord::AxisSequence;
 std::string dialect;
 void expect(bool condition, const std::string& message) {

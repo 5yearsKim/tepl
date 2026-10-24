@@ -9,8 +9,8 @@
 #include "src/core/pipeline.h"
 #include "src/core/semantics/proof/verify.h"
 #include "src/core/semantics/symbolic/normalize.h"
-#include "src/core/semantics/synthesis/index_inference.h"
-#include "src/core/semantics/synthesis/synthesize.h"
+#include "src/core/attr_synth/index_inference.h"
+#include "src/core/attr_synth/synthesize.h"
 #include "src/core/syntax/parse.h"
 #include "tests/index_graph_eval.h"
 

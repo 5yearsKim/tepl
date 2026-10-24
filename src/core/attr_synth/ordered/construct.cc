@@ -1,9 +1,10 @@
-#include "src/core/semantics/synthesis/ordered/construct.h"
+#include "src/core/attr_synth/ordered/construct.h"
 
 #include <functional>
 #include <stdexcept>
 
-namespace tepl::core::semantics::ordered {
+namespace tepl::core::attr_synth::ordered {
+using namespace semantics;
 
 TensorMeaning construct(Context& c, Lowerer& lowerer, const Admission& admitted,
                         const Requirements& required,
@@ -46,4 +47,4 @@ TensorMeaning construct(Context& c, Lowerer& lowerer, const Admission& admitted,
   c.note("ordered-requirements-construction");
   return result;
 }
-}  // namespace tepl::core::semantics::ordered
+}  // namespace tepl::core::attr_synth::ordered

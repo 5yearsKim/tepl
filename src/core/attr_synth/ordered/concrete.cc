@@ -1,6 +1,7 @@
-#include "src/core/semantics/synthesis/ordered/concrete.h"
+#include "src/core/attr_synth/ordered/concrete.h"
 
-namespace tepl::core::semantics::ordered {
+namespace tepl::core::attr_synth::ordered {
+using namespace semantics;
 ConcreteResult solve(const Plan& plan, const Metadata& metadata,
                      std::size_t max_work) {
   auto compiled = compile(plan);
@@ -17,4 +18,4 @@ bool check(const Plan& plan, const Metadata& metadata,
   return compiled.program &&
          inference::check(*compiled.program, metadata, result);
 }
-}  // namespace tepl::core::semantics::ordered
+}  // namespace tepl::core::attr_synth::ordered

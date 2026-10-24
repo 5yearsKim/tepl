@@ -8,7 +8,10 @@
 #include "src/shared/metadata/inference.h"
 #include "src/shared/metadata/ordered.h"
 
-namespace tepl::core::semantics::ordered {
+namespace tepl::core::attr_synth::ordered {
+using semantics::Definition;
+using semantics::Plan;
+
 
 // Recognized from checked definitions, never from operation/group/field names.
 // This certifies the axis/value template. Dtype and arithmetic-policy
@@ -27,4 +30,4 @@ struct Admission {
 // This checks schema structure; concrete extent-domain checks are separate.
 Admission admit(const Plan&, inference::Mode = inference::Mode::Synthesize);
 
-}  // namespace tepl::core::semantics::ordered
+}  // namespace tepl::core::attr_synth::ordered

@@ -270,7 +270,7 @@ def main():
         for path in (Path(__file__).resolve(), DIRECTORY / "manifest.json", DIRECTORY / "tepl.toml"):
             provenance["dependencies"][str(path.relative_to(b.ROOT))] = b.digest(path)
         provenance["active_work_budgets"] = {}
-        for name, path in (("synthesis", "src/core/semantics/synthesis/synthesize.h"),
+        for name, path in (("synthesis", "src/core/attr_synth/synthesize.h"),
                            ("independent_verification", "src/core/semantics/proof/verify.h")):
             provenance["active_work_budgets"][name] = int(re.search(r"max_work = (\d+)",
                                                                  (b.ROOT / path).read_text())[1])

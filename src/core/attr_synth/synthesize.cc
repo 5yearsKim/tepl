@@ -1,14 +1,15 @@
-#include "src/core/semantics/synthesis/synthesize.h"
+#include "src/core/attr_synth/synthesize.h"
 
 #include <algorithm>
 #include <functional>
 #include <stdexcept>
 
 #include "src/core/semantics/proof/verify.h"
-#include "src/core/semantics/synthesis/index_inference.h"
-#include "src/core/semantics/synthesis/ordered/construct.h"
+#include "src/core/attr_synth/index_inference.h"
+#include "src/core/attr_synth/ordered/construct.h"
 
-namespace tepl::core::semantics {
+namespace tepl::core::attr_synth {
+using namespace semantics;
 namespace {
 struct Constructor {
   Context& c;
@@ -385,4 +386,4 @@ RuleProof synthesize(const Plan& plan, std::size_t max_work) {
   }
   return run(plan, max_work);
 }
-}  // namespace tepl::core::semantics
+}  // namespace tepl::core::attr_synth

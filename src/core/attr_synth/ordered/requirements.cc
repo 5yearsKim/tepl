@@ -1,9 +1,10 @@
-#include "src/core/semantics/synthesis/ordered/requirements.h"
+#include "src/core/attr_synth/ordered/requirements.h"
 
 #include <functional>
 #include <stdexcept>
 
-namespace tepl::core::semantics::ordered {
+namespace tepl::core::attr_synth::ordered {
+using namespace semantics;
 Requirements deriveRequirements(Context& c, const Admission& admitted,
                                 const Correspondence& match, const S& output) {
   if (!admitted.admitted())
@@ -44,4 +45,4 @@ Requirements deriveRequirements(Context& c, const Admission& admitted,
   return result;
 }
 
-}  // namespace tepl::core::semantics::ordered
+}  // namespace tepl::core::attr_synth::ordered

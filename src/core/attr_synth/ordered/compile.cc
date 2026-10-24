@@ -1,10 +1,11 @@
-#include "src/core/semantics/synthesis/ordered/compile.h"
+#include "src/core/attr_synth/ordered/compile.h"
 
 #include <functional>
 
 #include "src/inference/evaluate.h"
 
-namespace tepl::core::semantics::ordered {
+namespace tepl::core::attr_synth::ordered {
+using namespace semantics;
 Compilation compile(const Plan& plan, inference::Mode mode) {
   auto admission = admit(plan, mode);
   if (!admission.admitted()) return {{}, admission.reason};
@@ -50,4 +51,4 @@ Compilation compile(const Plan& plan, inference::Mode mode) {
   inference::validate(out);
   return {std::move(out), {}};
 }
-}  // namespace tepl::core::semantics::ordered
+}  // namespace tepl::core::attr_synth::ordered

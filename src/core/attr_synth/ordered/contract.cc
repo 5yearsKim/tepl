@@ -1,9 +1,10 @@
-#include "src/core/semantics/synthesis/ordered/contract.h"
+#include "src/core/attr_synth/ordered/contract.h"
 
 #include <functional>
 #include <set>
 
-namespace tepl::core::semantics::ordered {
+namespace tepl::core::attr_synth::ordered {
+using namespace semantics;
 std::optional<Contract> recognize(const Definition& d) {
   auto c = axis::recognizeOrdered(d);
   if (!c || !d.value) return {};
@@ -80,4 +81,4 @@ Admission admit(const Plan& p, inference::Mode mode) {
       fail("RHS descriptors cannot share source attributes");
   return out;
 }
-}  // namespace tepl::core::semantics::ordered
+}  // namespace tepl::core::attr_synth::ordered

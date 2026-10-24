@@ -13,7 +13,7 @@
 #include "src/core/semantics/ir.h"
 #include "src/core/semantics/proof/verify.h"
 #include "src/core/semantics/report.h"
-#include "src/core/semantics/synthesis/synthesize.h"
+#include "src/core/attr_synth/synthesize.h"
 #include "src/core/syntax/parse.h"
 #include "tests/index_constructor_eval.h"
 #include "tests/index_reference.h"

@@ -1,6 +1,7 @@
-#include "src/core/semantics/synthesis/index_inference.h"
+#include "src/core/attr_synth/index_inference.h"
 
-namespace tepl::core::semantics {
+namespace tepl::core::attr_synth {
+using namespace semantics;
 namespace {
 struct Coefficient {
   I base;
@@ -195,4 +196,4 @@ std::optional<IndexAssignments> matchIndexAttributes(Context& c,
   if (!match(c, pattern, source, out)) return std::nullopt;
   return out;
 }
-}  // namespace tepl::core::semantics
+}  // namespace tepl::core::attr_synth
