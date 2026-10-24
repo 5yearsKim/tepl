@@ -6,7 +6,6 @@ namespace tepl::core::attr_synth::ordered {
 using semantics::Lowerer;
 using semantics::TensorMeaning;
 
-
 // Instantiates requirements bottom-up. General verification still checks the
 // candidate independently; this does not claim completeness of symbolic
 // correspondence or bounded proof search.

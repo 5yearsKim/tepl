@@ -1,5 +1,5 @@
 #pragma once
-#include "src/core/semantics/symbolic/normalize.h"
+#include "src/core/semantics/ir.h"
 namespace tepl::core::semantics {
 // Verify constructors using only declared conditions and LHS legality.
 // Candidate guards are obligations, never assumptions.

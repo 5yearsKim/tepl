@@ -284,7 +284,7 @@ The code has the structure used by the theorem:
 | Calculated-coordinate comparison | [`index_expr.cc`](../src/core/semantics/symbolic/index_expr.cc) |
 | Source-scope validation, definedness checks, and failing obligations | [`context.cc`](../src/core/semantics/context.cc) |
 | Fresh verification and final acceptance checks | [`verify.cc`](../src/core/semantics/proof/verify.cc) |
-| Verification of synthesized candidates before returning success | [`synthesize.cc`](../src/core/attr_synth/synthesize.cc) |
+| Verification of synthesized candidates before returning success | [`prove_rule.cc`](../src/core/semantics/prove_rule.cc) |
 
 This correspondence is evidence that the mathematical procedure models the intended implementation. It is not a proof of full implementation refinement. In particular, these obligations remain before claiming an unconditional theorem about the current compiler:
 

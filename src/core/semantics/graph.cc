@@ -823,6 +823,15 @@ TensorMeaning Lowerer::lower(std::size_t id) {
   for (auto child : n.inputs) inputs.push_back(lower(child));
   return operation(id, std::move(inputs));
 }
+TensorMeaning lowerSource(Context& c) {
+  Lowerer source{c};
+  source.lower(c.plan.lhs);
+  Lowerer composed{c};
+  auto lhs = composed.lower(c.plan.lhs);
+  c.enableSetReasoning();
+  return lhs;
+}
+
 E arithmeticSkeleton(const Plan& p, std::size_t id) {
   const auto& n = p.nodes.at(id);
   if (n.literal) return number(*n.literal);

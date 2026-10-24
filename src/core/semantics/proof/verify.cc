@@ -3,10 +3,11 @@
 #include <functional>
 #include <stdexcept>
 
+#include "src/core/semantics/symbolic/normalize.h"
+
 namespace tepl::core::semantics {
-namespace {
-RuleProof check(const Plan& plan, const ConstructorCandidate& candidate,
-                std::size_t max_work) {
+RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
+                 std::size_t max_work) {
   Context c{plan, max_work};
   RuleProof proof;
   try {
@@ -28,13 +29,7 @@ RuleProof check(const Plan& plan, const ConstructorCandidate& candidate,
           c.assignAttribute(n.descriptor->value, f, found->second[f]);
         }
       }
-    Lowerer source{c};
-    // A second composition uses legality learned across the complete source,
-    // including shapes shared through pointwise consumers.
-    source.lower(plan.lhs);
-    Lowerer composed{c};
-    auto lhs = composed.lower(plan.lhs);
-    c.enableSetReasoning();
+    auto lhs = lowerSource(c);
     for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
     for (const auto& [value, type] : plan.constructed_metadata)
       c.checkMetadataType(value, type);
@@ -145,10 +140,5 @@ RuleProof check(const Plan& plan, const ConstructorCandidate& candidate,
     proof.steps = c.steps();
     return proof;
   }
-}
-}  // namespace
-RuleProof verify(const Plan& plan, const ConstructorCandidate& proof,
-                 std::size_t work) {
-  return check(plan, proof, work);
 }
 }  // namespace tepl::core::semantics

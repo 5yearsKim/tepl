@@ -191,7 +191,7 @@ coverage, metadata definedness, capture accesses, reduction domains, ordered
 axes, shapes, dtypes, and legality in a fresh proof context. Candidate guard
 expressions there are obligations to prove, not extra assumptions. Candidate
 generation in
-[`synthesis/synthesize.cc`](../../src/core/attr_synth/synthesize.cc)
+[`attr_synth/synthesize.cc`](../../src/core/attr_synth/synthesize.cc)
 is separate from this verification stage. Explicit inferred-applicability
 uses the specialized ordered path described in the completeness proof.
 

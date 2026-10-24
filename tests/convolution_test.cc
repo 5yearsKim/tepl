@@ -6,11 +6,10 @@
 #include <numeric>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
+#include "src/core/attr_synth/index_inference.h"
 #include "src/core/pipeline.h"
 #include "src/core/semantics/proof/verify.h"
 #include "src/core/semantics/symbolic/normalize.h"
-#include "src/core/attr_synth/index_inference.h"
-#include "src/core/attr_synth/synthesize.h"
 #include "src/core/syntax/parse.h"
 #include "tests/index_graph_eval.h"
 
@@ -458,20 +457,20 @@ int main(int argc, char** argv) {
     auto stride = coefficient_context.field(convolution_node, 0);
     auto dilation = coefficient_context.field(convolution_node, 1);
     auto hole = make(Symbol::Kind::Hole, "unknown", 101, 0);
-    auto result = matchIndexAttributes(
+    auto result = tepl::core::attr_synth::matchIndexAttributes(
         coefficient_context, indexScale(coefficient_context, hole, h),
         indexScale(coefficient_context, stride, h));
     expect(
         result && result->size() == 1 && equal(result->begin()->second, stride),
         "direct coefficient matcher constructs a source expression");
-    auto scoped = matchIndexAttributes(
+    auto scoped = tepl::core::attr_synth::matchIndexAttributes(
         coefficient_context, indexScale(coefficient_context, hole, h),
         indexScale(coefficient_context, stride, r));
     expect(!scoped,
            "matching refuses equally sized coordinates from different scopes");
     bool conflicting = false, coupled = false;
     try {
-      matchIndexAttributes(
+      tepl::core::attr_synth::matchIndexAttributes(
           coefficient_context,
           indexAdd({indexScale(coefficient_context, hole, h),
                     indexScale(coefficient_context, hole, r)}),
@@ -485,7 +484,7 @@ int main(int argc, char** argv) {
            "one field cannot satisfy conflicting coefficient equations");
     try {
       auto other = make(Symbol::Kind::Hole, "unknown", 101, 1);
-      matchIndexAttributes(
+      tepl::core::attr_synth::matchIndexAttributes(
           coefficient_context,
           indexScale(coefficient_context, call("extent_mul", {hole, other}), h),
           indexScale(coefficient_context, stride, h));

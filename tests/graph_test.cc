@@ -24,16 +24,6 @@ tepl::core::semantics::InspectionData check(const std::string& source) {
   assert(checked.ok());
   return std::move(*checked.program);
 }
-void reject(const std::string& source, const std::string& message) {
-  auto parsed = tepl::parse(dialect + source);
-  assert(parsed.ok());
-  auto checked = tepl::core::inspect(*parsed.program);
-  assert(!checked.ok());
-  bool found = false;
-  for (const auto& diagnostic : checked.diagnostics)
-    found |= diagnostic.message.find(message) != std::string::npos;
-  assert(found);
-}
 }  // namespace
 int main() {
   const auto program = check(R"(

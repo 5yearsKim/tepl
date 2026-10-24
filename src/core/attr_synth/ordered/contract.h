@@ -12,7 +12,6 @@ namespace tepl::core::attr_synth::ordered {
 using semantics::Definition;
 using semantics::Plan;
 
-
 // Recognized from checked definitions, never from operation/group/field names.
 // This certifies the axis/value template. Dtype and arithmetic-policy
 // obligations are still checked by the semantic verifier.

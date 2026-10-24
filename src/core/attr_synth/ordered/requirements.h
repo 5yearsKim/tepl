@@ -1,13 +1,12 @@
 #pragma once
 
-#include "src/core/semantics/symbolic/normalize.h"
 #include "src/core/attr_synth/ordered/contract.h"
+#include "src/core/semantics/symbolic/normalize.h"
 
 namespace tepl::core::attr_synth::ordered {
 using semantics::Context;
 using semantics::Correspondence;
 using semantics::S;
-
 
 struct NodeRequirements {
   S live;

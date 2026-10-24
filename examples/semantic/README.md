@@ -673,7 +673,8 @@ required by the current scalar normalizer. Code generation is not supported.
 
 ## Implementation and verification
 
-The implementation lives in [`src/core/semantics`](../../src/core/semantics):
+The implementation lives in [`src/core/semantics`](../../src/core/semantics),
+with candidate construction in [`src/core/attr_synth`](../../src/core/attr_synth):
 
 | File | Responsibility |
 | --- | --- |
@@ -687,16 +688,18 @@ The implementation lives in [`src/core/semantics`](../../src/core/semantics):
 | `proof/proof_policy.h` | Named work limits and expected inference failures |
 | `graph.cc` | Generic composition into coordinate primitives |
 | `symbolic/index_expr.h`, `symbolic/index_expr.cc`, `symbolic/extent_arithmetic.cc` | Coordinate tuples, access substitution, index normalization, extent arithmetic |
-| `synthesis/index_inference.h`, `synthesis/index_inference.cc` | Scoped coordinate matching and coefficient/offset constructors |
+| `../attr_synth/index_inference.h`, `../attr_synth/index_inference.cc` | Scoped coordinate matching and coefficient/offset constructors |
 | `symbolic/normalize.cc` | Arithmetic normalization and intermediate boundaries |
-| `synthesis/synthesize.cc` | Constructors from required coordinates |
+| `../attr_synth/synthesize.cc`, `../attr_synth/construct.cc` | Candidate strategies and constructors from required coordinates |
+| `prove_rule.cc` | Strategy fallback and independent candidate verification |
 | `proof/verify.cc` | Independent re-lowering under declared conditions |
 | `print.cc` | Coordinate tables, shared expressions, diagnostics |
 
-Public APIs are `synthesize(plan)` and `verify(plan, proof)` in the corresponding
-headers. `Plan::proof` stores the compiler result. Neither API takes concrete
-metadata. Verification shares semantic lowering and sequence theory with
-synthesis, but does not trust inferred coordinate annotations or claimed status.
+`attr_synth::synthesize(plan, strategy)` proposes an unverified candidate.
+`semantics::proveRule(plan)` coordinates synthesis and `verify(plan, candidate)`;
+`Plan::proof` stores the compiler result. These APIs do not take concrete metadata.
+Verification shares semantic lowering and sequence theory with synthesis, but
+does not trust inferred coordinate annotations or claimed status.
 This is a checked implementation, not a mechanically proved theorem.
 
 Normalization consults established evidence; bounded entailment is a separate

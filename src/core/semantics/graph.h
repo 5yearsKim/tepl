@@ -47,6 +47,9 @@ struct Lowerer {
   TensorMeaning operation(std::size_t, std::vector<TensorMeaning>);
   TensorMeaning lower(std::size_t);
 };
+// Compose the source again after learning legality across the complete source,
+// including shapes shared through pointwise consumers. sourceScope must be set.
+TensorMeaning lowerSource(Context&);
 E expression(Expr::Kind, std::vector<E>, S = {});
 E constant(std::int64_t);
 E scalarCall(ScalarFunction, std::vector<E>, std::vector<S> = {}, S = {});

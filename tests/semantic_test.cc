@@ -12,8 +12,9 @@
 #include "src/core/pipeline.h"
 #include "src/core/semantics/ir.h"
 #include "src/core/semantics/proof/verify.h"
+#include "src/core/semantics/prove_rule.h"
 #include "src/core/semantics/report.h"
-#include "src/core/attr_synth/synthesize.h"
+#include "src/core/semantics/symbolic/normalize.h"
 #include "src/core/syntax/parse.h"
 #include "tests/index_constructor_eval.h"
 #include "tests/index_reference.h"
@@ -342,7 +343,7 @@ void symbolicTests() {
       Symbol{Symbol::Kind::Field, "missing", 999, 0, {}});
   expect(verify(p, dangling).status == ProofStatus::Unknown,
          "constructor must depend only on existing source metadata");
-  expect(synthesize(p, 1).status == ProofStatus::Unknown,
+  expect(proveRule(p, 1).status == ProofStatus::Unknown,
          "symbolic work exhaustion is unknown");
   auto redundant = p.proof;
   auto numeric = call("is_numeric", {make(Symbol::Kind::DType, {}, 0)});
@@ -812,14 +813,14 @@ void contextStateTests() {
          "successful entailment is visible after an earlier evidence miss");
   expect(queries.guards().empty(), "proof queries do not assume missing facts");
 
-  auto exhausted = synthesize(plan, 0);
+  auto exhausted = proveRule(plan, 0);
   expect(exhausted.status == ProofStatus::Unknown &&
              exhausted.reason.find("budget exhausted") != std::string::npos,
          "budget exhaustion has a specific diagnostic");
   bool internal_error = false;
   try {
-    synthesize(plan,
-               1000);  // No source node: deliberately malformed internal IR.
+    proveRule(plan,
+              1000);  // No source node: deliberately malformed internal IR.
   } catch (const std::out_of_range&) {
     internal_error = true;
   }
@@ -1210,7 +1211,7 @@ void axisAndMultiplyTests() {
       "rule r {(r: reduce_sum (p: transpose A)) => (transpose (reduce_sum "
       "A))}");
   proved(move);
-  expect(synthesize(move, 50000).status == ProofStatus::Proved,
+  expect(proveRule(move, 50000).status == ProofStatus::Proved,
          "transpose/reduction inference fits a bounded metadata budget");
   expect(verify(move, move.proof, 50000).status == ProofStatus::Proved,
          "independent map verification fits the same budget");

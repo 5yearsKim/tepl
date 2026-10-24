@@ -11,17 +11,15 @@ bazel test //tests:named_nodes_test //tests:attribute_reasoning_test \
 Run the full active native suite before completing a broader change:
 
 ```sh
-bazel test //tests:all --build_tests_only -- \
-  -//tests:rust_codegen_test -//tests:cli_test
+bazel test //tests:all --build_tests_only
 ```
 
-The exclusions contain deferred backend integration checks. Rust generation and
-runtime tests are outside the current native implementation scope.
+This includes CLI behavior and Rust generation/runtime integration.
 
 | Test | Main responsibility |
 | --- | --- |
 | `named_nodes_test` | Source node properties, descriptor reuse/derivation, logical-axis evaluation, and invalid reference diagnostics. |
-| `attribute_reasoning_test` | Verified restriction suggestions, practical metadata domains, mixed attributes, repeated-capture identity, and independent constructor verification. |
+| `attribute_reasoning_test` | Verified restriction suggestions, practical metadata domains, mixed attributes, repeated-capture identity, candidate/verification separation, and strategy fallback. |
 | `ordered_synthesis_test` | Independent exhaustive attribute oracle, positive/negative certificates, paired contraction order, and high-rank cases. |
 | `semantic_test` | Symbolic laws, arithmetic policy, sufficient user conditions, partial routing, and independent dense references. |
 | `convolution_test` | Calculated reads, coefficient inference, spatial ranks 1–3, empty batch/channel cases, and illegal or corrupted metadata. |

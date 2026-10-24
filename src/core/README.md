@@ -77,9 +77,23 @@ Type checking publishes its complete type table before semantic verification.
 ## Semantic compilation
 
 `semantics/index_maps/` owns symbolic axis mapping and transport algorithms.
-`symbolic/` owns expression construction and normalization, `synthesis/` proposes
-attribute constructors, and `proof/` verifies their equivalence and legality.
-Each proof context owns its facts, work budget, and caches.
+`semantics/symbolic/` owns expression construction and normalization.
+`attr_synth/` proposes attribute constructors, and `semantics/proof/` independently
+verifies their equivalence and legality. Each attempt owns its facts, work budget,
+and caches.
+
+`attr_synth::synthesize(plan, strategy)` returns an unverified candidate or a
+construction failure. `semantics::proveRule` tries identity, ordered, then general
+synthesis, accepting a candidate only after fresh verification. Failed
+construction or verification permits the next strategy; it is not an
+impossibility decision. Materialization still requires a successful `RuleProof`.
+
+The build enforces this separation: `//src/core/semantics:reasoning` provides
+shared lowering and symbolic reasoning; `//src/core/attr_synth` and
+`//src/core/semantics:proof` depend on it without depending on each other.
+`//src/core/semantics:rule_proof` coordinates the two. The concrete ordered solver
+adapters have their own `//src/core/attr_synth:ordered` target and depend on
+`//src/inference`; general synthesis and verification do not link that solver.
 
 Optional operation labels survive checking as occurrence metadata, separately
 from tensor captures and descriptors. Source spellings remain compiler-only
@@ -143,9 +157,8 @@ Shared components live in `src/shared/`: source locations, diagnostics, concrete
 types, operation/schema tables, builtin catalogs, and metadata representations.
 Type inference and proof search stay in their owning stages.
 
-## Deferred code generation
+## Code generation
 
-Code generation sources and templates remain for a later migration. Their old
-compiler interfaces and legacy inference runtime have been removed. The active
-CLI reports generation as unavailable, and backend targets are excluded from
-the active build. Backend migration should consume `ExecutableProgram` directly.
+`src/codegen/` consumes validated `ExecutableProgram` data directly. The active
+Rust backend emits source files without depending on compiler proof algorithms.
+The CLI reports C++ and Python generation as unimplemented.

@@ -7,8 +7,9 @@
 #include "src/core/semantics/compilation_context.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
+#include "src/core/semantics/prove_rule.h"
 #include "src/core/semantics/suggestion.h"
-#include "src/core/attr_synth/synthesize.h"
+#include "src/core/semantics/symbolic/normalize.h"
 #include "src/shared/metadata/ordered.h"
 
 namespace tepl::core::semantics {
@@ -668,7 +669,7 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
     const Rule suggestion_source = rule;
     b.assumptions();
     if (selected) {
-      b.plan.proof = synthesize(b.plan);
+      b.plan.proof = proveRule(b.plan);
       if (b.plan.proof.status != ProofStatus::Proved &&
           context.options.suggest_conditions)
         b.plan.suggested_rule =

@@ -25,7 +25,7 @@ cc_test(
     srcs = ["attribute_reasoning_test.cc"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//src/core:pipeline", "//src/core/semantics:proof", "//src/rewrite", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core:pipeline", "//src/core/attr_synth", "//src/core/semantics:proof", "//src/core/semantics:rule_proof", "//src/rewrite", "@rules_cc//cc/runfiles"],
 )
 
 cc_test(
@@ -34,21 +34,21 @@ cc_test(
     srcs = ["ordered_synthesis_test.cc", "index_constructor_eval.h", "index_reference.h"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core/attr_synth:ordered", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:reasoning", "@rules_cc//cc/runfiles"],
 )
 
 cc_test(
     name = "reasoning_test",
     size = "small",
     srcs = ["reasoning_test.cc"],
-    deps = ["//src/core/semantics:proof", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/executable"],
+    deps = ["//src/core/semantics:reasoning", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/executable"],
 )
 
 cc_test(
     name = "scalar_test",
     size = "small",
     srcs = ["scalar_test.cc"],
-    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "//src/executable"],
+    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:model", "//src/executable"],
 )
 
 cc_test(
@@ -57,7 +57,7 @@ cc_test(
     srcs = ["reverse_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core/attr_synth", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
 )
 
 cc_test(
@@ -82,14 +82,14 @@ cc_test(
     srcs = ["convolution_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core/attr_synth", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
 )
 
 cc_test(
     name = "axis_interface_test",
     size = "small",
     srcs = ["axis_interface_test.cc"],
-    deps = ["//src/core/semantics:proof"],
+    deps = ["//src/core/semantics:reasoning"],
 )
 
 cc_test(
@@ -98,7 +98,7 @@ cc_test(
     srcs = ["semantic_test.cc", "index_reference_engine.cc", "index_reference.h", "index_constructor_eval.h"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "//src/core/semantics:report", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core/semantics:rule_proof", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "//src/core/semantics:report", "@rules_cc//cc/runfiles"],
 )
 
 sh_test(

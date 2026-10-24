@@ -8,10 +8,10 @@
 #include <string>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
+#include "src/core/attr_synth/index_inference.h"
 #include "src/core/pipeline.h"
 #include "src/core/semantics/proof/verify.h"
 #include "src/core/semantics/symbolic/normalize.h"
-#include "src/core/attr_synth/index_inference.h"
 #include "src/core/syntax/parse.h"
 #include "tests/index_graph_eval.h"
 
@@ -286,14 +286,15 @@ int main(int argc, char** argv) {
     auto reflected = indexReverse(c, coords, domain, vector({2, 0}));
     auto selector = make(Symbol::Kind::Hole, "unknown", 101, 0);
     auto unknown = indexReverse(c, coords, domain, selector);
-    auto match = matchIndexAttributes(c, unknown, reflected);
+    auto match =
+        tepl::core::attr_synth::matchIndexAttributes(c, unknown, reflected);
     expect(match && match->size() == 1 &&
                equal(match->at({101, 0}), vector({0, 2})),
            "reverse selector matching constructs source dimensions");
     auto other_axes = make(Symbol::Kind::AxisGroup, "other", 46, 0, {domain});
     auto other =
         indexReverse(c, coordinates(other_axes), domain, vector({2, 0}));
-    expect(!matchIndexAttributes(c, unknown, other),
+    expect(!tepl::core::attr_synth::matchIndexAttributes(c, unknown, other),
            "reverse inference rejects a different coordinate frame");
     auto selected = indexSelect(c, reflected, vector({2, 1, 0}));
     auto expected = indexReverse(c, indexSelect(c, coords, vector({2, 1, 0})),

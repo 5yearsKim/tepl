@@ -3,11 +3,11 @@
 #include <numeric>
 #include <set>
 
+#include "src/core/attr_synth/ordered/compile.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
+#include "src/core/semantics/prove_rule.h"
 #include "src/core/semantics/suggestion.h"
-#include "src/core/attr_synth/ordered/compile.h"
-#include "src/core/attr_synth/synthesize.h"
 #include "src/inference/evaluate.h"
 
 namespace tepl::core::semantics {
@@ -29,7 +29,8 @@ S list(const auto& values) {
 bool hasWitness(const Plan& plan, const Rule& rule) {
   Plan source_plan = plan;
   source_plan.rhs = plan.lhs;
-  auto compiled = ordered::compile(source_plan, inference::Mode::Validate);
+  auto compiled =
+      attr_synth::ordered::compile(source_plan, inference::Mode::Validate);
   if (!compiled.program) return false;
   const auto& code = compiled.program->source;
   std::uint64_t random = 0x6a09e667f3bcc909ULL;
@@ -263,7 +264,7 @@ std::string suggestRestrictions(const Plan& input, const Rule& rule,
       auto trial = plan;
       for (auto i : indices)
         trial.assumptions.push_back(candidates[i].symbolic);
-      auto proof = synthesize(trial, 1000000);
+      auto proof = proveRule(trial, 1000000);
       return proof.status == ProofStatus::Proved && hasWitness(trial, rule);
     };
     std::vector<std::size_t> selected;

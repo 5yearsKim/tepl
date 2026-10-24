@@ -1,9 +1,7 @@
 # Ordered contraction/permutation synthesis
 
 This directory separates axis membership, ordering requirements, and descriptor
-construction. It implements the compilation side of
-[the completeness plan](../../../../../examples/research/complete_attribute_synthesis_plan.md).
-The [unified completeness proof draft](../../../../../examples/research/complete_attribute_synthesis_proof.md)
+construction. The [unified completeness proof draft](../../../../examples/research/complete_attribute_synthesis_proof.md)
 proves exact feasibility and constructive synthesis for a mathematical
 contraction/permutation/unary-summation algorithm and separated additive
 components. Section 6 gives the metadata-program generation argument.
@@ -35,11 +33,12 @@ equivalent definition spelling.
 
 ## Compiler integration
 
-The default synthesizer first tries requirements-driven construction for an
-admitted plan. All order constraints remain proof obligations under the
-original declared conditions. They are never assumed or silently added as
-runtime guards. A completed candidate is checked in the existing fresh-context
-verifier before acceptance. Successful proofs record
+After descriptor-copy identity fails, `semantics::proveRule` tries the ordered
+strategy in `attr_synth::synthesize` for an admitted plan. All order constraints
+remain proof obligations under the original declared conditions. They are never
+assumed or silently added as runtime guards. The strategy returns an unverified
+candidate; semantic orchestration checks it in the fresh-context verifier before
+acceptance. Successful proofs record
 `law: ordered-requirements-construction`.
 
 If admission or bounded symbolic reasoning cannot support this route, the
@@ -67,8 +66,8 @@ may therefore be accepted without extending the completeness claim.
 
 ## Native metadata-program evaluator
 
-[`src/inference`](../../../../../src/inference/evaluate.h) interprets the
-completed instructions in [`inference.h`](../../../../shared/metadata/inference.h),
+[`src/inference`](../../../../src/inference/evaluate.h) interprets the
+completed instructions in [`inference.h`](../../../shared/metadata/inference.h),
 independently of compiler plans or symbolic proof search. The former duplicate
 concrete execution engine was removed; `concrete.*` retains the convenience
 Plan APIs used by compiler-side callers.

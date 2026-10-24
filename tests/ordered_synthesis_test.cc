@@ -7,10 +7,10 @@
 #include <stdexcept>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
+#include "src/core/attr_synth/ordered/concrete.h"
 #include "src/core/pipeline.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/symbolic/expr.h"
-#include "src/core/attr_synth/ordered/concrete.h"
 #include "src/core/syntax/parse.h"
 #include "tests/index_constructor_eval.h"
 

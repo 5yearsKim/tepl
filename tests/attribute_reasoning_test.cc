@@ -4,8 +4,11 @@
 #include <stdexcept>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
+#include "src/core/attr_synth/synthesize.h"
 #include "src/core/pipeline.h"
 #include "src/core/semantics/proof/verify.h"
+#include "src/core/semantics/prove_rule.h"
+#include "src/core/semantics/symbolic/expr.h"
 #include "src/rewrite/engine.h"
 
 namespace {
@@ -142,7 +145,14 @@ void independentVerification() {
       core::inspect(*parsed.program, {core::SemanticPolicy::kAlgebraic, true});
   expect(inspected.ok(), "inspect identity proof");
   auto plan = *inspected.program->rules[0].semantic_plan;
-  auto candidate = static_cast<ConstructorCandidate>(plan.proof);
+  auto proposal =
+      core::attr_synth::synthesize(plan, core::attr_synth::Strategy::Identity);
+  expect(proposal.constructed &&
+             verify(plan, proposal.candidate).status == ProofStatus::Proved,
+         "candidate generation can be verified independently");
+  expect(verify(plan, proposal.candidate, 0).status == ProofStatus::Unknown,
+         "a constructed candidate does not bypass the verifier's budget");
+  auto candidate = proposal.candidate;
   candidate.constructors.begin()->second[0] = make(Symbol::Kind::List);
   expect(verify(plan, candidate).status == ProofStatus::Unknown,
          "fresh verification rejects a corrupted constructor");
@@ -153,6 +163,53 @@ void independentVerification() {
   expect(info.ok() &&
              !info.program->rules[0].semantic_plan->proof.guard_origins.empty(),
          "failed verification preserves unresolved-obligation provenance");
+}
+void synthesisBoundary() {
+  using namespace core::semantics;
+  using core::attr_synth::Strategy;
+  auto inspect = [&](const std::string& text) {
+    auto parsed = parseRule(text);
+    auto info = core::inspect(*parsed.program,
+                              {core::SemanticPolicy::kAlgebraic, true});
+    expect(info.ok(), "synthesis boundary fixture checks");
+    return *info.program->rules[0].semantic_plan;
+  };
+  // Identical operation trees alone cannot justify explicit RHS attributes.
+  auto invalid = inspect(R"(
+rule invalid {(p: transpose A)=>(q: transpose A)
+ derive {q.attrs={permutation: []};}}
+)");
+  auto proposal = core::attr_synth::synthesize(invalid, Strategy::Identity);
+  expect(
+      proposal.constructed &&
+          verify(invalid, proposal.candidate).status == ProofStatus::Unknown &&
+          proveRule(invalid).status == ProofStatus::Unknown,
+      "successful descriptor copying is not proof of the rule");
+
+  // Mixed explicit/automatic fields are outside ordered admission, but the
+  // general strategy must remain available after identity verification fails.
+  auto fallback = inspect(R"(
+rule compose {(p: transpose (transpose A))=>(q: transpose (transpose A))
+ derive {q.attrs={permutation: range(len(p.attrs.permutation))};}}
+)");
+  proposal = core::attr_synth::synthesize(fallback, Strategy::Identity);
+  expect(proposal.constructed && verify(fallback, proposal.candidate).status ==
+                                     ProofStatus::Unknown,
+         "the identity candidate can fail independent verification");
+  expect(!core::attr_synth::synthesize(fallback, Strategy::Ordered).constructed,
+         "ordered synthesis reports unsupported admission");
+  auto general = core::attr_synth::synthesize(fallback, Strategy::General);
+  expect(
+      general.constructed &&
+          verify(fallback, general.candidate).status == ProofStatus::Proved &&
+          proveRule(fallback).status == ProofStatus::Proved,
+      "failed identity verification and ordered admission fall back to general "
+      "synthesis");
+  auto exhausted = core::attr_synth::synthesize(fallback, Strategy::General, 0);
+  expect(
+      !exhausted.constructed && exhausted.candidate.constructors.empty() &&
+          exhausted.reason.find("budget exhausted") != std::string::npos,
+      "exhausted synthesis preserves diagnostics without a partial candidate");
 }
 void explicitConditionIntegrity() {
   rejects("rule r {(d: dot A B)=>(dot A B) where {axis_domain()}}");
@@ -175,6 +232,7 @@ int main(int argc, char** argv) {
     mixedAttributes();
     recommendations();
     independentVerification();
+    synthesisBoundary();
     explicitConditionIntegrity();
   } catch (const std::exception& e) {
     std::cerr << e.what() << '\n';

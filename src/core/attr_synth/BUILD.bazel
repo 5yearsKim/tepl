@@ -1,0 +1,31 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+# Candidate construction depends only on the semantic model and reasoning.
+# Acceptance belongs to //src/core/semantics:rule_proof.
+cc_library(
+    name = "attr_synth",
+    srcs = [
+        "synthesize.cc",
+        "construct.cc", "construct.h",
+        "index_inference.cc",
+        "ordered/contract.cc",
+        "ordered/construct.cc", "ordered/construct.h",
+        "ordered/requirements.cc", "ordered/requirements.h",
+    ],
+    hdrs = ["synthesize.h", "index_inference.h", "ordered/contract.h"],
+    deps = [
+        "//src/core/semantics:model",
+        "//src/core/semantics:reasoning",
+        "//src/shared/metadata",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Compiler adapters for the standalone concrete ordered solver.
+cc_library(
+    name = "ordered",
+    srcs = ["ordered/compile.cc", "ordered/concrete.cc"],
+    hdrs = ["ordered/compile.h", "ordered/concrete.h"],
+    deps = [":attr_synth", "//src/inference"],
+    visibility = ["//visibility:public"],
+)
