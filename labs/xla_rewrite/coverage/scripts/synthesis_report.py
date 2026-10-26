@@ -189,40 +189,54 @@ def render(data, classification):
         o.append(f"| [{row['case']}]({link(row['successful_variant'])}) | {row['category']} | "
                  f"{'yes' if successful(row,'full_auto') else 'no'} | {'yes' if successful(row,'partial_auto') else '—'} | "
                  f"{row['inferred_descriptors']}/{row['rhs_descriptors']} | {row['scope'].replace('|', '/')} |")
-    before_path = HERE / "baselines/pre_axis_views/synthesis.json"
-    if before_path.exists():
-        before = read(before_path)
+    axis_after = read(HERE / "baselines/pre_general_inference/synthesis.json")
+    axis_verified = read(HERE / "baselines/pre_general_inference/verification.json")
+    comparisons = (
+        ("pre_axis_views", "Shared axis reasoning improvement", axis_after, axis_verified,
+         "The compiler reuses coordinate-sequence expansion in set-membership reasoning. "
+         "Registered selections and permutations retain their original coordinate witnesses. "
+         "This historical comparison ends before the general inference changes below."),
+        ("pre_general_inference", "General inference improvement", data, explicit,
+         "Scalar parameter correspondence reuses unambiguous parameters from normalized source semantics. "
+         "Constructors are checked against declared scalar attribute types. Coordinate correspondence "
+         "combines additive dependencies and propagates whole-operand consumer interfaces. "
+         "Metadata normalization merges adjacent ordered ranges, reuses selected element facts, and "
+         "compares symbolic sequences by ordered blocks; arbitrary permutations cannot establish order. "
+         "Coordinate complements preserve their extent maps. Reduction reflection "
+         "changes only bound coordinates in equal finite domains, substituting the entire summand "
+         "under algebraic addition."),
+    )
+    for baseline, title, measured, verified, description in comparisons:
+        before = read(HERE / "baselines" / baseline / "synthesis.json")
+        before_verified = read(HERE / "baselines" / baseline / "verification.json")
         previous = {r["case"] for r in before["results"]
                     if r["outcome"] in {"full_auto", "partial_auto"}}
-        current = {r["case"] for r in accepted}
-        previous_theorem = [r for r in before["results"]
-                            if r["category"] == 1 and r["rhs_descriptors"]]
-        current_theorem = [r for r in eligible if r["category"] == 1]
-        previous_verification = read(HERE / "baselines/pre_axis_views/verification.json")
-        previous_proofs = {r["case"] for r in previous_verification["results"]
+        current = {r["case"] for r in measured["results"]
+                   if r["outcome"] in {"full_auto", "partial_auto"}}
+        previous_proofs = {r["case"] for r in before_verified["results"]
                            if r["status"] == "proved"}
-        o += ["", "## Shared axis reasoning improvement", "",
-              "The compiler now reuses its coordinate-sequence expansion in set-membership reasoning. "
-              "This relates registered selections and permutations to the same logical axes used by "
-              "equality checking, including context-known block lengths. Coordinate witnesses remain "
-              "stored in their original form. No operation names, rule names, XLA case IDs, or new "
-              "applicability assumptions participate in the fix.", "",
-              "The comparison uses the same migrated cases and frozen classifications. "
-              "[Pre-fix measurements](../baselines/pre_axis_views/) preserve the previous compiler results.", "",
+        current_proofs = {r["case"] for r in verified["results"]
+                          if r["status"] == "proved"}
+        theorem = {r["case"] for r in eligible if r["category"] == 1}
+        o += ["", "## " + title, "", description, "",
+              "The comparison uses unchanged equations, applicability conditions, classifications "
+              "and acceptance criteria. No operation names, rule names or XLA case IDs participate "
+              "in these compiler mechanisms.", "",
+              f"[Pre-change measurements](../baselines/{baseline}/) preserve the previous compiler results.", "",
               "| Measurement | Before | After |",
               "|---|---:|---:|",
-              f"| Explicit semantic proofs | {len(previous_proofs)} | {len(new_proved)} |",
-              f"| Unique auto successes | {len(previous)} | {len(current)} |",
-              f"| Theorem-fragment auto successes | {sum(r['case'] in previous for r in previous_theorem)}/{len(previous_theorem)} | {sum(r['case'] in current for r in current_theorem)}/{len(current_theorem)} |",
-              f"| Previous semantic proofs retained | — | {len(previous_proofs & new_proved)}/{len(previous_proofs)} |",
+              f"| Explicit semantic proofs | {len(previous_proofs)} | {len(current_proofs)} |",
+              f"| Unique auto successes | {fraction(len(previous),len(eligible))} | {fraction(len(current),len(eligible))} |",
+              f"| Theorem-fragment auto successes | {len(theorem & previous)}/{len(theorem)} | {len(theorem & current)}/{len(theorem)} |",
+              f"| Previous semantic proofs retained | — | {len(previous_proofs & current_proofs)}/{len(previous_proofs)} |",
               f"| Previous auto successes retained | — | {len(previous & current)}/{len(previous)} |", "",
               "Newly inferred cases:", ""]
-        for row in accepted:
-            if row["case"] not in previous:
-                o.append(f"- [{row['case']}]({link(row['successful_variant'])}).")
-        if previous - current or previous_proofs - new_proved:
-            o += ["", "Cases losing acceptance in this run: " +
-                  ", ".join(sorted((previous - current) | (previous_proofs - new_proved))) + "."]
+        for row in measured["results"]:
+            if row["case"] in current - previous:
+                o.append(f"- [{row['case']}]({link(row['successful_variant'])}): {row['outcome']}.")
+        lost = (previous - current) | (previous_proofs - current_proofs)
+        if lost:
+            o += ["", "Cases losing acceptance in this run: " + ", ".join(sorted(lost)) + "."]
     o += ["", "## Reproduction and artifacts", "",
           "```sh", "bazel build //:tepl",
           "python3 labs/xla_rewrite/coverage/scripts/migrate_syntax.py --check",

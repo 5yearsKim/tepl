@@ -1093,6 +1093,35 @@ void broadcastTests() {
   proved(before);
   proved(triple);
   proved(symbolicPlan(
+      "rule r {A:[Dims...] (o: broadcast (i: broadcast A)) => (broadcast A) "
+      "where "
+      "{i.attrs.dimensions == range(len(Dims)) && "
+      "o.attrs.dimensions == range(len(Dims) + len(i.attrs.new_extents))}}",
+      false));
+  auto outer_product = symbolicPlan(
+      "rule r {X:[M] Y:[N] (d:dot X Y) => "
+      "(mul (broadcast X) (broadcast Y)) where "
+      "{d.attrs.lhs_contracting_dimensions==[] && "
+      "d.attrs.rhs_contracting_dimensions==[] && "
+      "d.attrs.lhs_batching_dimensions==[] && "
+      "d.attrs.rhs_batching_dimensions==[]}}");
+  proved(outer_product);
+  expect(
+      verify(outer_product, outer_product.proof).status == ProofStatus::Proved,
+      "independent verification of two broadcasts with different dependencies");
+  for (int m : {0, 1, 2})
+    for (int n : {0, 1, 3}) {
+      Metadata metadata{{{m}, {n}}, {{0, {{}, {}, {}, {}}}}};
+      tepl::test::ConstructorEvaluator evaluator(metadata, outer_product);
+      auto constructors = evaluator.construct();
+      auto left = constructors.begin()->second;
+      auto right = constructors.rbegin()->second;
+      auto x = data({m}, 1), y = data({n}, 3);
+      equal(dot(x, y, {{}, {}, {}, {}}),
+            multiply(broadcast(x, left[0], left[1]),
+                     broadcast(y, right[0], right[1])));
+    }
+  proved(symbolicPlan(
       "rule r {(p: transpose (b: broadcast A)) => (transpose (broadcast A))}",
       false));
   proved(

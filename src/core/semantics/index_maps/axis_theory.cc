@@ -249,13 +249,30 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
       return x->sort == Symbol::Sort::Extents ||
              x->sort == Symbol::Sort::Positions;
     };
-    // Shape constraints record scalar dimension equalities. Lift those facts
-    // to ordered extent sequences without identifying their coordinate frames.
+    if (metadataSequence(a) && metadataSequence(b))
+      for (const auto& [parts, whole] : {std::pair{a, b}, std::pair{b, a}}) {
+        if (!callIs(parts, "concat") ||
+            !query(call("==", {call("len", {parts}), call("len", {whole})}),
+                   mode))
+          continue;
+        S offset = integer(0);
+        bool matched = true;
+        for (const auto& part : parts->args) {
+          auto size = canonical(call("len", {part}));
+          auto positions =
+              call("offset_positions", {call("range", {size}), offset});
+          matched &= query(
+              call("==", {part, call("gather", {whole, positions})}), mode);
+          if (!matched) break;
+          offset = canonical(call("+", {offset, size}));
+        }
+        if (matched) return true;
+      }
+    // Scalar element equalities determine bounded numeric sequences, including
+    // positions, without identifying their coordinate frames.
     // Only the expression factory's bounded literal ranges are enumerated;
     // arbitrary-rank equality continues to use symbolic witnesses above.
-    if (metadataSequence(a) && metadataSequence(b) &&
-        (a->sort == Symbol::Sort::Extents ||
-         b->sort == Symbol::Sort::Extents)) {
+    if (metadataSequence(a) && metadataSequence(b)) {
       auto length = canonical(call("len", {a}));
       auto indices = call("range", {length});
       if (indices->kind == Symbol::Kind::List &&
@@ -375,6 +392,21 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
         callIs(a, "unique_axes"))
       return true;
     if (callIs(a, "concat")) {
+      if (!a->args.empty() && callIs(a->args[0], "gather")) {
+        auto base = a->args[0]->args[0];
+        std::vector<S> selectors;
+        for (const auto& part : a->args) {
+          if (!callIs(part, "gather") || !equal(part->args[0], base)) break;
+          selectors.push_back(part->args[1]);
+        }
+        if (selectors.size() == a->args.size() &&
+            query(call("distinct_axes", {base}), mode) &&
+            query(call("is_valid_axis_list",
+                       {canonical(call("concat", selectors)),
+                        call("len", {base})}),
+                  mode))
+          return true;
+      }
       for (std::size_t i = 0; i < a->args.size(); ++i) {
         if (!query(call("distinct_axes", {a->args[i]}), mode)) return false;
         for (std::size_t j = 0; j < i; ++j)

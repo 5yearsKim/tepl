@@ -122,7 +122,8 @@ def dependencies():
              HERE / "scripts/migrate_syntax.py", HERE / "scripts/hlo_support.py",
              HERE.parent / "catalog/rules.json",
              ROOT / "examples/research/complete_attribute_synthesis_proof_kr.md"]
-    paths += [HERE / "baselines/pre_axis_views" / name
+    paths += [HERE / "baselines" / baseline / name
+              for baseline in ("pre_axis_views", "pre_general_inference")
               for name in ("verification.json", "synthesis.json")]
     return {str(path.relative_to(ROOT)): sha(path) for path in paths if path.is_file()}
 

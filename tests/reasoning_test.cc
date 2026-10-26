@@ -242,6 +242,17 @@ void uniformVectors() {
          "concatenation preserves a common uniform value");
   expect(!c.uniformElement(call("concat", {one, two})),
          "different uniform values cannot be merged");
+  auto partial = make(Symbol::Kind::Field, "partial", 9, 0);
+  c.learn(call("==", {call("len", {partial}), integer(3)}));
+  for (int i : {0, 1})
+    c.learn(call("==", {call("index", {partial, integer(i)}), integer(1)}));
+  expect(equal(c.uniformElement(call("gather", {partial, list({1, 0})})),
+               integer(1)),
+         "individual element facts establish a uniform selected tuple");
+  expect(!c.uniformElement(call("gather", {partial, list({1, 2})})),
+         "an unconstrained selected element prevents uniformity");
+  expect(!c.uniformElement(call("gather", {partial, list({3})})),
+         "out-of-range selected elements do not establish uniformity");
 }
 void emptyAxes() {
   Plan p;
@@ -372,6 +383,64 @@ void registeredAxisMembership() {
   expect(
       !c.entails(call("same_set", {alias_selection, call("empty_axes", {})})),
       "coordinate aliases cannot turn a retained group into an empty set");
+}
+void symbolicBlockSelections() {
+  Plan p;
+  Context c{p, 1000000};
+  auto a = make(Symbol::Kind::Shape, {}, 0);
+  auto b = make(Symbol::Kind::Shape, {}, 1);
+  auto d = make(Symbol::Kind::Shape, {}, 2);
+  auto length = [](const S& x) { return call("len", {x}); };
+  auto block = [](const S& start, const S& size) {
+    return call("offset_positions", {call("range", {size}), start});
+  };
+  auto ab = call("+", {length(a), length(b)});
+  auto bc = call("+", {length(b), length(d)});
+  auto adjacent = call(
+      "concat", {block(integer(0), length(a)), block(length(a), length(b))});
+  expect(c.entails(call("==", {adjacent, call("range", {ab})})),
+         "adjacent symbolic ranges merge without enumerating rank");
+  auto all = call("concat", {a, b, d});
+  expect(c.entails(call("==", {call("gather", {all, block(length(a), bc)}),
+                               call("concat", {b, d})})),
+         "a symbolic suffix can span several blocks");
+  auto gap =
+      call("concat", {block(integer(0), length(a)), block(ab, length(d))});
+  expect(!c.entails(call("==", {gap, call("range", {bc})})),
+         "gaps cannot become a contiguous range");
+  c.learn(call("==", {length(a), integer(1)}));
+  c.learn(call("==", {length(b), integer(2)}));
+  c.learn(call("==", {length(d), integer(1)}));
+  auto expected = call("concat", {d, call("gather", {b, list({1, 0})})});
+  expect(
+      c.entails(call("==", {call("gather", {all, list({3, 2, 1})}), expected})),
+      "numeric sequences use context-known block lengths and retain order");
+  expect(!c.entails(call("==", {call("gather", {all, list({4})}), d})),
+         "out-of-range numeric projections stay unresolved");
+  auto permutation = make(Symbol::Kind::Field, "permutation", 4, 0);
+  c.learn(call("axis_partition", {permutation, integer(3)}));
+  c.learn(call("==", {length(permutation), integer(3)}));
+  auto permuted_prefix =
+      call("concat", {permutation, block(integer(3), integer(2))});
+  expect(!c.entails(call("==", {permuted_prefix, call("range", {integer(5)})})),
+         "a permutation of a block does not establish its order");
+  expect(!c.entails(call("==", {call("order_positions", {permutation}),
+                                call("range", {integer(3)})})),
+         "sorting an unknown permutation does not have an identity index map");
+  auto values = make(Symbol::Kind::Field, "values", 5, 0);
+  c.learn(call("is_valid_axis_list", {list({0, 1}), length(values)}));
+  auto tail_shape = make(Symbol::Kind::Shape, {}, 6);
+  auto tail_size = length(tail_shape);
+  c.learn(call("==", {length(values), call("+", {integer(2), tail_size})}));
+  c.learn(call("==", {call("index", {values, integer(0)}), integer(7)}));
+  auto tail = call("gather", {values, block(integer(2), tail_size)});
+  auto rebuilt = call("concat", {list({7, 8}), tail});
+  expect(!c.entails(call("==", {values, rebuilt})),
+         "a symbolic suffix does not prove an unestablished prefix");
+  c.learn(call("==", {call("index", {values, integer(1)}), integer(8)}));
+  expect(c.entails(call("==", {values, rebuilt})),
+         "prefix facts and a symbolic suffix reconstruct an arbitrary-length "
+         "sequence");
 }
 void definedness() {
   Plan p;
@@ -562,6 +631,7 @@ int main() {
     selectedShapeEquality();
     registeredAxisEquality();
     registeredAxisMembership();
+    symbolicBlockSelections();
     sequences();
     uniformVectors();
     emptyAxes();

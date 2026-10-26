@@ -8,6 +8,7 @@ cc_library(
         "synthesize.cc",
         "construct.cc", "construct.h",
         "index_inference.cc",
+        "scalar_parameters.cc", "scalar_parameters.h",
         "ordered/contract.cc",
         "ordered/construct.cc", "ordered/construct.h",
         "ordered/requirements.cc", "ordered/requirements.h",

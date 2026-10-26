@@ -114,7 +114,7 @@ void compare(const Plan& p, const std::vector<Dense>& inputs,
   // Check RHS in its independently reconstructed source coordinate frame.
   c.enableSetReasoning();
   auto match = correspond(c, lhs, normalize(c, lhs.value),
-                          normalize(c, arithmeticSkeleton(p, p.rhs)));
+                          normalize(c, arithmeticSkeleton(c, p.rhs)));
   Lowerer target{c, &match.anchors};
   target.interfaces = &match.interfaces;
   auto rhs = target.lower(p.rhs);

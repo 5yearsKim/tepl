@@ -435,6 +435,19 @@ struct Builder {
     n.definition = op.semantic_definition;
     n.dtype = std::make_shared<metadata::Program>(*op.dtype);
     n.descriptor = descriptor;
+    if (descriptor && op.attributes) {
+      const auto& schema =
+          context.output.attribute_schemas.at(op.attributes->value);
+      for (std::size_t f = 0; f < schema.fields.size(); ++f) {
+        const auto& field = schema.fields[f];
+        if (auto type = resolveType(field.type)) {
+          for (std::size_t depth = 0; depth < field.list_depth; ++depth)
+            *type = listType(*type);
+          type->optional = field.optional;
+          plan.metadata_types.emplace(std::pair{descriptor->value, f}, *type);
+        }
+      }
+    }
     n.inputs = std::move(inputs);
     n.origin = at;
     for (const auto& h : rule.attribute_holes) {

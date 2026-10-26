@@ -8,12 +8,12 @@ The sweep tested **209 explicit rule cases**, spanning **199 of 239 catalog sche
 
 | Outcome | Rule cases | Meaning |
 |---|---:|---|
-| Accepted by semantic verification | 89 | Explicit proof status is `proved`, with no additional guard. |
+| Accepted by semantic verification | 95 | Explicit proof status is `proved`, with no additional guard. |
 | Missing operation semantics | 90 | At least one required operation has no faithful definition in the current semantic fragment. |
-| Not proved with the declared semantics | 30 | Required operation semantics exist, but construction, legality or equivalence was not established. |
+| Not proved with the declared semantics | 24 | Required operation semantics exist, but construction, legality or equivalence was not established. |
 | Timeout | 0 | The per-case time limit was exceeded. |
 
-At least one case was verified for **82 catalog schemas**. A specialization does not prove all variants of its catalog schema. The deliberately incorrect subtraction-to-addition control was rejected and is excluded from the table.
+At least one case was verified for **88 catalog schemas**. A specialization does not prove all variants of its catalog schema. The deliberately incorrect subtraction-to-addition control was rejected and is excluded from the table.
 
 The remaining **40 catalog schemas** have no concrete rule in this corpus; they are not counted as attempted or rejected.
 
@@ -22,18 +22,24 @@ All tested rules supply RHS attributes explicitly and use no `auto`. Proofs use 
 
 ## General reasoning comparison
 
-The frozen baseline verified **80 cases**. The general reasoning extension verifies **89**, adding **9** with **no previous proof lost**. Rule bodies, conditions, rank constraints and both HLO dialects are unchanged. Manifest edits only relocate case files, as recorded in [layout_migration.json](../baselines/layout_migration.json); [reasoning_baseline.json](../baselines/reasoning_baseline.json) preserves their hashes and the original per-case outcomes.
+The frozen baseline verified **80 cases**. The general reasoning extension verifies **95**, adding **15** with **no previous proof lost**. Rule bodies, conditions, rank constraints and both HLO dialects are unchanged. Manifest edits only relocate case files, as recorded in [layout_migration.json](../baselines/layout_migration.json); [reasoning_baseline.json](../baselines/reasoning_baseline.json) preserves their hashes and the original per-case outcomes.
 
 The compiler now lowers metadata indexing and pointwise comprehensions, propagates integer intervals and source extent inequalities, composes ordered sequence mappings, and combines reversals by selector parity. Original derived metadata programs retain checked-evaluation and final attribute-range obligations. No case names or HLO-specific identities are used by the reasoning implementation.
 
 Newly verified cases:
 
+- [broadcast_compose_append](../../tepl/rules/semantic/broadcast_compose_append.tepl)
+- [catalog_broadcast_multiply_constant_into_broadcast](../../tepl/rules/semantic/catalog_broadcast_multiply_constant_into_broadcast.tepl)
+- [catalog_dot_scalar_multipliers](../../tepl/rules/semantic/catalog_dot_scalar_multipliers.tepl)
 - [catalog_dot_transpose_both_operands](../../tepl/rules/semantic/catalog_dot_transpose_both_operands.tepl)
 - [catalog_indexing_reverse_trivial](../../tepl/rules/semantic/catalog_indexing_reverse_trivial.tepl)
+- [dot_move_reverse](../../tepl/rules/semantic/dot_move_reverse.tepl)
+- [dot_no_contraction](../../tepl/rules/semantic/dot_no_contraction.tepl)
 - [expr_reverse_compose_general](../../tepl/rules/semantic/expr_reverse_compose_general.tepl)
 - [expr_slice_compose_general](../../tepl/rules/semantic/expr_slice_compose_general.tepl)
 - [reduce_compose](../../tepl/rules/semantic/reduce_compose.tepl)
 - [reduce_compose_leading](../../tepl/rules/semantic/reduce_compose_leading.tepl)
+- [reverse_add_scalar](../../tepl/rules/semantic/reverse_add_scalar.tepl)
 - [reverse_compose_disjoint](../../tepl/rules/semantic/reverse_compose_disjoint.tepl)
 - [slice_compose](../../tepl/rules/semantic/slice_compose.tepl)
 - [slice_identity](../../tepl/rules/semantic/slice_identity.tepl)
@@ -45,10 +51,10 @@ This comparison measures proof coverage, not compiler speed. Missing operation s
 | Category | Catalog schemas | Cases tested | Verified cases | Schemas with a verified case | Missing semantics | Not proved | Timeout |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | elementwise | 99 | 84 | 62 | 62 | 8 | 14 | 0 |
-| indexing | 60 | 49 | 8 | 4 | 37 | 4 | 0 |
-| broadcast | 20 | 20 | 4 | 2 | 9 | 7 | 0 |
+| indexing | 60 | 49 | 9 | 5 | 37 | 3 | 0 |
+| broadcast | 20 | 20 | 6 | 4 | 9 | 5 | 0 |
 | transpose-reshape | 9 | 8 | 2 | 2 | 6 | 0 | 0 |
-| dot | 18 | 17 | 8 | 8 | 5 | 4 | 0 |
+| dot | 18 | 17 | 11 | 11 | 5 | 1 | 0 |
 | reduction | 26 | 24 | 5 | 4 | 19 | 0 | 0 |
 | convolution | 7 | 7 | 0 | 0 | 6 | 1 | 0 |
 
@@ -92,11 +98,7 @@ These cases reached the semantic path with definitions for all required operatio
 
 | Case | Limitation |
 |---|---|
-| [reverse_add_scalar](../../tepl/rules/semantic/reverse_add_scalar.tepl) | Coordinate correspondence does not establish the required scalar-broadcast mapping. |
 | [slice_reverse](../../tepl/rules/semantic/slice_reverse.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
-| [dot_move_reverse](../../tepl/rules/semantic/dot_move_reverse.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
-| [broadcast_compose_append](../../tepl/rules/semantic/broadcast_compose_append.tepl) | The checker does not establish nonnegative extents for the explicitly constructed shape list. |
-| [dot_no_contraction](../../tepl/rules/semantic/dot_no_contraction.tepl) | The checker does not establish nonnegative extents for the explicitly constructed shape list. |
 | [expr_divide_two_quotients](../../tepl/rules/semantic/expr_divide_two_quotients.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
 | [expr_divide_left_quotient](../../tepl/rules/semantic/expr_divide_left_quotient.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
 | [expr_divide_right_quotient](../../tepl/rules/semantic/expr_divide_right_quotient.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
@@ -113,15 +115,13 @@ These cases reached the semantic path with definitions for all required operatio
 | [catalog_elementwise_max_clamp_bound](../../tepl/rules/semantic/catalog_elementwise_max_clamp_bound.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
 | [catalog_elementwise_select_compare_gt](../../tepl/rules/semantic/catalog_elementwise_select_compare_gt.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
 | [catalog_elementwise_select_compare_lt](../../tepl/rules/semantic/catalog_elementwise_select_compare_lt.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
-| [catalog_broadcast_divide_broadcast](../../tepl/rules/semantic/catalog_broadcast_divide_broadcast.tepl) | The checker does not establish nonnegative extents for the explicitly constructed shape list. |
-| [catalog_broadcast_multiply_constant_into_broadcast](../../tepl/rules/semantic/catalog_broadcast_multiply_constant_into_broadcast.tepl) | The checker does not establish nonnegative extents for the explicitly constructed shape list. |
+| [catalog_broadcast_divide_broadcast](../../tepl/rules/semantic/catalog_broadcast_divide_broadcast.tepl) | Normalization does not establish scalar-value, tensor-access and reduction-domain equality. |
 | [catalog_broadcast_transpose](../../tepl/rules/semantic/catalog_broadcast_transpose.tepl) | The comprehension needs reasoning beyond the supported pointwise sequence fragment. |
 | [catalog_broadcast_transpose_broadcast](../../tepl/rules/semantic/catalog_broadcast_transpose_broadcast.tepl) | The comprehension needs reasoning beyond the supported pointwise sequence fragment. |
 | [catalog_broadcast_slice_broadcast_only](../../tepl/rules/semantic/catalog_broadcast_slice_broadcast_only.tepl) | The original derived metadata expression needs an indexing, arithmetic or attribute-range proof. |
 | [catalog_broadcast_slice_broadcast](../../tepl/rules/semantic/catalog_broadcast_slice_broadcast.tepl) | The checker does not establish nonnegative extents for the explicitly constructed shape list. |
 | [catalog_indexing_slice_singleton_stride](../../tepl/rules/semantic/catalog_indexing_slice_singleton_stride.tepl) | The comprehension needs reasoning beyond the supported pointwise sequence fragment. |
 | [catalog_dot_slice_output](../../tepl/rules/semantic/catalog_dot_slice_output.tepl) | The checker does not establish nonnegative extents for the explicitly constructed shape list. |
-| [catalog_dot_scalar_multipliers](../../tepl/rules/semantic/catalog_dot_scalar_multipliers.tepl) | The checker does not establish nonnegative extents for the explicitly constructed shape list. |
 
 ## Measured rules
 
@@ -157,19 +157,19 @@ Every row is a real compiler invocation. A successful ordinary type check withou
 | [reduce_transpose](../../tepl/rules/semantic/reduce_transpose.tepl) | reduction-transpose | proved |  | Rank-two transpose [1,0], sum over output axis 0, implicit zero initializer. |
 | [reverse_cancel](../../tepl/rules/semantic/reverse_cancel.tepl) | indexing-reverse-compose | proved |  | Identical ordered dimension lists; a subset of general symmetric-difference composition. |
 | [reverse_compose_disjoint](../../tepl/rules/semantic/reverse_compose_disjoint.tepl) | indexing-reverse-compose | proved |  | Rank-two disjoint lists [0] and [1]; probes a case beyond identical-list cancellation. |
-| [reverse_add_scalar](../../tepl/rules/semantic/reverse_add_scalar.tepl) | indexing-reverse-elementwise | not_proved |  | Only addition and a scalar broadcast; tests the compound rule directly, not a two-rule sequence. |
+| [reverse_add_scalar](../../tepl/rules/semantic/reverse_add_scalar.tepl) | indexing-reverse-elementwise | proved |  | Only addition and a scalar broadcast; tests the compound rule directly, not a two-rule sequence. |
 | [slice_identity](../../tepl/rules/semantic/slice_identity.tepl) | indexing-slice-identity | proved |  | Rank-one positive-size slice; empty outputs are excluded by the supplied dialect. |
 | [slice_compose](../../tepl/rules/semantic/slice_compose.tepl) | indexing-slice-compose | proved |  | Rank-one, positive-size, unit-stride slices with an explicit computed start. |
 | [slice_reverse](../../tepl/rules/semantic/slice_reverse.tepl) | indexing-slice-reverse | not_proved |  | Rank-one, positive-size, unit-stride slice of a reversed axis; explicit reflected start. |
 | [dot_associate](../../tepl/rules/semantic/dot_associate.tepl) | dot-associate | proved |  | Ordinary rank-two matrix products without batch axes; every attribute is reused explicitly. |
 | [dot_transpose_output](../../tepl/rules/semantic/dot_transpose_output.tepl) | dot-transpose-output | proved |  | Rank-two matrix product, output transpose [1,0]; explicit swapped contraction attributes. |
-| [dot_move_reverse](../../tepl/rules/semantic/dot_move_reverse.tepl) | dot-move-reverse | not_proved |  | Rank-one inner product; reversal of its sole contracting axis; no free/batch axes. |
+| [dot_move_reverse](../../tepl/rules/semantic/dot_move_reverse.tepl) | dot-move-reverse | proved |  | Rank-one inner product; reversal of its sole contracting axis; no free/batch axes. |
 | [negative_subtract_to_add](../../tepl/rules/semantic/negative_subtract_to_add.tepl) | negative control | not_proved |  | Deliberately incorrect subtraction-to-addition rewrite; excluded from coverage counts. |
 | [reduce_compose_leading](../../tepl/rules/semantic/reduce_compose_leading.tepl) | reduction-compose | proved |  | Rank-three sum with inner axis 0 then outer axis 0; implicit zero initializer. Compared with the nonleading-axis case. |
 | [slice_compose_zero_starts](../../tepl/rules/semantic/slice_compose_zero_starts.tepl) | indexing-slice-compose | proved |  | Rank-one, positive-size, unit-stride slices with both starts zero. Copies outer attributes; avoids computed constructors. |
-| [broadcast_compose_append](../../tepl/rules/semantic/broadcast_compose_append.tepl) | broadcast-compose | not_proved |  | Arbitrary input rank, broadcasts only append new dimensions; concatenates new extents explicitly. |
+| [broadcast_compose_append](../../tepl/rules/semantic/broadcast_compose_append.tepl) | broadcast-compose | proved |  | Arbitrary input rank, broadcasts only append new dimensions; concatenates new extents explicitly. |
 | [dot_swap_operands](../../tepl/rules/semantic/dot_swap_operands.tepl) | dot-swap-parameter-operand | proved |  | Rank-two matrix product. Proves the identity for any captured X/Y; does not implement parameter-like policy screening. |
-| [dot_no_contraction](../../tepl/rules/semantic/dot_no_contraction.tepl) | dot-no-contraction | not_proved |  | Rank-one operands, no batches or contractions; same-type ideal arithmetic, no conversions. |
+| [dot_no_contraction](../../tepl/rules/semantic/dot_no_contraction.tepl) | dot-no-contraction | proved |  | Rank-one operands, no batches or contractions; same-type ideal arithmetic, no conversions. |
 | [dot_reduce_product](../../tepl/rules/semantic/dot_reduce_product.tepl) | dot-reduce-product | proved |  | Rank-one inner product to multiply then sum; same-type ideal arithmetic, no widened accumulation. |
 | [dot_reduce_batch](../../tepl/rules/semantic/dot_reduce_batch.tepl) | dot-reduce-output-batch | proved |  | Rank-one batched product reduced over its sole batch axis; no remaining output axes. |
 | [expr_divide_one](../../tepl/rules/semantic/expr_divide_one.tepl) | elementwise-divide-one | proved |  | Scalar literal member; source numeric assumptions apply. |
@@ -250,7 +250,7 @@ Every row is a real compiler invocation. A successful ordinary type check withou
 | [catalog_elementwise_select_compare_ne](../../tepl/rules/semantic/catalog_elementwise_select_compare_ne.tepl) | elementwise-select-compare-ne | proved |  | Written operand/opcode variant under the catalog conditions. Local HLO select requires the predicate and both branches to have the same shape. |
 | [catalog_elementwise_divide_converted_predicate](../../tepl/rules/semantic/catalog_elementwise_divide_converted_predicate.tepl) | elementwise-divide-converted-predicate | missing_semantics | convert | Written operand/opcode variant under the catalog conditions. |
 | [catalog_broadcast_divide_broadcast](../../tepl/rules/semantic/catalog_broadcast_divide_broadcast.tepl) | broadcast-divide-broadcast | not_proved |  | Scalar Y broadcast to an arbitrary output shape. |
-| [catalog_broadcast_multiply_constant_into_broadcast](../../tepl/rules/semantic/catalog_broadcast_multiply_constant_into_broadcast.tepl) | broadcast-multiply-constant-into-broadcast | not_proved |  | Scalar factor C is a captured scalar; literal-only profitability does not affect the identity. |
+| [catalog_broadcast_multiply_constant_into_broadcast](../../tepl/rules/semantic/catalog_broadcast_multiply_constant_into_broadcast.tepl) | broadcast-multiply-constant-into-broadcast | proved |  | Scalar factor C is a captured scalar; literal-only profitability does not affect the identity. |
 | [catalog_broadcast_reshape](../../tepl/rules/semantic/catalog_broadcast_reshape.tepl) | broadcast-reshape | missing_semantics | reshape | Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions. |
 | [catalog_broadcast_transpose](../../tepl/rules/semantic/catalog_broadcast_transpose.tepl) | broadcast-transpose | not_proved |  | Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions. |
 | [catalog_broadcast_inserted_unit_dims](../../tepl/rules/semantic/catalog_broadcast_inserted_unit_dims.tepl) | broadcast-inserted-unit-dims | missing_semantics | reshape | Rank-one X; reshape inserts a leading unit axis; the outer broadcast appends axes. |
@@ -309,7 +309,7 @@ Every row is a real compiler invocation. A successful ordinary type check withou
 | [catalog_dot_move_broadcast](../../tepl/rules/semantic/catalog_dot_move_broadcast.tepl) | dot-move-broadcast | proved |  | One broadcast-created contraction axis; replacement dot is an outer product. |
 | [catalog_dot_slice_output](../../tepl/rules/semantic/catalog_dot_slice_output.tepl) | dot-slice-output | not_proved |  | Rank-two dot with arbitrary output starts, sizes and positive strides. |
 | [catalog_dot_reduce_output_free](../../tepl/rules/semantic/catalog_dot_reduce_output_free.tepl) | dot-reduce-output-free | proved |  | Reduce the left free axis of a rank-two dot; implicit sum initializer zero. |
-| [catalog_dot_scalar_multipliers](../../tepl/rules/semantic/catalog_dot_scalar_multipliers.tepl) | dot-scalar-multipliers | not_proved |  | Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity. |
+| [catalog_dot_scalar_multipliers](../../tepl/rules/semantic/catalog_dot_scalar_multipliers.tepl) | dot-scalar-multipliers | proved |  | Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity. |
 | [catalog_reduction_empty](../../tepl/rules/semantic/catalog_reduction_empty.tepl) | reduction-empty | missing_semantics | reduce | Single-output reduction with arbitrary initial value and empty input. |
 | [catalog_reduction_unit_axes](../../tepl/rules/semantic/catalog_reduction_unit_axes.tepl) | reduction-unit-axes | missing_semantics | reshape | Zero-initialized sum specialization of the generic-combiner schema. |
 | [catalog_reduction_reshape_reduced](../../tepl/rules/semantic/catalog_reduction_reshape_reduced.tepl) | reduction-reshape-reduced | missing_semantics | reshape | Sum over a merged pair of reduced axes; rank-three input. |
@@ -344,9 +344,9 @@ Every row is a real compiler invocation. A successful ordinary type check withou
 
 [verification.json](../results/verification.json) records diagnostics, required/missing operations, proof evidence and file/dependency hashes, including the semantic compiler sources and untracked additions. The revision and semantic source hashes identify the measured compiler. [verification_cases.json](../data/verification_cases.json) records scope and arithmetic policy. The validators reject stale inputs and missing or duplicate cases. [Language coverage](compilation.md) separately measures ordinary compilation using [the structural HLO profile](../../tepl/dialects/hlo_structural.tepl).
 
-- TEPL revision: `592b33a103c9123a9fd00614a0971e9b24eac890`.
+- TEPL revision: `145eb44f10ef4826575cfd1c15c1fdd28f66f8d5`.
 - XLA revision: `e02127ba9c9c48912b0e6776fe5bfe3843d81042`.
-- Compiler SHA-256: `13f2d83a43b982d69731910c1f415ef8c930a5d5393640a3190bc3c003a07940`.
+- Compiler SHA-256: `af87e6453056559ec5319f39e40a90401910bf10120168cea7f5eba153e020e2`.
 - Environment: Linux-7.0.0-38-generic-x86_64-with-glibc2.43; Python 3.14.4.
 - Timeout: 30 seconds per case.
 

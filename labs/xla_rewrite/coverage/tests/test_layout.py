@@ -29,7 +29,7 @@ class LayoutTest(unittest.TestCase):
         self.assertTrue(all(path.is_relative_to(TEPL) for path in sources))
 
     def test_local_documentation_links_resolve(self):
-        documents = [HERE.parent / "README.md", HERE.parent / "evaluation_plan.md",
+        documents = [HERE.parent / "README.md", HERE.parent / "catalog/README.md",
                      HERE / "README.md", TEPL / "README.md", *(HERE / "reports").glob("*.md")]
         for document in documents:
             for target in re.findall(r"\]\(([^)\s]+)\)", document.read_text()):

@@ -832,14 +832,15 @@ TensorMeaning lowerSource(Context& c) {
   return lhs;
 }
 
-E arithmeticSkeleton(const Plan& p, std::size_t id) {
-  const auto& n = p.nodes.at(id);
+E arithmeticSkeleton(Context& c, std::size_t id) {
+  c.tick();
+  const auto& n = c.plan.nodes.at(id);
   if (n.literal) return number(*n.literal);
   if (n.capture)
     return std::make_shared<Expr>(Expr{
         Expr::Kind::Read, n.capture->value, id, call("empty_axes", {}), {}});
   std::vector<E> inputs;
-  for (auto child : n.inputs) inputs.push_back(arithmeticSkeleton(p, child));
+  for (auto child : n.inputs) inputs.push_back(arithmeticSkeleton(c, child));
   std::function<E(const Value&)> lower = [&](const Value& v) -> E {
     if (v.kind == Value::Kind::Const) return constant(v.constant);
     if (v.kind == Value::Kind::Operand || v.kind == Value::Kind::Read)
@@ -847,28 +848,10 @@ E arithmeticSkeleton(const Plan& p, std::size_t id) {
     std::vector<E> args;
     for (const auto& a : v.args) args.push_back(lower(*a));
     if (v.kind == Value::Kind::Call) {
-      std::function<S(const Meta&)> parameter = [&](const Meta& m) -> S {
-        if (m.kind == Meta::Kind::Integer)
-          return make(Symbol::Kind::Integer, m.name);
-        if (m.kind == Meta::Kind::Attribute) {
-          if (n.descriptor && p.attributes.contains(n.descriptor->value))
-            return p.attributes.at(n.descriptor->value).at(m.index);
-          if (n.descriptor)
-            return make(Symbol::Kind::Field, m.name, n.descriptor->value,
-                        m.index);
-        }
-        if (m.kind == Meta::Kind::Call || m.kind == Meta::Kind::List) {
-          std::vector<S> args;
-          for (const auto& a : m.args) args.push_back(parameter(*a));
-          return m.kind == Meta::Kind::Call
-                     ? call(m.name, std::move(args))
-                     : make(Symbol::Kind::List, {}, 0, 0, std::move(args));
-        }
-        throw ProofFailure(
-            "unsupported scalar parameter in arithmetic skeleton");
-      };
+      Lowerer lowerer{c};
       std::vector<S> parameters;
-      for (const auto& m : v.parameters) parameters.push_back(parameter(*m));
+      for (const auto& m : v.parameters)
+        parameters.push_back(lowerer.metadata(*m, n, {}, {}));
       return scalarCall(v.function, std::move(args), std::move(parameters));
     }
     return expression(

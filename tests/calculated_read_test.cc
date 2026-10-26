@@ -162,7 +162,7 @@ void compare(const Plan& p, const Dense& input, const Attributes& attrs,
          "source agrees with independent physical reference");
   c.enableSetReasoning();
   auto correspondence = correspond(c, lhs, normalize(c, lhs.value),
-                                   normalize(c, arithmeticSkeleton(p, p.rhs)));
+                                   normalize(c, arithmeticSkeleton(c, p.rhs)));
   Lowerer target{c, &correspondence.anchors};
   target.interfaces = &correspondence.interfaces;
   auto rhs = target.lower(p.rhs);

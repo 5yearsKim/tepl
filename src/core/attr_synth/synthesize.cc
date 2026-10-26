@@ -6,6 +6,7 @@
 
 #include "src/core/attr_synth/construct.h"
 #include "src/core/attr_synth/ordered/construct.h"
+#include "src/core/attr_synth/scalar_parameters.h"
 
 namespace tepl::core::attr_synth {
 using namespace semantics;
@@ -25,8 +26,10 @@ Result run(const Plan& plan, std::size_t max_work,
     for (const auto& [value, type] : plan.constructed_metadata)
       c.checkMetadataType(value, type);
     auto lt = normalize(c, lhs.value, &rewrites);
+    phase = "scalar parameter construction";
+    inferScalarParameters(c, lt);
     phase = "coordinate correspondence";
-    auto rt = normalize(c, arithmeticSkeleton(plan, plan.rhs));
+    auto rt = normalize(c, arithmeticSkeleton(c, plan.rhs));
     auto match = correspond(c, lhs, lt, rt);
     phase = "attribute construction";
     std::vector<S> all;
@@ -52,21 +55,19 @@ Result run(const Plan& plan, std::size_t max_work,
         auto& fields = candidate.constructors[n.descriptor->value];
         for (std::size_t f = 0; f < n.definition->fields.size(); ++f) {
           auto value = c.canonical(c.field(n, f));
-          c.validateSource(value);
-          if (value->sort != Symbol::Sort::Positions &&
-              !(n.definition->extent_fields.contains(f) &&
-                value->sort == Symbol::Sort::Extents))
-            throw ProofFailure(
-                "attribute constructor is not a position sequence");
+          c.checkConstructor(n, f, value);
           fields.push_back(value);
         }
       }
     candidate.guard = c.guards();
     result.constructed = true;
-    const std::string coefficient_law = "law: index-coefficient-matching";
-    if (std::find(c.steps().begin(), c.steps().end(), coefficient_law) !=
-        c.steps().end())
-      result.steps.push_back(coefficient_law);
+    for (const auto* law :
+         {"index-coefficient-matching", "scalar-parameter-correspondence"}) {
+      const auto step = std::string("law: ") + law;
+      if (std::find(c.steps().begin(), c.steps().end(), step) !=
+          c.steps().end())
+        result.steps.push_back(step);
+    }
     result.rewrites = std::move(rewrites);
     if (admitted)
       result.steps.push_back("law: ordered-requirements-construction");

@@ -54,15 +54,29 @@ bool Context::nonnegative(const S& s) {
     if (equal(n, canonical(call("len", {selector})))) return true;
   return false;
 }
-std::optional<std::pair<S, S>> Context::positionBlock(const S& p) {
+std::optional<std::pair<S, S>> Context::positionBlock(const S& p,
+                                                      bool ordered) {
   if (callIs(p, "range") && nonnegative(p->args[0]))
     return std::pair(integer(0), p->args[0]);
   if (callIs(p, "offset_positions") && nonnegative(p->args[1]))
-    if (auto block = positionBlock(p->args[0]))
+    if (auto block = positionBlock(p->args[0], ordered))
       return std::pair(canonical(call("+", {p->args[1], block->first})),
                        block->second);
+  if (callIs(p, "concat") && !p->args.empty()) {
+    auto first = positionBlock(p->args[0], ordered);
+    if (!first) return {};
+    auto [start, size] = *first;
+    for (std::size_t i = 1; i < p->args.size(); ++i) {
+      auto next = positionBlock(p->args[i], ordered);
+      if (!next || !equal(canonical(call("+", {start, size})), next->first))
+        return {};
+      size = canonical(call("+", {size, next->second}));
+    }
+    return std::pair(start, size);
+  }
   auto size = canonical(call("len", {p}));
-  if (nonnegative(size) && evidence(call("axis_partition", {p, size})))
+  if ((!ordered || orderedPositions(p)) && nonnegative(size) &&
+      evidence(call("axis_partition", {p, size})))
     return std::pair(integer(0), size);
   return {};
 }
@@ -138,6 +152,19 @@ S Context::axisSequence(const S& axes) {
       for (const auto& part : x->args)
         parts.push_back(self(self, part, depth + 1));
       result = call("concat", std::move(parts));
+      if (callIs(result, "concat") && callIs(result->args[0], "gather")) {
+        auto base = result->args[0]->args[0];
+        std::vector<S> selectors;
+        for (const auto& part : result->args) {
+          if (!callIs(part, "gather") || !equal(part->args[0], base)) break;
+          selectors.push_back(part->args[1]);
+        }
+        if (selectors.size() == result->args.size())
+          result =
+              self(self,
+                   call("gather", {base, canonical(call("concat", selectors))}),
+                   depth + 1);
+      }
     } else if (callIs(x, "gather")) {
       auto base = x->args[0], selector = canonical(x->args[1]);
       while (callIs(base, "gather")) {
@@ -469,7 +496,16 @@ S Context::canonical(const S& s) {
     else if (s->name == "gather" && callIs(args[1], "range") &&
              evidence(call("==", {args[1]->args[0], call("len", {args[0]})})))
       out = args[0];
-    else if (s->name == "order_positions" && orderedPositions(args[0]))
+    else if (s->name == "place_axes" &&
+             equal(args[1], canonical(call("range", {call("len", {args[0]})}))))
+      out = call("concat", {args[0], args[2]});
+    else if (s->name == "concat" && args.size() > 1) {
+      out = call("concat", args);
+      if (auto block = positionBlock(out, true))
+        out = call("offset_positions",
+                   {call("range", {block->second}), block->first});
+    } else if (s->name == "order_positions" &&
+               (orderedPositions(args[0]) || positionBlock(args[0], true)))
       out = call("range", {call("len", {args[0]})});
     else if (s->name == "gather")
       out = selectKnown(args[0], args[1], QueryMode::Evidence);
@@ -709,6 +745,7 @@ S Context::filter(const S& order, const S& wanted, QueryMode mode) {
   }
   if (independent(o, w) || callIs(w, "empty_axes"))
     return call("empty_axes", {});
+  if (callIs(o, "gather") && equal(support(o->args[0], mode), w)) return o;
   auto overlap = intersect(o, w, mode);
   if (callIs(overlap, "empty_axes")) return overlap;
   if (equal(overlap, support(o, mode))) return o;
@@ -731,6 +768,23 @@ S Context::extents(const S& axes) {
   tick();
   if (callIs(axes, "filter_axes")) {
     auto group = axes->args[1];
+    const auto& order = axes->args[0];
+    if (callIs(order, "gather") &&
+        equal(canonical(order->args[0]), canonical(group)))
+      return extents(order);
+    if (callIs(group, "difference_axes") &&
+        equal(canonical(group->args[0]), canonical(order)) &&
+        callIs(group->args[1], "gather") &&
+        equal(canonical(group->args[1]->args[0]), canonical(order))) {
+      auto removed = group->args[1]->args[1];
+      if (evidence(call("distinct_axes", {order})) &&
+          evidence(call("is_valid_axis_list", {removed, call("len", {order})})))
+        return canonical(
+            call("gather",
+                 {extents(order),
+                  call("ordered_complement",
+                       {call("range", {call("len", {order})}), removed})}));
+    }
     if (callIs(group, "union_axes")) group = call("concat", group->args);
     // Reuse coordinate maps rather than expand whole-tensor shape gathers.
     // Restrict this fast path to direct coordinate groups and their selections.

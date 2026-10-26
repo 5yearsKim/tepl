@@ -3,6 +3,33 @@
 #include "src/core/semantics/symbolic/metadata_sequences.h"
 
 namespace tepl::core::semantics {
+void Context::checkConstructor(const Instance& n, std::size_t field,
+                               const S& value) {
+  validateSource(value);
+  auto type = plan.metadata_types.find({n.descriptor->value, field});
+  if (type != plan.metadata_types.end() && !elementType(type->second)) {
+    const auto kind = type->second.kind;
+    bool typed_field = false;
+    if (value->kind == Symbol::Kind::Field) {
+      auto source_type = plan.metadata_types.find({value->owner, value->index});
+      typed_field = source_type != plan.metadata_types.end() &&
+                    source_type->second == type->second;
+    }
+    if (typed_field ||
+        (isInteger(kind) && value->sort == Symbol::Sort::Integer) ||
+        (kind == TypeKind::kBool && value->sort == Symbol::Sort::Boolean)) {
+      checkMetadataType(value, type->second);
+      return;
+    }
+    throw ProofFailure("constructor does not match its scalar attribute type",
+                       FailureKind::InvalidCandidate);
+  }
+  if (value->sort != Symbol::Sort::Positions &&
+      !(n.definition->extent_fields.contains(field) &&
+        value->sort == Symbol::Sort::Extents))
+    throw ProofFailure("constructor must be a position or extent sequence",
+                       FailureKind::InvalidCandidate);
+}
 void Context::checkMetadataType(const S& raw, core::Type type) {
   tick();
   auto element = elementType(type);

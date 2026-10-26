@@ -1,6 +1,6 @@
 # XLA Rewrite Catalog
 
-This directory implements Step 1 of the [evaluation plan](../evaluation_plan.md): a source-based catalog of XLA algebraic rewrites. TEPL compilation and verification results are reported in [coverage/](../coverage/README.md); attribute inference is a later experiment.
+This directory contains the source-based catalog of XLA algebraic rewrites. TEPL compilation and verification results are reported in [coverage/](../coverage/README.md). The [attribute synthesis report](../coverage/reports/attribute_synthesis.md) describes the evaluation setup and explicit, full-auto, and partial-auto results.
 
 ## Files
 

@@ -26,6 +26,12 @@ const std::vector<Law>& laws() {
        "independent "
        "verification",
        false},
+      {"scalar-parameter-correspondence",
+       "parameter := matching source scalar parameter",
+       "unambiguous source function and parameter slot; declared attribute "
+       "type; "
+       "independent target legality and equivalence verification",
+       false},
       {"index-offset-normalization", "a+(b+x)=(a+b)+x; s*(a+x)=s*a+s*x",
        "paired tuple lengths; metadata offsets; exact integer arithmetic",
        false},
@@ -35,6 +41,10 @@ const std::vector<Law>& laws() {
       {"index-substitution",
        "Read(producer, q) = producer[output coordinates := q]",
        "capture-avoiding substitution; valid access domains", false},
+      {"reduction-reflection", "sum(q, f(q)) = sum(q, f(reflect(q)))",
+       "reflection selects only bound coordinates; identical finite domains; "
+       "the entire summand is substituted; exact associative addition",
+       true},
       {"axis-insertion", "place(S,positions(A,S),remaining(A,S)) = A",
        "distinct coordinates; S subset of A; remaining axes retain A order",
        false},

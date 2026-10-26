@@ -4,6 +4,8 @@
 
 #include "src/core/pipeline.h"
 #include "src/core/semantics/ir.h"
+#include "src/core/semantics/proof/verify.h"
+#include "src/core/semantics/symbolic/expr.h"
 #include "src/core/syntax/parse.h"
 #include "src/executable/codec.h"
 
@@ -76,6 +78,27 @@ void check(std::string rule, bool expected, bool algebraic = true,
     throw std::runtime_error("unexpected scalar verification result: " + rule);
   }
   if (proved) {
+    const auto& plan = *result.program->rules[0].semantic_plan;
+    for (const auto& [descriptor, fields] : plan.proof.constructors)
+      for (std::size_t field = 0; field < fields.size(); ++field)
+        if (fields[field]->kind ==
+            tepl::core::symbolic::Symbol::Kind::Integer) {
+          auto corrupted = plan.proof;
+          corrupted.constructors.at(descriptor)[field] =
+              tepl::core::semantics::boolean(true);
+          if (tepl::core::semantics::verify(plan, corrupted).status !=
+              tepl::core::semantics::ProofStatus::Unknown)
+            throw std::runtime_error(
+                "scalar constructor type corruption accepted");
+          corrupted.constructors.at(descriptor)[field] =
+              tepl::core::semantics::make(
+                  tepl::core::symbolic::Symbol::Kind::Integer,
+                  "18446744073709551616");
+          if (tepl::core::semantics::verify(plan, corrupted).status !=
+              tepl::core::semantics::ProofStatus::Unknown)
+            throw std::runtime_error(
+                "out-of-range scalar constructor accepted");
+        }
     auto compiled = tepl::core::compile(
         *parsed.program, {algebraic ? tepl::core::SemanticPolicy::kAlgebraic
                                     : tepl::core::SemanticPolicy::kStrict});
@@ -97,6 +120,33 @@ void run() {
         false);
   check("rule r {(D.exp X)=>(D.exp X)}", true, false);
   check("rule r {(c: D.compare X Y)=>(D.compare[c.attrs] X Y)}", true);
+  check(
+      "rule r {(c: D.compare (D.max X Y) X)=>(D.compare Y X) "
+      "where {c.attrs.direction==3}}",
+      true);
+  check(
+      "rule r {(c: D.compare X (D.min X Y))=>(D.compare X Y) "
+      "where {c.attrs.direction==3}}",
+      true);
+  check(
+      "rule r {(c: D.compare (D.max X Y) X)=>(D.compare X Y) "
+      "where {c.attrs.direction==3}}",
+      false);
+  check(
+      "rule r {(c: D.compare (D.max X Y) X)=>(D.compare Y X) "
+      "where {c.attrs.direction==0}}",
+      false);
+  auto renamed = dialect();
+  for (auto [from, to] : {std::pair{"op compare(", "op relation("},
+                          std::pair{"direction", "mode"}})
+    for (std::size_t pos = 0;
+         (pos = renamed.find(from, pos)) != std::string::npos;
+         pos += std::string(to).size())
+      renamed.replace(pos, std::string(from).size(), to);
+  check(
+      "rule r {(c: D.relation X (D.min X Y))=>(D.relation X Y) "
+      "where {c.attrs.mode==3}}",
+      true, true, renamed);
   check(
       "rule r {(c: D.compare X Y)=>(d: D.compare X Y) derive "
       "{d.attrs={direction:c.attrs.direction};}}",

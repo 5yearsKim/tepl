@@ -82,7 +82,7 @@ void compare(const Plan& p, const std::vector<Dense>& inputs,
          "source agrees with independent physical reference");
   c.enableSetReasoning();
   auto correspondence = correspond(c, lhs, normalize(c, lhs.value),
-                                   normalize(c, arithmeticSkeleton(p, p.rhs)));
+                                   normalize(c, arithmeticSkeleton(c, p.rhs)));
   Lowerer target{c, &correspondence.anchors};
   target.interfaces = &correspondence.interfaces;
   auto rhs = target.lower(p.rhs);
@@ -186,6 +186,35 @@ int main(int argc, char** argv) {
         "rule r {(r: reverse (b: broadcast C)) => (broadcast[b.attrs] C) where "
         "{len(b.attrs.dimensions)==0}}",
         false);
+    auto scalar_addition = plan(
+        "rule r {(r:reverse (add A (b:broadcast C))) => "
+        "(add (reverse A) (broadcast C)) where {b.attrs.dimensions==[]}}");
+    auto transfer = plan(
+        "rule r {X:[K] Y:[K] (d:dot (r:reverse X) Y) => "
+        "(dot X (reverse Y)) where {r.attrs.dimensions==[0] && "
+        "d.attrs.lhs_contracting_dimensions==[0] && "
+        "d.attrs.rhs_contracting_dimensions==[0] && "
+        "d.attrs.lhs_batching_dimensions==[] && "
+        "d.attrs.rhs_batching_dimensions==[]}}");
+    for (int extent : {0, 1, 2, 5}) {
+      auto x = data({extent}, 2), y = data({extent}, 4);
+      auto values = multiply(reverse(x, {0}), y).values;
+      Dense expected{
+          {}, {std::accumulate(values.begin(), values.end(), std::int64_t{0})}};
+      compare(transfer, {x, y}, {{"d", {{0}, {0}, {}, {}}}, {"r", {{0}}}},
+              expected);
+    }
+    auto free_reflection = analyze(
+        "rule r {X:[M,K] Y:[K,N] (d:dot (r:reverse X) Y) => "
+        "(dot[d.attrs] X Y) where {r.attrs.dimensions==[0] && "
+        "d.attrs.lhs_contracting_dimensions==[1] && "
+        "d.attrs.rhs_contracting_dimensions==[0] && "
+        "d.attrs.lhs_batching_dimensions==[] && "
+        "d.attrs.rhs_batching_dimensions==[]}}");
+    expect(free_reflection.ok() &&
+               free_reflection.program->rules[0].semantic_plan->proof.status ==
+                   ProofStatus::Unknown,
+           "a free-axis reflection cannot be removed as a summation change");
 
     for (std::size_t rank = 0; rank <= 4; ++rank) {
       List shape;
@@ -202,6 +231,9 @@ int main(int argc, char** argv) {
                 a);
         compare(addition, {a, b}, attrs, reverse(add(a, b), dimensions));
         compare(product, {a, b}, attrs, reverse(multiply(a, b), dimensions));
+        compare(scalar_addition, {a, scalar},
+                {{"r", {dimensions}}, {"b", {{}, shape}}},
+                add(reverse(a, dimensions), constant));
         attrs["b"] = {{}, shape};
         compare(broadcast, {scalar}, attrs, constant);
         compare(addition, {a, constant}, {{"r", {dimensions}}},

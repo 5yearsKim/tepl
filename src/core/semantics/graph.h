@@ -57,5 +57,5 @@ E number(std::string, S = {});
 std::vector<E> tensorReads(const E&);
 S freeAxes(const E&);
 std::string show(const E&);
-E arithmeticSkeleton(const Plan&, std::size_t);
+E arithmeticSkeleton(Context&, std::size_t);
 }  // namespace tepl::core::semantics

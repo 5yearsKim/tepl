@@ -4,6 +4,7 @@
 #include <functional>
 #include <stdexcept>
 
+#include "src/core/semantics/symbolic/reduction_reflection.h"
 #include "src/core/semantics/symbolic/scalar_normalize.h"
 
 namespace tepl::core::semantics {
@@ -75,6 +76,7 @@ Terms normalize(Context& c, const E& e,
       c.require(disjoint, GuardKind::ReductionDomain);
       conditions.push_back(disjoint);
       t.reductions = call("concat", {e->axes, t.reductions});
+      normalizeReflections(c, t);
     }
     if (left.size() > 1) record("reduction-linearity", left);
     if (e->args[0]->kind == Expr::Kind::Reduce)
@@ -220,137 +222,5 @@ std::string show(const Terms& terms) {
   }
   return out;
 }
-Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
-                          const Terms& rt) {
-  Correspondence result;
-  // Use raw terms to establish coordinates. Coefficients and cancellation are
-  // checked later in the fully lowered graph, not in the axis-free skeleton.
-  std::map<std::string, std::vector<const Term*>> left;
-  for (const auto& t : lt) left[footprint(t)].push_back(&t);
-  std::vector<std::pair<const Term*, const Term*>> pairs;
-  auto bindReads = [&](const std::vector<E>& reads, const Term& target) {
-    std::map<std::size_t, S> axes;
-    for (const auto& r : reads) {
-      auto frame = r->access && r->access->kind == IndexExpr::Kind::Coordinates
-                       ? r->access->axes
-                       : r->axes;
-      auto [it, inserted] = axes.emplace(r->capture, frame);
-      if (!inserted && !c.entails(call("==", {it->second, frame})))
-        throw ProofFailure(
-            "ambiguous tensor access correspondence is unsupported");
-    }
-    for (const auto& r : target.reads) {
-      if (!axes.contains(r->capture)) continue;
-      auto [it, inserted] =
-          result.anchors.emplace(r->occurrence, axes.at(r->capture));
-      if (!inserted) c.require(call("==", {it->second, axes.at(r->capture)}));
-    }
-  };
-  for (const auto& t : rt) {
-    c.tick();
-    auto k = footprint(t);
-    if (!left.contains(k)) continue;
-    std::vector<E> reads;
-    for (const auto* source : left.at(k))
-      reads.insert(reads.end(), source->reads.begin(), source->reads.end());
-    bindReads(reads, t);
-    const auto* source = left.at(k).front();
-    for (std::size_t i = 0; i < t.reads.size(); ++i)
-      if (t.reads[i]->capture != source->reads[i]->capture)
-        c.note("commutative-matching");
-    if (pairs.size() < lt.size() && k != footprint(lt[pairs.size()]))
-      c.note("commutative-matching");
-    pairs.emplace_back(source, &t);
-  }
-  // Shape-only operands and canceled subtrees still have coordinate interfaces.
-  // Fall back to source occurrences only if their access frame is unambiguous.
-  std::vector<E> source_reads;
-  for (const auto& [id, axes] : lhs.occurrence_axes)
-    source_reads.push_back(std::make_shared<Expr>(
-        Expr{Expr::Kind::Read, c.plan.nodes[id].capture->value, id, axes, {}}));
-  std::function<void(std::size_t)> fill = [&](std::size_t id) {
-    const auto& n = c.plan.nodes[id];
-    if (n.capture && !result.anchors.contains(id)) {
-      std::vector<E> reads;
-      for (const auto& r : source_reads)
-        if (r->capture == n.capture->value) reads.push_back(r);
-      Term target{call("empty_axes", {}),
-                  {std::make_shared<Expr>(
-                      Expr{Expr::Kind::Read, n.capture->value, id, {}, {}})}};
-      bindReads(reads, target);
-      if (!result.anchors.contains(id))
-        throw ProofFailure(
-            "shape-only capture has no established source interface");
-    }
-    for (auto child : n.inputs) fill(child);
-  };
-  fill(c.plan.rhs);
-  bool has_domains = false;
-  for (auto id : c.source().nodes)
-    if (const auto& definition = c.plan.nodes[id].definition)
-      for (const auto& group : definition->groups)
-        has_domains |= bool(group.domain);
-  auto independent_axes = has_domains
-                              ? c.difference(lhs.axes, freeAxes(lhs.value))
-                              : call("empty_axes", {});
-  std::function<std::set<std::size_t>(std::size_t)> visit =
-      [&](std::size_t id) {
-        c.tick();
-        const auto& n = c.plan.nodes[id];
-        std::set<std::size_t> leaves;
-        if (n.capture)
-          leaves.insert(id);
-        else
-          for (auto child : n.inputs) {
-            auto xs = visit(child);
-            leaves.insert(xs.begin(), xs.end());
-          }
-        S boundary;
-        for (const auto& [source, target] : pairs) {
-          std::vector<S> inside, outside;
-          bool active = false;
-          for (const auto& r : target->reads) {
-            bool local = leaves.contains(r->occurrence);
-            active |= local;
-            S dependencies = result.anchors.at(r->occurrence);
-            for (const auto& sr : source->reads)
-              if (sr->capture == r->capture && sr->access) {
-                dependencies = freeAxes(sr);
-                break;
-              }
-            (local ? inside : outside).push_back(dependencies);
-          }
-          if (!active) continue;
-          auto b = c.intersect(
-              call("union_axes", inside),
-              call("union_axes", {call("union_axes", outside), lhs.axes}));
-          if (boundary)
-            c.require(call("same_set", {boundary, b}));
-          else
-            boundary = b;
-        }
-        if (!boundary) {
-          std::vector<S> interfaces;
-          for (auto leaf : leaves)
-            interfaces.push_back(result.anchors.at(leaf));
-          boundary = call("union_axes", std::move(interfaces));
-        }
-        if (has_domains && n.definition)
-          boundary = call("union_axes", {boundary, independent_axes});
-        result.boundaries[id] = boundary;
-        std::vector<S> input_frames;
-        for (auto leaf : leaves)
-          input_frames.push_back(result.anchors.at(leaf));
-        result.interfaces[id] =
-            id == c.plan.rhs
-                ? lhs.axes
-                : call("concat",
-                       {c.filter(lhs.axes, boundary),
-                        c.filter(call("union_axes", std::move(input_frames)),
-                                 c.difference(boundary, lhs.axes))});
-        return leaves;
-      };
-  visit(c.plan.rhs);
-  return result;
-}
+
 }  // namespace tepl::core::semantics

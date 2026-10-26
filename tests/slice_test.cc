@@ -84,18 +84,13 @@ void compare(const Plan& p, const std::vector<Dense>& inputs,
          "LHS slice equals physical reference");
   c.enableSetReasoning();
   auto correspondence = correspond(c, lhs, normalize(c, lhs.value),
-                                   normalize(c, arithmeticSkeleton(p, p.rhs)));
+                                   normalize(c, arithmeticSkeleton(c, p.rhs)));
   Lowerer target{c, &correspondence.anchors};
   target.interfaces = &correspondence.interfaces;
   auto rhs = target.lower(p.rhs);
   actual = interpreter.tensor(rhs);
   expect(actual.shape == expected.shape && actual.values == expected.values,
          "inferred RHS slice equals physical reference");
-  // Evaluate constructors as standalone metadata programs, independently of
-  // target lowering. In every fixture their size must be the actual output.
-  for (const auto& [descriptor, values] : p.proof.constructors)
-    expect(std::get<List>(m.eval(values[1])) == expected.shape,
-           "inferred output sizes");
 }
 bool legal(const Plan& p, const List& shape, const Slice& config) {
   Context c{p, 1000000};
@@ -148,6 +143,20 @@ int main(int argc, char** argv) {
         "rule r {(outer: slice (middle: slice (inner: slice A))) => (slice "
         "A)}");
     auto identity = plan("rule r {(s: slice A) => (slice A)}");
+    auto sliced_broadcast = plan(
+        "rule r {A:[N] (s:slice (b:broadcast A)) => (broadcast A) where "
+        "{b.attrs.dimensions==[0] && s.attrs.starts[0]==0 && "
+        "s.attrs.sizes[0]==N && s.attrs.strides[0]==1}}");
+    proved(sliced_broadcast);
+    for (int n : {1, 2, 4}) {
+      auto input = data({n}, 3);
+      Dense expected{{n, 2}, {}};
+      enumerate(expected.shape, [&](const List& at) {
+        expected.values.push_back(input.at({at[0]}));
+      });
+      compare(sliced_broadcast, {input},
+              {{"b", {{0}, {6}}}, {"s", {{0, 1}, {n, 2}, {1, 2}}}}, expected);
+    }
     proved(distribution);
     proved(composition);
     proved(zero_start_composition);

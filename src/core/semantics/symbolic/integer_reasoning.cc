@@ -63,6 +63,19 @@ S Context::uniformElement(const S& seq) {
     return {};
   };
   result = constant(x);
+  if (!result && callIs(x, "gather") &&
+      x->args[1]->kind == Symbol::Kind::List && !x->args[1]->args.empty() &&
+      evidence(call("is_valid_axis_list",
+                    {x->args[1], call("len", {x->args[0]})}))) {
+    for (const auto& position : x->args[1]->args) {
+      auto value = canonical(call("index", {x->args[0], position}));
+      if (!metadataInteger(value) || (result && !equal(result, value))) {
+        result = {};
+        break;
+      }
+      result = value;
+    }
+  }
   // Track an element value independently of the symbolic tuple length. These
   // are value facts only: constructor definedness still checks every original
   // operand, length, selection and arithmetic intermediate.

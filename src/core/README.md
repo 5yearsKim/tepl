@@ -82,6 +82,18 @@ Type checking publishes its complete type table before semantic verification.
 verifies their equivalence and legality. Each attempt owns its facts, work budget,
 and caches.
 
+Coordinate correspondence lives in `semantics/symbolic/correspondence.cc`.
+It tracks value dependencies separately from tensor interfaces and propagates
+whole-operand shape bindings through consumers. Scalar parameter proposals live
+in `attr_synth/scalar_parameters.cc`; they reuse unambiguous parameters of the
+same scalar function in the normalized source. The verifier checks each
+constructor against its declared attribute type.
+
+`semantics/symbolic/reduction_reflection.cc` normalizes a summand by reflecting
+bound coordinates in their established finite domains. It substitutes the
+entire summand and preserves free coordinates. This requires algebraic addition;
+it does not establish strict floating-point equivalence.
+
 `attr_synth::synthesize(plan, strategy)` returns an unverified candidate or a
 construction failure. `semantics::proveRule` tries identity, ordered, then general
 synthesis, accepting a candidate only after fresh verification. Failed

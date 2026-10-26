@@ -59,6 +59,7 @@ class Context {
   void wellFormed(const S&);
   void checkMetadata(const S&);
   void checkMetadataType(const S&, core::Type);
+  void checkConstructor(const Instance&, std::size_t field, const S&);
   void note(const std::string&);
   S canonical(const S&);
   void learn(const S&);
@@ -161,7 +162,7 @@ class Context {
   S sequenceEquality(const S&, const S&);
   bool orderedPositions(const S&) const;
   bool nonnegative(const S&);
-  std::optional<std::pair<S, S>> positionBlock(const S&);
+  std::optional<std::pair<S, S>> positionBlock(const S&, bool ordered = false);
   S complementBlocks(const S&, const S&);
   bool setEntails(const S&);
   AxisSets::Id setExpression(const S&);

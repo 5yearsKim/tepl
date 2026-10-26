@@ -48,7 +48,7 @@ cc_test(
     name = "scalar_test",
     size = "small",
     srcs = ["scalar_test.cc"],
-    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:model", "//src/executable"],
+    deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:model", "//src/core/semantics:proof", "//src/executable"],
 )
 
 cc_test(
