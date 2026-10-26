@@ -1,0 +1,8 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: indexing-dynamic-slice-identity
+// Scope: Rank-one full-shape dynamic slice.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_dynamic_slice_identity {
+    X: [N] (hlo.dynamic_slice[@s] X Start) => X where { @s.sizes==[N] }
+}

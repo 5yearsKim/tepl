@@ -5,8 +5,8 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_convolution_depthwise_product {
     X: [N,L,C] W: [L,One,C]
-     (hlo.general_convolution[@c] X W)
-     => (hlo.reshape[@out] (hlo.reduce_sum[@sum] (hlo.multiply (hlo.transpose[@x] X) (hlo.broadcast[@b] (hlo.reshape[@w] (hlo.transpose[@p] W))))))
-     where { One==1 && @c.feature_group_count==C && @c.batch_group_count==1 && @c.input_batch_dimension==0 && @c.input_feature_dimension==2 && @c.input_spatial_dimensions==[1] && @c.kernel_input_feature_dimension==1 && @c.kernel_output_feature_dimension==2 && @c.kernel_spatial_dimensions==[0] && @c.output_batch_dimension==0 && @c.output_feature_dimension==2 && @c.output_spatial_dimensions==[1] && @c.window_strides==[1] && @c.lhs_dilation==[1] && @c.rhs_dilation==[1] && @c.padding_low==[0] && @c.padding_high==[0] && @c.window_reversal==[false] }
-     derive { @x={permutation:[0,2,1]}; @p={permutation:[1,2,0]}; @w={shape:[C,L]}; @b={dimensions:[1,2],new_extents:[N]}; @sum={dimensions:[2]}; @out={shape:[N,1,C]}; }
+     (attr_c: hlo.general_convolution X W)
+     => (attr_out: hlo.reshape (attr_sum: hlo.reduce_sum (hlo.multiply (attr_x: hlo.transpose X) (attr_b: hlo.broadcast (attr_w: hlo.reshape (attr_p: hlo.transpose W))))))
+     where { One==1 && attr_c.attrs.feature_group_count==C && attr_c.attrs.batch_group_count==1 && attr_c.attrs.input_batch_dimension==0 && attr_c.attrs.input_feature_dimension==2 && attr_c.attrs.input_spatial_dimensions==[1] && attr_c.attrs.kernel_input_feature_dimension==1 && attr_c.attrs.kernel_output_feature_dimension==2 && attr_c.attrs.kernel_spatial_dimensions==[0] && attr_c.attrs.output_batch_dimension==0 && attr_c.attrs.output_feature_dimension==2 && attr_c.attrs.output_spatial_dimensions==[1] && attr_c.attrs.window_strides==[1] && attr_c.attrs.lhs_dilation==[1] && attr_c.attrs.rhs_dilation==[1] && attr_c.attrs.padding_low==[0] && attr_c.attrs.padding_high==[0] && attr_c.attrs.window_reversal==[false] }
+     derive { attr_x.attrs={permutation:[0,2,1]}; attr_p.attrs={permutation:[1,2,0]}; attr_w.attrs={shape:[C,L]}; attr_b.attrs={dimensions:[1,2],new_extents:[N]}; attr_sum.attrs={dimensions:[2]}; attr_out.attrs={shape:[N,1,C]}; }
 }

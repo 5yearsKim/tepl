@@ -4,6 +4,6 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Scope: Written operand/opcode variant under the catalog conditions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_compare_min {
-    (hlo.compare[@c] A (hlo.minimum A B)) => (hlo.compare[@c] A B)
-     where { @c.direction == 3 }
+    (attr_c: hlo.compare A (hlo.minimum A B)) => (hlo.compare[attr_c.attrs] A B)
+     where { attr_c.attrs.direction == 3 }
 }

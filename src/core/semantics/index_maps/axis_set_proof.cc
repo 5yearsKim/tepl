@@ -7,6 +7,21 @@ AxisSets::Id Context::setExpression(const S& value) {
   auto k = key(x);
   if (auto it = set_expressions_.find(k); it != set_expressions_.end())
     return it->second;
+  // Preserved selections are not independent membership atoms. Reuse ordered
+  // equality's context-sized sequence geometry, without adding RHS premises.
+  // Symbolic maps use the binding/partition evidence below; expanding only
+  // explicit positions avoids walking unrelated symbolic producer trees.
+  auto expanded =
+      callIs(x, "gather") && canonical(x->args[1])->kind == Symbol::Kind::List
+          ? axisSequence(x)
+          : x;
+  if (!equal(x, expanded)) {
+    auto placeholder = sets_->atom(x);
+    set_expressions_[k] = placeholder;
+    auto result = setExpression(expanded);
+    sets_->assume(sets_->equivalent(placeholder, result));
+    return set_expressions_[k] = result;
+  }
   AxisSets::Id result;
   if (auto overlap = bindings_.overlapFor(x)) {
     // A full overlap may be its own parent. Such a view is an atom

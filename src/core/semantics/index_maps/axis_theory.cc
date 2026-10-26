@@ -56,6 +56,7 @@ S Context::canonicalChildren(const S& s) {
 void Context::invalidate() {
   ++counters.invalidations;
   queries_.canonical.clear();
+  queries_.axis_sequences.clear();
   queries_.entailment.clear();
   queries_.evidence.clear();
   queries_.intervals.clear();

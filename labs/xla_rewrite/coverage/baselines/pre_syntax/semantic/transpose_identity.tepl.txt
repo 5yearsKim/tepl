@@ -1,0 +1,8 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule transpose_identity {
+    (transpose[@p] X) => X
+    where { @p.permutation == range(len(@p.permutation)) }
+}

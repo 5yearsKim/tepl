@@ -5,5 +5,5 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_scatter_empty_update {
     U: [Dims...]
-     (hlo.scatter[@s] X Indices U) => X where { product(Dims)==0 }
+     (attr_s: hlo.scatter X Indices U) => X where { product(Dims)==0 }
 }

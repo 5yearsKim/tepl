@@ -1,0 +1,6 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_reduce_compose_general {
+    X: [Dims...] (hlo.reduce[@outer] (hlo.reduce[@inner] X Init) Init) => (hlo.reduce[@out] X Init) where { @inner.body == @outer.body } derive { let axes = range(len(Dims)); let lifted = gather(exclude(axes, @inner.dimensions), @outer.dimensions); let both = concat(@inner.dimensions, lifted); @out = { ..@inner, dimensions: exclude(axes, exclude(axes, both)) }; }
+}

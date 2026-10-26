@@ -5,11 +5,11 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 rule native_power_two_splat {
     dtype T;
     X: T[Dims...]
-    (hlo.power X (hlo.fill[@exponent])) => (hlo.multiply X X)
+    (hlo.power X (attr_exponent: hlo.fill)) => (hlo.multiply X X)
     where {
         is_numeric(T)
-        && @exponent.element_type == T
-        && @exponent.shape == Dims
-        && @exponent.value == 2
+        && attr_exponent.attrs.element_type == T
+        && attr_exponent.attrs.shape == Dims
+        && attr_exponent.attrs.value == 2
     }
 }

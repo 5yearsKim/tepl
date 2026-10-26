@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_slice_inside_pad {
     X: [Dims...]
-     (hlo.slice[@s] (hlo.nonnegative_pad[@p] X C)) => (hlo.slice[@out] X)
-     where { @s.strides==[1 for d in Dims] && @p.interior==[0 for d in Dims] && all([@s.starts[i]>=@p.low[i] && @s.starts[i]+@s.sizes[i]<=@p.low[i]+Dims[i] for i in range(len(Dims))]) }
-     derive { @out={..@s,starts:[@s.starts[i]-@p.low[i] for i in range(len(Dims))]}; }
+     (attr_s: hlo.slice (attr_p: hlo.nonnegative_pad X C)) => (attr_out: hlo.slice X)
+     where { attr_s.attrs.strides==[1 for d in Dims] && attr_p.attrs.interior==[0 for d in Dims] && all([attr_s.attrs.starts[i]>=attr_p.attrs.low[i] && attr_s.attrs.starts[i]+attr_s.attrs.sizes[i]<=attr_p.attrs.low[i]+Dims[i] for i in range(len(Dims))]) }
+     derive { attr_out.attrs={..attr_s.attrs,starts:[attr_s.attrs.starts[i]-attr_p.attrs.low[i] for i in range(len(Dims))]}; }
 }

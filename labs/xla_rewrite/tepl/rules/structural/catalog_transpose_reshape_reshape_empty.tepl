@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_transpose_reshape_reshape_empty {
     dtype T; X: T[Dims...]
-     (hlo.reshape[@r] X) => (hlo.fill[@out])
-     where { product(@r.shape)==0 }
-     derive { @out={shape:@r.shape,value:0,element_type:T}; }
+     (attr_r: hlo.reshape X) => (attr_out: hlo.fill)
+     where { product(attr_r.attrs.shape)==0 }
+     derive { attr_out.attrs={shape:attr_r.attrs.shape,value:0,element_type:T}; }
 }

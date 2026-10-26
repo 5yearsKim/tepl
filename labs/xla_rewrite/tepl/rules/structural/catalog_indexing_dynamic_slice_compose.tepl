@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_dynamic_slice_compose {
     X: [N] S: i64[] T: i64[]
-     (hlo.dynamic_slice[@outer] (hlo.dynamic_slice[@inner] X S) T)
-     => (hlo.dynamic_slice[@outer] X (hlo.add (hlo.clamp 0:i64 S (hlo.scalar[@first])) (hlo.clamp 0:i64 T (hlo.scalar[@second]))))
-     derive { @first={value:N-@inner.sizes[0],element_type:i64,shape:[]}; @second={value:@inner.sizes[0]-@outer.sizes[0],element_type:i64,shape:[]}; }
+     (attr_outer: hlo.dynamic_slice (attr_inner: hlo.dynamic_slice X S) T)
+     => (hlo.dynamic_slice[attr_outer.attrs] X (hlo.add (hlo.clamp 0:i64 S (attr_first: hlo.scalar)) (hlo.clamp 0:i64 T (attr_second: hlo.scalar))))
+     derive { attr_first.attrs={value:N-attr_inner.attrs.sizes[0],element_type:i64,shape:[]}; attr_second.attrs={value:attr_inner.attrs.sizes[0]-attr_outer.attrs.sizes[0],element_type:i64,shape:[]}; }
 }

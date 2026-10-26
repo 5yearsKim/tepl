@@ -1,0 +1,10 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule broadcast_multiply {
+    (mul (broadcast[@left] X) (broadcast[@right] Y))
+    => (broadcast[@left] (mul X Y))
+    where { @left.dimensions == @right.dimensions
+         && @left.new_extents == @right.new_extents }
+}

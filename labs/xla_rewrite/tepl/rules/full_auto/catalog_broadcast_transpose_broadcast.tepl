@@ -1,0 +1,11 @@
+// Generated inference variant; original graph and conditions preserved.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-transpose-broadcast
+// Scope: General insertion-only broadcast/permutation equation; source sorted-map/layout policy remains in the catalog.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_transpose_broadcast {
+    X: [Dims...]
+     (attr_p: hlo.transpose (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast X)
+     
+}

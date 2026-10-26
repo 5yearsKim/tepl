@@ -5,7 +5,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_dot_move_zero_pad {
     X: f32[M,K] Y: f32[P,N]
-     (hlo.dot[@d] (hlo.nonnegative_pad[@p] X 0.0:f32) Y) => (hlo.dot[@d] X (hlo.slice[@s] Y))
-     where { @p.low[0]==0 && @p.high[0]==0 && @p.interior[0]==0 && P==@p.low[1]+K+max(K-1,0)*@p.interior[1]+@p.high[1] && @d.lhs_batching_dimensions==[] && @d.rhs_batching_dimensions==[] && @d.lhs_contracting_dimensions==[1] && @d.rhs_contracting_dimensions==[0] }
-     derive { @s={starts:[@p.low[1],0],sizes:[K,N],strides:[@p.interior[1]+1,1]}; }
+     (attr_d: hlo.dot (attr_p: hlo.nonnegative_pad X 0.0:f32) Y) => (hlo.dot[attr_d.attrs] X (attr_s: hlo.slice Y))
+     where { attr_p.attrs.low[0]==0 && attr_p.attrs.high[0]==0 && attr_p.attrs.interior[0]==0 && P==attr_p.attrs.low[1]+K+max(K-1,0)*attr_p.attrs.interior[1]+attr_p.attrs.high[1] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
+     derive { attr_s.attrs={starts:[attr_p.attrs.low[1],0],sizes:[K,N],strides:[attr_p.attrs.interior[1]+1,1]}; }
 }

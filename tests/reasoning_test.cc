@@ -322,6 +322,57 @@ void registeredAxisEquality() {
   expect(!c.entails(call("==", {selected_pair, expected})),
          "filtering a permutation cannot silently restore the original order");
 }
+void registeredAxisMembership() {
+  Plan p;
+  Context c{p, 1000000};
+  auto a_shape = make(Symbol::Kind::Shape, {}, 0);
+  auto b_shape = make(Symbol::Kind::Shape, {}, 1);
+  auto d_shape = make(Symbol::Kind::Shape, {}, 2);
+  auto a = make(Symbol::Kind::AxisGroup, "a", 0, 0, {a_shape});
+  auto b = make(Symbol::Kind::AxisGroup, "b", 1, 0, {b_shape});
+  auto d = make(Symbol::Kind::AxisGroup, "d", 2, 0, {d_shape});
+  auto frame = call("concat", {a, b, d});
+  auto selected = call("gather", {frame, list({3, 1})});
+  auto first = call("gather", {b, list({0})});
+  auto expected = call("concat", {d, first});
+  c.enableSetReasoning();
+  expect(!c.entails(call("same_set", {selected, expected})),
+         "unknown block lengths do not justify a concrete projection");
+  c.learn(call("==", {call("len", {a_shape}), integer(1)}));
+  c.learn(call("==", {call("len", {b_shape}), integer(2)}));
+  c.learn(call("==", {call("len", {d_shape}), integer(1)}));
+  auto second = call("gather", {b, list({1})});
+  c.partition(b, {first, second}, {list({0}), list({1})});
+  c.enableSetReasoning();
+  c.bind(frame, selected, list({3, 1}));
+  expect(c.entails(call("same_set", {selected, expected})),
+         "membership projects registered selections into context-sized blocks");
+  expect(equal(c.canonical(selected), selected),
+         "membership reasoning preserves the original coordinate witness");
+  auto removed = call("gather", {frame, list({0, 2})});
+  expect(c.entails(call("same_set",
+                        {selected, call("difference_axes", {frame, removed})})),
+         "projected selections compose with complement membership");
+  expect(!c.entails(call("same_set", {selected, call("concat", {d, second})})),
+         "membership distinguishes positions within a block");
+  expect(!c.entails(call("==", {selected, call("concat", {first, d})})),
+         "set equality never proves a reversed coordinate order");
+  auto invalid = call("gather", {frame, list({4, 1})});
+  expect(!c.entails(call("same_set", {invalid, expected})),
+         "out-of-range selection cannot establish membership equality");
+  auto alias = make(Symbol::Kind::AxisGroup, "alias", 3, 0, {a_shape});
+  c.learn(call("==", {alias, a}));
+  auto filtered = call("filter_axes", {alias, a});
+  c.bind(alias, filtered, list({0}));
+  auto alias_selection =
+      call("gather", {call("concat", {filtered, d}), list({0})});
+  c.bind(call("concat", {filtered, d}), alias_selection, list({0}));
+  expect(c.entails(call("same_set", {alias_selection, a})),
+         "view expansion respects established coordinate aliases");
+  expect(
+      !c.entails(call("same_set", {alias_selection, call("empty_axes", {})})),
+      "coordinate aliases cannot turn a retained group into an empty set");
+}
 void definedness() {
   Plan p;
   Instance input;
@@ -510,6 +561,7 @@ int main() {
     shapes();
     selectedShapeEquality();
     registeredAxisEquality();
+    registeredAxisMembership();
     sequences();
     uniformVectors();
     emptyAxes();

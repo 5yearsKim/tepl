@@ -4,7 +4,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Scope: Adjacent rank-one unit-stride slices.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_concat_adjacent_slices {
-    (hlo.concatenate[@c] (hlo.slice[@a] X) (hlo.slice[@b] X)) => (hlo.slice[@out] X)
-     where { @c.dimension==0 && @a.strides==[1] && @b.strides==[1] && @a.starts[0]+@a.sizes[0]==@b.starts[0] }
-     derive { @out={starts:@a.starts,sizes:[@a.sizes[0]+@b.sizes[0]],strides:[1]}; }
+    (attr_c: hlo.concatenate (attr_a: hlo.slice X) (attr_b: hlo.slice X)) => (attr_out: hlo.slice X)
+     where { attr_c.attrs.dimension==0 && attr_a.attrs.strides==[1] && attr_b.attrs.strides==[1] && attr_a.attrs.starts[0]+attr_a.attrs.sizes[0]==attr_b.attrs.starts[0] }
+     derive { attr_out.attrs={starts:attr_a.attrs.starts,sizes:[attr_a.attrs.sizes[0]+attr_b.attrs.sizes[0]],strides:[1]}; }
 }

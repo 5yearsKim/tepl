@@ -5,7 +5,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_dot_constant_dynamic_slice {
     C: [M,K] D: [K,N] S0: i32[] S1: i32[]
-     (hlo.dot[@d] (hlo.dynamic_slice[@s] C S0 S1) D) => (hlo.dynamic_slice[@out] (hlo.dot[@d] C D) S0 0:i32)
-     where { @s.sizes==[1,K] && @d.lhs_batching_dimensions==[] && @d.rhs_batching_dimensions==[] && @d.lhs_contracting_dimensions==[1] && @d.rhs_contracting_dimensions==[0] }
-     derive { @out={sizes:[1,N]}; }
+     (attr_d: hlo.dot (attr_s: hlo.dynamic_slice C S0 S1) D) => (attr_out: hlo.dynamic_slice (hlo.dot[attr_d.attrs] C D) S0 0:i32)
+     where { attr_s.attrs.sizes==[1,K] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
+     derive { attr_out.attrs={sizes:[1,N]}; }
 }

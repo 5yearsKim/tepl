@@ -5,10 +5,10 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_rotate_compose {
     X: [Dims...]
-     (hlo.rotate[@q] (hlo.rotate[@p] X)) => (hlo.rotate[@out] X)
-     where { all([Dims[d]>0 for d in concat(@p.dimensions,@q.dimensions)]) }
+     (attr_q: hlo.rotate (attr_p: hlo.rotate X)) => (attr_out: hlo.rotate X)
+     where { all([Dims[d]>0 for d in concat(attr_p.attrs.dimensions,attr_q.attrs.dimensions)]) }
      derive {
-      let axes=exclude(range(len(Dims)),exclude(range(len(Dims)),concat(@p.dimensions,@q.dimensions)));
-      @out={dimensions:axes,shifts:[(sum([if @p.dimensions[i]==d then @p.shifts[i] else 0 for i in range(len(@p.dimensions))])+sum([if @q.dimensions[i]==d then @q.shifts[i] else 0 for i in range(len(@q.dimensions))])) % Dims[d] for d in axes]};
+      let axes=exclude(range(len(Dims)),exclude(range(len(Dims)),concat(attr_p.attrs.dimensions,attr_q.attrs.dimensions)));
+      attr_out.attrs={dimensions:axes,shifts:[(sum([if attr_p.attrs.dimensions[i]==d then attr_p.attrs.shifts[i] else 0 for i in range(len(attr_p.attrs.dimensions))])+sum([if attr_q.attrs.dimensions[i]==d then attr_q.attrs.shifts[i] else 0 for i in range(len(attr_q.attrs.dimensions))])) % Dims[d] for d in axes]};
      }
 }

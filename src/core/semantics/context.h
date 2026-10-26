@@ -104,7 +104,7 @@ class Context {
     std::map<Key, std::vector<S>> valid_selectors;
   } facts_;
   struct QueryState {
-    std::map<Key, S> canonical;
+    std::map<Key, S> canonical, axis_sequences;
     std::map<Key, bool> entailment, evidence;
     std::map<Key, IntegerInterval> intervals;
     std::map<Key, S> uniform_elements;
@@ -157,6 +157,7 @@ class Context {
   S lookupPositions(const S&, const S&, QueryMode);
   S selectKnown(const S&, const S&, QueryMode);
   S computeSupport(const S&, QueryMode);
+  S axisSequence(const S&);
   S sequenceEquality(const S&, const S&);
   bool orderedPositions(const S&) const;
   bool nonnegative(const S&);

@@ -1,0 +1,11 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: broadcast-pad-broadcast
+// Scope: Rank-one X broadcast to rank two; padding only affects the mapped first axis.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_pad_broadcast {
+    X: [N]
+     (hlo.nonnegative_pad[@p] (hlo.broadcast[@b] X) C) => (hlo.broadcast[@b] (hlo.nonnegative_pad[@small] X C))
+     where { @b.dimensions == [0] && len(@p.low)==2 && @p.low[1]==0 && @p.high[1]==0 && @p.interior[1]==0 }
+     derive { @small = { low:[@p.low[0]], high:[@p.high[0]], interior:[@p.interior[0]] }; }
+}

@@ -4,8 +4,8 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Scope: Rank-two operand, rank-three updates with leading scatter axis, no batching.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_transpose_scatter {
-    (hlo.transpose[@p] (hlo.scatter[@s] X Indices Updates))
-     => (hlo.scatter[@out] (hlo.transpose[@p] X) Indices (hlo.transpose[@up] Updates))
-     where { @p.permutation==[1,0] && @s.input_batching_dims==[] && @s.scatter_indices_batching_dims==[] && @s.update_window_dims==[1,2] && @s.inserted_window_dims==[] && @s.scatter_dims_to_operand_dims==[0] && @s.index_vector_dim==1 }
-     derive { @out={..@s,scatter_dims_to_operand_dims:[1]}; @up={permutation:[0,2,1]}; }
+    (attr_p: hlo.transpose (attr_s: hlo.scatter X Indices Updates))
+     => (attr_out: hlo.scatter (hlo.transpose[attr_p.attrs] X) Indices (attr_up: hlo.transpose Updates))
+     where { attr_p.attrs.permutation==[1,0] && attr_s.attrs.input_batching_dims==[] && attr_s.attrs.scatter_indices_batching_dims==[] && attr_s.attrs.update_window_dims==[1,2] && attr_s.attrs.inserted_window_dims==[] && attr_s.attrs.scatter_dims_to_operand_dims==[0] && attr_s.attrs.index_vector_dim==1 }
+     derive { attr_out.attrs={..attr_s.attrs,scatter_dims_to_operand_dims:[1]}; attr_up.attrs={permutation:[0,2,1]}; }
 }

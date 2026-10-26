@@ -5,7 +5,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_window_singleton_max {
     X: [Dims...] Init: []
-     (hlo.reduce_window_max[@w] X Init) => (hlo.nonnegative_pad[@p] (hlo.maximum X (hlo.broadcast[@b] Init)) Init)
-     where { @w.window_dimensions==[1 for d in Dims] && @w.window_strides==[1 for d in Dims] && @w.base_dilations==[1 for d in Dims] && @w.window_dilations==[1 for d in Dims] }
-     derive { @b={dimensions:[],new_extents:Dims}; @p={low:@w.padding_low,high:@w.padding_high,interior:[0 for d in Dims]}; }
+     (attr_w: hlo.reduce_window_max X Init) => (attr_p: hlo.nonnegative_pad (hlo.maximum X (attr_b: hlo.broadcast Init)) Init)
+     where { attr_w.attrs.window_dimensions==[1 for d in Dims] && attr_w.attrs.window_strides==[1 for d in Dims] && attr_w.attrs.base_dilations==[1 for d in Dims] && attr_w.attrs.window_dilations==[1 for d in Dims] }
+     derive { attr_b.attrs={dimensions:[],new_extents:Dims}; attr_p.attrs={low:attr_w.attrs.padding_low,high:attr_w.attrs.padding_high,interior:[0 for d in Dims]}; }
 }

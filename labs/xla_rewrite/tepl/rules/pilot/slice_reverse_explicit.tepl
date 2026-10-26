@@ -1,0 +1,14 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Syntax migration of rules/semantic/slice_reverse.tepl.
+// Preserve its rank-one, reversal, and unit-stride restrictions.
+rule slice_reverse_explicit {
+    X: [N]
+    (source: hlo.slice (rev: hlo.reverse X))
+    => (hlo.reverse[rev.attrs] (result: hlo.slice X))
+    where { rev.attrs.dimensions == [0] && source.attrs.strides == [1] }
+    derive {
+        result.attrs = { ..source.attrs,
+            starts: [N - source.attrs.starts[0] - source.attrs.sizes[0]] };
+    }
+}

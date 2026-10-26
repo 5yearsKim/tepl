@@ -5,6 +5,6 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_splat_and {
     X: [] Init: []
-     (hlo.reduce_and[@r] (hlo.broadcast[@b] X) Init) => (hlo.logical_and X Init)
-     where { @b.dimensions==[] && product(@b.new_extents)>0 && @r.dimensions==range(len(@b.new_extents)) }
+     (attr_r: hlo.reduce_and (attr_b: hlo.broadcast X) Init) => (hlo.logical_and X Init)
+     where { attr_b.attrs.dimensions==[] && product(attr_b.attrs.new_extents)>0 && attr_r.attrs.dimensions==range(len(attr_b.attrs.new_extents)) }
 }

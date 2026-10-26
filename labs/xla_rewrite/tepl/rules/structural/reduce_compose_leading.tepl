@@ -3,7 +3,7 @@ use hlo::{reduce_sum};
 
 rule reduce_compose_leading {
     X: [I, J, K]
-    (reduce_sum[@outer] (reduce_sum[@inner] X)) => (reduce_sum[@out] X)
-    where { @inner.dimensions == [0] && @outer.dimensions == [0] }
-    derive { @out = { dimensions: [0, 1] }; }
+    (attr_outer: reduce_sum (attr_inner: reduce_sum X)) => (attr_out: reduce_sum X)
+    where { attr_inner.attrs.dimensions == [0] && attr_outer.attrs.dimensions == [0] }
+    derive { attr_out.attrs = { dimensions: [0, 1] }; }
 }

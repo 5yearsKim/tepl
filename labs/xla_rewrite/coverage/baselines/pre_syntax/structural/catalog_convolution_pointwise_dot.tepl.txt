@@ -1,0 +1,11 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: convolution-pointwise-dot
+// Scope: One-spatial-axis pointwise convolution in canonical layouts, no grouping or padding.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_convolution_pointwise_dot {
+    X: [N,L,C] W: [One,C,F]
+     (hlo.general_convolution[@c] X W) => (hlo.reshape[@out] (hlo.dot[@d] (hlo.reshape[@x] X) (hlo.reshape[@w] W)))
+     where { One==1 && @c.feature_group_count==1 && @c.batch_group_count==1 && @c.input_batch_dimension==0 && @c.input_feature_dimension==2 && @c.input_spatial_dimensions==[1] && @c.kernel_input_feature_dimension==1 && @c.kernel_output_feature_dimension==2 && @c.kernel_spatial_dimensions==[0] && @c.output_batch_dimension==0 && @c.output_feature_dimension==2 && @c.output_spatial_dimensions==[1] && @c.window_strides==[1] && @c.lhs_dilation==[1] && @c.rhs_dilation==[1] && @c.padding_low==[0] && @c.padding_high==[0] && @c.window_reversal==[false] }
+     derive { @x={shape:[N*L,C]}; @w={shape:[C,F]}; @d={lhs_batching_dimensions:[],rhs_batching_dimensions:[],lhs_contracting_dimensions:[1],rhs_contracting_dimensions:[0]}; @out={shape:[N,L,F]}; }
+}

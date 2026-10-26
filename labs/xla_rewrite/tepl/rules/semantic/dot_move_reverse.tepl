@@ -5,9 +5,9 @@ use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
 rule dot_move_reverse {
     X: [K]
     Y: [K]
-    (dot[@d] (reverse[@r] X) Y) => (dot[@d] X (reverse[@r] Y))
-    where { @r.dimensions == [0]
-         && @d.lhs_batching_dimensions == [] && @d.rhs_batching_dimensions == []
-         && @d.lhs_contracting_dimensions == [0]
-         && @d.rhs_contracting_dimensions == [0] }
+    (attr_d: dot (attr_r: reverse X) Y) => (dot[attr_d.attrs] X (reverse[attr_r.attrs] Y))
+    where { attr_r.attrs.dimensions == [0]
+         && attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []
+         && attr_d.attrs.lhs_contracting_dimensions == [0]
+         && attr_d.attrs.rhs_contracting_dimensions == [0] }
 }

@@ -1,0 +1,11 @@
+// Generated inference variant; original graph and conditions preserved.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-divide-broadcast
+// Scope: Scalar Y broadcast to an arbitrary output shape.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_divide_broadcast {
+    Y: []
+     (hlo.divide X (attr_b: hlo.broadcast Y)) => (hlo.multiply X (hlo.broadcast (hlo.divide 1 Y)))
+     where { attr_b.attrs.dimensions == [] }
+}

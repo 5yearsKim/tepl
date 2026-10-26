@@ -4,9 +4,9 @@ use hlo::{dot, mul, reduce_sum};
 rule dot_reduce_product {
     X: [K]
     Y: [K]
-    (dot[@d] X Y) => (reduce_sum[@r] (mul X Y))
-    where { @d.lhs_batching_dimensions == [] && @d.rhs_batching_dimensions == []
-         && @d.lhs_contracting_dimensions == [0]
-         && @d.rhs_contracting_dimensions == [0] }
-    derive { @r = { dimensions: [0] }; }
+    (attr_d: dot X Y) => (attr_r: reduce_sum (mul X Y))
+    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []
+         && attr_d.attrs.lhs_contracting_dimensions == [0]
+         && attr_d.attrs.rhs_contracting_dimensions == [0] }
+    derive { attr_r.attrs = { dimensions: [0] }; }
 }

@@ -10,9 +10,13 @@ This directory contains all TEPL sources used by the XLA rewrite evaluation.
 | [rules/semantic/](rules/semantic/) | Explicit rules checked for semantic equivalence, plus a false control |
 | [rules/structural/](rules/structural/) | The same rule bodies using declarations without value semantics |
 | [graphs/](graphs/) | Input graphs for concrete rewrite execution tests |
+| [rules/full_auto/](rules/full_auto/) | Generated variants inferring every RHS descriptor |
+| [rules/partial_auto/](rules/partial_auto/) | Generated variants inferring a subset of RHS descriptors |
 
-Every RHS attribute is explicit; no case uses `auto`. Counterpart rule bodies
-differ only in their dialect import. Some semantic rules intentionally remain
+The semantic and structural baselines supply RHS attributes explicitly.
+Their counterpart rule bodies differ only in their dialect import. Generated
+inference variants omit descriptor definitions; current TEPL uses no `auto`
+keyword. Some semantic rules intentionally remain
 unproved, so run individual cases rather than checking the whole project.
 
 From the repository root:

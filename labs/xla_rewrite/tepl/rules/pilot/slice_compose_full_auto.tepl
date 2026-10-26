@@ -1,0 +1,9 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Same equation and conditions as slice_compose_explicit.tepl.
+rule slice_compose_full_auto {
+    X: [N]
+    (outer: hlo.slice (inner: hlo.slice X))
+    => (hlo.slice X)
+    where { inner.attrs.strides == [1] && outer.attrs.strides == [1] }
+}

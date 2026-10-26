@@ -5,7 +5,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_dot_drop_unit_dims {
     X: [One,M,K] Y: [K,N]
-     (hlo.dot[@d] X Y) => (hlo.reshape[@out] (hlo.dot[@new] (hlo.reshape[@left] X) Y))
-     where { One==1 && @d.lhs_batching_dimensions==[] && @d.rhs_batching_dimensions==[] && @d.lhs_contracting_dimensions==[2] && @d.rhs_contracting_dimensions==[0] }
-     derive { @left={shape:[M,K]}; @new={lhs_batching_dimensions:[],rhs_batching_dimensions:[],lhs_contracting_dimensions:[1],rhs_contracting_dimensions:[0]}; @out={shape:[1,M,N]}; }
+     (attr_d: hlo.dot X Y) => (attr_out: hlo.reshape (attr_new: hlo.dot (attr_left: hlo.reshape X) Y))
+     where { One==1 && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[2] && attr_d.attrs.rhs_contracting_dimensions==[0] }
+     derive { attr_left.attrs={shape:[M,K]}; attr_new.attrs={lhs_batching_dimensions:[],rhs_batching_dimensions:[],lhs_contracting_dimensions:[1],rhs_contracting_dimensions:[0]}; attr_out.attrs={shape:[1,M,N]}; }
 }

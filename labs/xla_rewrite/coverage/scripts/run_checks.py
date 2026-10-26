@@ -30,9 +30,8 @@ def run(compiler, timeout):
     compiler_digest = digest(compiler)
     compiler_sources = {
         str(p.relative_to(ROOT)): digest(p)
-        for p in sorted((ROOT / "src/core/semantics").rglob("*")) if p.is_file()
-    } | {"src/core/checking/operations/semantics.cc":
-         digest(ROOT / "src/core/checking/operations/semantics.cc")}
+        for p in sorted((ROOT / "src").rglob("*")) if p.is_file()
+    }
     records = []
     for case in manifest["cases"]:
         path = (HERE / case["file"]).resolve()
@@ -54,6 +53,8 @@ def run(compiler, timeout):
                 raise ValueError("proof reported for operations without semantics: " + str(missing))
             status = "proved" if proved else "missing_semantics" if missing else "not_proved"
             diagnostics = result.stderr.strip()
+            if not proved:
+                diagnostics = "\n".join(filter(None, [diagnostics, result.stdout.strip()]))
             returncode = result.returncode
             if proved:
                 proof_evidence = [line.strip() for line in result.stdout.splitlines()

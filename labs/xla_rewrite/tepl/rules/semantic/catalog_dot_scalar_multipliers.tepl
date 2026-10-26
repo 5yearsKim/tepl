@@ -5,7 +5,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_dot_scalar_multipliers {
     X: f32[M,K] Y: f32[K,N] Scale: f32[]
-     (hlo.dot[@d] (hlo.multiply (hlo.broadcast[@b] Scale) X) Y) => (hlo.multiply (hlo.broadcast[@out] Scale) (hlo.dot[@d] X Y))
-     where { @b.dimensions==[] && @b.new_extents==[M,K] && @d.lhs_batching_dimensions==[] && @d.rhs_batching_dimensions==[] && @d.lhs_contracting_dimensions==[1] && @d.rhs_contracting_dimensions==[0] }
-     derive { @out={dimensions:[],new_extents:[M,N]}; }
+     (attr_d: hlo.dot (hlo.multiply (attr_b: hlo.broadcast Scale) X) Y) => (hlo.multiply (attr_out: hlo.broadcast Scale) (hlo.dot[attr_d.attrs] X Y))
+     where { attr_b.attrs.dimensions==[] && attr_b.attrs.new_extents==[M,K] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
+     derive { attr_out.attrs={dimensions:[],new_extents:[M,N]}; }
 }

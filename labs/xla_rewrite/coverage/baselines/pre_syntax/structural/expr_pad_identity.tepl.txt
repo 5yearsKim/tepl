@@ -1,0 +1,6 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_pad_identity {
+    X: [Dims...] (hlo.pad[@p] X C) => X where { @p.low == [0 for d in Dims] && @p.high == [0 for d in Dims] && @p.interior == [0 for d in Dims] }
+}

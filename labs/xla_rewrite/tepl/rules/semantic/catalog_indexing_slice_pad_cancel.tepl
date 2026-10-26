@@ -5,6 +5,6 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_slice_pad_cancel {
     X: [Dims...]
-     (hlo.slice[@s] (hlo.nonnegative_pad[@p] X C)) => X
-     where { @s.starts==@p.low && @s.sizes==Dims && @s.strides==[v+1 for v in @p.interior] }
+     (attr_s: hlo.slice (attr_p: hlo.nonnegative_pad X C)) => X
+     where { attr_s.attrs.starts==attr_p.attrs.low && attr_s.attrs.sizes==Dims && attr_s.attrs.strides==[v+1 for v in attr_p.attrs.interior] }
 }

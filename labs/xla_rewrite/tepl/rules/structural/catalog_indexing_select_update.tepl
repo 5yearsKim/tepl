@@ -6,6 +6,6 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 rule catalog_indexing_select_update {
     P: [N] X: [N] Y: [M]
      (hlo.select P X (hlo.dynamic_update_slice X Y S))
-     => (hlo.dynamic_update_slice X (hlo.select (hlo.dynamic_slice[@slice] P S) (hlo.dynamic_slice[@slice] X S) Y) S)
-     derive { @slice={sizes:[M]}; }
+     => (hlo.dynamic_update_slice X (hlo.select (attr_slice: hlo.dynamic_slice P S) (hlo.dynamic_slice[attr_slice.attrs] X S) Y) S)
+     derive { attr_slice.attrs={sizes:[M]}; }
 }

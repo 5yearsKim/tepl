@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_convolution_empty {
     dtype T; X: T[Left...] W: T[Right...]
-     (hlo.general_convolution[@c] X W) => (hlo.fill[@zero])
+     (attr_c: hlo.general_convolution X W) => (attr_zero: hlo.fill)
      where { product(Left)==0 || product(Right)==0 }
-     derive { @zero={shape:@c.shape,value:0,element_type:T}; }
+     derive { attr_zero.attrs={shape:attr_c.attrs.shape,value:0,element_type:T}; }
 }

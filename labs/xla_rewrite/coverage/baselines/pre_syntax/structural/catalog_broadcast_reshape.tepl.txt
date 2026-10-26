@@ -1,0 +1,14 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: broadcast-reshape
+// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_reshape {
+    X: [Dims...]
+     (hlo.broadcast[@b] X) => (hlo.reshape[@r] X)
+     where { all([if i == 0 then true else @b.dimensions[i-1] < @b.dimensions[i] for i in range(len(@b.dimensions))]) && all([e == 1 for e in @b.new_extents]) }
+     derive {
+      let rank = len(Dims) + len(@b.new_extents);
+      @r = { shape: [if contains(@b.dimensions, i) then sum([if @b.dimensions[j] == i then Dims[j] else 0 for j in range(len(Dims))]) else 1 for i in range(rank)] };
+     }
+}

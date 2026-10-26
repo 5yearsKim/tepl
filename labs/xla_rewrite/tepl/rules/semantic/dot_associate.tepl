@@ -6,13 +6,13 @@ rule dot_associate {
     X: [M, K]
     Y: [K, N]
     Z: [N, P]
-    (dot[@outer] (dot[@inner] X Y) Z) => (dot[@inner] X (dot[@outer] Y Z))
-    where { @inner.lhs_batching_dimensions == []
-         && @inner.rhs_batching_dimensions == []
-         && @inner.lhs_contracting_dimensions == [1]
-         && @inner.rhs_contracting_dimensions == [0]
-         && @outer.lhs_batching_dimensions == []
-         && @outer.rhs_batching_dimensions == []
-         && @outer.lhs_contracting_dimensions == [1]
-         && @outer.rhs_contracting_dimensions == [0] }
+    (attr_outer: dot (attr_inner: dot X Y) Z) => (dot[attr_inner.attrs] X (dot[attr_outer.attrs] Y Z))
+    where { attr_inner.attrs.lhs_batching_dimensions == []
+         && attr_inner.attrs.rhs_batching_dimensions == []
+         && attr_inner.attrs.lhs_contracting_dimensions == [1]
+         && attr_inner.attrs.rhs_contracting_dimensions == [0]
+         && attr_outer.attrs.lhs_batching_dimensions == []
+         && attr_outer.attrs.rhs_batching_dimensions == []
+         && attr_outer.attrs.lhs_contracting_dimensions == [1]
+         && attr_outer.attrs.rhs_contracting_dimensions == [0] }
 }

@@ -4,12 +4,12 @@ use hlo::{dot, broadcast, mul};
 rule dot_no_contraction {
     X: [M]
     Y: [N]
-    (dot[@d] X Y) => (mul (broadcast[@left] X) (broadcast[@right] Y))
-    where { @d.lhs_batching_dimensions == [] && @d.rhs_batching_dimensions == []
-         && @d.lhs_contracting_dimensions == []
-         && @d.rhs_contracting_dimensions == [] }
+    (attr_d: dot X Y) => (mul (attr_left: broadcast X) (attr_right: broadcast Y))
+    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []
+         && attr_d.attrs.lhs_contracting_dimensions == []
+         && attr_d.attrs.rhs_contracting_dimensions == [] }
     derive {
-        @left = { dimensions: [0], new_extents: [N] };
-        @right = { dimensions: [1], new_extents: [M] };
+        attr_left.attrs = { dimensions: [0], new_extents: [N] };
+        attr_right.attrs = { dimensions: [1], new_extents: [M] };
     }
 }

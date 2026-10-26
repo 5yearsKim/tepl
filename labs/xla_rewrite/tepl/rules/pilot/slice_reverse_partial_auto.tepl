@@ -1,0 +1,10 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Same equation and conditions as slice_reverse_explicit.tepl.
+// Infer the slice descriptor; copy the explicit reversal descriptor.
+rule slice_reverse_partial_auto {
+    X: [N]
+    (source: hlo.slice (rev: hlo.reverse X))
+    => (hlo.reverse[rev.attrs] (hlo.slice X))
+    where { rev.attrs.dimensions == [0] && source.attrs.strides == [1] }
+}

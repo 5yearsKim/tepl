@@ -1,0 +1,3754 @@
+{
+  "schema_version": 1,
+  "tepl_revision": "e155b17fc2968b5f499dc8befae095976c95d8ca",
+  "tracked_code_changes": [
+    "tests/codegen/cpp/custom.cc",
+    "tests/codegen/cpp/dtype.cc",
+    "tests/codegen/cpp/early_where.cc",
+    "tests/codegen/cpp/examples.cc",
+    "tests/codegen/cpp/names.cc",
+    "tests/codegen/cpp/runtime.cc",
+    "tests/codegen/cpp/runtime.tepl",
+    "tests/codegen/cpp/structural.cc",
+    "tests/codegen/custom.tepl",
+    "tests/codegen/dtype.tepl",
+    "tests/codegen/early_where.tepl",
+    "tests/codegen/legacy_semantics/README.md",
+    "tests/codegen/names.tepl",
+    "tests/codegen/semantic_early.tepl",
+    "tests/codegen/structural.tepl"
+  ],
+  "untracked_code_files": [
+    "tests/codegen/README.md"
+  ],
+  "compiler_source_hashes": {
+    "src/core/semantics/BUILD.bazel": "d6d9c13477ca9bea11cf0a062790865f519769ddb100bee48500259268f8595a",
+    "src/core/semantics/compilation_context.h": "268dac1e2b046b123ee74dbcbf8035e60d10606606e76621d281040959a725c2",
+    "src/core/semantics/completion.cc": "40383a27e6b93b25b5960d5cabb85c46bef665def3261a1c56961a3b30187ab8",
+    "src/core/semantics/completion.h": "44da40d82be1658665a865a6392e2fff17a90df5601abc2046fdc1cd94cd4901",
+    "src/core/semantics/context.cc": "611df7bc4678334b56e4af69b3119eefa050b612b3251a4a57fab46111b0404b",
+    "src/core/semantics/context.h": "75f9d3af596ca5a7e630e4df0ade802666eb17bfe51399daf409c93277b39fd2",
+    "src/core/semantics/definition.cc": "c0f02e74b54509ea9790fd6d19525ff2c687a4cede4260b51fe998b151f0253a",
+    "src/core/semantics/definition.h": "735b22ac678a6f38c1420c33aa51755742ee8121f5824ea88db6140114466d34",
+    "src/core/semantics/graph.cc": "d837367aeeef29b9e4f24cc22d065a5e3bceaa1f974104b64c6fe6ab95d36048",
+    "src/core/semantics/graph.h": "2c0e29d3c06f4ad10251bacf0168feed50107a4b60ef4aea733cd519c837aa2a",
+    "src/core/semantics/index_maps/axis_bindings.cc": "5831262a5e64c290c9178b3733ca6ab6b4e5494ebfbd603d1cf1762076b683c7",
+    "src/core/semantics/index_maps/axis_bindings.h": "a21302538355596d988a1678062f1cdb8eed1b2fb96443c0e4c4c685ac977dae",
+    "src/core/semantics/index_maps/axis_maps.cc": "76f834dd45cf497046981552405e268a92a8a3dc801558e010a927b176f8de34",
+    "src/core/semantics/index_maps/axis_normalize.cc": "50ef718a3d1c5edd6fb77a96e6a24515050405af57461c7c0def5c3bb976c24b",
+    "src/core/semantics/index_maps/axis_set_proof.cc": "8ed3daf6693e8225847fba762e582963fdacfe5035ecc996cf2215aa1d5251eb",
+    "src/core/semantics/index_maps/axis_sets.cc": "3a96df6bcae160224ddebd8cc0570d92c865e9341cf7d138d923f4c2c69e9df7",
+    "src/core/semantics/index_maps/axis_sets.h": "74a72010d95188dbcbb9f5c615c12c8bf2d90bae0375f7d66ae015ba70293ace",
+    "src/core/semantics/index_maps/axis_theory.cc": "84a44c53e3d349f848461bbde1e9d6eb094ec98fdb961e9a7eece554d6026a2e",
+    "src/core/semantics/index_maps/axis_transport.cc": "1cb93e4f48daf3dda12be57c53f60a9304f806ed5dee4b595d5c8dd3c98d245e",
+    "src/core/semantics/inspect.h": "5100a763e6e0590ef28fc101c720556a768957cd0337bddcd8556b92145693ca",
+    "src/core/semantics/inspection.h": "5f51847a592656ba13089ab3017064fbe029043b6a6455e1ce3cd99e577bd68f",
+    "src/core/semantics/ir.cc": "c8a37df7cb1842dfaffaf6c715c1b2076992603534e4e8538b6105d45087bc83",
+    "src/core/semantics/ir.h": "dd97a7690187ce390bf9fbeed3cb63e1cdc6ed51f5ccd493ceace4471ac4584d",
+    "src/core/semantics/materialize.cc": "b4a728dfb36f41853a554526cd7f90cab78e33429a498ca560e6ca563c12ad2e",
+    "src/core/semantics/materialize.h": "6e00452eed41d06963f0a60e782ba799e0ba5d9f0bb8f137d3d06ab53bc2ee94",
+    "src/core/semantics/metadata_print.cc": "4d747f5720de80dd0ef9455d14ab53808de45c62421b0bb0f6f8f746f1a02b09",
+    "src/core/semantics/metadata_print.h": "56e10e83ef10a2306738bbf55f3a64eb6aa3479647ad5f1fec1c1bb64b07208e",
+    "src/core/semantics/options.h": "14206689388df5aaf7500a1d6a8b612a452460857bdfe4891368e3c3a15af6bd",
+    "src/core/semantics/plan.cc": "eadec4c55cfc0ea5afb936564c1c43f6470e9697d04730d6fa3595a1eed90907",
+    "src/core/semantics/print.cc": "88cc4be11627081bc3d4064f9b0b4560e2666af0f3a9a6cf4984d310b0f716ba",
+    "src/core/semantics/program.cc": "1190a96e56545bd10c8dc6be57e2770bd968e1a1388302fa021152056619dcd1",
+    "src/core/semantics/program.h": "9c071701bd2fefc37052d4d63203600ea48e3ee83197e4979b1a3c1c9741cf83",
+    "src/core/semantics/proof/proof_policy.h": "f46e2277f4edccdce037041089ec7f332afddab9aed2c73f8ffd904c67e5c82c",
+    "src/core/semantics/proof/verify.cc": "4b269e60ca565842817d567420d03871be403dc7350ceaf84e4a526b251e548f",
+    "src/core/semantics/proof/verify.h": "6072a166e33a3c37b34f4e153d42c4e61adb199f6a5cb6fa92b7dc07866593b9",
+    "src/core/semantics/report.cc": "8d264b57813ff4539e38330a33dcf247156a7dc7c3bb9d4094bc8f365427000c",
+    "src/core/semantics/report.h": "4e17498d67e1a132c969413f1e06edab9d82981997f7fb08c98b6948a6a2a899",
+    "src/core/semantics/scalar.h": "73a04d06176c0a1f9e627a075b5b103a2f51089dbe3afa3c62a350d337080262",
+    "src/core/semantics/symbolic/expr.cc": "75ff499649872dcf655d95b6cfdf5016d11de04be62db1a848691e60a19f7cf4",
+    "src/core/semantics/symbolic/expr.h": "fbdbd9222f86c24c484c417fa06f905b64f0e95dbbcabbcdc9c40af495ea508a",
+    "src/core/semantics/symbolic/extent_arithmetic.cc": "c29da3b24c7e46c08caeb642ab1ea06edba57ff7cc073e788d1597d6f4fad24f",
+    "src/core/semantics/symbolic/index_expr.cc": "b4b2461b13275064cf1e0dd031ecf12a4a92479b64fb8ae9a1bd39f844b169ae",
+    "src/core/semantics/symbolic/index_expr.h": "5987c390aebd24f27cd7a09647de6fcf1a42e05e2318a3b0e5fdf9b24206da83",
+    "src/core/semantics/symbolic/integer_reasoning.cc": "1d65a12bc9a5e22bed95e23c54f936be7ca86af10df81e123dbfeded0f5ca8b8",
+    "src/core/semantics/symbolic/key.h": "1854885a2f122f00bf745e8ad3d3092cbf3ee68a7c46a90c13464eb5d69d792c",
+    "src/core/semantics/symbolic/metadata_definedness.cc": "2753aeea16e55ca54769f5e38dedaf33004e33a57154713deef74f71aae8eba2",
+    "src/core/semantics/symbolic/metadata_sequences.cc": "a37d6088049acadb7925fa74d464668c7d1fa63e162ec5910bc70f19e6e9a3a2",
+    "src/core/semantics/symbolic/metadata_sequences.h": "2e1a05ec6ae67d382f4666ba53c405b84c731336459f0ecdad672697400cbece",
+    "src/core/semantics/symbolic/normalize.cc": "2a079eefb22021ac23c0ebf268c0e6494099799d6f534162fc1a468dab21119f",
+    "src/core/semantics/symbolic/normalize.h": "1049fc43e4b8cc6d38f4decd207bc0a3430d1202ddcd41d97ef241d869be8c0a",
+    "src/core/semantics/symbolic/scalar_normalize.cc": "2847a992cbe192dfe7c15e033e7598967a5cbe0e6a93d4756e0943aae2cc7c9c",
+    "src/core/semantics/symbolic/scalar_normalize.h": "832228c5ce97b3323a59aeec8bd230730273dcd50ceea8f16db1cd2ef6d170be",
+    "src/core/semantics/symbolic/symbol.h": "834f5d9c75281330b61b87dab041a231005501660cc4e1cbc361db874bc812ba",
+    "src/core/semantics/synthesis/index_inference.cc": "6bfee3de5f5f2f519215fc07d2da4c246699ca5b3c926fd021f9e5a97e45313a",
+    "src/core/semantics/synthesis/index_inference.h": "2cda7040887584737cc779aa39131d2b9bfa5e96d1616b96227a3a709a76b46e",
+    "src/core/semantics/synthesis/synthesize.cc": "666d2f045318959930ef17d2c23d18ff779ee9bd7510874795121cd573976975",
+    "src/core/semantics/synthesis/synthesize.h": "0907a05293a4e94f179cdcb1583a24e22fbf233538a441952ffdc1d16d6c187b",
+    "src/core/semantics/verified_ir.h": "f78f874edf0f3bda3d01f7e8039708beed76cbc353b1510045f9f23a1dd90ee0",
+    "src/core/semantics/verify.h": "e223520df86b60ce0e17ec92ecb1fb73230b67f5047ae9e5ef5b655136c5cee7",
+    "src/core/checking/operations/semantics.cc": "052cb08f9027b910a1b4f516a8dfb53a09755cb2a305871f5702901d72d3027c"
+  },
+  "compiler_sha256": "162a5c1eaae70a353b13c1c457635cc46f2c43efea947b3184d072ddc7177a35",
+  "dependencies": {
+    "labs/xla_rewrite/coverage/data/verification_cases.json": "0048cf6ed034eb272945512f5900a0fec76b27699c057881122666115e67e539",
+    "labs/xla_rewrite/coverage/scripts/run_checks.py": "c54bcc87ccf28c2e08cb4703b56078575a8d89cc58053130d125742da627eaf5",
+    "labs/xla_rewrite/coverage/baselines/reasoning_baseline.json": "6629df4f751b0aa8f96c16b8a1563ad96b60519c4c5131f16966c07a02ac05e4",
+    "labs/xla_rewrite/tepl/tepl.toml": "f61bb4fb3cc4a7d8ce1c2dd834ac1d7ca3018d3ce85d8523d0982dcc46aa2d4e",
+    "labs/xla_rewrite/coverage/scripts/hlo_support.py": "e65835e7209d8900f41d08b6242e982e626e803ee7517d3eba6e6ad078424226",
+    "labs/xla_rewrite/coverage/data/hlo_support.json": "a64db1b6ab3e107aeaa7287e33768579f2d6683302b4522b9718f41be1744010",
+    "labs/xla_rewrite/catalog/rules.json": "656ce53e7dba55ed1d5a6141d77b81dae02f2386229215029b3812a9211d4060",
+    "labs/xla_rewrite/tepl/dialects/hlo.tepl": "9add97d3f11bd2a53455d578586398992c49c36e867e0cba3848390493f7a6de",
+    "labs/xla_rewrite/coverage/scripts/paths.py": "d257bc0455ba25a79a51c2cad4f21e05ceb007665a27bd7d4201cb27db2a35b5",
+    "labs/xla_rewrite/coverage/baselines/layout_migration.json": "491408cd7a7a3b35ea0d22a238121bf20626b93729211e449d8d054cba21ca52",
+    "labs/xla_rewrite/coverage/baselines/pre_layout/verification_cases.json": "390c6868ec24a1c821720e6719d7b005546d8beae3daaba2c12ba8472b2b8ee2",
+    "labs/xla_rewrite/coverage/baselines/pre_layout/compilation_cases.json": "d7fe1481cd24c33457b76945d84fb5c5edf16bc430fe9105c335ef09bfbf9d98"
+  },
+  "environment": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "python": "3.14.4",
+  "run_at_utc": "2026-10-19T06:01:12.833617+00:00",
+  "timeout_seconds_per_case": 30,
+  "results": [
+    {
+      "case": "add_zero",
+      "catalog_id": "elementwise-add-zero",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.048348,
+      "file_sha256": "f0f84b6b38d6d3ba0a1118afc32b9da5fc28c2fa4e154a66202c7ceb9054d505",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "zero_like"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "add_constant_order",
+      "catalog_id": "elementwise-add-constant-order",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.051559,
+      "file_sha256": "2cf5f3e8acfa66efd278743198d020c0ac90a7b7117f2b0363477080a9f7cb76",
+      "diagnostics": "",
+      "required_operations": [
+        "add"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "add_constants",
+      "catalog_id": "elementwise-add-constants",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.059579,
+      "file_sha256": "bad5b59df27bebe60721f26f73631d3aae367e77cd8e634216938cbcfe465261",
+      "diagnostics": "",
+      "required_operations": [
+        "add"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "subtract_add_constants",
+      "catalog_id": "elementwise-subtract-add-constants",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.056432,
+      "file_sha256": "54c0cda383086d3f751879604fc6c3a7f789db6b658e69829bbb71195fc22b70",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "subtract"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "add_subtract_cancel",
+      "catalog_id": "elementwise-add-subtract-cancel",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.054795,
+      "file_sha256": "a1103b60b7d7f36be83d46874dbe38118305197b45b51dafd55c56916cbd6c3c",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "subtract"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "factor_common_product",
+      "catalog_id": "elementwise-factor-common-product",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.103885,
+      "file_sha256": "24ab8b014f8149953a2dfc4995afcd86fa25539cebd927ac9d96ac37ff2a2ebe",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "subtract_self",
+      "catalog_id": "elementwise-subtract-self",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.048856,
+      "file_sha256": "a431ce036fad502e4fcc9bde68fdd374a8fa4c9d28fe357d87a96e1acd53d196",
+      "diagnostics": "",
+      "required_operations": [
+        "subtract",
+        "zero_like"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "subtract_zero",
+      "catalog_id": "elementwise-subtract-zero",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.052934,
+      "file_sha256": "438abcd10f2c12936c528623172b312d00f6c8095f707c313608143add7848ed",
+      "diagnostics": "",
+      "required_operations": [
+        "subtract",
+        "zero_like"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "subtract_constant",
+      "catalog_id": "elementwise-subtract-constant",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.050635,
+      "file_sha256": "734515cf939ca7b3b066304bee3c0f30e8796250b51fba8c4ef073ebcea2de82",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "negate",
+        "subtract"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "subtract_subtract_cancel",
+      "catalog_id": "elementwise-subtract-subtract-cancel",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.057625,
+      "file_sha256": "26e39db8f8c3abe406f44c7c8b83b8cd9fe8aeaa1e5b08473f221046f3c31aa0",
+      "diagnostics": "",
+      "required_operations": [
+        "subtract"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "subtract_add_cancel",
+      "catalog_id": "elementwise-subtract-add-cancel",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.056758,
+      "file_sha256": "8ccecb1b31a26439887d10003e8acf4fdbe3c8ef7297dbc7b06f80b775ab90da",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "negate",
+        "subtract"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "add_subtract_cancel_right",
+      "catalog_id": "elementwise-add-subtract-cancel-right",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.058258,
+      "file_sha256": "a6f75045cc42800040dd10203ff05751303eab096ed03f77962ef4fc8d276ce4",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "subtract"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "multiply_zero",
+      "catalog_id": "elementwise-multiply-zero",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.05282,
+      "file_sha256": "093b61976e583645ef9d56902d7aa430aaec43aec21bb234948418f994954cf3",
+      "diagnostics": "",
+      "required_operations": [
+        "multiply",
+        "zero_like"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "multiply_negatives",
+      "catalog_id": "elementwise-multiply-negatives",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.066773,
+      "file_sha256": "17e30f0a920ae85d94bc0f82134a529679c551a44c472e5b653b7ba1fcb3e6e1",
+      "diagnostics": "",
+      "required_operations": [
+        "multiply",
+        "negate"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "multiply_constant_pairs",
+      "catalog_id": "elementwise-multiply-constant-pairs",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.099668,
+      "file_sha256": "638e2f05f57dbd8522ceec038db5e7197d84a828ed0057119ef5b12c2f6cf90a",
+      "diagnostics": "",
+      "required_operations": [
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "multiply_constants",
+      "catalog_id": "elementwise-multiply-constants",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.062436,
+      "file_sha256": "2213e6e9130c24318f17e32173f8353b790d43ed0a0193ac02aa0dc17f7756f1",
+      "diagnostics": "",
+      "required_operations": [
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "double_negate",
+      "catalog_id": "elementwise-double-negate",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.04878,
+      "file_sha256": "9ce1458b03aaaa5707700ba0871070cea70790e5a01650af36b13590abbb1a37",
+      "diagnostics": "",
+      "required_operations": [
+        "negate"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "transpose_identity",
+      "catalog_id": "transpose-reshape-transpose-identity",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.052698,
+      "file_sha256": "3a08685fc89bf709551fdeea811ee43ea53ac7fea28c0486d453973eddc582e7",
+      "diagnostics": "",
+      "required_operations": [
+        "transpose"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "transpose_compose",
+      "catalog_id": "transpose-reshape-transpose-compose",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.079078,
+      "file_sha256": "30ae1d6c2b16146290be7bde3309b5310c997fdb0aa0496e8690d2765e2ab2fa",
+      "diagnostics": "",
+      "required_operations": [
+        "transpose"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "broadcast_add",
+      "catalog_id": "broadcast-elementwise",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.112907,
+      "file_sha256": "ea5a38a94c0ed77a8d5d379ce6320d99e4d03666611f94ca86182c8d1bc0c054",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "broadcast_multiply",
+      "catalog_id": "broadcast-elementwise",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.126306,
+      "file_sha256": "d2c3d33666ca990913eac228020c2c48e2a74cbb43b8c8914c3719893bffc067",
+      "diagnostics": "",
+      "required_operations": [
+        "broadcast_in_dim",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "scalar_broadcast_reverse",
+      "catalog_id": "broadcast-scalar-through-indexing",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.068253,
+      "file_sha256": "788350d36c0544a3aadd842fdd73606878f05540a2d3df4c51948e19dfafbb1c",
+      "diagnostics": "",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reverse"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "scalar_broadcast_transpose",
+      "catalog_id": "broadcast-scalar-through-indexing",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.070384,
+      "file_sha256": "5ed64423e39652cb327e78f200c9441e32214eaaf74d2cad4efabe6ab1db2783",
+      "diagnostics": "",
+      "required_operations": [
+        "broadcast_in_dim",
+        "transpose"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "reduce_negate",
+      "catalog_id": "reduction-negate",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.098862,
+      "file_sha256": "081fca7579443e252a44a499c3b71dfdc4c63eb683284ea0a7fd68666d98f897",
+      "diagnostics": "",
+      "required_operations": [
+        "negate",
+        "reduce_sum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "reduce_compose",
+      "catalog_id": "reduction-compose",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.066835,
+      "file_sha256": "b9261ab16599811b07740decf5d8535f53b48ce7d7c98f6a416ec8ff1a57c913",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/reduce_compose.tepl:5:1: cannot verify rule 'reduce_compose': attribute construction: declared conditions and LHS legality do not establish legality obligation: same_set(gather(n2.F, [0]), difference_axes(gather(concat(n1.K, gather(concat(n2.K, n2.F), [1, 0])), [1, 0, 2]), gather(concat(n1.K, gather(concat(n2.K, n2.F), [1, 0])), [0, 2]))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "reduce_sum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "reduce_transpose",
+      "catalog_id": "reduction-transpose",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.075715,
+      "file_sha256": "f9a0dd386eb3d1e9b926f7e434eb90927e2e90bb91cb700a616b3fde48d41ea5",
+      "diagnostics": "",
+      "required_operations": [
+        "reduce_sum",
+        "transpose"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "reverse_cancel",
+      "catalog_id": "indexing-reverse-compose",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.069383,
+      "file_sha256": "f3e8a7d02c667bc99ab156b156ef6adcbac3f401a876c77da5502640450cfa74",
+      "diagnostics": "",
+      "required_operations": [
+        "reverse"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "reverse_compose_disjoint",
+      "catalog_id": "indexing-reverse-compose",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.068876,
+      "file_sha256": "f05197628e605fbf1b80a9ca2fa420cf60092b7d1d2d891c28d44644cff0d08f",
+      "diagnostics": "",
+      "required_operations": [
+        "reverse"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "reverse_add_scalar",
+      "catalog_id": "indexing-reverse-elementwise",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.086435,
+      "file_sha256": "a0f5ef2a9e3c38d6666f277a6976b6ebdce226f7a2547d2bc864354976bc0738",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/reverse_add_scalar.tepl:5:1: cannot verify rule 'reverse_add_scalar': coordinate correspondence: declared conditions and LHS legality do not establish legality obligation: same_set(n4.S, gather(n4.S, positions(empty_axes(), n2.S))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim",
+        "reverse"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "slice_identity",
+      "catalog_id": "indexing-slice-identity",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.057286,
+      "file_sha256": "4f59ff3f903136456da927d8f349a54883e29c9534056c8d28ff4e10b4c458ae",
+      "diagnostics": "",
+      "required_operations": [
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "slice_compose",
+      "catalog_id": "indexing-slice-compose",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.078517,
+      "file_sha256": "3826ae9a18b62ffbdde6f05a8e33c7eff7bfb21527f4405e823992c0f07d74e5",
+      "diagnostics": "",
+      "required_operations": [
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "slice_reverse",
+      "catalog_id": "indexing-slice-reverse",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.067067,
+      "file_sha256": "93b761aebdc9b1750ae2f4972d62797fb1a45a00c45ffca6cb49b1ada4d765eb",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/slice_reverse.tepl:5:1: cannot verify rule 'slice_reverse': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "reverse",
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "dot_associate",
+      "catalog_id": "dot-associate",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.280337,
+      "file_sha256": "c716d4f7370af1ee04db6400a4ed80a4316712f351390d8d061d4b5a884d738c",
+      "diagnostics": "",
+      "required_operations": [
+        "dot_general"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "dot_transpose_output",
+      "catalog_id": "dot-transpose-output",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.134174,
+      "file_sha256": "7bc21d766ef9ca6ae5b029d18754d3d05d345c854bf677f6f41e7361d6630e1d",
+      "diagnostics": "",
+      "required_operations": [
+        "dot_general",
+        "transpose"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "dot_move_reverse",
+      "catalog_id": "dot-move-reverse",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.069556,
+      "file_sha256": "a9734cf6fa55195011dc9450071e56494be5cde8702e04eae9ddf0b7f7345fcc",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/dot_move_reverse.tepl:5:1: cannot verify rule 'dot_move_reverse': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "dot_general",
+        "reverse"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "negative_subtract_to_add",
+      "catalog_id": null,
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.051276,
+      "file_sha256": "33bda1996b6349dd4f496f568459302c776c31a329495d6427a17e8086bd6c4c",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/negative_subtract_to_add.tepl:5:1: cannot verify rule 'negative_subtract_to_add': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "add",
+        "subtract"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "reduce_compose_leading",
+      "catalog_id": "reduction-compose",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.061844,
+      "file_sha256": "d9f4ef9475ecf4b2e6bfbeb3b5c167ce8335482023e77724017c0386a2216fd2",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/reduce_compose_leading.tepl:4:1: cannot verify rule 'reduce_compose_leading': attribute construction: declared conditions and LHS legality do not establish legality obligation: same_set(filter_axes(gather(concat(n2.K, n2.F), [0, 1]), n2.F), difference_axes(concat(n1.K, gather(concat(n2.K, n2.F), [0, 1])), gather(concat(n1.K, gather(concat(n2.K, n2.F), [0, 1])), [0, 1]))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "reduce_sum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "slice_compose_zero_starts",
+      "catalog_id": "indexing-slice-compose",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.069128,
+      "file_sha256": "c0f6dc8eb18a93561cad1105f093bb193b9f4c061eb37067a833f61ee660dbe6",
+      "diagnostics": "",
+      "required_operations": [
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=strict status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "broadcast_compose_append",
+      "catalog_id": "broadcast-compose",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.064913,
+      "file_sha256": "77daf6842edc2b54dcbd821cd581c7e5828eeedb0395d131ee0970f39b1b2046",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/broadcast_compose_append.tepl:4:1: cannot verify rule 'broadcast_compose_append': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(gather(concat(gather(concat(shape(Input(#0)), @#1.new_extents), inverse(concat(range(len(shape(Input(#0)))), offset_positions(range(len(@#1.new_extents)), len(shape(Input(#0))))))), @#0.new_extents), gather(inverse(concat(range(+(len(shape(Input(#0))), len(@#1.new_extents))), offset_positions(range(len(@#0.new_extents)), +(len(shape(Input(#0))), len(@#1.new_extents))))), offset_positions(range(+(len(@#1.new_extents), len(@#0.new_extents))), len(shape(Input(#0)))))), concat(@#1.new_extents, @#0.new_extents)). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "dot_swap_operands",
+      "catalog_id": "dot-swap-parameter-operand",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.104843,
+      "file_sha256": "2edcdbb88e2b7264bcf08d1cd74945bc96e788c41acd41f4f6bf22ba41325c66",
+      "diagnostics": "",
+      "required_operations": [
+        "dot_general",
+        "transpose"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "dot_no_contraction",
+      "catalog_id": "dot-no-contraction",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.062958,
+      "file_sha256": "6c8bd998cacba4ccc4426b0edd6b18822d8df08ec7d7344bb2fb0f4d1e90c572",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/dot_no_contraction.tepl:4:1: cannot verify rule 'dot_no_contraction': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(gather(shape(Input(#0)), gather([0], [1])), shape(Input(#1))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim",
+        "dot_general",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "dot_reduce_product",
+      "catalog_id": "dot-reduce-product",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.061343,
+      "file_sha256": "8ea943dfe407d1c0e3216d88b176df9189c01f037ff69c50375098770a2c4691",
+      "diagnostics": "",
+      "required_operations": [
+        "dot_general",
+        "multiply",
+        "reduce_sum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "dot_reduce_batch",
+      "catalog_id": "dot-reduce-output-batch",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.076593,
+      "file_sha256": "e9e5be7873ded1f654682378ce690b215dc62a018a91e7abed7c80da02d4201b",
+      "diagnostics": "",
+      "required_operations": [
+        "dot_general",
+        "reduce_sum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_divide_one",
+      "catalog_id": "elementwise-divide-one",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.048498,
+      "file_sha256": "432732bfe3a758aea4c41e5001779d99091d449ff74b7383c532a1a1c8a3e23d",
+      "diagnostics": "",
+      "required_operations": [
+        "divide"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_divide_two_quotients",
+      "catalog_id": "elementwise-divide-two-quotients",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.070393,
+      "file_sha256": "1afea552b6e8c727da7ac723120915aa8d632fe56424b146928a1ac192e1481d",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/expr_divide_two_quotients.tepl:4:1: cannot verify rule 'expr_divide_two_quotients': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "divide",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_divide_left_quotient",
+      "catalog_id": "elementwise-divide-left-quotient",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.060973,
+      "file_sha256": "0964afa0ff93506686a8f4434a76b41651e48ea37bf0ad639c463e4cd6cdbd28",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/expr_divide_left_quotient.tepl:4:1: cannot verify rule 'expr_divide_left_quotient': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "divide",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_divide_right_quotient",
+      "catalog_id": "elementwise-divide-right-quotient",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.065201,
+      "file_sha256": "ee7f3d4b4ac6ac9617b14a953aad0b3ea1862f18b477fdbbf86a21d37e72530e",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/expr_divide_right_quotient.tepl:4:1: cannot verify rule 'expr_divide_right_quotient': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "divide",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_multiply_one",
+      "catalog_id": "elementwise-multiply-one",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.05208,
+      "file_sha256": "1f1adc83298043b3d200bacbca84f5d0d674588a371690538ca0fd2c79f88b15",
+      "diagnostics": "",
+      "required_operations": [
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_square_abs",
+      "catalog_id": "elementwise-square-abs",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.050764,
+      "file_sha256": "eb60a6ef0f570b5b94b71279ac8062b274075bda9c332053c8f459e919c0425f",
+      "diagnostics": "",
+      "required_operations": [
+        "abs",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_multiply_exponentials",
+      "catalog_id": "elementwise-multiply-exponentials",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.075798,
+      "file_sha256": "677174ab2f1f5caa342d3906c3682e5311c2752d52b1bf72ce3f82c8b93ac273",
+      "diagnostics": "",
+      "required_operations": [
+        "add",
+        "exp",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_double_not",
+      "catalog_id": "elementwise-double-not",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.047937,
+      "file_sha256": "75d85a3721b5d7626937b5c2da9466ac1b9cf5cf4ea9a58493462bf3ec491bcb",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_not"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_xor_self",
+      "catalog_id": "elementwise-xor-self",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.049324,
+      "file_sha256": "91035dcaab30ce6b29e6cd72c7524f9572f84c5dfb4fd542cbdc16894910b839",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_xor"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_xor_zero",
+      "catalog_id": "elementwise-xor-zero",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.049098,
+      "file_sha256": "aeea47fb4f8c5ab04aacf25ec59a1984cf5ca3f9008c8a166d61f0ce56728fea",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_xor"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_and_zero",
+      "catalog_id": "elementwise-and-zero",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.048899,
+      "file_sha256": "525bbe9a8948ea53b34aa07cc16942af680a6b76e1cee2ab6e098d0d67049b59",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_and"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_or_zero",
+      "catalog_id": "elementwise-or-zero",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.048453,
+      "file_sha256": "13c00cb26d26cffde807ae89d5a729f4b9f29b92dbcc91693f11228dd9cb87d5",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_or"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_log_exp",
+      "catalog_id": "elementwise-log-exp",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.053249,
+      "file_sha256": "02c76e1a98a364bf1f7fac4c27bae643f9639d375b276b55d62426e5b7940b70",
+      "diagnostics": "",
+      "required_operations": [
+        "exp",
+        "log"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_log_sqrt",
+      "catalog_id": "elementwise-log-sqrt",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.058458,
+      "file_sha256": "e92c6bcf675b2a570f84408100a296ecbd84f80968435888cb707a9a4e9276f2",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/expr_log_sqrt.tepl:4:1: cannot verify rule 'expr_log_sqrt': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "log",
+        "multiply",
+        "sqrt"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_maximum_self",
+      "catalog_id": "elementwise-max-self",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.052717,
+      "file_sha256": "a58c31105c7c08fc4733aa2001dd8ed49adfd752d6ea934af4120dc105203481",
+      "diagnostics": "",
+      "required_operations": [
+        "maximum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_maximum_nested",
+      "catalog_id": "elementwise-max-nested-left",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.064141,
+      "file_sha256": "11da11017be1f4dc9828d631323e058a1fbc33f2472032d3979514e3f89d5685",
+      "diagnostics": "",
+      "required_operations": [
+        "maximum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_maximum_nested_right",
+      "catalog_id": "elementwise-max-nested-right",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.059604,
+      "file_sha256": "e2c85a93e0ddb5da6eb664c7a757aa531efe33d826250bfafbddb6ecfd6d9792",
+      "diagnostics": "",
+      "required_operations": [
+        "maximum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_minimum_self",
+      "catalog_id": "elementwise-min-self",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.054778,
+      "file_sha256": "05c9d3fe4998bd7c1fc774e1b7191082eae5988509f2417f88ab3965cb836cf0",
+      "diagnostics": "",
+      "required_operations": [
+        "minimum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_minimum_nested",
+      "catalog_id": "elementwise-min-nested-left",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.064509,
+      "file_sha256": "4b4cf9c2b3327560cc4ef0eb3388f6b813c1f8ff113561b27e4e0c84807fd4a3",
+      "diagnostics": "",
+      "required_operations": [
+        "minimum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_minimum_nested_right",
+      "catalog_id": "elementwise-min-nested-right",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.063523,
+      "file_sha256": "4689b92722c151fc93ea951d7227d498c4a0c19a47b847d1afe11855a01fafd9",
+      "diagnostics": "",
+      "required_operations": [
+        "minimum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_real_complex",
+      "catalog_id": "elementwise-real-complex",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.049518,
+      "file_sha256": "3f8ebdc065dc6a493b0df2e8fcbc1902650c102b7a2ab0ed25cdf1156bae24ab",
+      "diagnostics": "",
+      "required_operations": [
+        "complex",
+        "real"
+      ],
+      "missing_semantics": [
+        "complex",
+        "real"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_imag_complex",
+      "catalog_id": "elementwise-imag-complex",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.048595,
+      "file_sha256": "e8dba70103e3095225478b65d92fdb16274f5816743d6777d720c6f769badf9b",
+      "diagnostics": "",
+      "required_operations": [
+        "complex",
+        "imag"
+      ],
+      "missing_semantics": [
+        "complex",
+        "imag"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_complex_components",
+      "catalog_id": "elementwise-complex-components",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.042368,
+      "file_sha256": "a39bc1ce36ac31995910695c7ff30313b0b61559ed3887ad794ad7e05ab4176a",
+      "diagnostics": "",
+      "required_operations": [
+        "complex",
+        "imag",
+        "real"
+      ],
+      "missing_semantics": [
+        "complex",
+        "imag",
+        "real"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_select_identical",
+      "catalog_id": "elementwise-select-identical",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.048093,
+      "file_sha256": "680d42804ca1c907f887f164c691f085dcf383b9883489b34a4c6fa5eeeb8e30",
+      "diagnostics": "",
+      "required_operations": [
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_select_not",
+      "catalog_id": "elementwise-select-not",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.059568,
+      "file_sha256": "71c3d1ddeab16cf272b6ef6993fb0beb715f763d5f97330cb2ee8cad2453dc69",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_not",
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_power_zero",
+      "catalog_id": "elementwise-power-zero",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.05023,
+      "file_sha256": "9a66a1c1af4c51290063f57e900c2e0300be2b7a1ea7124e49f12c0c320d2f06",
+      "diagnostics": "",
+      "required_operations": [
+        "power"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_power_one",
+      "catalog_id": "elementwise-power-one",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.049023,
+      "file_sha256": "aadf484f500f4e4fd5e70115e8941d771058a5d2aa370c930db1b78956268b94",
+      "diagnostics": "",
+      "required_operations": [
+        "power"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_power_two",
+      "catalog_id": "elementwise-power-two",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.051344,
+      "file_sha256": "81422464afaed1d8af30b29b8ad8f10959b7ff9419056cf2105cabfd3435085f",
+      "diagnostics": "",
+      "required_operations": [
+        "multiply",
+        "power"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_power_three",
+      "catalog_id": "elementwise-power-three",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.053494,
+      "file_sha256": "7e55e9ed4a8038b97ceb02bb64955be1ea7c4f5aaed0bac20bf93bfc172cbb22",
+      "diagnostics": "",
+      "required_operations": [
+        "multiply",
+        "power"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_power_reciprocal",
+      "catalog_id": "elementwise-power-reciprocal",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.05263,
+      "file_sha256": "2d874b5682135709e3b35adf05993b86d77584a9845c95bdeed74a3bcc0cfd6c",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/expr_power_reciprocal.tepl:4:1: cannot verify rule 'expr_power_reciprocal': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "divide",
+        "power"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_remainder_compose",
+      "catalog_id": "elementwise-remainder-compose",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.051501,
+      "file_sha256": "a8731c61ea233010b8bb6b580605b9b4138119218a05465a609d9d9dbad51089",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/expr_remainder_compose.tepl:4:1: cannot verify rule 'expr_remainder_compose': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "remainder"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_reshape_identity",
+      "catalog_id": "transpose-reshape-reshape-identity",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.048909,
+      "file_sha256": "f6813d32f955e19b4f3f1642d221b107e1c5f845a5b983de090e67bd372489a5",
+      "diagnostics": "",
+      "required_operations": [
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_reshape_compose",
+      "catalog_id": "transpose-reshape-reshape-compose",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.045329,
+      "file_sha256": "71006b36120309bf20a7561e53dde422f64ea8d26a015b5db3e98ddc8539e5b5",
+      "diagnostics": "",
+      "required_operations": [
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_concat_unary",
+      "catalog_id": "indexing-concat-unary",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.045333,
+      "file_sha256": "1d970bfa437f484a6c086a1a426c925ca6821a0142c1bd5a953f735356d298b2",
+      "diagnostics": "",
+      "required_operations": [
+        "concatenate"
+      ],
+      "missing_semantics": [
+        "concatenate"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_concat_flatten",
+      "catalog_id": "indexing-concat-flatten",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.049953,
+      "file_sha256": "7dbbef5e1b5d781672f450994d4dc5defc25ba7bd3c7186bbfe207d9dca84bcf",
+      "diagnostics": "",
+      "required_operations": [
+        "concatenate"
+      ],
+      "missing_semantics": [
+        "concatenate"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_update_full",
+      "catalog_id": "indexing-update-full",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.044726,
+      "file_sha256": "77ac99c30e4dbd0dacd9aa1837836d236413443ba2cdb6b42337399044d75cef",
+      "diagnostics": "",
+      "required_operations": [
+        "dynamic_update_slice"
+      ],
+      "missing_semantics": [
+        "dynamic_update_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_update_empty",
+      "catalog_id": "indexing-update-empty",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.050103,
+      "file_sha256": "2f68ac3963583c825a0934b3fb79b749d4c5ec5b69e6185ae18a84ae6f68f4f1",
+      "diagnostics": "",
+      "required_operations": [
+        "dynamic_update_slice"
+      ],
+      "missing_semantics": [
+        "dynamic_update_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_reverse_compose_general",
+      "catalog_id": "indexing-reverse-compose",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.074786,
+      "file_sha256": "3fd59207b9fc9556613bb902c0600e97aea6dd5fdb88db12362d1e6baae477b7",
+      "diagnostics": "",
+      "required_operations": [
+        "reverse"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_pad_identity",
+      "catalog_id": "indexing-pad-identity",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.047773,
+      "file_sha256": "98d8ccf0f92759c609a6ee241308aa6eb2c02f7fb792282dcfafe3adc43ebe4f",
+      "diagnostics": "",
+      "required_operations": [
+        "pad"
+      ],
+      "missing_semantics": [
+        "pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_reduce_compose_general",
+      "catalog_id": "reduction-compose",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.056421,
+      "file_sha256": "17013f07b19e06bb67cb321891c2526fe89f6410320c55360cdf663d0ec16582",
+      "diagnostics": "",
+      "required_operations": [
+        "reduce"
+      ],
+      "missing_semantics": [
+        "reduce"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_slice_compose_general",
+      "catalog_id": "indexing-slice-compose",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.084961,
+      "file_sha256": "74791aa7aaf4bd31616393a3b2a7309409e5fceddac8a4c8717a7a73adced612",
+      "diagnostics": "",
+      "required_operations": [
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "expr_slice_reverse_general",
+      "catalog_id": "indexing-slice-reverse",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.070587,
+      "file_sha256": "551bd23cea9468876ee8379fb9f995db3a86da0cba2ccee00a224b9e17efe719",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/expr_slice_reverse_general.tepl:4:1: cannot verify rule 'expr_slice_reverse_general': metadata definedness: comprehension is outside the pointwise metadata fragment. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "reverse",
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "expr_convolution_scale_filter_bias",
+      "catalog_id": "convolution-scale-filter-bias",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.241298,
+      "file_sha256": "9195defdb44f3c455e384dbfaaf798965889370226e426146355e9df5b3c2cd4",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/expr_convolution_scale_filter_bias.tepl:4:1: cannot verify rule 'expr_convolution_scale_filter_bias': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(gather(shape(Input(#1)), gather([2], [0, 1])), [index(shape(Input(#1)), 0), index(shape(Input(#0)), 2)]). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim",
+        "convolution",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_and_true",
+      "catalog_id": "elementwise-and-true",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.047669,
+      "file_sha256": "334a58e552ff464117c1231621d1ddfd6b793a5beebf887310cc37069f177939",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_and"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_or_true",
+      "catalog_id": "elementwise-or-true",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.064618,
+      "file_sha256": "cf92ec403303eb58ff8e49f83e202c5837dde69895622785176c0d57aa00215e",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_or"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_divide_exponentials",
+      "catalog_id": "elementwise-divide-exponentials",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.069731,
+      "file_sha256": "8c89a51586df6f14228ee3fd26425ed41a3a6202b1fc33d80c53087a1e6c087c",
+      "diagnostics": "",
+      "required_operations": [
+        "divide",
+        "exp",
+        "subtract"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_divide_exponential",
+      "catalog_id": "elementwise-divide-exponential",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.069388,
+      "file_sha256": "c918012c208773c1b6622f6d39280eb56913e9d474772b9ac278c5f9b3f994b1",
+      "diagnostics": "",
+      "required_operations": [
+        "divide",
+        "exp",
+        "multiply",
+        "negate"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_divide_power",
+      "catalog_id": "elementwise-divide-power",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.071721,
+      "file_sha256": "8e1611f3934f54465948b4cc85db8f0042a7876925611cb05d3b3310d7b9f887",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_divide_power.tepl:6:1: cannot verify rule 'catalog_elementwise_divide_power': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "divide",
+        "multiply",
+        "negate",
+        "power"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_divide_sqrt",
+      "catalog_id": "elementwise-divide-sqrt",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.059966,
+      "file_sha256": "9532ad63f101893e5faa1de769a8b6f76a8f80d4385d0baebd4e4bc3ff374cf5",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_divide_sqrt.tepl:6:1: cannot verify rule 'catalog_elementwise_divide_sqrt': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "divide",
+        "multiply",
+        "rsqrt",
+        "sqrt"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_divide_rsqrt",
+      "catalog_id": "elementwise-divide-rsqrt",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.052329,
+      "file_sha256": "b87f2dde3d77c0766fcad1e87da4eceed83e1722f171cb36f9a3fac5d30b2c64",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_divide_rsqrt.tepl:6:1: cannot verify rule 'catalog_elementwise_divide_rsqrt': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "divide",
+        "multiply",
+        "rsqrt",
+        "sqrt"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_multiply_predicate",
+      "catalog_id": "elementwise-multiply-predicate",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.047574,
+      "file_sha256": "3a68c3da43ed6a1d37bacd454ea86f3e4ae4915a75ac6acbc9ab1f3be30efdff",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_multiply_predicate.tepl:6:1: semantic inference: operation 'convert' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "convert",
+        "multiply",
+        "select",
+        "zero_like"
+      ],
+      "missing_semantics": [
+        "convert"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_log_power",
+      "catalog_id": "elementwise-log-power",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.057263,
+      "file_sha256": "5cf0778b11ba8a561743c038790fbfd02af101993e63e9df71d23f0ec1f398d3",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_log_power.tepl:6:1: cannot verify rule 'catalog_elementwise_log_power': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(dtype_bool(), dtype(Input(#0))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "abs",
+        "compare",
+        "log",
+        "multiply",
+        "power",
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_log_rsqrt",
+      "catalog_id": "elementwise-log-rsqrt",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.047894,
+      "file_sha256": "b93882bd3a00830e8533a32ec413dcdbfcda6cf4785122e9d5efed365e187ccc",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_log_rsqrt.tepl:6:1: cannot verify rule 'catalog_elementwise_log_rsqrt': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "log",
+        "multiply",
+        "rsqrt"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_max_identity",
+      "catalog_id": "elementwise-max-identity",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.047451,
+      "file_sha256": "cabdb1bcdac55e42a9bd5729094ea1c594e38acdb053ffe157781e2a14f02de7",
+      "diagnostics": "",
+      "required_operations": [
+        "maximum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_min_identity",
+      "catalog_id": "elementwise-min-identity",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.052321,
+      "file_sha256": "12e0c9bdb6dfb6103d9329eded86138587c5fa2924fd703ad2c627b39dc2dfbc",
+      "diagnostics": "",
+      "required_operations": [
+        "minimum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_max_nested_right_reorder",
+      "catalog_id": "elementwise-max-nested-right-reorder",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.069421,
+      "file_sha256": "4634073a8b49e6b43464cca4147a3f65efe0171bbd550ccd8c3cf4aaebf64eb0",
+      "diagnostics": "",
+      "required_operations": [
+        "maximum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_min_nested_right_reorder",
+      "catalog_id": "elementwise-min-nested-right-reorder",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.068736,
+      "file_sha256": "bb6d7312cd4251e631b03b2d02fd8acfed34772be3bfcb42fe44082118189464",
+      "diagnostics": "",
+      "required_operations": [
+        "minimum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_max_clamp_bound",
+      "catalog_id": "elementwise-max-clamp-bound",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.063293,
+      "file_sha256": "f2723311d1ae73aec65299d48ed650205e7b00a1ac920857601a0030e94bc7a5",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_max_clamp_bound.tepl:6:1: cannot verify rule 'catalog_elementwise_max_clamp_bound': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "clamp",
+        "maximum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_max_monotone",
+      "catalog_id": "elementwise-max-monotone",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.076252,
+      "file_sha256": "032a45f119a82d155816bd5d3acd1cfcaf7ba0e5f414705aa74b32d475d145c8",
+      "diagnostics": "",
+      "required_operations": [
+        "maximum",
+        "tanh"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_clamp_clamp",
+      "catalog_id": "elementwise-clamp-clamp",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.066459,
+      "file_sha256": "a3dcbed43b62971b9ee9300a95e798993b1a6e5efd67c546736e1f102676fd43",
+      "diagnostics": "",
+      "required_operations": [
+        "clamp"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_real_noncomplex",
+      "catalog_id": "elementwise-real-noncomplex",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.047142,
+      "file_sha256": "22dcb707bb835f04d750ea466e442f6454858e9c709e24c47012461953dddbf0",
+      "diagnostics": "",
+      "required_operations": [
+        "real"
+      ],
+      "missing_semantics": [
+        "real"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_imag_noncomplex",
+      "catalog_id": "elementwise-imag-noncomplex",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.045656,
+      "file_sha256": "f1daea4d89ce70645dd89dc474a13d783f2bbbcdd8148d8b850a9a888929c064",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_imag_noncomplex.tepl:6:1: semantic inference: operation 'imag' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "imag",
+        "zero_like"
+      ],
+      "missing_semantics": [
+        "imag"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_power_exp",
+      "catalog_id": "elementwise-power-exp",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.056805,
+      "file_sha256": "77a1846447b4ead604edc457521a32b79461aa8e25b00eec3808889182674327",
+      "diagnostics": "",
+      "required_operations": [
+        "exp",
+        "multiply",
+        "power"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_sqrt_square",
+      "catalog_id": "elementwise-sqrt-square",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.055427,
+      "file_sha256": "dbfd32ccad4569dd7ac3ed26add45095773c482fcd3fc25b65bba8c5978e2cbb",
+      "diagnostics": "",
+      "required_operations": [
+        "abs",
+        "multiply",
+        "sqrt"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_compare_self",
+      "catalog_id": "elementwise-compare-self",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.055524,
+      "file_sha256": "5f0486f7df9b198a8703a35854e89141a3970fc73804485e156d6cc8c80f3e73",
+      "diagnostics": "",
+      "required_operations": [
+        "compare"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_compare_predicate_false",
+      "catalog_id": "elementwise-compare-predicate-false",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.056121,
+      "file_sha256": "05ff6c321e80c06e8599bc007e9204106ec716a6695883fd976e0784c1bdd85e",
+      "diagnostics": "",
+      "required_operations": [
+        "compare"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_compare_predicate_true",
+      "catalog_id": "elementwise-compare-predicate-true",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.049767,
+      "file_sha256": "c18bdc5768e7c59956edd617fd137d04fefa1e68a6f4751a82ed6a2d9337539c",
+      "diagnostics": "",
+      "required_operations": [
+        "compare"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_compare_selected_mask",
+      "catalog_id": "elementwise-compare-selected-mask",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.076602,
+      "file_sha256": "c3710d655c58f96eb41daac3e4e20c5ae1d0c1de51a5867f339714dccdf36521",
+      "diagnostics": "",
+      "required_operations": [
+        "compare",
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_compare_max",
+      "catalog_id": "elementwise-compare-max",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.072826,
+      "file_sha256": "bb32bfcee95dcf69fa0343b35df55739babb194d4ee31171057f4df66e262614",
+      "diagnostics": "",
+      "required_operations": [
+        "compare",
+        "maximum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_compare_min",
+      "catalog_id": "elementwise-compare-min",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.065404,
+      "file_sha256": "dc0a3aeea467a2c757ec038b8c25266589204d8507ac1f091bc172652cbb6f37",
+      "diagnostics": "",
+      "required_operations": [
+        "compare",
+        "minimum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_select_predicate_identity",
+      "catalog_id": "elementwise-select-predicate-identity",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.057397,
+      "file_sha256": "dbc2072f32b58f8fb01cc975251a341e58742ea8282d9a5ebb642673561febe0",
+      "diagnostics": "",
+      "required_operations": [
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_select_predicate_not",
+      "catalog_id": "elementwise-select-predicate-not",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.052225,
+      "file_sha256": "c018493468f85abb995af71ad2965ecb6518443e7d56acc2fad32894b00c99be",
+      "diagnostics": "",
+      "required_operations": [
+        "logical_not",
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_select_compare_gt",
+      "catalog_id": "elementwise-select-compare-gt",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.057188,
+      "file_sha256": "93ccc05ed4bc6ada3695fd1ac44a2c8ed4ac3bbdb97268a6b212e446b92c4287",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_select_compare_gt.tepl:6:1: cannot verify rule 'catalog_elementwise_select_compare_gt': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "compare",
+        "logical_or",
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_select_compare_lt",
+      "catalog_id": "elementwise-select-compare-lt",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.05726,
+      "file_sha256": "112747ff8df10ad32c89c6689f9696ff167df7841204f7e20881d37dd8a74d5b",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_select_compare_lt.tepl:6:1: cannot verify rule 'catalog_elementwise_select_compare_lt': attribute construction: normalized coefficients, tensor accesses, or reduction domains differ. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "compare",
+        "logical_and",
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_elementwise_select_compare_eq",
+      "catalog_id": "elementwise-select-compare-eq",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.061915,
+      "file_sha256": "55a98c185cad8719b66f239e9dab1d575bd484bd5ce3e2cabad4996b1d6c8aec",
+      "diagnostics": "",
+      "required_operations": [
+        "compare",
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_select_compare_ne",
+      "catalog_id": "elementwise-select-compare-ne",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.064861,
+      "file_sha256": "86ffc9b85a468bd2671b48e504fd4b8b884a3adb0463002e34d539e705666287",
+      "diagnostics": "",
+      "required_operations": [
+        "compare",
+        "select"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_elementwise_divide_converted_predicate",
+      "catalog_id": "elementwise-divide-converted-predicate",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049191,
+      "file_sha256": "37084a31c9c7af6da7054c9d78fe97f5aad62a22e4a97260fee802af468317ab",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_elementwise_divide_converted_predicate.tepl:6:1: semantic inference: operation 'convert' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "convert",
+        "divide",
+        "multiply"
+      ],
+      "missing_semantics": [
+        "convert"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_divide_broadcast",
+      "catalog_id": "broadcast-divide-broadcast",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.061334,
+      "file_sha256": "0e6c45e7ad60bf5b6a94242f8d4bc8a4d4c390b4ed43afbe4052210942046bbc",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_divide_broadcast.tepl:6:1: cannot verify rule 'catalog_broadcast_divide_broadcast': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(gather([], range(len(shape(Input(#0))))), shape(Input(#0))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim",
+        "divide",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_multiply_constant_into_broadcast",
+      "catalog_id": "broadcast-multiply-constant-into-broadcast",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.103532,
+      "file_sha256": "5c6e901f99e0ffb10b8e8ee7f201d9dc8d03596ec88e22175e2ac6ce82e25f5e",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_multiply_constant_into_broadcast.tepl:6:1: cannot verify rule 'catalog_broadcast_multiply_constant_into_broadcast': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(gather([], range(len(shape(Input(#2))))), shape(Input(#2))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_reshape",
+      "catalog_id": "broadcast-reshape",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.054563,
+      "file_sha256": "47e6c12ce6d1b9255bd3e794ce3eff4931b01bdf39d65b0f384b894488f9e110",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_reshape.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_transpose",
+      "catalog_id": "broadcast-transpose",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.060285,
+      "file_sha256": "a307ccacc9edc8f48a39bc0b92d858305131e0d7b221dd9d2bc9716bc947e1e5",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_transpose.tepl:6:1: cannot verify rule 'catalog_broadcast_transpose': metadata definedness: comprehension is outside the pointwise metadata fragment. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim",
+        "transpose"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_inserted_unit_dims",
+      "catalog_id": "broadcast-inserted-unit-dims",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.05173,
+      "file_sha256": "4ac21016954927af3ef32cd09b91bf2185f8f97d02fe40b728d9197d450da2de",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_inserted_unit_dims.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_iota",
+      "catalog_id": "broadcast-iota",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.051087,
+      "file_sha256": "f235fe318ebed9534882832b9753a01f647ae3823a268c83454cbe29ca4e92e1",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_iota.tepl:6:1: semantic inference: operation 'iota' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "iota"
+      ],
+      "missing_semantics": [
+        "iota"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_drop_unit_dims",
+      "catalog_id": "broadcast-drop-unit-dims",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.053576,
+      "file_sha256": "bff05e8580b5bb58b3b29f36de02ed9732cc594ae9125913094b3942ecc29a24",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_drop_unit_dims.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_reshape_broadcast",
+      "catalog_id": "broadcast-reshape-broadcast",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.052213,
+      "file_sha256": "e6b0c292cc17bde799fe4d21bc54bafb6353f57b36efaedf8411d71a0789eb7d",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_reshape_broadcast.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_transpose_broadcast",
+      "catalog_id": "broadcast-transpose-broadcast",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.067524,
+      "file_sha256": "5575540d9886ba59f5b4c2f0b96eaf51e62887077b573e5f23725925dbb1016a",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_transpose_broadcast.tepl:6:1: cannot verify rule 'catalog_broadcast_transpose_broadcast': metadata definedness: comprehension is outside the pointwise metadata fragment. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim",
+        "gather",
+        "transpose"
+      ],
+      "missing_semantics": [
+        "gather"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_pad_broadcast",
+      "catalog_id": "broadcast-pad-broadcast",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.04549,
+      "file_sha256": "fa4ba0ee7ecd682a660e9768b9155b09e19c64c3fa33175da855739804644ab2",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_pad_broadcast.tepl:6:1: semantic inference: operation 'nonnegative_pad' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "nonnegative_pad"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_slice_broadcast_only",
+      "catalog_id": "broadcast-slice-broadcast-only",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.073989,
+      "file_sha256": "ab97d9d0847e87eacb0a49e3decf58218fe44b950ca442e325a905955f66df07",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_slice_broadcast_only.tepl:6:1: cannot verify rule 'catalog_broadcast_slice_broadcast_only': metadata definedness: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_sub(slice(@#0.sizes, 1, +(1, len(@#1.new_extents))), slice(@#0.sizes, 1, +(1, len(@#1.new_extents)))), slice(@#0.sizes, 1, +(1, len(@#1.new_extents)))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim",
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_slice_broadcast",
+      "catalog_id": "broadcast-slice-broadcast",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.09584,
+      "file_sha256": "b56c59425bb3695f6bd838e6bb1d12b148cbc189c976074187f946a83f54ab8d",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_slice_broadcast.tepl:6:1: cannot verify rule 'catalog_broadcast_slice_broadcast': attribute construction: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_add(gather(@#0.starts, @#1.dimensions), extent_mul(gather(@#0.strides, @#1.dimensions), offset_extents(gather(@#0.sizes, @#1.dimensions), -1))), offset_extents(shape(Input(#0)), -1)). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim",
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_dynamic_slice_broadcast",
+      "catalog_id": "broadcast-dynamic-slice-broadcast",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049158,
+      "file_sha256": "fdf64f98028a555c6d986a472d0645276ea0fa887dedd4afce5cda7319e1da81",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_dynamic_slice_broadcast.tepl:6:1: semantic inference: operation 'dynamic_slice' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "dynamic_slice"
+      ],
+      "missing_semantics": [
+        "dynamic_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_gather_scalar",
+      "catalog_id": "broadcast-gather-scalar",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049383,
+      "file_sha256": "88cd4c256b19aa0cc2412ad87a7ec0774a289638343be2ee07da1c80908fd77d",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_gather_scalar.tepl:6:1: semantic inference: operation 'gather' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "gather",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "gather",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_transpose_reshape_reshape_empty",
+      "catalog_id": "transpose-reshape-reshape-empty",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.059921,
+      "file_sha256": "1fb137a0a7a103fefdbee53bed8bd2e8463e67672b0b29cc439181397befd15c",
+      "diagnostics": "",
+      "required_operations": [
+        "fill",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "fill",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_transpose_reshape_reshape_transpose_cancel_chain",
+      "catalog_id": "transpose-reshape-reshape-transpose-cancel-chain",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.052029,
+      "file_sha256": "bcecfc5de7132f73467353d11022e6d4e175c67f2dd4223c7feb629aa78f70cf",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_transpose_reshape_reshape_transpose_cancel_chain.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reshape",
+        "transpose"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_transpose_reshape_reshape_hoist_transpose",
+      "catalog_id": "transpose-reshape-reshape-hoist-transpose",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.05303,
+      "file_sha256": "ae26b20aed3ecedaa3f3eaba3bf37a23c49a26ebe80af7ae64b9086510c96347",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_transpose_reshape_reshape_hoist_transpose.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reshape",
+        "transpose"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_transpose_reshape_transpose_unit_dims",
+      "catalog_id": "transpose-reshape-transpose-unit-dims",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.053343,
+      "file_sha256": "ab061a03bc8e0d9f72727f79b4e367f5f3b546ac12f4a6cc50f02608014cf7aa",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_transpose_reshape_transpose_unit_dims.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reshape",
+        "transpose"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_add_sparse_update",
+      "catalog_id": "indexing-add-sparse-update",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.069107,
+      "file_sha256": "fbc11f0b39e7370468bbcaa61c0d1237530bdcd1a513d81e09822c1a9b7391bc",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_add_sparse_update.tepl:6:1: semantic inference: operation 'dynamic_update_slice' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "add",
+        "dynamic_slice",
+        "dynamic_update_slice",
+        "zero_like"
+      ],
+      "missing_semantics": [
+        "dynamic_slice",
+        "dynamic_update_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_add_scatter",
+      "catalog_id": "indexing-add-scatter",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.05919,
+      "file_sha256": "7304b23e62f2f633a0e4adace9681a5f3285c368e418184874ef816da393c7d7",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_add_scatter.tepl:6:1: semantic inference: operation 'scatter_add' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "add",
+        "scatter_add"
+      ],
+      "missing_semantics": [
+        "scatter_add"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_add_two_scatters_concat",
+      "catalog_id": "indexing-add-two-scatters-concat",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049908,
+      "file_sha256": "7eac0a80f3000845c7113eb145a73343aefd8da5a341f8b3803514877dd66692",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_add_two_scatters_concat.tepl:6:1: semantic inference: operation 'scatter_add' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "add",
+        "concatenate",
+        "scatter_add"
+      ],
+      "missing_semantics": [
+        "concatenate",
+        "scatter_add"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_add_two_scatters_nested",
+      "catalog_id": "indexing-add-two-scatters-nested",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.052618,
+      "file_sha256": "0b1ccb68b9be21cdbc4c56f912ed30e1c5023789c58c9c982e5201ddcdfa97ca",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_add_two_scatters_nested.tepl:6:1: semantic inference: operation 'scatter_add' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "add",
+        "scatter_add"
+      ],
+      "missing_semantics": [
+        "scatter_add"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_select_update",
+      "catalog_id": "indexing-select-update",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.046657,
+      "file_sha256": "9568ff3dafb45d4c49df73c7fcf63a9d305ccc6bda7b878892fa8010036ce0cf",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_select_update.tepl:6:1: semantic inference: operation 'dynamic_update_slice' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "dynamic_slice",
+        "dynamic_update_slice",
+        "select"
+      ],
+      "missing_semantics": [
+        "dynamic_slice",
+        "dynamic_update_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_reshape_update",
+      "catalog_id": "indexing-reshape-update",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.048837,
+      "file_sha256": "ef310a6d35971fd31e61f6433cd66cb3683139b4be8a57e894e31ba3eec60998",
+      "diagnostics": "",
+      "required_operations": [
+        "dynamic_update_slice",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "dynamic_update_slice",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_concat_adjacent_slices",
+      "catalog_id": "indexing-concat-adjacent-slices",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.048681,
+      "file_sha256": "aab71db67a91464efaf98053312d1e8d6277650aeef9307eeaea6f741e3ee3e0",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_concat_adjacent_slices.tepl:6:1: semantic inference: operation 'concatenate' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "concatenate",
+        "slice"
+      ],
+      "missing_semantics": [
+        "concatenate"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_concat_splat_to_pad",
+      "catalog_id": "indexing-concat-splat-to-pad",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.04486,
+      "file_sha256": "f10288f343ed2f8e90b84ce4c06a7984373c42c552978a8e36f066d77951a5bc",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_concat_splat_to_pad.tepl:6:1: semantic inference: operation 'concatenate' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "concatenate",
+        "nonnegative_pad"
+      ],
+      "missing_semantics": [
+        "concatenate",
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_iota_trivial",
+      "catalog_id": "indexing-iota-trivial",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.046861,
+      "file_sha256": "bb203139c412fd85d6c3cd33ab1a2d90151f4ec5a27f2feb973f0858f8d8746c",
+      "diagnostics": "",
+      "required_operations": [
+        "fill",
+        "iota"
+      ],
+      "missing_semantics": [
+        "fill",
+        "iota"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_pad_empty",
+      "catalog_id": "indexing-pad-empty",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.050989,
+      "file_sha256": "b228bfa148a4c73e95d3f44fa49e7d99f9916216f8400d9430ce25880749b3d0",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_pad_empty.tepl:6:1: semantic inference: operation 'nonnegative_pad' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "nonnegative_pad"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_pad_interior_unit",
+      "catalog_id": "indexing-pad-interior-unit",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.052789,
+      "file_sha256": "8fda3481a25da612320186388885f566a4265afa6e1f034d31a5eeda9503629e",
+      "diagnostics": "",
+      "required_operations": [
+        "nonnegative_pad"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_reverse_trivial",
+      "catalog_id": "indexing-reverse-trivial",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.0665,
+      "file_sha256": "a5b1071d2a8d15adbf6e34e5c64b64813fc7a9b0a2fae4cd25f91fccd1bd8879",
+      "diagnostics": "",
+      "required_operations": [
+        "reverse"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_indexing_reverse_inserted_unit_dims",
+      "catalog_id": "indexing-reverse-inserted-unit-dims",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.054906,
+      "file_sha256": "7f586e201158f856a3b45e30083ee6542744e9bc9b0ce369089f8bd650c5e4c0",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_reverse_inserted_unit_dims.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reshape",
+        "reverse"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_rotate_compose",
+      "catalog_id": "indexing-rotate-compose",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.053981,
+      "file_sha256": "47fc8bab725d1b0dc2aba2a068f9cab015eb69d7f6b374e6868695db230b094d",
+      "diagnostics": "",
+      "required_operations": [
+        "rotate"
+      ],
+      "missing_semantics": [
+        "rotate"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_slice_pad_only",
+      "catalog_id": "indexing-slice-pad-only",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.050034,
+      "file_sha256": "365304e203b00fbc0954295f77aa46fa7f682ab60b8b68082178556efae7e7eb",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_slice_pad_only.tepl:6:1: semantic inference: operation 'nonnegative_pad' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "nonnegative_pad",
+        "slice"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_slice_pad_cancel",
+      "catalog_id": "indexing-slice-pad-cancel",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.045647,
+      "file_sha256": "c9cb0d87928336c1073f1c7b6da8700b2aeaf90084f5090370ba246b7406c041",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_slice_pad_cancel.tepl:6:1: semantic inference: operation 'nonnegative_pad' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "nonnegative_pad",
+        "slice"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_slice_inside_pad",
+      "catalog_id": "indexing-slice-inside-pad",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.05167,
+      "file_sha256": "e1d7d2c21ff0deb3f9a0b2365b7b574c941d9517a7e5c7fc1bdcf746bc30af8b",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_slice_inside_pad.tepl:6:1: semantic inference: operation 'nonnegative_pad' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "nonnegative_pad",
+        "slice"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_slice_reshape",
+      "catalog_id": "indexing-slice-reshape",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.052183,
+      "file_sha256": "517e3a1fe4bb5bf84227e8c1abe77ec4b1d82a48d3e57068aadb1b841490f714",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_slice_reshape.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reshape",
+        "slice"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_slice_singleton_stride",
+      "catalog_id": "indexing-slice-singleton-stride",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.065218,
+      "file_sha256": "5d377b46a5d3181329b2bab865e1967598e6da853c93a86c6284501626f4855a",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_slice_singleton_stride.tepl:6:1: cannot verify rule 'catalog_indexing_slice_singleton_stride': metadata definedness: comprehension is outside the pointwise metadata fragment. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_identity",
+      "catalog_id": "indexing-dynamic-slice-identity",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.048048,
+      "file_sha256": "cc1e819ee6acd63411720f10b4bcd0ad744da9e8d1cd1de0827ad18149f6c8fe",
+      "diagnostics": "",
+      "required_operations": [
+        "dynamic_slice"
+      ],
+      "missing_semantics": [
+        "dynamic_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_zero_index",
+      "catalog_id": "indexing-dynamic-slice-zero-index",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.055583,
+      "file_sha256": "1b656d805720285d0e401726ccb217521d38a3e1a85fee4edbb296bc35525fd9",
+      "diagnostics": "",
+      "required_operations": [
+        "dynamic_slice"
+      ],
+      "missing_semantics": [
+        "dynamic_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_unit_reshape",
+      "catalog_id": "indexing-dynamic-slice-unit-reshape",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.047226,
+      "file_sha256": "ffc93e8bde234ef421538b8eb6856f55af991e07997610edb41e092f1598e37a",
+      "diagnostics": "",
+      "required_operations": [
+        "dynamic_slice",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "dynamic_slice",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_transpose",
+      "catalog_id": "indexing-dynamic-slice-transpose",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049718,
+      "file_sha256": "a50fa7e4c80e21f7728ce3e2ec04002b839a81c2f57e777480c1a7a869f13d9f",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_dynamic_slice_transpose.tepl:6:1: semantic inference: operation 'dynamic_slice' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "dynamic_slice",
+        "transpose"
+      ],
+      "missing_semantics": [
+        "dynamic_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_iota",
+      "catalog_id": "indexing-dynamic-slice-iota",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.048522,
+      "file_sha256": "dedc6b6855fcd4f41164034c3b39d81ce618a6b919fdcb1b9139afa23b63a4bb",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_dynamic_slice_iota.tepl:6:1: semantic inference: operation 'iota' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "clamp",
+        "convert",
+        "dynamic_slice",
+        "iota",
+        "multiply",
+        "reshape",
+        "scalar"
+      ],
+      "missing_semantics": [
+        "convert",
+        "dynamic_slice",
+        "iota",
+        "reshape",
+        "scalar"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_dynamic_slice_compose",
+      "catalog_id": "indexing-dynamic-slice-compose",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.051305,
+      "file_sha256": "b84f9fe7fb13e33d0e6019c262223ab88e731c35f0989e56c3dd89f3e461d03f",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_dynamic_slice_compose.tepl:6:1: semantic inference: operation 'dynamic_slice' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "add",
+        "clamp",
+        "dynamic_slice",
+        "scalar"
+      ],
+      "missing_semantics": [
+        "dynamic_slice",
+        "scalar"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_update_zero_index",
+      "catalog_id": "indexing-update-zero-index",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.046968,
+      "file_sha256": "f48ff7edfb2dff756c6d95273e7a73b97bc6cecb777d0e149c5e3f80fbff4df1",
+      "diagnostics": "",
+      "required_operations": [
+        "dynamic_update_slice"
+      ],
+      "missing_semantics": [
+        "dynamic_update_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_update_compose",
+      "catalog_id": "indexing-update-compose",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049302,
+      "file_sha256": "e227f5d23851a486c7f83b4a9edd8293397ae6f6b0b735c6b65955047143de97",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_update_compose.tepl:6:1: semantic inference: operation 'dynamic_slice' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "add",
+        "clamp",
+        "dynamic_slice",
+        "dynamic_update_slice",
+        "scalar"
+      ],
+      "missing_semantics": [
+        "dynamic_slice",
+        "dynamic_update_slice",
+        "scalar"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_gather_empty",
+      "catalog_id": "indexing-gather-empty",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.050536,
+      "file_sha256": "3a413204c6de399d83e84b9cf7dc6b674c26282160f7a806bf53b3f29d0b0b36",
+      "diagnostics": "",
+      "required_operations": [
+        "fill",
+        "gather"
+      ],
+      "missing_semantics": [
+        "fill",
+        "gather"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_gather_pad",
+      "catalog_id": "indexing-gather-pad",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.049339,
+      "file_sha256": "f106f6c0f0a4fdc9687ad07a7c725a09d3a38108e80b2bf5e0e88af5c74a1998",
+      "diagnostics": "",
+      "required_operations": [
+        "gather",
+        "nonnegative_pad"
+      ],
+      "missing_semantics": [
+        "gather",
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_gather_reshape_pad",
+      "catalog_id": "indexing-gather-reshape-pad",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.050514,
+      "file_sha256": "edcd07e6e2882b737c90a7992d75db1e70ecbda8a0741c71b78f987b77a2095e",
+      "diagnostics": "",
+      "required_operations": [
+        "gather",
+        "nonnegative_pad",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "gather",
+        "nonnegative_pad",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_scatter_empty_update",
+      "catalog_id": "indexing-scatter-empty-update",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.046305,
+      "file_sha256": "20d1663fa2948a0163ce68bfbae03a762f007f89916a1d6e2954dc2f130aec55",
+      "diagnostics": "",
+      "required_operations": [
+        "scatter"
+      ],
+      "missing_semantics": [
+        "scatter"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_scatter_scalar_map",
+      "catalog_id": "indexing-scatter-scalar-map",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.049848,
+      "file_sha256": "d197fe777874eee38b14f09ff5e1e573cb11c77e3fefa2ec44a7a779ee86ae5a",
+      "diagnostics": "",
+      "required_operations": [
+        "map",
+        "scatter"
+      ],
+      "missing_semantics": [
+        "map",
+        "scatter"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_transpose_scatter",
+      "catalog_id": "indexing-transpose-scatter",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049955,
+      "file_sha256": "8ed091470db8ef8efd524f356d6c965467efdcedc598c5a536b993f8d33cda97",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_transpose_scatter.tepl:6:1: semantic inference: operation 'scatter' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "scatter",
+        "transpose"
+      ],
+      "missing_semantics": [
+        "scatter"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_dot_empty",
+      "catalog_id": "dot-empty",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049931,
+      "file_sha256": "a5e6b073f610d619e31df73bd5d9d25270dc0076aa14de7d8afe1d1a4f601ab7",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_empty.tepl:6:1: semantic inference: operation 'fill' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "dot_general",
+        "fill",
+        "gather"
+      ],
+      "missing_semantics": [
+        "fill",
+        "gather"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_dot_drop_unit_dims",
+      "catalog_id": "dot-drop-unit-dims",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.05377,
+      "file_sha256": "a074493c5e011220a8cdf99ea953fdbd9e6667f7a7ab80374b9137a4ce26c5b6",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_drop_unit_dims.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "dot_general",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_dot_transpose_both_operands",
+      "catalog_id": "dot-transpose-both-operands",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.179283,
+      "file_sha256": "46f3ece952a01b3eb26686fd5e2735aa2a94b7a1e19fd00ead2b56b29ee4fc22",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_transpose_both_operands.tepl:6:1: cannot verify rule 'catalog_dot_transpose_both_operands': attribute construction: declared conditions and LHS legality do not establish legality obligation: same_set(gather(concat(gather(gather(input2, [0]), [0]), gather(gather(gather(input0, [1]), [0]), [0])), [1, 0]), difference_axes(union_axes(input0, gather(concat(gather(gather(input0, [0]), [0]), gather(input2, [0])), [1, 0])), filter_axes(gather(concat(gather(gather(input0, [0]), [0]), gather(input2, [0])), [1, 0]), gather(gather(input0, [0]), [0])))). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "dot_general",
+        "transpose"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_dot_constant_dynamic_slice",
+      "catalog_id": "dot-constant-dynamic-slice",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.051163,
+      "file_sha256": "005e90e04c082b6889abd38e567e3da3f8fe91ab0b260e403861bab74a9a0047",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_constant_dynamic_slice.tepl:6:1: semantic inference: operation 'dynamic_slice' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "dot_general",
+        "dynamic_slice"
+      ],
+      "missing_semantics": [
+        "dynamic_slice"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_dot_move_contracting_permutation",
+      "catalog_id": "dot-move-contracting-permutation",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.052881,
+      "file_sha256": "608e0b0bbc6831fb4a1ed43653192fb3a3752783ca724fa37ab5b9cff4e16855",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_move_contracting_permutation.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "dot_general",
+        "reshape",
+        "transpose"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_dot_move_zero_pad",
+      "catalog_id": "dot-move-zero-pad",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.051773,
+      "file_sha256": "71cbc1184dc0bcbd84494957cb36bc32203ad5f0f19f98d588d878aeb6cfb11a",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_move_zero_pad.tepl:6:1: semantic inference: operation 'nonnegative_pad' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "dot_general",
+        "nonnegative_pad",
+        "slice"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_dot_move_broadcast",
+      "catalog_id": "dot-move-broadcast",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.102981,
+      "file_sha256": "52bec0903c29f81f3199177c982d62391278c34565cdbfa09e3f5afb3d54c1ae",
+      "diagnostics": "",
+      "required_operations": [
+        "broadcast_in_dim",
+        "dot_general",
+        "reduce_sum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_dot_slice_output",
+      "catalog_id": "dot-slice-output",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.127887,
+      "file_sha256": "9a03fdfff1a2e949c6ce6c32fea409af706434a9e84d323264529b4fdf4e27d0",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_slice_output.tepl:6:1: cannot verify rule 'catalog_dot_slice_output': attribute construction: declared conditions and LHS legality do not establish legality obligation: is_positive_extents([index(@#0.sizes, 0), index(shape(Input(#0)), 1)]). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "dot_general",
+        "slice"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_dot_reduce_output_free",
+      "catalog_id": "dot-reduce-output-free",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.190049,
+      "file_sha256": "4c87965cd09e7d169a3a7e4be67ea121a6d6afd18c0f8a7e4333ab19e0b339b0",
+      "diagnostics": "",
+      "required_operations": [
+        "dot_general",
+        "reduce_sum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_dot_scalar_multipliers",
+      "catalog_id": "dot-scalar-multipliers",
+      "status": "not_proved",
+      "returncode": 1,
+      "seconds": 0.096776,
+      "file_sha256": "ae2c913a5ebfcf11addaf76c94c7fbbdbe85742f3d60f75b7b3ccff99aee7dac",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_scalar_multipliers.tepl:6:1: cannot verify rule 'catalog_dot_scalar_multipliers': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(gather([], [0, 1]), [index(shape(Input(#1)), 0), index(shape(Input(#2)), 1)]). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.",
+      "required_operations": [
+        "broadcast_in_dim",
+        "dot_general",
+        "multiply"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_empty",
+      "catalog_id": "reduction-empty",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.052848,
+      "file_sha256": "deabea8ea420daea92e75d8b0c7124f91132503dcf71fcda5007e23838fbf24e",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_empty.tepl:6:1: semantic inference: operation 'reduce' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reduce"
+      ],
+      "missing_semantics": [
+        "reduce"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_unit_axes",
+      "catalog_id": "reduction-unit-axes",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.054598,
+      "file_sha256": "1da648f7acd66da51f9f250aa9e1d407fa9accf256265e529d1fd67be6bb0093",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_unit_axes.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reduce_sum",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_reshape_reduced",
+      "catalog_id": "reduction-reshape-reduced",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.05383,
+      "file_sha256": "5b67a99a69ea7e5bf788e9e73ce8ad67a3f2492061584802e6e5b6a4c084b5ac",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_reshape_reduced.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reduce_sum",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_reshape_free",
+      "catalog_id": "reduction-reshape-free",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.051897,
+      "file_sha256": "1d973679e39756175e8a49eb89b3770f2696c7515b72783e8b08558a92cd17dd",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_reshape_free.tepl:6:1: semantic inference: operation 'reshape' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reduce_sum",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_splat_min",
+      "catalog_id": "reduction-splat-min",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049472,
+      "file_sha256": "ed97d2ba5cf5bb12cbc5c5197016f189f1e08f2c77b0d02a158f991f8c0d39da",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_splat_min.tepl:6:1: semantic inference: operation 'reduce_min' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "minimum",
+        "reduce_min"
+      ],
+      "missing_semantics": [
+        "reduce_min"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_splat_max",
+      "catalog_id": "reduction-splat-max",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.048421,
+      "file_sha256": "5157f15a170cd93e35441dfd096bf2a4be2e53073e32a83fc87fce66b41baf95",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_splat_max.tepl:6:1: semantic inference: operation 'reduce_max' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "maximum",
+        "reduce_max"
+      ],
+      "missing_semantics": [
+        "reduce_max"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_splat_and",
+      "catalog_id": "reduction-splat-and",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.046297,
+      "file_sha256": "10ff6f6be51ddf1ba49d7a99826e276a95260556e7a395008fb9a5437dcff165",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_splat_and.tepl:6:1: semantic inference: operation 'reduce_and' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "logical_and",
+        "reduce_and"
+      ],
+      "missing_semantics": [
+        "reduce_and"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_splat_or",
+      "catalog_id": "reduction-splat-or",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.04994,
+      "file_sha256": "822cce8ee1528a22abd91f82dd23e3e468785044e01eeba9b86ddcd921a6bcd4",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_splat_or.tepl:6:1: semantic inference: operation 'reduce_or' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "logical_or",
+        "reduce_or"
+      ],
+      "missing_semantics": [
+        "reduce_or"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_broadcast_original_axes",
+      "catalog_id": "reduction-broadcast-original-axes",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.070514,
+      "file_sha256": "231daf3b4cf7f5e58ad9fae416c0606f7de088e3ce70524c8a125749118b6d2a",
+      "diagnostics": "",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reduce_sum"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    },
+    {
+      "case": "catalog_reduction_broadcast_replication_axes",
+      "catalog_id": "reduction-broadcast-replication-axes",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049534,
+      "file_sha256": "541411cbc295220b5d976772a16c5c5a2b4acea942359b0915c0e77a33d0b61e",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_broadcast_replication_axes.tepl:6:1: semantic inference: operation 'scalar' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "multiply",
+        "reduce_sum",
+        "scalar"
+      ],
+      "missing_semantics": [
+        "scalar"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_window_empty",
+      "catalog_id": "reduction-window-empty",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.058017,
+      "file_sha256": "59185b75000f6a49dc4716fbe532c8b9e43b451335bd8c823dd22e6d0b3a1d7d",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_window_empty.tepl:6:1: semantic inference: operation 'reduce_window' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reduce_window"
+      ],
+      "missing_semantics": [
+        "reduce_window"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_window_scalar",
+      "catalog_id": "reduction-window-scalar",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.055278,
+      "file_sha256": "caaf71b8e2aeaba35baafc252855f85853c8cacbaa6a1a8c98abcdf4c8ca6dca",
+      "diagnostics": "",
+      "required_operations": [
+        "reduce_window_sum"
+      ],
+      "missing_semantics": [
+        "reduce_window_sum"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_window_splat_cumsum",
+      "catalog_id": "reduction-window-splat-cumsum",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049505,
+      "file_sha256": "47cc87861de15dccae3a6435adf71696cfd0de015a29f86541513b27dce66bed",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_window_splat_cumsum.tepl:6:1: semantic inference: operation 'reduce_window_sum' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim",
+        "iota",
+        "multiply",
+        "reduce_window_sum"
+      ],
+      "missing_semantics": [
+        "iota",
+        "reduce_window_sum"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_window_singleton_add",
+      "catalog_id": "reduction-window-singleton-add",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.047738,
+      "file_sha256": "00bfeb009fd9901a4cdccc2c5c1ce9203e5de92df3aad3b745c2257c50fcb42d",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_window_singleton_add.tepl:6:1: semantic inference: operation 'reduce_window_sum' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim",
+        "nonnegative_pad",
+        "reduce_window_sum"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad",
+        "reduce_window_sum"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_window_singleton_min",
+      "catalog_id": "reduction-window-singleton-min",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.052548,
+      "file_sha256": "50106ae1993f8abece843d35336011595f82abe25fa592982cb4a30ab0bd1c5d",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_window_singleton_min.tepl:6:1: semantic inference: operation 'reduce_window_min' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "minimum",
+        "nonnegative_pad",
+        "reduce_window_min"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad",
+        "reduce_window_min"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_window_singleton_max",
+      "catalog_id": "reduction-window-singleton-max",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.052664,
+      "file_sha256": "15cb6c3beb8760dc0895d9f314d7c7e43167e6660e564df466190fdee36a0215",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_window_singleton_max.tepl:6:1: semantic inference: operation 'reduce_window_max' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "maximum",
+        "nonnegative_pad",
+        "reduce_window_max"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad",
+        "reduce_window_max"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_window_to_reduce",
+      "catalog_id": "reduction-window-to-reduce",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.061492,
+      "file_sha256": "e50e3d50beb25a240f68d456b2849d82c8cbcaabbfe298d12df48aa266dfeac1",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_window_to_reduce.tepl:6:1: semantic inference: operation 'reduce_window_sum' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reduce_sum",
+        "reduce_window_sum",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "reduce_window_sum",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_slice_window_to_reduce",
+      "catalog_id": "reduction-slice-window-to-reduce",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.062762,
+      "file_sha256": "d6a298d8975419cb76c53691408434a3e7784fba5f4efcf091cb9a01eff61d2b",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_slice_window_to_reduce.tepl:6:1: semantic inference: operation 'reduce_window_sum' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "reduce_sum",
+        "reduce_window_sum",
+        "reshape",
+        "slice"
+      ],
+      "missing_semantics": [
+        "reduce_window_sum",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_reduction_window_pad",
+      "catalog_id": "reduction-window-pad",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.057971,
+      "file_sha256": "443e83ad4f27effb128e952833714c8c45b1d634ff56b45142c4cb341ad3ee63",
+      "diagnostics": "",
+      "required_operations": [
+        "nonnegative_pad",
+        "reduce_window"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad",
+        "reduce_window"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_broadcast_window_padded_unit_broadcast",
+      "catalog_id": "broadcast-window-padded-unit-broadcast",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.060856,
+      "file_sha256": "89b3c9bb3f59f420d1ef11077fe46107d43c637be8fe2cd410ce603114ce98b9",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_window_padded_unit_broadcast.tepl:6:1: semantic inference: operation 'nonnegative_pad' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "nonnegative_pad",
+        "reduce_window_sum",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "nonnegative_pad",
+        "reduce_window_sum",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_convolution_empty",
+      "catalog_id": "convolution-empty",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.046249,
+      "file_sha256": "e7a52e954009a128128187461673d8d8abc78c3a362ce69ed2e1a17baea704cb",
+      "diagnostics": "",
+      "required_operations": [
+        "fill",
+        "general_convolution"
+      ],
+      "missing_semantics": [
+        "fill",
+        "general_convolution"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_convolution_fold_input_pad",
+      "catalog_id": "convolution-fold-input-pad",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.050371,
+      "file_sha256": "d1f710fe24ad0903820577304345e3555ae09e71be25675ea75d4946aca81dc0",
+      "diagnostics": "",
+      "required_operations": [
+        "general_convolution",
+        "nonnegative_pad"
+      ],
+      "missing_semantics": [
+        "general_convolution",
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_convolution_fold_filter_pad",
+      "catalog_id": "convolution-fold-filter-pad",
+      "status": "missing_semantics",
+      "returncode": 0,
+      "seconds": 0.050512,
+      "file_sha256": "65cf83aece28e9febbc86a2bc5e50bc8512e1ab42e5fc633e46ff5310ce7f249",
+      "diagnostics": "",
+      "required_operations": [
+        "general_convolution",
+        "nonnegative_pad"
+      ],
+      "missing_semantics": [
+        "general_convolution",
+        "nonnegative_pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_convolution_pointwise_dot",
+      "catalog_id": "convolution-pointwise-dot",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.072283,
+      "file_sha256": "1d07eadbb4fec87df1cda32b4aaf842bfe527b2546e27296dff97bd7a304ccc7",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_convolution_pointwise_dot.tepl:6:1: semantic inference: operation 'general_convolution' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "dot_general",
+        "general_convolution",
+        "reshape"
+      ],
+      "missing_semantics": [
+        "general_convolution",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_convolution_depthwise_product",
+      "catalog_id": "convolution-depthwise-product",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.059738,
+      "file_sha256": "6e7264e37be61862f80db0cdcdbe3a335cdacb537220eb58bfed8d3ef72242aa",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_convolution_depthwise_product.tepl:6:1: semantic inference: operation 'general_convolution' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "broadcast_in_dim",
+        "general_convolution",
+        "multiply",
+        "reduce_sum",
+        "reshape",
+        "transpose"
+      ],
+      "missing_semantics": [
+        "general_convolution",
+        "reshape"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_convolution_swap_operands",
+      "catalog_id": "convolution-swap-operands",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.056167,
+      "file_sha256": "3fb516fb528a50f6e326a7b19ae93215f419493b332a17c9d43f56b6a8bcfe47",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_convolution_swap_operands.tepl:6:1: semantic inference: operation 'general_convolution' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "general_convolution",
+        "reverse"
+      ],
+      "missing_semantics": [
+        "general_convolution"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "catalog_indexing_pad_negative",
+      "catalog_id": "indexing-pad-negative",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.058339,
+      "file_sha256": "71a1034e4960e42acd8226d3d019e4bd0029bdaab1c2df771a0f10db1ea94814",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_pad_negative.tepl:6:1: semantic inference: operation 'pad' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "pad",
+        "slice"
+      ],
+      "missing_semantics": [
+        "pad"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "native_power_two_splat",
+      "catalog_id": "elementwise-power-two",
+      "status": "missing_semantics",
+      "returncode": 1,
+      "seconds": 0.049508,
+      "file_sha256": "53a2b5922b2b1f41cef252dc5d3c605547ed5402d2140766140926b874777f27",
+      "diagnostics": "labs/xla_rewrite/tepl/rules/semantic/native_power_two_splat.tepl:5:1: semantic inference: operation 'fill' lacks axis semantics; all operations in a semantic rule require axes and semantics",
+      "required_operations": [
+        "fill",
+        "multiply",
+        "power"
+      ],
+      "missing_semantics": [
+        "fill"
+      ],
+      "proof_evidence": []
+    },
+    {
+      "case": "native_abs_unsigned",
+      "catalog_id": "elementwise-abs-nonnegative",
+      "status": "proved",
+      "returncode": 0,
+      "seconds": 0.050751,
+      "file_sha256": "0d82165f747d31b745f814bd62d0cc28c2aa1105f844b5950fbc9df9c91c491e",
+      "diagnostics": "",
+      "required_operations": [
+        "abs"
+      ],
+      "missing_semantics": [],
+      "proof_evidence": [
+        "semantic-inference: policy=algebraic status=proved",
+        "additional-guard: true"
+      ]
+    }
+  ]
+}

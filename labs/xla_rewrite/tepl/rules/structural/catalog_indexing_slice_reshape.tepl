@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_slice_reshape {
     X: [Rows,Cols]
-     (hlo.slice[@s] (hlo.reshape[@r] X)) => (hlo.reshape[@out] (hlo.slice[@inner] X))
-     where { Cols>0 && @r.shape==[Rows*Cols] && @s.strides==[1] && @s.starts[0]%Cols==0 && @s.sizes[0]%Cols==0 }
-     derive { @inner={starts:[floor_div(@s.starts[0],Cols),0],sizes:[floor_div(@s.sizes[0],Cols),Cols],strides:[1,1]}; @out={shape:@s.sizes}; }
+     (attr_s: hlo.slice (attr_r: hlo.reshape X)) => (attr_out: hlo.reshape (attr_inner: hlo.slice X))
+     where { Cols>0 && attr_r.attrs.shape==[Rows*Cols] && attr_s.attrs.strides==[1] && attr_s.attrs.starts[0]%Cols==0 && attr_s.attrs.sizes[0]%Cols==0 }
+     derive { attr_inner.attrs={starts:[floor_div(attr_s.attrs.starts[0],Cols),0],sizes:[floor_div(attr_s.attrs.sizes[0],Cols),Cols],strides:[1,1]}; attr_out.attrs={shape:attr_s.attrs.sizes}; }
 }

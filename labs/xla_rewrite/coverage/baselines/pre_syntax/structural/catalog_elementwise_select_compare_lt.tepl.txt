@@ -1,0 +1,10 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: elementwise-select-compare-lt
+// Scope: Written operand/opcode variant under the catalog conditions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_select_compare_lt {
+    A: bool[Dims...] B: bool[Dims...]
+     (hlo.select (hlo.compare[@c] A B) A B) => (hlo.logical_and A B)
+     where { @c.direction == 5 || @c.direction == 4 }
+}

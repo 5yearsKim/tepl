@@ -5,6 +5,6 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_divide_broadcast {
     Y: []
-     (hlo.divide X (hlo.broadcast[@b] Y)) => (hlo.multiply X (hlo.broadcast[@b] (hlo.divide 1 Y)))
-     where { @b.dimensions == [] }
+     (hlo.divide X (attr_b: hlo.broadcast Y)) => (hlo.multiply X (hlo.broadcast[attr_b.attrs] (hlo.divide 1 Y)))
+     where { attr_b.attrs.dimensions == [] }
 }

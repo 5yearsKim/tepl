@@ -1,0 +1,11 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: indexing-dynamic-slice-transpose
+// Scope: Rank-two transpose with two scalar start operands.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_dynamic_slice_transpose {
+    X: [N,M]
+     (hlo.dynamic_slice[@s] (hlo.transpose[@p] X) S0 S1) => (hlo.transpose[@p] (hlo.dynamic_slice[@inner] X S1 S0))
+     where { @p.permutation==[1,0] }
+     derive { @inner={sizes:gather(@s.sizes,[1,0])}; }
+}

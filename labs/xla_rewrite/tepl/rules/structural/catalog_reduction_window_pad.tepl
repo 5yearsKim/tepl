@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_window_pad {
     X: [Dims...] Init: []
-     (hlo.reduce_window[@w] (hlo.nonnegative_pad[@p] X Init) Init) => (hlo.reduce_window[@out] X Init)
-     where { all([@p.interior[i]==0 || @w.base_dilations[i]==1 for i in range(len(Dims))]) }
-     derive { @out={..@w,padding_low:[@w.padding_low[i]+@w.base_dilations[i]*@p.low[i] for i in range(len(Dims))],padding_high:[@w.padding_high[i]+@w.base_dilations[i]*@p.high[i] for i in range(len(Dims))],base_dilations:[if @p.interior[i]==0 then @w.base_dilations[i] else @p.interior[i]+1 for i in range(len(Dims))]}; }
+     (attr_w: hlo.reduce_window (attr_p: hlo.nonnegative_pad X Init) Init) => (attr_out: hlo.reduce_window X Init)
+     where { all([attr_p.attrs.interior[i]==0 || attr_w.attrs.base_dilations[i]==1 for i in range(len(Dims))]) }
+     derive { attr_out.attrs={..attr_w.attrs,padding_low:[attr_w.attrs.padding_low[i]+attr_w.attrs.base_dilations[i]*attr_p.attrs.low[i] for i in range(len(Dims))],padding_high:[attr_w.attrs.padding_high[i]+attr_w.attrs.base_dilations[i]*attr_p.attrs.high[i] for i in range(len(Dims))],base_dilations:[if attr_p.attrs.interior[i]==0 then attr_w.attrs.base_dilations[i] else attr_p.attrs.interior[i]+1 for i in range(len(Dims))]}; }
 }

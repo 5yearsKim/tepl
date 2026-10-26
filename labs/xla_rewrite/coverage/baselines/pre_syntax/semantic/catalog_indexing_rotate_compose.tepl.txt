@@ -1,0 +1,14 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: indexing-rotate-compose
+// Scope: Arbitrary-rank rotation over positive-extent selected axes; shifts combined modulo extent.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_rotate_compose {
+    X: [Dims...]
+     (hlo.rotate[@q] (hlo.rotate[@p] X)) => (hlo.rotate[@out] X)
+     where { all([Dims[d]>0 for d in concat(@p.dimensions,@q.dimensions)]) }
+     derive {
+      let axes=exclude(range(len(Dims)),exclude(range(len(Dims)),concat(@p.dimensions,@q.dimensions)));
+      @out={dimensions:axes,shifts:[(sum([if @p.dimensions[i]==d then @p.shifts[i] else 0 for i in range(len(@p.dimensions))])+sum([if @q.dimensions[i]==d then @q.shifts[i] else 0 for i in range(len(@q.dimensions))])) % Dims[d] for d in axes]};
+     }
+}

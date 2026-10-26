@@ -1,0 +1,12 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: convolution-depthwise-product
+// Scope: Depthwise rank-three convolution whose kernel spans the full spatial extent.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_convolution_depthwise_product {
+    X: [N,L,C] W: [L,One,C]
+     (hlo.general_convolution[@c] X W)
+     => (hlo.reshape[@out] (hlo.reduce_sum[@sum] (hlo.multiply (hlo.transpose[@x] X) (hlo.broadcast[@b] (hlo.reshape[@w] (hlo.transpose[@p] W))))))
+     where { One==1 && @c.feature_group_count==C && @c.batch_group_count==1 && @c.input_batch_dimension==0 && @c.input_feature_dimension==2 && @c.input_spatial_dimensions==[1] && @c.kernel_input_feature_dimension==1 && @c.kernel_output_feature_dimension==2 && @c.kernel_spatial_dimensions==[0] && @c.output_batch_dimension==0 && @c.output_feature_dimension==2 && @c.output_spatial_dimensions==[1] && @c.window_strides==[1] && @c.lhs_dilation==[1] && @c.rhs_dilation==[1] && @c.padding_low==[0] && @c.padding_high==[0] && @c.window_reversal==[false] }
+     derive { @x={permutation:[0,2,1]}; @p={permutation:[1,2,0]}; @w={shape:[C,L]}; @b={dimensions:[1,2],new_extents:[N]}; @sum={dimensions:[2]}; @out={shape:[N,1,C]}; }
+}

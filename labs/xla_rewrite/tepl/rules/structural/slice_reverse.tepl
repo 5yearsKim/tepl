@@ -4,9 +4,9 @@ use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
 
 rule slice_reverse {
     X: [N]
-    (slice[@s] (reverse[@r] X)) => (reverse[@r] (slice[@out] X))
-    where { @r.dimensions == [0] && @s.strides == [1] }
+    (attr_s: slice (attr_r: reverse X)) => (reverse[attr_r.attrs] (attr_out: slice X))
+    where { attr_r.attrs.dimensions == [0] && attr_s.attrs.strides == [1] }
     derive {
-        @out = { ..@s, starts: [N - @s.starts[0] - @s.sizes[0]] };
+        attr_out.attrs = { ..attr_s.attrs, starts: [N - attr_s.attrs.starts[0] - attr_s.attrs.sizes[0]] };
     }
 }

@@ -1,0 +1,12 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Syntax migration of rules/semantic/transpose_compose.tepl.
+// Equation, conditions, and attribute formula are preserved.
+rule transpose_compose_explicit {
+    (outer: hlo.transpose (inner: hlo.transpose X))
+    => (result: hlo.transpose X)
+    derive {
+        result.attrs = { ..outer.attrs,
+            permutation: gather(inner.attrs.permutation, outer.attrs.permutation) };
+    }
+}

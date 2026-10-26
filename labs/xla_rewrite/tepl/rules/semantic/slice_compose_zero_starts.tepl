@@ -2,7 +2,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 use hlo::{slice};
 
 rule slice_compose_zero_starts {
-    (slice[@outer] (slice[@inner] X)) => (slice[@outer] X)
-    where { @inner.starts == [0] && @outer.starts == [0]
-         && @inner.strides == [1] && @outer.strides == [1] }
+    (attr_outer: slice (attr_inner: slice X)) => (slice[attr_outer.attrs] X)
+    where { attr_inner.attrs.starts == [0] && attr_outer.attrs.starts == [0]
+         && attr_inner.attrs.strides == [1] && attr_outer.attrs.strides == [1] }
 }

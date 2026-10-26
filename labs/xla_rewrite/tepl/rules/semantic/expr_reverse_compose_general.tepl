@@ -2,5 +2,5 @@ from "dialects/hlo.tepl" import HLO as hlo;
 
 // Expression check under the source conditions recorded in the catalog.
 rule expr_reverse_compose_general {
-    (hlo.reverse[@outer] (hlo.reverse[@inner] X)) => (hlo.reverse[@out] X) derive { @out = { dimensions: concat(exclude(@inner.dimensions, @outer.dimensions), exclude(@outer.dimensions, @inner.dimensions)) }; }
+    (attr_outer: hlo.reverse (attr_inner: hlo.reverse X)) => (attr_out: hlo.reverse X) derive { attr_out.attrs = { dimensions: concat(exclude(attr_inner.attrs.dimensions, attr_outer.attrs.dimensions), exclude(attr_outer.attrs.dimensions, attr_inner.attrs.dimensions)) }; }
 }

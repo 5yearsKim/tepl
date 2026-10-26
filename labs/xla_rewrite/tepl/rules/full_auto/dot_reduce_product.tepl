@@ -1,0 +1,13 @@
+// Generated inference variant; original graph and conditions preserved.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{dot, mul, reduce_sum};
+
+rule dot_reduce_product {
+    X: [K]
+    Y: [K]
+    (attr_d: dot X Y) => (attr_r: reduce_sum (mul X Y))
+    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []
+         && attr_d.attrs.lhs_contracting_dimensions == [0]
+         && attr_d.attrs.rhs_contracting_dimensions == [0] }
+    
+}

@@ -5,8 +5,8 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_gather_reshape_pad {
     X: [R,C] Indices: [I]
-     (hlo.gather[@g] (hlo.reshape[@r] (hlo.nonnegative_pad[@p] X Value)) Indices)
-     => (hlo.nonnegative_pad[@outpad] (hlo.gather[@out] (hlo.reshape[@unpad] X) Indices) Value)
-     where { @p.low[0]==0 && @p.high[0]==0 && @p.interior==[0,0] && @r.shape==[1,R,C+@p.low[1]+@p.high[1]] && @g.start_index_map==[1] && @g.collapsed_slice_dims==[1] && @g.offset_dims==[1,2] && @g.index_vector_dim==1 && @g.slice_sizes==[1,1,C+@p.low[1]+@p.high[1]] && @g.operand_batching_dims==[] && @g.start_indices_batching_dims==[] }
-     derive { @unpad={shape:[1,R,C]}; @out={..@g,slice_sizes:[1,1,C],shape:[I,1,C]}; @outpad={low:[0,0,@p.low[1]],high:[0,0,@p.high[1]],interior:[0,0,0]}; }
+     (attr_g: hlo.gather (attr_r: hlo.reshape (attr_p: hlo.nonnegative_pad X Value)) Indices)
+     => (attr_outpad: hlo.nonnegative_pad (attr_out: hlo.gather (attr_unpad: hlo.reshape X) Indices) Value)
+     where { attr_p.attrs.low[0]==0 && attr_p.attrs.high[0]==0 && attr_p.attrs.interior==[0,0] && attr_r.attrs.shape==[1,R,C+attr_p.attrs.low[1]+attr_p.attrs.high[1]] && attr_g.attrs.start_index_map==[1] && attr_g.attrs.collapsed_slice_dims==[1] && attr_g.attrs.offset_dims==[1,2] && attr_g.attrs.index_vector_dim==1 && attr_g.attrs.slice_sizes==[1,1,C+attr_p.attrs.low[1]+attr_p.attrs.high[1]] && attr_g.attrs.operand_batching_dims==[] && attr_g.attrs.start_indices_batching_dims==[] }
+     derive { attr_unpad.attrs={shape:[1,R,C]}; attr_out.attrs={..attr_g.attrs,slice_sizes:[1,1,C],shape:[I,1,C]}; attr_outpad.attrs={low:[0,0,attr_p.attrs.low[1]],high:[0,0,attr_p.attrs.high[1]],interior:[0,0,0]}; }
 }

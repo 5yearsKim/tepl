@@ -190,7 +190,7 @@ Plan symbolicPlan(const std::string& rule, bool algebraic = true,
 }
 void proved(const Plan& p) {
   if (p.proof.status != ProofStatus::Proved) {
-    std::cerr << p.proof.reason << '\n';
+    std::cerr << format(p) << '\n';
     for (const auto& g : p.proof.guard) std::cerr << format(*g) << '\n';
   }
   expect(p.proof.status == ProofStatus::Proved,
@@ -1203,6 +1203,103 @@ void broadcastTests() {
   }
 }
 
+void fixedAxisCompositionTests() {
+  for (bool renamed : {false, true}) {
+    auto definitions = dialect;
+    if (renamed) {
+      definitions = replace(definitions, "op reduce_sum(", "op accumulate(");
+      definitions = replace(definitions, "op transpose(", "op reorder(");
+      definitions = replace(definitions, "alias: dot;", "alias: pair;");
+      definitions = replace(definitions, "dimensions", "slots");
+      definitions = replace(definitions, "permutation", "order");
+    }
+    const std::string sum = renamed ? "accumulate" : "reduce_sum";
+    const std::string trans = renamed ? "reorder" : "transpose";
+    const std::string product = renamed ? "pair" : "dot";
+    const std::string dims = renamed ? "slots" : "dimensions";
+    const std::string permutation = renamed ? "order" : "permutation";
+    for (auto [rank, inner, outer] :
+         {std::tuple{3, 1, 1}, std::tuple{3, 0, 0}, std::tuple{4, 2, 0}}) {
+      auto original_outer = outer + (outer >= inner);
+      std::string prefix = "rule r { X: [N";
+      for (int i = 1; i < rank; ++i) prefix += ",N";
+      prefix += "] (o: " + sum + " (i: " + sum + " X)) => (t: " + sum +
+                " X) where {i.attrs." + dims + " == [" + std::to_string(inner) +
+                "] && o.attrs." + dims + " == [" + std::to_string(outer) + "]}";
+      auto explicit_attrs = " derive {t.attrs={" + dims + ":[" +
+                            std::to_string(inner) + "," +
+                            std::to_string(original_outer) + "]};}";
+      auto explicit_plan =
+          symbolicPlan(prefix + explicit_attrs + "}", true, definitions);
+      proved(explicit_plan);
+      expect(verify(explicit_plan, explicit_plan.proof).status ==
+                 ProofStatus::Proved,
+             "explicit composed reductions pass independent verification");
+      auto automatic = symbolicPlan(prefix + "}", true, definitions);
+      proved(automatic);
+      expect(verify(automatic, automatic.proof).status == ProofStatus::Proved,
+             "inferred composed reductions pass independent verification");
+      for (auto extent : {0, 1, 2}) {
+        List shape(rank, extent);
+        Metadata metadata{{shape}, {{0, {{outer}}}, {1, {{inner}}}}};
+        tepl::test::ConstructorEvaluator eval(metadata, automatic);
+        auto fields = eval.construct().at(
+            automatic.nodes[automatic.rhs].descriptor->value);
+        auto input = data(shape, 3);
+        equal(reduceSum(reduceSum(input, {inner}), {outer}),
+              reduceSum(input, fields[0]));
+      }
+      int other = 0;
+      while (other == inner || other == original_outer) ++other;
+      auto corrupted = automatic.proof;
+      corrupted.constructors.begin()->second[0] =
+          make(Symbol::Kind::List, {}, 0, 0, {integer(inner), integer(other)});
+      expect(verify(automatic, corrupted).status == ProofStatus::Unknown,
+             "equal extents cannot justify reducing different logical axes");
+    }
+
+    const auto dot_fields = [&](const std::string& node) {
+      return node + ".attrs.lhs_batching_" + dims + " == [] && " + node +
+             ".attrs.rhs_batching_" + dims + " == [] && " + node +
+             ".attrs.lhs_contracting_" + dims + " == [1] && " + node +
+             ".attrs.rhs_contracting_" + dims + " == [0]";
+    };
+    auto prefix = "rule r { X:[K,M] Y:[M,K] (d: " + product + " (p: " + trans +
+                  " X) (q: " + trans + " Y)) => ";
+    auto conditions = " where {p.attrs." + permutation +
+                      " == [1,0] && q.attrs." + permutation + " == [1,0] && " +
+                      dot_fields("d") + "}}";
+    auto explicit_plan =
+        symbolicPlan(prefix + "(" + trans + "[p.attrs] (" + product +
+                         "[d.attrs] Y X))" + conditions,
+                     true, definitions);
+    proved(explicit_plan);
+    auto automatic = symbolicPlan(
+        prefix + "(" + trans + " (" + product + " Y X))" + conditions, true,
+        definitions);
+    proved(automatic);
+    expect(verify(automatic, automatic.proof).status == ProofStatus::Proved,
+           "transposed operand composition passes a fresh verifier");
+    Metadata metadata{{{2, 3}, {3, 2}},
+                      {{0, {{1}, {0}, {}, {}}}, {1, {{1, 0}}}, {2, {{1, 0}}}}};
+    tepl::test::ConstructorEvaluator eval(metadata, automatic);
+    auto fields = eval.construct();
+    auto rhs_dot = automatic.nodes[automatic.rhs].inputs[0];
+    auto x = data({2, 3}, 1), y = data({3, 2}, 4);
+    equal(dot(transpose(x, {1, 0}), transpose(y, {1, 0}),
+              metadata.descriptors.at(0)),
+          transpose(
+              dot(y, x, fields.at(automatic.nodes[rhs_dot].descriptor->value)),
+              fields.at(automatic.nodes[automatic.rhs].descriptor->value)[0]));
+    auto corrupted = automatic.proof;
+    corrupted.constructors.at(
+        automatic.nodes[automatic.rhs].descriptor->value)[0] =
+        make(Symbol::Kind::List, {}, 0, 0, {integer(0), integer(1)});
+    expect(verify(automatic, corrupted).status == ProofStatus::Unknown,
+           "a square output still requires the correct logical axis order");
+  }
+}
+
 void axisAndMultiplyTests() {
   auto merge = symbolicPlan(
       "rule r {(outer: reduce_sum (inner: reduce_sum A)) => (reduce_sum A)}");
@@ -1357,6 +1454,7 @@ int main(int argc, char** argv) {
     explicitConditionTests();
     partialAssociationTests();
     contextStateTests();
+    fixedAxisCompositionTests();
     axisAndMultiplyTests();
     scalarTests();
     broadcastTests();

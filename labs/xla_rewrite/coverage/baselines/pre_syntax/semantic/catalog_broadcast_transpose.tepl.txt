@@ -1,0 +1,10 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-transpose
+// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_transpose {
+    (hlo.broadcast[@b] X) => (hlo.transpose[@p] X)
+     where { @b.new_extents == [] }
+     derive { @p = { permutation: [sum([if @b.dimensions[j] == i then j else 0 for j in range(len(@b.dimensions))]) for i in range(len(@b.dimensions))] }; }
+}

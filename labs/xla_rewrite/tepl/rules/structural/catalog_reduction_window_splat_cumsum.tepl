@@ -5,8 +5,8 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_window_splat_cumsum {
     C: f32[]
-     (hlo.reduce_window_sum[@w] (hlo.broadcast[@b] C) 0.0:f32)
-     => (hlo.multiply (hlo.broadcast[@b] C) (hlo.add (hlo.iota[@i]) (hlo.broadcast[@b] 1.0:f32)))
-     where { @b.dimensions==[] && len(@b.new_extents)==1 && @w.window_dimensions==@b.new_extents && @w.window_strides==[1] && @w.base_dilations==[1] && @w.window_dilations==[1] && @w.padding_low==[@b.new_extents[0]-1] && @w.padding_high==[0] }
-     derive { @i={shape:@b.new_extents,dimension:0,element_type:f32}; }
+     (attr_w: hlo.reduce_window_sum (attr_b: hlo.broadcast C) 0.0:f32)
+     => (hlo.multiply (hlo.broadcast[attr_b.attrs] C) (hlo.add (attr_i: hlo.iota) (hlo.broadcast[attr_b.attrs] 1.0:f32)))
+     where { attr_b.attrs.dimensions==[] && len(attr_b.attrs.new_extents)==1 && attr_w.attrs.window_dimensions==attr_b.attrs.new_extents && attr_w.attrs.window_strides==[1] && attr_w.attrs.base_dilations==[1] && attr_w.attrs.window_dilations==[1] && attr_w.attrs.padding_low==[attr_b.attrs.new_extents[0]-1] && attr_w.attrs.padding_high==[0] }
+     derive { attr_i.attrs={shape:attr_b.attrs.new_extents,dimension:0,element_type:f32}; }
 }

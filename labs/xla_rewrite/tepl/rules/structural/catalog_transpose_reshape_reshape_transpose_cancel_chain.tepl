@@ -5,6 +5,6 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_transpose_reshape_reshape_transpose_cancel_chain {
     X: [N]
-     (hlo.reshape[@outer] (hlo.transpose[@p] (hlo.reshape[@inner] X))) => X
-     where { @inner.shape==[1,N] && @p.permutation==[1,0] && @outer.shape==[N] }
+     (attr_outer: hlo.reshape (attr_p: hlo.transpose (attr_inner: hlo.reshape X))) => X
+     where { attr_inner.attrs.shape==[1,N] && attr_p.attrs.permutation==[1,0] && attr_outer.attrs.shape==[N] }
 }

@@ -5,10 +5,10 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_reshape {
     X: [Dims...]
-     (hlo.broadcast[@b] X) => (hlo.reshape[@r] X)
-     where { all([if i == 0 then true else @b.dimensions[i-1] < @b.dimensions[i] for i in range(len(@b.dimensions))]) && all([e == 1 for e in @b.new_extents]) }
+     (attr_b: hlo.broadcast X) => (attr_r: hlo.reshape X)
+     where { all([if i == 0 then true else attr_b.attrs.dimensions[i-1] < attr_b.attrs.dimensions[i] for i in range(len(attr_b.attrs.dimensions))]) && all([e == 1 for e in attr_b.attrs.new_extents]) }
      derive {
-      let rank = len(Dims) + len(@b.new_extents);
-      @r = { shape: [if contains(@b.dimensions, i) then sum([if @b.dimensions[j] == i then Dims[j] else 0 for j in range(len(Dims))]) else 1 for i in range(rank)] };
+      let rank = len(Dims) + len(attr_b.attrs.new_extents);
+      attr_r.attrs = { shape: [if contains(attr_b.attrs.dimensions, i) then sum([if attr_b.attrs.dimensions[j] == i then Dims[j] else 0 for j in range(len(Dims))]) else 1 for i in range(rank)] };
      }
 }

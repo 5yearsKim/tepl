@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_inserted_unit_dims {
     X: [N]
-     (hlo.broadcast[@b] (hlo.reshape[@r] X)) => (hlo.broadcast[@out] X)
-     where { @r.shape == [1,N] && @b.dimensions == [0,1] }
-     derive { @out = { dimensions: [1], new_extents: concat([1], @b.new_extents) }; }
+     (attr_b: hlo.broadcast (attr_r: hlo.reshape X)) => (attr_out: hlo.broadcast X)
+     where { attr_r.attrs.shape == [1,N] && attr_b.attrs.dimensions == [0,1] }
+     derive { attr_out.attrs = { dimensions: [1], new_extents: concat([1], attr_b.attrs.new_extents) }; }
 }

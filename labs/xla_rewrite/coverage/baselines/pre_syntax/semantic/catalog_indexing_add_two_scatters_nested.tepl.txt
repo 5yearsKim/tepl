@@ -1,0 +1,10 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: indexing-add-two-scatters-nested
+// Scope: Single-operand unbatched scatter-add composition; source shape screening remains applicable.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_add_two_scatters_nested {
+    (hlo.add (hlo.scatter_add[@a] A I U) (hlo.scatter_add[@b] B J V))
+     => (hlo.scatter_add[@a] (hlo.scatter_add[@b] (hlo.add A B) J V) I U)
+     where { @a.input_batching_dims==[] && @b.input_batching_dims==[] && @a.scatter_indices_batching_dims==[] && @b.scatter_indices_batching_dims==[] }
+}

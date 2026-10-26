@@ -1,0 +1,11 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: dot-drop-unit-dims
+// Scope: Remove a leading free unit axis from a rank-three left operand.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_dot_drop_unit_dims {
+    X: [One,M,K] Y: [K,N]
+     (hlo.dot[@d] X Y) => (hlo.reshape[@out] (hlo.dot[@new] (hlo.reshape[@left] X) Y))
+     where { One==1 && @d.lhs_batching_dimensions==[] && @d.rhs_batching_dimensions==[] && @d.lhs_contracting_dimensions==[2] && @d.rhs_contracting_dimensions==[0] }
+     derive { @left={shape:[M,K]}; @new={lhs_batching_dimensions:[],rhs_batching_dimensions:[],lhs_contracting_dimensions:[1],rhs_contracting_dimensions:[0]}; @out={shape:[1,M,N]}; }
+}

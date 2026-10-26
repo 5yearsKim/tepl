@@ -4,5 +4,5 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Scope: Scalar literal instance; source conditions retained in the catalog.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_compare_predicate_true {
-    X: bool[] (hlo.compare[@c] X 1:bool) => X where { @c.direction == 0 }
+    X: bool[] (attr_c: hlo.compare X 1:bool) => X where { attr_c.attrs.direction == 0 }
 }

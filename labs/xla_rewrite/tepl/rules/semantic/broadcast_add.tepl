@@ -3,8 +3,8 @@ use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
         reduce_sum, reverse, slice, dot};
 
 rule broadcast_add {
-    (add (broadcast[@left] X) (broadcast[@right] Y))
-    => (broadcast[@left] (add X Y))
-    where { @left.dimensions == @right.dimensions
-         && @left.new_extents == @right.new_extents }
+    (add (attr_left: broadcast X) (attr_right: broadcast Y))
+    => (broadcast[attr_left.attrs] (add X Y))
+    where { attr_left.attrs.dimensions == attr_right.attrs.dimensions
+         && attr_left.attrs.new_extents == attr_right.attrs.new_extents }
 }

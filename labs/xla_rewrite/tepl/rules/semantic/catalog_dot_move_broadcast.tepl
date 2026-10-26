@@ -5,7 +5,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_dot_move_broadcast {
     X: [K] Y: [J,N]
-     (hlo.dot[@d] (hlo.broadcast[@b] X) Y) => (hlo.dot[@out] X (hlo.reduce_sum[@sum] Y))
-     where { @b.dimensions==[0] && @b.new_extents==[J] && @d.lhs_batching_dimensions==[] && @d.rhs_batching_dimensions==[] && @d.lhs_contracting_dimensions==[1] && @d.rhs_contracting_dimensions==[0] }
-     derive { @sum={dimensions:[0]}; @out={lhs_batching_dimensions:[],rhs_batching_dimensions:[],lhs_contracting_dimensions:[],rhs_contracting_dimensions:[]}; }
+     (attr_d: hlo.dot (attr_b: hlo.broadcast X) Y) => (attr_out: hlo.dot X (attr_sum: hlo.reduce_sum Y))
+     where { attr_b.attrs.dimensions==[0] && attr_b.attrs.new_extents==[J] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
+     derive { attr_sum.attrs={dimensions:[0]}; attr_out.attrs={lhs_batching_dimensions:[],rhs_batching_dimensions:[],lhs_contracting_dimensions:[],rhs_contracting_dimensions:[]}; }
 }

@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_broadcast_replication_axes {
     dtype T; X: T[Dims...]
-     (hlo.reduce_sum[@r] (hlo.broadcast[@b] X)) => (hlo.multiply X (hlo.broadcast[@scale] (hlo.scalar[@count])))
-     where { @b.dimensions==range(len(Dims)) && @r.dimensions==[len(Dims)+i for i in range(len(@b.new_extents))] }
-     derive { @count={value:product(@b.new_extents),element_type:T,shape:[]}; @scale={dimensions:[],new_extents:Dims}; }
+     (attr_r: hlo.reduce_sum (attr_b: hlo.broadcast X)) => (hlo.multiply X (attr_scale: hlo.broadcast (attr_count: hlo.scalar)))
+     where { attr_b.attrs.dimensions==range(len(Dims)) && attr_r.attrs.dimensions==[len(Dims)+i for i in range(len(attr_b.attrs.new_extents))] }
+     derive { attr_count.attrs={value:product(attr_b.attrs.new_extents),element_type:T,shape:[]}; attr_scale.attrs={dimensions:[],new_extents:Dims}; }
 }

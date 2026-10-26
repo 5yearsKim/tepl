@@ -1,0 +1,13 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule slice_compose {
+    X: [N]
+    (slice[@outer] (slice[@inner] X)) => (slice[@out] X)
+    where { @inner.strides == [1] && @outer.strides == [1] }
+    derive {
+        @out = { starts: [@inner.starts[0] + @outer.starts[0]],
+            sizes: @outer.sizes, strides: [1] };
+    }
+}

@@ -4,7 +4,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Scope: Arbitrary-rank iota; broadcast appends axes.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_iota {
-    (hlo.broadcast[@b] (hlo.iota[@i])) => (hlo.iota[@out])
-     where { @b.dimensions == range(len(@i.shape)) }
-     derive { @out = { ..@i, shape: concat(@i.shape,@b.new_extents), dimension: @b.dimensions[@i.dimension] }; }
+    (attr_b: hlo.broadcast (attr_i: hlo.iota)) => (attr_out: hlo.iota)
+     where { attr_b.attrs.dimensions == range(len(attr_i.attrs.shape)) }
+     derive { attr_out.attrs = { ..attr_i.attrs, shape: concat(attr_i.attrs.shape,attr_b.attrs.new_extents), dimension: attr_b.attrs.dimensions[attr_i.attrs.dimension] }; }
 }

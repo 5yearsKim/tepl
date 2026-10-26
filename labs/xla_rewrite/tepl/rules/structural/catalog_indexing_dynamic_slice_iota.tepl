@@ -5,8 +5,8 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_dynamic_slice_iota {
     Start: i32[] Scale: []
-     (hlo.dynamic_slice[@s] (hlo.multiply (hlo.iota[@i]) Scale) Start)
-     => (hlo.reshape[@r] (hlo.multiply (hlo.convert[@c] (hlo.clamp 0:i32 Start (hlo.scalar[@limit]))) Scale))
-     where { len(@i.shape)==1 && @i.shape[0]>0 && @i.dimension==0 && @s.sizes==[1] }
-     derive { @limit={value:@i.shape[0]-1,element_type:i32,shape:[]}; @c={to:@i.element_type}; @r={shape:[1]}; }
+     (attr_s: hlo.dynamic_slice (hlo.multiply (attr_i: hlo.iota) Scale) Start)
+     => (attr_r: hlo.reshape (hlo.multiply (attr_c: hlo.convert (hlo.clamp 0:i32 Start (attr_limit: hlo.scalar))) Scale))
+     where { len(attr_i.attrs.shape)==1 && attr_i.attrs.shape[0]>0 && attr_i.attrs.dimension==0 && attr_s.attrs.sizes==[1] }
+     derive { attr_limit.attrs={value:attr_i.attrs.shape[0]-1,element_type:i32,shape:[]}; attr_c.attrs={to:attr_i.attrs.element_type}; attr_r.attrs={shape:[1]}; }
 }

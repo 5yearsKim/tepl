@@ -6,11 +6,11 @@ rule expr_convolution_scale_filter_bias {
     W: [KW, C, F]
     Bias: [N, O, F]
     Scale: [F]
-    (hlo.multiply (hlo.add (hlo.convolution[@conv] X W) Bias)
-        (hlo.broadcast[@output] Scale))
+    (hlo.multiply (hlo.add (attr_conv: hlo.convolution X W) Bias)
+        (attr_output: hlo.broadcast Scale))
     => (hlo.add
-        (hlo.convolution[@conv] X (hlo.multiply W (hlo.broadcast[@kernel] Scale)))
-        (hlo.multiply Bias (hlo.broadcast[@output] Scale)))
-    where { @output.dimensions == [2] && @output.new_extents == [N, O] }
-    derive { @kernel = { dimensions: [2], new_extents: [KW, C] }; }
+        (hlo.convolution[attr_conv.attrs] X (hlo.multiply W (attr_kernel: hlo.broadcast Scale)))
+        (hlo.multiply Bias (hlo.broadcast[attr_output.attrs] Scale)))
+    where { attr_output.attrs.dimensions == [2] && attr_output.attrs.new_extents == [N, O] }
+    derive { attr_kernel.attrs = { dimensions: [2], new_extents: [KW, C] }; }
 }

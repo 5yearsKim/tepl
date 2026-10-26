@@ -4,5 +4,5 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Scope: Rank-one full-shape dynamic slice.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_dynamic_slice_identity {
-    X: [N] (hlo.dynamic_slice[@s] X Start) => X where { @s.sizes==[N] }
+    X: [N] (attr_s: hlo.dynamic_slice X Start) => X where { attr_s.attrs.sizes==[N] }
 }

@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_gather_empty {
     dtype T; X: T[Dims...]
-     (hlo.gather[@g] X Indices) => (hlo.fill[@zero])
+     (attr_g: hlo.gather X Indices) => (attr_zero: hlo.fill)
      where { product(Dims)==0 }
-     derive { @zero={shape:@g.shape,value:0,element_type:T}; }
+     derive { attr_zero.attrs={shape:attr_g.attrs.shape,value:0,element_type:T}; }
 }

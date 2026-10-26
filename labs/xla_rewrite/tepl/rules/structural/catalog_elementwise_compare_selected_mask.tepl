@@ -5,6 +5,6 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_compare_selected_mask {
     A: [] B: []
-     (hlo.compare[@ne] (hlo.select (hlo.compare[@ge] A B) 1 0) 0) => (hlo.compare[@ge] A B)
-     where { @ge.direction == 2 && @ne.direction == 1 }
+     (attr_ne: hlo.compare (hlo.select (attr_ge: hlo.compare A B) 1 0) 0) => (hlo.compare[attr_ge.attrs] A B)
+     where { attr_ge.attrs.direction == 2 && attr_ne.attrs.direction == 1 }
 }

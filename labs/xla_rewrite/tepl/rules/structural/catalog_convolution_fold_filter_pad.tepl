@@ -5,7 +5,7 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_convolution_fold_filter_pad {
     W: [K,C,F]
-     (hlo.general_convolution[@c] X (hlo.nonnegative_pad[@p] W 0)) => (hlo.general_convolution[@out] X W)
-     where { @c.input_batch_dimension==0 && @c.input_feature_dimension==2 && @c.input_spatial_dimensions==[1] && @c.kernel_input_feature_dimension==1 && @c.kernel_output_feature_dimension==2 && @c.kernel_spatial_dimensions==[0] && @c.output_batch_dimension==0 && @c.output_feature_dimension==2 && @c.output_spatial_dimensions==[1] && @p.low==[0,0,0] && @p.high==[0,0,0] && @p.interior[1]==0 && @p.interior[2]==0 && @c.rhs_dilation==[1] }
-     derive { @out={..@c,rhs_dilation:[@p.interior[0]+1]}; }
+     (attr_c: hlo.general_convolution X (attr_p: hlo.nonnegative_pad W 0)) => (attr_out: hlo.general_convolution X W)
+     where { attr_c.attrs.input_batch_dimension==0 && attr_c.attrs.input_feature_dimension==2 && attr_c.attrs.input_spatial_dimensions==[1] && attr_c.attrs.kernel_input_feature_dimension==1 && attr_c.attrs.kernel_output_feature_dimension==2 && attr_c.attrs.kernel_spatial_dimensions==[0] && attr_c.attrs.output_batch_dimension==0 && attr_c.attrs.output_feature_dimension==2 && attr_c.attrs.output_spatial_dimensions==[1] && attr_p.attrs.low==[0,0,0] && attr_p.attrs.high==[0,0,0] && attr_p.attrs.interior[1]==0 && attr_p.attrs.interior[2]==0 && attr_c.attrs.rhs_dilation==[1] }
+     derive { attr_out.attrs={..attr_c.attrs,rhs_dilation:[attr_p.attrs.interior[0]+1]}; }
 }

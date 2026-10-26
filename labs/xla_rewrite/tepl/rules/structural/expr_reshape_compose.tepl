@@ -2,5 +2,5 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 
 // Expression check under the source conditions recorded in the catalog.
 rule expr_reshape_compose {
-    (hlo.reshape[@outer] (hlo.reshape[@inner] X)) => (hlo.reshape[@outer] X)
+    (attr_outer: hlo.reshape (attr_inner: hlo.reshape X)) => (hlo.reshape[attr_outer.attrs] X)
 }

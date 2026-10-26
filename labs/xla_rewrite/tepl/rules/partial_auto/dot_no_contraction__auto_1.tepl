@@ -1,0 +1,15 @@
+// Generated inference variant; original graph and conditions preserved.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{dot, broadcast, mul};
+
+rule dot_no_contraction {
+    X: [M]
+    Y: [N]
+    (attr_d: dot X Y) => (mul (attr_left: broadcast X) (attr_right: broadcast Y))
+    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []
+         && attr_d.attrs.lhs_contracting_dimensions == []
+         && attr_d.attrs.rhs_contracting_dimensions == [] }
+    derive {
+        attr_left.attrs = { dimensions: [0], new_extents: [N] };
+    }
+}

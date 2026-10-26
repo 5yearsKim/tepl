@@ -4,5 +4,5 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Scope: Written operand/opcode variant under the catalog conditions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_multiply_predicate {
-    X: [Dims...] (hlo.multiply (hlo.convert[@c] P) X) => (hlo.select P X (hlo.zero_like X))
+    X: [Dims...] (hlo.multiply (attr_c: hlo.convert P) X) => (hlo.select P X (hlo.zero_like X))
 }

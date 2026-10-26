@@ -4,7 +4,7 @@ use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
 
 rule reverse_compose_disjoint {
     X: [I, J]
-    (reverse[@outer] (reverse[@inner] X)) => (reverse[@out] X)
-    where { @inner.dimensions == [0] && @outer.dimensions == [1] }
-    derive { @out = { dimensions: [0, 1] }; }
+    (attr_outer: reverse (attr_inner: reverse X)) => (attr_out: reverse X)
+    where { attr_inner.attrs.dimensions == [0] && attr_outer.attrs.dimensions == [1] }
+    derive { attr_out.attrs = { dimensions: [0, 1] }; }
 }

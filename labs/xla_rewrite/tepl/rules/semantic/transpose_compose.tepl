@@ -3,9 +3,9 @@ use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
         reduce_sum, reverse, slice, dot};
 
 rule transpose_compose {
-    (transpose[@outer] (transpose[@inner] X)) => (transpose[@combined] X)
+    (attr_outer: transpose (attr_inner: transpose X)) => (attr_combined: transpose X)
     derive {
-        @combined = { ..@outer,
-            permutation: gather(@inner.permutation, @outer.permutation) };
+        attr_combined.attrs = { ..attr_outer.attrs,
+            permutation: gather(attr_inner.attrs.permutation, attr_outer.attrs.permutation) };
     }
 }

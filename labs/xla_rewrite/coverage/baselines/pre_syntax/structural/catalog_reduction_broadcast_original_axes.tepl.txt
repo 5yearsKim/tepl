@@ -1,0 +1,11 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo;
+
+// Catalog: reduction-broadcast-original-axes
+// Scope: Sum specialization; rank-one base and one broadcast-created axis.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_reduction_broadcast_original_axes {
+    X: [N]
+     (hlo.reduce_sum[@r] (hlo.broadcast[@b] X)) => (hlo.broadcast[@out] (hlo.reduce_sum[@r] X))
+     where { @b.dimensions==[0] && len(@b.new_extents)==1 && @r.dimensions==[0] }
+     derive { @out={dimensions:[],new_extents:@b.new_extents}; }
+}

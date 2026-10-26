@@ -1,0 +1,11 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-dynamic-slice-broadcast
+// Scope: Rank-one base broadcast to rank two; two scalar dynamic start operands.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_dynamic_slice_broadcast {
+    X: [N]
+     (hlo.dynamic_slice[@s] (hlo.broadcast[@b] X) S0 S1) => (hlo.broadcast[@out] (hlo.dynamic_slice[@inner] X S0))
+     where { @b.dimensions == [0] && len(@s.sizes)==2 }
+     derive { @inner={sizes:[@s.sizes[0]]}; @out={dimensions:[0],new_extents:[@s.sizes[1]]}; }
+}

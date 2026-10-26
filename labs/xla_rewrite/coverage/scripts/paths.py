@@ -32,8 +32,13 @@ def relocated_manifest(original, migration):
 def validate_frozen_corpus(baseline):
     migration = json.loads(MIGRATION.read_text())
     snapshots = migration["manifest_snapshots"]
+    syntax_record = HERE / "data/syntax_migration.json"
+    syntax_snapshots = ({row["file"]: row["snapshot"]
+                         for row in json.loads(syntax_record.read_text())["files"]}
+                        if syntax_record.exists() else {})
     for name, expected in baseline["corpus_hashes"].items():
-        path = ROOT / snapshots.get(name, relocate(name, migration))
+        current = snapshots.get(name, relocate(name, migration))
+        path = ROOT / syntax_snapshots.get(current, current)
         if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise ValueError("frozen reasoning corpus changed: " + name)
         if name in snapshots:

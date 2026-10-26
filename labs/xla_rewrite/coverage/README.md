@@ -1,5 +1,10 @@
 # HLO Rewrite Coverage
 
+[Attribute synthesis](reports/attribute_synthesis.md) reports the refreshed
+theorem-based experiment: syntax migration, classification before measurement,
+and explicit, full-auto, and partial-auto outcomes. The generated
+[case table](reports/synthesis_cases.md) accounts for all 209 original cases.
+
 [Compilation](reports/compilation.md) measures rule expressibility and executable
 compilation. [Verification](reports/verification.md) reports semantic acceptance,
 missing operation semantics and unresolved proofs for the same rule bodies.
@@ -23,7 +28,9 @@ directory contains the evaluation data, tools, tests and results.
 [data/compilation_cases.json](data/compilation_cases.json) and
 [data/verification_cases.json](data/verification_cases.json) identify every case,
 its catalog schema and its scope. Case file paths are relative to `coverage/`.
-Counterpart files differ only in their dialect import. Every RHS attribute is explicit; no case uses `auto`.
+Counterpart baseline files differ only in their dialect import and have explicit
+RHS attributes. Inference variants live separately in `rules/full_auto/` and
+`rules/partial_auto/`; omitted RHS descriptors request inference.
 
 Semantic acceptance requires explicit `status=proved` and
 `additional-guard: true`. An ordinary type check does not count as verification.
@@ -38,8 +45,13 @@ Run these commands from the repository root:
 
 ```sh
 bazel build //:tepl
+python3 labs/xla_rewrite/coverage/scripts/migrate_syntax.py --check
+python3 labs/xla_rewrite/coverage/scripts/synthesis_cases.py
 python3 labs/xla_rewrite/coverage/scripts/run_checks.py
 python3 labs/xla_rewrite/coverage/scripts/expression_coverage.py --run
+python3 labs/xla_rewrite/coverage/scripts/run_synthesis.py
+python3 labs/xla_rewrite/coverage/scripts/synthesis_report.py
+python3 labs/xla_rewrite/coverage/scripts/synthesis_report.py --check
 python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py
 python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py --check
 python3 -m unittest discover -s labs/xla_rewrite/coverage/tests -p 'test_*.py'
@@ -68,6 +80,10 @@ did not edit this file or the rule bodies.
 the new layout. [pre_layout/](baselines/pre_layout/) preserves the original two
 manifests. Validators check their original hashes and require current manifests
 to differ only in case file paths.
+
+The syntax migration preserves the changed files separately in
+[pre_syntax/](baselines/pre_syntax/). Historical hashes continue to validate
+against those snapshots; current measurements use the migrated sources.
 
 The manual semantic assessment in [data/assessments.json](data/assessments.json)
 describes an older compiler and is separate from current measurements. Host calls

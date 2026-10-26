@@ -4,6 +4,6 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_reverse_trivial {
-    X: [Dims...] (hlo.reverse[@r] X) => X
-     where { all([Dims[i]==1 for i in @r.dimensions]) }
+    X: [Dims...] (attr_r: hlo.reverse X) => X
+     where { all([Dims[i]==1 for i in attr_r.attrs.dimensions]) }
 }

@@ -5,7 +5,7 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_slice_window_to_reduce {
     X: f32[N]
-     (hlo.slice[@s] (hlo.reduce_window_sum[@w] X 0.0:f32)) => (hlo.reshape[@out] (hlo.reduce_sum[@r] X))
-     where { N>0 && @w.window_dimensions==[N] && @w.window_strides==[1] && @w.base_dilations==[1] && @w.window_dilations==[1] && @w.padding_low==[N-1] && @w.padding_high==[0] && @s.starts==[N-1] && @s.sizes==[1] && @s.strides==[1] }
-     derive { @r={dimensions:[0]}; @out={shape:[1]}; }
+     (attr_s: hlo.slice (attr_w: hlo.reduce_window_sum X 0.0:f32)) => (attr_out: hlo.reshape (attr_r: hlo.reduce_sum X))
+     where { N>0 && attr_w.attrs.window_dimensions==[N] && attr_w.attrs.window_strides==[1] && attr_w.attrs.base_dilations==[1] && attr_w.attrs.window_dilations==[1] && attr_w.attrs.padding_low==[N-1] && attr_w.attrs.padding_high==[0] && attr_s.attrs.starts==[N-1] && attr_s.attrs.sizes==[1] && attr_s.attrs.strides==[1] }
+     derive { attr_r.attrs={dimensions:[0]}; attr_out.attrs={shape:[1]}; }
 }

@@ -117,134 +117,136 @@ S Context::complementBlocks(const S& universe, const S& excluded) {
     }
   return call("ordered_complement", {universe, excluded});
 }
-S Context::sequenceEquality(const S& a, const S& b) {
+S Context::axisSequence(const S& axes) {
   // Registered views retain their spelling in canonical() so their origin
-  // maps remain available. Compare their sequence meaning separately, also
-  // inside concatenations: preserving a graph node must not hide an identity
-  // selection or a physical-order filter from equality checking.
-  if (a->sort == Symbol::Sort::Axes && b->sort == Symbol::Sort::Axes) {
-    std::map<Key, S> memo;
-    auto comparison = [&](auto&& self, const S& x, std::size_t depth) -> S {
-      tick();
-      if (depth > ProofLimits::expression_depth)
-        throw ProofFailure("axis comparison depth limit exceeded",
-                           FailureKind::BudgetExceeded);
-      if (auto it = memo.find(key(x)); it != memo.end()) return it->second;
-      S result = x;
-      if (callIs(x, "concat")) {
-        std::vector<S> parts;
-        for (const auto& part : x->args)
-          parts.push_back(self(self, part, depth + 1));
-        result = call("concat", std::move(parts));
-      } else if (callIs(x, "gather")) {
-        auto base = x->args[0], selector = canonical(x->args[1]);
-        while (callIs(base, "gather")) {
-          tick();
-          selector = canonical(call("gather", {base->args[1], selector}));
-          base = base->args[0];
+  // maps remain available. Expand sequence meaning separately for both
+  // ordered equality and membership reasoning, without changing those maps.
+  auto& memo = queries_.axis_sequences;
+  auto comparison = [&](auto&& self, const S& x, std::size_t depth) -> S {
+    tick();
+    if (depth > ProofLimits::expression_depth)
+      throw ProofFailure("axis comparison depth limit exceeded",
+                         FailureKind::BudgetExceeded);
+    if (auto it = memo.find(key(x)); it != memo.end()) return it->second;
+    S result = x;
+    if (x->kind == Symbol::Kind::AxisGroup) {
+      auto representative = canonical(x);
+      if (!equal(x, representative))
+        result = self(self, representative, depth + 1);
+    } else if (callIs(x, "concat")) {
+      std::vector<S> parts;
+      for (const auto& part : x->args)
+        parts.push_back(self(self, part, depth + 1));
+      result = call("concat", std::move(parts));
+    } else if (callIs(x, "gather")) {
+      auto base = x->args[0], selector = canonical(x->args[1]);
+      while (callIs(base, "gather")) {
+        tick();
+        selector = canonical(call("gather", {base->args[1], selector}));
+        base = base->args[0];
+      }
+      base = self(self, base, depth + 1);
+      result = equal(selector, canonical(call("range", {call("len", {base})})))
+                   ? base
+                   : call("gather", {base, selector});
+      if (callIs(base, "concat") && selector->kind == Symbol::Kind::List &&
+          !selector->args.empty() && !equal(result, base)) {
+        // Context-known block lengths need not be literal in the expression
+        // factory. Project an explicit selector into those blocks while
+        // preserving its order (including repeated visits to a block).
+        std::vector<std::size_t> sizes;
+        std::size_t total = 0;
+        bool known = true;
+        for (const auto& part : base->args) {
+          auto size = metadataInteger(canonical(call("len", {part})));
+          if (!size || *size < 0 ||
+              *size > std::numeric_limits<std::size_t>::max() - total) {
+            known = false;
+            break;
+          }
+          sizes.push_back(static_cast<std::size_t>(*size));
+          total += sizes.back();
         }
-        base = self(self, base, depth + 1);
-        result =
-            equal(selector, canonical(call("range", {call("len", {base})})))
-                ? base
-                : call("gather", {base, selector});
-        if (callIs(base, "concat") && selector->kind == Symbol::Kind::List &&
-            selector->args.size() > 1 && !equal(result, base)) {
-          // Context-known block lengths need not be literal in the expression
-          // factory. Project an explicit selector into those blocks while
-          // preserving its order (including repeated visits to a block).
-          std::vector<std::size_t> sizes;
-          std::size_t total = 0;
-          bool known = true;
-          for (const auto& part : base->args) {
-            auto size = metadataInteger(canonical(call("len", {part})));
-            if (!size || *size < 0 ||
-                *size > std::numeric_limits<std::size_t>::max() - total) {
+        std::vector<S> projected;
+        std::vector<S> local;
+        std::size_t block = base->args.size();
+        auto flush = [&] {
+          if (local.empty()) return;
+          projected.push_back(
+              self(self,
+                   call("gather", {base->args[block],
+                                   make(Symbol::Kind::List, {}, 0, 0, local)}),
+                   depth + 1));
+          local.clear();
+        };
+        if (known)
+          for (const auto& index : selector->args) {
+            auto position = metadataInteger(index);
+            if (!position || *position < 0 || *position >= total) {
               known = false;
               break;
             }
-            sizes.push_back(static_cast<std::size_t>(*size));
-            total += sizes.back();
-          }
-          std::vector<S> projected;
-          std::vector<S> local;
-          std::size_t block = base->args.size();
-          auto flush = [&] {
-            if (local.empty()) return;
-            projected.push_back(self(
-                self,
-                call("gather", {base->args[block],
-                                make(Symbol::Kind::List, {}, 0, 0, local)}),
-                depth + 1));
-            local.clear();
-          };
-          if (known)
-            for (const auto& index : selector->args) {
-              auto position = metadataInteger(index);
-              if (!position || *position < 0 || *position >= total) {
-                known = false;
-                break;
-              }
-              auto remaining = static_cast<std::size_t>(*position);
-              std::size_t next = 0;
-              while (next < sizes.size() && remaining >= sizes[next])
-                remaining -= sizes[next++];
-              if (next != block) {
-                flush();
-                block = next;
-              }
-              local.push_back(integer(remaining));
+            auto remaining = static_cast<std::size_t>(*position);
+            std::size_t next = 0;
+            while (next < sizes.size() && remaining >= sizes[next])
+              remaining -= sizes[next++];
+            if (next != block) {
+              flush();
+              block = next;
             }
-          if (known) {
-            flush();
-            result = call("concat", std::move(projected));
-            memo.emplace(key(x), result);
-            return result;
+            local.push_back(integer(remaining));
           }
-          std::vector<S> parts;
-          bool resolved = true;
-          for (const auto& position : selector->args) {
-            auto part =
-                call("gather",
-                     {base, make(Symbol::Kind::List, {}, 0, 0, {position})});
-            // Expand only selections that project into known producer
-            // blocks. Unknown symbolic offsets retain their original view.
-            if (callIs(part, "gather") && equal(part->args[0], base)) {
-              resolved = false;
-              break;
-            }
-            parts.push_back(self(self, part, depth + 1));
-          }
-          if (resolved) result = call("concat", std::move(parts));
+        if (known) {
+          flush();
+          result = call("concat", std::move(projected));
+          memo.emplace(key(x), result);
+          return result;
         }
-      } else if (callIs(x, "filter_axes")) {
-        auto order = self(self, x->args[0], depth + 1);
-        auto wanted = self(self, x->args[1], depth + 1);
-        // Keep this comparison structural. Running the full set prover here
-        // can recursively ask for the same sequence equality.
-        bool retained = equal(order, wanted);
-        if (callIs(wanted, "concat") || callIs(wanted, "union_axes"))
-          for (const auto& part : wanted->args) retained |= equal(order, part);
-        if (retained)
-          result = order;
-        else if (independent(order, wanted))
-          result = call("empty_axes", {});
-        else if (callIs(order, "concat")) {
-          std::vector<S> parts;
-          for (const auto& part : order->args)
-            parts.push_back(
-                self(self, call("filter_axes", {part, wanted}), depth + 1));
-          result = call("concat", std::move(parts));
-        } else
-          result = call("filter_axes", {order, wanted});
+        std::vector<S> parts;
+        bool resolved = true;
+        for (const auto& position : selector->args) {
+          auto part = call(
+              "gather", {base, make(Symbol::Kind::List, {}, 0, 0, {position})});
+          // Expand only selections that project into known producer
+          // blocks. Unknown symbolic offsets retain their original view.
+          if (callIs(part, "gather") && equal(part->args[0], base)) {
+            resolved = false;
+            break;
+          }
+          parts.push_back(self(self, part, depth + 1));
+        }
+        if (resolved) result = call("concat", std::move(parts));
       }
-      memo.emplace(key(x), result);
-      return result;
-    };
-    auto left = comparison(comparison, a, 0);
-    auto right = comparison(comparison, b, 0);
-    if (equal(left, right)) return boolean(true);
-  }
+    } else if (callIs(x, "filter_axes")) {
+      auto order = self(self, x->args[0], depth + 1);
+      auto wanted = self(self, x->args[1], depth + 1);
+      // Keep this comparison structural. Running the full set prover here
+      // can recursively ask for the same sequence equality.
+      bool retained = equal(order, wanted);
+      if (callIs(wanted, "concat") || callIs(wanted, "union_axes"))
+        for (const auto& part : wanted->args) retained |= equal(order, part);
+      if (retained)
+        result = order;
+      else if (independent(order, wanted))
+        result = call("empty_axes", {});
+      else if (callIs(order, "concat")) {
+        std::vector<S> parts;
+        for (const auto& part : order->args)
+          parts.push_back(
+              self(self, call("filter_axes", {part, wanted}), depth + 1));
+        result = call("concat", std::move(parts));
+      } else
+        result = call("filter_axes", {order, wanted});
+    }
+    memo.emplace(key(x), result);
+    return result;
+  };
+  return comparison(comparison, axes, 0);
+}
+S Context::sequenceEquality(const S& a, const S& b) {
+  if (a->sort == Symbol::Sort::Axes && b->sort == Symbol::Sort::Axes &&
+      equal(axisSequence(a), axisSequence(b)))
+    return boolean(true);
   for (const auto& [placed, interface] : {std::pair{a, b}, std::pair{b, a}}) {
     if (!callIs(placed, "place_axes") || interface->sort != Symbol::Sort::Axes)
       continue;

@@ -42,12 +42,19 @@ def inventory():
 
 
 def required_operations(path):
+    # Metadata functions such as gather(...) are not HLO graph operations.
+    # Parse graph applications so node labels and metadata calls cannot skew
+    # the semantic-support denominator.
+    if __package__:
+        from .synthesis_cases import Rule
+    else:
+        from synthesis_cases import Rule
     operations = inventory()
     aliases = {alias: name for name, op in operations.items()
                for alias in [name, *op["aliases"]]}
-    source = re.sub(r"//[^\n]*", "", path.read_text())
-    return sorted({aliases[name] for name in re.findall(
-        r"\((?:hlo\.)?(\w+)\b", source) if name in aliases})
+    rule = Rule(path.read_text())
+    return sorted({aliases[op.name.split(".")[-1]]
+                   for op in rule.lhs.operations() + rule.rhs.operations()})
 
 
 def validate_support():

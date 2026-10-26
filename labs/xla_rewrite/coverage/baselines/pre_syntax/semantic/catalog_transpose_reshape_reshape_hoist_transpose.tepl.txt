@@ -1,0 +1,11 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: transpose-reshape-reshape-hoist-transpose
+// Scope: Two contiguous rank-two chunks of a rank-four tensor; symbolic extents.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_transpose_reshape_reshape_hoist_transpose {
+    X: [A,B,C,D]
+     (hlo.reshape[@outer] (hlo.transpose[@p] (hlo.reshape[@inner] X))) => (hlo.transpose[@q] (hlo.reshape[@r] X))
+     where { @inner.shape==[A,B,C,D] && @p.permutation==[2,3,0,1] && @outer.shape==[C*D,A*B] }
+     derive { @r={shape:[A*B,C*D]}; @q={permutation:[1,0]}; }
+}

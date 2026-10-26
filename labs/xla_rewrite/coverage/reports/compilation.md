@@ -15,7 +15,7 @@ These are manual expressibility assessments. They identify which language mechan
 
 The explicit baseline now includes a designated rule for each of the **192 originally expressible schemas**. **192/192 designated rules compile**. Each rule has an explicit catalog ID, RHS metadata and scope. Some implementations select a fixed rank, opcode or padding domain; their compilation establishes those written cases.
 
-Including retained pilot variants, compilation accepted **209 of 209 explicit cases**, spanning **199 catalog schemas**. Each case supplies its RHS attributes. The full semantic sweep proved **86 of 209 cases**, covering **80 catalog schemas**; see [automatic verification](verification.md).
+Including retained pilot variants, compilation accepted **209 of 209 explicit cases**, spanning **199 catalog schemas**. Each case supplies its RHS attributes. The full semantic sweep proved **89 of 209 cases**, covering **82 catalog schemas**; see [automatic verification](verification.md).
 
 Both experiments use the self-contained HLO project configured by [tepl.toml](../../tepl/tepl.toml). Compilation uses [HLO declarations without value semantics](../../tepl/dialects/hlo_structural.tepl); verification uses the same rule bodies with the local [semantic HLO profile](../../tepl/dialects/hlo.tepl). Every compilation case has a semantic counterpart; missing semantics and unproved cases are reported separately. Imports resolve from the project root.
 
@@ -39,8 +39,8 @@ Three outcomes are recorded independently:
 | indexing | 60 | 43 | 10 | 7 | 0 | 43/43 | 49 | 44 | 4 |
 | broadcast | 20 | 18 | 1 | 1 | 0 | 18/18 | 20 | 18 | 2 |
 | transpose-reshape | 9 | 8 | 0 | 1 | 0 | 8/8 | 8 | 8 | 2 |
-| dot | 18 | 17 | 0 | 1 | 0 | 17/17 | 17 | 17 | 7 |
-| reduction | 26 | 22 | 0 | 2 | 2 | 22/22 | 24 | 22 | 3 |
+| dot | 18 | 17 | 0 | 1 | 0 | 17/17 | 17 | 17 | 8 |
+| reduction | 26 | 22 | 0 | 2 | 2 | 22/22 | 24 | 22 | 4 |
 | convolution | 7 | 7 | 0 | 0 | 0 | 7/7 | 7 | 7 | 0 |
 
 ## Examples demonstrated by compilation
@@ -533,7 +533,7 @@ Each row links to the original equation and source conditions. An expression ass
 - [labs/xla_rewrite/tepl/dialects/hlo.tepl](../../../../labs/xla_rewrite/tepl/dialects/hlo.tepl)
 - [labs/xla_rewrite/tepl/dialects/hlo_structural.tepl](../../../../labs/xla_rewrite/tepl/dialects/hlo_structural.tepl)
 
-TEPL revision: `e155b17fc2968b5f499dc8befae095976c95d8ca`. XLA revision: `e02127ba9c9c48912b0e6776fe5bfe3843d81042`. Case files, the dialect, catalog and runner have recorded hashes in [compilation.json](../results/compilation.json).
+TEPL revision: `592b33a103c9123a9fd00614a0971e9b24eac890`. XLA revision: `e02127ba9c9c48912b0e6776fe5bfe3843d81042`. Case files, the dialect, catalog and runner have recorded hashes in [compilation.json](../results/compilation.json).
 
 ```sh
 bazel build //:tepl

@@ -5,6 +5,6 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_log_power {
     X: [] Y: []
-     (hlo.log (hlo.power X Y)) => (hlo.select (hlo.compare[@eq] Y 0) 0 (hlo.multiply Y (hlo.log (hlo.abs X))))
-     derive { @eq = { direction: 0 }; }
+     (hlo.log (hlo.power X Y)) => (hlo.select (attr_eq: hlo.compare Y 0) 0 (hlo.multiply Y (hlo.log (hlo.abs X))))
+     derive { attr_eq.attrs = { direction: 0 }; }
 }

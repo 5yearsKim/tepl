@@ -1,0 +1,7 @@
+// Generated inference variant; original graph and conditions preserved.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_slice_reverse_general {
+    X: [Dims...] (attr_s: hlo.slice (attr_r: hlo.reverse X)) => (hlo.reverse (attr_out: hlo.slice X)) where { all([n > 0 for n in attr_s.attrs.sizes]) } 
+}
