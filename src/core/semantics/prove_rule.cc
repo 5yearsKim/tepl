@@ -1,16 +1,35 @@
 #include "src/core/semantics/prove_rule.h"
 
+#include <chrono>
+
 #include "src/core/attr_synth/synthesize.h"
 #include "src/core/semantics/proof/verify.h"
 
 namespace tepl::core::semantics {
+namespace {
+template <class F>
+auto measure(F run, double* milliseconds) {
+  if (!milliseconds) return run();
+  const auto start = std::chrono::steady_clock::now();
+  auto result = run();
+  *milliseconds += std::chrono::duration<double, std::milli>(
+                       std::chrono::steady_clock::now() - start)
+                       .count();
+  return result;
+}
+}  // namespace
 
-RuleProof proveRule(const Plan& plan, std::size_t max_work) {
+RuleProof proveRule(const Plan& plan, std::size_t max_work,
+                    ProofTiming* timing) {
+  if (timing) *timing = {};
   RuleProof proof;
   for (auto strategy :
        {attr_synth::Strategy::Identity, attr_synth::Strategy::Ordered,
         attr_synth::Strategy::General}) {
-    auto result = attr_synth::synthesize(plan, strategy, max_work);
+    if (timing) ++timing->construction_attempts;
+    auto result = measure(
+        [&] { return attr_synth::synthesize(plan, strategy, max_work); },
+        timing ? &timing->construction_ms : nullptr);
     if (!result.constructed) {
       proof = {};
       proof.guard = std::move(result.candidate.guard);
@@ -21,7 +40,9 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work) {
     }
     // Verification rebuilds its context from the plan and candidate. No facts
     // or attribute assignments from the synthesis attempt become premises.
-    proof = verify(plan, result.candidate, max_work);
+    if (timing) ++timing->verification_attempts;
+    proof = measure([&] { return verify(plan, result.candidate, max_work); },
+                    timing ? &timing->verification_ms : nullptr);
     if (proof.status == ProofStatus::Proved) {
       proof.steps.insert(proof.steps.end(), result.steps.begin(),
                          result.steps.end());

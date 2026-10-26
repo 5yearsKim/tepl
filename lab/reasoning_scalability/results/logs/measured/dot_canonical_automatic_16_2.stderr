@@ -1,1 +1,0 @@
-lab/reasoning_scalability/inputs/dot_canonical_automatic_16.tepl:4:1: cannot verify rule 'dot_canonical_automatic_16': attribute construction: budget exhausted: symbolic proof work limit exceeded. Add an explicit where condition establishing the unresolved requirement, or change the rewrite.

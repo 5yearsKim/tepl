@@ -1,0 +1,12 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
+cc_binary(
+    name = "inference_benchmark",
+    srcs = ["inference_benchmark.cc"],
+    deps = [
+        "//src/core:pipeline",
+        "//src/core/semantics:rule_proof",
+        "//src/core/syntax:syntax",
+        "@nlohmann_json//:json",
+    ],
+)

@@ -1,1 +1,0 @@
-lab/reasoning_scalability/inputs/dot_permuted_explicit_04.tepl:4:1: cannot verify rule 'dot_permuted_explicit_04': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(gather(shape(Input(#2)), [1]), gather(shape(Input(#3)), [2])). Add an explicit where condition establishing the unresolved requirement, or change the rewrite.

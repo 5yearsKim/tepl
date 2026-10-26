@@ -214,6 +214,19 @@ rule compose {(p: transpose (transpose A))=>(q: transpose (transpose A))
   expect(!core::attr_synth::synthesize(fallback, Strategy::Ordered).constructed,
          "ordered synthesis reports unsupported admission");
   auto general = core::attr_synth::synthesize(fallback, Strategy::General);
+  ProofTiming timing;
+  auto timed = proveRule(fallback, 1000000, &timing);
+  expect(timed.status == ProofStatus::Proved &&
+             timing.construction_attempts == 3 &&
+             timing.verification_attempts == 2,
+         "optional timing includes failed identity verification and ordered "
+         "admission");
+  auto no_budget = proveRule(fallback, 0, &timing);
+  expect(
+      no_budget.status == ProofStatus::Unknown &&
+          timing.construction_attempts == 3 &&
+          timing.verification_attempts == 0 && timing.verification_ms == 0,
+      "timing accounting resets each call and does not bypass proof budgets");
   expect(
       general.constructed &&
           verify(fallback, general.candidate).status == ProofStatus::Proved &&
