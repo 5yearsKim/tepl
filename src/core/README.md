@@ -82,6 +82,14 @@ Type checking publishes its complete type table before semantic verification.
 verifies their equivalence and legality. Each attempt owns its facts, work budget,
 and caches.
 
+`graph.cc` assembles tensor operations and their interfaces.
+`metadata_lowering.cc` interprets metadata and dtype contracts;
+`value_lowering.cc` handles tensor values and scoped coordinate substitution.
+Shared read-only tree walks and argument rebuilding live in `symbolic/tree.h`;
+callbacks retain responsibility for reduction-scope checks. Sequence projection
+and concatenated selections share utilities. Scalar attribute fields receive
+sorts from their declared schema when their symbols are created.
+
 Coordinate correspondence lives in `semantics/symbolic/correspondence.cc`.
 It tracks value dependencies separately from tensor interfaces and propagates
 whole-operand shape bindings through consumers. Scalar parameter proposals live
@@ -98,7 +106,10 @@ it does not establish strict floating-point equivalence.
 construction failure. `semantics::proveRule` tries identity, ordered, then general
 synthesis, accepting a candidate only after fresh verification. Failed
 construction or verification permits the next strategy; it is not an
-impossibility decision. Materialization still requires a successful `RuleProof`.
+impossibility decision. Construction constraints needed to generate metadata
+stay in synthesis. Final tensor equivalence, shape, dtype, coordinate order and
+rewrite evidence belong to the fresh-context verifier. Materialization requires
+a successful `RuleProof`.
 
 The build enforces this separation: `//src/core/semantics:reasoning` provides
 shared lowering and symbolic reasoning; `//src/core/attr_synth` and

@@ -2,127 +2,10 @@
 
 #include <charconv>
 #include <functional>
-#include <stdexcept>
-#include <type_traits>
 
-#include "src/shared/builtins/axes.h"
+#include "src/core/semantics/symbolic/tree.h"
+
 namespace tepl::core::semantics {
-S Lowerer::metadata(const Meta& m, const Instance& n,
-                    const std::vector<TensorMeaning>& inputs,
-                    const std::vector<S>& groups) {
-  context.tick();
-  if (m.kind == Meta::Kind::Integer) return make(Symbol::Kind::Integer, m.name);
-  if (m.kind == Meta::Kind::Boolean) return make(Symbol::Kind::Boolean, m.name);
-  if (m.kind == Meta::Kind::Attribute)
-    return context.canonical(context.field(n, m.index));
-  if (m.kind == Meta::Kind::Operand) return inputs.at(m.index).shape;
-  if (m.kind == Meta::Kind::Group) return groups.at(m.index);
-  std::vector<S> args;
-  for (const auto& a : m.args) args.push_back(metadata(*a, n, inputs, groups));
-  if (m.kind == Meta::Kind::List)
-    return make(Symbol::Kind::List, {}, 0, 0, std::move(args));
-  if (m.name == "gather")
-    obligations.push_back(
-        call("is_valid_axis_list", {args[1], call("len", {args[0]})}));
-  if (m.name == "extent_add" || m.name == "extent_sub" ||
-      m.name == "extent_le" || m.name == "extent_mul" ||
-      m.name == "extent_floor_div")
-    obligations.push_back(
-        call("==", {call("len", {args[0]}), call("len", {args[1]})}));
-  if (m.name == "extent_floor_div")
-    obligations.push_back(call("is_positive_extents", {args[1]}));
-  const auto* entry = builtins::resolveAxisBuiltin(m.name);
-  if (!entry)
-    return context.canonical(call(m.name, std::move(args)));  // Operator.
-  return std::visit(
-      [&](auto target) -> S {
-        using T = decltype(target);
-        if constexpr (std::is_same_v<T, builtins::Builtin>) {
-          // Axis complements retain an explicit symbolic operation for proof
-          // laws.
-          if (target == builtins::Builtin::kExclude)
-            return context.canonical(
-                call("ordered_complement", std::move(args)));
-          return context.canonical(call(
-              std::string(builtins::builtinName(target)), std::move(args)));
-        } else if constexpr (std::is_same_v<T, intrinsics::Intrinsic>) {
-          if (target == intrinsics::Intrinsic::kPlaceAxes &&
-              args[0]->sort != Symbol::Sort::Axes) {
-            auto base = call("concat", {args[0], args[2]});
-            auto rest = call("ordered_complement",
-                             {call("range", {call("len", {base})}), args[1]});
-            return context.canonical(call(
-                "gather",
-                {base, call("inverse", {call("concat", {args[1], rest})})}));
-          }
-          return context.canonical(
-              call(std::string(intrinsics::signature(target).name),
-                   std::move(args)));
-        } else {
-          if (target == builtins::AxisQuery::Shape) return args[0];
-          if (target == builtins::AxisQuery::Rank) return call("len", args);
-          return call("range", {call("len", args)});
-        }
-      },
-      entry->target);
-}
-S Lowerer::dtype(const Instance& n, const std::vector<TensorMeaning>& inputs) {
-  if (!n.dtype) throw ProofFailure("missing symbolic dtype contract");
-  std::map<std::size_t, S> symbols;
-  for (const auto& p : n.dtype->parameters) {
-    if (p.variadic) throw ProofFailure("variadic dtype parameter unsupported");
-    symbols[p.symbol.value] = inputs.at(p.operand).dtype;
-  }
-  std::function<S(const metadata::Expr&)> eval =
-      [&](const metadata::Expr& e) -> S {
-    context.tick();
-    return std::visit(
-        [&](const auto& v) -> S {
-          using T = std::decay_t<decltype(v)>;
-          if constexpr (std::is_same_v<T, metadata::SymbolRef>)
-            return symbols.at(v.symbol.value);
-          else if constexpr (std::is_same_v<T, metadata::Integer>)
-            return make(Symbol::Kind::Integer, v.spelling);
-          else if constexpr (std::is_same_v<T, bool>)
-            return boolean(v);
-          else if constexpr (std::is_same_v<T, core::DType>)
-            return call("dtype_" + std::string(dtypeName(v)), {});
-          else if constexpr (std::is_same_v<T, metadata::AttributeRef>)
-            return context.field(n, v.field);
-          else if constexpr (std::is_same_v<T, metadata::Call>) {
-            std::vector<S> args;
-            for (const auto& a : v.arguments) args.push_back(eval(*a));
-            return call(std::string(builtins::builtinName(v.builtin)),
-                        std::move(args));
-          } else if constexpr (std::is_same_v<T, metadata::Binary>)
-            return call(std::string(spelling(v.op)),
-                        {eval(*v.lhs), eval(*v.rhs)});
-          else if constexpr (std::is_same_v<T, metadata::Unary>)
-            return call(std::string(spelling(v.op)), {eval(*v.operand)});
-          else if constexpr (std::is_same_v<T, metadata::List>) {
-            std::vector<S> args;
-            for (const auto& a : v.elements) args.push_back(eval(*a));
-            return make(Symbol::Kind::List, {}, 0, 0, std::move(args));
-          } else if constexpr (std::is_same_v<T, metadata::Index>)
-            return call("index", {eval(*v.value), eval(*v.index)});
-          else if constexpr (std::is_same_v<T, metadata::Conditional>)
-            return call("if", {eval(*v.condition), eval(*v.then_value),
-                               eval(*v.else_value)});
-          else
-            throw ProofFailure(
-                "dtype comprehension is outside symbolic proof fragment");
-        },
-        e.value);
-  };
-  for (const auto& s : n.dtype->statements) {
-    if (const auto* l = std::get_if<metadata::Let>(&s.value))
-      symbols[l->symbol.value] = eval(*l->value);
-    else
-      obligations.push_back(
-          eval(*std::get<metadata::Assert>(s.value).condition));
-  }
-  return eval(*n.dtype->result.value);
-}
 
 E expression(Expr::Kind k, std::vector<E> args, S axes) {
   return std::make_shared<Expr>(
@@ -194,11 +77,9 @@ E number(std::string text, S dtype) {
 }
 std::vector<E> tensorReads(const E& value) {
   std::vector<E> out;
-  std::function<void(const E&)> visit = [&](const E& e) {
+  walkTree(value, [&](const E& e) {
     if (e->kind == Expr::Kind::Read) out.push_back(e);
-    for (const auto& a : e->args) visit(a);
-  };
-  visit(value);
+  });
   return out;
 }
 S freeAxes(const E& e) {
@@ -232,209 +113,6 @@ std::string show(const E& e) {
   }
   for (const auto& p : e->parameters) out += ", parameter=" + format(*p);
   return out + ")";
-}
-E Lowerer::rename(const E& e, const S& from, const S& to) {
-  context.tick();
-  if ((e->kind == Expr::Kind::Const || e->kind == Expr::Kind::Number) ||
-      equal(from, to))
-    return e;
-  context.transportFrame(from, to);
-  if (e->kind == Expr::Kind::Read) {
-    auto axes = context.transportInterface(from, to, e->axes);
-    // These are consequences of legal source coordinate composition.
-    obligations.push_back(call("distinct_axes", {axes}));
-    obligations.push_back(call(
-        "==",
-        {context.extents(axes), make(Symbol::Kind::Shape, {}, e->capture)}));
-    return std::make_shared<Expr>(
-        Expr{e->kind,
-             e->capture,
-             e->occurrence,
-             axes,
-             {},
-             0,
-             e->access ? indexRename(context, e->access, from, to) : I{}});
-  }
-  std::vector<E> args;
-  for (const auto& a : e->args) args.push_back(rename(a, from, to));
-  auto out = std::make_shared<Expr>(*e);
-  out->args = std::move(args);
-  return out;
-}
-I Lowerer::indexValue(const IndexValue& v, const Instance& n,
-                      const std::vector<TensorMeaning>& inputs,
-                      const std::vector<S>& groups) {
-  if (v.kind == IndexValue::Kind::Coordinates)
-    return coordinates(groups.at(v.group));
-  std::vector<I> args;
-  for (const auto& a : v.args)
-    args.push_back(indexValue(*a, n, inputs, groups));
-  if (v.kind == IndexValue::Kind::Reverse) {
-    auto positions = metadata(*v.parameter, n, inputs, groups);
-    auto length = indexLength(args[0]);
-    obligations.push_back(call("is_valid_axis_list", {positions, length}));
-    auto extents = context.extents(args[0]->axes);
-    context.note("index-reverse-normalization");
-    return indexReverse(context, args[0], extents, positions);
-  }
-  if (v.kind == IndexValue::Kind::Select) {
-    auto positions = metadata(*v.parameter, n, inputs, groups);
-    obligations.push_back(
-        call("is_valid_axis_list", {positions, indexLength(args[0])}));
-    context.note("index-selection-normalization");
-    return indexSelect(context, args[0], positions);
-  }
-  if (v.kind == IndexValue::Kind::Scale || v.kind == IndexValue::Kind::Offset) {
-    auto scale = metadata(*v.parameter, n, inputs, groups);
-    obligations.push_back(
-        call("==", {call("len", {scale}), indexLength(args[0])}));
-    bool offset = v.kind == IndexValue::Kind::Offset;
-    obligations.push_back(
-        call(offset ? "is_valid_extents" : "is_positive_extents", {scale}));
-    context.note(offset ? "index-offset-normalization"
-                        : "index-scale-normalization");
-    return offset ? indexOffset(context, scale, args[0])
-                  : indexScale(context, scale, args[0]);
-  }
-  if (v.kind == IndexValue::Kind::Concat) return indexConcat(args);
-  for (std::size_t i = 1; i < args.size(); ++i)
-    obligations.push_back(
-        call("==", {indexLength(args[0]), indexLength(args[i])}));
-  return indexAdd(args);
-}
-E Lowerer::evaluateAt(const E& e, const S& frame, const I& access) {
-  context.tick();
-  if (e->kind == Expr::Kind::Const || e->kind == Expr::Kind::Number) return e;
-  if (e->kind == Expr::Kind::Read) {
-    auto composed = indexSubstitute(
-        context, e->access ? e->access : coordinates(e->axes), frame, access);
-    return std::make_shared<Expr>(
-        Expr{e->kind, e->capture, e->occurrence, e->axes, {}, 0, composed});
-  }
-  if (e->kind == Expr::Kind::Reduce)
-    context.require(call("disjoint", {e->axes, indexDependencies(access)}),
-                    GuardKind::ReductionDomain);
-  std::vector<E> args;
-  for (const auto& a : e->args) args.push_back(evaluateAt(a, frame, access));
-  auto out = std::make_shared<Expr>(*e);
-  out->args = std::move(args);
-  return out;
-}
-E Lowerer::value(const Value& v, const Instance& n,
-                 const std::vector<TensorMeaning>& inputs,
-                 const std::vector<S>& groups) {
-  context.tick();
-  if (v.kind == Value::Kind::Const) return constant(v.constant);
-  if (v.kind == Value::Kind::Operand) {
-    auto out = std::make_shared<Expr>(*inputs.at(v.index).value);
-    out->dtype = inputs.at(v.index).dtype;
-    return out;
-  }
-  if (v.kind == Value::Kind::Read) {
-    const auto& input = inputs.at(v.index);
-    auto access = indexValue(*v.access, n, inputs, groups);
-    context.note("index-add-normalization");
-    context.note("index-substitution");
-    obligations.push_back(
-        call("==", {indexLength(access), call("len", {input.shape})}));
-    // Reflection is decreasing, so both bounds are checked. For an empty
-    // coordinate domain the interval may be empty (upper < lower); no element
-    // is read. In particular reflecting [0,-1] about -1 gives [0,-1].
-    obligations.push_back(
-        call("is_valid_extents", {indexLowerBound(context, access)}));
-    obligations.push_back(call(
-        "extent_le", {indexUpperBound(context, access),
-                      call("offset_extents",
-                           {input.shape, make(Symbol::Kind::Integer, "-1")})}));
-    return evaluateAt(input.value, input.axes, access);
-  }
-  std::vector<E> args;
-  for (const auto& a : v.args) args.push_back(value(*a, n, inputs, groups));
-  if (v.kind == Value::Kind::Call) {
-    const auto& signature = scalarSignature(v.function);
-    std::vector<S> types;
-    std::function<S(const Value&)> typeOf = [&](const Value& x) -> S {
-      if (x.kind == Value::Kind::Operand || x.kind == Value::Kind::Read)
-        return inputs[x.index].dtype;
-      if (x.kind == Value::Kind::Const) return {};
-      if (x.kind == Value::Kind::Call) {
-        auto f = scalarSignature(x.function);
-        if (f.types == ScalarTypes::Boolean || f.types == ScalarTypes::Compare)
-          return call("dtype_bool", {});
-        if (f.types == ScalarTypes::Select) return typeOf(*x.args[1]);
-      }
-      for (const auto& a : x.args)
-        if (auto t = typeOf(*a)) return t;
-      return {};
-    };
-    for (const auto& a : v.args) types.push_back(typeOf(*a));
-    S result;
-    if (signature.types == ScalarTypes::Boolean) {
-      result = call("dtype_bool", {});
-      for (const auto& t : types)
-        if (t) context.require(call("==", {t, result}));
-    } else if (signature.types == ScalarTypes::Select) {
-      auto boolean = call("dtype_bool", {});
-      if (types[0]) context.require(call("==", {types[0], boolean}));
-      result = types[1] ? types[1] : types[2];
-      if (types[1] && types[2])
-        context.require(call("==", {types[1], types[2]}));
-    } else {
-      for (const auto& t : types)
-        if (t) {
-          if (result)
-            context.require(call("==", {result, t}));
-          else
-            result = t;
-        }
-      if (result)
-        context.require(
-            signature.types == ScalarTypes::Compare
-                ? call("||", {call("is_numeric", {result}),
-                              call("==", {result, call("dtype_bool", {})})})
-                : call(signature.types == ScalarTypes::Floating ? "is_float"
-                                                                : "is_numeric",
-                       {result}));
-      if (signature.types == ScalarTypes::Compare)
-        result = call("dtype_bool", {});
-    }
-    if (!result && signature.types != ScalarTypes::Compare)
-      result = dtype(n, inputs);
-    if (signature.types == ScalarTypes::Floating)
-      context.require(call("is_float", {result}));
-    if (signature.types == ScalarTypes::Numeric)
-      context.require(call("is_numeric", {result}));
-    auto booleanConstant = [&](const E& value) {
-      if ((value->kind == Expr::Kind::Const && value->constant != 0 &&
-           value->constant != 1) ||
-          value->kind == Expr::Kind::Number)
-        throw ProofFailure("Boolean scalar constants must be zero or one");
-    };
-    if (signature.types == ScalarTypes::Boolean)
-      for (const auto& a : args) booleanConstant(a);
-    if (signature.types == ScalarTypes::Compare)
-      for (const auto& t : types)
-        if (t && context.entails(call("==", {t, call("dtype_bool", {})})))
-          for (const auto& a : args) booleanConstant(a);
-    if (signature.types == ScalarTypes::Select) {
-      booleanConstant(args[0]);
-      if (result &&
-          context.entails(call("==", {result, call("dtype_bool", {})}))) {
-        booleanConstant(args[1]);
-        booleanConstant(args[2]);
-      }
-    }
-    std::vector<S> parameters;
-    for (const auto& p : v.parameters)
-      parameters.push_back(metadata(*p, n, inputs, groups));
-    return scalarCall(v.function, std::move(args), std::move(parameters),
-                      result);
-  }
-  auto k = v.kind == Value::Kind::Add       ? Expr::Kind::Add
-           : v.kind == Value::Kind::Product ? Expr::Kind::Product
-                                            : Expr::Kind::Reduce;
-  return expression(k, std::move(args),
-                    v.kind == Value::Kind::Reduce ? groups.at(v.index) : S{});
 }
 std::map<std::size_t, S> Lowerer::outputPositions(
     const Meta& output, const Instance& n,
@@ -492,12 +170,10 @@ TensorMeaning Lowerer::operation(std::size_t id,
   }
   const auto& n = context.plan.nodes.at(id);
   std::set<std::size_t> explicit_reads, implicit_reads;
-  auto scanUses = [&](auto&& self, const Value& v) -> void {
-    if (v.kind == Value::Kind::Read) explicit_reads.insert(v.index);
-    if (v.kind == Value::Kind::Operand) implicit_reads.insert(v.index);
-    for (const auto& a : v.args) self(self, *a);
-  };
-  scanUses(scanUses, *n.definition->value);
+  walkTree(n.definition->value, [&](const ValuePtr& v) {
+    if (v->kind == Value::Kind::Read) explicit_reads.insert(v->index);
+    if (v->kind == Value::Kind::Operand) implicit_reads.insert(v->index);
+  });
   for (auto o : explicit_reads)
     if (implicit_reads.contains(o))
       throw ProofFailure("an operand cannot mix implicit and calculated reads");
@@ -652,11 +328,8 @@ TensorMeaning Lowerer::operation(std::size_t id,
       context.transportFrame(inputs[o].axes, layout);
       inputs[o].value = rename(inputs[o].value, inputs[o].axes, layout);
       std::map<std::size_t, S> accesses;
-      auto scan = [&](auto&& self, const E& e) -> void {
-        if (e->kind == Expr::Kind::Read) accesses[e->occurrence] = e->axes;
-        for (const auto& a : e->args) self(self, a);
-      };
-      scan(scan, inputs[o].value);
+      for (const auto& read : tensorReads(inputs[o].value))
+        accesses[read->occurrence] = read->axes;
       for (auto& [occurrence, axes] : inputs[o].occurrence_axes)
         axes = accesses.contains(occurrence)
                    ? accesses.at(occurrence)
@@ -723,14 +396,11 @@ TensorMeaning Lowerer::operation(std::size_t id,
   typed_body->dtype = dt;
   body = typed_body;
   obligations.push_back(call("distinct_axes", {axes}));
-  auto hasConstant = [&](auto&& self, const E& e) -> bool {
-    if (e->kind == Expr::Kind::Const || e->kind == Expr::Kind::Number)
-      return true;
-    for (const auto& a : e->args)
-      if (self(self, a)) return true;
-    return false;
-  };
-  bool independent_output = hasConstant(hasConstant, body);
+  bool independent_output = false;
+  walkTree(body, [&](const E& e) {
+    independent_output |=
+        e->kind == Expr::Kind::Const || e->kind == Expr::Kind::Number;
+  });
   for (const auto& g : n.definition->groups)
     independent_output |= bool(g.domain);
   for (const auto& input : inputs)

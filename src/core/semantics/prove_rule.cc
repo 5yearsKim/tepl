@@ -22,7 +22,6 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work) {
     // Verification rebuilds its context from the plan and candidate. No facts
     // or attribute assignments from the synthesis attempt become premises.
     proof = verify(plan, result.candidate, max_work);
-    proof.rewrites = std::move(result.rewrites);
     if (proof.status == ProofStatus::Proved) {
       proof.steps.insert(proof.steps.end(), result.steps.begin(),
                          result.steps.end());

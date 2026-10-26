@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 
@@ -81,8 +82,20 @@ void check(std::string rule, bool expected, bool algebraic = true,
     const auto& plan = *result.program->rules[0].semantic_plan;
     for (const auto& [descriptor, fields] : plan.proof.constructors)
       for (std::size_t field = 0; field < fields.size(); ++field)
-        if (fields[field]->kind ==
-            tepl::core::symbolic::Symbol::Kind::Integer) {
+        if (fields[field]->kind == tepl::core::symbolic::Symbol::Kind::Field) {
+          auto corrupted = plan.proof;
+          auto value =
+              std::make_shared<tepl::core::symbolic::Symbol>(*fields[field]);
+          value->sort =
+              value->sort == tepl::core::symbolic::Symbol::Sort::Integer
+                  ? tepl::core::symbolic::Symbol::Sort::Boolean
+                  : tepl::core::symbolic::Symbol::Sort::Integer;
+          corrupted.constructors.at(descriptor)[field] = value;
+          if (tepl::core::semantics::verify(plan, corrupted).status !=
+              tepl::core::semantics::ProofStatus::Unknown)
+            throw std::runtime_error("forged source field sort accepted");
+        } else if (fields[field]->kind ==
+                   tepl::core::symbolic::Symbol::Kind::Integer) {
           auto corrupted = plan.proof;
           corrupted.constructors.at(descriptor)[field] =
               tepl::core::semantics::boolean(true);
@@ -120,6 +133,27 @@ void run() {
         false);
   check("rule r {(D.exp X)=>(D.exp X)}", true, false);
   check("rule r {(c: D.compare X Y)=>(D.compare[c.attrs] X Y)}", true);
+  check("rule r {(c: D.compare X Y)=>(D.compare X Y)}", true);
+  auto typed_attributes = dialect() + R"(
+    dialect Typed {
+      op enabled(x:tensor)->tensor {
+        attrs {flag:bool;}
+        dtype(t){yield t;}
+        axes {assert attrs.flag; bind S{x:all_axes(x)}; yield S;}
+        semantics {yield x;}
+      }
+      op annotated(x:tensor)->tensor {
+        attrs {tag:dtype;}
+        dtype(t){yield t;}
+        axes {bind S{x:all_axes(x)}; yield S;}
+        semantics {yield x;}
+      }
+    })";
+  check("rule r {(a:Typed.enabled X)=>(Typed.enabled X)}", true, false,
+        typed_attributes);
+  check("rule r {(a:Typed.annotated X)=>(Typed.annotated X)}", true, false,
+        typed_attributes);
+
   check(
       "rule r {(c: D.compare (D.max X Y) X)=>(D.compare Y X) "
       "where {c.attrs.direction==3}}",

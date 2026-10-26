@@ -8,18 +8,17 @@ void Context::checkConstructor(const Instance& n, std::size_t field,
   validateSource(value);
   auto type = plan.metadata_types.find({n.descriptor->value, field});
   if (type != plan.metadata_types.end() && !elementType(type->second)) {
-    const auto kind = type->second.kind;
-    bool typed_field = false;
-    if (value->kind == Symbol::Kind::Field) {
-      auto source_type = plan.metadata_types.find({value->owner, value->index});
-      typed_field = source_type != plan.metadata_types.end() &&
-                    source_type->second == type->second;
-    }
-    if (typed_field ||
-        (isInteger(kind) && value->sort == Symbol::Sort::Integer) ||
-        (kind == TypeKind::kBool && value->sort == Symbol::Sort::Boolean)) {
+    const auto sort = scalarMetadataSort(type->second);
+    if (sort == value->sort) {
       checkMetadataType(value, type->second);
       return;
+    }
+    // Opaque attributes can be forwarded unchanged, but cannot acquire a new
+    // scalar type merely because their tensor-value semantics ignore them.
+    if (!sort && value->kind == Symbol::Kind::Field) {
+      auto source = plan.metadata_types.find({value->owner, value->index});
+      if (source != plan.metadata_types.end() && source->second == type->second)
+        return;
     }
     throw ProofFailure("constructor does not match its scalar attribute type",
                        FailureKind::InvalidCandidate);

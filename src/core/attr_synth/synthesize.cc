@@ -16,7 +16,6 @@ Result run(const Plan& plan, std::size_t max_work,
   Context c{plan, max_work};
   Result result;
   auto& candidate = result.candidate;
-  std::vector<RuleProof::RewriteStep> rewrites;
   std::string phase = "source lowering";
   try {
     c.sourceScope(plan.lhs);
@@ -25,7 +24,7 @@ Result run(const Plan& plan, std::size_t max_work,
     for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
     for (const auto& [value, type] : plan.constructed_metadata)
       c.checkMetadataType(value, type);
-    auto lt = normalize(c, lhs.value, &rewrites);
+    auto lt = normalize(c, lhs.value);
     phase = "scalar parameter construction";
     inferScalarParameters(c, lt);
     phase = "coordinate correspondence";
@@ -38,18 +37,13 @@ Result run(const Plan& plan, std::size_t max_work,
     target.interfaces = &match.interfaces;
     target.expected_dtype = lhs.dtype;
     auto reductions = call("unique_axes", {call("concat", std::move(all))});
-    auto rhs = admitted ? ordered::construct(c, target, *admitted,
-                                             ordered::deriveRequirements(
-                                                 c, *admitted, match, lhs.axes),
-                                             reductions)
-                        : construct(c, target, match, lhs, reductions, lt);
-    auto checked = normalize(c, rhs.value, &rewrites);
-    auto simplified_lhs = collectTerms(c, lt, &rewrites);
-    auto simplified_rhs = collectTerms(c, checked, &rewrites);
-    equivalentTerms(c, simplified_lhs, simplified_rhs);
-    c.require(call("==", {lhs.axes, rhs.axes}), GuardKind::CoordinateOrder);
-    c.require(call("==", {lhs.shape, rhs.shape}));
-    c.require(call("==", {lhs.dtype, rhs.dtype}));
+    if (admitted)
+      ordered::construct(
+          c, target, *admitted,
+          ordered::deriveRequirements(c, *admitted, match, lhs.axes),
+          reductions);
+    else
+      construct(c, target, match, lhs, reductions, lt);
     for (const auto& n : plan.nodes)
       if (n.automatic) {
         auto& fields = candidate.constructors[n.descriptor->value];
@@ -68,7 +62,6 @@ Result run(const Plan& plan, std::size_t max_work,
           c.steps().end())
         result.steps.push_back(step);
     }
-    result.rewrites = std::move(rewrites);
     if (admitted)
       result.steps.push_back("law: ordered-requirements-construction");
   } catch (const ProofFailure& e) {

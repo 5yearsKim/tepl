@@ -3,21 +3,41 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/core/attr_synth/ordered/concrete.h"
+#include "src/core/attr_synth/ordered/compile.h"
 #include "src/core/pipeline.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/symbolic/expr.h"
 #include "src/core/syntax/parse.h"
+#include "src/inference/evaluate.h"
 #include "tests/index_constructor_eval.h"
 
 namespace {
 using namespace tepl::core::semantics;
 namespace ord = tepl::core::attr_synth::ordered;
-using ord::AxisSequence;
+using tepl::inference::AxisSequence;
+tepl::inference::Result solve(
+    const Plan& plan, const tepl::inference::Metadata& metadata,
+    std::size_t max_work = std::numeric_limits<std::size_t>::max()) {
+  auto compiled = ord::compile(plan);
+  if (!compiled.program) {
+    tepl::inference::Result out;
+    out.reason = compiled.reason;
+    return out;
+  }
+  return tepl::inference::evaluate(*compiled.program, metadata, {max_work});
+}
+bool check(const Plan& plan, const tepl::inference::Metadata& metadata,
+           const tepl::inference::Result& result) {
+  auto compiled = ord::compile(plan);
+  return compiled.program &&
+         tepl::inference::check(*compiled.program, metadata, result);
+}
+
 std::string dialect;
 void expect(bool condition, const std::string& message) {
   if (!condition) throw std::runtime_error(message);
@@ -40,8 +60,8 @@ std::vector<List> dotFields(const Definition& d, List lb = {}, List rb = {},
   fields[c.right_contract] = std::move(rk);
   return fields;
 }
-void setDot(const Plan& p, ord::Metadata& m, std::size_t id, List lb = {},
-            List rb = {}, List lk = {}, List rk = {}) {
+void setDot(const Plan& p, tepl::inference::Metadata& m, std::size_t id,
+            List lb = {}, List rb = {}, List lk = {}, List rk = {}) {
   const auto& n = p.nodes[id];
   m.descriptors[n.descriptor->value] = dotFields(*n.definition, lb, rb, lk, rk);
 }
@@ -71,67 +91,69 @@ void admission() {
 void matricesAndDomains() {
   auto p =
       parse("rule r {(outer: dot (inner: dot A B) C) => (dot A (dot B C))}");
-  ord::Metadata m{{{0, {2, 3}}, {1, {3, 4}}, {2, {4, 5}}}, {}};
+  tepl::inference::Metadata m{{{0, {2, 3}}, {1, {3, 4}}, {2, {4, 5}}}, {}};
   auto inner = p.nodes[p.lhs].inputs[0];
   setDot(p, m, inner, {}, {}, {1}, {0});
   setDot(p, m, p.lhs, {}, {}, {1}, {0});
-  auto result = ord::solve(p, m);
-  expect(result.status == ord::Status::Solved && ord::check(p, m, result),
-         "matrix reassociation has an independently checked witness");
+  auto result = solve(p, m);
+  expect(
+      result.status == tepl::inference::Status::Solved && check(p, m, result),
+      "matrix reassociation has an independently checked witness");
   auto corrupt = result;
   auto root_id = p.nodes[p.rhs].descriptor->value;
   auto c = *ord::recognize(*p.nodes[p.rhs].definition);
   corrupt.attributes[root_id][c.left_contract] = {0};
-  expect(!ord::check(p, m, corrupt),
-         "incorrect contracting positions rejected");
+  expect(!check(p, m, corrupt), "incorrect contracting positions rejected");
   corrupt = result;
   corrupt.source.classes[0] = corrupt.source.classes[1];
-  expect(!ord::check(p, m, corrupt), "corrupt source provenance rejected");
+  expect(!check(p, m, corrupt), "corrupt source provenance rejected");
   corrupt = result;
   corrupt.requirements.at(p.rhs).live.clear();
-  expect(!ord::check(p, m, corrupt), "corrupt boundary certificate rejected");
+  expect(!check(p, m, corrupt), "corrupt boundary certificate rejected");
   auto singleton = m;
   singleton.shapes[0][0] = 1;
-  expect(ord::solve(p, singleton).status == ord::Status::OutsideDomain,
+  expect(solve(p, singleton).status == tepl::inference::Status::OutsideDomain,
          "singleton extent is outside the necessity proof domain");
   singleton.shapes[0][0] = 0;
-  expect(ord::solve(p, singleton).status == ord::Status::OutsideDomain,
+  expect(solve(p, singleton).status == tepl::inference::Status::OutsideDomain,
          "zero extent is outside the necessity proof domain");
   auto invalid = m;
   invalid.shapes[1][0] = 7;
-  expect(ord::solve(p, invalid).status == ord::Status::InvalidSource,
+  expect(solve(p, invalid).status == tepl::inference::Status::InvalidSource,
          "mismatched source extents are not impossibility");
   invalid = m;
   invalid.descriptors.erase(p.nodes[inner].descriptor->value);
-  expect(ord::solve(p, invalid).status == ord::Status::MissingMetadata,
+  expect(solve(p, invalid).status == tepl::inference::Status::MissingMetadata,
          "missing metadata is not impossibility");
-  expect(ord::solve(p, m, 0).status == ord::Status::ResourceLimit,
+  expect(solve(p, m, 0).status == tepl::inference::Status::ResourceLimit,
          "work exhaustion is not impossibility");
 }
 void layouts() {
   auto p = parse("rule r {(p: transpose (d: dot A B)) => (dot A B)}");
-  ord::Metadata m{{{0, {2}}, {1, {2}}}, {}};
+  tepl::inference::Metadata m{{{0, {2}}, {1, {2}}}, {}};
   setDot(p, m, p.nodes[p.lhs].inputs[0]);
   m.descriptors[p.nodes[p.lhs].descriptor->value] = {{1, 0}};
-  auto result = ord::solve(p, m);
-  expect(result.status == ord::Status::Impossible && ord::check(p, m, result),
+  auto result = solve(p, m);
+  expect(result.status == tepl::inference::Status::Impossible &&
+             check(p, m, result),
          "equal extents cannot hide an output-order obstruction");
   auto corrupt = result;
   std::swap(corrupt.obstruction->first, corrupt.obstruction->second);
-  expect(!ord::check(p, m, corrupt), "false ordering obstruction rejected");
+  expect(!check(p, m, corrupt), "false ordering obstruction rejected");
   auto repair =
       parse("rule r {(p: transpose (d: dot A B)) => (transpose (dot A B))}");
-  auto fixed = ord::solve(repair, m);
-  expect(fixed.status == ord::Status::Solved && ord::check(repair, m, fixed),
+  auto fixed = solve(repair, m);
+  expect(fixed.status == tepl::inference::Status::Solved &&
+             check(repair, m, fixed),
          "output transpose repairs an impossible ordering");
   auto internal =
       parse("rule r {(p: transpose (d: dot A B)) => (dot (transpose A) B)}");
-  ord::Metadata im{{{0, {2, 3}}, {1, {5}}}, {}};
+  tepl::inference::Metadata im{{{0, {2, 3}}, {1, {5}}}, {}};
   setDot(internal, im, internal.nodes[internal.lhs].inputs[0]);
   im.descriptors[internal.nodes[internal.lhs].descriptor->value] = {{1, 0, 2}};
-  auto reordered = ord::solve(internal, im);
-  expect(reordered.status == ord::Status::Solved &&
-             ord::check(internal, im, reordered),
+  auto reordered = solve(internal, im);
+  expect(reordered.status == tepl::inference::Status::Solved &&
+             check(internal, im, reordered),
          "parent order propagates to a smaller internal transpose");
   auto transpose_id = internal.nodes[internal.rhs].inputs[0];
   expect(reordered.attributes.at(internal.nodes[transpose_id].descriptor->value)
@@ -139,37 +161,40 @@ void layouts() {
          "internal permutation is constructed from its required subsequence");
 
   auto high = parse("rule r {(p: transpose A) => (transpose (transpose A))}");
-  ord::Metadata hm{{{0, std::vector<std::uint64_t>(128, 2)}}, {}};
+  tepl::inference::Metadata hm{{{0, std::vector<std::uint64_t>(128, 2)}}, {}};
   List permutation(128);
   std::iota(permutation.rbegin(), permutation.rend(), 0);
   hm.descriptors[high.nodes[high.lhs].descriptor->value] = {permutation};
-  auto high_result = ord::solve(high, hm);
-  expect(high_result.status == ord::Status::Solved &&
-             ord::check(high, hm, high_result),
+  auto high_result = solve(high, hm);
+  expect(high_result.status == tepl::inference::Status::Solved &&
+             check(high, hm, high_result),
          "arbitrary-length permutations and nonunique solutions");
 }
 
 void multiplePairings() {
   auto p = parse("rule r {(d: dot A B) => (transpose (dot B A))}");
-  ord::Metadata m{{{0, {2, 3, 5, 7, 11}}, {1, {11, 13, 2, 5, 7}}}, {}};
+  tepl::inference::Metadata m{{{0, {2, 3, 5, 7, 11}}, {1, {11, 13, 2, 5, 7}}},
+                              {}};
   setDot(p, m, p.lhs, {2}, {3}, {4, 0, 3}, {0, 2, 4});
-  auto result = ord::solve(p, m);
-  expect(result.status == ord::Status::Solved && ord::check(p, m, result),
-         "several unsorted contraction pairs and an independent batch");
+  auto result = solve(p, m);
+  expect(
+      result.status == tepl::inference::Status::Solved && check(p, m, result),
+      "several unsorted contraction pairs and an independent batch");
   expect(result.attributes.at(p.nodes[p.rhs].descriptor->value).at(0) ==
              List({0, 2, 1}),
          "output permutation repairs free-axis blocks");
 
   m.shapes[0] = m.shapes[1] = std::vector<std::uint64_t>(5, 2);
-  result = ord::solve(p, m);
-  expect(result.status == ord::Status::Solved && ord::check(p, m, result),
-         "equal extents preserve the full named-port partition");
+  result = solve(p, m);
+  expect(
+      result.status == tepl::inference::Status::Solved && check(p, m, result),
+      "equal extents preserve the full named-port partition");
   auto inner = p.nodes[p.rhs].inputs[0];
   auto c = *ord::recognize(*p.nodes[inner].definition);
   auto& right = result.attributes.at(p.nodes[inner].descriptor->value)
                     .at(c.right_contract);
   std::swap(right[0], right[1]);
-  expect(!ord::check(p, m, result),
+  expect(!check(p, m, result),
          "shape-legal but semantically different pairing is rejected");
 }
 
@@ -208,33 +233,33 @@ void sequenceComparison() {
 
 void compiledPrograms() {
   auto p = parse("rule r {(p: transpose A) => (transpose A)}");
-  ord::Metadata m{{{0, {2, 2}}}, {}};
+  tepl::inference::Metadata m{{{0, {2, 2}}}, {}};
   m.descriptors[p.nodes[p.lhs].descriptor->value] = {{1, 0}};
   auto code = ord::compile(p);
   expect(code.program.has_value(),
          "compile a rank-independent inference program");
   auto guard = tepl::inference::feasibility(*code.program, m);
-  expect(guard.status == ord::Status::Feasible && guard.attributes.empty() &&
-             guard.layouts.empty() &&
+  expect(guard.status == tepl::inference::Status::Feasible &&
+             guard.attributes.empty() && guard.layouts.empty() &&
              tepl::inference::check(*code.program, m, guard),
          "predicate is exact without running positional construction");
   auto result = tepl::inference::evaluate(*code.program, m);
-  expect(result.status == ord::Status::Solved &&
+  expect(result.status == tepl::inference::Status::Solved &&
              tepl::inference::check(*code.program, m, result),
          "completed program constructs and independently checks attributes");
   expect(tepl::inference::evaluate(*code.program, m, {10000, 1}).status ==
-             ord::Status::ResourceLimit,
+             tepl::inference::Status::ResourceLimit,
          "axis budget is not infeasibility");
   auto corrupt = *code.program;
   corrupt.replacement.back().inputs = {corrupt.replacement.size() - 1};
-  expect(
-      tepl::inference::evaluate(corrupt, m).status == ord::Status::Unsupported,
-      "cyclic completed schedule rejected");
+  expect(tepl::inference::evaluate(corrupt, m).status ==
+             tepl::inference::Status::Unsupported,
+         "cyclic completed schedule rejected");
   corrupt = *code.program;
   corrupt.replacement.back().captures = {};
-  expect(
-      tepl::inference::evaluate(corrupt, m).status == ord::Status::Unsupported,
-      "incorrect precomputed capture set rejected");
+  expect(tepl::inference::evaluate(corrupt, m).status ==
+             tepl::inference::Status::Unsupported,
+         "incorrect precomputed capture set rejected");
 
   // Fully explicit descriptors reuse replay, rather than existential
   // feasibility.
@@ -244,19 +269,19 @@ void compiledPrograms() {
   auto descriptor = p.nodes[p.rhs].descriptor->value;
   m.descriptors[descriptor] = {{1, 0}};
   auto checked = tepl::inference::evaluate(*explicit_code.program, m);
-  expect(checked.status == ord::Status::Solved &&
+  expect(checked.status == tepl::inference::Status::Solved &&
              tepl::inference::check(*explicit_code.program, m, checked),
          "explicit supplied assignment passes semantic replay");
   m.descriptors[descriptor] = {{0, 1}};
   expect(
       tepl::inference::evaluate(*explicit_code.program, m).status ==
-          ord::Status::NotEquivalent,
+          tepl::inference::Status::NotEquivalent,
       "explicit checker rejects wrong values even when some solution exists");
   expect(!tepl::inference::check(*explicit_code.program, m, checked),
          "explicit certificate cannot substitute another feasible assignment");
   m.descriptors[descriptor] = {{0, 0}};
   expect(tepl::inference::evaluate(*explicit_code.program, m).status ==
-             ord::Status::InvalidReplacement,
+             tepl::inference::Status::InvalidReplacement,
          "illegal explicit permutation diagnosed");
 }
 
@@ -265,7 +290,7 @@ void compiledPrograms() {
 struct Oracle {
   AxisSequence output;
   std::vector<std::vector<bool>> same;
-  ord::Attributes attributes;
+  tepl::inference::Attributes attributes;
 };
 std::string signature(const AxisSequence& classes, const AxisSequence& output) {
   std::string out;
@@ -428,7 +453,7 @@ void exhaustive() {
                                     : std::vector{order[0], inner},
                        true);
             if (output_transpose) p.rhs = op(transpose, {p.rhs}, true);
-            ord::Metadata m;
+            tepl::inference::Metadata m;
             std::vector<AxisSequence> ports(3);
             std::size_t total = 0;
             for (std::size_t c = 0; c < 3; ++c) {
@@ -451,17 +476,19 @@ void exhaustive() {
               auto predicate =
                   tepl::inference::feasibility(*compiled.program, m);
               expect(
-                  predicate.status == (exists ? ord::Status::Feasible
-                                              : ord::Status::Impossible) &&
+                  predicate.status ==
+                          (exists ? tepl::inference::Status::Feasible
+                                  : tepl::inference::Status::Impossible) &&
                       predicate.attributes.empty() && predicate.layouts.empty(),
                   "generated predicate alone agrees with existential oracle");
-              expect(result.status == (exists ? ord::Status::Solved
-                                              : ord::Status::Impossible),
+              expect(result.status ==
+                         (exists ? tepl::inference::Status::Solved
+                                 : tepl::inference::Status::Impossible),
                      "structural decision agrees with exhaustive attributes");
               expect(signature(result.source.classes, result.source.output) ==
                          signature(source),
                      "source partition agrees with independent matrix oracle");
-              expect(ord::check(p, m, result), "exhaustive witness checks");
+              expect(check(p, m, result), "exhaustive witness checks");
               ++decisions;
               impossible += !exists;
             }

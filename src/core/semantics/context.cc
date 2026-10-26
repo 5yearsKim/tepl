@@ -220,8 +220,7 @@ S Context::field(const Instance& n, std::size_t f) {
     validateSource(value);
     return resolve(value);
   }
-  return resolve(make(n.automatic ? Symbol::Kind::Hole : Symbol::Kind::Field,
-                      n.definition->fields.at(f), n.descriptor->value, f));
+  return resolve(attributeSymbol(plan, n, f));
 }
 
 }  // namespace tepl::core::semantics

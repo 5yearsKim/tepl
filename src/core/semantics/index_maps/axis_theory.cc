@@ -392,21 +392,12 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
         callIs(a, "unique_axes"))
       return true;
     if (callIs(a, "concat")) {
-      if (!a->args.empty() && callIs(a->args[0], "gather")) {
-        auto base = a->args[0]->args[0];
-        std::vector<S> selectors;
-        for (const auto& part : a->args) {
-          if (!callIs(part, "gather") || !equal(part->args[0], base)) break;
-          selectors.push_back(part->args[1]);
-        }
-        if (selectors.size() == a->args.size() &&
-            query(call("distinct_axes", {base}), mode) &&
-            query(call("is_valid_axis_list",
-                       {canonical(call("concat", selectors)),
-                        call("len", {base})}),
-                  mode))
-          return true;
-      }
+      if (auto selection = concatSelection(a->args);
+          selection && query(call("distinct_axes", {selection->base}), mode) &&
+          query(call("is_valid_axis_list", {canonical(selection->positions),
+                                            call("len", {selection->base})}),
+                mode))
+        return true;
       for (std::size_t i = 0; i < a->args.size(); ++i) {
         if (!query(call("distinct_axes", {a->args[i]}), mode)) return false;
         for (std::size_t j = 0; j < i; ++j)

@@ -1,6 +1,7 @@
 #include <functional>
 
 #include "src/core/semantics/context.h"
+#include "src/core/semantics/symbolic/metadata_sequences.h"
 
 namespace tepl::core::semantics {
 TensorAxisInterface Context::tensorInterface(const S& axes) const {
@@ -360,44 +361,15 @@ S Context::selectKnown(const S& x, const S& q, QueryMode mode) {
       offset = canonical(call("+", {offset, size}));
     }
   }
-  if (x->sort != Symbol::Sort::Axes && callIs(x, "concat") &&
-      q->kind == Symbol::Kind::List) {
-    // Literal positions can cross blocks whose lengths are known only from
-    // the context. Preserve their order and reject unresolved/out-of-range
-    // positions rather than inventing a projection.
-    std::vector<std::pair<S, std::vector<S>>> chunks;
-    bool resolved = true;
-    for (const auto& position : q->args) {
-      auto local = metadataInteger(position);
-      bool found = false;
-      if (local && *local >= 0)
-        for (const auto& part : x->args) {
-          tick();
-          auto size = metadataInteger(canonical(call("len", {part})));
-          if (!size || *size < 0) break;
-          if (*local < *size) {
-            if (chunks.empty() || !equal(chunks.back().first, part))
-              chunks.emplace_back(part, std::vector<S>{});
-            chunks.back().second.push_back(
-                integer(static_cast<std::size_t>(*local)));
-            found = true;
-            break;
-          }
-          *local -= *size;
-        }
-      if (!found) {
-        resolved = false;
-        break;
-      }
-    }
-    if (resolved) {
+  // Numeric projection may expand values; logical views retain their stored
+  // origin maps and use the same projection only during sequence comparison.
+  if (x->sort != Symbol::Sort::Axes)
+    if (auto projection = projectSelection(*this, x, q)) {
       std::vector<S> selected;
-      for (const auto& [part, positions] : chunks)
-        selected.push_back(
-            select(part, make(Symbol::Kind::List, {}, 0, 0, positions), mode));
+      for (const auto& part : *projection)
+        selected.push_back(select(part.base, part.positions, mode));
       return call("concat", std::move(selected));
     }
-  }
   if (callIs(x, "concat")) {
     if (auto block = positionBlock(q, true)) {
       S offset = integer(0);

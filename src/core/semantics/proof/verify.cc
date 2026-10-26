@@ -1,7 +1,6 @@
 #include "src/core/semantics/proof/verify.h"
 
 #include <functional>
-#include <stdexcept>
 
 #include "src/core/semantics/symbolic/normalize.h"
 
@@ -83,7 +82,8 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
       // Keep diagnostic normal forms when available. The identity proof above
       // does not depend on arithmetic normalization succeeding.
       try {
-        proof.lhs_normalized = show(collectTerms(c, normalize(c, lhs.value)));
+        proof.lhs_normalized =
+            show(collectTerms(c, normalize(c, lhs.value, &proof.rewrites)));
         proof.rhs_normalized = proof.lhs_normalized;
       } catch (const ProofFailure&) {
       }
@@ -91,16 +91,16 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
         proof.axis_definitions.push_back(group);
       return proof;
     }
-    auto lt = normalize(c, lhs.value);
+    auto lt = normalize(c, lhs.value, &proof.rewrites);
     auto rt = normalize(c, arithmeticSkeleton(c, plan.rhs));
     auto correspondence = correspond(c, lhs, lt, rt);
     Lowerer target{c, &correspondence.anchors};
     target.interfaces = &correspondence.interfaces;
     target.expected_dtype = lhs.dtype;
     auto rhs = target.lower(plan.rhs);
-    auto checked = normalize(c, rhs.value);
-    auto simplified_lhs = collectTerms(c, lt);
-    auto simplified_rhs = collectTerms(c, checked);
+    auto checked = normalize(c, rhs.value, &proof.rewrites);
+    auto simplified_lhs = collectTerms(c, lt, &proof.rewrites);
+    auto simplified_rhs = collectTerms(c, checked, &proof.rewrites);
     equivalentTerms(c, simplified_lhs, simplified_rhs);
     c.require(call("==", {lhs.axes, rhs.axes}), GuardKind::CoordinateOrder);
     c.require(call("==", {lhs.shape, rhs.shape}));

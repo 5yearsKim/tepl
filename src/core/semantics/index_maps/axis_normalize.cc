@@ -152,19 +152,12 @@ S Context::axisSequence(const S& axes) {
       for (const auto& part : x->args)
         parts.push_back(self(self, part, depth + 1));
       result = call("concat", std::move(parts));
-      if (callIs(result, "concat") && callIs(result->args[0], "gather")) {
-        auto base = result->args[0]->args[0];
-        std::vector<S> selectors;
-        for (const auto& part : result->args) {
-          if (!callIs(part, "gather") || !equal(part->args[0], base)) break;
-          selectors.push_back(part->args[1]);
-        }
-        if (selectors.size() == result->args.size())
-          result =
-              self(self,
-                   call("gather", {base, canonical(call("concat", selectors))}),
-                   depth + 1);
-      }
+      if (callIs(result, "concat"))
+        if (auto selection = concatSelection(result->args))
+          result = self(self,
+                        call("gather", {selection->base,
+                                        canonical(selection->positions)}),
+                        depth + 1);
     } else if (callIs(x, "gather")) {
       auto base = x->args[0], selector = canonical(x->args[1]);
       while (callIs(base, "gather")) {
@@ -181,51 +174,12 @@ S Context::axisSequence(const S& axes) {
         // Context-known block lengths need not be literal in the expression
         // factory. Project an explicit selector into those blocks while
         // preserving its order (including repeated visits to a block).
-        std::vector<std::size_t> sizes;
-        std::size_t total = 0;
-        bool known = true;
-        for (const auto& part : base->args) {
-          auto size = metadataInteger(canonical(call("len", {part})));
-          if (!size || *size < 0 ||
-              *size > std::numeric_limits<std::size_t>::max() - total) {
-            known = false;
-            break;
-          }
-          sizes.push_back(static_cast<std::size_t>(*size));
-          total += sizes.back();
-        }
-        std::vector<S> projected;
-        std::vector<S> local;
-        std::size_t block = base->args.size();
-        auto flush = [&] {
-          if (local.empty()) return;
-          projected.push_back(
-              self(self,
-                   call("gather", {base->args[block],
-                                   make(Symbol::Kind::List, {}, 0, 0, local)}),
-                   depth + 1));
-          local.clear();
-        };
-        if (known)
-          for (const auto& index : selector->args) {
-            auto position = metadataInteger(index);
-            if (!position || *position < 0 || *position >= total) {
-              known = false;
-              break;
-            }
-            auto remaining = static_cast<std::size_t>(*position);
-            std::size_t next = 0;
-            while (next < sizes.size() && remaining >= sizes[next])
-              remaining -= sizes[next++];
-            if (next != block) {
-              flush();
-              block = next;
-            }
-            local.push_back(integer(remaining));
-          }
-        if (known) {
-          flush();
-          result = call("concat", std::move(projected));
+        if (auto projection = projectSelection(*this, base, selector)) {
+          std::vector<S> parts;
+          for (const auto& part : *projection)
+            parts.push_back(self(
+                self, call("gather", {part.base, part.positions}), depth + 1));
+          result = call("concat", std::move(parts));
           memo.emplace(key(x), result);
           return result;
         }

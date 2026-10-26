@@ -1,7 +1,47 @@
 #include "src/core/semantics/symbolic/metadata_sequences.h"
 
 #include <functional>
+#include <limits>
 namespace tepl::core::semantics {
+std::optional<std::vector<SequenceSelection>> projectSelection(
+    Context& c, const S& base, const S& positions) {
+  if (!callIs(base, "concat") || positions->kind != Symbol::Kind::List)
+    return {};
+  std::vector<SequenceSelection> result;
+  std::vector<S> local_positions;
+  std::size_t previous = base->args.size();
+  auto flush = [&] {
+    if (!local_positions.empty()) {
+      result.push_back(
+          {base->args[previous],
+           make(Symbol::Kind::List, {}, 0, 0, std::move(local_positions))});
+      local_positions.clear();
+    }
+  };
+  for (const auto& position : positions->args) {
+    auto local = metadataInteger(position);
+    if (!local || *local < 0) return {};
+    std::size_t block = 0;
+    for (; block < base->args.size(); ++block) {
+      c.tick();
+      auto size =
+          metadataInteger(c.canonical(call("len", {base->args[block]})));
+      if (!size || *size < 0) return {};
+      if (*local < *size) break;
+      *local -= *size;
+    }
+    if (block == base->args.size() ||
+        *local > std::numeric_limits<std::size_t>::max())
+      return {};
+    if (block != previous) {
+      flush();
+      previous = block;
+    }
+    local_positions.push_back(integer(static_cast<std::size_t>(*local)));
+  }
+  flush();
+  return result;
+}
 S substituteMetadata(const S& e, const S& variable, const S& value) {
   if (equal(e, variable)) return value;
   if (e->args.empty()) return e;

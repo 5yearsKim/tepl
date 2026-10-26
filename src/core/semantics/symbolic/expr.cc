@@ -26,7 +26,7 @@ Key structuralSignature(const Symbol& s) {
 }
 }  // namespace
 S make(Symbol::Kind k, std::string name, std::size_t owner, std::size_t index,
-       std::vector<S> args) {
+       std::vector<S> args, std::optional<Symbol::Sort> declared_sort) {
   if (k == Symbol::Kind::AxisGroup && args.size() == 1 &&
       args[0]->kind == Symbol::Kind::List && args[0]->args.empty())
     return call("empty_axes", {});
@@ -72,9 +72,26 @@ S make(Symbol::Kind k, std::string name, std::size_t owner, std::size_t index,
     else if (name == "if")
       sort = args.at(1)->sort;
   }
-  Symbol node{k, std::move(name), owner, index, std::move(args), sort};
+  Symbol node{k,     std::move(name), owner,
+              index, std::move(args), declared_sort.value_or(sort)};
   symbolic::SymbolFactory::key(node, structuralSignature(node));
   return std::make_shared<Symbol>(std::move(node));
+}
+std::optional<Symbol::Sort> scalarMetadataSort(core::Type type) {
+  if (elementType(type)) return {};
+  if (isInteger(type.kind)) return Symbol::Sort::Integer;
+  if (type.kind == TypeKind::kBool) return Symbol::Sort::Boolean;
+  if (type.kind == TypeKind::kDType) return Symbol::Sort::DType;
+  return {};
+}
+S attributeSymbol(const Plan& plan, const Instance& node, std::size_t field) {
+  Symbol::Sort sort = Symbol::Sort::Positions;
+  if (auto found = plan.metadata_types.find({node.descriptor->value, field});
+      found != plan.metadata_types.end())
+    sort = scalarMetadataSort(found->second).value_or(sort);
+  return make(node.automatic ? Symbol::Kind::Hole : Symbol::Kind::Field,
+              node.definition->fields.at(field), node.descriptor->value, field,
+              {}, sort);
 }
 S integer(std::size_t n) {
   return make(Symbol::Kind::Integer, std::to_string(n));
@@ -109,6 +126,16 @@ bool containsHole(const S& s) {
   for (const auto& a : s->args)
     if (containsHole(a)) return true;
   return false;
+}
+std::optional<SequenceSelection> concatSelection(const std::vector<S>& parts) {
+  if (parts.empty() || !callIs(parts[0], "gather")) return {};
+  const auto& base = parts[0]->args[0];
+  std::vector<S> positions;
+  for (const auto& part : parts) {
+    if (!callIs(part, "gather") || !equal(part->args[0], base)) return {};
+    positions.push_back(part->args[1]);
+  }
+  return SequenceSelection{base, call("concat", std::move(positions))};
 }
 S call(std::string name, std::vector<S> args) {
   if (args.size() == 1 && args[0]->kind == Symbol::Kind::Call &&
@@ -521,16 +548,12 @@ S call(std::string name, std::vector<S> args) {
       callIs(args[0], "range") && equal(args[0]->args[0], args[1]))
     return boolean(true);
   if (name == "concat" && !args.empty() &&
-      args[0]->sort == Symbol::Sort::Extents && callIs(args[0], "gather") &&
-      std::all_of(args.begin(), args.end(), [&](const S& a) {
-        return callIs(a, "gather") && a->args[1]->kind == Symbol::Kind::List &&
-               equal(a->args[0], args[0]->args[0]);
-      })) {
-    std::vector<S> selectors;
-    for (const auto& a : args) selectors.push_back(a->args[1]);
-    return call("gather",
-                {args[0]->args[0], call("concat", std::move(selectors))});
-  }
+      args[0]->sort == Symbol::Sort::Extents &&
+      std::all_of(args.begin(), args.end(), [](const S& a) {
+        return callIs(a, "gather") && a->args[1]->kind == Symbol::Kind::List;
+      }))
+    if (auto selection = concatSelection(args))
+      return call("gather", {selection->base, selection->positions});
   if (name == "concat") {
     std::vector<S> flat;
     for (const auto& a : args) {

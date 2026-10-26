@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "src/core/attr_synth/index_inference.h"
+#include "src/core/semantics/symbolic/tree.h"
 
 namespace tepl::core::attr_synth {
 using namespace semantics;
@@ -16,20 +17,16 @@ struct Constructor {
   const Terms& source_terms;
   bool unresolvedIndexAttributes(const Instance& n) {
     bool found = false;
-    auto metadata = [&](auto&& self, const Meta& m) -> void {
-      if (m.kind == Meta::Kind::Attribute)
-        found |= containsHole(c.field(n, m.index));
-      for (const auto& a : m.args) self(self, *a);
-    };
-    auto indices = [&](auto&& self, const IndexValue& v) -> void {
-      if (v.parameter) metadata(metadata, *v.parameter);
-      for (const auto& a : v.args) self(self, *a);
-    };
-    auto values = [&](auto&& self, const Value& v) -> void {
-      if (v.access) indices(indices, *v.access);
-      for (const auto& a : v.args) self(self, *a);
-    };
-    values(values, *n.definition->value);
+    walkTree(n.definition->value, [&](const ValuePtr& value) {
+      if (!value->access) return;
+      walkTree(value->access, [&](const IndexValuePtr& index) {
+        if (!index->parameter) return;
+        walkTree(index->parameter, [&](const MetaPtr& metadata) {
+          if (metadata->kind == Meta::Kind::Attribute)
+            found |= containsHole(c.field(n, metadata->index));
+        });
+      });
+    });
     return found;
   }
   void inferReadAttributes(const Instance& n,
@@ -66,22 +63,15 @@ struct Constructor {
             "composed or inverse inference may be required");
       merge(inferred, *solution);
     };
-    auto captures = [&](auto&& self, const E& e) -> void {
-      if (e->kind == Expr::Kind::Read) read(e);
-      for (const auto& a : e->args) self(self, a);
-    };
-    auto values = [&](auto&& self, const Value& v) -> void {
-      if (v.kind == Value::Kind::Read) {
-        auto indices = lowerer.indexValue(*v.access, n, inputs, groups);
-        // Compose through an already constructed input, including reindexings.
-        // Only proposals are produced here; final lowering checks every domain.
-        auto expression = lowerer.evaluateAt(inputs[v.index].value,
-                                             inputs[v.index].axes, indices);
-        captures(captures, expression);
-      }
-      for (const auto& a : v.args) self(self, *a);
-    };
-    values(values, *n.definition->value);
+    walkTree(n.definition->value, [&](const ValuePtr& v) {
+      if (v->kind != Value::Kind::Read) return;
+      auto indices = lowerer.indexValue(*v->access, n, inputs, groups);
+      // Compose through already constructed producers; proposals are checked
+      // again when target lowering establishes the completed node's legality.
+      auto expression = lowerer.evaluateAt(inputs[v->index].value,
+                                           inputs[v->index].axes, indices);
+      for (const auto& capture : tensorReads(expression)) read(capture);
+    });
     if (inferred.empty())
       throw ProofFailure(
           "calculated reads provide no direct attribute constructor");
@@ -110,11 +100,9 @@ struct Constructor {
     for (auto child : n.inputs) inputs.push_back(build(child));
     if (!n.automatic) return lowerer.operation(id, std::move(inputs));
     std::set<std::size_t> reduced;
-    std::function<void(const Value&)> scan = [&](const Value& v) {
-      if (v.kind == Value::Kind::Reduce) reduced.insert(v.index);
-      for (const auto& a : v.args) scan(*a);
-    };
-    scan(*n.definition->value);
+    walkTree(n.definition->value, [&](const ValuePtr& v) {
+      if (v->kind == Value::Kind::Reduce) reduced.insert(v->index);
+    });
     const auto trial_obligations = lowerer.obligations.size();
     const bool infer_indices = unresolvedIndexAttributes(n);
     std::vector<std::size_t> deferred_domains;

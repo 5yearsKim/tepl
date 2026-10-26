@@ -172,7 +172,7 @@ python3 -m unittest discover -s labs/xla_rewrite/coverage/tests -p 'test_*.py'
 
 [synthesis.json](../results/synthesis.json) contains every attempt, compiler diagnostics, constructor counts, proof output, artifact hashes, and source/input hashes. [synthesis_cases.md](synthesis_cases.md) lists all concrete outcomes, including unsupported and attribute-free cases. Generated [full-auto](../../tepl/rules/full_auto/) and [partial-auto](../../tepl/rules/partial_auto/) files preserve the source conditions.
 
-- Run UTC: `2026-10-26T13:36:48.838719+00:00`.
-- Compiler revision: `145eb44f10ef4826575cfd1c15c1fdd28f66f8d5`; working-tree source hashes are recorded.
+- Run UTC: `2026-10-26T13:58:33.124070+00:00`.
+- Compiler revision: `054ab237707c46540663b55ae698ef6b16d0399d`; working-tree source hashes are recorded.
 - Timeout: 30 seconds per compiler command; 4 independent case workers.
 - Arithmetic model: ideal algebraic semantics. The measurements do not claim IEEE floating-point or full backend equivalence.

@@ -533,7 +533,7 @@ Each row links to the original equation and source conditions. An expression ass
 - [labs/xla_rewrite/tepl/dialects/hlo.tepl](../../../../labs/xla_rewrite/tepl/dialects/hlo.tepl)
 - [labs/xla_rewrite/tepl/dialects/hlo_structural.tepl](../../../../labs/xla_rewrite/tepl/dialects/hlo_structural.tepl)
 
-TEPL revision: `145eb44f10ef4826575cfd1c15c1fdd28f66f8d5`. XLA revision: `e02127ba9c9c48912b0e6776fe5bfe3843d81042`. Case files, the dialect, catalog and runner have recorded hashes in [compilation.json](../results/compilation.json).
+TEPL revision: `054ab237707c46540663b55ae698ef6b16d0399d`. XLA revision: `e02127ba9c9c48912b0e6776fe5bfe3843d81042`. Case files, the dialect, catalog and runner have recorded hashes in [compilation.json](../results/compilation.json).
 
 ```sh
 bazel build //:tepl

@@ -344,9 +344,9 @@ Every row is a real compiler invocation. A successful ordinary type check withou
 
 [verification.json](../results/verification.json) records diagnostics, required/missing operations, proof evidence and file/dependency hashes, including the semantic compiler sources and untracked additions. The revision and semantic source hashes identify the measured compiler. [verification_cases.json](../data/verification_cases.json) records scope and arithmetic policy. The validators reject stale inputs and missing or duplicate cases. [Language coverage](compilation.md) separately measures ordinary compilation using [the structural HLO profile](../../tepl/dialects/hlo_structural.tepl).
 
-- TEPL revision: `145eb44f10ef4826575cfd1c15c1fdd28f66f8d5`.
+- TEPL revision: `054ab237707c46540663b55ae698ef6b16d0399d`.
 - XLA revision: `e02127ba9c9c48912b0e6776fe5bfe3843d81042`.
-- Compiler SHA-256: `af87e6453056559ec5319f39e40a90401910bf10120168cea7f5eba153e020e2`.
+- Compiler SHA-256: `79c2974dc50f0852240e90ed939d258310e3cefd155068c166403e48e748ead8`.
 - Environment: Linux-7.0.0-38-generic-x86_64-with-glibc2.43; Python 3.14.4.
 - Timeout: 30 seconds per case.
 

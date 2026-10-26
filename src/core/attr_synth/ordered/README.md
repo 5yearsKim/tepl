@@ -21,8 +21,6 @@ Rust code-generation and runtime changes are deferred.
 | `compile(Plan, Mode)` | Generate completed postorder instructions, canonical field adapters, and static subtree capture sets. |
 | `deriveRequirements(...)` | Compute symbolic roles and propagate required subsequences before assigning attributes. |
 | `construct(...)` | Construct symbolic positional fields bottom-up using those requirements. |
-| `solve(Plan, Metadata)` | Convenience wrapper around compilation and native program evaluation. |
-| `check(Plan, Metadata, ConcreteResult)` | Independently replay completed positional attributes and compare networks, or check the claimed order inversion. |
 
 `contract.*` recognizes generalized contractions with the declared batch,
 left-free, right-free output convention and unrestricted full permutations.
@@ -89,6 +87,10 @@ capture-support set alone. Equal-sized axes remain distinct. The concrete
 metadata domain requires every extent to be at least two; rank-zero tensors
 and empty attribute lists are allowed.
 
+Compiler callers use `compile()` and execute the resulting program through
+`inference::evaluate()` and `inference::check()`. Plan-based convenience wrappers
+live only in the solver tests.
+
 The native API separates `analyze`, `construct`, and `replayReplacement`.
 Analysis makes no applicability decision; construction requires established
 preconditions. The standalone `feasibility` (no construction) and `evaluate`
@@ -100,7 +102,7 @@ Explicit validation additionally reports `InvalidReplacement` or `NotEquivalent`
 Only a checked order inversion means `Impossible`. Missing data, singleton or
 empty dimensions, invalid source descriptors, and exhausted work do not.
 
-`check()` rebuilds the source, recomputes the requirements, and interprets the
+`inference::check()` rebuilds the source, recomputes the requirements, and interprets the
 actual RHS positional descriptors without using the constructor's choices.
 It checks all recorded layouts and compares the complete port partition and
 ordered output. It also verifies negative witnesses against rederived roles.

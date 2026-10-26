@@ -156,6 +156,13 @@ void independentVerification() {
   candidate.constructors.begin()->second[0] = make(Symbol::Kind::List);
   expect(verify(plan, candidate).status == ProofStatus::Unknown,
          "fresh verification rejects a corrupted constructor");
+  auto associative = parseRule("rule r {(add (add A B) C)=>(add A (add B C))}");
+  auto info_associative = core::inspect(
+      *associative.program, {core::SemanticPolicy::kAlgebraic, true});
+  expect(info_associative.ok(), "associativity fixture checks");
+  auto checked = verify(*info_associative.program->rules[0].semantic_plan, {});
+  expect(checked.status == ProofStatus::Proved && !checked.rewrites.empty(),
+         "standalone verification owns arithmetic rewrite evidence");
   auto unguarded =
       parseRule("rule r {(d: dot (inner: dot A B) C)=>(dot A (dot B C))}");
   auto info = core::inspect(*unguarded.program,
@@ -174,6 +181,14 @@ void synthesisBoundary() {
     expect(info.ok(), "synthesis boundary fixture checks");
     return *info.program->rules[0].semantic_plan;
   };
+  auto incorrect = inspect("rule incorrect {(add A A)=>A}");
+  auto unchecked = core::attr_synth::synthesize(incorrect, Strategy::General);
+  expect(unchecked.constructed &&
+             verify(incorrect, unchecked.candidate).status ==
+                 ProofStatus::Unknown &&
+             proveRule(incorrect).status == ProofStatus::Unknown,
+         "general construction proposes metadata; only verification accepts "
+         "equivalence");
   // Identical operation trees alone cannot justify explicit RHS attributes.
   auto invalid = inspect(R"(
 rule invalid {(p: transpose A)=>(q: transpose A)

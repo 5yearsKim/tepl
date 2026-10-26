@@ -185,9 +185,6 @@ struct Builder {
             } else if constexpr (std::is_same_v<T, SymbolicExpr>) {
               return v.value;
             } else if constexpr (std::is_same_v<T, DescriptorFieldRef>) {
-              plan.metadata_types.emplace(
-                  std::pair{v.descriptor.value, v.field},
-                  context.output.types.at(e.type.value));
               if (auto found = plan.attributes.find(v.descriptor.value);
                   found != plan.attributes.end())
                 return found->second.at(v.field);
@@ -197,9 +194,7 @@ struct Builder {
               for (const auto& n : plan.nodes)
                 if (n.descriptor == v.descriptor && n.definition &&
                     !n.automatic)
-                  return make(Symbol::Kind::Field,
-                              n.definition->fields.at(v.field),
-                              v.descriptor.value, v.field);
+                  return attributeSymbol(plan, n, v.field);
               return {};
             } else if constexpr (std::is_same_v<T, DimensionRef>)
               return dims.contains(v.dimension.value)
@@ -391,9 +386,7 @@ struct Builder {
           for (const auto& n : plan.nodes) {
             if (n.descriptor != ref->descriptor || !n.definition) continue;
             for (std::size_t f = 0; f < n.definition->fields.size(); ++f)
-              fields.push_back(make(Symbol::Kind::Field,
-                                    n.definition->fields[f],
-                                    ref->descriptor.value, f));
+              fields.push_back(attributeSymbol(plan, n, f));
             break;
           }
         }

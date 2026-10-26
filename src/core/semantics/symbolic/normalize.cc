@@ -1,8 +1,6 @@
 #include "src/core/semantics/symbolic/normalize.h"
 
 #include <algorithm>
-#include <functional>
-#include <stdexcept>
 
 #include "src/core/semantics/symbolic/reduction_reflection.h"
 #include "src/core/semantics/symbolic/scalar_normalize.h"

@@ -26,7 +26,7 @@ cc_library(
 # Shared symbolic reasoning has no dependency on synthesis or verification.
 cc_library(
     name = "reasoning",
-    srcs = ["context.cc", "graph.cc"] + glob([
+    srcs = ["context.cc", "graph.cc", "metadata_lowering.cc", "value_lowering.cc"] + glob([
         "index_maps/*.cc",
         "symbolic/*.cc",
     ]),

@@ -1,24 +1,26 @@
 #include "src/core/attr_synth/scalar_parameters.h"
 
+#include "src/core/semantics/symbolic/tree.h"
+
 namespace tepl::core::attr_synth {
 using namespace semantics;
 void inferScalarParameters(Context& c, const Terms& source) {
   using Slot = std::pair<ScalarFunction, std::size_t>;
   std::map<Slot, std::map<Key, S>> parameters;
-  auto collect = [&](auto&& self, const E& value) -> void {
+  auto collect = [&](const E& value) {
     c.tick();
     if (value->kind == Expr::Kind::Call)
       for (std::size_t p = 0; p < value->parameters.size(); ++p) {
         auto parameter = c.canonical(value->parameters[p]);
         parameters[{value->function, p}].emplace(c.key(parameter), parameter);
       }
-    for (const auto& arg : value->args) self(self, arg);
   };
   for (const auto& term : source)
-    for (const auto& factor : term.factors) collect(collect, factor);
+    for (const auto& factor : term.factors) walkTree(factor, collect);
   for (const auto& node : c.plan.nodes) {
     if (!node.automatic) continue;
-    auto infer = [&](auto&& self, const Value& value) -> void {
+    walkTree(node.definition->value, [&](const ValuePtr& raw) {
+      const auto& value = *raw;
       c.tick();
       if (value.kind == Value::Kind::Call)
         for (std::size_t p = 0; p < value.parameters.size(); ++p) {
@@ -33,9 +35,7 @@ void inferScalarParameters(Context& c, const Terms& source) {
           c.assignAttribute(field->owner, field->index, candidate);
           c.note("scalar-parameter-correspondence");
         }
-      for (const auto& arg : value.args) self(self, *arg);
-    };
-    infer(infer, *node.definition->value);
+    });
   }
 }
 }  // namespace tepl::core::attr_synth

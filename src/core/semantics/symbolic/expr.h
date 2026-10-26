@@ -5,10 +5,17 @@ namespace tepl::core::semantics {
 using S = SymbolPtr;
 using Key = symbolic::Key;
 S make(Symbol::Kind, std::string = {}, std::size_t = 0, std::size_t = 0,
-       std::vector<S> = {});
+       std::vector<S> = {}, std::optional<Symbol::Sort> = {});
+S attributeSymbol(const Plan&, const Instance&, std::size_t field);
+std::optional<Symbol::Sort> scalarMetadataSort(core::Type);
 S integer(std::size_t);
 S boolean(bool);
 S call(std::string, std::vector<S>);
+struct SequenceSelection {
+  S base, positions;
+};
+// A concatenation of selections from one base, in the original part order.
+std::optional<SequenceSelection> concatSelection(const std::vector<S>&);
 // Match entries from left in left's order. The two position lists are a pair:
 // gather(left, left_positions) == gather(right, right_positions).
 struct PositionMatch {

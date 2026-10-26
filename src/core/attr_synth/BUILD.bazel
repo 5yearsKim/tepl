@@ -25,8 +25,8 @@ cc_library(
 # Compiler adapters for the standalone concrete ordered solver.
 cc_library(
     name = "ordered",
-    srcs = ["ordered/compile.cc", "ordered/concrete.cc"],
-    hdrs = ["ordered/compile.h", "ordered/concrete.h"],
+    srcs = ["ordered/compile.cc"],
+    hdrs = ["ordered/compile.h"],
     deps = [":attr_synth", "//src/inference"],
     visibility = ["//visibility:public"],
 )
