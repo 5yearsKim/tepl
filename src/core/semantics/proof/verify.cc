@@ -1,7 +1,5 @@
 #include "src/core/semantics/proof/verify.h"
 
-#include <functional>
-
 #include "src/core/semantics/symbolic/normalize.h"
 
 namespace tepl::core::semantics {
@@ -46,30 +44,16 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
     // Identical operation trees need no access-correspondence search. This
     // also preserves repeated capture identity and works for singleton/empty
     // extents without invoking a completeness-domain assumption.
-    std::function<bool(std::size_t, std::size_t)> identical =
-        [&](std::size_t a, std::size_t b) {
-          c.tick();
-          const auto& left = plan.nodes.at(a);
-          const auto& right = plan.nodes.at(b);
-          if (left.capture || right.capture)
-            return left.capture == right.capture;
-          if (left.literal || right.literal)
-            return left.literal == right.literal &&
-                   left.literal_dtype == right.literal_dtype;
-          if (left.operation != right.operation ||
-              left.definition != right.definition ||
-              left.inputs.size() != right.inputs.size())
-            return false;
-          for (std::size_t i = 0; i < left.inputs.size(); ++i)
-            if (!identical(left.inputs[i], right.inputs[i])) return false;
+    auto identical =
+        matchOperationTree(c, [&](const Instance& left, const Instance& right) {
           if (bool(left.descriptor) != bool(right.descriptor)) return false;
           if (left.descriptor)
             for (std::size_t f = 0; f < left.definition->fields.size(); ++f)
               if (!c.entails(call("==", {c.field(left, f), c.field(right, f)})))
                 return false;
           return true;
-        };
-    if (identical(plan.lhs, plan.rhs)) {
+        });
+    if (identical) {
       proof.constructors = candidate.constructors;
       proof.status = ProofStatus::Proved;
       proof.reason =

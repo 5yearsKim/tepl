@@ -5,6 +5,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 namespace tepl::core::symbolic {
 // Immutable structural identity. Digests accelerate ordering; exact structure
@@ -100,7 +101,7 @@ inline Key operator+(const Key& a, const Key& b) {
 class KeyArena {
   using Signature = std::pair<std::string, std::vector<const Key::Node*>>;
   std::map<Signature, Key> nodes_;
-  std::map<const Key::Node*, std::pair<Key, Key>> memo_;
+  std::unordered_map<const Key::Node*, std::pair<Key, Key>> memo_;
 
  public:
   Key intern(const Key& key) {

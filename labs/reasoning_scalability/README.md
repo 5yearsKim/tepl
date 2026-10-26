@@ -71,3 +71,8 @@ limit; this is separate from the engine's work budget. A failed/incomplete run
 does not overwrite the previous validated result.
 
 To remove generated artifacts, delete `output/`; the next run recreates it.
+
+The optimization evaluation also saves a frozen baseline binary and samples in
+`output/baseline/`, with the before/after analysis in `output/comparison.md`.
+It compares identical generated rules and budgets, reports latency ratios only
+for cases proved by both versions, and lists newly proved cases separately.

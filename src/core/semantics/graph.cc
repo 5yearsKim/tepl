@@ -502,6 +502,28 @@ TensorMeaning lowerSource(Context& c) {
   return lhs;
 }
 
+bool matchOperationTree(
+    Context& c,
+    const std::function<bool(const Instance&, const Instance&)>& visit) {
+  auto match = [&](auto&& self, std::size_t a, std::size_t b) -> bool {
+    c.tick();
+    const auto& left = c.plan.nodes.at(a);
+    const auto& right = c.plan.nodes.at(b);
+    if (left.capture || right.capture) return left.capture == right.capture;
+    if (left.literal || right.literal)
+      return left.literal == right.literal &&
+             left.literal_dtype == right.literal_dtype;
+    if (left.operation != right.operation ||
+        left.definition != right.definition ||
+        left.inputs.size() != right.inputs.size())
+      return false;
+    for (std::size_t i = 0; i < left.inputs.size(); ++i)
+      if (!self(self, left.inputs[i], right.inputs[i])) return false;
+    return !visit || visit(left, right);
+  };
+  return match(match, c.plan.lhs, c.plan.rhs);
+}
+
 E arithmeticSkeleton(Context& c, std::size_t id) {
   c.tick();
   const auto& n = c.plan.nodes.at(id);

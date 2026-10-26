@@ -1,7 +1,6 @@
 #include "src/core/attr_synth/synthesize.h"
 
 #include <algorithm>
-#include <functional>
 #include <stdexcept>
 
 #include "src/core/attr_synth/construct.h"
@@ -77,39 +76,30 @@ Result identity(const Plan& plan, std::size_t max_work) {
   Result result;
   try {
     Context c{plan, max_work};
+    if (!matchOperationTree(c)) {
+      result.reason = "operation trees do not match for descriptor copying";
+      return result;
+    }
     c.sourceScope(plan.lhs);
     Lowerer source{c};
     source.lower(plan.lhs);
     auto& candidate = result.candidate;
-    std::function<bool(std::size_t, std::size_t)> copy = [&](std::size_t a,
-                                                             std::size_t b) {
-      c.tick();
-      const auto& left = plan.nodes.at(a);
-      const auto& right = plan.nodes.at(b);
-      if (left.capture || right.capture) return left.capture == right.capture;
-      if (left.literal || right.literal)
-        return left.literal == right.literal &&
-               left.literal_dtype == right.literal_dtype;
-      if (left.operation != right.operation ||
-          left.inputs.size() != right.inputs.size())
-        return false;
-      for (std::size_t i = 0; i < left.inputs.size(); ++i)
-        if (!copy(left.inputs[i], right.inputs[i])) return false;
-      if (right.automatic) {
-        std::vector<S> fields;
-        for (std::size_t f = 0; f < right.definition->fields.size(); ++f)
-          fields.push_back(c.field(left, f));
-        auto [found, added] =
-            candidate.constructors.emplace(right.descriptor->value, fields);
-        if (!added) {
-          if (found->second.size() != fields.size()) return false;
-          for (std::size_t f = 0; f < fields.size(); ++f)
-            if (!equal(found->second[f], fields[f])) return false;
-        }
-      }
-      return true;
-    };
-    result.constructed = copy(plan.lhs, plan.rhs);
+    result.constructed =
+        matchOperationTree(c, [&](const Instance& left, const Instance& right) {
+          if (right.automatic) {
+            std::vector<S> fields;
+            for (std::size_t f = 0; f < right.definition->fields.size(); ++f)
+              fields.push_back(c.field(left, f));
+            auto [found, added] =
+                candidate.constructors.emplace(right.descriptor->value, fields);
+            if (!added) {
+              if (found->second.size() != fields.size()) return false;
+              for (std::size_t f = 0; f < fields.size(); ++f)
+                if (!equal(found->second[f], fields[f])) return false;
+            }
+          }
+          return true;
+        });
     if (!result.constructed)
       result.reason = "operation trees do not match for descriptor copying";
   } catch (const ProofFailure& e) {

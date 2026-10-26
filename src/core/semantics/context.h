@@ -103,6 +103,10 @@ class Context {
     std::set<Key> keys, normalized, permutations;
     std::map<Key, S> representatives, selectors;
     std::map<Key, std::vector<S>> valid_selectors;
+    // Dependencies accumulate: old spellings remain valid under monotone
+    // premises, and retaining them also covers subsequent alias changes.
+    std::map<Key, std::set<std::size_t>> users;
+    std::set<std::size_t> pending;
   } facts_;
   struct QueryState {
     std::map<Key, S> canonical, axis_sequences;
@@ -145,6 +149,10 @@ class Context {
 
   void invalidate();
   void represent(S, S);
+  void refreshFacts();
+  void watchFact(std::size_t, const S&);
+  void indexFact(const S&);
+  void changed(const S&);
   S canonicalChildren(const S&);
   bool established(const S&);
   bool deriveEvidence(const S&);

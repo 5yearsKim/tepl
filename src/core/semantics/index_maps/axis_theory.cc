@@ -7,6 +7,8 @@
 
 namespace tepl::core::semantics {
 void Context::represent(S a, S b) {
+  a = canonical(a);
+  b = canonical(b);
   if (equal(a, b)) return;
   std::function<std::pair<std::size_t, std::size_t>(const S&)> order =
       [&](const S& x) -> std::pair<std::size_t, std::size_t> {
@@ -42,7 +44,11 @@ void Context::represent(S a, S b) {
   auto ao = std::tuple(order(a).first, category(a), order(a).second);
   auto bo = std::tuple(order(b).first, category(b), order(b).second);
   if (ao < bo || (ao == bo && symbolLess(a, b))) std::swap(a, b);
-  facts_.representatives[key(a)] = b;
+  auto id = key(a);
+  auto old = facts_.representatives.find(id);
+  if (old != facts_.representatives.end() && equal(old->second, b)) return;
+  facts_.representatives[id] = b;
+  changed(a);
 }
 S Context::canonicalChildren(const S& s) {
   if (s->kind != Symbol::Kind::Call && s->kind != Symbol::Kind::List)
@@ -69,6 +75,69 @@ void Context::invalidate() {
     set_atoms_.clear();
   }
 }
+void Context::changed(const S& value) {
+  if (auto it = facts_.users.find(key(value)); it != facts_.users.end())
+    facts_.pending.insert(it->second.begin(), it->second.end());
+  invalidate();
+}
+void Context::indexFact(const S& f) {
+  facts_.normalized.insert(key(f));
+  if (callIs(f, "axis_partition")) {
+    if (facts_.permutations.insert(key(f->args[0])).second) changed(f->args[0]);
+  }
+  if (!callIs(f, "is_valid_axis_list")) return;
+  auto p = f->args[0], n = f->args[1];
+  auto& bounds = facts_.valid_selectors[key(p)];
+  if (std::none_of(bounds.begin(), bounds.end(),
+                   [&](const S& x) { return equal(x, n); }))
+    bounds.push_back(n);
+  facts_.selectors[key(p)] = p;
+  if (equal(canonical(call("len", {p})), canonical(n)) &&
+      facts_.permutations.insert(key(p)).second)
+    changed(p);
+}
+void Context::watchFact(std::size_t fact, const S& expression) {
+  std::set<Key> seen;
+  auto visit = [&](auto&& self, const S& x) -> void {
+    if (x->kind == Symbol::Kind::Integer || x->kind == Symbol::Kind::Boolean)
+      return;
+    auto id = key(x);
+    if (!seen.insert(id).second) return;
+    const bool added = facts_.users[id].insert(fact).second;
+    if (auto alias = facts_.representatives.find(id);
+        alias != facts_.representatives.end())
+      self(self, alias->second);
+    if (!added) return;  // Immutable children were already indexed.
+    if (x->sort == Symbol::Sort::Axes || x->sort == Symbol::Sort::Positions ||
+        x->sort == Symbol::Sort::Extents)
+      facts_.users[key(call("len", {x}))].insert(fact);
+    for (const auto& child : x->args) self(self, child);
+  };
+  visit(visit, expression);
+}
+void Context::refreshFacts() {
+  while (!facts_.pending.empty()) {
+    const auto id = *facts_.pending.begin();
+    facts_.pending.erase(facts_.pending.begin());
+    ++counters.fact_comparisons;
+    tick();
+    const auto raw = facts_.raw.at(id);
+    watchFact(id, raw);
+    if (callIs(raw, "==")) {
+      auto a = canonicalChildren(raw->args[0]);
+      auto b = canonicalChildren(raw->args[1]);
+      watchFact(id, a);
+      watchFact(id, b);
+      represent(a, b);
+    }
+    // Previously normalized facts remain consequences of the same premises.
+    // Reindex only facts which consulted a changed term, including selectors
+    // and derived lengths consulted during normalization.
+    auto normalized = canonical(raw);
+    watchFact(id, normalized);
+    indexFact(normalized);
+  }
+}
 void Context::learn(const S& fact) {
   if (callIs(fact, "&&")) {
     learn(fact->args[0]);
@@ -79,75 +148,24 @@ void Context::learn(const S& fact) {
   auto f = canonical(fact);
   if (truth(f)) return;
   invalidate();
-  facts_.normalized.insert(key(f));
+  facts_.pending.insert(facts_.raw.size());
   facts_.raw.push_back(fact);
-  if (callIs(f, "is_valid_axis_list")) {
-    facts_.valid_selectors[key(f->args[0])].push_back(f->args[1]);
-    facts_.selectors[key(f->args[0])] = f->args[0];
-    if (equal(canonical(call("len", {f->args[0]})), canonical(f->args[1]))) {
-      facts_.permutations.insert(key(f->args[0]));
-      invalidate();
-    }
-  }
   if (callIs(f, "axis_partition")) {
-    facts_.permutations.insert(key(f->args[0]));
     learn(call("is_valid_axis_list", f->args));
     learn(call("==", {call("len", {f->args[0]}), f->args[1]}));
-    return;
-  }
-  if (callIs(f, "same_set") &&
-      (callIs(f->args[0], "empty_axes") || callIs(f->args[1], "empty_axes"))) {
+  } else if (callIs(f, "same_set") && (callIs(f->args[0], "empty_axes") ||
+                                       callIs(f->args[1], "empty_axes"))) {
     learn(call("==", f->args));
-    return;
-  }
-  if (callIs(f, "==")) {
+  } else if (callIs(f, "==")) {
     auto a = f->args[0], b = f->args[1];
-    // Sequence equality also establishes equal cardinality. The expression
-    // factory lowers len(gather(shape,p)) to len(p), so this implication must
-    // be registered before that lowering hides the paired-domain witness.
+    // Preserve the cardinality witness before factory simplification can hide
+    // the paired-domain spelling of a sequence equality.
     if (a->sort == b->sort &&
         (a->sort == Symbol::Sort::Axes || a->sort == Symbol::Sort::Positions ||
          a->sort == Symbol::Sort::Extents))
       learn(call("==", {call("len", {a}), call("len", {b})}));
-    represent(canonicalChildren(a), canonicalChildren(b));
-  } else
-    return;
-  invalidate();
-  // Only equality updates can rename existing premises. Refresh their index
-  // here; adding a distinctness/range fact requires just one indexed insert.
-  facts_.normalized.clear();
-  for (const auto& raw : facts_.raw) {
-    ++counters.fact_comparisons;
-    if (callIs(raw, "==")) {
-      // Preserve congruence when a new fact changes children of an already
-      // recorded alias (for example, a selector containing a group length).
-      represent(canonicalChildren(raw->args[0]),
-                canonicalChildren(raw->args[1]));
-    }
-    auto normalized = canonical(raw);
-    facts_.normalized.insert(key(normalized));
-    if (callIs(normalized, "axis_partition"))
-      facts_.permutations.insert(key(normalized->args[0]));
-    if (callIs(normalized, "is_valid_axis_list")) {
-      auto p = normalized->args[0], n = normalized->args[1];
-      auto& bounds = facts_.valid_selectors[key(p)];
-      if (std::none_of(bounds.begin(), bounds.end(),
-                       [&](const S& x) { return equal(x, n); }))
-        bounds.push_back(n);
-      facts_.selectors[key(p)] = p;
-    }
   }
-  // Record permutation evidence at the mutation boundary. Map normalization
-  // can subsequently use it without launching a proof of this property.
-  for (const auto& [selector, domains] : facts_.valid_selectors)
-    for (const auto& bound : domains) {
-      if (equal(canonical(call("len", {facts_.selectors.at(selector)})),
-                canonical(bound))) {
-        facts_.permutations.insert(selector);
-        break;
-      }
-    }
-  invalidate();
+  refreshFacts();
 }
 bool Context::established(const S& f) {
   tick();

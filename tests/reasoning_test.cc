@@ -43,6 +43,49 @@ void arithmetic() {
   expect(!c.integerInterval(call("index", {list({2, 3}), integer(2)})),
          "invalid index has no value");
 }
+void incrementalFacts() {
+  Plan p;
+  Context c{p, 1000000};
+  auto a = make(Symbol::Kind::Field, "a", 0, 0);
+  auto b = make(Symbol::Kind::Field, "b", 0, 1);
+  auto d = make(Symbol::Kind::Field, "d", 0, 2);
+  c.learn(call("is_positive_extents", {a}));
+  c.learn(call("==", {a, b}));
+  c.canonical(a);
+  c.canonical(call("len", {a}));
+  expect(!c.entails(call("is_positive_extents", {d})),
+         "an unrelated field has no positivity evidence");
+  c.learn(call("==", {b, d}));
+  expect(equal(c.canonical(a), c.canonical(d)) &&
+             c.entails(call("is_positive_extents", {d})),
+         "an alias update refreshes dependent facts and previous query misses");
+  c.learn(call("==", {d, list({2, 3})}));
+  expect(equal(c.canonical(a), c.canonical(list({2, 3}))) &&
+             equal(c.canonical(call("len", {a})), integer(2)),
+         "cached aliases follow a later concrete assignment");
+  expect(!c.entails(call("==", {a, list({3, 2})})),
+         "incremental equality preserves sequence ordering");
+
+  auto shape = make(Symbol::Kind::Shape, {}, 0);
+  auto selected = call("gather", {shape, list({0, 1})});
+  c.learn(call("is_positive_extents", {selected}));
+  c.canonical(selected);
+  c.learn(call("==", {call("len", {shape}), integer(2)}));
+  expect(c.entails(call("is_positive_extents", {shape})),
+         "new length evidence refreshes facts about a cached selection");
+  auto other = make(Symbol::Kind::Shape, {}, 1);
+  expect(!c.entails(call("is_positive_extents", {other})),
+         "dependency updates do not leak facts to another shape");
+
+  auto hole = make(Symbol::Kind::Hole, {}, 0, 0);
+  auto dependent = make(Symbol::Kind::Hole, {}, 1, 0);
+  c.assignAttribute(1, 0, call("concat", {hole, list({1})}));
+  expect(containsHole(c.resolve(dependent)),
+         "an unassigned constructor dependency remains unresolved");
+  c.assignAttribute(0, 0, list({0}));
+  expect(equal(c.resolve(dependent), list({0, 1})),
+         "attribute assignment invalidates transitive resolution caches");
+}
 void bounds() {
   Plan p;
   Context c{p, 1000000};
@@ -626,6 +669,7 @@ void pipeline() {
 int main() {
   try {
     arithmetic();
+    incrementalFacts();
     bounds();
     shapes();
     selectedShapeEquality();

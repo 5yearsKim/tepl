@@ -368,7 +368,11 @@ S Context::canonical(const S& s) {
     throw ProofFailure("axis normalization depth limit exceeded",
                        FailureKind::BudgetExceeded);
   auto found = facts_.representatives.find(key(s));
-  if (found != facts_.representatives.end()) return canonical(found->second);
+  if (found != facts_.representatives.end()) {
+    auto result = canonical(found->second);
+    queries_.canonical[original] = result;
+    return result;
+  }
   // Cardinality zero determines an ordered coordinate sequence completely.
   // Do this before preserving registered views: a view's selectors or domain
   // may have become empty after source metadata equalities were learned.

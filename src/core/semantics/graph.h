@@ -1,4 +1,6 @@
 #pragma once
+#include <functional>
+
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/symbolic/index_expr.h"
 
@@ -50,6 +52,11 @@ struct Lowerer {
 // Compose the source again after learning legality across the complete source,
 // including shapes shared through pointwise consumers. sourceScope must be set.
 TensorMeaning lowerSource(Context&);
+// Match ordered operands and capture/literal identities before doing metadata
+// work. The optional visitor checks or constructs attributes at matched nodes.
+bool matchOperationTree(
+    Context&,
+    const std::function<bool(const Instance&, const Instance&)>& = {});
 E expression(Expr::Kind, std::vector<E>, S = {});
 E constant(std::int64_t);
 E scalarCall(ScalarFunction, std::vector<E>, std::vector<S> = {}, S = {});
