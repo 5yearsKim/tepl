@@ -6,6 +6,12 @@ gaps; [attribute synthesis](reports/attribute_synthesis.md) compares explicit,
 full-auto and partial-auto rules. The [case table](reports/synthesis_cases.md)
 lists individual outcomes. Sources live in the [TEPL project](../tepl/README.md).
 
+[Specification size](reports/rule_specification_complexity.md) measures explicit
+and inferred TEPL rule sizes for the 36 successful inference cases and documents
+the corresponding XLA implementation excerpts and scope differences. Regenerate
+it with `python3 labs/xla_rewrite/coverage/scripts/measure_rule_specification.py`
+from the repository root; add `--check` to check for stale outputs.
+
 | Directory | Purpose |
 |---|---|
 | [../tepl/dialects/](../tepl/dialects/) | Local semantic HLO and matching declarations without value semantics |
