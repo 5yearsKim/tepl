@@ -19,17 +19,28 @@ auto measure(F run, double* milliseconds) {
 }
 }  // namespace
 
-RuleProof proveRule(const Plan& plan, std::size_t max_work,
-                    ProofTiming* timing) {
+RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
+                    std::chrono::steady_clock::time_point deadline) {
   if (timing) *timing = {};
   RuleProof proof;
+  const auto expired = [&] {
+    if (deadline == std::chrono::steady_clock::time_point::max()) return false;
+    if (std::chrono::steady_clock::now() < deadline) return false;
+    proof = {};
+    proof.reason = "time limit exceeded: inference pipeline deadline";
+    return true;
+  };
   for (auto strategy :
        {attr_synth::Strategy::Identity, attr_synth::Strategy::Ordered,
         attr_synth::Strategy::General}) {
+    if (expired()) return proof;
     if (timing) ++timing->construction_attempts;
     auto result = measure(
-        [&] { return attr_synth::synthesize(plan, strategy, max_work); },
+        [&] {
+          return attr_synth::synthesize(plan, strategy, max_work, deadline);
+        },
         timing ? &timing->construction_ms : nullptr);
+    if (expired()) return proof;
     if (!result.constructed) {
       proof = {};
       proof.guard = std::move(result.candidate.guard);
@@ -41,8 +52,10 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work,
     // Verification rebuilds its context from the plan and candidate. No facts
     // or attribute assignments from the synthesis attempt become premises.
     if (timing) ++timing->verification_attempts;
-    proof = measure([&] { return verify(plan, result.candidate, max_work); },
-                    timing ? &timing->verification_ms : nullptr);
+    proof = measure(
+        [&] { return verify(plan, result.candidate, max_work, deadline); },
+        timing ? &timing->verification_ms : nullptr);
+    if (expired()) return proof;
     if (proof.status == ProofStatus::Proved) {
       proof.steps.insert(proof.steps.end(), result.steps.begin(),
                          result.steps.end());

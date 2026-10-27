@@ -2,14 +2,12 @@
 
 from dataclasses import dataclass
 import hashlib
-import itertools
 import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parents[1]
 ROOT = HERE.parents[1]
 DIALECT = ROOT / "examples/semantic/dialects/tensor.tepl"
-PERMUTATIONS = tuple(itertools.permutations(range(3)))
 FIELDS = ("lhs_contracting_dimensions", "rhs_contracting_dimensions",
           "lhs_batching_dimensions", "rhs_batching_dimensions")
 
@@ -43,12 +41,9 @@ def dot(lhs, rhs, label, name):
     return Node(name, axes, (lhs, rhs), attrs)
 
 
-def chain(n, layout):
-    leaves = []
-    for i in range(1, n + 1):
-        axes = ("b", f"d{i-1}", f"d{i}")
-        order = (0, 1, 2) if layout == "canonical" else PERMUTATIONS[(i - 1) % 6]
-        leaves.append(Node(f"A{i}", tuple(axes[j] for j in order)))
+def chain(n):
+    leaves = [Node(f"A{i}", ("b", f"d{i-1}", f"d{i}"))
+              for i in range(1, n + 1)]
     lhs = leaves[0]
     for i in range(1, n):
         lhs = dot(lhs, leaves[i], f"d{i}", f"l{i}")
@@ -74,10 +69,10 @@ def expression(node, automatic=False):
     return f"({label}dot {expression(node.children[0], automatic)} {expression(node.children[1], automatic)})"
 
 
-def dot_source(size, layout, mode):
+def dot_source(size, mode):
     n = size + 1
-    leaves, lhs, rhs = chain(n, layout)
-    name = f"chain_{layout}_{mode}_{size}"
+    leaves, lhs, rhs = chain(n)
+    name = f"chain_{mode}_{size}"
     inferred = lambda node: mode == "automatic" or (mode == "partial" and int(node.name[1:]) % 2 == 1)
     lines = [f"rule {name} {{"]
     for leaf in leaves:

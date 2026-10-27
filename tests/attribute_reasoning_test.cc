@@ -227,6 +227,33 @@ rule compose {(p: transpose (transpose A))=>(q: transpose (transpose A))
           timing.construction_attempts == 3 &&
           timing.verification_attempts == 0 && timing.verification_ms == 0,
       "timing accounting resets each call and does not bypass proof budgets");
+  const auto past = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+  auto timed_out = proveRule(fallback, 1000000, &timing, past);
+  expect(
+      timed_out.status == ProofStatus::Unknown &&
+          timed_out.reason.find("time limit exceeded:") != std::string::npos &&
+          timing.construction_attempts == 0 &&
+          timing.verification_attempts == 0,
+      "an expired shared deadline stops synthesis before any strategy");
+  auto expired_synthesis =
+      core::attr_synth::synthesize(fallback, Strategy::General, 1000000, past);
+  auto expired_verification =
+      verify(fallback, general.candidate, 1000000, past);
+  expect(!expired_synthesis.constructed &&
+             expired_synthesis.candidate.constructors.empty() &&
+             expired_synthesis.reason.find("time limit exceeded:") !=
+                 std::string::npos &&
+             expired_verification.status == ProofStatus::Unknown &&
+             expired_verification.reason.find("time limit exceeded:") !=
+                 std::string::npos,
+         "synthesis and independent verification honor context deadlines");
+  auto within_deadline =
+      proveRule(fallback, 1000000, &timing,
+                std::chrono::steady_clock::now() + std::chrono::seconds(10));
+  expect(within_deadline.status == ProofStatus::Proved &&
+             timing.construction_attempts == 3 &&
+             timing.verification_attempts == 2,
+         "a future deadline preserves synthesis fallback and verification");
   expect(
       general.constructed &&
           verify(fallback, general.candidate).status == ProofStatus::Proved &&

@@ -218,7 +218,8 @@ def render(catalog, assessment, manifest, measured):
            "source requirements have a language-level representation.",
            "2. **Compiled:** a concrete explicit rule passes `tepl compile` and its "
            "executable JSON passes `tepl validate`. Some cases specialize ranks, literals or arities; "
-           "their scope is recorded below. Compilation checks syntax, types and construction, "
+           "their scope is recorded in the [case manifest](../data/compilation_cases.json). "
+           "Compilation checks syntax, types and construction, "
            "and does not establish that every source condition has been ported.",
            "3. **Verified:** the optional semantic checking path additionally proves "
            "the written value/coordinate equivalence under its arithmetic policy.", "",
@@ -245,16 +246,9 @@ def render(catalog, assessment, manifest, measured):
                 "symmetric difference, unit-stride slice composition, reflected "
                 "slice starts and lifted reduction dimensions. These use existing "
                 "lists, indexing, comprehensions and descriptor constructors.", "",
-                "The dialect deliberately uses the ordinary explicit-rule path. "
-                "Source conditions and ideal algebraic assumptions remain those "
-                "recorded in the catalog; cases below state further specializations.", "",
-                "| Case | Catalog schema | Compilation | Scope |",
-                "|---|---|---|---|"])
-    indexed = {r["case"]: r for r in results}
-    for case in manifest["cases"]:
-        r = indexed[case["name"]]
-        out.append(f"| [{case['name']}](../{case['file']}) | {case['catalog_id']} | "
-                   f"{r['status']} | {clean(case['scope'])} |")
+                "Per-case scope, catalog IDs and source files are recorded in the "
+                "[compilation manifest](../data/compilation_cases.json); "
+                "[compilation.json](../results/compilation.json) records every outcome."])
     failed = [r for r in results if r["status"] != "compiled"]
     if failed:
         out.extend(["", "Unsuccessful expression checks:", ""])
@@ -282,37 +276,20 @@ def render(catalog, assessment, manifest, measured):
                 "rule demonstrates negative padding. Window and extended "
                 "convolution cases use nonnegative edge metadata. Constant "
                 "construction supplies payload, element type and shape explicitly.", "",
-                "Each designated baseline links to its concrete scope below. "
+                "The [case manifest](../data/compilation_cases.json) records each baseline's scope. "
                 "Fixed-rank/opcode/padding instances demonstrate a catalog schema "
                 "without asserting that every conditional variant is implemented."])
-    out.extend(["", "## Per-schema language assessment", "",
-                "Each row links to the original equation and source conditions. "
-                "An expression assessment does not depend on whether an equivalent "
-                "semantic primitive has been implemented.", "",
-                "| Schema | Expression assessment | Representation / integration needs | Designated explicit rule | Compiled cases |",
-                "|---|---|---|---|---:|"])
-    compiled_count = Counter(r["catalog_id"] for r in compiled)
-    case_by_name = {c["name"]: c for c in manifest["cases"]}
-    for catalog_row in catalog:
-        cid = catalog_row["id"]
-        row = by_id[cid]
-        reason = row["reason"] + (" " + " ".join(row["integration"]) if row["integration"] else "")
-        chosen = baseline["cases"].get(cid)
-        link = (f"[{chosen}](../{case_by_name[chosen]['file']})" if chosen else "—")
-        out.append(f"| [{cid}](../../catalog/catalog.md#{cid}) | {row['status']} | "
-                   f"{clean(reason)} | {link} | {compiled_count[cid]} |")
-    out.extend(["", "## Evidence and reproduction", ""])
-    out.extend(f"- [{path}](../../../../{path})" for path in assessment["evidence"])
-    out.extend(["", f"TEPL revision: `{measured['tepl_revision']}`. "
+    out.extend(["", "## Evidence and reproduction", "",
+                "[language_assessments.json](../data/language_assessments.json) retains "
+                "all per-schema assessments and integration requirements. Representative "
+                "gaps include nonnegativity analysis, opaque constant payloads, variable "
+                "arities and nonlocal graph-value reuse; see the "
+                "[host-dependency audit](host_dependency_audit.md).", "",
+                f"TEPL revision: `{measured['tepl_revision']}`. "
                 f"XLA revision: `{assessment['xla_revision']}`. "
-                "Case files, the dialect, catalog and runner have recorded hashes "
-                "in [compilation.json](../results/compilation.json).", "",
-                "```sh", "bazel build //:tepl",
-                "python3 labs/xla_rewrite/coverage/scripts/expression_coverage.py --run",
-                "python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py",
-                "python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py --check",
-                "python3 -m unittest discover -s labs/xla_rewrite/coverage/tests -p 'test_*.py'",
-                "```", ""])
+                "[compilation.json](../results/compilation.json) records input, dialect, "
+                "catalog and runner hashes. Follow the "
+                "[reproduction commands](../README.md#reproduce) to rerun the evaluation.", ""])
     return "\n".join(out)
 
 

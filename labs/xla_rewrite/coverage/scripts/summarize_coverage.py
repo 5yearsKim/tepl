@@ -219,12 +219,12 @@ def render(catalog, assessment, manifest, measured):
                   "Original derived metadata programs retain checked-evaluation and final "
                   "attribute-range obligations. No case names or HLO-specific identities "
                   "are used by the reasoning implementation.", "",
-                  "Newly verified cases:", ""]
-    comparison.extend(f"- [{name}](../{cases[name]['file']})" for name in sorted(added))
-    comparison.extend(["", "This comparison measures proof coverage, not compiler speed. "
-                       "Missing operation semantics remain unchanged. Division, metadata "
-                       "reductions, more general comprehensions and unresolved layout or "
-                       "numeric-domain obligations can still remain unproved.", ""])
+                  "Examples include "
+                  "[reverse composition](../../tepl/rules/semantic/expr_reverse_compose_general.tepl), "
+                  "[slice composition](../../tepl/rules/semantic/expr_slice_compose_general.tepl), and "
+                  "[dot operand transposes](../../tepl/rules/semantic/catalog_dot_transpose_both_operands.tepl). "
+                  "The baseline and current result JSON retain all per-case outcomes. "
+                  "This comparison measures proof coverage, not compiler speed.", ""]
     out[out.index("## Results by category"):out.index("## Results by category")] = comparison
     out.extend(["", "## Local HLO semantics", "",
                 f"The local dialect declares **{len(support['operations'])} operations** "
@@ -286,19 +286,6 @@ def render(catalog, assessment, manifest, measured):
         if result["status"] in {"not_proved", "timeout"}:
             out.append(f"| [{result['case']}](../{cases[result['case']]['file']}) | "
                        + clean(failure_summary(result)) + " |")
-    out.extend(["", "## Measured rules", "",
-                "Every row is a real compiler invocation. A successful ordinary "
-                "type check without `status=proved` does not count as verification. "
-                "Missing semantics lists all required operations without definitions, "
-                "even when the compiler reports only its first such operation.", "",
-                "| Case | Catalog schema | Result | Missing semantics | Scope |",
-                "|---|---|---|---|---|"])
-    for result in measured["results"]:
-        case = cases[result["case"]]
-        out.append(f"| [{case['name']}](../{case['file']}) | "
-                   f"{case['catalog_id'] or 'negative control'} | {result['status']} | "
-                   + ", ".join(result.get("missing_semantics", []))
-                   + " | " + clean(case["scope"]) + " |")
     out.extend(["", "## Reproduction", "",
                 "[verification.json](../results/verification.json) records diagnostics, "
                 "required/missing operations, proof evidence and file/dependency "
@@ -312,13 +299,9 @@ def render(catalog, assessment, manifest, measured):
                 f"- Compiler SHA-256: `{measured['compiler_sha256']}`.",
                 f"- Environment: {measured['environment']}; Python {measured['python']}.",
                 f"- Timeout: {measured['timeout_seconds_per_case']} seconds per case.", "",
-                "```sh", "bazel build //:tepl",
-                "python3 labs/xla_rewrite/coverage/scripts/run_checks.py",
-                "python3 labs/xla_rewrite/coverage/scripts/expression_coverage.py --run",
-                "python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py",
-                "python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py --check",
-                "python3 -m unittest discover -s labs/xla_rewrite/coverage/tests -p 'test_*.py'",
-                "```", ""])
+                "See the [case outcome table](synthesis_cases.md) for explicit and inferred "
+                "results, and the [reproduction commands](../README.md#reproduce) to rerun "
+                "the evaluation.", ""])
     return "\n".join(out)
 
 

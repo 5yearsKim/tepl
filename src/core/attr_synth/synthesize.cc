@@ -11,8 +11,9 @@ namespace tepl::core::attr_synth {
 using namespace semantics;
 namespace {
 Result run(const Plan& plan, std::size_t max_work,
+           std::chrono::steady_clock::time_point deadline,
            const ordered::Admission* admitted = nullptr) {
-  Context c{plan, max_work};
+  Context c{plan, max_work, deadline};
   Result result;
   auto& candidate = result.candidate;
   std::string phase = "source lowering";
@@ -72,10 +73,11 @@ Result run(const Plan& plan, std::size_t max_work,
   }
   return result;
 }
-Result identity(const Plan& plan, std::size_t max_work) {
+Result identity(const Plan& plan, std::size_t max_work,
+                std::chrono::steady_clock::time_point deadline) {
   Result result;
   try {
-    Context c{plan, max_work};
+    Context c{plan, max_work, deadline};
     if (!matchOperationTree(c)) {
       result.reason = "operation trees do not match for descriptor copying";
       return result;
@@ -111,19 +113,20 @@ Result identity(const Plan& plan, std::size_t max_work) {
 
 }  // namespace
 
-Result synthesize(const Plan& plan, Strategy strategy, std::size_t max_work) {
+Result synthesize(const Plan& plan, Strategy strategy, std::size_t max_work,
+                  std::chrono::steady_clock::time_point deadline) {
   switch (strategy) {
     case Strategy::Identity:
-      return identity(plan, max_work);
+      return identity(plan, max_work, deadline);
     case Strategy::Ordered: {
       auto admitted = ordered::admit(plan);
-      if (admitted.admitted()) return run(plan, max_work, &admitted);
+      if (admitted.admitted()) return run(plan, max_work, deadline, &admitted);
       Result result;
       result.reason = admitted.reason;
       return result;
     }
     case Strategy::General:
-      return run(plan, max_work);
+      return run(plan, max_work, deadline);
   }
   throw std::invalid_argument("unknown attribute synthesis strategy");
 }

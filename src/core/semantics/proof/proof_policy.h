@@ -19,7 +19,12 @@ struct ProofLimits {
   static constexpr std::size_t general_inference_work = 100000;
 };
 
-enum class FailureKind { Unsupported, BudgetExceeded, InvalidCandidate };
+enum class FailureKind {
+  Unsupported,
+  BudgetExceeded,
+  TimeExceeded,
+  InvalidCandidate
+};
 
 // Only expected inference failures become Unknown. Programming errors retain
 // their original exception type and are not mistaken for unsupported rules.
@@ -31,6 +36,8 @@ class ProofFailure : public std::runtime_error {
   FailureKind kind() const { return kind_; }
   std::string describe() const {
     switch (kind_) {
+      case FailureKind::TimeExceeded:
+        return std::string("time limit exceeded: ") + what();
       case FailureKind::BudgetExceeded:
         return std::string("budget exhausted: ") + what();
       case FailureKind::InvalidCandidate:

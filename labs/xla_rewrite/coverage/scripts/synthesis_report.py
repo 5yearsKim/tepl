@@ -85,11 +85,7 @@ def render(data, classification):
     attr_free = [r for r in supported if not r["rhs_descriptors"]]
     attr_free_proved = [r for r in attr_free if r["explicit_status"] == "proved"]
     practical = [r for r in supported if r["explicit_status"] == "proved" or r in accepted]
-    compilation = read(HERE / "results/compilation.json")
-    old = read(HERE / "baselines/pre_syntax/verification.json")
     explicit = read(HERE / "results/verification.json")
-    old_proved = {r["case"] for r in old["results"] if r["status"] == "proved"}
-    new_proved = {r["case"] for r in explicit["results"] if r["status"] == "proved"}
     inference_schemas = {r["catalog_id"] for r in accepted}
     o = ["# XLA Attribute Synthesis Evaluation", "",
          f"TEPL automatically infers RHS attributes for **{fraction(len(explicit_automated),len(explicit_attr))}** "
@@ -115,16 +111,9 @@ def render(data, classification):
          "and one negative control. Concrete cases retain the scopes recorded in the existing manifest: "
          "some specialize ranks, arithmetic operations, layouts, or constant representations. Schema coverage "
          "means at least one measured case, not every XLA variant.", "",
-         "## Step 1 Syntax migration", "",
-         "**136 legacy semantic cases and their 136 structural counterparts were migrated.** "
-         "Node labels and `.attrs` replace `@` bindings; original equations, conditions, attribute sharing, "
-         "and metadata formulas are preserved. Original text and hashes are retained in "
-         "[migration snapshots](../baselines/pre_syntax/) and the [migration record](../data/syntax_migration.json).", "",
-         f"All **{len(compilation['results'])} structural cases compile and their executable JSON validates**. "
-         f"The semantic baseline verifies **{len(new_proved)} cases**, retaining "
-         f"**{len(old_proved & new_proved)}/{len(old_proved)} previously verified cases**. "
-         "The deliberately incorrect subtraction-to-addition control is rejected.", "",
-         "## Step 2 Classification before testing", "",
+         "The [syntax migration record](../data/syntax_migration.json) and "
+         "[snapshots](../baselines/pre_syntax/) preserve original text and hashes.", "",
+         "## Classification", "",
          "[synthesis_classification.json](../data/synthesis_classification.json) is frozen before inference runs. "
          "Classification uses declarations and graph structure, never proof outcomes. Metadata functions such "
          "as `gather(...)` are distinguished from HLO graph operations.", "",
@@ -146,7 +135,7 @@ def render(data, classification):
           "Category 3 requires missing semantics or other unsupported capabilities and is excluded from auto attempts. Forty catalog schemas "
           "have no concrete case; their porting state is recorded separately, and they contribute no measured successes. "
           "Classification describes the scoped algebraic evaluation model, not a complete HLO importer.", "",
-          "## Step 3 Explicit full auto and partial auto", "",
+          "## Explicit, full-auto and partial-auto results", "",
           "Full auto removes all RHS descriptor definitions. Partial auto retains explicit descriptors on "
           "some nodes and infers the rest. Both modes are measured for cases with multiple RHS descriptors. "
           "Partial subsets are tried in descending number of inferred nodes, stopping after the first successful "
@@ -182,71 +171,44 @@ def render(data, classification):
     for row in recovered:
         o.append(f"- [{row['case']}]({link(row['successful_variant'])}): {row['inferred_descriptors']} "
                  f"RHS descriptor(s) inferred; the original explicit formula was `{row['explicit_status']}`.")
-    o += ["", "### Successful inferred cases", "",
-          "| Case | Category | Full auto | Partial auto | Inferred descriptors in best variant | Original baseline scope |",
-          "|---|---:|---|---|---:|---|"]
-    for row in accepted:
-        o.append(f"| [{row['case']}]({link(row['successful_variant'])}) | {row['category']} | "
-                 f"{'yes' if successful(row,'full_auto') else 'no'} | {'yes' if successful(row,'partial_auto') else '—'} | "
-                 f"{row['inferred_descriptors']}/{row['rhs_descriptors']} | {row['scope'].replace('|', '/')} |")
-    axis_after = read(HERE / "baselines/pre_general_inference/synthesis.json")
-    axis_verified = read(HERE / "baselines/pre_general_inference/verification.json")
-    comparisons = (
-        ("pre_axis_views", "Shared axis reasoning improvement", axis_after, axis_verified,
-         "The compiler reuses coordinate-sequence expansion in set-membership reasoning. "
-         "Registered selections and permutations retain their original coordinate witnesses. "
-         "This historical comparison ends before the general inference changes below."),
-        ("pre_general_inference", "General inference improvement", data, explicit,
-         "Scalar parameter correspondence reuses unambiguous parameters from normalized source semantics. "
-         "Constructors are checked against declared scalar attribute types. Coordinate correspondence "
-         "combines additive dependencies and propagates whole-operand consumer interfaces. "
-         "Metadata normalization merges adjacent ordered ranges, reuses selected element facts, and "
-         "compares symbolic sequences by ordered blocks; arbitrary permutations cannot establish order. "
-         "Coordinate complements preserve their extent maps. Reduction reflection "
-         "changes only bound coordinates in equal finite domains, substituting the entire summand "
-         "under algebraic addition."),
+    o += ["", "## Compiler improvements", "",
+          "Shared axis reasoning preserves coordinate witnesses through selections and permutations. "
+          "General inference adds scalar-parameter correspondence, coordinate propagation, "
+          "ordered metadata normalization and reduction reflection. These mechanisms use no "
+          "operation names, rule names or XLA case IDs.", "",
+          "Equations, conditions, classifications and acceptance criteria are unchanged. "
+          "The table compares each stage with its immediate predecessor.", "",
+          "| Stage | Explicit proofs | Auto successes | Theorem-fragment auto | Previous proofs retained | Previous auto retained |",
+          "|---|---:|---:|---:|---:|---:|"]
+    theorem = {r["case"] for r in eligible if r["category"] == 1}
+    previous = previous_proofs = None
+    lost_cases = set()
+    stages = (
+        ("[Before axis reasoning](../baselines/pre_axis_views/)",
+         read(HERE / "baselines/pre_axis_views/synthesis.json"),
+         read(HERE / "baselines/pre_axis_views/verification.json")),
+        ("[After axis reasoning](../baselines/pre_general_inference/)",
+         read(HERE / "baselines/pre_general_inference/synthesis.json"),
+         read(HERE / "baselines/pre_general_inference/verification.json")),
+        ("After general inference", data, explicit),
     )
-    for baseline, title, measured, verified, description in comparisons:
-        before = read(HERE / "baselines" / baseline / "synthesis.json")
-        before_verified = read(HERE / "baselines" / baseline / "verification.json")
-        previous = {r["case"] for r in before["results"]
-                    if r["outcome"] in {"full_auto", "partial_auto"}}
+    for title, measured, verified in stages:
         current = {r["case"] for r in measured["results"]
                    if r["outcome"] in {"full_auto", "partial_auto"}}
-        previous_proofs = {r["case"] for r in before_verified["results"]
-                           if r["status"] == "proved"}
-        current_proofs = {r["case"] for r in verified["results"]
-                          if r["status"] == "proved"}
-        theorem = {r["case"] for r in eligible if r["category"] == 1}
-        o += ["", "## " + title, "", description, "",
-              "The comparison uses unchanged equations, applicability conditions, classifications "
-              "and acceptance criteria. No operation names, rule names or XLA case IDs participate "
-              "in these compiler mechanisms.", "",
-              f"[Pre-change measurements](../baselines/{baseline}/) preserve the previous compiler results.", "",
-              "| Measurement | Before | After |",
-              "|---|---:|---:|",
-              f"| Explicit semantic proofs | {len(previous_proofs)} | {len(current_proofs)} |",
-              f"| Unique auto successes | {fraction(len(previous),len(eligible))} | {fraction(len(current),len(eligible))} |",
-              f"| Theorem-fragment auto successes | {len(theorem & previous)}/{len(theorem)} | {len(theorem & current)}/{len(theorem)} |",
-              f"| Previous semantic proofs retained | — | {len(previous_proofs & current_proofs)}/{len(previous_proofs)} |",
-              f"| Previous auto successes retained | — | {len(previous & current)}/{len(previous)} |", "",
-              "Newly inferred cases:", ""]
-        for row in measured["results"]:
-            if row["case"] in current - previous:
-                o.append(f"- [{row['case']}]({link(row['successful_variant'])}): {row['outcome']}.")
-        lost = (previous - current) | (previous_proofs - current_proofs)
-        if lost:
-            o += ["", "Cases losing acceptance in this run: " + ", ".join(sorted(lost)) + "."]
+        current_proofs = {r["case"] for r in verified["results"] if r["status"] == "proved"}
+        proof_retained = (f"{len(previous_proofs & current_proofs)}/{len(previous_proofs)}"
+                          if previous_proofs is not None else "—")
+        auto_retained = (f"{len(previous & current)}/{len(previous)}"
+                         if previous is not None else "—")
+        o.append(f"| {title} | {len(current_proofs)} | {fraction(len(current),len(eligible))} | "
+                 f"{len(theorem & current)}/{len(theorem)} | {proof_retained} | {auto_retained} |")
+        if previous is not None:
+            lost_cases.update((previous - current) | (previous_proofs - current_proofs))
+        previous, previous_proofs = current, current_proofs
+    if lost_cases:
+        o += ["", "Cases losing acceptance between stages: " + ", ".join(sorted(lost_cases)) + "."]
     o += ["", "## Reproduction and artifacts", "",
-          "```sh", "bazel build //:tepl",
-          "python3 labs/xla_rewrite/coverage/scripts/migrate_syntax.py --check",
-          "python3 labs/xla_rewrite/coverage/scripts/synthesis_cases.py",
-          "python3 labs/xla_rewrite/coverage/scripts/run_checks.py",
-          "python3 labs/xla_rewrite/coverage/scripts/expression_coverage.py --run",
-          "python3 labs/xla_rewrite/coverage/scripts/run_synthesis.py",
-          "python3 labs/xla_rewrite/coverage/scripts/synthesis_report.py",
-          "python3 -m unittest discover -s labs/xla_rewrite/coverage/tests -p 'test_*.py'",
-          "```", "",
+          "Follow the [reproduction commands](../README.md#reproduce) to rerun the evaluation.", "",
           "[synthesis.json](../results/synthesis.json) contains every attempt, compiler diagnostics, "
           "constructor counts, proof output, artifact hashes, and source/input hashes. "
           "[synthesis_cases.md](synthesis_cases.md) lists all concrete outcomes, including unsupported "

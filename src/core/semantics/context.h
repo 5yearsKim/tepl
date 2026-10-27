@@ -28,7 +28,10 @@ struct SourceCoordinates {
 // Axis identities are never unified by comparing their extents.
 class Context {
  public:
-  Context(const Plan& plan, std::size_t work) : plan(plan), budget_(work) {}
+  Context(const Plan& plan, std::size_t work,
+          std::chrono::steady_clock::time_point deadline =
+              std::chrono::steady_clock::time_point::max())
+      : plan(plan), budget_(work), deadline_(deadline) {}
   ~Context();
   const Plan& plan;
   Key key(const S& s) const { return keys_.intern(semantics::key(s)); }
@@ -144,6 +147,8 @@ class Context {
   std::vector<RuleProof::GuardOrigin> guard_origins_;
   std::vector<std::string> steps_;
   std::size_t budget_;
+  const std::chrono::steady_clock::time_point deadline_;
+  std::size_t deadline_ticks_ = 0;
   std::chrono::steady_clock::time_point started_ =
       std::chrono::steady_clock::now();
 

@@ -2,6 +2,7 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <random>
 #include <stdexcept>
@@ -39,12 +40,12 @@ int main(int argc, char** argv) {
     if (argc != 6)
       throw std::runtime_error(
           "usage: inference_benchmark MANIFEST OUTPUT WARMUPS REPETITIONS "
-          "BUDGET");
+          "TIMEOUT_MS");
     Json manifest;
     std::ifstream(argv[1]) >> manifest;
     const int warmups = std::stoi(argv[3]), repetitions = std::stoi(argv[4]);
-    const auto budget = std::stoull(argv[5]);
-    if (warmups < 0 || repetitions < 1 || !budget)
+    const auto timeout = std::chrono::milliseconds(std::stoll(argv[5]));
+    if (warmups < 0 || repetitions < 1 || timeout.count() <= 0)
       throw std::runtime_error("invalid measurement settings");
     std::vector<Plan> plans;
     for (const auto& row : manifest.at("cases"))
@@ -61,12 +62,16 @@ int main(int argc, char** argv) {
         const auto& row = manifest.at("cases").at(index);
         ProofTiming timing;
         const auto start = Clock::now();
-        auto proof = proveRule(plans[index], budget, &timing);
+        auto proof =
+            proveRule(plans[index], std::numeric_limits<std::size_t>::max(),
+                      &timing, start + timeout);
         const auto total =
             std::chrono::duration<double, std::milli>(Clock::now() - start)
                 .count();
         std::string status =
             proof.status == ProofStatus::Proved ? "proved"
+            : proof.reason.find("time limit exceeded:") != std::string::npos
+                ? "time_limit"
             : proof.reason.find("budget exhausted:") != std::string::npos
                 ? "budget_exhausted"
                 : "unresolved";

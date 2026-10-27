@@ -4,8 +4,9 @@
 
 namespace tepl::core::semantics {
 RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
-                 std::size_t max_work) {
-  Context c{plan, max_work};
+                 std::size_t max_work,
+                 std::chrono::steady_clock::time_point deadline) {
+  Context c{plan, max_work, deadline};
   RuleProof proof;
   try {
     c.sourceScope(plan.lhs);

@@ -1,17 +1,10 @@
 # HLO Rewrite Coverage
 
-[Attribute synthesis](reports/attribute_synthesis.md) reports the refreshed
-theorem-based experiment: syntax migration, classification before measurement,
-and explicit, full-auto, and partial-auto outcomes. The generated
-[case table](reports/synthesis_cases.md) accounts for all 209 original cases.
-
-[Compilation](reports/compilation.md) measures rule expressibility and executable
-compilation. [Verification](reports/verification.md) reports semantic acceptance,
-missing operation semantics and unresolved proofs for the same rule bodies.
-
-The self-contained [TEPL project](../tepl/README.md) lives in `../tepl/`.
-Its configuration, dialects, rules and input graphs are kept together. This
-directory contains the evaluation data, tools, tests and results.
+[Compilation](reports/compilation.md) measures expressibility and executable
+compilation; [verification](reports/verification.md) explains proofs and remaining
+gaps; [attribute synthesis](reports/attribute_synthesis.md) compares explicit,
+full-auto and partial-auto rules. The [case table](reports/synthesis_cases.md)
+lists individual outcomes. Sources live in the [TEPL project](../tepl/README.md).
 
 | Directory | Purpose |
 |---|---|
@@ -21,7 +14,7 @@ directory contains the evaluation data, tools, tests and results.
 | [data/](data/) | Case manifests, manual assessments and the operation-support inventory |
 | [baselines/](baselines/) | Frozen reasoning baseline, original manifests and the path-migration record |
 | [results/](results/) | Current measurements, diagnostics, proof evidence and dependency hashes |
-| [reports/](reports/) | Generated compilation/verification reports and the host-dependency audit |
+| [reports/](reports/) | Generated result summaries, case outcomes and the host-dependency audit |
 | [scripts/](scripts/) | Experiment runners, report generation and shared validators |
 | [tests/](tests/) | Integrity checks and execution tests using the graphs in `../tepl/graphs/` |
 
@@ -57,7 +50,7 @@ python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py --check
 python3 -m unittest discover -s labs/xla_rewrite/coverage/tests -p 'test_*.py'
 ```
 
-Both runners accept `--compiler PATH` and `--timeout SECONDS`. After changing a
+The measurement runners accept `--compiler PATH` and `--timeout SECONDS`. After changing a
 measured input, rerun its experiment before regenerating reports. The compilation
 runner emits and validates executable JSON, then removes temporary artifacts.
 Measurements record compiler provenance and input hashes.
@@ -73,17 +66,11 @@ verification.
 
 ## Historical inputs
 
-[reasoning_baseline.json](baselines/reasoning_baseline.json) preserves the
-pre-extension measurement and original corpus hashes. The directory reorganization
-did not edit this file or the rule bodies.
-[layout_migration.json](baselines/layout_migration.json) maps historical paths to
-the new layout. [pre_layout/](baselines/pre_layout/) preserves the original two
-manifests. Validators check their original hashes and require current manifests
-to differ only in case file paths.
-
-The syntax migration preserves the changed files separately in
-[pre_syntax/](baselines/pre_syntax/). Historical hashes continue to validate
-against those snapshots; current measurements use the migrated sources.
+[reasoning_baseline.json](baselines/reasoning_baseline.json) preserves the original
+measurements and corpus hashes. [layout_migration.json](baselines/layout_migration.json)
+maps historical paths; [pre_layout/](baselines/pre_layout/) and
+[pre_syntax/](baselines/pre_syntax/) retain original manifests and sources.
+Validators check frozen hashes and the permitted path/syntax migrations.
 
 The manual semantic assessment in [data/assessments.json](data/assessments.json)
 describes an older compiler and is separate from current measurements. Host calls

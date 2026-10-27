@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "src/core/semantics/ir.h"
 
 namespace tepl::core::attr_synth {
@@ -18,6 +20,8 @@ struct Result {
 };
 
 Result synthesize(const semantics::Plan&, Strategy,
-                  std::size_t max_work = 1000000);
+                  std::size_t max_work = 1000000,
+                  std::chrono::steady_clock::time_point deadline =
+                      std::chrono::steady_clock::time_point::max());
 
 }  // namespace tepl::core::attr_synth

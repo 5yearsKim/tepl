@@ -174,6 +174,12 @@ Context::~Context() {
             << " bindings=" << bindings_.mappingIds().size() << '\n';
 }
 void Context::tick() {
+  // Amortize clock reads while checking the first tick of every context.
+  if (deadline_ != std::chrono::steady_clock::time_point::max() &&
+      (deadline_ticks_++ % 1024 == 0) &&
+      std::chrono::steady_clock::now() >= deadline_)
+    throw ProofFailure("symbolic proof deadline exceeded",
+                       FailureKind::TimeExceeded);
   if (budget_ == 0)
     throw ProofFailure("symbolic proof work limit exceeded",
                        FailureKind::BudgetExceeded);
