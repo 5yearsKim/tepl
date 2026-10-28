@@ -1,0 +1,12 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule transpose_compose {
+    (attr_outer: transpose (attr_inner: transpose X)) => (attr_combined: transpose X)
+    
+derive {
+ attr_combined.attrs = {permutation: auto};
+}
+}

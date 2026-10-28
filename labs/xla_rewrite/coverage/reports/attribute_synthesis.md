@@ -1,87 +1,64 @@
-# XLA Attribute Synthesis Evaluation
+# XLA Axis-Only Attribute Inference Evaluation
 
-TEPL automatically infers RHS attributes for **32/32 (100.0%)** of the attribute-bearing cases whose explicit baseline already verifies. This includes **10/10 verified theorem-fragment cases**. Across all supported attribute-bearing cases, including cases with unproved explicit baselines, auto succeeds on **36/43 (83.7%)**, spanning **30 catalog schemas**.
+Axis-field inference succeeds on **30/32 (93.8%) cases**. The run resolves all requested axis fields in those cases: **71/73 fields**. The field total counts only fully verified cases; unresolved cases may contain unaccepted partial candidates.
 
-The experiment infers RHS attributes for **36 cases** in total. Full auto succeeds on **36 cases**; partial auto succeeds on **11**, including **0 partial-only successes**. Overlapping full and partial results count once.
+One canonical migrated rule is evaluated per in-scope case. Every eligible original RHS axis field is `auto`; extent, coordinate, and other fields stay supplied. There is no explicit-baseline comparison, descriptor erasure, partial-auto search, or legacy non-axis inference. Original source conditions are retained.
 
-Combining verified explicit rules, inferred rules, and attribute-free identities gives **98/119 (82.4%) supported cases** with a semantic proof. **4 cases gain a verified implementation through inference even though their explicit metadata formulas remain unproved.**
+## Measured grouping
 
-## Experiment setup
+```text
+209 XLA rewrite cases
+├─ 112 within the supported evaluation scope
+│  ├─ 75 with no RHS attributes
+│  ├─ 5 with only supplied non-axis attributes
+│  └─ 32 axis-inference cases
+│     ├─ 30 inferred and verified
+│     └─ 2 unresolved
+└─ 97 outside the supported evaluation scope
+```
 
-The evaluation follows three steps: migrate the existing corpus, freeze theorem-based categories, then measure explicit, full-auto, and partial-auto variants. It uses the ideal `algebraic` policy. A successful auto variant has an explicit semantic proof, the expected number of inferred descriptors, successful executable compilation, and validated JSON. Equations, input declarations, and written conditions are preserved. No suggested restrictions are added.
+## Outcomes
 
-The corpus contains **239 catalog schemas**, **209 concrete cases representing 199 schemas**, and one negative control. Concrete cases retain the scopes recorded in the existing manifest: some specialize ranks, arithmetic operations, layouts, or constant representations. Schema coverage means at least one measured case, not every XLA variant.
-
-The [syntax migration record](../data/syntax_migration.json) and [snapshots](../baselines/pre_syntax/) preserve original text and hashes.
-
-## Classification
-
-[synthesis_classification.json](../data/synthesis_classification.json) is frozen before inference runs. Classification uses declarations and graph structure, never proof outcomes. Metadata functions such as `gather(...)` are distinguished from HLO graph operations.
-
-| Category | Catalog schemas | Concrete cases | Cases with RHS descriptors | Attribute-free cases |
-|---|---:|---:|---:|---:|
-| 1 Theorem fragment | 12 | 13 | 10 | 3 |
-| 2 Supported beyond theorem | 107 | 106 | 33 | 73 |
-| 3 Unsupported | 120 | 90 | 68 | 22 |
-
-Category 1 follows the theorem's contraction, permutation, unary-sum, and separated-addition fragment, including read-once components and matching distinct input sets. The theorem's comparison domain assumes extents at least two and ideal arithmetic; this experiment adds no extent restriction to the original TEPL conditions. Accepted rules may therefore cover a broader domain. The current ordered complete path covers contraction/permutation; unary-sum and additive cases may use general verification. These measurements report coverage, not an exhaustive completeness evaluation.
-
-Category 2 has supported local semantics but lies outside those theorem assumptions. Category 3 requires missing semantics or other unsupported capabilities and is excluded from auto attempts. Forty catalog schemas have no concrete case; their porting state is recorded separately, and they contribute no measured successes. Classification describes the scoped algebraic evaluation model, not a complete HLO importer.
-
-## Explicit, full-auto and partial-auto results
-
-Full auto removes all RHS descriptor definitions. Partial auto retains explicit descriptors on some nodes and infers the rest. Both modes are measured for cases with multiple RHS descriptors. Partial subsets are tried in descending number of inferred nodes, stopping after the first successful cardinality. Partial success means at least one whole descriptor was inferred; field-level pins are not used.
-
-| Category | Attribute cases | Explicit verified | Full auto | Partial auto including overlap | Partial only | Full or partial success |
-|---|---:|---:|---:|---:|---:|---:|
-| 1 Theorem fragment | 10 | 10 | 10 | 4 | 0 | 10/10 (100.0%) |
-| 2 Supported beyond theorem | 33 | 22 | 26 | 7 | 0 | 26/33 (78.8%) |
-| Total | 43 | 32 | 36 | 11 | 0 | 36/43 (83.7%) |
-
-The **62/76 (81.6%) attribute-free cases** that verify are useful semantic verification coverage and are counted separately from attribute inference.
-
-### Comparison on the verified explicit baseline
-
-This comparison holds the availability of an explicit semantic proof fixed, isolating how much attribute-writing work can be automated on already verified cases. The overall table above retains all supported attribute-bearing cases, including those with an unproved explicit baseline.
-
-| Category | Explicit-verified attribute cases | Auto successes on those same cases |
+| Task | Cases | Verified success |
 |---|---:|---:|
-| 1 Theorem fragment | 10 | 10/10 (100.0%) |
-| 2 Supported beyond theorem | 22 | 22/22 (100.0%) |
-| Total | 32 | 32/32 (100.0%) |
+| Axis inference | 32 | 30/32 (93.8%) |
+| No RHS attributes | 75 | 61/75 (81.3%) |
+| Supplied non-axis attributes only | 5 | 4/5 (80.0%) |
+| All in-scope cases | 112 | 95/112 (84.8%) |
 
-### Practical interpretation
+Success requires an explicit semantic proof with `additional-guard: true`, all requested original holes resolved, successful executable compilation, and validated JSON without unresolved holes. Any correct inferred assignment is accepted. An unproved rule is unresolved, not evidence of infeasibility. The negative control is checked separately and must fail.
 
-Theorem-fragment cases show how much the current implementation automates under the original XLA-case conditions. Beyond-theorem successes demonstrate practical reach of candidate construction plus independent verification. A failed proof is recorded as unproved; it does not establish that the rewrite is false or that no suitable attributes exist. All reported auto successes pass the same compiler acceptance checks used for ordinary rules.
+## Theorem coverage and normalization
 
-### Cases improved by inference
+**32/32 axis cases match structural admission candidates**, including the restricted scalar-reciprocal route. This is not a full-domain completeness certification: positive extents, supplied-program definedness, and arithmetic domains remain explicit admission obligations. The broader complete mathematical state-table algorithm is not fully integrated into the production solver. See the [proof](../../../../examples/research/complete_attribute_synthesis_proof.md#126-linear-contexts-over-separated-additive-components).
 
-- [catalog_broadcast_transpose](../../tepl/rules/full_auto/catalog_broadcast_transpose.tepl): 1 RHS descriptor(s) inferred; the original explicit formula was `not_proved`.
-- [catalog_broadcast_transpose_broadcast](../../tepl/rules/full_auto/catalog_broadcast_transpose_broadcast.tepl): 1 RHS descriptor(s) inferred; the original explicit formula was `not_proved`.
-- [catalog_broadcast_slice_broadcast_only](../../tepl/rules/full_auto/catalog_broadcast_slice_broadcast_only.tepl): 1 RHS descriptor(s) inferred; the original explicit formula was `not_proved`.
-- [catalog_indexing_slice_singleton_stride](../../tepl/rules/full_auto/catalog_indexing_slice_singleton_stride.tepl): 1 RHS descriptor(s) inferred; the original explicit formula was `not_proved`.
+Unit-only reshape is normalized by a shape-directed adapter to insertion broadcast and singleton-axis removal. Adapter-generated axis positions are fixed; they are not counted as synthesis targets. The removal adapter preserves element types without adding HLO reduce_sum's numeric-dtype guard. Every accepted reshape has a known ordered input shape and target shape with identical non-unit coordinates, independently of automatic axis choices.
 
-## Compiler improvements
+The audit found three additional axis cases and one verification-only case through unit normalization. `catalog_dot_drop_unit_dims` is excluded: once the dot attributes are automatic, some legal intermediate shapes would require non-unit splitting/merging in the final reshape. Its original handwritten attributes alone do not justify normalizing the complete inference domain. This revises the earlier estimate of 33 axis cases to 32.
 
-Shared axis reasoning preserves coordinate witnesses through selections and permutations. General inference adds scalar-parameter correspondence, coordinate propagation, ordered metadata normalization and reduction reflection. These mechanisms use no operation names, rule names or XLA case IDs.
+`catalog_broadcast_divide_broadcast` remains a domain-restricted theorem candidate requiring exact-real, nonzero-divisor semantics. The current rule has no nonzero guard, and this run does not add one. Its rank-zero broadcast has a forced empty mapping; it is reported separately from nontrivial axis choices. No unrestricted division completeness is claimed.
 
-Equations, conditions, classifications and acceptance criteria are unchanged. The table compares each stage with its immediate predecessor.
+## Unresolved axis cases
 
-| Stage | Explicit proofs | Auto successes | Theorem-fragment auto | Previous proofs retained | Previous auto retained |
-|---|---:|---:|---:|---:|---:|
-| [Before axis reasoning](../baselines/pre_axis_views/) | 86 | 23/43 (53.5%) | 7/10 | — | — |
-| [After axis reasoning](../baselines/pre_general_inference/) | 89 | 26/43 (60.5%) | 10/10 | 86/86 | 23/23 |
-| After general inference | 94 | 36/43 (83.7%) | 10/10 | 88/89 | 26/26 |
+| Case | Reason |
+|---|---|
+| catalog_broadcast_divide_broadcast | normalized coefficients, tensor accesses, or reduction domains differ |
+| catalog_broadcast_transpose_broadcast | metadata definedness: comprehension is outside the pointwise metadata fragment |
 
-Cases losing acceptance between stages: catalog_indexing_reverse_trivial.
+Forced-only tasks: **3**; verified: **2**. Nontrivial tasks: **29**; verified: **28**.
 
-## Reproduction and artifacts
+## Reproduction and evidence
 
-Follow the [reproduction commands](../README.md#reproduce) to rerun the evaluation.
+```sh
+bazel build //:tepl
+python3 labs/xla_rewrite/coverage/scripts/synthesis_cases.py
+python3 labs/xla_rewrite/coverage/scripts/run_synthesis.py --jobs 4 --timeout 30
+python3 labs/xla_rewrite/coverage/scripts/synthesis_report.py
+```
 
-[synthesis.json](../results/synthesis.json) contains every attempt, compiler diagnostics, constructor counts, proof output, artifact hashes, and source/input hashes. [synthesis_cases.md](synthesis_cases.md) lists all concrete outcomes, including unsupported and attribute-free cases. Generated [full-auto](../../tepl/rules/full_auto/) and [partial-auto](../../tepl/rules/partial_auto/) files preserve the source conditions.
+[Classification](../data/synthesis_classification.json), [measurements](../results/synthesis.json), [per-case outcomes](synthesis_cases.md), and [canonical axis tasks](../../tepl/rules/axis/) record source/task hashes, normalization metadata, requested fields, diagnostics, compile/validation evidence, search-path labels, and timings.
 
-- Run UTC: `2026-10-26T20:39:44.091717+00:00`.
-- Compiler revision: `17d48f05087b540cae87648fed3b43d9f14c2166`; working-tree source hashes are recorded.
-- Timeout: 30 seconds per compiler command; 4 independent case workers.
-- Arithmetic model: ideal algebraic semantics. The measurements do not claim IEEE floating-point or full backend equivalence.
+- Run UTC: `2026-10-28T14:57:32.506323+00:00`.
+- Compiler SHA-256: `b4e048f0728ce2fd138b71a1c1c5e6b5dbe5fe9e19ea3f70943a75fa9b14efaa`.
+- Budget: 30 seconds per compiler command; 4 workers.
+- Arithmetic policy: ideal `algebraic`; no strict IEEE/backend equivalence claim.

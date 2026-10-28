@@ -2007,7 +2007,7 @@
       "source_policy": "No additional local policy check."
     }
   ],
-  "baseline": {
+  "designated_targets": {
     "description": "One explicit concrete rule for each of the original 192 expressible assessments; variant/rank restrictions remain in the per-case scope. This is not a claim of all conditional variants.",
     "target_ids": [
       "elementwise-add-zero",

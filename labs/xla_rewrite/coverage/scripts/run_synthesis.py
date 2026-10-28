@@ -1,165 +1,213 @@
 #!/usr/bin/env python3
-"""Measure descriptor inference under the original XLA case conditions."""
+"""Run the single canonical axis-only evaluation task for each in-scope case."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import hashlib
-import itertools
 import json
+from pathlib import Path
 import platform
+import re
 import subprocess
 import tempfile
 import time
-from pathlib import Path
 
 if __package__:
-    from .paths import HERE, ROOT, TEPL
-    from .synthesis_cases import Rule
+    from .paths import HERE, ROOT
 else:
-    from paths import HERE, ROOT, TEPL
-    from synthesis_cases import Rule
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts.paths import HERE, ROOT
 
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def check_variant(compiler, path, rule_name, expected_holes, timeout):
-    command = [str(compiler), "check", str(path.relative_to(ROOT)),
-               "--semantic-policy=algebraic", "--rule", rule_name]
+def run_command(command, timeout):
     started = time.perf_counter()
-    record = dict(file=str(path.relative_to(ROOT)), file_sha256=sha(path),
-                  command=command, expected_inferred_descriptors=expected_holes)
+    result = subprocess.run(
+        command, cwd=ROOT, text=True, capture_output=True, timeout=timeout
+    )
+    return dict(
+        command=[str(x) for x in command],
+        returncode=result.returncode,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        seconds=round(time.perf_counter() - started, 6),
+    )
+
+
+def measure_case(row, compiler, timeout, artifact_dir):
+    result = dict(row)
+    if not row["in_scope"]:
+        return dict(result, outcome="outside_scope")
+    path = ROOT / row["file"]
+    if sha(path) != row["file_sha256"]:
+        raise ValueError("stale axis task: " + row["case"])
+    source = path.read_text()
+    requested = len(row["axis_fields"])
+    if len(re.findall(r":\s*auto\b", source)) != requested:
+        raise ValueError("axis hole inventory does not match task: " + row["case"])
+    result.update(
+        outcome="not_proved", requested_axis_fields=requested, validated_json=False
+    )
+    started = time.perf_counter()
     try:
-        checked = subprocess.run(command, cwd=ROOT, text=True, capture_output=True,
-                                 timeout=timeout)
-        proof = (checked.returncode == 0 and checked.stdout.count("status=proved") == 1
-                 and "additional-guard: true" in checked.stdout)
-        constructors = checked.stdout.count("constructor auto#")
-        record.update(returncode=checked.returncode, stdout=checked.stdout,
-                      stderr=checked.stderr, constructors=constructors,
-                      ordered_path="law: ordered-requirements-construction" in checked.stdout,
-                      status="not_proved", validated_json=False)
-        if proof and constructors != expected_holes:
-            raise ValueError(f"{path}: expected {expected_holes} inferred descriptors, got {constructors}")
-        if proof:
-            with tempfile.TemporaryDirectory(prefix="tepl-xla-auto-") as directory:
-                artifact = Path(directory) / "program.json"
-                compiled = subprocess.run(
-                    [str(compiler), "compile", str(path.relative_to(ROOT)),
-                     "--semantic-policy=algebraic", "-o", str(artifact)],
-                    cwd=ROOT, text=True, capture_output=True, timeout=timeout)
-                record["compile_returncode"] = compiled.returncode
-                record["compile_diagnostics"] = compiled.stderr
-                if compiled.returncode == 0:
-                    valid = subprocess.run([str(compiler), "validate", str(artifact)],
-                                           cwd=ROOT, text=True, capture_output=True,
-                                           timeout=timeout)
-                    record["validated_json"] = valid.returncode == 0
-                    record["artifact_sha256"] = sha(artifact)
-                    record["validation_returncode"] = valid.returncode
-                    record["validation_diagnostics"] = valid.stderr
-            record["status"] = "success" if record["validated_json"] else "not_compiled"
+        check = run_command(
+            [
+                str(compiler),
+                "check",
+                row["file"],
+                "--semantic-policy=algebraic",
+                "--rule",
+                row["rule_name"],
+            ],
+            timeout,
+        )
+        result["check"] = check
+        proved = (
+            check["returncode"] == 0
+            and check["stdout"].count("status=proved") == 1
+            and "additional-guard: true" in check["stdout"]
+        )
+        result["search_path"] = [
+            line.strip()
+            for line in check["stdout"].splitlines()
+            if line.strip().startswith("law:")
+        ]
+        result["inferred_descriptors"] = check["stdout"].count("constructor auto#")
+        expected = len({f["node"] for f in row["axis_fields"]})
+        if proved and result["inferred_descriptors"] != expected:
+            raise ValueError(
+                "requested descriptors not all synthesized: " + row["case"]
+            )
+        if not proved:
+            if "semantic-inference:" not in check["stdout"]:
+                result["outcome"] = "invalid_task"
+            return result
+        artifact = artifact_dir / (row["case"] + ".json")
+        compiled = run_command(
+            [
+                str(compiler),
+                "compile",
+                row["file"],
+                "--semantic-policy=algebraic",
+                "-o",
+                str(artifact),
+            ],
+            timeout,
+        )
+        result["compile"] = compiled
+        if compiled["returncode"]:
+            result["outcome"] = "compile_failed"
+            return result
+        validated = run_command([str(compiler), "validate", str(artifact)], timeout)
+        result["validation"] = validated
+        result["validated_json"] = validated["returncode"] == 0
+        result["artifact_sha256"] = sha(artifact)
+
+        # Completed executable IR cannot retain an AutoField or symbolic hole.
+        def unresolved(value):
+            if isinstance(value, dict):
+                if value.get("kind") in {"auto", "auto_field", "hole"}:
+                    return True
+                return any(unresolved(v) for v in value.values())
+            return isinstance(value, list) and any(unresolved(v) for v in value)
+
+        if unresolved(json.loads(artifact.read_text())):
+            raise ValueError("unresolved field in completed artifact: " + row["case"])
+        result["outcome"] = (
+            ("inferred" if requested else "verified")
+            if result["validated_json"]
+            else "validation_failed"
+        )
     except subprocess.TimeoutExpired:
-        record.update(status="timeout", validated_json=False)
-    record["seconds"] = round(time.perf_counter() - started, 6)
-    return record
-
-
-def measure_case(row, case, explicit, compiler, timeout):
-    result = dict(row, explicit_status=explicit["status"], attempts=[])
-    count = row["rhs_descriptors"]
-    if row["category"] == 3:
-        result["outcome"] = "unsupported"
-        return result
-    if not count:
-        result["outcome"] = ("verified_without_attributes" if explicit["status"] == "proved"
-                             else "not_proved_without_attributes")
-        return result
-    source = (HERE / case["file"]).read_text()
-    rule = Rule(source)
-    for inferred_count in range(count, 0, -1):
-        for selected in itertools.combinations(range(count), inferred_count):
-            mode = "full_auto" if inferred_count == count else "partial_auto"
-            name = case["name"] + ("" if mode == "full_auto" else
-                                    "__auto_" + "_".join(map(str, selected)))
-            path = TEPL / "rules" / mode / (name + ".tepl")
-            try:
-                generated = rule.auto_source(selected)
-            except ValueError as e:
-                result["attempts"].append(dict(mode=mode, selected=list(selected),
-                                               status="dependent_descriptor", reason=str(e)))
-                continue
-            path.parent.mkdir(exist_ok=True)
-            path.write_text("// Generated inference variant; original graph and conditions preserved.\n"
-                            + generated)
-            attempt = check_variant(compiler, path, rule.name, len(selected), timeout)
-            attempt.update(mode=mode, selected=list(selected))
-            result["attempts"].append(attempt)
-            if attempt["status"] == "success":
-                if "outcome" not in result:
-                    result.update(outcome=mode, inferred_descriptors=len(selected),
-                                  explicit_descriptors=count - len(selected),
-                                  successful_variant=attempt["file"])
-        # Full and partial modes are measured independently. For partial mode,
-        # stop after the first successful cardinality, which maximizes inference.
-        if inferred_count < count and any(a["mode"] == "partial_auto" and
-                                         a["status"] == "success" for a in result["attempts"]):
-            break
-    result.setdefault("outcome", "not_proved")
+        result["outcome"] = "timeout"
+    finally:
+        result["seconds"] = round(time.perf_counter() - started, 6)
     return result
 
 
 def dependencies():
-    paths = [*sorted((ROOT / "src").rglob("*")),
-             *sorted(TEPL.rglob("*.tepl")), TEPL / "tepl.toml",
-             HERE / "data/synthesis_classification.json",
-             HERE / "data/syntax_migration.json",
-             HERE / "data/verification_cases.json",
-             HERE / "results/verification.json", HERE / "results/compilation.json",
-             HERE / "scripts/run_synthesis.py", HERE / "scripts/synthesis_cases.py",
-             HERE / "scripts/migrate_syntax.py", HERE / "scripts/hlo_support.py",
-             HERE.parent / "catalog/rules.json",
-             ROOT / "examples/research/complete_attribute_synthesis_proof_kr.md"]
-    paths += [HERE / "baselines" / baseline / name
-              for baseline in ("pre_axis_views", "pre_general_inference")
-              for name in ("verification.json", "synthesis.json")]
-    return {str(path.relative_to(ROOT)): sha(path) for path in paths if path.is_file()}
+    files = [p for p in (ROOT / "src").rglob("*") if p.is_file()]
+    files += [
+        HERE / "scripts" / name
+        for name in [
+            "axis_fields.py",
+            "synthesis_cases.py",
+            "run_synthesis.py",
+            "synthesis_report.py",
+            "hlo_support.py",
+            "paths.py",
+        ]
+    ]
+    files += list((HERE.parent / "tepl/dialects").glob("*.tepl"))
+    files += list((HERE.parent / "tepl/rules/axis").glob("*.tepl"))
+    files += [
+        HERE / c["file"]
+        for c in json.loads((HERE / "data/verification_cases.json").read_text())[
+            "cases"
+        ]
+    ]
+    files += [HERE.parent / "tepl/tepl.toml"]
+    files += [
+        HERE / "data/synthesis_classification.json",
+        HERE / "data/verification_cases.json",
+        ROOT / "examples/research/complete_attribute_synthesis_proof.md",
+    ]
+    return {str(p.relative_to(ROOT)): sha(p) for p in sorted(set(files))}
+
+
+def validate_classification(classification):
+    if classification.get("protocol") != "axis_only_v1":
+        raise ValueError("regenerate axis-only classification first")
+    for path, value in classification["dependencies"].items():
+        if sha(ROOT / path) != value:
+            raise ValueError("stale classification dependency: " + path)
+    for row in classification["cases"]:
+        if sha(HERE / row["source_file"]) != row["source_sha256"]:
+            raise ValueError("stale original source: " + row["case"])
 
 
 def run(compiler, timeout, jobs):
-    classification = json.loads((HERE / "data/synthesis_classification.json").read_text())
-    cases = {c["name"]: c for c in json.loads(
-        (HERE / "data/verification_cases.json").read_text())["cases"]}
-    explicit = {r["case"]: r for r in json.loads(
-        (HERE / "results/verification.json").read_text())["results"]}
-    for row in classification["cases"]:
-        path = HERE / cases[row["case"]]["file"]
-        if sha(path) != row["file_sha256"] or sha(path) != explicit[row["case"]]["file_sha256"]:
-            raise ValueError("stale classification or explicit baseline: " + row["case"])
+    classification = json.loads(
+        (HERE / "data/synthesis_classification.json").read_text()
+    )
+    validate_classification(classification)
+    hashes = dependencies()
     compiler_hash = sha(compiler)
-    source_hashes = {str(p.relative_to(ROOT)): sha(p)
-                     for p in sorted((ROOT / "src").rglob("*")) if p.is_file()}
-    rows = classification["cases"]
-    def worker(row):
-        result = measure_case(row, cases[row["case"]], explicit[row["case"]], compiler, timeout)
-        print(f"{row['case']}: category {row['category']}, {result['outcome']}", flush=True)
-        return result
-    with ThreadPoolExecutor(max_workers=jobs) as pool:
-        records = list(pool.map(worker, rows))
-    if sha(compiler) != compiler_hash or any(sha(ROOT / p) != h for p, h in source_hashes.items()):
-        raise ValueError("compiler changed during measurement")
-    result = dict(schema_version=1,
-                  run_at_utc=datetime.now(timezone.utc).isoformat(),
-                  tepl_revision=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-                  compiler_sha256=compiler_hash,
-                  tracked_code_changes=subprocess.check_output(
-                      ["git", "diff", "HEAD", "--name-only", "--", "src", "tests", "labs/xla_rewrite"], cwd=ROOT, text=True).splitlines(),
-                  environment=platform.platform(), timeout_seconds_per_command=timeout,
-                  jobs=jobs,
-                  selection_policy="Full auto and partial auto measured independently. Partial subsets are tried in descending inferred count and lexicographic node order, stopping after the first successful cardinality. Full/partial overlap is counted once. No where conditions are added.",
-                  dependencies=dependencies(), results=records)
+    with tempfile.TemporaryDirectory(prefix="tepl-axis-evaluation-") as directory:
+
+        def worker(row):
+            result = measure_case(row, compiler, timeout, Path(directory))
+            print(row["case"] + ": " + result["outcome"], flush=True)
+            return result
+
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            records = list(pool.map(worker, classification["cases"]))
+    if sha(compiler) != compiler_hash or hashes != dependencies():
+        raise ValueError("evaluation inputs changed during run")
+    controls = [r for r in records if r["control"]]
+    if any(r["outcome"] in {"verified", "inferred"} for r in controls):
+        raise ValueError("negative control accepted")
+    result = dict(
+        schema_version=2,
+        protocol="axis_only_v1",
+        run_at_utc=datetime.now(timezone.utc).isoformat(),
+        tepl_revision=subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip(),
+        compiler_sha256=compiler_hash,
+        environment=platform.platform(),
+        timeout_seconds_per_command=timeout,
+        jobs=jobs,
+        dependencies=hashes,
+        selection_policy="One migrated task per case; every eligible original RHS axis field is auto; no descriptor erasure, partial variants, explicit-baseline selection, or added guards.",
+        results=records,
+    )
     (HERE / "results/synthesis.json").write_text(json.dumps(result, indent=2) + "\n")
     return result
 

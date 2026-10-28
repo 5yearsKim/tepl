@@ -117,6 +117,18 @@ def operation(name, xs, a):
             return x.at(tuple(source))
 
         return Tensor.build(shape, padded)
+    if name == "remove_unit_axes":
+        removed = set(a["dimensions"])
+        assert len(removed) == len(a["dimensions"])
+        assert all(0 <= i < len(x.shape) and x.shape[i] == 1 for i in removed)
+        shape = [size for i, size in enumerate(x.shape) if i not in removed]
+
+        def original_position(at):
+            remaining = iter(at)
+            return tuple(0 if i in removed else next(remaining)
+                         for i in range(len(x.shape)))
+
+        return Tensor.build(shape, lambda at: x.at(original_position(at)))
     if name == "reshape":
         assert math.prod(a["shape"]) == len(x.values)
         return Tensor(tuple(a["shape"]), x.values)
@@ -273,6 +285,39 @@ class CompiledRuleExecutionTest(unittest.TestCase):
                 self.assertEqual(lhs.shape, rhs.shape)
                 for a, b in zip(lhs.values, rhs.values, strict=True):
                     self.assertAlmostEqual(a, b)
+
+    def test_axis_unit_views_preserve_dense_results(self):
+        fixtures = [
+            ("bool", 0, []), ("bool", 3, [2]),
+            ("f32", 1, [0, 2]), ("f64", 4, []), ("i64", 2, [3]),
+        ]
+        for rule in ["catalog_broadcast_inserted_unit_dims", "catalog_broadcast_drop_unit_dims"]:
+            for dtype, size, extra in fixtures:
+                with self.subTest(rule=rule, dtype=dtype, size=size, extra=extra), tempfile.TemporaryDirectory(dir=TEPL) as directory:
+                    directory = Path(directory)
+                    inserting = rule == "catalog_broadcast_inserted_unit_dims"
+                    shape = [size] if inserting else [1, size]
+                    inner = "(hlo.broadcast[dimensions=[1],new_extents=[1]] X)" if inserting else "X"
+                    expression = f"(hlo.broadcast[dimensions=[0,1],new_extents={extra}] {inner})"
+                    graph = directory / "input.tepl"
+                    graph.write_text('from "dialects/hlo.tepl" import HLO as hlo;\n'
+                                     + f"graph unit_view {{input X:{dtype}{shape}; yield {expression};}}")
+
+                    def cli(*args):
+                        result = subprocess.run([str(COMPILER), *map(str, args)],
+                                                cwd=ROOT, text=True, capture_output=True, timeout=30)
+                        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+                        return result
+
+                    before, after = directory / "before.json", directory / "after.json"
+                    exported = directory / "after.tepl"
+                    cli("compile", graph, "--rules", TEPL / "rules/axis" / (rule + ".tepl"),
+                        "--semantic-policy=algebraic", "-o", before)
+                    rewritten = cli("rewrite", before, "--rule", rule, "--trace", "--max-steps", 1, "-o", exported)
+                    self.assertIn("Successfully applied rule '" + rule + "'.", rewritten.stderr)
+                    cli("compile", exported, "--semantic-policy=algebraic", "-o", after)
+                    self.assertEqual(meaning(json.loads(before.read_text())),
+                                     meaning(json.loads(after.read_text())))
 
     def test_native_conditions_reject_other_values_and_types(self):
         fixtures = (

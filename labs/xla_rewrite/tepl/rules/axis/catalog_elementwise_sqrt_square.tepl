@@ -1,0 +1,9 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-sqrt-square
+// Scope: Written operand/opcode variant under the catalog conditions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_sqrt_square {
+    X: f32[Dims...] (hlo.sqrt (hlo.multiply X X)) => (hlo.abs X)
+}

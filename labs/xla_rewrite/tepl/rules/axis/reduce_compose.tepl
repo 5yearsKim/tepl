@@ -1,0 +1,14 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule reduce_compose {
+    X: [I, J, K]
+    (attr_outer: reduce_sum (attr_inner: reduce_sum X)) => (attr_out: reduce_sum X)
+    where { attr_inner.attrs.dimensions == [1] && attr_outer.attrs.dimensions == [1] }
+    
+derive {
+ attr_out.attrs = {dimensions: auto};
+}
+}

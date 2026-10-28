@@ -1,0 +1,19 @@
+// Internal normalization adapter, not general reshape semantics.
+// A sum over a singleton is exactly its sole value, for every element type.
+dialect AxisViews {
+  op remove_unit_axes(input: tensor) -> tensor {
+    attrs { dimensions: axis[]; }
+    dtype(t) { yield t; }
+    axes {
+      assert is_valid_axis_list(attrs.dimensions, rank(input));
+      let sizes = gather(shape(input), attrs.dimensions);
+      assert is_positive_extents(sizes);
+      assert extent_le(sizes, offset_extents(extent_sub(sizes, sizes), 1));
+      let retained = ordered_complement(all_axes(input), attrs.dimensions);
+      bind U { input: attrs.dimensions };
+      bind F { input: retained };
+      yield F;
+    }
+    semantics { yield Reduce(U, input); }
+  }
+}

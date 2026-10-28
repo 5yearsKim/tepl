@@ -1,0 +1,9 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-compare-predicate-false
+// Scope: Scalar literal instance; source conditions retained in the catalog.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_compare_predicate_false {
+    X: bool[] (attr_c: hlo.compare X 0:bool) => X where { attr_c.attrs.direction == 1 }
+}

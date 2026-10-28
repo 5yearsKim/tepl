@@ -1,12 +1,59 @@
 #include "src/core/semantics/symbolic/metadata_sequences.h"
 
+#include <algorithm>
 #include <functional>
 #include <limits>
 namespace tepl::core::semantics {
 std::optional<std::vector<SequenceSelection>> projectSelection(
     Context& c, const S& base, const S& positions) {
-  if (!callIs(base, "concat") || positions->kind != Symbol::Kind::List)
-    return {};
+  if (!callIs(base, "concat")) return {};
+  if (callIs(positions, "ordered_complement") &&
+      callIs(positions->args[0], "range") &&
+      positions->args[1]->kind == Symbol::Kind::List &&
+      c.equal(c.canonical(positions->args[0]->args[0]),
+              c.canonical(call("len", {base})))) {
+    // Locate the finitely many excluded axis positions, not every position
+    // in the universe. Once they are consumed, suffix blocks stay symbolic.
+    std::vector<MetadataInteger> excluded;
+    for (const auto& value : positions->args[1]->args) {
+      auto index = metadataInteger(value);
+      if (!index || *index < 0) return {};
+      excluded.push_back(*index);
+    }
+    std::sort(excluded.begin(), excluded.end());
+    excluded.erase(std::unique(excluded.begin(), excluded.end()),
+                   excluded.end());
+    std::vector<SequenceSelection> result;
+    MetadataInteger offset = 0;
+    std::size_t next = 0;
+    for (const auto& part : base->args) {
+      c.tick();
+      auto length = c.canonical(call("len", {part}));
+      if (next == excluded.size()) {
+        result.push_back({part, call("range", {length})});
+        continue;
+      }
+      auto size = metadataInteger(length);
+      MetadataInteger end;
+      if (!size || *size < 0 || __builtin_add_overflow(offset, *size, &end))
+        return {};
+      std::vector<S> local;
+      while (next < excluded.size() && excluded[next] < end) {
+        auto index = excluded[next++] - offset;
+        if (index < 0 || index > std::numeric_limits<std::size_t>::max())
+          return {};
+        local.push_back(integer(static_cast<std::size_t>(index)));
+      }
+      result.push_back(
+          {part, call("ordered_complement",
+                      {call("range", {length}),
+                       make(Symbol::Kind::List, {}, 0, 0, std::move(local))})});
+      offset = end;
+    }
+    if (next != excluded.size()) return {};
+    return result;
+  }
+  if (positions->kind != Symbol::Kind::List) return {};
   std::vector<SequenceSelection> result;
   std::vector<S> local_positions;
   std::size_t previous = base->args.size();

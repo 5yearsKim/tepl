@@ -1,0 +1,14 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-log-power
+// Scope: Scalar literal instance; source conditions retained in the catalog.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_log_power {
+    X: [] Y: []
+     (hlo.log (hlo.power X Y)) => (hlo.select (attr_eq: hlo.compare Y 0) 0 (hlo.multiply Y (hlo.log (hlo.abs X))))
+     
+derive {
+ attr_eq.attrs = {direction: 0};
+}
+}

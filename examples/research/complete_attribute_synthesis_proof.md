@@ -9,6 +9,8 @@ products by coefficient normalization and finite signed-network state tables.
 Section 12 generalizes the contract to metadata-weighted signed wiring, including
 broadcast with supplied extents, unit-axis operations, keepdims sums, and full-axis
 means. Only axis slots are synthesized; extent/coordinate fields remain supplied.
+Sections 12.6--12.7 add linear contexts over separated sums and checked
+normalizations, including unit-only reshape and restricted scalar division.
 The original unsigned theorem and the signed-axis constructor remain special cases.
 The [paper version](complete_attribute_synthesis_paper.md) gives the compact
 statement. The proof concerns the specified mathematical generators; current
@@ -1123,6 +1125,8 @@ capture sets. Keep the original RHS nodes and independent axis-hole identities;
 do not expand an RHS node into independent copies of its unknowns. Standalone
 constant tensors, repeated captures within a component, and cancellation
 between components with the same capture set remain outside this theorem.
+Section 12.6 relaxes separated RHS addition for unary linear contexts by
+tracking their components jointly; it does not make copied holes independent.
 
 All physical input and newly introduced axes have **positive** extents.
 Unlike Sections 1--11, this extension allows singleton physical inputs as well.
@@ -1458,3 +1462,103 @@ They are not an arbitrary-rank proof, do not implement all possible contract
 adapters or supplied-axis restrictions, and do not establish refinement of the
 production synthesizer. Completeness for the stated mathematical contract is
 the inductive argument above.
+
+### 12.6 Linear contexts over separated additive components
+
+The separated-RHS restriction can be relaxed for **unary linear contexts**.
+For every legal axis choice \(a\), let \(T_a\) be an admitted unary operation
+whose metadata, weight, and legality are independent of tensor entries. Its
+wiring contract gives
+
+\[
+T_a(A+B)=T_a(A)+T_a(B).
+\]
+
+This includes permutation, reversal, supplied-extent broadcast, full-axis sum,
+keepdims sum, and full-axis mean. The operands must have the same ordered
+shape. Retain the read-once and distinct-capture-set conditions on the expanded
+components; no cancellation between equal capture sets is admitted.
+For this extension, multi-operand non-additive nodes still take single-component
+children. Products of additive families require a further composition argument.
+
+**Lemma (Joint component construction).** Equation (18) also holds when these
+unary operations surround separated additions, using a joint state table.
+
+**Proof.** At each original RHS node, retain a tuple of component states,
+indexed by their distinct capture sets, together with their common output
+shape and one compatible original-tree witness. Addition joins the component
+families. A unary node enumerates one legal local axis choice and applies
+that **same choice to every component**. Consequently its copies after formal
+distribution are never independent holes. Distinct original axis slots remain
+independent, and supplied fields and original-node legality are preserved.
+The other nodes retain Section 12.3's component construction.
+
+Induction shows that each table contains exactly the realizable joint states:
+every original assignment is enumerated, and every retained witness is one
+consistent assignment to the original tree. Equal tuples are interchangeable
+in admitted parents because their component meanings and common shapes agree.
+Independent capture scaling separates the distinct capture sets at the root;
+Lemma 5 then makes component-state equality necessary and sufficient. Retain
+one witness per **joint tuple**, rather than choosing component witnesses
+independently. The tables are finite and inspect only axis structure and
+metadata. Thus the same feasibility and witness guarantees follow. \(\square\)
+
+In particular, `broadcast_add` is admitted when its supplied extents and
+source conditions satisfy the theorem domain. Broadcasting \(X+Y\) uses one
+injection for both components. The earlier exclusion was a compositional
+restriction of the proof, not an inability to express broadcast semantics.
+
+### 12.7 Checked normalization before axis synthesis
+
+A normalization admits additional surface syntax only if it preserves
+semantics, legality, supplied fields, and the completion problem. Concretely,
+every original legal axis assignment must have a corresponding normalized
+assignment and vice versa, with witness recovery. No new independent copies
+of an original hole may be introduced. Under these conditions, applying the
+complete procedure to the normalized graph proves (18) for the original
+graph as well: transport feasibility and the recovered witness through that
+correspondence.
+
+**Unit-only reshape.** Inserting a unit axis is broadcast with supplied extent
+one; removing a unit axis is a full sum over its one-element domain. Both
+preserve every tensor entry and the order of all non-unit coordinates.
+A checked adapter may therefore replace reshapes that only insert/remove
+unit axes by these operations. Adapter-generated axis positions are determined
+by the supplied shapes and remain fixed, rather than becoming extra holes.
+The adapter must be exact for every legal completion in its declared domain;
+general split/merge reshape does not follow.
+
+**Scalar reciprocal normalization.** A further restricted normalization applies
+to an independent rank-zero capture \(Y\) used only through its reciprocal.
+Under exact-real arithmetic on the explicitly stated domain \(Y\ne0\),
+
+\[
+X/\operatorname{broadcast}_a(Y)
+ =X\operatorname{broadcast}_a(1/Y).
+\]
+
+Replace \(1/Y\) on both sides by one virtual scalar input \(Z\), leaving its
+broadcast axes and all supplied fields unchanged. The remaining graph must
+satisfy the structural and additive assumptions above. This is not a
+tensor-value-dependent metadata weight: \(Z\) is a value input.
+
+The substitution ranges over all nonzero real \(Z\). For each fixed legal
+axis assignment and fixed values of the other inputs, each output difference
+of the normalized graphs is a polynomial in \(Z\). It vanishes for every
+nonzero \(Z\) exactly when it is the zero polynomial, hence also vanishes at
+zero. Universal equality on the reciprocal's range is therefore equivalent
+to the normalized theorem's equality for unrestricted \(Z\). Axis legality
+and supplied metadata are unchanged, so feasibility and axis witnesses
+transfer in both directions, without enumerating tensor entries.
+
+This admits `catalog_broadcast_divide_broadcast` in that arithmetic domain.
+Its scalar broadcast has only the empty input-axis mapping; record this as
+a forced axis assignment, not evidence of difficult axis search. The
+normalization does not admit arbitrary division, correlated reciprocal inputs,
+integer division, or IEEE exceptional-value behavior. The \(Y\ne0\) domain
+must be declared and justified; the current XLA rule has no explicit nonzero
+condition, so this result alone does not certify its unrestricted value domain.
+
+These closure lemmas extend the mathematical algorithm. They are not covered
+by the finite validation in Section 12.5 and do not assert implementation of
+the normalizers or joint tables in the production compiler.

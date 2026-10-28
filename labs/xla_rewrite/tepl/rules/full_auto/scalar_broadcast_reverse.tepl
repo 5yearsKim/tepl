@@ -1,9 +1,0 @@
-// Generated inference variant; original graph and conditions preserved.
-from "dialects/hlo.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
-
-rule scalar_broadcast_reverse {
-    (attr_r: reverse (attr_b: broadcast C)) => (broadcast C)
-    where { attr_b.attrs.dimensions == [] }
-}

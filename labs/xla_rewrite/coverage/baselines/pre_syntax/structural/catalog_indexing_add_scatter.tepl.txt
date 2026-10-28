@@ -1,8 +1,0 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
-
-// Catalog: indexing-add-scatter
-// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
-// Source arithmetic/applicability conditions are recorded in the manifest.
-rule catalog_indexing_add_scatter {
-    (hlo.add X (hlo.scatter_add[@s] A Indices U)) => (hlo.scatter_add[@s] (hlo.add X A) Indices U)
-}

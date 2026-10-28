@@ -270,6 +270,25 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
       return x->sort == Symbol::Sort::Extents ||
              x->sort == Symbol::Sort::Positions;
     };
+    // Entailment can transport equality through an inverse permutation.
+    // Keep this out of canonicalization: source shape aliases must retain
+    // their original coordinate witnesses while premises are being learned.
+    if (mode == QueryMode::Entailment && metadataSequence(a) &&
+        metadataSequence(b))
+      for (const auto& [selected, expected] :
+           {std::pair{a, b}, std::pair{b, a}}) {
+        if (!callIs(selected, "gather") ||
+            !callIs(selected->args[1], "inverse"))
+          continue;
+        auto permutation = selected->args[1]->args[0];
+        auto length = call("len", {selected->args[0]});
+        if (query(call("axis_partition", {permutation, length}), mode) &&
+            query(call("==", {call("len", {expected}), length}), mode) &&
+            query(call("==", {selected->args[0],
+                              call("gather", {expected, permutation})}),
+                  mode))
+          return true;
+      }
     if (metadataSequence(a) && metadataSequence(b))
       for (const auto& [parts, whole] : {std::pair{a, b}, std::pair{b, a}}) {
         if (!callIs(parts, "concat") ||
@@ -508,6 +527,19 @@ bool Context::structuralEvidence(const S& f, QueryMode mode) {
       for (const auto& n : found->second)
         if (equal(canonical(n), canonical(f->args[1]))) return true;
     auto p = f->args[0], n = f->args[1];
+    if (p->kind == Symbol::Kind::List && !p->args.empty()) {
+      std::set<MetadataInteger> seen;
+      bool valid = true;
+      for (const auto& position : p->args) {
+        auto value = metadataInteger(position);
+        if (!value || *value < 0 || !seen.insert(*value).second ||
+            !query(call("<", {position, n}), mode)) {
+          valid = false;
+          break;
+        }
+      }
+      if (valid) return true;
+    }
     if (callIs(p, "ordered_complement") &&
         query(call("is_valid_axis_list", {p->args[0], n}), mode))
       return true;

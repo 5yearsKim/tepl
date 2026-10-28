@@ -69,12 +69,24 @@ Terms normalize(Context& c, const E& e,
   auto left = normalize(c, e->args[0], rewrites);
   if (e->kind == Expr::Kind::Reduce) {
     std::vector<S> conditions;
+    auto domain = c.canonical(c.extents(e->axes));
+    auto ones = call("offset_extents",
+                     {call("extent_sub", {domain, domain}), integer(1)});
+    // A box of unit axes has exactly one coordinate tuple. Its sum is the
+    // sole summand, including reads of those axes at their unique value zero.
+    // Retain the physical read frame; equal sizes never identify axes.
+    auto element = c.uniformElement(domain);
+    bool singleton = element && equal(element, integer(1));
     for (auto& t : left) {
       auto disjoint = call("disjoint", {t.reductions, e->axes});
       c.require(disjoint, GuardKind::ReductionDomain);
       conditions.push_back(disjoint);
-      t.reductions = call("concat", {e->axes, t.reductions});
+      if (!singleton) t.reductions = call("concat", {e->axes, t.reductions});
       normalizeReflections(c, t);
+    }
+    if (singleton && !callIs(c.canonical(e->axes), "empty_axes")) {
+      conditions.push_back(call("==", {domain, ones}));
+      record("singleton-reduction", left, conditions);
     }
     if (left.size() > 1) record("reduction-linearity", left);
     if (e->args[0]->kind == Expr::Kind::Reduce)

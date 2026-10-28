@@ -6,6 +6,7 @@
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/symbolic/index_expr.h"
 #include "src/core/semantics/symbolic/metadata_sequences.h"
+#include "src/core/semantics/symbolic/normalize.h"
 #include "src/core/syntax/parse.h"
 #include "src/executable/codec.h"
 
@@ -510,6 +511,98 @@ void symbolicBlockSelections() {
          "prefix facts and a symbolic suffix reconstruct an arbitrary-length "
          "sequence");
 }
+void literalComplementSelections() {
+  Plan p;
+  Context c{p, 1000000};
+  auto middle = make(Symbol::Kind::Shape, {}, 0);
+  auto tail = make(Symbol::Kind::Shape, {}, 1);
+  c.learn(call("==", {call("len", {middle}), integer(1)}));
+  auto values = call("concat", {list({7}), middle, tail});
+  auto complement = [&](const S& base, const S& removed) {
+    return call("ordered_complement",
+                {call("range", {call("len", {base})}), removed});
+  };
+  expect(c.entails(call(
+             "==", {call("gather", {values, complement(values, list({1}))}),
+                    call("concat", {list({7}), tail})})),
+         "a literal exclusion preserves an arbitrary-length suffix");
+  auto prefix = call("concat", {list({7, 8, 9}), tail});
+  expect(
+      c.entails(call(
+          "==", {call("gather", {prefix, complement(prefix, list({2, 0, 2}))}),
+                 call("concat", {list({8}), tail})})),
+      "complement projections deduplicate exclusions and preserve order");
+  expect(!projectSelection(c, values, complement(values, list({5}))),
+         "an exclusion inside an unknown-size block stays unresolved");
+  expect(!projectSelection(
+             c, values,
+             call("ordered_complement",
+                  {call("range", {call("len", {tail})}), list({1})})),
+         "complement projection requires the original universe length");
+  expect(!projectSelection(
+             c, call("concat", {list({7}), middle}),
+             complement(call("concat", {list({7}), middle}), list({2}))),
+         "out-of-range exclusions do not produce a projection witness");
+  auto bound = call("+", {integer(2), call("len", {tail})});
+  expect(c.entails(call("is_valid_axis_list", {list({1, 0}), bound})),
+         "distinct literal positions use a symbolic rank lower bound");
+  expect(!c.entails(call("is_valid_axis_list", {list({1, 1}), bound})),
+         "a symbolic rank cannot make duplicate positions valid");
+  expect(!c.entails(call("is_valid_axis_list", {list({2}), integer(2)})),
+         "the selector upper bound remains strict");
+
+  auto shape = make(Symbol::Kind::Shape, {}, 2);
+  auto frame = make(Symbol::Kind::AxisGroup, "frame", 2, 0, {shape});
+  c.learn(call("==", {call("len", {shape}), integer(2)}));
+  c.learn(call("distinct_axes", {frame}));
+  auto dropped = call("gather", {frame, list({0})});
+  auto kept = call("gather", {frame, list({1})});
+  expect(c.entails(call("same_set",
+                        {kept, call("difference_axes", {frame, dropped})})),
+         "a positional complement equals removing selected distinct axes");
+  expect(!c.entails(call("same_set", {dropped, kept})),
+         "equal axis extents never identify different physical positions");
+  auto duplicate = call("concat", {dropped, dropped});
+  auto occurrence = call("gather", {duplicate, list({0})});
+  expect(
+      !c.entails(call("==", {call("difference_axes", {duplicate, occurrence}),
+                             call("gather", {duplicate, list({1})})})),
+      "position removal cannot replace set difference on repeated axes");
+}
+void singletonReductions() {
+  for (std::size_t extent : {0, 1, 2}) {
+    Plan p;
+    p.algebraic = true;
+    Context c{p, 1000000};
+    auto domain = list({extent});
+    auto frame = make(Symbol::Kind::AxisGroup, "bound", 0, 0, {domain});
+    auto read = std::make_shared<Expr>(Expr{Expr::Kind::Read, 0, 0, frame});
+    auto sum = expression(Expr::Kind::Reduce, {read}, frame);
+    auto terms = normalize(c, sum);
+    expect(terms.size() == 1, "one summand has one normalized term");
+    expect(callIs(terms[0].reductions, "empty_axes") == (extent == 1),
+           "only a unit domain may lose its reduction binder");
+    expect(equal(terms[0].reads[0]->axes, frame),
+           "singleton reduction preserves the physical input read frame");
+  }
+  Plan p;
+  p.algebraic = true;
+  Context c{p, 1000000};
+  auto domain = make(Symbol::Kind::Shape, {}, 0);
+  auto frame = make(Symbol::Kind::AxisGroup, "unknown", 0, 0, {domain});
+  auto read = std::make_shared<Expr>(Expr{Expr::Kind::Read, 0, 0, frame});
+  auto sum = expression(Expr::Kind::Reduce, {read}, frame);
+  expect(!callIs(normalize(c, sum)[0].reductions, "empty_axes"),
+         "an unestablished singleton domain retains its binder");
+  auto shapes = make(Symbol::Kind::Shape, {}, 1);
+  c.learn(call("==", {call("len", {shapes}), integer(2)}));
+  auto selection = call("gather", {shapes, list({0})});
+  expect(!c.entails(call("==", {selection, list({1})})),
+         "an unknown selected extent is not assumed to be one");
+  c.learn(call("==", {call("index", {shapes, integer(0)}), integer(1)}));
+  expect(c.entails(call("==", {selection, list({1})})),
+         "established scalar extent facts determine a metadata selection");
+}
 void definedness() {
   Plan p;
   Instance input;
@@ -701,6 +794,8 @@ int main() {
     registeredAxisEquality();
     registeredAxisMembership();
     symbolicBlockSelections();
+    literalComplementSelections();
+    singletonReductions();
     sequences();
     uniformVectors();
     emptyAxes();

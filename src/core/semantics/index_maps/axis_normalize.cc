@@ -169,8 +169,10 @@ S Context::axisSequence(const S& axes) {
       result = equal(selector, canonical(call("range", {call("len", {base})})))
                    ? base
                    : call("gather", {base, selector});
-      if (callIs(base, "concat") && selector->kind == Symbol::Kind::List &&
-          !selector->args.empty() && !equal(result, base)) {
+      if (callIs(base, "concat") &&
+          (selector->kind == Symbol::Kind::List ||
+           callIs(selector, "ordered_complement")) &&
+          !equal(result, base)) {
         // Context-known block lengths need not be literal in the expression
         // factory. Project an explicit selector into those blocks while
         // preserving its order (including repeated visits to a block).
@@ -467,6 +469,17 @@ S Context::canonical(const S& s) {
       out = call("range", {call("len", {args[0]})});
     else if (s->name == "gather")
       out = selectKnown(args[0], args[1], QueryMode::Evidence);
+    else if (s->name == "difference_axes" && callIs(args[1], "gather") &&
+             args[1]->args[1]->kind == Symbol::Kind::List &&
+             equal(args[0], args[1]->args[0]) &&
+             evidence(call("distinct_axes", {args[0]})) &&
+             evidence(call("is_valid_axis_list",
+                           {args[1]->args[1], call("len", {args[0]})})))
+      out = call(
+          "gather",
+          {args[0], canonical(call("ordered_complement",
+                                   {call("range", {call("len", {args[0]})}),
+                                    args[1]->args[1]}))});
     else if (s->name == "filter_axes")
       out = filter(args[0], support(args[1], QueryMode::Evidence),
                    QueryMode::Evidence);
@@ -620,6 +633,15 @@ S Context::computeSupport(const S& a, QueryMode mode) {
       query(call("==", {call("len", {x->args[1]}), call("len", {x->args[0]})}),
             mode))
     return support(x->args[0], mode);
+  if (callIs(x, "gather") && callIs(x->args[0], "concat") &&
+      x->args[1]->kind == Symbol::Kind::List)
+    if (auto projection = projectSelection(*this, x->args[0], x->args[1])) {
+      std::vector<S> parts;
+      for (const auto& part : *projection)
+        parts.push_back(call("gather", {part.base, part.positions}));
+      auto expanded = call("concat", std::move(parts));
+      if (!equal(expanded, x)) return support(expanded, mode);
+    }
   if (callIs(x, "concat") || callIs(x, "union_axes")) {
     std::vector<S> out;
     for (const auto& a : x->args) out.push_back(support(a, mode));

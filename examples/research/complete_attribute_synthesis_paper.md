@@ -206,3 +206,20 @@ need a proved adapter to this wiring contract or a different exact symbolic
 representation. The theorem is a mathematical extension, not a completeness
 claim for the current bounded C++ synthesizer, a strict floating-point result,
 or a new measured XLA coverage count.
+
+**Closure under linear contexts and normalization.** Sections 12.6--12.7 of
+the unified proof allow unary linear operations (including broadcast,
+permutation, reversal, sum, and mean) around separated additions. Joint tuples
+of component states retain one common axis choice at each original node;
+distribution never creates independently inferred copies of that choice.
+This admits broadcast over addition while preserving the completeness argument.
+
+Checked unit-only reshape normalization uses broadcast to insert size-one
+axes and one-element summation to remove them. A restricted exact-real
+scalar-division normalization also applies when an independent scalar capture
+occurs only through its reciprocal and is nonzero: replace that reciprocal
+by a common scalar input. Polynomial identity on all nonzero scalar values
+is equivalent to identity on all real scalar values, so axis completeness
+transfers. These are proved admission routes, not general reshape/division
+support; the nonzero domain, assignment correspondence, and original legality
+obligations remain explicit.

@@ -1,0 +1,13 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule broadcast_add {
+    (add (attr_left: broadcast X) (attr_right: broadcast Y)) => (axis_eval_0: broadcast (add X Y))
+    where { attr_left.attrs.dimensions == attr_right.attrs.dimensions
+         && attr_left.attrs.new_extents == attr_right.attrs.new_extents }
+derive {
+ axis_eval_0.attrs = {dimensions: auto, new_extents: attr_left.attrs.new_extents};
+}
+}

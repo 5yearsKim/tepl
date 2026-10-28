@@ -405,7 +405,26 @@ S Context::selectKnown(const S& x, const S& q, QueryMode mode) {
       query(call("subset", {q->args[1], q->args[0]}), mode) &&
       equal(x, canonical(extents(q->args[0]))))
     return canonical(extents(q->args[1]));
-  if (x->sort != Symbol::Sort::Axes) return call("gather", {x, q});
+  if (x->sort != Symbol::Sort::Axes) {
+    // Source element facts can determine a finite metadata selection even
+    // when the containing shape remains symbolic. This changes values only;
+    // logical axis identities above are never inferred from equal extents.
+    if (q->kind == Symbol::Kind::List &&
+        query(call("is_valid_axis_list", {q, call("len", {x})}), mode)) {
+      std::vector<S> values;
+      for (const auto& position : q->args) {
+        auto value = canonical(call("index", {x, position}));
+        if (value->kind != Symbol::Kind::Integer) {
+          values.clear();
+          break;
+        }
+        values.push_back(value);
+      }
+      if (values.size() == q->args.size())
+        return make(Symbol::Kind::List, {}, 0, 0, std::move(values));
+    }
+    return call("gather", {x, q});
+  }
   const auto mappings = bindings_.mappingIds();
   for (auto it = mappings.rbegin(); it != mappings.rend(); ++it) {
     auto mapping = bindings_.mapping(*it);

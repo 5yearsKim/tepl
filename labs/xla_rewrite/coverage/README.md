@@ -1,92 +1,80 @@
-# HLO Rewrite Coverage
+# XLA Axis-Only Evaluation
 
-The checked-in synthesis measurements predate the axis-only `auto` design.
-They include legacy extent, coordinate, and scalar-parameter inference and do
-not measure the current compiler's coverage. The old full-auto/partial-auto
-generator erases whole descriptors; mixed descriptors now require explicit
-non-axis fields and field-level `auto` for axis fields. Remeasure those variants
-before quoting coverage for the new design. Frozen baselines are retained.
+The active attribute-inference evaluation uses one canonical migrated rule per
+in-scope XLA case. Every eligible original RHS `axis` field is `auto`.
+Extent, coordinate, and general fields remain supplied. The runner does not use
+whole-descriptor inference, partial variants, an explicit-baseline comparison,
+or legacy non-axis synthesis.
 
-[Compilation](reports/compilation.md) measures expressibility and executable
-compilation; [verification](reports/verification.md) explains proofs and remaining
-gaps; [attribute synthesis](reports/attribute_synthesis.md) compares explicit,
-full-auto and partial-auto rules. The [case table](reports/synthesis_cases.md)
-lists individual outcomes. Sources live in the [TEPL project](../tepl/README.md).
-
-[Specification size](reports/rule_specification_complexity.md) measures explicit
-and inferred TEPL rule sizes for the 36 successful inference cases and documents
-the corresponding XLA implementation excerpts and scope differences. Regenerate
-it with `python3 labs/xla_rewrite/coverage/scripts/measure_rule_specification.py`
-from the repository root; add `--check` to check for stale outputs.
-
-| Directory | Purpose |
-|---|---|
-| [../tepl/dialects/](../tepl/dialects/) | Local semantic HLO and matching declarations without value semantics |
-| [../tepl/rules/semantic/](../tepl/rules/semantic/) | Explicit rules checked for semantic equivalence, plus a false control |
-| [../tepl/rules/structural/](../tepl/rules/structural/) | The same rule bodies using the structural HLO profile for compilation |
-| [data/](data/) | Case manifests, manual assessments and the operation-support inventory |
-| [baselines/](baselines/) | Frozen reasoning baseline, original manifests and the path-migration record |
-| [results/](results/) | Current measurements, diagnostics, proof evidence and dependency hashes |
-| [reports/](reports/) | Generated result summaries, case outcomes and the host-dependency audit |
-| [scripts/](scripts/) | Experiment runners, report generation and shared validators |
-| [tests/](tests/) | Integrity checks and execution tests using the graphs in `../tepl/graphs/` |
-
-[data/compilation_cases.json](data/compilation_cases.json) and
-[data/verification_cases.json](data/verification_cases.json) identify every case,
-its catalog schema and its scope. Case file paths are relative to `coverage/`.
-Counterpart baseline files differ only in their dialect import and have explicit
-RHS attributes. Inference variants live separately in `rules/full_auto/` and
-`rules/partial_auto/`; omitted RHS descriptors request inference.
-
-Semantic acceptance requires explicit `status=proved` and
-`additional-guard: true`. An ordinary type check does not count as verification.
-The deliberately incorrect control must be rejected. Fixed ranks, literal
-representations and other adaptations remain explicit in the manifests. The
-local HLO dialect is an algebraic evaluation model, not a complete HLO importer
-or an exact IEEE/backend equivalence model.
+- [Current report](reports/attribute_synthesis.md): measured scope, inference,
+  verification-only outcomes, and unresolved cases.
+- [Unit-view cost check](reports/unit_view_cost.md): indicative timings for unchanged successful tasks.
+- [Case table](reports/synthesis_cases.md): one outcome per original case,
+  including exclusions and the separate negative control.
+- [Protocol](reports/axis_only_scope.md): migration, normalization, admission,
+  and success criteria.
+- [TEPL project](../tepl/README.md): source fixtures and canonical migrated rules.
 
 ## Reproduce
 
-Run these commands from the repository root:
+From the repository root:
 
 ```sh
 bazel build //:tepl
-python3 labs/xla_rewrite/coverage/scripts/migrate_syntax.py --check
 python3 labs/xla_rewrite/coverage/scripts/synthesis_cases.py
-python3 labs/xla_rewrite/coverage/scripts/run_checks.py
-python3 labs/xla_rewrite/coverage/scripts/expression_coverage.py --run
-python3 labs/xla_rewrite/coverage/scripts/run_synthesis.py
+python3 labs/xla_rewrite/coverage/scripts/run_synthesis.py --jobs 4 --timeout 30
 python3 labs/xla_rewrite/coverage/scripts/synthesis_report.py
 python3 labs/xla_rewrite/coverage/scripts/synthesis_report.py --check
-python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py
-python3 labs/xla_rewrite/coverage/scripts/summarize_coverage.py --check
-python3 -m unittest discover -s labs/xla_rewrite/coverage/tests -p 'test_*.py'
+python3 -m unittest discover -s labs/xla_rewrite/coverage/tests -p 'test_synthesis.py'
 ```
 
-The measurement runners accept `--compiler PATH` and `--timeout SECONDS`. After changing a
-measured input, rerun its experiment before regenerating reports. The compilation
-runner emits and validates executable JSON, then removes temporary artifacts.
-Measurements record compiler provenance and input hashes.
+Classification and migration run before measurement. The classifier replaces
+only its own generated files in `../tepl/rules/axis/`. The runner checks every
+in-scope canonical task once, including cases without axis targets as explicit
+verification-only tasks. It records original/task hashes, requested fields,
+normalization metadata, compiler provenance, search paths, timings, proof
+output, and compile/JSON validation evidence. `--compiler PATH`,
+`--timeout SECONDS`, and `--jobs N` configure the runner. Do not change measured
+sources or scripts while it runs; regenerate results after changing inputs.
 
-Run individual TEPL cases rather than checking the whole directory: some rules
-intentionally lack a proof. Use the TEPL project's `rules/structural/` for
-ordinary compilation and `rules/semantic/` for checking with `--semantic-policy=algebraic`.
+The public grouping has one out-of-scope category. Per-case exclusion reasons
+remain in the classification for auditing. Theorem admission is independent
+of measured success. Structural candidates must still satisfy the stated
+positive-extent, supplied-program, arithmetic-domain, and tree assumptions.
+A failed proof is unresolved, not an infeasibility result. The general complete
+mathematical procedure is not fully implemented by the production search.
 
-[test_rule_execution.py](tests/test_rule_execution.py) executes eight
-representative structural rewrites and three verified scalar rewrites, comparing
-independent dense results. These concrete checks supplement universal semantic
-verification.
+## Files
 
-## Historical inputs
+| Location | Purpose |
+|---|---|
+| [../tepl/rules/axis/](../tepl/rules/axis/) | Canonical field-level axis tasks; the only active inference inputs |
+| [../tepl/dialects/axis_views.tepl](../tepl/dialects/axis_views.tepl) | Type-preserving singleton-axis removal adapter |
+| [data/synthesis_classification.json](data/synthesis_classification.json) | Frozen pre-run scope, roles, targets, normalization, and theorem candidates |
+| [results/synthesis.json](results/synthesis.json) | Current axis-only outcomes and evidence |
+| [scripts/axis_fields.py](scripts/axis_fields.py) | Role-directed migration and conservative unit-view normalization |
+| [scripts/run_synthesis.py](scripts/run_synthesis.py) | One-task runner; no legacy inference modes |
+| [scripts/synthesis_report.py](scripts/synthesis_report.py) | Integrity validation and report generation |
+| [tests/test_synthesis.py](tests/test_synthesis.py) | Migration, domain, and success-accounting regressions |
 
-[reasoning_baseline.json](baselines/reasoning_baseline.json) preserves the original
-measurements and corpus hashes. [layout_migration.json](baselines/layout_migration.json)
-maps historical paths; [pre_layout/](baselines/pre_layout/) and
-[pre_syntax/](baselines/pre_syntax/) retain original manifests and sources.
-Validators check frozen hashes and the permitted path/syntax migrations.
+## Corpus and structural compilation
 
-The manual semantic assessment in [data/assessments.json](data/assessments.json)
-describes an older compiler and is separate from current measurements. Host calls
-and host `fn` parameters remain unsupported; see the
-[host-dependency audit](reports/host_dependency_audit.md). Current operation
-support is recorded in [data/hlo_support.json](data/hlo_support.json).
+The original [semantic](../tepl/rules/semantic/) and
+[structural](../tepl/rules/structural/) rule files are retained as corpus fixtures
+and provenance, not paired baseline variants in the active inference run.
+[data/verification_cases.json](data/verification_cases.json) supplies original
+case IDs, graphs, conditions, and catalog mappings. The migrated task removes
+unused RHS axis-construction formulas and keeps required supplied-field helpers.
+
+The [structural compilation report](reports/compilation.md) measures the
+independent question of whether the full corpus can be represented and compiled,
+without asserting value equivalence. Its designated target set is recorded in
+[data/compilation_cases.json](data/compilation_cases.json). Reproduce it with:
+
+```sh
+python3 labs/xla_rewrite/coverage/scripts/expression_coverage.py --run
+python3 labs/xla_rewrite/coverage/scripts/expression_coverage.py --check
+```
+
+The pinned [catalog](../catalog/README.md), source corpus, and dense rewrite
+execution tests remain available for provenance and independent checks.

@@ -1,0 +1,14 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule reverse_compose_disjoint {
+    X: [I, J]
+    (attr_outer: reverse (attr_inner: reverse X)) => (attr_out: reverse X)
+    where { attr_inner.attrs.dimensions == [0] && attr_outer.attrs.dimensions == [1] }
+    
+derive {
+ attr_out.attrs = {dimensions: auto};
+}
+}

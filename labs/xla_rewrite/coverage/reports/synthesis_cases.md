@@ -1,215 +1,214 @@
-# XLA Synthesis Case Outcomes
+# Axis-Only Case Outcomes
 
-Each original case counts once. Auto success requires semantic proof, compilation, and executable JSON validation; unsupported cases are not attempted with auto.
-
-| Case | Category | RHS descriptors | Explicit baseline | Full auto | Partial auto | Outcome |
-|---|---:|---:|---|---|---|---|
-| add_zero | 2 | 0 | proved | — | — | verified_without_attributes |
-| add_constant_order | 1 | 0 | proved | — | — | verified_without_attributes |
-| add_constants | 1 | 0 | proved | — | — | verified_without_attributes |
-| subtract_add_constants | 2 | 0 | proved | — | — | verified_without_attributes |
-| add_subtract_cancel | 2 | 0 | proved | — | — | verified_without_attributes |
-| factor_common_product | 2 | 0 | proved | — | — | verified_without_attributes |
-| subtract_self | 2 | 0 | proved | — | — | verified_without_attributes |
-| subtract_zero | 2 | 0 | proved | — | — | verified_without_attributes |
-| subtract_constant | 2 | 0 | proved | — | — | verified_without_attributes |
-| subtract_subtract_cancel | 2 | 0 | proved | — | — | verified_without_attributes |
-| subtract_add_cancel | 2 | 0 | proved | — | — | verified_without_attributes |
-| add_subtract_cancel_right | 2 | 0 | proved | — | — | verified_without_attributes |
-| multiply_zero | 2 | 0 | proved | — | — | verified_without_attributes |
-| multiply_negatives | 2 | 0 | proved | — | — | verified_without_attributes |
-| multiply_constant_pairs | 2 | 0 | proved | — | — | verified_without_attributes |
-| multiply_constants | 2 | 0 | proved | — | — | verified_without_attributes |
-| double_negate | 2 | 0 | proved | — | — | verified_without_attributes |
-| transpose_identity | 1 | 0 | proved | — | — | verified_without_attributes |
-| transpose_compose | 1 | 1 | proved | success | — | full_auto |
-| broadcast_add | 2 | 1 | proved | success | — | full_auto |
-| broadcast_multiply | 2 | 1 | proved | success | — | full_auto |
-| scalar_broadcast_reverse | 2 | 1 | proved | success | — | full_auto |
-| scalar_broadcast_transpose | 2 | 1 | proved | success | — | full_auto |
-| reduce_negate | 2 | 1 | proved | success | — | full_auto |
-| reduce_compose | 1 | 1 | proved | success | — | full_auto |
-| reduce_transpose | 1 | 1 | proved | success | — | full_auto |
-| reverse_cancel | 2 | 0 | proved | — | — | verified_without_attributes |
-| reverse_compose_disjoint | 2 | 1 | proved | success | — | full_auto |
-| reverse_add_scalar | 2 | 2 | proved | success | success | full_auto |
-| slice_identity | 2 | 0 | proved | — | — | verified_without_attributes |
-| slice_compose | 2 | 1 | proved | success | — | full_auto |
-| slice_reverse | 2 | 2 | not_proved | unproved | unproved | not_proved |
-| dot_associate | 1 | 2 | proved | success | success | full_auto |
-| dot_transpose_output | 1 | 1 | proved | success | — | full_auto |
-| dot_move_reverse | 2 | 2 | proved | success | success | full_auto |
-| reduce_compose_leading | 1 | 1 | proved | success | — | full_auto |
-| slice_compose_zero_starts | 2 | 1 | proved | success | — | full_auto |
-| broadcast_compose_append | 2 | 1 | proved | success | — | full_auto |
-| dot_swap_operands | 1 | 2 | proved | success | success | full_auto |
-| dot_no_contraction | 2 | 2 | proved | success | success | full_auto |
-| dot_reduce_product | 2 | 1 | proved | success | — | full_auto |
-| dot_reduce_batch | 1 | 1 | proved | success | — | full_auto |
-| expr_divide_one | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_divide_two_quotients | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| expr_divide_left_quotient | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| expr_divide_right_quotient | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| expr_multiply_one | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_square_abs | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_multiply_exponentials | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_double_not | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_xor_self | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_xor_zero | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_and_zero | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_or_zero | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_log_exp | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_log_sqrt | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| expr_maximum_self | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_maximum_nested | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_maximum_nested_right | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_minimum_self | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_minimum_nested | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_minimum_nested_right | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_real_complex | 3 | 0 | missing_semantics | — | — | unsupported |
-| expr_imag_complex | 3 | 0 | missing_semantics | — | — | unsupported |
-| expr_complex_components | 3 | 0 | missing_semantics | — | — | unsupported |
-| expr_select_identical | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_select_not | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_power_zero | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_power_one | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_power_two | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_power_three | 2 | 0 | proved | — | — | verified_without_attributes |
-| expr_power_reciprocal | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| expr_remainder_compose | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| expr_reshape_identity | 3 | 0 | missing_semantics | — | — | unsupported |
-| expr_reshape_compose | 3 | 1 | missing_semantics | — | — | unsupported |
-| expr_concat_unary | 3 | 0 | missing_semantics | — | — | unsupported |
-| expr_concat_flatten | 3 | 1 | missing_semantics | — | — | unsupported |
-| expr_update_full | 3 | 0 | missing_semantics | — | — | unsupported |
-| expr_update_empty | 3 | 0 | missing_semantics | — | — | unsupported |
-| expr_reverse_compose_general | 2 | 1 | proved | success | — | full_auto |
-| expr_pad_identity | 3 | 0 | missing_semantics | — | — | unsupported |
-| expr_reduce_compose_general | 3 | 1 | missing_semantics | — | — | unsupported |
-| expr_slice_compose_general | 2 | 1 | proved | success | — | full_auto |
-| expr_slice_reverse_general | 2 | 2 | not_proved | unproved | unproved | not_proved |
-| expr_convolution_scale_filter_bias | 2 | 3 | not_proved | unproved | unproved | not_proved |
-| catalog_elementwise_and_true | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_or_true | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_divide_exponentials | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_divide_exponential | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_divide_power | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| catalog_elementwise_divide_sqrt | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| catalog_elementwise_divide_rsqrt | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| catalog_elementwise_multiply_predicate | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_elementwise_log_power | 2 | 1 | not_proved | unproved | — | not_proved |
-| catalog_elementwise_log_rsqrt | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| catalog_elementwise_max_identity | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_min_identity | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_max_nested_right_reorder | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_min_nested_right_reorder | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_max_clamp_bound | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| catalog_elementwise_max_monotone | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_clamp_clamp | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_real_noncomplex | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_elementwise_imag_noncomplex | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_elementwise_power_exp | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_sqrt_square | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_compare_self | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_compare_predicate_false | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_compare_predicate_true | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_compare_selected_mask | 2 | 1 | proved | success | — | full_auto |
-| catalog_elementwise_compare_max | 2 | 1 | proved | success | — | full_auto |
-| catalog_elementwise_compare_min | 2 | 1 | proved | success | — | full_auto |
-| catalog_elementwise_select_predicate_identity | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_select_predicate_not | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_select_compare_gt | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| catalog_elementwise_select_compare_lt | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| catalog_elementwise_select_compare_eq | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_select_compare_ne | 2 | 0 | proved | — | — | verified_without_attributes |
-| catalog_elementwise_divide_converted_predicate | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_divide_broadcast | 2 | 1 | not_proved | unproved | — | not_proved |
-| catalog_broadcast_multiply_constant_into_broadcast | 2 | 2 | proved | success | success | full_auto |
-| catalog_broadcast_reshape | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_transpose | 2 | 1 | not_proved | success | — | full_auto |
-| catalog_broadcast_inserted_unit_dims | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_iota | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_drop_unit_dims | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_reshape_broadcast | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_transpose_broadcast | 2 | 1 | not_proved | success | — | full_auto |
-| catalog_broadcast_pad_broadcast | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_slice_broadcast_only | 2 | 1 | not_proved | success | — | full_auto |
-| catalog_broadcast_slice_broadcast | 2 | 2 | not_proved | unproved | unproved | not_proved |
-| catalog_broadcast_dynamic_slice_broadcast | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_gather_scalar | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_transpose_reshape_reshape_empty | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_transpose_reshape_reshape_transpose_cancel_chain | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_transpose_reshape_reshape_hoist_transpose | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_transpose_reshape_transpose_unit_dims | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_add_sparse_update | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_add_scatter | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_add_two_scatters_concat | 3 | 3 | missing_semantics | — | — | unsupported |
-| catalog_indexing_add_two_scatters_nested | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_select_update | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_reshape_update | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_concat_adjacent_slices | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_concat_splat_to_pad | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_iota_trivial | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_pad_empty | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_pad_interior_unit | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_reverse_trivial | 2 | 0 | not_proved | — | — | not_proved_without_attributes |
-| catalog_indexing_reverse_inserted_unit_dims | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_rotate_compose | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_slice_pad_only | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_slice_pad_cancel | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_indexing_slice_inside_pad | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_slice_reshape | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_slice_singleton_stride | 2 | 1 | not_proved | success | — | full_auto |
-| catalog_indexing_dynamic_slice_identity | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_indexing_dynamic_slice_zero_index | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_dynamic_slice_unit_reshape | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_dynamic_slice_transpose | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_dynamic_slice_iota | 3 | 3 | missing_semantics | — | — | unsupported |
-| catalog_indexing_dynamic_slice_compose | 3 | 3 | missing_semantics | — | — | unsupported |
-| catalog_indexing_update_zero_index | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_indexing_update_compose | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_gather_empty | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_gather_pad | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_gather_reshape_pad | 3 | 3 | missing_semantics | — | — | unsupported |
-| catalog_indexing_scatter_empty_update | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_indexing_scatter_scalar_map | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_indexing_transpose_scatter | 3 | 3 | missing_semantics | — | — | unsupported |
-| catalog_dot_empty | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_dot_drop_unit_dims | 3 | 3 | missing_semantics | — | — | unsupported |
-| catalog_dot_transpose_both_operands | 1 | 2 | proved | success | success | full_auto |
-| catalog_dot_constant_dynamic_slice | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_dot_move_contracting_permutation | 3 | 5 | missing_semantics | — | — | unsupported |
-| catalog_dot_move_zero_pad | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_dot_move_broadcast | 2 | 2 | proved | success | success | full_auto |
-| catalog_dot_slice_output | 2 | 3 | not_proved | unproved | unproved | not_proved |
-| catalog_dot_reduce_output_free | 1 | 2 | proved | success | success | full_auto |
-| catalog_dot_scalar_multipliers | 2 | 2 | proved | success | success | full_auto |
-| catalog_reduction_empty | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_reduction_unit_axes | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_reduction_reshape_reduced | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_reduction_reshape_free | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_reduction_splat_min | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_reduction_splat_max | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_reduction_splat_and | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_reduction_splat_or | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_reduction_broadcast_original_axes | 2 | 2 | proved | success | success | full_auto |
-| catalog_reduction_broadcast_replication_axes | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_reduction_window_empty | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_reduction_window_scalar | 3 | 0 | missing_semantics | — | — | unsupported |
-| catalog_reduction_window_splat_cumsum | 3 | 3 | missing_semantics | — | — | unsupported |
-| catalog_reduction_window_singleton_add | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_reduction_window_singleton_min | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_reduction_window_singleton_max | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_reduction_window_to_reduce | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_reduction_slice_window_to_reduce | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_reduction_window_pad | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_broadcast_window_padded_unit_broadcast | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_convolution_empty | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_convolution_fold_input_pad | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_convolution_fold_filter_pad | 3 | 1 | missing_semantics | — | — | unsupported |
-| catalog_convolution_pointwise_dot | 3 | 4 | missing_semantics | — | — | unsupported |
-| catalog_convolution_depthwise_product | 3 | 6 | missing_semantics | — | — | unsupported |
-| catalog_convolution_swap_operands | 3 | 2 | missing_semantics | — | — | unsupported |
-| catalog_indexing_pad_negative | 3 | 2 | missing_semantics | — | — | unsupported |
-| native_power_two_splat | 3 | 0 | missing_semantics | — | — | unsupported |
-| native_abs_unsigned | 2 | 0 | proved | — | — | verified_without_attributes |
+| Case | Task | Axis fields | Normalized | Theorem classification | Outcome |
+|---|---|---:|---|---|---|
+| add_zero | attribute_free | 0 | no | not_applicable | verified |
+| add_constant_order | attribute_free | 0 | no | not_applicable | verified |
+| add_constants | attribute_free | 0 | no | not_applicable | verified |
+| subtract_add_constants | attribute_free | 0 | no | not_applicable | verified |
+| add_subtract_cancel | attribute_free | 0 | no | not_applicable | verified |
+| factor_common_product | attribute_free | 0 | no | not_applicable | verified |
+| subtract_self | attribute_free | 0 | no | not_applicable | verified |
+| subtract_zero | attribute_free | 0 | no | not_applicable | verified |
+| subtract_constant | attribute_free | 0 | no | not_applicable | verified |
+| subtract_subtract_cancel | attribute_free | 0 | no | not_applicable | verified |
+| subtract_add_cancel | attribute_free | 0 | no | not_applicable | verified |
+| add_subtract_cancel_right | attribute_free | 0 | no | not_applicable | verified |
+| multiply_zero | attribute_free | 0 | no | not_applicable | verified |
+| multiply_negatives | attribute_free | 0 | no | not_applicable | verified |
+| multiply_constant_pairs | attribute_free | 0 | no | not_applicable | verified |
+| multiply_constants | attribute_free | 0 | no | not_applicable | verified |
+| double_negate | attribute_free | 0 | no | not_applicable | verified |
+| transpose_identity | attribute_free | 0 | no | not_applicable | verified |
+| transpose_compose | axis_inference | 1 | no | candidate | inferred |
+| broadcast_add | axis_inference | 1 | no | candidate | inferred |
+| broadcast_multiply | axis_inference | 1 | no | candidate | inferred |
+| scalar_broadcast_reverse | axis_inference | 1 | no | candidate | inferred |
+| scalar_broadcast_transpose | axis_inference | 1 | no | candidate | inferred |
+| reduce_negate | axis_inference | 1 | no | candidate | inferred |
+| reduce_compose | axis_inference | 1 | no | candidate | inferred |
+| reduce_transpose | axis_inference | 1 | no | candidate | inferred |
+| reverse_cancel | attribute_free | 0 | no | not_applicable | verified |
+| reverse_compose_disjoint | axis_inference | 1 | no | candidate | inferred |
+| reverse_add_scalar | axis_inference | 2 | no | candidate | inferred |
+| slice_identity | out_of_scope | 0 | no | not_audited | outside_scope |
+| slice_compose | out_of_scope | 0 | no | not_audited | outside_scope |
+| slice_reverse | out_of_scope | 0 | no | not_audited | outside_scope |
+| dot_associate | axis_inference | 8 | no | candidate | inferred |
+| dot_transpose_output | axis_inference | 4 | no | candidate | inferred |
+| dot_move_reverse | axis_inference | 5 | no | candidate | inferred |
+| negative_subtract_to_add (negative control) | attribute_free | 0 | no | not_applicable | not_proved |
+| reduce_compose_leading | axis_inference | 1 | no | candidate | inferred |
+| slice_compose_zero_starts | out_of_scope | 0 | no | not_audited | outside_scope |
+| broadcast_compose_append | axis_inference | 1 | no | candidate | inferred |
+| dot_swap_operands | axis_inference | 5 | no | candidate | inferred |
+| dot_no_contraction | axis_inference | 2 | no | candidate | inferred |
+| dot_reduce_product | axis_inference | 1 | no | candidate | inferred |
+| dot_reduce_batch | axis_inference | 4 | no | candidate | inferred |
+| expr_divide_one | attribute_free | 0 | no | not_applicable | verified |
+| expr_divide_two_quotients | attribute_free | 0 | no | not_applicable | not_proved |
+| expr_divide_left_quotient | attribute_free | 0 | no | not_applicable | not_proved |
+| expr_divide_right_quotient | attribute_free | 0 | no | not_applicable | not_proved |
+| expr_multiply_one | attribute_free | 0 | no | not_applicable | verified |
+| expr_square_abs | attribute_free | 0 | no | not_applicable | verified |
+| expr_multiply_exponentials | attribute_free | 0 | no | not_applicable | verified |
+| expr_double_not | attribute_free | 0 | no | not_applicable | verified |
+| expr_xor_self | attribute_free | 0 | no | not_applicable | verified |
+| expr_xor_zero | attribute_free | 0 | no | not_applicable | verified |
+| expr_and_zero | attribute_free | 0 | no | not_applicable | verified |
+| expr_or_zero | attribute_free | 0 | no | not_applicable | verified |
+| expr_log_exp | attribute_free | 0 | no | not_applicable | verified |
+| expr_log_sqrt | attribute_free | 0 | no | not_applicable | not_proved |
+| expr_maximum_self | attribute_free | 0 | no | not_applicable | verified |
+| expr_maximum_nested | attribute_free | 0 | no | not_applicable | verified |
+| expr_maximum_nested_right | attribute_free | 0 | no | not_applicable | verified |
+| expr_minimum_self | attribute_free | 0 | no | not_applicable | verified |
+| expr_minimum_nested | attribute_free | 0 | no | not_applicable | verified |
+| expr_minimum_nested_right | attribute_free | 0 | no | not_applicable | verified |
+| expr_real_complex | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_imag_complex | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_complex_components | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_select_identical | attribute_free | 0 | no | not_applicable | verified |
+| expr_select_not | attribute_free | 0 | no | not_applicable | verified |
+| expr_power_zero | attribute_free | 0 | no | not_applicable | verified |
+| expr_power_one | attribute_free | 0 | no | not_applicable | verified |
+| expr_power_two | attribute_free | 0 | no | not_applicable | verified |
+| expr_power_three | attribute_free | 0 | no | not_applicable | verified |
+| expr_power_reciprocal | attribute_free | 0 | no | not_applicable | not_proved |
+| expr_remainder_compose | attribute_free | 0 | no | not_applicable | not_proved |
+| expr_reshape_identity | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_reshape_compose | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_concat_unary | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_concat_flatten | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_update_full | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_update_empty | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_reverse_compose_general | axis_inference | 1 | no | candidate | inferred |
+| expr_pad_identity | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_reduce_compose_general | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_slice_compose_general | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_slice_reverse_general | out_of_scope | 0 | no | not_audited | outside_scope |
+| expr_convolution_scale_filter_bias | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_elementwise_and_true | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_or_true | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_divide_exponentials | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_divide_exponential | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_divide_power | attribute_free | 0 | no | not_applicable | not_proved |
+| catalog_elementwise_divide_sqrt | attribute_free | 0 | no | not_applicable | not_proved |
+| catalog_elementwise_divide_rsqrt | attribute_free | 0 | no | not_applicable | not_proved |
+| catalog_elementwise_multiply_predicate | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_elementwise_log_power | supplied_non_axis | 0 | no | not_applicable | not_proved |
+| catalog_elementwise_log_rsqrt | attribute_free | 0 | no | not_applicable | not_proved |
+| catalog_elementwise_max_identity | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_min_identity | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_max_nested_right_reorder | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_min_nested_right_reorder | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_max_clamp_bound | attribute_free | 0 | no | not_applicable | not_proved |
+| catalog_elementwise_max_monotone | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_clamp_clamp | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_real_noncomplex | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_elementwise_imag_noncomplex | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_elementwise_power_exp | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_sqrt_square | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_compare_self | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_compare_predicate_false | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_compare_predicate_true | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_compare_selected_mask | supplied_non_axis | 0 | no | not_applicable | verified |
+| catalog_elementwise_compare_max | supplied_non_axis | 0 | no | not_applicable | verified |
+| catalog_elementwise_compare_min | supplied_non_axis | 0 | no | not_applicable | verified |
+| catalog_elementwise_select_predicate_identity | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_select_predicate_not | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_select_compare_gt | attribute_free | 0 | no | not_applicable | not_proved |
+| catalog_elementwise_select_compare_lt | attribute_free | 0 | no | not_applicable | not_proved |
+| catalog_elementwise_select_compare_eq | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_select_compare_ne | attribute_free | 0 | no | not_applicable | verified |
+| catalog_elementwise_divide_converted_predicate | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_divide_broadcast | axis_inference | 1 | no | domain_restricted_candidate | not_proved |
+| catalog_broadcast_multiply_constant_into_broadcast | axis_inference | 2 | no | candidate | inferred |
+| catalog_broadcast_reshape | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_transpose | axis_inference | 1 | no | candidate | inferred |
+| catalog_broadcast_inserted_unit_dims | axis_inference | 1 | yes | candidate | inferred |
+| catalog_broadcast_iota | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_drop_unit_dims | axis_inference | 1 | yes | candidate | inferred |
+| catalog_broadcast_reshape_broadcast | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_transpose_broadcast | axis_inference | 1 | no | candidate | not_proved |
+| catalog_broadcast_pad_broadcast | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_slice_broadcast_only | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_slice_broadcast | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_dynamic_slice_broadcast | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_gather_scalar | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_transpose_reshape_reshape_empty | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_transpose_reshape_reshape_transpose_cancel_chain | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_transpose_reshape_reshape_hoist_transpose | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_transpose_reshape_transpose_unit_dims | supplied_non_axis | 0 | yes | not_applicable | verified |
+| catalog_indexing_add_sparse_update | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_add_scatter | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_add_two_scatters_concat | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_add_two_scatters_nested | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_select_update | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_reshape_update | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_concat_adjacent_slices | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_concat_splat_to_pad | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_iota_trivial | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_pad_empty | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_pad_interior_unit | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_reverse_trivial | attribute_free | 0 | no | not_applicable | not_proved |
+| catalog_indexing_reverse_inserted_unit_dims | axis_inference | 1 | yes | candidate | inferred |
+| catalog_indexing_rotate_compose | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_slice_pad_only | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_slice_pad_cancel | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_slice_inside_pad | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_slice_reshape | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_slice_singleton_stride | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_dynamic_slice_identity | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_dynamic_slice_zero_index | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_dynamic_slice_unit_reshape | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_dynamic_slice_transpose | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_dynamic_slice_iota | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_dynamic_slice_compose | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_update_zero_index | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_update_compose | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_gather_empty | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_gather_pad | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_gather_reshape_pad | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_scatter_empty_update | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_scatter_scalar_map | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_transpose_scatter | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_dot_empty | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_dot_drop_unit_dims | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_dot_transpose_both_operands | axis_inference | 5 | no | candidate | inferred |
+| catalog_dot_constant_dynamic_slice | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_dot_move_contracting_permutation | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_dot_move_zero_pad | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_dot_move_broadcast | axis_inference | 5 | no | candidate | inferred |
+| catalog_dot_slice_output | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_dot_reduce_output_free | axis_inference | 5 | no | candidate | inferred |
+| catalog_dot_scalar_multipliers | axis_inference | 5 | no | candidate | inferred |
+| catalog_reduction_empty | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_unit_axes | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_reshape_reduced | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_reshape_free | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_splat_min | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_splat_max | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_splat_and | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_splat_or | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_broadcast_original_axes | axis_inference | 2 | no | candidate | inferred |
+| catalog_reduction_broadcast_replication_axes | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_window_empty | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_window_scalar | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_window_splat_cumsum | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_window_singleton_add | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_window_singleton_min | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_window_singleton_max | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_window_to_reduce | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_slice_window_to_reduce | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_reduction_window_pad | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_broadcast_window_padded_unit_broadcast | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_convolution_empty | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_convolution_fold_input_pad | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_convolution_fold_filter_pad | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_convolution_pointwise_dot | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_convolution_depthwise_product | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_convolution_swap_operands | out_of_scope | 0 | no | not_audited | outside_scope |
+| catalog_indexing_pad_negative | out_of_scope | 0 | no | not_audited | outside_scope |
+| native_power_two_splat | out_of_scope | 0 | no | not_audited | outside_scope |
+| native_abs_unsigned | attribute_free | 0 | no | not_applicable | verified |

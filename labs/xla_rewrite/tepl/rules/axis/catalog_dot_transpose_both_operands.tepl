@@ -1,0 +1,15 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: dot-transpose-both-operands
+// Scope: Rank-two matrix transposes, no batches.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_dot_transpose_both_operands {
+    X: [K,M] Y: [N,K]
+     (attr_d: hlo.dot (attr_p: hlo.transpose X) (attr_q: hlo.transpose Y)) => (axis_eval_1: hlo.transpose (axis_eval_0: hlo.dot Y X))
+     where { attr_p.attrs.permutation==[1,0] && attr_q.attrs.permutation==[1,0] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
+derive {
+ axis_eval_0.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto};
+ axis_eval_1.attrs = {permutation: auto};
+}
+}

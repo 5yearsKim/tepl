@@ -1,0 +1,23 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule dot_associate {
+    X: [M, K]
+    Y: [K, N]
+    Z: [N, P]
+    (attr_outer: dot (attr_inner: dot X Y) Z) => (axis_eval_1: dot X (axis_eval_0: dot Y Z))
+    where { attr_inner.attrs.lhs_batching_dimensions == []
+         && attr_inner.attrs.rhs_batching_dimensions == []
+         && attr_inner.attrs.lhs_contracting_dimensions == [1]
+         && attr_inner.attrs.rhs_contracting_dimensions == [0]
+         && attr_outer.attrs.lhs_batching_dimensions == []
+         && attr_outer.attrs.rhs_batching_dimensions == []
+         && attr_outer.attrs.lhs_contracting_dimensions == [1]
+         && attr_outer.attrs.rhs_contracting_dimensions == [0] }
+derive {
+ axis_eval_0.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto};
+ axis_eval_1.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto};
+}
+}

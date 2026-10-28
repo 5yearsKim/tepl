@@ -1,8 +1,0 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
-
-rule reverse_cancel {
-    (reverse[@outer] (reverse[@inner] X)) => X
-    where { @outer.dimensions == @inner.dimensions }
-}

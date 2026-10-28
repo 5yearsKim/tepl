@@ -1,8 +1,0 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
-use hlo::{slice};
-
-rule slice_compose_zero_starts {
-    (slice[@outer] (slice[@inner] X)) => (slice[@outer] X)
-    where { @inner.starts == [0] && @outer.starts == [0]
-         && @inner.strides == [1] && @outer.strides == [1] }
-}

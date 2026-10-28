@@ -1,0 +1,11 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-select-compare-gt
+// Scope: Written operand/opcode variant under the catalog conditions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_select_compare_gt {
+    A: bool[Dims...] B: bool[Dims...]
+     (hlo.select (attr_c: hlo.compare A B) A B) => (hlo.logical_or A B)
+     where { attr_c.attrs.direction == 3 || attr_c.attrs.direction == 2 }
+}

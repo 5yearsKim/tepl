@@ -6,13 +6,12 @@ express, compile and verify.
 - [Catalog](catalog/README.md): pinned XLA sources, equations, conditions and counting policy.
 - [TEPL project](tepl/README.md): local HLO dialects, explicit rules and input graphs.
 - [Coverage](coverage/README.md): experiment inputs, tools and reproduction commands.
-- [Attribute synthesis report](coverage/reports/attribute_synthesis.md): theorem-based categories and explicit, full-auto, and partial-auto results.
+- [Attribute synthesis report](coverage/reports/attribute_synthesis.md): field-level axis inference, verification-only outcomes, and theorem admission candidates.
 - [Compilation report](coverage/reports/compilation.md): language coverage and executable compilation.
-- [Verification report](coverage/reports/verification.md): semantic proofs, missing semantics and unresolved obligations.
 
 `catalog/` contains the source-based catalog. `tepl/` contains the executable
-TEPL project. `coverage/` separates case data (`data/`), historical baselines
-(`baselines/`), measurements (`results/`), readable reports (`reports/`), tools
+TEPL project. `coverage/` separates case data (`data/`), measurements (`results/`),
+readable reports (`reports/`), tools
 (`scripts/`) and Python tests (`tests/`). Compilation and verification are
 separate measurements. Structural compilation uses declarations without value
 semantics; synthesis successes require semantic verification and compilation.

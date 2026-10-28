@@ -1,0 +1,10 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_reverse_compose_general {
+    (attr_outer: hlo.reverse (attr_inner: hlo.reverse X)) => (attr_out: hlo.reverse X) 
+derive {
+ attr_out.attrs = {dimensions: auto};
+}
+}
