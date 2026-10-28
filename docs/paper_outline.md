@@ -93,7 +93,7 @@ TEPL describes tensor rewrites, their conditions, and their attribute changes to
 dialect TensorLang {
   op transpose(input: tensor) -> tensor {
     attrs {
-      permutation: index[];
+      permutation: axis[];
     }
   }
 }
@@ -320,10 +320,10 @@ The following `dot_general` definition illustrates these bindings. It takes two 
 ```tepl
 op dot_general(lhs: tensor, rhs: tensor) -> tensor {
     attrs {
-        lhs_batching_dimensions: index[];
-        rhs_batching_dimensions: index[];
-        lhs_contracting_dimensions: index[];
-        rhs_contracting_dimensions: index[];
+        lhs_batching_dimensions: axis[];
+        rhs_batching_dimensions: axis[];
+        lhs_contracting_dimensions: axis[];
+        rhs_contracting_dimensions: axis[];
     }
 
     axes {

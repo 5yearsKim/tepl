@@ -363,3 +363,10 @@ cc_binary(
     srcs = ["codegen_reference.cc"],
     deps = ["//src/codegen", "//src/rewrite"],
 )
+
+cc_test(
+    name = "axis_auto_test",
+    size = "small",
+    srcs = ["axis_auto_test.cc"],
+    deps = ["//src/core:pipeline", "//src/core/semantics:proof", "//src/executable", "//src/rewrite"],
+)

@@ -81,7 +81,7 @@ void testValidSyntax() {
        "attrs CollectiveReduce { kind: string; } "
        "op add(lhs: tensor, rhs: tensor) -> tensor; "
        "op dot_general(lhs: tensor, rhs: tensor) -> tensor { "
-       "alias: dot; attrs { axes: index[] = []; } } "
+       "alias: dot; attrs { axes: u64[] = []; } } "
        "op all_reduce(input: tensor) -> tensor { "
        "attrs: CollectiveReduce; } "
        "op concat(first: tensor, rest: tensor...) -> tensor; }"},
@@ -90,7 +90,7 @@ void testValidSyntax() {
        "{ (d: t.dot X Y) => (add X Y) }"},
       {"attributes before alias",
        "dialect t { op dot_general(lhs: tensor, rhs: tensor) -> tensor { "
-       "attrs { axes: index[] = []; } alias: dot; } }"},
+       "attrs { axes: u64[] = []; } alias: dot; } }"},
       {"shared attributes before alias",
        "dialect t { attrs Metadata { kind: string; } "
        "op dot_general(lhs: tensor, rhs: tensor) -> tensor { "

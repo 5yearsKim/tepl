@@ -6,6 +6,6 @@ from "dialects/hlo_structural.tepl" import HLO as hlo;
 rule catalog_indexing_slice_pad_only {
     X: [N] C: []
      (attr_s: hlo.slice (attr_p: hlo.nonnegative_pad X C)) => (attr_b: hlo.broadcast C)
-     where { attr_p.attrs.interior==[0] && len(attr_s.attrs.sizes)==1 && (attr_s.attrs.starts[0]+max(attr_s.attrs.sizes[0]-1,0)*attr_s.attrs.strides[0]<attr_p.attrs.low[0] || attr_s.attrs.starts[0]>=attr_p.attrs.low[0]+N) }
+     where { attr_p.attrs.interior==[0] && len(attr_s.attrs.sizes)==1 && (u64(attr_s.attrs.starts[0])+max(attr_s.attrs.sizes[0]-1,0)*u64(attr_s.attrs.strides[0])<u64(attr_p.attrs.low[0]) || u64(attr_s.attrs.starts[0])>=u64(attr_p.attrs.low[0])+N) }
      derive { attr_b.attrs={dimensions:[],new_extents:attr_s.attrs.sizes}; }
 }

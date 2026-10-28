@@ -66,12 +66,12 @@ int main() {
     auto bad = generate("", ns);
     assert(!bad.ok() && bad.files.empty());
   }
-  for (auto source : {"dialect T { attrs A { class: index; } op copy(x: "
+  for (auto source : {"dialect T { attrs A { class: u64; } op copy(x: "
                       "tensor) -> tensor { attrs: A; } }",
                       "dialect T { op foo_bar(x: tensor) -> tensor; op "
                       "fooBar(x: tensor) -> tensor; }",
-                      "dialect T { attrs OpAttrs { x: index; } }",
-                      "dialect T { attrs A { hash_value: index; } }"}) {
+                      "dialect T { attrs OpAttrs { x: u64; } }",
+                      "dialect T { attrs A { hash_value: u64; } }"}) {
     auto bad = generate(source);
     assert(!bad.ok() && bad.files.empty());
     assert(!bad.diagnostics.front().origin.definition.source_name.empty());

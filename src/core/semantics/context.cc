@@ -41,6 +41,20 @@ void Context::recordShape(const S& axes, const S& shape) {
 }
 void Context::assignAttribute(std::size_t descriptor, std::size_t field,
                               const S& value) {
+  for (const auto& node : plan.nodes)
+    if (plan.needsSynthesis(node) && node.descriptor &&
+        node.descriptor->value == descriptor) {
+      if (!plan.attributes(node).isAuto(field) ||
+          !node.definition->axis_fields.contains(field)) {
+        auto supplied = plan.descriptors.find(descriptor);
+        if (supplied != plan.descriptors.end() &&
+            field < supplied->second.fields.size() &&
+            equal(resolve(supplied->second.fields[field]), resolve(value)))
+          return;
+        throw ProofFailure("only axis auto fields may be inferred",
+                           FailureKind::InvalidCandidate);
+      }
+    }
   auto [found, added] =
       attributes_.solutions.emplace(std::pair(descriptor, field), value);
   if (!added) {
@@ -56,7 +70,7 @@ void Context::sourceScope(std::size_t id) {
   const auto& n = plan.nodes.at(id);
   source_.nodes.insert(id);
   if (n.capture) source_.captures.insert(n.capture->value);
-  if (n.descriptor && n.definition && !n.automatic) {
+  if (n.descriptor && n.definition && plan.isCaptured(n)) {
     source_.fields[n.descriptor->value] = n.definition->fields.size();
     source_.field_nodes[n.descriptor->value] = id;
   }
@@ -110,6 +124,8 @@ void Context::wellFormed(const S& s) {
     valid_arity = entry->acceptsArity(s->args.size());
   else if (const auto* entry = builtins::resolveBuiltin(s->name))
     valid_arity = entry->acceptsArity(s->args.size());
+  else if (s->name == "none")
+    valid_arity = s->args.empty();
   else if (s->name.starts_with("dtype_") && resolveDType(s->name.substr(6)))
     valid_arity = s->args.empty();
   else if (resolveBinaryOperator(s->name))
@@ -220,11 +236,11 @@ S Context::resolve(const S& s) {
 }
 S Context::field(const Instance& n, std::size_t f) {
   if (!n.descriptor) throw ProofFailure("attribute has no rule descriptor");
-  if (auto found = plan.attributes.find(n.descriptor->value);
-      found != plan.attributes.end()) {
-    const auto& value = found->second.at(f);
-    validateSource(value);
-    return resolve(value);
+  const auto& attributes = plan.attributes(n);
+  if (!attributes.isCaptured()) {
+    auto result = resolve(attributes.fields.at(f));
+    if (result->kind != Symbol::Kind::Hole) validateSource(result);
+    return result;
   }
   return resolve(attributeSymbol(plan, n, f));
 }

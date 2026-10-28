@@ -3,7 +3,7 @@ dialect MyDialect {
 
     op dot(lhs: tensor, rhs: tensor) -> tensor {
         attrs {
-            axis: index;
+            axis: axis;
         }
     }
 }

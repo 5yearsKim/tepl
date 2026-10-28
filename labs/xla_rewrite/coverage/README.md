@@ -1,5 +1,12 @@
 # HLO Rewrite Coverage
 
+The checked-in synthesis measurements predate the axis-only `auto` design.
+They include legacy extent, coordinate, and scalar-parameter inference and do
+not measure the current compiler's coverage. The old full-auto/partial-auto
+generator erases whole descriptors; mixed descriptors now require explicit
+non-axis fields and field-level `auto` for axis fields. Remeasure those variants
+before quoting coverage for the new design. Frozen baselines are retained.
+
 [Compilation](reports/compilation.md) measures expressibility and executable
 compilation; [verification](reports/verification.md) explains proofs and remaining
 gaps; [attribute synthesis](reports/attribute_synthesis.md) compares explicit,

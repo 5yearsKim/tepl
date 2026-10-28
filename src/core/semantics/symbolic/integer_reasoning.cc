@@ -135,7 +135,7 @@ IntegerInterval Context::fieldIntegerInterval(const S& x) const {
       found != plan.metadata_types.end()) {
     auto type = found->second;
     while (auto element = elementType(type)) type = *element;
-    if (type.kind == TypeKind::kIndex) return {0, fieldHigh};
+    if (type.kind == TypeKind::kU64) return {0, fieldHigh};
     if (type.kind == TypeKind::kI64)
       return {fieldLow, std::numeric_limits<std::int64_t>::max()};
   }

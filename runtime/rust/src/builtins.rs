@@ -131,6 +131,16 @@ pub fn call(name: &str, a: Vec<Value>, b: &mut Budget) -> EvalResult<Value> {
     )?;
     b.arguments(&a)?;
     match name {
+        "i64" => {
+            let n = a[0].integer()?;
+            require(i64::try_from(n).is_ok(), "i64 conversion overflow")?;
+            Ok(Value::Integer(n))
+        }
+        "u64" => {
+            let n = a[0].integer()?;
+            require(u64::try_from(n).is_ok(), "u64 conversion overflow")?;
+            Ok(Value::Integer(n))
+        }
         "len" => Ok(Value::Integer(a[0].list()?.len() as i128)),
         "range" => {
             let n = a[0].position()?;

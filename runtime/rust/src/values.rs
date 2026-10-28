@@ -133,7 +133,7 @@ impl AttributeValue for u64 {
         Value::Integer((*self).into())
     }
     fn from_value(v: &Value) -> EvalResult<Self> {
-        Self::try_from(v.integer()?).map_err(|_| invalid("index overflow"))
+        Self::try_from(v.integer()?).map_err(|_| invalid("u64 overflow"))
     }
 }
 impl AttributeValue for i64 {
@@ -184,7 +184,7 @@ impl<T: AttributeValue> AttributeValue for Option<T> {
 #[derive(Clone, Copy)]
 pub enum ScalarType {
     Tensor,
-    Index,
+    U64,
     I64,
     F64,
     Bool,
@@ -210,7 +210,7 @@ pub fn checked(
         return Ok(value);
     }
     match scalar {
-        ScalarType::Index => {
+        ScalarType::U64 => {
             u64::from_value(&value)?;
         }
         ScalarType::I64 => {

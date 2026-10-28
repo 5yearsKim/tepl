@@ -51,7 +51,7 @@ void equivalentInputs() {
 }
 void namingFailuresAreAtomic() {
   for (const auto& source :
-       {"dialect D {attrs Op {x:index;}op copy(x:tensor)->tensor {attrs:Op;}}",
+       {"dialect D {attrs Op {x: u64;}op copy(x:tensor)->tensor {attrs:Op;}}",
         "dialect D {op self_(x:tensor)->tensor;}",
         "dialect D {op foo_bar(x:tensor)->tensor;op "
         "FooBar(x:tensor)->tensor;}"}) {

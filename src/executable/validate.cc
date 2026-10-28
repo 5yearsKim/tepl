@@ -60,7 +60,7 @@ void validateInference(const ProgramData& p, const Rule& r) {
             "invalid inference descriptor");
     for (const auto& field :
          p.attribute_schemas.at(op.attributes->value).fields)
-      require((field.type == "index" || field.type == "i64") &&
+      require((field.type == "u64" || field.type == "i64") &&
                   field.list_depth == 1 && !field.optional,
               "inference requires nonoptional position-list fields");
     return id;
@@ -233,7 +233,7 @@ void validate(const ExecutableProgram& program) {
                       const auto& f =
                           p.attribute_schemas[v.schema.value].fields[v.field];
                       require(!f.optional &&
-                                  (f.type == "index" || f.type == "i64" ||
+                                  (f.type == "u64" || f.type == "i64" ||
                                    f.type == "bool" || f.type == "dtype"),
                               "unsupported metadata attribute type");
                       require(
@@ -674,6 +674,15 @@ void validate(const ExecutableProgram& program) {
                           bindType(generic, *e);
                           break;
                         }
+                        case S::kAnyInteger:
+                          require(!value.optional && !value.list_depth &&
+                                      isInteger(value.kind),
+                                  "builtin expects integer");
+                          break;
+                        case S::kSignedInteger:
+                          require(value == Type{TypeKind::kI64},
+                                  "builtin expects i64");
+                          break;
                         case S::kInteger:
                           if (b->rule_integer_pair) {
                             require(!value.optional && !value.list_depth &&
@@ -681,8 +690,8 @@ void validate(const ExecutableProgram& program) {
                                     "builtin expects integer");
                             bindType(integer, value);
                           } else
-                            require(value == Type{TypeKind::kIndex},
-                                    "builtin expects index");
+                            require(value == Type{TypeKind::kU64},
+                                    "builtin expects u64");
                           break;
                         case S::kAxisSet:
                           require(value == logicalAxisSetType(),
@@ -693,8 +702,8 @@ void validate(const ExecutableProgram& program) {
                                   "builtin expects logical axis list");
                           break;
                         case S::kIntegerList:
-                          require(value == Type{TypeKind::kIndexList},
-                                  "builtin expects index list");
+                          require(value == Type{TypeKind::kU64List},
+                                  "builtin expects u64 list");
                           break;
                         case S::kBooleanList:
                           require(value == listType(Type{TypeKind::kBool}),
@@ -723,7 +732,7 @@ void validate(const ExecutableProgram& program) {
                               "list element type mismatch");
                   } else if constexpr (std::is_same_v<T, completed::IndexExpr>)
                     require(elementType(type(v.value->type)) == t &&
-                                type(v.index->type) == Type{TypeKind::kIndex},
+                                type(v.index->type) == Type{TypeKind::kU64},
                             "index expression type mismatch");
                   else if constexpr (std::is_same_v<T, completed::UnaryExpr>) {
                     require(type(v.operand->type) == t, "unary type mismatch");
@@ -838,12 +847,12 @@ void validateGraph(const ProgramData& p, const core::ConcreteGraph& g) {
           return;
         }
         require(a.elements.empty(), "scalar attribute has elements");
-        if (f.type == "index" || f.type == "i64")
-          require(a.kind == K::kInteger &&
-                      validScalarLiteral(a.text, f.type == "index"
-                                                     ? TypeKind::kIndex
-                                                     : TypeKind::kI64),
-                  "invalid integer attribute");
+        if (f.type == "u64" || f.type == "i64")
+          require(
+              a.kind == K::kInteger &&
+                  validScalarLiteral(a.text, f.type == "u64" ? TypeKind::kU64
+                                                             : TypeKind::kI64),
+              "invalid integer attribute");
         else if (f.type == "bool")
           require(a.kind == K::kBool && (a.text == "true" || a.text == "false"),
                   "invalid bool attribute");
@@ -893,7 +902,7 @@ void validateGraph(const ProgramData& p, const core::ConcreteGraph& g) {
                 "invalid typed graph literal");
       else
         require(validScalarLiteral(n.text, TypeKind::kI64) ||
-                    validScalarLiteral(n.text, TypeKind::kIndex) ||
+                    validScalarLiteral(n.text, TypeKind::kU64) ||
                     validScalarLiteral(n.text, TypeKind::kF64),
                 "invalid graph literal");
     }

@@ -11,7 +11,7 @@ dialect D {
   op graph(x: tensor) -> tensor;
   op add(x: tensor, y: tensor) -> tensor;
   op config(x: tensor) -> tensor {
-    attrs { axis: index; flags: bool[] = []; note: string?; }
+    attrs { axis: u64; flags: bool[] = []; note: string?; }
   }
   op many(x: tensor...) -> tensor;
   op opaque() -> tensor { attrs { value: elements; } }

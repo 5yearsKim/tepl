@@ -205,7 +205,7 @@ std::string suggestRestrictions(const Plan& input, const Rule& rule,
           *tables.types.at(rule.descriptors.at(n.descriptor->value).type.value)
                .schema;
       return std::make_shared<TypedExpr>(
-          TypedExpr{rule.origin, type(TypeKind::kIndexList),
+          TypedExpr{rule.origin, type(TypeKind::kU64List),
                     DescriptorFieldRef{*n.descriptor, schema, f}});
     };
     // Prefer group relationships over individual axis-number restrictions.
@@ -218,10 +218,10 @@ std::string suggestRestrictions(const Plan& input, const Rule& rule,
         auto f = contract->permutation;
         auto value = fieldExpr(n, f);
         auto len = std::make_shared<TypedExpr>(
-            TypedExpr{rule.origin, type(TypeKind::kIndex),
+            TypedExpr{rule.origin, type(TypeKind::kU64),
                       BuiltinCall{builtins::Builtin::kLen, {value}}});
         auto identity = std::make_shared<TypedExpr>(
-            TypedExpr{rule.origin, type(TypeKind::kIndexList),
+            TypedExpr{rule.origin, type(TypeKind::kU64List),
                       BuiltinCall{builtins::Builtin::kRange, {len}}});
         add(source.field(n, f),
             call("range", {call("len", {source.field(n, f)})}), value,
@@ -248,7 +248,7 @@ std::string suggestRestrictions(const Plan& input, const Rule& rule,
               source.source().tensor_axes.at(child),
               source.source().tensor_groups.at(child).at(group));
           auto expr = std::make_shared<TypedExpr>(TypedExpr{
-              rule.origin, type(TypeKind::kIndexList),
+              rule.origin, type(TypeKind::kU64List),
               OutputAxisGroupRef{producer.label,
                                  producer.definition->groups[group].name}});
           add(source.field(n, batch), positions, fieldExpr(n, batch), expr);

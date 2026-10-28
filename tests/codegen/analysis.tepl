@@ -28,7 +28,7 @@ dialect Unfamiliar {
     }
     op utilities(input: tensor) -> tensor {
         dtype(t0) { yield t0; }
-        attrs { flags: bool[]; nested: bool[][]; padding: i64[][]; rank: i64; match: bool; }
+        attrs { flags: bool[]; nested: bool[][]; padding: coordinate[][]; rank: i64; match: bool; }
         shape(s) {
             let a = [1, 2, 3];
             assert len(a) == 3;
@@ -71,7 +71,7 @@ dialect Unfamiliar {
     }
     op output(input: tensor) -> tensor {
         dtype(t0) { yield t0; }
-        attrs { shape: i64[]; }
+        attrs { shape: extent[]; }
         shape(s) { yield attrs.shape; }
     }
     op overflow() -> tensor {

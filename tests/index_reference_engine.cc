@@ -718,10 +718,16 @@ struct Engine {
       attrs[id] = values;
     }
     tepl::test::ConstructorEvaluator explicit_values{metadata, plan};
-    for (const auto& [id, fields] : plan.attributes) {
+    for (const auto& [id, descriptor] : plan.descriptors) {
+      if (descriptor.isCaptured()) continue;
       std::vector<std::optional<List>> values;
-      for (const auto& field : fields)
-        values.push_back(std::get<List>(explicit_values.eval(field)));
+      for (std::size_t f = 0; f < descriptor.fields.size(); ++f) {
+        if (descriptor.isAuto(f))
+          values.emplace_back();
+        else
+          values.push_back(
+              std::get<List>(explicit_values.eval(descriptor.fields[f])));
+      }
       attrs[id] = std::move(values);
     }
     for (const auto& n : plan.nodes) {
@@ -730,7 +736,7 @@ struct Engine {
       if (!attrs.contains(id)) attrs[id].resize(n.definition->fields.size());
       if (attrs.at(id).size() != n.definition->fields.size())
         bad("descriptor field count mismatch");
-      if (!n.automatic) {
+      if (!plan.needsSynthesis(n)) {
         for (const auto& f : attrs.at(id))
           if (!f) bad("missing known descriptor field");
       }
@@ -765,8 +771,7 @@ struct Engine {
           "independent normalized equivalence check did not establish "
           "equality");
     for (const auto& n : plan.nodes)
-      if (n.automatic ||
-          (n.descriptor && plan.attributes.contains(n.descriptor->value))) {
+      if (n.descriptor && !plan.isCaptured(n)) {
         std::vector<List> fields;
         for (const auto& value : attrs.at(n.descriptor->value)) {
           if (!value) throw Failure("an auto field remains unresolved");

@@ -140,6 +140,18 @@ S simplifyMetadataSequence(Context& c, const S& e) {
       return call(
           callIs(body, ">") ? "is_positive_extents" : "is_valid_extents",
           {m->args[0]});
+    // An explicit pointwise bound in a where condition is also a bound on
+    // the whole supplied metadata sequence. This preserves empty-list truth.
+    if ((callIs(body, "<=") || callIs(body, ">=")) &&
+        equal(body->args[0], var) &&
+        body->args[1]->kind == Symbol::Kind::Integer) {
+      auto repeated =
+          call("offset_extents",
+               {call("extent_sub", {m->args[0], m->args[0]}), body->args[1]});
+      return call("extent_le", callIs(body, "<=")
+                                   ? std::vector<S>{m->args[0], repeated}
+                                   : std::vector<S>{repeated, m->args[0]});
+    }
     if (callIs(body, "==") && callIs(body->args[0], "index") &&
         equal(body->args[0]->args[1], var) &&
         body->args[1]->kind == Symbol::Kind::Integer) {

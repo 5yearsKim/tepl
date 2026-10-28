@@ -263,7 +263,7 @@ void compiledPrograms() {
 
   // Fully explicit descriptors reuse replay, rather than existential
   // feasibility.
-  p.nodes[p.rhs].automatic = false;
+  p.descriptors.at(p.nodes[p.rhs].descriptor->value) = {};
   auto explicit_code = ord::compile(p, tepl::inference::Mode::Validate);
   expect(explicit_code.program.has_value(), "compile explicit RHS validation");
   auto descriptor = p.nodes[p.rhs].descriptor->value;
@@ -435,8 +435,16 @@ void exhaustive() {
               Instance n;
               n.definition = std::move(definition);
               n.inputs = std::move(children);
-              n.automatic = automatic;
               n.descriptor = tepl::core::DescriptorId{descriptor++};
+              DescriptorAttributes attributes;
+              if (automatic) {
+                attributes.origin = DescriptorAttributes::Origin::Constructed;
+                for (std::size_t f = 0; f < n.definition->fields.size(); ++f)
+                  attributes.fields.push_back(make(Symbol::Kind::Hole,
+                                                   n.definition->fields[f],
+                                                   n.descriptor->value, f));
+              }
+              p.descriptors.emplace(n.descriptor->value, std::move(attributes));
               p.nodes.push_back(n);
               return p.nodes.size() - 1;
             };

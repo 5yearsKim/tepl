@@ -109,7 +109,7 @@ dialect TensorLang {
     op add(lhs: tensor, rhs: tensor) -> tensor;
     op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul; }
     op concatenate(first: tensor, second: tensor, rest: tensor...) -> tensor {
-        attrs { axis: index; }
+        attrs { axis: axis; }
     }
 }
 ```

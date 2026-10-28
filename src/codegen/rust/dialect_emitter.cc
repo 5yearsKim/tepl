@@ -8,7 +8,7 @@ namespace {
 std::string num(std::size_t n) { return std::to_string(n); }
 std::string attributeType(const core::AttributeField& field) {
   static const std::map<std::string, std::string> types = {
-      {"index", "u64"},
+      {"u64", "u64"},
       {"i64", "i64"},
       {"bool", "bool"},
       {"string", "::std::string::String"},

@@ -54,14 +54,14 @@ class HLOProjectTest(unittest.TestCase):
                 }}""", "unsupported coordinate primitive"),
             ("attribute_constant", """dialect HLO {
                 op fill()->tensor {
-                    attrs {value:i64; shape:index[];}
+                    attrs {value: i64; shape: extent[];}
                     dtype(){yield i64;}
                     axes {bind S=group(attrs.shape); yield S;}
                     semantics {yield Const(attrs.value);}
                 }}""", "Const requires one signed integer literal"),
             ("dynamic_const", """dialect HLO {
                 op scalar()->tensor {
-                    attrs {value:index[];}
+                    attrs {value: u64[];}
                     dtype(){yield i64;}
                     axes {bind S=group([]); yield S;}
                     semantics {yield Const(attrs.value);}

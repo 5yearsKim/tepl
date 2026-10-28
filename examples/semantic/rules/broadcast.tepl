@@ -1,14 +1,29 @@
-from "dialects/tensor.tepl" import TensorLang as t;
+from "../dialects/tensor.tepl" import TensorLang as t;
 use t::{broadcast, transpose};
 
+// Only axis mappings are inferred. This case appends the outer new axes,
+// so their extents are the concatenation of the supplied extent lists.
 rule broadcast_compose {
-    (outer: broadcast (inner: broadcast A)) => (broadcast A)
+ A:[Dims...]
+ (outer:broadcast (inner:broadcast A)) => (out:broadcast A)
+ where {inner.attrs.dimensions == range(len(Dims)) &&
+        outer.attrs.dimensions == range(len(Dims)+len(inner.attrs.new_extents))}
+ derive {
+  out.attrs={dimensions:auto,
+             new_extents:concat(inner.attrs.new_extents,outer.attrs.new_extents)};
+ }
 }
-
+// A scalar has only inserted axes: permute the explicit extents with them.
 rule transpose_broadcast {
-    (p: transpose (b: broadcast A)) => (broadcast A)
+ A:[]
+ (p:transpose (b:broadcast A)) => (out:broadcast A)
+ where {b.attrs.dimensions == []}
+ derive {
+  out.attrs={dimensions:auto,
+             new_extents:gather(b.attrs.new_extents,p.attrs.permutation)};
+ }
 }
-
 rule broadcast_transpose {
-    (b: broadcast (p: transpose A)) => (broadcast A)
+ (b:broadcast (p:transpose A)) => (out:broadcast A)
+ derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents};}
 }

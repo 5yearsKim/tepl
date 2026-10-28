@@ -47,7 +47,7 @@ A reshape operation can take its target shape from an attribute:
 ```javascript
 op reshape(input: tensor) -> tensor {
     attrs {
-        shape: index[];
+        shape: extent[];
     }
     shape(s) {
         let target = attrs.shape;

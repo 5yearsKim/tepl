@@ -246,6 +246,8 @@ class Printer {
           } else if constexpr (std::is_same_v<T, StringConstant> ||
                                std::is_same_v<T, EnumConstant>)
             out_ << std::quoted(value.value);
+          else if constexpr (std::is_same_v<T, AutoField>)
+            out_ << "auto";
           else if constexpr (std::is_same_v<T, NoneConstant>)
             out_ << "none";
           else if constexpr (std::is_same_v<T, OptionalValue>) {

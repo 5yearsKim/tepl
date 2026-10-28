@@ -204,13 +204,17 @@ struct Checker {
       result.extent_fields.insert(m.index);
       return;
     }
+    if (m.kind == Meta::Kind::List) {
+      for (const auto& a : m.args) extentFields(*a);
+      return;
+    }
     if (m.kind != Meta::Kind::Call) return;
-    if (m.name == "gather" || m.name == "scale_extents" ||
-        m.name == "offset_extents") {
+    if (m.name == "gather") {
       extentFields(*m.args[0]);
     } else if (m.name == "concat" || m.name == "extent_add" ||
                m.name == "extent_sub" || m.name == "extent_mul" ||
-               m.name == "extent_floor_div") {
+               m.name == "extent_floor_div" || m.name == "scale_extents" ||
+               m.name == "offset_extents") {
       for (const auto& arg : m.args) extentFields(*arg);
     }
   }
@@ -449,13 +453,14 @@ struct Checker {
       for (std::size_t i = 0; i < schema.fields.size(); ++i) {
         const auto& f = schema.fields[i];
         if (!f.optional) {
-          if (f.type == "index" && f.list_depth == 1)
+          if ((f.type == "u64" || f.type == "i64") && f.list_depth == 1)
             field_types[f.name] = Type::Positions;
-          if ((f.type == "index" || f.type == "i64") && f.list_depth == 0)
+          if ((f.type == "u64" || f.type == "i64") && f.list_depth == 0)
             field_types[f.name] = Type::Integer;
           if (f.type == "bool" && f.list_depth == 0)
             field_types[f.name] = Type::Boolean;
         }
+        if (f.role == AttributeRole::Axis) result.axis_fields.insert(i);
         fields[f.name] = i;
         result.fields.push_back(f.name);
       }
@@ -513,6 +518,7 @@ struct Checker {
       if (v.kind == Value::Kind::Reduce) reduced.insert(v.index);
       if (v.kind == Value::Kind::Read) reads.insert(v.index);
       if (v.kind == Value::Kind::Operand) implicit.insert(v.index);
+      for (const auto& parameter : v.parameters) extentFields(*parameter);
       for (const auto& a : v.args) self(self, *a);
     };
     scan(scan, *result.value);
@@ -542,6 +548,10 @@ struct Checker {
       if (!bound && !reads.contains(o))
         fail("operand has no logical axis binding");
     }
+    for (auto f : result.axis_fields)
+      if (result.extent_fields.contains(f))
+        fail("axis attribute '" + result.fields[f] +
+             "' cannot supply an extent, coordinate offset, or stride");
     return result;
   }
 };

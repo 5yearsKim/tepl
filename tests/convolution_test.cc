@@ -6,7 +6,7 @@
 #include <numeric>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/core/attr_synth/index_inference.h"
+#include "src/core/attr_synth/axis_selectors.h"
 #include "src/core/pipeline.h"
 #include "src/core/semantics/proof/verify.h"
 #include "src/core/semantics/symbolic/normalize.h"
@@ -82,7 +82,7 @@ void compare(const Plan& p, const std::vector<Dense>& inputs,
   Metadata concrete;
   for (const auto& input : inputs) concrete.shapes.push_back(input.shape);
   for (const auto& node : p.nodes)
-    if (node.descriptor && node.definition && !node.automatic) {
+    if (node.descriptor && node.definition && p.isCaptured(node)) {
       if (node.definition->fields == std::vector<std::string>{"permutation"})
         concrete.descriptors[node.descriptor->value] = {permutation};
       else if (!node.definition->fields.empty()) {
@@ -140,8 +140,8 @@ int main(int argc, char** argv) {
         "rule r {(c: conv A (add U V)) => (add (conv[c.attrs] A U) "
         "(conv[c.attrs] A V))}");
     auto composition = plan(
-        "rule r {(c: conv (p: transpose (add A B)) W) => (add (conv "
-        "(transpose[p.attrs] A) W) (conv (transpose[p.attrs] B) W))}");
+        "rule r {(c: conv (p: transpose (add A B)) W) => (add (conv[c.attrs] "
+        "(transpose[p.attrs] A) W) (conv[c.attrs] (transpose[p.attrs] B) W))}");
     auto nested = plan(
         "rule r {(outer: conv (inner: conv (add A B) W) V) => (add "
         "(conv[outer.attrs] (conv[inner.attrs] A W) V) (conv[outer.attrs] "
@@ -256,7 +256,7 @@ int main(int argc, char** argv) {
     auto sampling_definitions = dialect + R"(
       dialect Sampling {
         op sample(input:tensor)->tensor {
-          attrs {steps:index[];}
+          attrs {steps: u64[];}
           dtype(t){yield t;}
           axes {
             assert len(attrs.steps) == rank(input);
@@ -269,9 +269,10 @@ int main(int argc, char** argv) {
           semantics {yield Read(input,IndexScale(attrs.steps,Coords(Points)));}
         }
       })";
-    auto sampling =
-        plan("rule r {(s: sample (add A B)) => (add (sample A) (sample B))}",
-             sampling_definitions);
+    auto sampling = plan(
+        "rule r {(s: sample (add A B)) => (add (sample[s.attrs] A) "
+        "(sample[s.attrs] B))}",
+        sampling_definitions);
     proved(sampling);
     for (const auto& [id, fields] : sampling.proof.constructors)
       expect(fields.size() == 1 && fields[0]->kind == Symbol::Kind::Field &&
@@ -283,7 +284,9 @@ int main(int argc, char** argv) {
       sampled.values.push_back(summed.at({2 * at[0], 3 * at[1]}));
     });
     compare(sampling, {sa, sb}, sampled, {}, {{{2, 3}, {}}});
-    auto identity = plan("rule r {(c: conv A W) => (conv A W)}");
+    auto identity = plan(
+        "rule r {(c: conv A W) => (out: conv A W) derive "
+        "{out.attrs=c.attrs;}}");
     proved(identity);
     expect(verify(identity, identity.proof).status == ProofStatus::Proved,
            "independent verifier accepts a correct inferred convolution");
@@ -336,8 +339,10 @@ int main(int argc, char** argv) {
     renamed.replace(at, 14, "op correlation");
     at = renamed.find("alias: conv;");
     renamed.replace(at, 12, "alias: corr;");
-    proved(plan("rule r {(c: corr (add A B) W) => (add (corr A W) (corr B W))}",
-                renamed));
+    proved(
+        plan("rule r {(c: corr (add A B) W) => (add (corr[c.attrs] A W) "
+             "(corr[c.attrs] B W))}",
+             renamed));
     // A deliberately different access, with the same Product/Reduce skeleton.
     auto bad = dialect;
     const std::string spatial_access =
@@ -375,13 +380,20 @@ int main(int argc, char** argv) {
            "independent verifier rejects different calculated accesses");
     // Changing coefficients can preserve the arithmetic skeleton while
     // changing tensor accesses. Both synthesis and verification must reject it.
-    auto tampered = identity.proof;
-    auto& guessed = tampered.constructors.begin()->second;
+    auto tampered = identity;
+    auto& guessed =
+        tampered.descriptors.at(identity.nodes[identity.rhs].descriptor->value)
+            .fields;
+    if (guessed.empty())
+      for (std::size_t f = 0; f < 2; ++f)
+        guessed.push_back(
+            attributeSymbol(identity, identity.nodes[identity.lhs], f));
     std::swap(guessed[0], guessed[1]);
-    expect(verify(identity, tampered).status == ProofStatus::Unknown,
+    expect(verify(tampered, identity.proof).status == ProofStatus::Unknown,
            "independent verifier rejects tampered inferred coefficients");
-    auto inferred_distribution =
-        plan("rule r {(c: conv (add A B) W) => (add (conv A W) (conv B W))}");
+    auto inferred_distribution = plan(
+        "rule r {(c: conv (add A B) W) => (add (conv[c.attrs] A W) "
+        "(conv[c.attrs] B W))}");
     proved(inferred_distribution);
     auto changed = plan(
         "rule r {(c: conv A W) => (out: conv A W) derive "
@@ -446,52 +458,6 @@ int main(int argc, char** argv) {
         !extentBoundArithmetic(c, call("offset_extents", {rounded, integer(1)}),
                                q, QueryMode::Entailment),
         "floor upper bound cannot justify an extra access");
-    Context coefficient_context{input, 1000000};
-    coefficient_context.sourceScope(input.lhs);
-    Lowerer source_coordinates{coefficient_context};
-    source_coordinates.lower(input.lhs);
-    const auto& convolution_node = *std::find_if(
-        input.nodes.begin(), input.nodes.end(), [](const Instance& n) {
-          return n.descriptor && n.definition && !n.automatic;
-        });
-    auto stride = coefficient_context.field(convolution_node, 0);
-    auto dilation = coefficient_context.field(convolution_node, 1);
-    auto hole = make(Symbol::Kind::Hole, "unknown", 101, 0);
-    auto result = tepl::core::attr_synth::matchIndexAttributes(
-        coefficient_context, indexScale(coefficient_context, hole, h),
-        indexScale(coefficient_context, stride, h));
-    expect(
-        result && result->size() == 1 && equal(result->begin()->second, stride),
-        "direct coefficient matcher constructs a source expression");
-    auto scoped = tepl::core::attr_synth::matchIndexAttributes(
-        coefficient_context, indexScale(coefficient_context, hole, h),
-        indexScale(coefficient_context, stride, r));
-    expect(!scoped,
-           "matching refuses equally sized coordinates from different scopes");
-    bool conflicting = false, coupled = false;
-    try {
-      tepl::core::attr_synth::matchIndexAttributes(
-          coefficient_context,
-          indexAdd({indexScale(coefficient_context, hole, h),
-                    indexScale(coefficient_context, hole, r)}),
-          indexAdd({indexScale(coefficient_context, stride, h),
-                    indexScale(coefficient_context, dilation, r)}));
-    } catch (const ProofFailure& error) {
-      conflicting =
-          std::string(error.what()).find("conflicting") != std::string::npos;
-    }
-    expect(conflicting,
-           "one field cannot satisfy conflicting coefficient equations");
-    try {
-      auto other = make(Symbol::Kind::Hole, "unknown", 101, 1);
-      tepl::core::attr_synth::matchIndexAttributes(
-          coefficient_context,
-          indexScale(coefficient_context, call("extent_mul", {hole, other}), h),
-          indexScale(coefficient_context, stride, h));
-    } catch (const ProofFailure& error) {
-      coupled = std::string(error.what()).find("coupled") != std::string::npos;
-    }
-    expect(coupled, "coupled coefficient equations are explicitly unsupported");
     bool overflow = false;
     try {
       auto sum = h;

@@ -38,7 +38,7 @@ not assume new input restrictions to justify a scalar function.
 
 `compare(a, b, direction)` also takes an integer metadata parameter. The direction
 encoding is EQ=0, NE=1, GE=2, GT=3, LE=4, LT=5. For an operation with a required
-`direction: index` field, use `compare(lhs, rhs, attrs.direction)`. Function
+`direction: u64` field, use `compare(lhs, rhs, attrs.direction)`. Function
 identity and parameter equality are part of value comparison.
 
 The registry is part of the compiler. These functions are separate from metadata

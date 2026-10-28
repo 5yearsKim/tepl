@@ -12,7 +12,7 @@ dialect TensorLang {
 
     op transpose(input: tensor) -> tensor {
         attrs {
-            permutation: index[];
+            permutation: axis[];
         }
         dtype(input) { yield input; }
         shape(input) {

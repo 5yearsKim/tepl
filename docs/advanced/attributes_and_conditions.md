@@ -24,8 +24,10 @@ Reusing `[source.attrs]` on another LHS operation requires equal descriptors.
 
 ## Infer or construct replacement attributes
 
-Omitting RHS attributes requests inference from operation semantics. No `auto`
-annotation or node name is needed:
+Omitting RHS attributes requests inference only for required `axis` fields.
+Required non-axis fields must be supplied; schema defaults and optional `none`
+values are preserved. For an operation with only axis fields, omission needs
+no annotation or node name:
 
 ```tepl
 rule compose_transposes {
@@ -33,8 +35,7 @@ rule compose_transposes {
 }
 ```
 
-To specify attributes instead, name the RHS node and assign its whole descriptor
-in `derive`:
+To supply attributes, name the RHS node and construct its descriptor in `derive`:
 
 ```tepl
 rule compose_transposes_explicit {
@@ -47,9 +48,55 @@ rule compose_transposes_explicit {
 }
 ```
 
+A descriptor can mix supplied fields with explicit field-level `auto`:
+
+```tepl
+derive {
+    result.attrs = {
+        dimensions: auto,
+        new_extents: source.attrs.new_extents
+    };
+}
+```
+
+Only a non-optional `axis` or `axis[]` field may use `auto`, directly as the
+whole field value. `auto` is not an expression usable in arithmetic, lists,
+conditions, or local bindings. A spread can supply the other fields, for example
+`{ ..source.attrs, dimensions: auto }`. Supplied fields are never overwritten
+by synthesis or automatic descriptor copying. A partial descriptor cannot be
+used to supply another descriptor before its inferred fields are resolved.
+
+Operation authors declare roles in their schemas: `axis` identifies numeric
+axis positions, `extent` dimension sizes, and `coordinate` offsets/strides.
+`u64` and `i64` are general integer metadata types and are not eligible for
+`auto`. Use them for settings such as group counts or numeric codes. The old
+`index` type has been removed.
+The roles share existing integer storage (`axis`/`extent` use `u64`,
+`coordinate` uses `i64`) and are erased in executable schemas. Axis role use
+as an extent domain, offset, stride, or scalar-function parameter is rejected.
+Runtime range, positivity, uniqueness, and semantic legality checks still apply.
+
+```tepl
+attrs {
+    dimensions: axis[];
+    sizes: extent[];
+    starts: coordinate[];
+    strides: coordinate[];
+    feature_group_count: u64;
+    numeric_code: i64;
+}
+```
+
+`axis` and `extent` have the range 0 through 2^64 - 1. `coordinate` has the
+signed `i64` range. Moving a formerly unsigned offset/stride field to
+`coordinate` changes its upper bound to 2^63 - 1; explicit formulas must fit
+that destination range. Integer arithmetic does not implicitly mix signed and
+unsigned rule values. Use checked `i64(value)` or `u64(value)` conversions
+when a formula crosses these domains.
+
 `gather(p, q)` computes `[p[q[i]] for i in range(len(q))]`. A complete copy can
-also be written `result.attrs = outer.attrs;`. An explicit definition replaces
-default inference for that node; competing definitions are errors. LHS
+also be written `result.attrs = outer.attrs;`. An explicit definition selects
+the supplied fields and any `auto` fields for that node; competing definitions are errors. LHS
 attributes are read-only. Derivations can read source attributes and earlier
 derived descriptors, but cannot read themselves, later derivations, or pending
 inferred attributes.
@@ -70,7 +117,7 @@ dialect, a dot has batch group `B`, left-free `I`, right-free `J`, and reduced `
 | --- | --- | --- |
 | `node.axes.B.members` | Logical identities in group `B`, without order | `LogicalAxisSet` |
 | `node.axes.B.order` | Identities in the group's declared order | `LogicalAxis[]` |
-| `node.axes.B.positions` | Those identities' positions in the node's output | `index[]` |
+| `node.axes.B.positions` | Those identities' positions in the node's output | `u64[]` |
 | `node.axes.order` | Complete actual output order | `LogicalAxis[]` |
 | `A.axes.order` | Input capture `A`'s physical order, in logical identities | `LogicalAxis[]` |
 | `node.attrs.field` | Actual operation attribute | Declared field type |
@@ -137,6 +184,7 @@ Both inferred and explicit attributes must satisfy legality and semantic checks
 under the selected arithmetic policy. Native C++ execution supports the new
 conditions; Rust/code-generation backend migration remains deferred.
 
-Legacy `@` descriptor bindings, `->` group projections, `[auto]`, and partial
-attribute pins have been removed. Name nodes, use `.attrs` or `.axes`, and
-provide either a complete descriptor in `derive` or leave it for inference.
+Legacy `@` descriptor bindings, `->` group projections, and whole-descriptor
+`[auto]` syntax remain unsupported. Use field-level `auto` in a descriptor
+constructor or omit an eligible all-axis descriptor. Non-axis inference is
+retained only in `src/core/attr_synth/legacy/` and is not built or invoked.

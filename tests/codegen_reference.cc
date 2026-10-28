@@ -84,6 +84,8 @@ int main() {
       {B::kExclude, {ints({2, 3, 2, 4}), ints({2})}},
       {B::kSlice, {ints({2, 3, 4}), Integer(1), Integer(3)}},
       {B::kReplace, {ints({2, 3}), Integer(1), Integer(8)}},
+      {B::kToI64, {Integer(-7)}},
+      {B::kToU64, {Integer(7)}},
       {B::kSum, {ints({2, 3})}},
       {B::kProduct, {ints({2, 3})}},
       {B::kAll, {List{true, false}}},
@@ -117,6 +119,14 @@ int main() {
   }
   auto max = std::numeric_limits<Integer>::max();
   for (auto [id, a] : std::vector<std::pair<B, std::vector<Value>>>{
+           {B::kToI64, {Integer(std::numeric_limits<std::int64_t>::max())}},
+           {B::kToI64, {Integer(std::numeric_limits<std::int64_t>::max()) + 1}},
+           {B::kToI64, {Integer(std::numeric_limits<std::int64_t>::min())}},
+           {B::kToU64, {Integer(std::numeric_limits<std::uint64_t>::max())}},
+           {B::kToU64,
+            {Integer(std::numeric_limits<std::uint64_t>::max()) + 1}},
+           {B::kToU64, {Integer(-1)}},
+           {B::kToI64, {true}},
            {B::kProduct, {ints({max, 2, 0})}},
            {B::kProduct, {ints({max, 2})}},
            {B::kSum, {ints({max, 1})}},

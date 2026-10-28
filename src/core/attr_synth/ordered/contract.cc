@@ -53,16 +53,16 @@ Admission admit(const Plan& p, inference::Mode mode) {
     if (n.inputs.size() != (c->kind == Contract::Kind::Permutation ? 1u : 2u))
       return fail("ordered operation has wrong operand count");
     if (rhs && mode == inference::Mode::Synthesize) {
-      if (!n.automatic || p.attributes.contains(n.descriptor->value) ||
+      if (!p.attributes(n).allAuto() ||
           !target_descriptors.insert(n.descriptor->value).second)
         return fail(
             "ordered RHS descriptors must be independent automatic fields");
     } else if (rhs) {
-      if (n.automatic)
+      if (p.needsSynthesis(n))
         return fail(
             "mixed explicit and automatic RHS attributes are unsupported");
     } else {
-      if (n.automatic || p.attributes.contains(n.descriptor->value))
+      if (!p.isCaptured(n))
         return fail("ordered source attributes must be captured metadata");
       source_descriptors.insert(n.descriptor->value);
     }

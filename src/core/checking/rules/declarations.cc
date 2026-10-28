@@ -49,7 +49,7 @@ std::optional<DimensionId> dimension(RuleCheckContext& context,
   }
   const DimensionId id{context.rule.dimensions.size()};
   const auto type = context.analysis.types.concrete(
-      {sequence ? TypeKind::kIndexList : TypeKind::kIndex}, at);
+      {sequence ? TypeKind::kU64List : TypeKind::kU64}, at);
   context.rule.dimensions.push_back({id, name, sequence, type, at});
   context.scope.dimensions.emplace(name, id);
   return id;

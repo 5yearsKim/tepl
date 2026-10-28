@@ -71,7 +71,7 @@ ExprPtr ExpressionChecker::lower(const syntax::MetadataField& field,
     const auto& attribute = fields[i];
     if (attribute.name != field.field) continue;
     if (attribute.optional ||
-        (attribute.type != "index" && attribute.type != "i64" &&
+        (attribute.type != "u64" && attribute.type != "i64" &&
          attribute.type != "bool" && attribute.type != "dtype")) {
       context_.report(origin, "attribute '" + field.field +
                                   "' is optional or opaque to " +
@@ -124,6 +124,8 @@ ExprPtr ExpressionChecker::lower(const syntax::MetadataCall& call,
             "axis values are unavailable in operation metadata");
       case builtins::SignatureType::kDType:
         return concrete(Type::Kind::kDType, origin);
+      case builtins::SignatureType::kAnyInteger:
+      case builtins::SignatureType::kSignedInteger:
       case builtins::SignatureType::kInteger:
         return concrete(Type::Kind::kInteger, origin);
       case builtins::SignatureType::kBoolean:

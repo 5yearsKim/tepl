@@ -106,7 +106,11 @@ The format is declared in
 Compile [`simple.tepl`](../../examples/rewrite/simple.tepl) to inspect a small
 program's JSON output locally.
 
-The envelope contains `format: "tepl.rewrite"`, `version: 2`, an arithmetic
+Version 3 uses `u64` for unsigned integer metadata and removes the old `index`
+type spelling. Recompile older source programs after migrating their attribute
+roles; version 2 executable artifacts must be recompiled as well.
+
+The envelope contains `format: "tepl.rewrite"`, `version: 3`, an arithmetic
 `policy`, required `capabilities`, the `program` tables, and rule-scoped
 `axis_definitions`. Rules contain explicit match and replacement trees,
 constraints, typed conditions, and descriptor derivations. Expression variants

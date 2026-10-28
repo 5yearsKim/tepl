@@ -7,13 +7,12 @@ cc_library(
     srcs = [
         "synthesize.cc",
         "construct.cc", "construct.h",
-        "index_inference.cc",
-        "scalar_parameters.cc", "scalar_parameters.h",
+        "axis_selectors.cc",
         "ordered/contract.cc",
         "ordered/construct.cc", "ordered/construct.h",
         "ordered/requirements.cc", "ordered/requirements.h",
     ],
-    hdrs = ["synthesize.h", "index_inference.h", "ordered/contract.h"],
+    hdrs = ["synthesize.h", "axis_selectors.h", "ordered/contract.h"],
     deps = [
         "//src/core/semantics:model",
         "//src/core/semantics:reasoning",

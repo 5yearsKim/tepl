@@ -150,6 +150,9 @@ void Context::learn(const S& fact) {
   invalidate();
   facts_.pending.insert(facts_.raw.size());
   facts_.raw.push_back(fact);
+  // Retain a normalized pointwise bound as a premise for polynomial bounds.
+  // extentBounds() intentionally reads raw established inequalities only.
+  if (callIs(f, "extent_le") && !callIs(fact, "extent_le")) learn(f);
   if (callIs(f, "axis_partition")) {
     learn(call("is_valid_axis_list", f->args));
     learn(call("==", {call("len", {f->args[0]}), f->args[1]}));

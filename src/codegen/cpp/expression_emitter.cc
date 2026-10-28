@@ -65,9 +65,8 @@ std::string emitExpression(const core::Program& program, const Names& names,
                  names.field(value.schema, value.field) + "; }())";
         else if constexpr (std::is_same_v<T, core::DimensionRef>)
           return runtime + "::require(dimensions." +
-                 (result_type.kind == core::TypeKind::kIndexList
-                      ? "sequence("
-                      : "dimension(") +
+                 (result_type.kind == core::TypeKind::kU64List ? "sequence("
+                                                               : "dimension(") +
                  std::to_string(value.dimension.value) + "))";
         else if constexpr (std::is_same_v<T, core::DescriptorRef>)
           return runtime + "::require(ctx.attrs(" +

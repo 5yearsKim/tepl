@@ -53,7 +53,7 @@ struct MemoryLoader : SourceLoader {
 const std::string dialect = R"(
 dialect D {
  op transpose(x:tensor)->tensor {
-   attrs { permutation:index[]; }
+   attrs { permutation:axis[]; }
    dtype(t) { yield t; }
    axes {
      bind S { x:all_axes(x) };
@@ -98,7 +98,7 @@ int main() {
   auto typed = checking::check(*resolved.program);
   assert(typed.ok());
   const auto& typed_rule = typed.program->ir().rules[0];
-  assert(typed_rule.attribute_holes.size() == 1);
+  assert(typed_rule.requiresSynthesis());
   resolved.program.reset();
   loaded.program.reset();
   parsed.program.reset();
@@ -106,7 +106,7 @@ int main() {
   assert(verified.ok());
   assert(verified.program->verification(RuleId{0}) ==
          semantics::VerificationKind::Semantic);
-  assert(typed_rule.attribute_holes.size() == 1);
+  assert(typed_rule.requiresSynthesis());
 
   assert(verified.program->ir().rules[0].derivations.size() == 1);
   auto executable = lowering::lower(*verified.program);

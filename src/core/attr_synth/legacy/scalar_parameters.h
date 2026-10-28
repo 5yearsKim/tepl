@@ -1,3 +1,6 @@
+// Legacy non-axis attribute inference, retained for reference.
+// Not built or invoked by production axis auto synthesis; no general
+// completeness guarantee.
 #pragma once
 
 #include "src/core/semantics/symbolic/normalize.h"

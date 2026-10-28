@@ -131,7 +131,7 @@ class MetadataEvaluator {
 std::vector<std::uint64_t> dimensions(const Value& v) {
   std::vector<std::uint64_t> xs;
   for (const auto& x : list(v)) {
-    checkType(x, {core::TypeKind::kIndex});
+    checkType(x, {core::TypeKind::kU64});
     xs.push_back(static_cast<std::uint64_t>(integer(x)));
   }
   return xs;
@@ -193,7 +193,7 @@ Value axisShape(const core::axis::ShapeContract& def,
     ensure(extents.has_value(), "axis group has no domain");
     List axes;
     for (std::size_t i = 0; i < extents->size(); ++i) {
-      checkType((*extents)[i], {core::TypeKind::kIndex});
+      checkType((*extents)[i], {core::TypeKind::kU64});
       axes.emplace_back(Axis{0, g, i, integer((*extents)[i])});
     }
     groups.emplace_back(axes);

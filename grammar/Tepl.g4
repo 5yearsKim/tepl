@@ -426,6 +426,7 @@ postfix
 primary
     : ID '(' arguments? ')' # CallPrimary
     | ID '.' (ATTRS | ID) ('.' ID)*            # NodePropertyPrimary
+    | AUTO                                   # AutoPrimary
     | ID                                     # NamePrimary
     | INT                                    # IntegerPrimary
     | FLOAT                                  # FloatPrimary
@@ -470,6 +471,7 @@ ATTRS: 'attrs';
 ALIAS: 'alias';
 WHERE: 'where';
 DERIVE: 'derive';
+AUTO: 'auto';
 GET: 'get';
 TRUE: 'true';
 FALSE: 'false';

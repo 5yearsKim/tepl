@@ -27,7 +27,6 @@ struct Instance {
   std::optional<DescriptorId> descriptor;
   std::shared_ptr<const Definition> definition;
   std::vector<std::size_t> inputs;
-  bool automatic = false;
   SourceOrigin origin;
   std::shared_ptr<const metadata::Program> dtype;
   std::optional<std::string> literal;
@@ -60,6 +59,20 @@ struct RuleProof : ConstructorCandidate {
   std::map<std::size_t, SymbolPtr> accesses;
   SymbolPtr lhs_axes, rhs_axes;
 };
+// Captured descriptors read runtime source metadata. Constructed descriptors
+// have every field in schema order; a direct Hole marks a field for synthesis.
+// Defaults have already been expanded by checking and are ordinary supplied
+// fields.
+struct DescriptorAttributes {
+  enum class Origin { Captured, Constructed } origin = Origin::Captured;
+  std::vector<SymbolPtr> fields;
+  bool isCaptured() const { return origin == Origin::Captured; }
+  bool isAuto(std::size_t field) const {
+    return !isCaptured() && fields.at(field)->kind == Symbol::Kind::Hole;
+  }
+  bool needsSynthesis() const;
+  bool allAuto() const;
+};
 struct Plan {
   std::vector<Instance> nodes;
   std::string suggested_rule;
@@ -68,8 +81,17 @@ struct Plan {
   RuleProof proof;
   std::map<std::size_t, std::string> descriptor_names;
   std::vector<SymbolPtr> assumptions;
-  // Explicit derived descriptors, lowered entirely to LHS metadata.
-  std::map<std::size_t, std::vector<SymbolPtr>> attributes;
+  // One canonical record per descriptor, including supplied and auto fields.
+  std::map<std::size_t, DescriptorAttributes> descriptors;
+  const DescriptorAttributes& attributes(const Instance& node) const {
+    return descriptors.at(node.descriptor.value().value);
+  }
+  bool needsSynthesis(const Instance& node) const {
+    return node.descriptor && attributes(node).needsSynthesis();
+  }
+  bool isCaptured(const Instance& node) const {
+    return node.descriptor && attributes(node).isCaptured();
+  }
   // Original programs survive normalization so invalid indexing or checked
   // arithmetic cannot disappear from a derived descriptor's legality checks.
   std::vector<SymbolPtr> derived_metadata;

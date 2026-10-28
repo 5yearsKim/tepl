@@ -7,5 +7,5 @@ rule catalog_indexing_pad_empty {
     X: [Dims...] C: []
      (attr_p: hlo.nonnegative_pad X C) => (attr_b: hlo.broadcast C)
      where { product(Dims)==0 }
-     derive { attr_b.attrs={dimensions:[],new_extents:[Dims[i]+max(Dims[i]-1,0)*attr_p.attrs.interior[i]+attr_p.attrs.low[i]+attr_p.attrs.high[i] for i in range(len(Dims))]}; }
+     derive { attr_b.attrs={dimensions:[],new_extents:[Dims[i]+max(Dims[i]-1,0)*u64(attr_p.attrs.interior[i])+u64(attr_p.attrs.low[i])+u64(attr_p.attrs.high[i]) for i in range(len(Dims))]}; }
 }

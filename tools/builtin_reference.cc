@@ -17,12 +17,16 @@ std::string typeName(SignatureType type, bool rule, bool pair) {
   switch (type) {
     case T::kDType:
       return rule ? "dtype" : "DType";
+    case T::kAnyInteger:
+      return rule ? "I" : "Integer";
+    case T::kSignedInteger:
+      return rule ? "i64" : "Integer";
     case T::kInteger:
-      return rule ? (pair ? "I" : "index") : "Integer";
+      return rule ? (pair ? "I" : "u64") : "Integer";
     case T::kBoolean:
       return rule ? "bool" : "Bool";
     case T::kIntegerList:
-      return rule ? "index[]" : "Integer[]";
+      return rule ? "u64[]" : "Integer[]";
     case T::kBooleanList:
       return rule ? "bool[]" : "Bool[]";
     case T::kAxisSet:

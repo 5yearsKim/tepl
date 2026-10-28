@@ -5,7 +5,6 @@
 
 #include "src/core/attr_synth/construct.h"
 #include "src/core/attr_synth/ordered/construct.h"
-#include "src/core/attr_synth/scalar_parameters.h"
 
 namespace tepl::core::attr_synth {
 using namespace semantics;
@@ -25,8 +24,6 @@ Result run(const Plan& plan, std::size_t max_work,
     for (const auto& [value, type] : plan.constructed_metadata)
       c.checkMetadataType(value, type);
     auto lt = normalize(c, lhs.value);
-    phase = "scalar parameter construction";
-    inferScalarParameters(c, lt);
     phase = "coordinate correspondence";
     auto rt = normalize(c, arithmeticSkeleton(c, plan.rhs));
     auto match = correspond(c, lhs, lt, rt);
@@ -45,18 +42,19 @@ Result run(const Plan& plan, std::size_t max_work,
     else
       construct(c, target, match, lhs, reductions, lt);
     for (const auto& n : plan.nodes)
-      if (n.automatic) {
+      if (plan.needsSynthesis(n)) {
         auto& fields = candidate.constructors[n.descriptor->value];
         for (std::size_t f = 0; f < n.definition->fields.size(); ++f) {
-          auto value = c.canonical(c.field(n, f));
+          auto value = plan.attributes(n).isAuto(f)
+                           ? c.canonical(c.field(n, f))
+                           : plan.attributes(n).fields.at(f);
           c.checkConstructor(n, f, value);
           fields.push_back(value);
         }
       }
     candidate.guard = c.guards();
     result.constructed = true;
-    for (const auto* law :
-         {"index-coefficient-matching", "scalar-parameter-correspondence"}) {
+    for (const auto* law : {"axis-selector-matching"}) {
       const auto step = std::string("law: ") + law;
       if (std::find(c.steps().begin(), c.steps().end(), step) !=
           c.steps().end())
@@ -88,10 +86,12 @@ Result identity(const Plan& plan, std::size_t max_work,
     auto& candidate = result.candidate;
     result.constructed =
         matchOperationTree(c, [&](const Instance& left, const Instance& right) {
-          if (right.automatic) {
+          if (plan.needsSynthesis(right)) {
             std::vector<S> fields;
             for (std::size_t f = 0; f < right.definition->fields.size(); ++f)
-              fields.push_back(c.field(left, f));
+              fields.push_back(plan.attributes(right).isAuto(f)
+                                   ? c.field(left, f)
+                                   : plan.attributes(right).fields.at(f));
             auto [found, added] =
                 candidate.constructors.emplace(right.descriptor->value, fields);
             if (!added) {

@@ -40,6 +40,18 @@ void arithmetic() {
   auto overflow = call("+", {maximum, integer(1)});
   expect(callIs(overflow, "+"), "overflow must not constant fold");
   expect(!c.integerInterval(overflow), "overflow has no established interval");
+  auto too_large = make(Symbol::Kind::Integer, "9223372036854775808");
+  auto conversion = make(Symbol::Kind::Call, "i64", 0, 0, {too_large});
+  auto cancelled =
+      make(Symbol::Kind::Call, "-", 0, 0, {conversion, conversion});
+  bool rejected = false;
+  try {
+    c.checkMetadata(cancelled);
+  } catch (const ProofFailure&) {
+    rejected = true;
+  }
+  expect(rejected,
+         "cancellation cannot hide an overflowing integer conversion");
   expect(!c.integerInterval(call("index", {list({2, 3}), integer(2)})),
          "invalid index has no value");
 }
@@ -113,7 +125,7 @@ void bounds() {
   c.checkMetadata(safe);
   bool failed = false;
   try {
-    c.checkMetadataType(safe, tepl::core::Type{tepl::core::TypeKind::kIndex});
+    c.checkMetadataType(safe, tepl::core::Type{tepl::core::TypeKind::kU64});
   } catch (const ProofFailure&) {
     failed = true;
   }
@@ -229,6 +241,19 @@ void sequences() {
   auto all = c.canonical(
       call("all", {call("sequence_map", {a, v, call(">=", {v, integer(0)})})}));
   expect(c.entails(all), "general all over nonnegative shape elements");
+  auto bound = call(
+      "all", {call("sequence_map", {a, v, call("<=", {v, integer(100)})})});
+  c.learn(bound);
+  auto hundred =
+      call("offset_extents", {call("extent_sub", {a, a}), integer(100)});
+  expect(c.entails(call("extent_le", {a, hundred})),
+         "explicit pointwise upper bounds apply to whole sequences");
+  expect(!c.entails(call("extent_le", {hundred, a})),
+         "an upper bound does not imply its converse");
+  expect(truth(c.canonical(call(
+             "all", {call("sequence_map",
+                          {list({}), v, call("<=", {v, integer(100)})})}))),
+         "a pointwise bound on an empty sequence is true");
   expect(
       equalExtentArithmetic(
           c, call("extent_mul", {a, call("sequence_map", {a, v, integer(1)})}),
@@ -616,7 +641,7 @@ void reflections() {
 }
 void pipeline() {
   const std::string dialect =
-      "dialect Q {op reorder(x:tensor)->tensor {attrs {p:index[];} "
+      "dialect Q {op reorder(x:tensor)->tensor {attrs {p: u64[];} "
       "dtype(t){yield t;} axes {bind S{x:all_axes(x)};assert "
       "is_valid_axis_list(attrs.p,rank(x));assert len(attrs.p)==rank(x);yield "
       "permute(S,attrs.p);} semantics {yield x;}}}";

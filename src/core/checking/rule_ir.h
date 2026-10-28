@@ -65,6 +65,8 @@ struct DescriptorConstruct {
   // All fields in schema order; spreads/defaults have been expanded.
   std::vector<TypedExprPtr> fields;
 };
+// A field-level synthesis request; never an executable expression.
+struct AutoField {};
 // Executable metadata expression produced by compile-time axis synthesis.
 struct SymbolicExpr {
   symbolic::SymbolPtr value;
@@ -77,7 +79,7 @@ struct TypedExpr {
                NumericConstant, bool, BuiltinCall, UnaryExpr, BinaryExpr,
                LocalRef, LocalLet, ListExpr, IndexExpr, ConditionalExpr,
                ComprehensionExpr, StringConstant, EnumConstant, NoneConstant,
-               OptionalValue, DescriptorConstruct, SymbolicExpr>
+               OptionalValue, DescriptorConstruct, AutoField, SymbolicExpr>
       value;
 };
 

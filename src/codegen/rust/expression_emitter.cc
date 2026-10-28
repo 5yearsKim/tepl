@@ -55,9 +55,9 @@ std::string scalarType(const core::Type& t) {
   switch (t.kind) {
     case K::kTensor:
       return "Tensor";
-    case K::kIndex:
-    case K::kIndexList:
-      return "Index";
+    case K::kU64:
+    case K::kU64List:
+      return "U64";
     case K::kI64:
       return "I64";
     case K::kF64:
@@ -157,7 +157,7 @@ std::string Expressions::rule(const core::completed::TypedExpr& e) const {
           static_assert(!sizeof(T), "unhandled executable expression");
       },
       e.value);
-  auto depth = type.list_depth + (type.kind == TypeKind::kIndexList ? 1 : 0);
+  auto depth = type.list_depth + (type.kind == TypeKind::kU64List ? 1 : 0);
   return tick("let value = " + result +
               "; rt::values::checked(value, rt::values::ScalarType::" +
               scalarType(type) + ", " + num(depth) + ", " +

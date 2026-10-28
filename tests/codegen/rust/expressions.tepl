@@ -1,6 +1,6 @@
 dialect D {
   attrs Shared {
-    permutation: index[];
+    permutation: axis[];
     note: string?;
     enabled: bool;
     precision: precision;

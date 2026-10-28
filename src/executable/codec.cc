@@ -136,9 +136,9 @@ ExecutableProgram load(std::string_view text) {
 std::string serialize(const ExecutableProgram& p) {
   validate(p);
   Json j = {{"format", "tepl.rewrite"},
-            {"version", 2},
+            {"version", 3},
             {"policy", p.policy_},
-            {"capabilities", {"tepl.core.v2", "tepl.axis-metadata.v2"}},
+            {"capabilities", {"tepl.core.v3", "tepl.axis-metadata.v2"}},
             {"program", detail::pack(p.ir_)},
             {"axis_definitions", detail::pack(p.axes_)}};
   for (const auto& r : p.ir_.rules)

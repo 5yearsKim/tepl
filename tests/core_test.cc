@@ -22,13 +22,13 @@ using namespace tepl::core;
 
 constexpr std::string_view kDialect = R"(
 dialect Tensor {
-  attrs DotAttrs { axes: index[] = []; }
+  attrs DotAttrs { axes: u64[] = []; }
   op add(lhs: tensor, rhs: tensor) -> tensor;
   op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul; }
   op negate(input: tensor) -> tensor;
   op concat(first: tensor, rest: tensor...) -> tensor;
   op dot(lhs: tensor, rhs: tensor) -> tensor { attrs: DotAttrs; }
-  op reshape(input: tensor) -> tensor { attrs { shape: index[]; } }
+  op reshape(input: tensor) -> tensor { attrs { shape: extent[]; } }
 }
 )";
 
@@ -152,7 +152,7 @@ rule unrestricted { X => X }
   assert(program.rules[5].constraints.empty());
   const auto dump = formatProgram(program);
   assert(dump.find("commute_small") != std::string::npos);
-  assert(dump.find("dimension #0 N: Index") != std::string::npos);
+  assert(dump.find("dimension #0 N: U64") != std::string::npos);
   assert(dump.find("Tensor.multiply") != std::string::npos);
 
   const auto literals =
@@ -211,7 +211,7 @@ rule r {
          rule.derivations[1].target);
   assert(program.attribute_schemas[0].fields[0].empty_default);
   assert(program.types[rule.dimensions[0].type.value].kind ==
-         TypeKind::kIndexList);
+         TypeKind::kU64List);
   // Every explicit node supplies its schema; values still follow declaration
   // order.
   assert(analyzeText(
@@ -255,8 +255,8 @@ rule r {
 void constructorFieldTypes() {
   const auto result = analyzeText(R"(
 dialect D {
-  attrs A { name: string; padding: i64[][]; flags: bool[]; dtype: dtype;
-            precision: precision[]; axis: index?; dims: index[] = []; region: region?; extra: index[]? = []; }
+  attrs A { name: string; padding: coordinate[][]; flags: bool[]; dtype: dtype;
+            precision: precision[]; axis: u64?; dims: u64[] = []; region: region?; extra: coordinate[]? = []; }
   op copy(x: tensor) -> tensor { attrs: A; }
 }
 rule r {
@@ -292,7 +292,7 @@ rule r {
       "}",
       "type mismatch");
   expectError(
-      "dialect D { op copy(x:tensor)->tensor { attrs { axes:index[]?; } } } "
+      "dialect D { op copy(x:tensor)->tensor { attrs { axes: u64[]?; } } } "
       "rule r { (a: copy X) => X where { a.attrs.axes[0] == 0 } }",
       "expected a list", false);
 }
@@ -346,7 +346,7 @@ rule r {
   expectError("rule r { X => X where { 1[0] == 0 } }", "expected a list");
   expectError("rule r { X => X where { [1][true] == 0 } }", "type mismatch");
   expectError("rule r { X => X where { 18446744073709551616 > 0 } }",
-              "invalid for Index");
+              "invalid for U64");
   expectError("rule r { X => X where { -9223372036854775809 < 0 } }",
               "invalid for I64");
 }
@@ -542,7 +542,7 @@ void invalidRules() {
   expectError("rule r { X: [N] X => X where { N + 1.0 > 0.0 } }",
               "type mismatch");
   expectError("rule r { X: [N] X => X where { -N > -1 } }",
-              "operator does not support Index");
+              "operator does not support U64");
   expectError("dialect D { op bad(x: unknown) -> tensor; }",
               "unsupported operation operand", false);
   expectError("dialect D { op bad() -> unknown; }",
@@ -553,8 +553,8 @@ void invalidRules() {
               "unknown attribute schema", false);
   expectError("dialect D { attrs A { x: unknown; } }", "unknown attribute type",
               false);
-  expectError("dialect D { attrs A { x: index = []; } }",
-              "requires a list type", false);
+  expectError("dialect D { attrs A { x: u64 = []; } }", "requires a list type",
+              false);
 }
 
 void imports() {

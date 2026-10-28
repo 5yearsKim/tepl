@@ -37,25 +37,25 @@ Type logicalAxisType() {
 }
 
 Type listType(Type element) {
-  if (element.kind == TypeKind::kIndexList) {
-    element.kind = TypeKind::kIndex;
+  if (element.kind == TypeKind::kU64List) {
+    element.kind = TypeKind::kU64;
     ++element.list_depth;
   }
   ++element.list_depth;
-  if (element.kind == TypeKind::kIndex && element.list_depth == 1 &&
+  if (element.kind == TypeKind::kU64 && element.list_depth == 1 &&
       !element.optional) {
-    element.kind = TypeKind::kIndexList;
+    element.kind = TypeKind::kU64List;
     element.list_depth = 0;
   }
   return element;
 }
 std::optional<Type> elementType(Type list) {
   if (list.optional) return {};
-  if (list.kind == TypeKind::kIndexList) return Type{TypeKind::kIndex};
+  if (list.kind == TypeKind::kU64List) return Type{TypeKind::kU64};
   if (!list.list_depth) return {};
   --list.list_depth;
-  if (list.kind == TypeKind::kIndex && list.list_depth == 1) {
-    list.kind = TypeKind::kIndexList;
+  if (list.kind == TypeKind::kU64 && list.list_depth == 1) {
+    list.kind = TypeKind::kU64List;
     list.list_depth = 0;
   }
   return list;
@@ -78,10 +78,10 @@ std::string typeName(const Type& type) {
       return type.opaque_name;
     case TypeKind::kTensor:
       return "Tensor";
-    case TypeKind::kIndex:
-      return "Index";
-    case TypeKind::kIndexList:
-      return "IndexList";
+    case TypeKind::kU64:
+      return "U64";
+    case TypeKind::kU64List:
+      return "U64[]";
     case TypeKind::kBool:
       return "Bool";
     case TypeKind::kI64:
@@ -101,7 +101,7 @@ std::string typeName(const Type& type) {
 std::optional<Type> resolveType(std::string_view name) {
   static constexpr std::pair<std::string_view, TypeKind> names[] = {
       {"dtype", TypeKind::kDType},   {"tensor", TypeKind::kTensor},
-      {"index", TypeKind::kIndex},   {"index_list", TypeKind::kIndexList},
+      {"u64", TypeKind::kU64},       {"u64_list", TypeKind::kU64List},
       {"string", TypeKind::kString}, {"precision", TypeKind::kPrecision},
       {"bool", TypeKind::kBool},     {"i64", TypeKind::kI64},
       {"f64", TypeKind::kF64},       {"attrs", TypeKind::kDescriptor},
@@ -112,7 +112,7 @@ std::optional<Type> resolveType(std::string_view name) {
 }
 
 bool isInteger(TypeKind kind) {
-  return kind == TypeKind::kIndex || kind == TypeKind::kI64;
+  return kind == TypeKind::kU64 || kind == TypeKind::kI64;
 }
 
 bool isNumeric(TypeKind kind) {

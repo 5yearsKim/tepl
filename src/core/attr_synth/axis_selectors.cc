@@ -1,4 +1,4 @@
-#include "src/core/attr_synth/index_inference.h"
+#include "src/core/attr_synth/axis_selectors.h"
 
 namespace tepl::core::attr_synth {
 using namespace semantics;
@@ -86,35 +86,15 @@ S coefficientValue(Context& c, const Coefficient& value) {
         {weights, make(Symbol::Kind::Integer, std::to_string(value.scalar))});
   return c.canonical(weights);
 }
+// Known coordinate parameters are checked, never synthesized here.
 bool bindMetadata(Context& c, const S& pattern, const S& source,
-                  IndexAssignments& assignments) {
-  c.tick();
-  auto left = c.canonical(pattern), right = c.canonical(source);
-  if (left->kind == Symbol::Kind::Hole) {
-    if (containsHole(right))
-      throw ProofFailure("constructor depends on unresolved RHS metadata");
-    c.validateSource(right);
-    auto id = std::pair(left->owner, left->index);
-    auto [old, inserted] = assignments.emplace(id, right);
-    if (!inserted && !equalExtentArithmetic(c, old->second, right))
-      throw ProofFailure(
-          "conflicting calculated-read coefficient or offset equations",
-          FailureKind::InvalidCandidate);
-    return true;
-  }
-  // Identical selections admit the sufficient constructor of copying the
-  // source vector. Partial selections need not determine every possible value.
-  if (callIs(left, "gather") && callIs(right, "gather") &&
-      c.entails(call("==", {left->args[1], right->args[1]})))
-    return bindMetadata(c, left->args[0], right->args[0], assignments);
-  if (containsHole(left))
-    throw ProofFailure(
-        "calculated-read equation is outside direct matching (requires inverse "
-        "or coupled solving)");
-  return equalExtentArithmetic(c, left, right);
+                  AxisAssignments&) {
+  if (containsHole(pattern) || containsHole(source))
+    throw ProofFailure("coordinate parameters must be supplied explicitly");
+  return equalExtentArithmetic(c, pattern, source);
 }
 bool bindReverseSelector(Context& c, const S& pattern, const S& source,
-                         IndexAssignments& assignments) {
+                         AxisAssignments& assignments) {
   c.tick();
   auto left = c.canonical(pattern), right = c.canonical(source);
   if (left->kind == Symbol::Kind::Hole) {
@@ -135,7 +115,7 @@ bool bindReverseSelector(Context& c, const S& pattern, const S& source,
   return c.entails(call("==", {left, right}));
 }
 bool match(Context& c, const I& pattern, const I& source,
-           IndexAssignments& assignments) {
+           AxisAssignments& assignments) {
   c.tick();
   if (!sameBasis(c, pattern, source)) return false;
   auto a = peel(c, pattern), b = peel(c, source);
@@ -189,10 +169,9 @@ bool match(Context& c, const I& pattern, const I& source,
   return true;
 }
 }  // namespace
-std::optional<IndexAssignments> matchIndexAttributes(Context& c,
-                                                     const I& pattern,
-                                                     const I& source) {
-  IndexAssignments out;
+std::optional<AxisAssignments> matchAxisSelectors(Context& c, const I& pattern,
+                                                  const I& source) {
+  AxisAssignments out;
   if (!match(c, pattern, source, out)) return std::nullopt;
   return out;
 }

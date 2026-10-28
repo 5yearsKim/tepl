@@ -134,10 +134,10 @@ dialect TensorLang {
         }
         attrs {
             // Flattened fields of StableHLO dot_dimension_numbers.
-            lhs_contracting_dimensions: index[];
-            rhs_contracting_dimensions: index[];
-            lhs_batching_dimensions: index[];
-            rhs_batching_dimensions: index[];
+            lhs_contracting_dimensions: axis[];
+            rhs_contracting_dimensions: axis[];
+            lhs_batching_dimensions: axis[];
+            rhs_batching_dimensions: axis[];
         }
         axes {
             let lb = attrs.lhs_batching_dimensions;
@@ -176,8 +176,8 @@ dialect TensorLang {
     op convolution(input: tensor, kernel: tensor) -> tensor {
         alias: conv;
         attrs {
-            strides: index[];
-            dilations: index[];
+            strides: coordinate[];
+            dilations: coordinate[];
         }
         dtype(a, b) {
             assert a == b;
@@ -221,9 +221,9 @@ dialect TensorLang {
     // Select positive-size windows. sizes counts output elements, not limits.
     op slice(input: tensor) -> tensor {
         attrs {
-            starts: index[];
-            sizes: index[];
-            strides: index[];
+            starts: coordinate[];
+            sizes: extent[];
+            strides: coordinate[];
         }
         dtype(t) { yield t; }
         axes {
@@ -251,8 +251,8 @@ dialect TensorLang {
     op broadcast_in_dim(input: tensor) -> tensor {
         alias: broadcast;
         attrs {
-            dimensions: index[];
-            new_extents: index[];
+            dimensions: axis[];
+            new_extents: extent[];
         }
         dtype(t) { yield t; }
         axes {
@@ -265,7 +265,7 @@ dialect TensorLang {
 
     op transpose(input: tensor) -> tensor {
         attrs {
-            permutation: index[];
+            permutation: axis[];
         }
         dtype(t) {
             yield t;
@@ -285,7 +285,7 @@ dialect TensorLang {
 
     // Reverse selected axes without changing their order or extents.
     op reverse(input: tensor) -> tensor {
-        attrs { dimensions: index[]; }
+        attrs { dimensions: axis[]; }
         dtype(t) { yield t; }
         axes {
             bind S { input: all_axes(input) };
@@ -301,7 +301,7 @@ dialect TensorLang {
     // gives identity; selecting all dimensions gives a scalar, with output [].
     op reduce_sum(input: tensor) -> tensor {
         attrs {
-            dimensions: index[];
+            dimensions: axis[];
         }
         dtype(t) {
             assert is_numeric(t);

@@ -11,7 +11,7 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
   try {
     c.sourceScope(plan.lhs);
     for (const auto& n : plan.nodes)
-      if (n.automatic) {
+      if (plan.needsSynthesis(n)) {
         auto found = candidate.constructors.find(n.descriptor->value);
         if (found == candidate.constructors.end() ||
             found->second.size() != n.definition->fields.size())
@@ -37,7 +37,7 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
       c.require(g);  // An obligation, never an additional premise.
     }
     for (const auto& n : plan.nodes)
-      if (n.automatic) {
+      if (plan.needsSynthesis(n)) {
         const auto& fields = candidate.constructors.at(n.descriptor->value);
         for (std::size_t f = 0; f < fields.size(); ++f)
           c.require(call("==", {c.field(n, f), fields[f]}));

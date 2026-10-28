@@ -323,6 +323,10 @@ std::any AstBuilder::visitCallPrimary(Parser::CallPrimaryContext* context) {
   return makeConstraint(context, std::move(call));
 }
 
+std::any AstBuilder::visitAutoPrimary(Parser::AutoPrimaryContext* context) {
+  return makeConstraint(context, syntax::NameRef{"auto"});
+}
+
 std::any AstBuilder::visitNamePrimary(Parser::NamePrimaryContext* context) {
   return makeConstraint(context, syntax::NameRef{context->ID()->getText()});
 }

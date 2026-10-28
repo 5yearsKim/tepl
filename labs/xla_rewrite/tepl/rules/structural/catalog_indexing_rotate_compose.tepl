@@ -9,6 +9,6 @@ rule catalog_indexing_rotate_compose {
      where { all([Dims[d]>0 for d in concat(attr_p.attrs.dimensions,attr_q.attrs.dimensions)]) }
      derive {
       let axes=exclude(range(len(Dims)),exclude(range(len(Dims)),concat(attr_p.attrs.dimensions,attr_q.attrs.dimensions)));
-      attr_out.attrs={dimensions:axes,shifts:[(sum([if attr_p.attrs.dimensions[i]==d then attr_p.attrs.shifts[i] else 0 for i in range(len(attr_p.attrs.dimensions))])+sum([if attr_q.attrs.dimensions[i]==d then attr_q.attrs.shifts[i] else 0 for i in range(len(attr_q.attrs.dimensions))])) % Dims[d] for d in axes]};
+      attr_out.attrs={dimensions:axes,shifts:[i64((sum([if attr_p.attrs.dimensions[i]==d then u64(attr_p.attrs.shifts[i]) else 0 for i in range(len(attr_p.attrs.dimensions))])+sum([if attr_q.attrs.dimensions[i]==d then u64(attr_q.attrs.shifts[i]) else 0 for i in range(len(attr_q.attrs.dimensions))])) % Dims[d]) for d in axes]};
      }
 }

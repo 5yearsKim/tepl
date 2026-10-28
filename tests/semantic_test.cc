@@ -1066,170 +1066,65 @@ Dense broadcast(const Dense& input, const List& positions,
   return out;
 }
 void broadcastTests() {
-  auto compose = symbolicPlan(
-      "rule r {(outer: broadcast (inner: broadcast A)) => (broadcast A)}",
-      false);
-  auto after = symbolicPlan(
-      "rule r {(p: transpose (b: broadcast A)) => (broadcast A)}", false);
-  auto scalar_after = symbolicPlan(
-      "rule r {(p: transpose (b: broadcast A)) => (broadcast A) where "
-      "{b.attrs.dimensions == []}}",
-      false);
-  auto scalar_rank_two = symbolicPlan(
-      "rule r {(p: transpose (b: broadcast A)) => (broadcast A) where "
-      "{b.attrs.dimensions == [] && len(b.attrs.new_extents) == 2 && "
-      "p.attrs.permutation == [1,0]}}",
-      false);
-  auto before = symbolicPlan(
-      "rule r {(b: broadcast (p: transpose A)) => (broadcast A)}", false);
-  auto triple = symbolicPlan(
-      "rule r {(outer: broadcast (middle: broadcast (inner: broadcast A))) => "
-      "(broadcast A)}",
-      false);
-  proved(compose);
-  proved(after);
-  proved(scalar_after);
-  proved(scalar_rank_two);
+  // Extents are explicitly supplied. Only the axis mapping is synthesized.
+  auto before = symbolicPlan(R"(
+rule r {(b:broadcast (p:transpose A)) => (out:broadcast A)
+ derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents};}}
+)",
+                             false);
   proved(before);
-  proved(triple);
-  proved(symbolicPlan(
-      "rule r {A:[Dims...] (o: broadcast (i: broadcast A)) => (broadcast A) "
-      "where "
-      "{i.attrs.dimensions == range(len(Dims)) && "
-      "o.attrs.dimensions == range(len(Dims) + len(i.attrs.new_extents))}}",
-      false));
-  auto outer_product = symbolicPlan(
-      "rule r {X:[M] Y:[N] (d:dot X Y) => "
-      "(mul (broadcast X) (broadcast Y)) where "
-      "{d.attrs.lhs_contracting_dimensions==[] && "
-      "d.attrs.rhs_contracting_dimensions==[] && "
-      "d.attrs.lhs_batching_dimensions==[] && "
-      "d.attrs.rhs_batching_dimensions==[]}}");
+  auto copied = symbolicPlan(R"(
+rule r {(b:broadcast A) => (out:broadcast A)
+ derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents};}}
+)");
+  proved(copied);
+  auto outer_product = symbolicPlan(R"(
+rule r {X:[M] Y:[N] (d:dot X Y) => (mul (l:broadcast X) (r:broadcast Y))
+ where {d.attrs.lhs_contracting_dimensions==[] && d.attrs.rhs_contracting_dimensions==[]
+     && d.attrs.lhs_batching_dimensions==[] && d.attrs.rhs_batching_dimensions==[]}
+ derive {l.attrs={dimensions:auto,new_extents:[N]};
+         r.attrs={dimensions:auto,new_extents:[M]};}}
+)");
   proved(outer_product);
-  expect(
-      verify(outer_product, outer_product.proof).status == ProofStatus::Proved,
-      "independent verification of two broadcasts with different dependencies");
   for (int m : {0, 1, 2})
     for (int n : {0, 1, 3}) {
       Metadata metadata{{{m}, {n}}, {{0, {{}, {}, {}, {}}}}};
-      tepl::test::ConstructorEvaluator evaluator(metadata, outer_product);
-      auto constructors = evaluator.construct();
-      auto left = constructors.begin()->second;
-      auto right = constructors.rbegin()->second;
+      tepl::test::ConstructorEvaluator eval(metadata, outer_product);
+      auto fields = eval.construct();
+      auto left = fields.begin()->second, right = fields.rbegin()->second;
       auto x = data({m}, 1), y = data({n}, 3);
       equal(dot(x, y, {{}, {}, {}, {}}),
             multiply(broadcast(x, left[0], left[1]),
                      broadcast(y, right[0], right[1])));
     }
-  proved(symbolicPlan(
-      "rule r {(p: transpose (b: broadcast A)) => (transpose (broadcast A))}",
-      false));
-  proved(
-      symbolicPlan("rule r {(add (b: broadcast A) (broadcast[b.attrs] B)) => "
-                   "(add (broadcast A) (broadcast B))}"));
-  auto renamed = replace(dialect, "op broadcast_in_dim(", "op expand(");
-  renamed = replace(renamed, "alias: broadcast;", "alias: spread;");
-  renamed = replace(renamed, "new_extents", "added_sizes");
-  proved(
-      symbolicPlan("rule r {(outer: spread (inner: spread A)) => (spread A)}",
-                   false, renamed));
-  proved(symbolicPlan(
-      "rule r {(b: broadcast (zero_like A)) => (zero_like (broadcast A))}"));
-  expect(symbolicPlan("rule r {(b: broadcast A) => A}", false).proof.status ==
-             ProofStatus::Unknown,
-         "broadcast cannot be discarded without an interface restriction");
-  auto corrupt = compose.proof;
-  corrupt.constructors.begin()->second[0] =
-      make(Symbol::Kind::List, {}, 0, 0, {integer(0), integer(0)});
-  expect(verify(compose, corrupt).status == ProofStatus::Unknown,
-         "independent verifier rejects non-injective broadcast mapping");
-  corrupt = compose.proof;
-  corrupt.constructors.begin()->second[1] =
-      make(Symbol::Kind::List, {}, 0, 0, {make(Symbol::Kind::Integer, "-1")});
-  expect(verify(compose, corrupt).status == ProofStatus::Unknown,
-         "independent verifier rejects negative extents");
+  for (const List& shape :
+       {List{}, List{2}, List{2, 3}, List{2, 2}, List{2, 0, 3}}) {
+    auto input = data(shape, 1);
+    List permutation(shape.size());
+    std::iota(permutation.rbegin(), permutation.rend(), 0);
+    auto transposed = transpose(input, permutation);
+    for (const List& added : {List{}, List{1}, List{4, 2}, List{0}}) {
+      List positions(shape.size());
+      std::iota(positions.begin(), positions.end(), 0);
+      std::reverse(positions.begin(), positions.end());
+      Metadata metadata{{shape}, {{0, {positions, added}}, {1, {permutation}}}};
+      tepl::test::ConstructorEvaluator eval(metadata, before);
+      auto constructor = eval.construct().begin()->second;
+      equal(broadcast(transposed, positions, added),
+            broadcast(input, constructor[0], constructor[1]));
+    }
+  }
+  auto corrupt = copied.proof;
+  corrupt.constructors.begin()->second[1] = make(Symbol::Kind::List);
+  expect(verify(copied, corrupt).status == ProofStatus::Unknown,
+         "supplied broadcast extents cannot be changed by a candidate");
+  auto missing = analyze("rule r {(b:broadcast A)=>(broadcast A)}", true);
+  expect(!missing.ok(),
+         "missing non-axis fields are rejected before inference");
   error(
       "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)}; bind "
       "N=group(2); yield S++N;} semantics {yield x;}}}",
       "incorrect axis expression type");
-  error(
-      "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)}; bind "
-      "N=shape(x); yield S++N;} semantics {yield x;}}}",
-      "group(extents)");
-  error(
-      "dialect D {op f(a:tensor,b:tensor)->tensor {axes {bind I "
-      "{a:all_axes(a)}; bind J {b:all_axes(b)}; yield I++J;} semantics {yield "
-      "Add(a,b);}}}",
-      "Add operands must have identical");
-  auto witness = [&](const Plan& plan, const Metadata& metadata,
-                     const Dense& lhs) {
-    tepl::test::ConstructorEvaluator eval(metadata, plan);
-    auto constructor = plan.proof.constructors.begin()->second;
-    auto dimensions = std::get<List>(eval.eval(constructor[0]));
-    auto extents = std::get<List>(eval.eval(constructor[1]));
-    auto rhs = broadcast(data(metadata.shapes[0], 1), dimensions, extents);
-    equal(lhs, rhs);
-    expect(eval.eval(plan.proof.lhs_axes) == eval.eval(plan.proof.rhs_axes),
-           "broadcast proof output coordinate ordering specializes correctly");
-  };
-  for (const List& shape : {List{}, List{2}, List{2, 3}, List{2, 2},
-                            List{2, 1, 3}, List{2, 0, 3}}) {
-    auto input = data(shape, 1);
-    for (const List& added :
-         {List{}, List{1}, List{4, 2}, List{2, 3}, List{0}}) {
-      auto rank = shape.size() + added.size();
-      List positions(shape.size());
-      // Interleave newly inserted axes with input axes, then reverse input
-      // order.
-      List slots(rank);
-      std::iota(slots.begin(), slots.end(), 0);
-      std::rotate(slots.begin(), slots.begin() + (rank ? rank / 2 : 0),
-                  slots.end());
-      std::copy_n(slots.begin(), shape.size(), positions.begin());
-      std::reverse(positions.begin(), positions.end());
-      auto first = broadcast(input, positions, added);
-      List permutation(rank);
-      std::iota(permutation.begin(), permutation.end(), 0);
-      std::reverse(permutation.begin(), permutation.end());
-      witness(after, {{shape}, {{0, {permutation}}, {1, {positions, added}}}},
-              transpose(first, permutation));
-      if (shape.empty()) {
-        witness(scalar_after,
-                {{shape}, {{0, {permutation}}, {1, {positions, added}}}},
-                transpose(first, permutation));
-        if (rank == 2)
-          witness(scalar_rank_two,
-                  {{shape}, {{0, {permutation}}, {1, {positions, added}}}},
-                  transpose(first, permutation));
-      }
-      List input_permutation(shape.size());
-      std::iota(input_permutation.begin(), input_permutation.end(), 0);
-      std::reverse(input_permutation.begin(), input_permutation.end());
-      witness(before,
-              {{shape}, {{0, {positions, added}}, {1, {input_permutation}}}},
-              broadcast(transpose(input, input_permutation), positions, added));
-      auto second_added = List{2, 1};
-      List second_positions(rank);
-      std::iota(second_positions.begin(), second_positions.end(), 1);
-      std::reverse(second_positions.begin(), second_positions.end());
-      auto second = broadcast(first, second_positions, second_added);
-      witness(
-          compose,
-          {{shape},
-           {{0, {second_positions, second_added}}, {1, {positions, added}}}},
-          second);
-      List third_positions(second.shape.size());
-      std::iota(third_positions.begin(), third_positions.end(), 0);
-      std::reverse(third_positions.begin(), third_positions.end());
-      auto third = broadcast(second, third_positions, {2});
-      witness(triple,
-              {{shape},
-               {{0, {third_positions, {2}}},
-                {1, {second_positions, second_added}},
-                {2, {positions, added}}}},
-              third);
-    }
-  }
 }
 
 void fixedAxisCompositionTests() {

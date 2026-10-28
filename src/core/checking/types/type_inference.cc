@@ -146,7 +146,7 @@ void TypeInference::defaultLiterals() {
   for (const auto& literal : literals_) {
     const auto id = root(literal.type);
     if (variables_[id].type) continue;
-    auto [found, inserted] = defaults.emplace(id, TypeKind::kIndex);
+    auto [found, inserted] = defaults.emplace(id, TypeKind::kU64);
     if (literal.spelling.starts_with('-')) found->second = TypeKind::kI64;
   }
   for (const auto& requirement : requirements_) {
@@ -176,7 +176,7 @@ void TypeInference::checkRequirements() {
       case TypeRequirement::kEquality:
         valid = isNumeric(type->kind) || type->kind == TypeKind::kBool ||
                 type->kind == TypeKind::kDType ||
-                type->kind == TypeKind::kIndexList ||
+                type->kind == TypeKind::kU64List ||
                 type->kind == TypeKind::kString ||
                 type->kind == TypeKind::kPrecision ||
                 type->kind == TypeKind::kOpaque;

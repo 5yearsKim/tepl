@@ -60,7 +60,7 @@ void evaluator(CodeWriter& out, const core::Program& program,
              "::BuiltinError(\"invalid metadata attributes\");");
     for (std::size_t i = 0; i < schema.fields.size(); ++i) {
       const auto& field = schema.fields[i];
-      if (field.optional || (field.type != "index" && field.type != "i64" &&
+      if (field.optional || (field.type != "u64" && field.type != "i64" &&
                              field.type != "bool" && field.type != "dtype"))
         continue;
       auto value = "fields->" + names.field(schema.id, i);

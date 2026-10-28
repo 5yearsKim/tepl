@@ -1,5 +1,6 @@
 #include "src/core/checking/rules/descriptors.h"
 
+#include "src/core/checking/attribute_fields.h"
 #include "src/core/checking/rules/check_context.h"
 #include "src/core/checking/rules/expression.h"
 
@@ -109,10 +110,43 @@ std::optional<DescriptorId> checkDescriptor(RuleCheckContext& context,
                      std::to_string(context.rule.descriptors.size()),
       lhs ? Descriptor::Kind::kCaptured : Descriptor::Kind::kInferred, at,
       *schema);
-  if (lhs)
+  if (lhs) {
     context.scope.available_descriptors.insert(id.value);
-  else
-    context.rule.attribute_holes.push_back({id, *schema});
+  } else {
+    bool automatic = false;
+    const auto& fields =
+        context.analysis.output.attribute_schemas.at(schema->value).fields;
+    DescriptorConstruct ctor{*schema, {}};
+    auto typeId = [&](Type t) {
+      return context.analysis.types.concrete(t, at);
+    };
+    for (std::size_t f = 0; f < fields.size(); ++f) {
+      const auto& field = fields[f];
+      auto value = attributeDefault(field, at, typeId);
+      if (!value && field.allowsAuto()) {
+        automatic = true;
+        value = std::make_shared<TypedExpr>(
+            TypedExpr{at, typeId(field.valueType()), AutoField{}});
+      }
+      if (!value) {
+        context.analysis.report(
+            at,
+            "non-axis attribute '" + field.name +
+                "' must be supplied explicitly; only axis fields may use auto");
+        return id;
+      }
+      ctor.fields.push_back(std::move(value));
+    }
+    context.rule.derivations.push_back(
+        {id,
+         std::make_shared<TypedExpr>(TypedExpr{
+             at, context.rule.descriptors[id.value].type, std::move(ctor)}),
+         at});
+    if (!automatic) {
+      context.rule.descriptors[id.value].kind = Descriptor::Kind::kDerived;
+      context.scope.available_descriptors.insert(id.value);
+    }
+  }
   return id;
 }
 
@@ -131,9 +165,20 @@ void checkDerivations(RuleCheckContext& context,
     const auto id = provider->second;
     if (context.scope.available_descriptors.contains(id.value)) continue;
     if (auto checked = expressions.check(
-            *d.value, context.rule.descriptors[id.value].type))
+            *d.value, context.rule.descriptors[id.value].type)) {
+      if (const auto* ctor =
+              std::get_if<DescriptorConstruct>(&checked->value)) {
+        for (const auto& field : ctor->fields)
+          if (std::holds_alternative<AutoField>(field->value)) {
+            context.rule.descriptors[id.value].kind =
+                Descriptor::Kind::kInferred;
+            break;
+          }
+      }
       context.rule.derivations.push_back({id, std::move(checked), d.origin});
-    context.scope.available_descriptors.insert(id.value);
+    }
+    if (context.rule.descriptors[id.value].kind != Descriptor::Kind::kInferred)
+      context.scope.available_descriptors.insert(id.value);
   }
 }
 }  // namespace tepl::core::detail

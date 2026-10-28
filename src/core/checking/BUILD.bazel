@@ -2,7 +2,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
 cc_library(
     name = "ir",
-    hdrs = ["ir.h", "attribute_holes.h", "rule_ir.h"],
+    hdrs = ["ir.h", "attribute_fields.h", "rule_ir.h"],
     deps = [
         "//src/core:tables",
         "//src/core/semantics:symbolic_model",
@@ -30,7 +30,7 @@ cc_library(
                 "check.h",
                 "ir.h",
                 "rule_ir.h",
-                "attribute_holes.h",
+                "attribute_fields.h",
                 "metadata/print.h",
             ],
         )

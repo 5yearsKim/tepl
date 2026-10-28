@@ -11,7 +11,7 @@ The checker propagates integer intervals through addition, subtraction,
 multiplication and metadata indexing. Shape dimensions are nonnegative `u64`
 values. Source attributes retain their declared integer ranges. Intermediate
 metadata arithmetic uses checked signed 128-bit integers; constructed attributes
-must also fit their destination `index` or `i64` type. The pointwise vector
+must also fit their destination `u64` or `i64` type. The pointwise vector
 checker currently uses the union of these attribute ranges as a sufficient
 arithmetic bound; safe vector intermediates outside it may remain unproved.
 

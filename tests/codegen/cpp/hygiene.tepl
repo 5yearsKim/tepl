@@ -1,5 +1,5 @@
 dialect Hygiene {
-    attrs Value { seed: index; }
+    attrs Value { seed: u64; }
     attrs Arity { seed: string; }
     op value_copy(x: tensor) -> tensor {
         attrs: Value; dtype(t0) { yield t0; } shape(s) { yield s; }

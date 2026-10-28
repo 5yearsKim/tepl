@@ -139,10 +139,10 @@ struct Codec<core::TypeKind> {
     switch (v) {
       case core::TypeKind::kTensor:
         return "tensor";
-      case core::TypeKind::kIndex:
-        return "index";
-      case core::TypeKind::kIndexList:
-        return "index_list";
+      case core::TypeKind::kU64:
+        return "u64";
+      case core::TypeKind::kU64List:
+        return "u64_list";
       case core::TypeKind::kBool:
         return "bool";
       case core::TypeKind::kI64:
@@ -164,8 +164,8 @@ struct Codec<core::TypeKind> {
   }
   static core::TypeKind unpack(const Json& j) {
     if (j == "tensor") return core::TypeKind::kTensor;
-    if (j == "index") return core::TypeKind::kIndex;
-    if (j == "index_list") return core::TypeKind::kIndexList;
+    if (j == "u64") return core::TypeKind::kU64;
+    if (j == "u64_list") return core::TypeKind::kU64List;
     if (j == "bool") return core::TypeKind::kBool;
     if (j == "i64") return core::TypeKind::kI64;
     if (j == "f64") return core::TypeKind::kF64;
@@ -378,6 +378,10 @@ struct Codec<core::builtins::Builtin> {
         return "slice";
       case core::builtins::Builtin::kReplace:
         return "replace";
+      case core::builtins::Builtin::kToI64:
+        return "i64";
+      case core::builtins::Builtin::kToU64:
+        return "u64";
       case core::builtins::Builtin::kSum:
         return "sum";
       case core::builtins::Builtin::kProduct:
@@ -468,6 +472,8 @@ struct Codec<core::builtins::Builtin> {
     if (j == "exclude") return core::builtins::Builtin::kExclude;
     if (j == "slice") return core::builtins::Builtin::kSlice;
     if (j == "replace") return core::builtins::Builtin::kReplace;
+    if (j == "i64") return core::builtins::Builtin::kToI64;
+    if (j == "u64") return core::builtins::Builtin::kToU64;
     if (j == "sum") return core::builtins::Builtin::kSum;
     if (j == "product") return core::builtins::Builtin::kProduct;
     if (j == "all") return core::builtins::Builtin::kAll;

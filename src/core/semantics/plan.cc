@@ -184,16 +184,21 @@ struct Builder {
               return outputPositions(v);
             } else if constexpr (std::is_same_v<T, SymbolicExpr>) {
               return v.value;
+            } else if constexpr (std::is_same_v<T, NoneConstant>) {
+              return call("none", {});
+            } else if constexpr (std::is_same_v<T, OptionalValue>) {
+              return lower(*v.value);
             } else if constexpr (std::is_same_v<T, DescriptorFieldRef>) {
-              if (auto found = plan.attributes.find(v.descriptor.value);
-                  found != plan.attributes.end())
-                return found->second.at(v.field);
+              if (auto found = plan.descriptors.find(v.descriptor.value);
+                  found != plan.descriptors.end() &&
+                  !found->second.isCaptured())
+                return found->second.fields.at(v.field);
               if (rule.descriptors.at(v.descriptor.value).kind !=
                   Descriptor::Kind::kCaptured)
                 return {};
               for (const auto& n : plan.nodes)
                 if (n.descriptor == v.descriptor && n.definition &&
-                    !n.automatic)
+                    plan.isCaptured(n))
                   return attributeSymbol(plan, n, v.field);
               return {};
             } else if constexpr (std::is_same_v<T, DimensionRef>)
@@ -364,7 +369,14 @@ struct Builder {
       std::vector<S> fields;
       if (const auto* ctor =
               std::get_if<DescriptorConstruct>(&derivation.value->value)) {
-        for (const auto& f : ctor->fields) {
+        for (std::size_t index = 0; index < ctor->fields.size(); ++index) {
+          const auto& f = ctor->fields[index];
+          if (std::holds_alternative<AutoField>(f->value)) {
+            fields.push_back(make(
+                Symbol::Kind::Hole, "auto", derivation.target->value, index, {},
+                scalarMetadataSort(context.output.types.at(f->type.value))));
+            continue;
+          }
           auto value = lower(*f);
           if (!value) {
             context.report(f->origin,
@@ -379,9 +391,9 @@ struct Builder {
         }
       } else if (const auto* ref =
                      std::get_if<DescriptorRef>(&derivation.value->value)) {
-        if (auto found = plan.attributes.find(ref->descriptor.value);
-            found != plan.attributes.end())
-          fields = found->second;
+        if (auto found = plan.descriptors.find(ref->descriptor.value);
+            found != plan.descriptors.end() && !found->second.isCaptured())
+          fields = found->second.fields;
         else {
           for (const auto& n : plan.nodes) {
             if (n.descriptor != ref->descriptor || !n.definition) continue;
@@ -392,7 +404,10 @@ struct Builder {
         }
       } else
         throw std::runtime_error("unsupported semantic descriptor expression");
-      plan.attributes.emplace(derivation.target->value, std::move(fields));
+      plan.descriptors.insert_or_assign(
+          derivation.target->value,
+          DescriptorAttributes{DescriptorAttributes::Origin::Constructed,
+                               std::move(fields)});
     }
   }
   std::size_t capture(CaptureId id, const SourceOrigin& at) {
@@ -433,20 +448,13 @@ struct Builder {
           context.output.attribute_schemas.at(op.attributes->value);
       for (std::size_t f = 0; f < schema.fields.size(); ++f) {
         const auto& field = schema.fields[f];
-        if (auto type = resolveType(field.type)) {
-          for (std::size_t depth = 0; depth < field.list_depth; ++depth)
-            *type = listType(*type);
-          type->optional = field.optional;
-          plan.metadata_types.emplace(std::pair{descriptor->value, f}, *type);
-        }
+        plan.metadata_types.emplace(std::pair{descriptor->value, f},
+                                    field.valueType());
       }
     }
     n.inputs = std::move(inputs);
     n.origin = at;
-    for (const auto& h : rule.attribute_holes) {
-      if (!descriptor || h.descriptor != *descriptor) continue;
-      n.automatic = true;
-    }
+    if (descriptor) plan.descriptors.try_emplace(descriptor->value);
     plan.nodes.push_back(std::move(n));
     return plan.nodes.size() - 1;
   }
@@ -530,7 +538,7 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
     // Public properties retain symbolic node names until both trees exist.
     // Resolve them once to the same closed queries used by generated guards.
     auto indexType = [&] {
-      core::Type t{TypeKind::kIndex};
+      core::Type t{TypeKind::kU64};
       for (std::size_t i = 0; i < context.output.types.size(); ++i)
         if (context.output.types[i] == t) return TypeId{i};
       context.output.types.push_back(t);
@@ -595,7 +603,8 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
               else
                 throw std::runtime_error("unrecognized semantic axis group");
             }
-            if (ref->rhs && it->automatic) {
+            if (ref->rhs && rule.descriptors.at(it->descriptor->value).kind ==
+                                Descriptor::Kind::kInferred) {
               query = role == 0   ? B::kAxisBatch
                       : role == 1 ? B::kAxisContract
                       : role == 2 ? B::kAxisLeftFree

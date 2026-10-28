@@ -1,8 +1,8 @@
 dialect Type {
   attrs String {note:string;}
-  attrs Vec {axes:index[];}
+  attrs Vec {axes: u64[];}
   attrs Option {enabled:bool?;}
-  attrs Match { type:index; match:bool; gen:index; }
+  attrs Match { type: u64; match:bool; gen: u64; }
   op type(x:tensor)->tensor {
     attrs:Match;
     dtype(t){yield t;}

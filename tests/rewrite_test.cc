@@ -24,7 +24,7 @@ dialect D {
  op add(x:tensor,y:tensor)->tensor {dtype(a,b){assert a==b;yield a;} shape(a,b){assert a==b;yield a;}}
  op scalar(x:tensor)->tensor {dtype(t){yield t;} shape(s){yield [];}}
  op transpose(x:tensor)->tensor {
-  attrs {permutation:index[];}
+  attrs {permutation:axis[];}
   dtype(t){yield t;}
   shape(s){assert is_valid_axis_list(attrs.permutation,len(s));assert len(attrs.permutation)==len(s);yield gather(s,attrs.permutation);}
  }
@@ -84,6 +84,13 @@ graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
   assert(again.ir().graphs[0].nodes.size() == 2);
   // Strict schema and semantic validation catch independent error classes.
   auto j = nlohmann::json::parse(json);
+  assert(j["version"] == 3);
+  j["version"] = 2;
+  expectInvalid(j);
+  j = nlohmann::json::parse(json);
+  j["program"]["types"][0]["kind"] = "index";
+  expectInvalid(j);
+  j = nlohmann::json::parse(json);
   j["version"] = 99;
   expectInvalid(j);
   j = nlohmann::json::parse(json);

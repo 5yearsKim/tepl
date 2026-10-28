@@ -13,7 +13,7 @@ dialect MyDialect {
     // Matrix product: [M, K] x [K, N] -> [M, N].
     op dot(lhs: tensor, rhs: tensor) -> tensor {
         // Contract lhs axis 1 with rhs axis 0.
-        attrs { axis: index; }
+        attrs { axis: axis; }
         dtype(a, b) {
             assert a == b && is_numeric(a);
             yield a;

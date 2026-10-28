@@ -88,7 +88,7 @@ permutation, locating each original coordinate in the output. An empty output
 group yields an empty position list.
 
 Shape declarations constrain ranks and extents; they do not silently constrain
-dot attributes. Required `index[]` descriptor fields can be compared with group
+dot attributes. Required `u64[]` descriptor fields can be compared with group
 references and other index-list expressions in `where` conditions. Unsupported condition expressions are rejected by this checker rather than
 being treated as symbolic facts.
 
@@ -325,7 +325,9 @@ Unsupported conditions are diagnosed rather than silently ignored.
 Intermediate captured-computation shape declarations are currently omitted,
 so they cannot be relied upon to discharge a proof obligation.
 
-Required `index[]` fields, fixed operand arity, and the scalar primitives
+Only `axis` fields can be inferred with `auto`; extent, coordinate, and general
+integer fields must be supplied explicitly or use schema defaults. Fixed
+operand arity and the scalar primitives
 `Operand`, `Read`, `Const`, `Add`, `Product`, and `Reduce`
 form the operation fragment. Calculated reads support tuple addition,
 concatenation, position selection, positive scales, and nonnegative offsets.

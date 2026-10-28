@@ -88,11 +88,11 @@ Value checkType(Value v, const core::Type& t) {
   }
   using K = core::TypeKind;
   switch (t.kind) {
-    case K::kIndex: {
+    case K::kU64: {
       auto n = integer(v);
       ensure(n >= 0 && static_cast<unsigned __int128>(n) <=
                            std::numeric_limits<std::uint64_t>::max(),
-             "index overflow");
+             "u64 overflow");
       break;
     }
     case K::kI64: {
@@ -143,7 +143,7 @@ Value checkType(Value v, const core::Type& t) {
         break;
       }
       throw EvaluationError("opaque attribute values are unavailable");
-    case K::kIndexList:
+    case K::kU64List:
       break;
   }
   return v;
@@ -164,7 +164,7 @@ core::AttributeValue attribute(const Value& v,
   auto type = core::resolveType(field.type);
   ensure(type.has_value(), "unsupported concrete attribute type");
   checkType(v, *type);
-  if (field.type == "index" || field.type == "i64")
+  if (field.type == "u64" || field.type == "i64")
     return {K::kInteger, integerText(integer(v)), {}};
   if (field.type == "bool")
     return {K::kBool, boolean(v) ? "true" : "false", {}};

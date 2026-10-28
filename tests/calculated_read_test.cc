@@ -16,7 +16,7 @@ using namespace tepl::test;
 const std::string dialect = R"(
 dialect D {
   op slice(input: tensor) -> tensor {
-    attrs { starts: index[]; sizes: index[]; strides: index[]; }
+    attrs { starts: coordinate[]; sizes: extent[]; strides: coordinate[]; }
     dtype(t) { yield t; }
     axes { bind O = group(attrs.sizes); yield O; }
     semantics {
@@ -26,8 +26,8 @@ dialect D {
   }
   op computed(input: tensor) -> tensor {
     attrs {
-      starts: index[]; extra: index[]; sizes: index[];
-      strides: index[]; factors: index[];
+      starts: coordinate[]; extra: coordinate[]; sizes: extent[];
+      strides: coordinate[]; factors: coordinate[];
     }
     dtype(t) { yield t; }
     axes {
@@ -44,8 +44,8 @@ dialect D {
   }
   op expanded(input: tensor) -> tensor {
     attrs {
-      starts: index[]; extra: index[]; sizes: index[];
-      strides: index[]; factors: index[];
+      starts: coordinate[]; extra: coordinate[]; sizes: extent[];
+      strides: coordinate[]; factors: coordinate[];
     }
     dtype(t) { yield t; }
     axes { bind O = group(attrs.sizes); yield O; }
@@ -56,7 +56,7 @@ dialect D {
   }
   op selected(input: tensor) -> tensor {
     attrs {
-      starts: index[]; sizes: index[]; strides: index[]; positions: index[];
+      starts: coordinate[]; sizes: extent[]; strides: coordinate[]; positions: axis[];
     }
     dtype(t) { yield t; }
     axes { bind O = group(attrs.sizes); yield O; }
@@ -68,7 +68,7 @@ dialect D {
   }
   op distributed(input: tensor) -> tensor {
     attrs {
-      starts: index[]; sizes: index[]; strides: index[]; positions: index[];
+      starts: coordinate[]; sizes: extent[]; strides: coordinate[]; positions: axis[];
     }
     dtype(t) { yield t; }
     axes { bind O = group(attrs.sizes); yield O; }
@@ -80,8 +80,8 @@ dialect D {
   }
   op nested(input: tensor) -> tensor {
     attrs {
-      starts: index[]; sizes: index[]; strides: index[];
-      first: index[]; second: index[];
+      starts: coordinate[]; sizes: extent[]; strides: coordinate[];
+      first: u64[]; second: u64[];
     }
     dtype(t) { yield t; }
     axes { bind O = group(attrs.sizes); yield O; }
@@ -93,8 +93,8 @@ dialect D {
   }
   op flattened(input: tensor) -> tensor {
     attrs {
-      starts: index[]; sizes: index[]; strides: index[];
-      first: index[]; second: index[];
+      starts: coordinate[]; sizes: extent[]; strides: coordinate[];
+      first: u64[]; second: u64[];
     }
     dtype(t) { yield t; }
     axes { bind O = group(attrs.sizes); yield O; }
@@ -133,8 +133,7 @@ using Attributes = std::map<std::string, std::vector<List>>;
 Metadata metadata(const Plan& p, const Dense& input, const Attributes& attrs) {
   Metadata m{{input.shape}, {}};
   for (const auto& n : p.nodes)
-    if (n.descriptor && n.definition && !n.automatic &&
-        !p.attributes.contains(n.descriptor->value))
+    if (n.descriptor && n.definition && p.isCaptured(n))
       m.descriptors[n.descriptor->value] =
           attrs.at(p.descriptor_names.at(n.descriptor->value));
   return m;
@@ -203,7 +202,7 @@ Dense reference(const Dense& input, const List& sizes, const List& starts,
 std::string withRead(const std::string& access) {
   return R"(dialect D {
     op f(input: tensor) -> tensor {
-      attrs { sizes: index[]; positions: index[]; }
+      attrs { sizes: extent[]; positions: axis[]; }
       dtype(t) { yield t; }
       axes { let local = attrs.sizes; bind O = group(attrs.sizes); yield O; }
       semantics { yield Read(input, )" +
@@ -224,17 +223,17 @@ int main() {
         "rule r { (c: computed A) => (e: expanded A) derive { e.attrs = { "
         "starts: c.attrs.starts, extra: c.attrs.extra, sizes: c.attrs.sizes, "
         "strides: c.attrs.strides, factors: c.attrs.factors }; } }");
-    auto automatic = plan("rule r { (c: computed A) => (slice A) }");
+    expect(!analyze(dialect, "rule r {(c: computed A)=>(slice A)}").ok(),
+           "coordinate inference is legacy; non-axis fields must be supplied");
     auto selected = plan(
         "rule r { (s: selected A) => (d: distributed A) derive { d.attrs = { "
         "starts: s.attrs.starts, sizes: s.attrs.sizes, strides: "
         "s.attrs.strides, positions: s.attrs.positions }; } }");
     auto selection_without_metadata =
         analyze(dialect, "rule r { (s: selected A) => (distributed A) }");
-    expect(selection_without_metadata.ok() &&
-               selection_without_metadata.program->rules[0]
-                       .semantic_plan->proof.status == ProofStatus::Unknown,
-           "unrestricted selector inference remains unsupported");
+    expect(!selection_without_metadata.ok(),
+           "non-axis coordinate parameters must be supplied before selector "
+           "inference");
     auto nested = plan(
         "rule r { (s: nested A) => (f: flattened A) derive { f.attrs = { "
         "starts: s.attrs.starts, sizes: s.attrs.sizes, strides: "
@@ -265,7 +264,6 @@ int main() {
                                 effective_strides, positions);
       Attributes attrs{{"c", {starts, extra, sizes, strides, factors}}};
       compare(computed, input, attrs, expected);
-      compare(automatic, input, attrs, expected);
 
       // Distinct extents and a non-involutive permutation catch direction and
       // coefficient-order mistakes that square tensors or swaps would hide.
@@ -360,13 +358,17 @@ int main() {
     expect(printed.find("gather(attrs.strides, attrs.positions)") !=
                std::string::npos,
            "definition formatter preserves computed metadata");
-    auto tampered = automatic.proof;
-    auto& fields = tampered.constructors.begin()->second;
+    auto tampered = computed;
+    auto& fields =
+        tampered.descriptors.at(computed.nodes[computed.rhs].descriptor->value)
+            .fields;
     fields[0] = call("offset_extents", {fields[0], integer(1)});
-    expect(verify(automatic, tampered).status == ProofStatus::Unknown,
+    expect(verify(tampered, computed.proof).status == ProofStatus::Unknown,
            "independent verifier rejects changed calculated reads");
     auto wrong_selector = selected;
-    wrong_selector.attributes.begin()->second[3] = call("range", {integer(0)});
+    wrong_selector.descriptors
+        .at(selected.nodes[selected.rhs].descriptor->value)
+        .fields[3] = call("range", {integer(0)});
     expect(
         verify(wrong_selector, selected.proof).status == ProofStatus::Unknown,
         "independent verifier rejects changed selection positions");

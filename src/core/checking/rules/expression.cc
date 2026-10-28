@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "src/core/checking/attribute_fields.h"
+
 namespace tepl::core::detail {
 
 TypedExprPtr ExpressionChecker::check(const syntax::ConstraintExpr& expression,
@@ -38,6 +40,11 @@ TypedExprPtr ExpressionChecker::check(const syntax::ConstraintExpr& expression,
 TypedExprPtr ExpressionChecker::lower(const syntax::NameRef& name,
                                       const SourceOrigin& origin,
                                       std::optional<TypeId> expected) {
+  if (name.name == "auto") {
+    context_.report(
+        origin, "auto is only allowed directly in an axis descriptor field");
+    return nullptr;
+  }
   if (auto found = locals_.find(name.name); found != locals_.end()) {
     const auto& local = rule_.locals.at(found->second.value);
     return make(origin, local.type, LocalRef{local.id}, expected);
@@ -107,12 +114,8 @@ TypedExprPtr ExpressionChecker::lower(const syntax::NodeProperty& property,
         for (std::size_t f = 0; f < schema.fields.size(); ++f) {
           const auto& field = schema.fields[f];
           if (field.name != path[1]) continue;
-          auto t =
-              resolveType(field.type)
-                  .value_or(Type{TypeKind::kOpaque, {}, 0, false, field.type});
-          for (std::size_t d = 0; d < field.list_depth; ++d) t = listType(t);
-          t.optional = field.optional;
-          return make(origin, context_.types.concrete(t, origin),
+          return make(origin,
+                      context_.types.concrete(field.valueType(), origin),
                       DescriptorFieldRef{id, schema.id, f}, expected);
         }
       }
@@ -186,7 +189,7 @@ TypedExprPtr ExpressionChecker::lower(const syntax::NodeProperty& property,
       }
       if (!ref.rhs && ref.projection == "positions")
         return make(origin,
-                    context_.types.concrete({TypeKind::kIndexList}, origin),
+                    context_.types.concrete({TypeKind::kU64List}, origin),
                     OutputAxisGroupRef{property.node, ref.group}, expected);
     } else {
       context_.report(origin, "unknown semantic node property");
@@ -204,7 +207,7 @@ TypedExprPtr ExpressionChecker::lower(const syntax::NodeProperty& property,
   }
   auto t = ref.projection == "legal" ? Type{TypeKind::kBool}
            : ref.projection == "positions" || ref.projection == "partition"
-               ? Type{TypeKind::kIndexList}
+               ? Type{TypeKind::kU64List}
            : ref.projection == "members" ? logicalAxisSetType()
                                          : listType(logicalAxisType());
   return make(origin, context_.types.concrete(t, origin), ref, expected);
@@ -221,8 +224,7 @@ TypedExprPtr ExpressionChecker::number(std::string spelling, bool decimal,
   } else if (known && !isNumeric(known->kind)) {
     // A nonnumeric expected type still produces a type-mismatch diagnostic.
     type = types.concrete(
-        {spelling.starts_with('-') ? TypeKind::kI64 : TypeKind::kIndex},
-        origin);
+        {spelling.starts_with('-') ? TypeKind::kI64 : TypeKind::kU64}, origin);
   } else {
     // Integer defaulting is deferred until every rule has contributed types.
     type = types.variable(origin);
@@ -299,14 +301,18 @@ TypedExprPtr ExpressionChecker::builtin(const syntax::Call& call,
     switch (pattern) {
       case S::kDType:
         return types.concrete({TypeKind::kDType}, origin);
+      case S::kAnyInteger:
+        return integerPair();
+      case S::kSignedInteger:
+        return types.concrete({TypeKind::kI64}, origin);
       case S::kInteger:
         return signature->rule_integer_pair
                    ? integerPair()
-                   : types.concrete({TypeKind::kIndex}, origin);
+                   : types.concrete({TypeKind::kU64}, origin);
       case S::kT:
         return genericElement();
       case S::kIntegerList:
-        return types.concrete({TypeKind::kIndexList}, origin);
+        return types.concrete({TypeKind::kU64List}, origin);
       case S::kListT:
         return types.list(genericElement(), origin);
       case S::kBoolean:
@@ -405,7 +411,8 @@ TypedExprPtr ExpressionChecker::local(const std::string& name,
   if (scope_.nodes.contains(name) || locals_.contains(name) ||
       scope_.captures.contains(name) || scope_.dimensions.contains(name) ||
       scope_.dtypes.contains(name) || resolveDType(name) || name == "none" ||
-      name == "default" || name == "high" || name == "highest") {
+      name == "default" || name == "high" || name == "highest" ||
+      name == "auto") {
     context_.report(origin,
                     "duplicate or conflicting local name '" + name + "'");
     return nullptr;
@@ -453,7 +460,7 @@ TypedExprPtr ExpressionChecker::lower(const syntax::IndexExpr& v,
                                       std::optional<TypeId> expected) {
   auto list = check(*v.value);
   auto index =
-      check(*v.index, context_.types.concrete({TypeKind::kIndex}, origin));
+      check(*v.index, context_.types.concrete({TypeKind::kU64}, origin));
   if (!list || !index) return nullptr;
   auto element = context_.types.element(list->type, origin);
   return make(origin, element, IndexExpr{list, index}, expected);
@@ -519,16 +526,23 @@ TypedExprPtr ExpressionChecker::lower(const syntax::DescriptorConstructor& v,
   DescriptorConstruct result{schema, {}};
   for (std::size_t i = 0; i < fields.size(); ++i) {
     const auto& f = fields[i];
-    auto field_type = resolveType(f.type).value_or(
-        Type{TypeKind::kOpaque, {}, 0, false, f.type});
-    for (std::size_t depth = 0; depth < f.list_depth; ++depth)
-      field_type = listType(field_type);
-    field_type.optional = f.optional;
+    auto field_type = f.valueType();
     auto id = context_.types.concrete(field_type, origin);
     TypedExprPtr value;
     if (auto found = explicit_fields.find(f.name);
         found != explicit_fields.end()) {
-      value = check(*found->second->value, id);
+      const auto* name =
+          std::get_if<syntax::NameRef>(&found->second->value->value);
+      if (name && name->name == "auto") {
+        if (section_ != builtins::Context::kDerive || !f.allowsAuto()) {
+          context_.report(
+              origin,
+              "auto requires a non-optional axis attribute: '" + f.name + "'");
+          return nullptr;
+        }
+        value = make(origin, id, AutoField{});
+      } else
+        value = check(*found->second->value, id);
     } else if (spread) {
       // Spread is restricted to a descriptor reference, so field reads retain
       // identity.
@@ -536,17 +550,14 @@ TypedExprPtr ExpressionChecker::lower(const syntax::DescriptorConstructor& v,
           origin, id,
           DescriptorFieldRef{std::get<DescriptorRef>(spread->value).descriptor,
                              schema, i});
-    } else if (f.empty_default) {
-      auto underlying = field_type;
-      underlying.optional = false;
-      value =
-          make(origin, context_.types.concrete(underlying, origin), ListExpr{});
-      if (f.optional) value = make(origin, id, OptionalValue{value});
-    } else if (f.optional)
-      value = make(origin, id, NoneConstant{});
-    else
-      context_.report(origin,
-                      "missing required constructor field '" + f.name + "'");
+    } else {
+      value = attributeDefault(f, origin, [&](Type t) {
+        return context_.types.concrete(t, origin);
+      });
+      if (!value)
+        context_.report(origin,
+                        "missing required constructor field '" + f.name + "'");
+    }
     if (!value) return nullptr;
     result.fields.push_back(value);
   }

@@ -7,6 +7,12 @@ Value integerBuiltin(core::builtins::Builtin id, const std::vector<Value>& a,
                      Budget& budget) {
   using B = core::builtins::Builtin;
   switch (id) {
+    case B::kToI64:
+    case B::kToU64: {
+      checkType(a.at(0), {id == B::kToI64 ? core::TypeKind::kI64
+                                          : core::TypeKind::kU64});
+      return a.at(0);
+    }
     case B::kSum:
     case B::kProduct: {
       if (id == B::kProduct)

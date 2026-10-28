@@ -3,11 +3,33 @@
 This directory separates axis membership, ordering requirements, and descriptor
 construction. The [unified completeness proof draft](../../../../examples/research/complete_attribute_synthesis_proof.md)
 proves exact feasibility and constructive synthesis for a mathematical
-contraction/permutation/unary-summation algorithm and separated additive
-components. Section 6 gives the metadata-program generation argument.
+contraction/permutation/whole-axis-reversal/unary-summation algorithm and
+separated additive components. Section 6 gives its metadata-program generation
+argument. Section 11 admits aligned scalar operations of the form
+`q * product(operands)` for fixed nonzero rational `q` (including negation and
+rational scaling). Coefficients are normalized once, then finite signed-network
+state tables construct axis descriptors; broadcast is excluded from that
+specialization. Section 12 proves a broader metadata-weighted signed-wiring
+contract: fresh positive axes, supplied-extent broadcast including singleton
+expansion, unit-axis insertion/removal, keepdims sums, and full-axis means. Its
+state tables retain exact weights and normalize unit coordinates. Only `axis`
+slots are inferred; extent, coordinate, and general fields remain supplied. This does not
+extend the direct constructor or claim polynomial-time search for the larger
+fragment.
 This implementation covers its original contraction/permutation specialization;
-unary summation and additive component support on the exact path remain
-extension work. Formal implementation refinement remains separate work.
+unary summation, signed-axis replay and reversal-orientation constraints,
+additive components, and the larger state-table procedure remain extension
+work. Formal implementation refinement remains separate work.
+
+The original specialization admits descriptors selecting, ordering, or pairing
+whole axes and excludes non-axis fields. The Section 12 theorem allows supplied
+non-axis metadata when the operation satisfies its exact structural contract;
+it does not admit general coordinate transforms merely because their parameters
+are supplied. The broader state-table extensions are not integrated into this original exact
+solver. Their completeness theorem permits positive singleton extents after
+unit-coordinate normalization; this implementation retains its original domain. Axis positions are selectors, not element-coordinate
+indices. This is a theorem admission boundary; general TEPL verification has a
+broader operation scope.
 
 This implementation stage covers the C++ compiler and structural solver.
 Rust code-generation and runtime changes are deferred.

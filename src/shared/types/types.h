@@ -29,11 +29,11 @@ std::optional<DType> resolveDType(std::string_view name);
 std::string_view dtypeName(DType dtype);
 
 // Rule values are distinct from graph tensors and their element dtypes.
-// Index and I64 have unsigned/signed 64-bit literal ranges in this IR.
+// U64 and I64 have unsigned/signed 64-bit literal ranges in this IR.
 enum class TypeKind {
   kTensor,
-  kIndex,
-  kIndexList,
+  kU64,
+  kU64List,
   kBool,
   kI64,
   kF64,

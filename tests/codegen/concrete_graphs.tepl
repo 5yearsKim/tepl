@@ -9,14 +9,14 @@ dialect GraphOps {
     }
     op config(input: tensor) -> tensor {
         attrs {
-            axis: index;
-            offset: i64;
+            axis: u64;
+            offset: coordinate;
             label: string;
             enabled: bool;
             dtype: dtype;
             precision: precision;
             nested: i64[][];
-            axes: index[]?;
+            axes: u64[]?;
             note: string?;
             flags: bool[] = [];
             regions: region[]?;

@@ -19,7 +19,7 @@ dialect B {
 }
 // A raw module token still corresponds to an ordinary filesystem name.
 dialect Type {
-    attrs Match { type: index; type_: index; match: bool; gen: index; }
+    attrs Match { type: u64; type_: u64; match: bool; gen: u64; }
     op type(x: tensor) -> tensor {
         attrs: Match;
         dtype(t0) { yield t0; }

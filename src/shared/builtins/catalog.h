@@ -31,6 +31,8 @@ std::string_view contextName(Context context);
 enum class SignatureType {
   kDType,
   kInteger,
+  kAnyInteger,
+  kSignedInteger,
   kBoolean,
   kIntegerList,
   kBooleanList,
@@ -49,8 +51,8 @@ struct BuiltinSignature {
   bool variadic = false;
   Domain domain = Domain::kCommon;
   unsigned contexts = kAllContexts;
-  // Rules retain one shared Index/I64 type for integer pairs. Other integer
-  // positions map to Index; shape expressions always use their Integer domain.
+  // Rules retain one shared U64/I64 type for integer pairs. Other integer
+  // positions map to U64; shape expressions always use their Integer domain.
   bool rule_integer_pair = false;
   bool acceptsArity(std::size_t count) const {
     return variadic ? count >= arguments.size() : count == arguments.size();

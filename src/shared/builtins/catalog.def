@@ -13,6 +13,8 @@ TEPL_BUILTIN(kGather, "gather", kList, kGather, kListT, false, kCommon, kAllCont
 TEPL_BUILTIN(kExclude, "exclude", kList, kLists, kListT, false, kCommon, kAllContexts, false)
 TEPL_BUILTIN(kSlice, "slice", kList, kSlice, kListT, false, kCommon, kAllContexts, false)
 TEPL_BUILTIN(kReplace, "replace", kList, kReplace, kListT, false, kCommon, kAllContexts, false)
+TEPL_BUILTIN(kToI64, "i64", kInteger, kAnyInteger, kSignedInteger, false, kCommon, kAllContexts, false)
+TEPL_BUILTIN(kToU64, "u64", kInteger, kAnyInteger, kInteger, false, kCommon, kAllContexts, false)
 TEPL_BUILTIN(kSum, "sum", kInteger, kIntegers, kInteger, false, kCommon, kAllContexts, false)
 TEPL_BUILTIN(kProduct, "product", kInteger, kIntegers, kInteger, false, kCommon, kAllContexts, false)
 TEPL_BUILTIN(kAll, "all", kList, kBooleans, kBoolean, false, kCommon, kAllContexts, false)

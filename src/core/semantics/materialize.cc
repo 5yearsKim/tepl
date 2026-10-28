@@ -14,12 +14,6 @@ Materialized materialize(InspectionData checked) {
   static_cast<ProgramTables&>(output.ir) =
       std::move(static_cast<ProgramTables&>(checked));
   output.axes.resize(checked.rules.size());
-  auto typeId = [&](core::Type type) {
-    for (std::size_t i = 0; i < output.ir.types.size(); ++i)
-      if (output.ir.types[i] == type) return core::TypeId{i};
-    output.ir.types.push_back(type);
-    return core::TypeId{output.ir.types.size() - 1};
-  };
   for (std::size_t i = 0; i < checked.rules.size(); ++i) {
     auto& r = checked.rules[i];
     const auto plan = r.semantic_plan;
@@ -62,35 +56,25 @@ Materialized materialize(InspectionData checked) {
     if (plan && !plan->proof.guard.empty())
       throw std::invalid_argument(
           "unresolved obligations cannot become runtime guards");
-    for (const auto& hole : r.attribute_holes) {
-      if (!plan || !plan->proof.constructors.contains(hole.descriptor.value))
+    for (auto& derivation : r.derivations) {
+      if (!derivation.target) continue;
+      auto& descriptor = r.descriptors.at(derivation.target->value);
+      if (descriptor.kind != core::Descriptor::Kind::kInferred) continue;
+      if (!plan || !plan->proof.constructors.contains(descriptor.id.value))
         throw std::invalid_argument("auto constructor is unresolved in rule '" +
                                     r.name + "'");
-      const auto& schema = output.ir.attribute_schemas.at(hole.schema.value);
-      const auto& values = plan->proof.constructors.at(hole.descriptor.value);
-      if (values.size() != schema.fields.size())
+      auto ctor = std::get<core::DescriptorConstruct>(derivation.value->value);
+      const auto& values = plan->proof.constructors.at(descriptor.id.value);
+      if (values.size() != ctor.fields.size())
         throw std::invalid_argument("incomplete auto constructor");
-      core::DescriptorConstruct ctor{hole.schema, {}};
-      for (std::size_t f = 0; f < values.size(); ++f) {
-        const auto& field = schema.fields[f];
-        auto type = core::resolveType(field.type)
-                        .value_or(core::Type{core::TypeKind::kOpaque});
-        if (type.kind == core::TypeKind::kOpaque) type.opaque_name = field.type;
-        for (std::size_t d = 0; d < field.list_depth; ++d)
-          type = core::listType(type);
-        type.optional = field.optional;
-        ctor.fields.push_back(std::make_shared<core::TypedExpr>(core::TypedExpr{
-            r.origin, typeId(type), core::SymbolicExpr{values[f]}}));
-      }
-      auto& descriptor = r.descriptors.at(hole.descriptor.value);
+      for (std::size_t f = 0; f < ctor.fields.size(); ++f)
+        if (std::holds_alternative<core::AutoField>(ctor.fields[f]->value))
+          ctor.fields[f] = std::make_shared<core::TypedExpr>(core::TypedExpr{
+              r.origin, ctor.fields[f]->type, core::SymbolicExpr{values[f]}});
       descriptor.kind = core::Descriptor::Kind::kDerived;
-      r.derivations.push_back(
-          {hole.descriptor,
-           std::make_shared<core::TypedExpr>(
-               core::TypedExpr{r.origin, descriptor.type, std::move(ctor)}),
-           r.origin});
+      derivation.value = std::make_shared<core::TypedExpr>(
+          core::TypedExpr{r.origin, descriptor.type, std::move(ctor)});
     }
-    r.attribute_holes.clear();
     auto completed_rule = completion.rule(std::move(static_cast<RuleData&>(r)));
     completed::validateAxisConditions(completed_rule);
     if (coordinates)

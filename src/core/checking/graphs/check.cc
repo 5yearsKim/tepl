@@ -31,7 +31,7 @@ class Checker {
               spelling.data(), spelling.data() + spelling.size(), number);
           if (parsed.ec != std::errc{} ||
               parsed.ptr != spelling.data() + spelling.size())
-            error(input.span, "graph dimension is outside the index range");
+            error(input.span, "graph dimension is outside the u64 range");
           node.shape->push_back(number);
         }
       }
@@ -92,8 +92,8 @@ class Checker {
       error(input.span, "invalid value for attribute '" + field.name +
                             "' of type '" + field.type + "'");
     };
-    if (field.type == "index" || field.type == "i64") {
-      auto type = field.type == "index" ? TypeKind::kIndex : TypeKind::kI64;
+    if (field.type == "u64" || field.type == "i64") {
+      auto type = field.type == "u64" ? TypeKind::kU64 : TypeKind::kI64;
       if (input.kind != A::kInteger || !validScalarLiteral(input.text, type))
         bad();
       // Canonical integer text avoids octal C++ constants and target parser

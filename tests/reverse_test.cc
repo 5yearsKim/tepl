@@ -8,7 +8,7 @@
 #include <string>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/core/attr_synth/index_inference.h"
+#include "src/core/attr_synth/axis_selectors.h"
 #include "src/core/pipeline.h"
 #include "src/core/semantics/proof/verify.h"
 #include "src/core/semantics/symbolic/normalize.h"
@@ -52,8 +52,7 @@ Metadata metadata(const Plan& p, const std::vector<Dense>& inputs,
   Metadata m;
   for (const auto& input : inputs) m.shapes.push_back(input.shape);
   for (const auto& n : p.nodes)
-    if (n.descriptor && n.definition && !n.automatic &&
-        !p.attributes.contains(n.descriptor->value))
+    if (n.descriptor && n.definition && p.isCaptured(n))
       m.descriptors[n.descriptor->value] =
           attrs.at(p.descriptor_names.at(n.descriptor->value));
   return m;
@@ -143,7 +142,7 @@ S vector(const List& values) {
 void invalid(const std::string& access, const std::string& diagnostic) {
   auto result = analyze(
       "", true,
-      "dialect D { op f(input:tensor)->tensor { attrs { dimensions:index[]; } "
+      "dialect D { op f(input:tensor)->tensor { attrs { dimensions:axis[]; } "
       "dtype(t){yield t;} axes {bind S {input:all_axes(input)};yield S;} "
       "semantics {yield Read(input," +
           access + ");} } }");
@@ -188,7 +187,8 @@ int main(int argc, char** argv) {
         false);
     auto scalar_addition = plan(
         "rule r {(r:reverse (add A (b:broadcast C))) => "
-        "(add (reverse A) (broadcast C)) where {b.attrs.dimensions==[]}}");
+        "(add (reverse A) (broadcast[b.attrs] C)) where "
+        "{b.attrs.dimensions==[]}}");
     auto transfer = plan(
         "rule r {X:[K] Y:[K] (d:dot (r:reverse X) Y) => "
         "(dot X (reverse Y)) where {r.attrs.dimensions==[0] && "
@@ -319,14 +319,14 @@ int main(int argc, char** argv) {
     auto selector = make(Symbol::Kind::Hole, "unknown", 101, 0);
     auto unknown = indexReverse(c, coords, domain, selector);
     auto match =
-        tepl::core::attr_synth::matchIndexAttributes(c, unknown, reflected);
+        tepl::core::attr_synth::matchAxisSelectors(c, unknown, reflected);
     expect(match && match->size() == 1 &&
                equal(match->at({101, 0}), vector({0, 2})),
            "reverse selector matching constructs source dimensions");
     auto other_axes = make(Symbol::Kind::AxisGroup, "other", 46, 0, {domain});
     auto other =
         indexReverse(c, coordinates(other_axes), domain, vector({2, 0}));
-    expect(!tepl::core::attr_synth::matchIndexAttributes(c, unknown, other),
+    expect(!tepl::core::attr_synth::matchAxisSelectors(c, unknown, other),
            "reverse inference rejects a different coordinate frame");
     auto selected = indexSelect(c, reflected, vector({2, 1, 0}));
     auto expected = indexReverse(c, indexSelect(c, coords, vector({2, 1, 0})),

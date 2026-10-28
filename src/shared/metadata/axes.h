@@ -48,6 +48,7 @@ struct ShapeContract {
   // Numeric sequences may be constructed by extent arithmetic (domains or
   // per-axis coordinate coefficients), rather than only position selectors.
   std::set<std::size_t> extent_fields;
+  std::set<std::size_t> axis_fields;
   std::set<std::size_t> implicit_operands;
 };
 

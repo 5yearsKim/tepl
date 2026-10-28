@@ -64,7 +64,7 @@ void testLora(const std::string& source, const std::string& path) {
   check(dot != operations.end() && dot->alias == "dot" &&
             short_name == operations.end() && dot->operands.size() == 2 &&
             dot_attrs && dot_attrs->fields.size() == 6 &&
-            dot_attrs->fields[0].type == "index" &&
+            dot_attrs->fields[0].type == "axis" &&
             dot_attrs->fields[0].list_depth,
         "Dot signature or attributes were not preserved");
   const auto concat =
@@ -134,7 +134,7 @@ void testExtendedAttributesAndParsedShapes() {
   auto parsed = tepl::parse(R"(
 dialect D {
   op custom(x: tensor) -> tensor {
-    attrs { padding: i64[][]; algorithm: dot_algorithm?; flags: bool[]; body: region; }
+    attrs { padding: coordinate[][]; algorithm: dot_algorithm?; flags: bool[]; body: region; }
     shape(s) { assert not_implemented(s); yield s; }
   }
 }
@@ -142,7 +142,7 @@ dialect D {
   check(parsed.ok(), "Extended dialect metadata must parse");
   const auto& op = parsed.program->dialects[0].operations[0];
   const auto& fields = std::get<tepl::syntax::InlineAttrs>(*op.attrs).fields;
-  check(fields[0].type == "i64" && fields[0].list_depth == 2 &&
+  check(fields[0].type == "coordinate" && fields[0].list_depth == 2 &&
             fields[1].optional && fields[1].type == "dot_algorithm" &&
             fields[2].list_depth == 1 && fields[3].type == "region",
         "Nested, optional and opaque attribute types must be preserved");
@@ -160,7 +160,7 @@ dialect D {
                 "s",
         "Shape calls remain unresolved syntax until core checking");
   const auto printed = tepl::formatAst(*parsed.program);
-  check(printed.find("padding: i64[][]") != std::string::npos &&
+  check(printed.find("padding: coordinate[][]") != std::string::npos &&
             printed.find("algorithm: dot_algorithm?") != std::string::npos,
         "Attribute type modifiers must print without loss");
 }
@@ -345,7 +345,7 @@ void testNumericLiterals() {
 void testAttributeTypeAndDefault() {
   auto parsed = tepl::parse(
       "dialect t { op test(input: tensor) -> tensor { "
-      "attrs { axis: index = []; shape: index[] = []; } } }",
+      "attrs { axis: u64 = []; shape: extent[] = []; } } }",
       "attributes.tepl");
   check(parsed.ok() && parsed.program.has_value(),
         "Attribute fixture must build an AST");

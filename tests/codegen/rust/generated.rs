@@ -177,7 +177,7 @@ fn auto_broadcast_and_slice() {
         &mut graph,
         t::Op::BroadcastInDim,
         t::BroadcastInDimAttrs {
-            dimensions: vec![1, 0],
+            dimensions: vec![0, 1],
             new_extents: vec![4],
         },
         vec![inner],
@@ -187,8 +187,8 @@ fn auto_broadcast_and_slice() {
         vec![s::rules::broadcast::rule_broadcast_compose::definition()],
     )
     .unwrap();
-    assert_eq!(out.egraph[root].data.shape, Fact::Known(vec![3, 2, 4]));
-    assert!(out.egraph[root].nodes.iter().any(|n|n.operands()==[out.egraph.find(x)] && n.attrs().is_some_and(|a|matches!(a,s::OpAttrs::TensorLang(t::OpAttrs::BroadcastInDimAttrs(a)) if a.dimensions==[1] && a.new_extents==[3,4]))));
+    assert_eq!(out.egraph[root].data.shape, Fact::Known(vec![2, 3, 4]));
+    assert!(out.egraph[root].nodes.iter().any(|n|n.operands()==[out.egraph.find(x)] && n.attrs().is_some_and(|a|matches!(a,s::OpAttrs::TensorLang(t::OpAttrs::BroadcastInDimAttrs(a)) if a.dimensions==[0] && a.new_extents==[3,4]))));
     let mut graph = s::EGraph::default();
     let x = input(&mut graph, "X", vec![10]);
     let inner = snode(
@@ -207,7 +207,7 @@ fn auto_broadcast_and_slice() {
         t::SliceAttrs {
             starts: vec![1],
             sizes: vec![2],
-            strides: vec![2],
+            strides: vec![1],
         },
         vec![inner],
     );
@@ -217,7 +217,7 @@ fn auto_broadcast_and_slice() {
     )
     .unwrap();
     assert_eq!(out.egraph[root].data.shape, Fact::Known(vec![2]));
-    assert!(out.egraph[root].nodes.iter().any(|n|n.operands()==[out.egraph.find(x)] && n.attrs().is_some_and(|a|matches!(a,s::OpAttrs::TensorLang(t::OpAttrs::SliceAttrs(a)) if a.starts==[2] && a.sizes==[2] && a.strides==[2]))));
+    assert!(out.egraph[root].nodes.iter().any(|n|n.operands()==[out.egraph.find(x)] && n.attrs().is_some_and(|a|matches!(a,s::OpAttrs::TensorLang(t::OpAttrs::SliceAttrs(a)) if a.starts==[2] && a.sizes==[2] && a.strides==[1]))));
 }
 #[test]
 fn convolution_uses_axes_and_generated_attributes() {

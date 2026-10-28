@@ -28,7 +28,7 @@ std::string emitDialect(const core::Program& program, const Names& names,
       const auto& field = schema.fields[i];
       static const std::map<std::string, std::string> types = {
           {"dtype", "DType"},
-          {"index", "::std::uint64_t"},
+          {"u64", "::std::uint64_t"},
           {"i64", "::std::int64_t"},
           {"bool", "bool"},
           {"string", "::std::string"},

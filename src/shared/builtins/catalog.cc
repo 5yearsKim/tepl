@@ -12,6 +12,7 @@ constexpr unsigned kDTypeContexts = static_cast<unsigned>(Context::kDType) |
 constexpr S kDType[] = {S::kDType};
 constexpr S kList[] = {S::kListT};
 constexpr S kInteger[] = {S::kInteger};
+constexpr S kAnyInteger[] = {S::kAnyInteger};
 constexpr S kLists[] = {S::kListT, S::kListT};
 constexpr S kGather[] = {S::kListT, S::kIntegerList};
 constexpr S kSlice[] = {S::kListT, S::kInteger, S::kInteger};

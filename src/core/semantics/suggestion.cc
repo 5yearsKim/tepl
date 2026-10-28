@@ -254,6 +254,8 @@ class Suggestion {
             return out.str();
           } else if constexpr (std::is_same_v<T, EnumConstant>)
             return v.value;
+          else if constexpr (std::is_same_v<T, AutoField>)
+            return "auto";
           else if constexpr (std::is_same_v<T, NoneConstant>)
             return "none";
           else if constexpr (std::is_same_v<T, OptionalValue>)

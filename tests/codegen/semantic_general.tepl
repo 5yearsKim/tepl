@@ -25,10 +25,10 @@ dialect TensorLang {
         }
         attrs {
             // Flattened fields of StableHLO dot_dimension_numbers.
-            lhs_contracting_dimensions: index[];
-            rhs_contracting_dimensions: index[];
-            lhs_batching_dimensions: index[];
-            rhs_batching_dimensions: index[];
+            lhs_contracting_dimensions: axis[];
+            rhs_contracting_dimensions: axis[];
+            lhs_batching_dimensions: axis[];
+            rhs_batching_dimensions: axis[];
         }
         shape(l, r) {
             let lc = attrs.lhs_contracting_dimensions;
@@ -83,7 +83,7 @@ dialect TensorLang {
 
     op transpose(input: tensor) -> tensor {
         attrs {
-            permutation: index[];
+            permutation: axis[];
         }
         dtype(t) {
             yield t;
@@ -99,7 +99,7 @@ dialect TensorLang {
             yield read(input, in_idx);
         }
     }
-    attrs Reduction { reduced: index[]; }
+    attrs Reduction { reduced: u64[]; }
     op fold(input: tensor) -> tensor {
         attrs: Reduction;
         dtype(t) { yield t; }

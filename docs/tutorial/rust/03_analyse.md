@@ -8,7 +8,7 @@ facts through egg. Define operation contracts in TEPL and supply input metadata.
 ```javascript
 dialect D {
     op transpose(input: tensor) -> tensor {
-        attrs { permutation: index[]; }
+        attrs { permutation: axis[]; }
         dtype(t) { yield t; }
         shape(s) {
             assert is_valid_axis_list(attrs.permutation, len(s));

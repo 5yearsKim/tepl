@@ -57,7 +57,7 @@ Metadata metadata(const Plan& p, const std::vector<Dense>& inputs,
   Metadata out;
   for (const auto& input : inputs) out.shapes.push_back(input.shape);
   for (const auto& n : p.nodes)
-    if (n.descriptor && n.definition && !n.automatic)
+    if (n.descriptor && n.definition && p.isCaptured(n))
       out.descriptors[n.descriptor->value] =
           attrs.at(p.descriptor_names.at(n.descriptor->value));
   return out;
@@ -120,33 +120,78 @@ int main(int argc, char** argv) {
     std::ifstream file(runfiles->Rlocation(argv[1]));
     dialect = {std::istreambuf_iterator<char>(file), {}};
     expect(!dialect.empty(), "dialect loads");
-    auto distribution =
-        plan("rule r {(s: slice (add A B)) => (add (slice A) (slice B))}");
-    auto composition =
-        plan("rule r {(outer: slice (inner: slice A)) => (slice A)}");
+    auto distribution = plan(
+        "rule r {(s: slice (add A B)) => (add (slice[s.attrs] A) "
+        "(slice[s.attrs] B))}");
+    auto composition = plan(
+        "rule r {(outer: slice (inner: slice A)) => (out: slice A) derive "
+        "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
+        "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for axis_meta_0 "
+        "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
+        "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
+        "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1] for "
+        "axis_meta_1 in range(len(inner.attrs.strides))]};} }");
     auto zero_start_composition = plan(
-        "rule r {(outer: slice (inner: slice A)) => (slice A) where "
+        "rule r {(outer: slice (inner: slice A)) => (out: slice A) where "
         "{inner.attrs.starts == [0] && outer.attrs.starts == [0] && "
-        "inner.attrs.strides == [1] && outer.attrs.strides == [1]}}",
+        "inner.attrs.strides == [1] && outer.attrs.strides == [1]} derive "
+        "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
+        "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for axis_meta_0 "
+        "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
+        "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
+        "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1] for "
+        "axis_meta_1 in range(len(inner.attrs.strides))]};} }",
         {}, tepl::core::SemanticPolicy::kStrict);
     auto unit_composition = plan(
-        "rule r {(outer: slice (inner: slice A)) => (slice A) where "
+        "rule r {(outer: slice (inner: slice A)) => (out: slice A) where "
         "{inner.attrs.strides == [1 for d in inner.attrs.sizes] && "
-        "outer.attrs.strides == inner.attrs.strides}}");
+        "outer.attrs.strides == inner.attrs.strides && "
+        "all([v<=9223372036854775807 for v in "
+        "[inner.attrs.starts[i]+outer.attrs.starts[i] "
+        "for i in range(len(inner.attrs.starts))]])} derive "
+        "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
+        "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for axis_meta_0 "
+        "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
+        "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
+        "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1] for "
+        "axis_meta_1 in range(len(inner.attrs.strides))]};} }");
     auto rank_one_unit = plan(
-        "rule r {A:[N] (outer: slice (inner: slice A)) => (slice A) where "
-        "{inner.attrs.strides == [1] && outer.attrs.strides == [1]}}");
+        "rule r {A:[N] (outer: slice (inner: slice A)) => (out: slice A) where "
+        "{inner.attrs.strides == [1] && outer.attrs.strides == [1] && "
+        "all([v<=9223372036854775807 for v in "
+        "[inner.attrs.starts[i]+outer.attrs.starts[i] "
+        "for i in range(len(inner.attrs.starts))]])} derive "
+        "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
+        "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for axis_meta_0 "
+        "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
+        "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
+        "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1] for "
+        "axis_meta_1 in range(len(inner.attrs.strides))]};} }");
     auto permuted = plan(
-        "rule r {(s: slice (p: transpose (add A B))) => (add (slice "
-        "(transpose[p.attrs] A)) (slice (transpose[p.attrs] B)))}");
+        "rule r {(s: slice (p: transpose (add A B))) => (add (slice[s.attrs] "
+        "(transpose[p.attrs] A)) (slice[s.attrs] (transpose[p.attrs] B)))}");
     auto chain = plan(
-        "rule r {(outer: slice (middle: slice (inner: slice A))) => (slice "
-        "A)}");
-    auto identity = plan("rule r {(s: slice A) => (slice A)}");
+        "rule r {(outer: slice (middle: slice (inner: slice A))) => (out: "
+        "slice A) derive "
+        "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
+        "strides[axis_meta_0]*[middle.attrs.starts[axis_meta_0]+[middle.attrs."
+        "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for axis_meta_0 "
+        "in range(len(middle.attrs.strides))][axis_meta_0] for axis_meta_0 in "
+        "range(len(middle.attrs.starts))][axis_meta_0] for axis_meta_0 in "
+        "range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
+        "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
+        "inner.attrs.strides[axis_meta_1]*[middle.attrs.strides[axis_meta_0]*"
+        "outer.attrs.strides[axis_meta_0] for axis_meta_0 in "
+        "range(len(middle.attrs.strides))][axis_meta_1] for axis_meta_1 in "
+        "range(len(inner.attrs.strides))]};} }");
+    auto identity = plan(
+        "rule r {(s: slice A) => (out: slice A) derive {out.attrs=s.attrs;}}");
     auto sliced_broadcast = plan(
-        "rule r {A:[N] (s:slice (b:broadcast A)) => (broadcast A) where "
+        "rule r {A:[N] (s:slice (b:broadcast A)) => (out:broadcast A) where "
         "{b.attrs.dimensions==[0] && s.attrs.starts[0]==0 && "
-        "s.attrs.sizes[0]==N && s.attrs.strides[0]==1}}");
+        "s.attrs.sizes[0]==N && s.attrs.strides[0]==1} derive "
+        "{out.attrs={dimensions:auto,new_extents:gather(s.attrs.sizes,exclude("
+        "range(len(s.attrs.sizes)),[0]))};} }");
     proved(sliced_broadcast);
     for (int n : {1, 2, 4}) {
       auto input = data({n}, 3);
@@ -158,15 +203,31 @@ int main(int argc, char** argv) {
               {{"b", {{0}, {6}}}, {"s", {{0, 1}, {n, 2}, {1, 2}}}}, expected);
     }
     proved(distribution);
-    proved(composition);
+    // Explicit coordinate arithmetic is evaluated below. Its universal
+    // machine-integer bounds are outside the current metadata prover.
+    expect(composition.proof.status == ProofStatus::Unknown,
+           "general explicit composition needs arithmetic bounds");
     proved(zero_start_composition);
     proved(unit_composition);
     proved(rank_one_unit);
     proved(permuted);
-    proved(chain);
+    expect(chain.proof.status == ProofStatus::Unknown,
+           "general explicit chain needs arithmetic bounds");
     proved(identity);
-    proved(plan("rule r {(outer: slice (inner: slice A)) => (slice A)}", {},
-                tepl::core::SemanticPolicy::kStrict));
+    expect(
+        plan("rule r {(outer: slice (inner: slice A)) => (out: slice A) derive "
+             "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
+             "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for "
+             "axis_meta_0 "
+             "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 "
+             "in "
+             "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
+             "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1]"
+             " for "
+             "axis_meta_1 in range(len(inner.attrs.strides))]};} }",
+             {}, tepl::core::SemanticPolicy::kStrict)
+                .proof.status == ProofStatus::Unknown,
+        "strict policy also requires explicit arithmetic bounds");
     for (std::size_t rank = 0; rank <= 3; ++rank) {
       List shape, starts, sizes, strides;
       for (std::size_t i = 0; i < rank; ++i) {
@@ -231,8 +292,9 @@ int main(int argc, char** argv) {
     expect(!legal(identity, {8}, {{2}, {4}, {2}}), "out of bounds rejected");
     expect(!legal(identity, {8}, {{1, 2}, {3}, {1}}),
            "attribute length mismatch rejected");
-    auto inferred_distribution =
-        plan("rule r {(s: slice (add A B)) => (add (slice A) (slice B))}");
+    auto inferred_distribution = plan(
+        "rule r {(s: slice (add A B)) => (add (slice[s.attrs] A) "
+        "(slice[s.attrs] B))}");
     proved(inferred_distribution);
     auto wrong = plan(
         "rule r {(s: slice A) => (out: slice A) derive "
@@ -245,25 +307,35 @@ int main(int argc, char** argv) {
     expect(wrong_sizes.proof.status == ProofStatus::Unknown,
            "wrong output size is not proved");
     for (auto field : {0, 1, 2}) {
-      auto tampered = identity.proof;
-      auto& values = tampered.constructors.begin()->second;
+      auto tampered = identity;
+      auto& values = tampered.descriptors
+                         .at(identity.nodes[identity.rhs].descriptor->value)
+                         .fields;
+      if (values.empty()) {
+        for (std::size_t f = 0; f < 3; ++f)
+          values.push_back(
+              attributeSymbol(identity, identity.nodes[identity.lhs], f));
+      }
       values[field] = call("offset_extents", {values[field], integer(1)});
-      expect(verify(identity, tampered).status == ProofStatus::Unknown,
+      expect(verify(tampered, identity.proof).status == ProofStatus::Unknown,
              "independent verifier rejects tampered slice attribute");
     }
     auto renamed = dialect;
     auto at = renamed.find("op slice(");
     renamed.replace(at, 9, "op crop(");
-    at = renamed.find("starts: index[];");
-    renamed.replace(at, 16, "begins: index[];");
+    at = renamed.find("starts: coordinate[];");
+    renamed.replace(at, std::string("starts: coordinate[];").size(),
+                    "begins: coordinate[];");
     for (std::size_t position = 0;
          (position = renamed.find("attrs.starts", position)) !=
          std::string::npos;) {
       renamed.replace(position, 12, "attrs.begins");
       position += 12;
     }
-    proved(plan("rule r {(s: crop (add A B)) => (add (crop A) (crop B))}",
-                renamed));
+    proved(
+        plan("rule r {(s: crop (add A B)) => (add (crop[s.attrs] A) "
+             "(crop[s.attrs] B))}",
+             renamed));
     Context arithmetic{identity, 1000000};
     auto x = make(Symbol::Kind::Field, "x", 0, 0),
          y = make(Symbol::Kind::Field, "y", 0, 1);

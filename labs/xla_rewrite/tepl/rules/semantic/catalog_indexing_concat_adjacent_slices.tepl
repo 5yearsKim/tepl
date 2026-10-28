@@ -5,6 +5,6 @@ from "dialects/hlo.tepl" import HLO as hlo;
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_concat_adjacent_slices {
     (attr_c: hlo.concatenate (attr_a: hlo.slice X) (attr_b: hlo.slice X)) => (attr_out: hlo.slice X)
-     where { attr_c.attrs.dimension==0 && attr_a.attrs.strides==[1] && attr_b.attrs.strides==[1] && attr_a.attrs.starts[0]+attr_a.attrs.sizes[0]==attr_b.attrs.starts[0] }
+     where { attr_c.attrs.dimension==0 && attr_a.attrs.strides==[1] && attr_b.attrs.strides==[1] && attr_a.attrs.starts[0]+i64(attr_a.attrs.sizes[0])==attr_b.attrs.starts[0] }
      derive { attr_out.attrs={starts:attr_a.attrs.starts,sizes:[attr_a.attrs.sizes[0]+attr_b.attrs.sizes[0]],strides:[1]}; }
 }

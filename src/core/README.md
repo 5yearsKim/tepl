@@ -92,10 +92,23 @@ sorts from their declared schema when their symbols are created.
 
 Coordinate correspondence lives in `semantics/symbolic/correspondence.cc`.
 It tracks value dependencies separately from tensor interfaces and propagates
-whole-operand shape bindings through consumers. Scalar parameter proposals live
-in `attr_synth/scalar_parameters.cc`; they reuse unambiguous parameters of the
-same scalar function in the normalized source. The verifier checks each
-constructor against its declared attribute type.
+whole-operand shape bindings through consumers. Production synthesis fills only
+field-level `axis` holes; `axis_selectors.cc` handles calculated-read axis
+selectors without constructing coordinate parameters. Scalar parameter and
+coordinate/extent construction are retained in `attr_synth/legacy/`, excluded
+from the production build. The verifier checks inferred fields against their
+roles and types and requires every supplied field to be preserved.
+
+Checking represents field-level requests with `AutoField` and expands schema
+defaults through `checking/attribute_fields.h`. Both omitted and explicit
+constructors enter semantic planning through these checked derivations; no
+separate attribute-hole manifest is maintained.
+`Plan::descriptors` is the sole descriptor-state table: captured descriptors
+read source metadata, while constructed descriptors hold supplied values and
+individual synthesis holes in schema order. The planner derives synthesis
+requirements from those fields; nodes carry no separate automatic flag or mask.
+Materialization replaces only auto fields and preserves the checked supplied
+expressions and defaults. Unresolved `AutoField` nodes cannot enter executable IR.
 
 `semantics/symbolic/reduction_reflection.cc` normalizes a summand by reflecting
 bound coordinates in their established finite domains. It substitutes the
@@ -125,7 +138,7 @@ metadata for suggestions. `node.attrs` resolves to a descriptor reference;
 Source logical-axis properties stay typed until both semantic trees exist,
 then lower to pure source metadata expressions. Group membership uses
 `LogicalAxisSet`, ordered sequences use `LogicalAxis[]`, and positions use
-`index[]`. No runtime feasibility program is emitted.
+`u64[]`. No runtime feasibility program is emitted.
 
 `restrictions.cc` performs bounded search over source-group equalities and
 identity permutations. Every suggestion is checked by fresh synthesis and an

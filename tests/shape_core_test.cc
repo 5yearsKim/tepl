@@ -181,7 +181,8 @@ void listsAndAttributes() {
     yield replaced[0];
   })");
   checkedShape(generic);
-  const auto result = analyze(R"(shape(a, rest...) {
+  const auto result =
+      analyze(R"(shape(a, rest...) {
     let empty = [];
     let shapes = concat([a], rest, empty);
     let flags = [];
@@ -190,8 +191,8 @@ void listsAndAttributes() {
     let ys = [[s[i] + padding[i][0] for i in range(len(s))] for s in shapes];
     yield if attrs.enabled then ys[0] else [];
   })",
-                              "x: tensor, xs: tensor...",
-                              "attrs { padding: i64[][]; enabled: bool; }");
+              "x: tensor, xs: tensor...",
+              "attrs { padding: coordinate[][]; enabled: bool; }");
   const auto& program = checkedShape(result);
   check(program.types.at(program.symbols[0].type.value) ==
             metadata::Type{metadata::Type::Kind::kInteger, 1},
@@ -222,7 +223,7 @@ void listsAndAttributes() {
               "contain itself");
   expectError("shape(s) { yield attrs.shape; }", "no attribute schema");
   expectError("shape(s) { yield attrs.missing; }", "unknown shape attribute",
-              "x: tensor", "attrs { shape: index[]; }");
+              "x: tensor", "attrs { shape: extent[]; }");
   expectError("shape(s) { yield attrs; }", "requires a field access");
   expectError("shape(s) { yield s.field; }", "requires attrs.field");
   for (const auto type : {"string", "precision", "elements", "region",
@@ -231,7 +232,8 @@ void listsAndAttributes() {
                 "optional or opaque", "x: tensor",
                 "attrs { value: " + std::string(type) + "; }");
   const auto shared = tepl::parse(
-      "dialect D { attrs A { shape: index[]; } op x(input: tensor) -> tensor { "
+      "dialect D { attrs A { shape: extent[]; } op x(input: tensor) -> tensor "
+      "{ "
       "attrs: A; shape(s) { yield attrs.shape; } } }");
   check(shared.ok() && tepl::core::inspect(*shared.program).ok(),
         "Shared attribute schemas must work");

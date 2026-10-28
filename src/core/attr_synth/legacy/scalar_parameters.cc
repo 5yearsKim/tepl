@@ -1,4 +1,7 @@
-#include "src/core/attr_synth/scalar_parameters.h"
+// Legacy non-axis attribute inference, retained for reference.
+// Not built or invoked by production axis auto synthesis; no general
+// completeness guarantee.
+#include "src/core/attr_synth/legacy/scalar_parameters.h"
 
 #include "src/core/semantics/symbolic/tree.h"
 

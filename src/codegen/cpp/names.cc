@@ -155,9 +155,9 @@ std::string type(const core::Type& value, bool argument) {
           "extended rule type code generation is not implemented");
     case core::TypeKind::kTensor:
       return argument ? "const TensorInfo&" : "TensorInfo";
-    case core::TypeKind::kIndex:
+    case core::TypeKind::kU64:
       return "::std::uint64_t";
-    case core::TypeKind::kIndexList:
+    case core::TypeKind::kU64List:
       return argument ? "::std::span<const ::std::uint64_t>"
                       : "::std::vector<::std::uint64_t>";
     case core::TypeKind::kBool:

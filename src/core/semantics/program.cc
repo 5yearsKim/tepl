@@ -21,7 +21,7 @@ Result<InspectionData> inspect(const checking::TypedProgram& input,
   CompilationContext context{output, options, {}};
   for (auto& rule : output.rules) {
     if (compile(context, rule)) continue;
-    if (!rule.attribute_holes.empty())
+    if (rule.requiresSynthesis())
       context.report(
           rule.origin,
           "auto requires operations with axes and semantics definitions");

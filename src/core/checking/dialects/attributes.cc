@@ -19,14 +19,29 @@ std::vector<AttributeField> checkFields(
     if (!names.insert(field.name).second)
       context.report(at, "duplicate attribute field '" + field.name + "'");
     static const std::set<std::string> supported = {
-        "dtype",     "index",         "string",         "i64",    "bool",
-        "precision", "dot_algorithm", "replica_groups", "region", "elements"};
-    if (!supported.contains(field.type))
+        "axis",           "extent", "coordinate", "dtype",     "u64",
+        "string",         "i64",    "bool",       "precision", "dot_algorithm",
+        "replica_groups", "region", "elements"};
+    if (field.type == "index")
+      context.report(at,
+                     "attribute type 'index' was removed; use axis, extent, "
+                     "coordinate, u64, or i64");
+    else if (!supported.contains(field.type))
       context.report(at, "unknown attribute type '" + field.type + "'");
     if (field.empty_default && !field.list_depth)
       context.report(at, "empty list default requires a list type");
-    result.push_back({field.name, field.type, field.list_depth, field.optional,
-                      field.empty_default, at});
+    auto role = field.type == "axis"         ? AttributeRole::Axis
+                : field.type == "extent"     ? AttributeRole::Extent
+                : field.type == "coordinate" ? AttributeRole::Coordinate
+                                             : AttributeRole::General;
+    auto storage = role == AttributeRole::Coordinate ? "i64"
+                   : role != AttributeRole::General  ? "u64"
+                                                     : field.type;
+    if (role == AttributeRole::Axis && field.list_depth > 1)
+      context.report(at,
+                     "axis attributes must be scalar or one-dimensional lists");
+    result.push_back({field.name, storage, field.list_depth, field.optional,
+                      field.empty_default, at, role});
   }
   return result;
 }

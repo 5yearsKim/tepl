@@ -112,7 +112,7 @@ Bindings preserve sharing. All declared nodes, including unused bindings, are
 inserted. Prepared child IDs are local indices; insertion remaps them to the
 host e-graph. After later unions, use `egraph.find(id)` to canonicalize handles.
 
-Attributes support `index`, `i64`, `bool`, `string`, `dtype`, `precision`, nested
+Attributes support `u64`, `i64`, `bool`, `string`, `dtype`, `precision`, nested
 lists, and optional values (`none`). Missing optional fields become `None`;
 empty-list defaults become empty lists. Precision values are `default`, `high`,
 and `highest`. Attribute order does not affect the generated node.

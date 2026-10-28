@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#include "src/core/attr_synth/index_inference.h"
+#include "src/core/attr_synth/axis_selectors.h"
 #include "src/core/semantics/symbolic/tree.h"
 
 namespace tepl::core::attr_synth {
@@ -15,7 +15,7 @@ struct Constructor {
   const TensorMeaning& source;
   S reductions;
   const Terms& source_terms;
-  bool unresolvedIndexAttributes(const Instance& n) {
+  bool unresolvedAxisSelectors(const Instance& n) {
     bool found = false;
     walkTree(n.definition->value, [&](const ValuePtr& value) {
       if (!value->access) return;
@@ -32,8 +32,8 @@ struct Constructor {
   void inferReadAttributes(const Instance& n,
                            const std::vector<TensorMeaning>& inputs,
                            const std::vector<S>& groups) {
-    IndexAssignments inferred;
-    auto merge = [&](IndexAssignments& into, const IndexAssignments& values) {
+    AxisAssignments inferred;
+    auto merge = [&](AxisAssignments& into, const AxisAssignments& values) {
       for (const auto& [id, value] : values) {
         auto [old, added] = into.emplace(id, value);
         if (!added && !equalExtentArithmetic(c, old->second, value))
@@ -43,12 +43,12 @@ struct Constructor {
       }
     };
     auto read = [&](const E& pattern) {
-      std::optional<IndexAssignments> solution;
+      std::optional<AxisAssignments> solution;
       for (const auto& term : source_terms)
         for (const auto& actual : term.reads) {
           c.tick();
           if (actual->capture != pattern->capture) continue;
-          auto candidate = matchIndexAttributes(
+          auto candidate = matchAxisSelectors(
               c, pattern->access ? pattern->access : coordinates(pattern->axes),
               actual->access ? actual->access : coordinates(actual->axes));
           if (!candidate) continue;
@@ -77,7 +77,7 @@ struct Constructor {
           "calculated reads provide no direct attribute constructor");
     for (const auto& [id, value] : inferred)
       c.assignAttribute(id.first, id.second, value);
-    c.note("index-coefficient-matching");
+    c.note("axis-selector-matching");
   }
   void assign(const Meta& m, const Instance& n,
               const std::vector<TensorMeaning>& inputs,
@@ -98,14 +98,14 @@ struct Constructor {
     if (n.capture || n.literal) return lowerer.lower(id);
     std::vector<TensorMeaning> inputs;
     for (auto child : n.inputs) inputs.push_back(build(child));
-    if (!n.automatic) return lowerer.operation(id, std::move(inputs));
+    if (!c.plan.needsSynthesis(n))
+      return lowerer.operation(id, std::move(inputs));
     std::set<std::size_t> reduced;
     walkTree(n.definition->value, [&](const ValuePtr& v) {
       if (v->kind == Value::Kind::Reduce) reduced.insert(v->index);
     });
     const auto trial_obligations = lowerer.obligations.size();
-    const bool infer_indices = unresolvedIndexAttributes(n);
-    std::vector<std::size_t> deferred_domains;
+    const bool infer_selectors = unresolvedAxisSelectors(n);
     std::set<std::pair<std::set<std::size_t>, bool>> signatures;
     std::vector<S> groups;
     for (std::size_t g = 0; g < n.definition->groups.size(); ++g) {
@@ -125,16 +125,14 @@ struct Constructor {
         // A single non-reduced domain covers the output interface even when
         // an identity coordinate map reuses axes from its input. Subtracting
         // input axes would erase that frame before calculated-read matching.
-        if (infer_indices && !reduced.contains(g) &&
+        if (infer_selectors && !reduced.contains(g) &&
             n.definition->groups.size() == 1)
           wanted = match.interfaces.at(id);
         auto order = c.filter(match.interfaces.at(id), wanted);
         auto domain = lowerer.metadata(*group.domain, n, inputs, groups);
-        if (infer_indices && containsHole(c.resolve(domain)) &&
-            c.resolve(domain)->kind != Symbol::Kind::Hole)
-          deferred_domains.push_back(g);
-        else
-          assign(*group.domain, n, inputs, groups, c.extents(order));
+        if (containsHole(c.resolve(domain)))
+          throw ProofFailure("extent domains must be supplied explicitly");
+        c.require(call("==", {domain, c.extents(order)}));
         groups.push_back(order);
         continue;
       }
@@ -186,12 +184,7 @@ struct Constructor {
       }
       groups.push_back(order);
     }
-    if (infer_indices) {
-      inferReadAttributes(n, inputs, groups);
-      for (auto g : deferred_domains)
-        assign(*n.definition->groups[g].domain, n, inputs, groups,
-               c.extents(groups[g]));
-    }
+    if (infer_selectors) inferReadAttributes(n, inputs, groups);
     // Generic inversion of output permutations. Preserve the source order at
     // the root and at internal reindexings with the same complete interface.
     std::function<void(const Meta&)> output = [&](const Meta& m) {

@@ -31,11 +31,22 @@ The following tables use descriptive types, rather than TEPL declarations:
 - `Bool` and `DType` are metadata Boolean and dtype values.
 - `T[]` is a homogeneous list. `T` may itself be a list, Boolean, integer, or
   dtype. All occurrences of `T` within a call must have the same type.
-- `L` is a rule `index_list`, containing unsigned 64-bit `index` values.
-- `I` is one shared rule integer type: either unsigned `index` or signed `i64`.
+- `L` is a rule `u64[]`, containing unsigned 64-bit values.
+- `I` is one shared rule integer type: either unsigned `u64` or signed `i64`.
+
+Attribute schema roles `axis` and `extent` use the unsigned `u64` rule type;
+`coordinate` uses signed `i64`. Only `axis` fields can request `auto` in a
+replacement descriptor. `axes` remains the operation declaration for logical
+axis structure; it is separate from the `axis` attribute role.
 
 Rule builtins do not implicitly convert between signed and unsigned integers.
 The numeric builtins have no floating-point overloads.
+Use `i64(x)` or `u64(x)` for an explicit checked integer conversion. Both
+accept either integer type and preserve the mathematical value. A conversion
+fails if the value is outside the destination range; it never wraps or clamps.
+In shape/dtype programs these conversions check the same 64-bit ranges even
+though ordinary metadata arithmetic uses signed 128-bit integers.
+
 
 Empty generic lists need an element type from context. `concat(s, [])` can use
 the type of `s`, and `sum([])` requires integers. A standalone `len([])` cannot
@@ -52,13 +63,13 @@ section access. The axes overloads are listed separately below.
 
 | Function | Group | Metadata signature | Rule signature | Allowed sections |
 | --- | --- | --- | --- | --- |
-| `len` | list | `(T[]) -> Integer` | `(T[]) -> index` | `shape`, `dtype`, `where`, `derive` |
-| `range` | list | `(Integer) -> Integer[]` | `(index) -> index[]` | `shape`, `dtype`, `where`, `derive` |
+| `len` | list | `(T[]) -> Integer` | `(T[]) -> u64` | `shape`, `dtype`, `where`, `derive` |
+| `range` | list | `(Integer) -> Integer[]` | `(u64) -> u64[]` | `shape`, `dtype`, `where`, `derive` |
 | `concat` | list | `(T[], T[], ...) -> T[]` | `(T[], T[], ...) -> T[]` | `shape`, `dtype`, `where`, `derive` |
-| `gather` | list | `(T[], Integer[]) -> T[]` | `(T[], index[]) -> T[]` | `shape`, `dtype`, `where`, `derive` |
+| `gather` | list | `(T[], Integer[]) -> T[]` | `(T[], u64[]) -> T[]` | `shape`, `dtype`, `where`, `derive` |
 | `exclude` | list | `(T[], T[]) -> T[]` | `(T[], T[]) -> T[]` | `shape`, `dtype`, `where`, `derive` |
-| `slice` | list | `(T[], Integer, Integer) -> T[]` | `(T[], index, index) -> T[]` | `shape`, `dtype`, `where`, `derive` |
-| `replace` | list | `(T[], Integer, T) -> T[]` | `(T[], index, T) -> T[]` | `shape`, `dtype`, `where`, `derive` |
+| `slice` | list | `(T[], Integer, Integer) -> T[]` | `(T[], u64, u64) -> T[]` | `shape`, `dtype`, `where`, `derive` |
+| `replace` | list | `(T[], Integer, T) -> T[]` | `(T[], u64, T) -> T[]` | `shape`, `dtype`, `where`, `derive` |
 | `all` | list | `(Bool[]) -> Bool` | `(bool[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
 | `any` | list | `(Bool[]) -> Bool` | `(bool[]) -> bool` | `shape`, `dtype`, `where`, `derive` |
 | `contains` | list | `(T[], T) -> Bool` | `(T[], T) -> bool` | `shape`, `dtype`, `where`, `derive` |
@@ -66,14 +77,16 @@ section access. The axes overloads are listed separately below.
 | `filter` | list | `(LogicalAxis[], LogicalAxisSet) -> LogicalAxis[]` | `(LogicalAxis[], LogicalAxisSet) -> LogicalAxis[]` | `where`, `derive` |
 | `subsequence` | list | `(LogicalAxis[], LogicalAxis[]) -> Bool` | `(LogicalAxis[], LogicalAxis[]) -> bool` | `where`, `derive` |
 | `difference` | list | `(LogicalAxisSet, LogicalAxisSet) -> LogicalAxisSet` | `(LogicalAxisSet, LogicalAxisSet) -> LogicalAxisSet` | `where`, `derive` |
-| `sum` | integer | `(Integer[]) -> Integer` | `(index[]) -> index` | `shape`, `dtype`, `where`, `derive` |
-| `product` | integer | `(Integer[]) -> Integer` | `(index[]) -> index` | `shape`, `dtype`, `where`, `derive` |
+| `i64` | integer | `(Integer) -> Integer` | `(I) -> i64` | `shape`, `dtype`, `where`, `derive` |
+| `u64` | integer | `(Integer) -> Integer` | `(I) -> u64` | `shape`, `dtype`, `where`, `derive` |
+| `sum` | integer | `(Integer[]) -> Integer` | `(u64[]) -> u64` | `shape`, `dtype`, `where`, `derive` |
+| `product` | integer | `(Integer[]) -> Integer` | `(u64[]) -> u64` | `shape`, `dtype`, `where`, `derive` |
 | `min` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
 | `max` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
 | `floor_div` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
 | `ceil_div` | integer | `(Integer, Integer) -> Integer` | `(I, I) -> I` | `shape`, `dtype`, `where`, `derive` |
-| `is_valid_axis_list` | shape | `(Integer[], Integer) -> Bool` | `(index[], index) -> bool` | `shape`, `dtype`, `where`, `derive` |
-| `broadcast_shape` | shape | `(Integer[], Integer[]) -> Integer[]` | `(index[], index[]) -> index[]` | `shape`, `dtype`, `where`, `derive` |
+| `is_valid_axis_list` | shape | `(Integer[], Integer) -> Bool` | `(u64[], u64) -> bool` | `shape`, `dtype`, `where`, `derive` |
+| `broadcast_shape` | shape | `(Integer[], Integer[]) -> Integer[]` | `(u64[], u64[]) -> u64[]` | `shape`, `dtype`, `where`, `derive` |
 | `is_float` | dtype | `(DType) -> Bool` | `(dtype) -> bool` | `dtype`, `where`, `derive` |
 | `is_integer` | dtype | `(DType) -> Bool` | `(dtype) -> bool` | `dtype`, `where`, `derive` |
 | `is_signed_integer` | dtype | `(DType) -> Bool` | `(dtype) -> bool` | `dtype`, `where`, `derive` |
@@ -118,15 +131,15 @@ These functions are available in all four contexts.
 
 | Function | Shape / dtype signature | Rule signature | Behavior |
 | --- | --- | --- | --- |
-| `len(xs)` | `T[] -> Integer` | `T[] -> index` | Return the number of elements in the outer list. |
-| `range(n)` | `Integer -> Integer[]` | `index -> L` | Construct `[0, 1, ..., n - 1]`. `range(0)` is empty. |
+| `len(xs)` | `T[] -> Integer` | `T[] -> u64` | Return the number of elements in the outer list. |
+| `range(n)` | `Integer -> Integer[]` | `u64 -> L` | Construct `[0, 1, ..., n - 1]`. `range(0)` is empty. |
 | `concat(a, b, ...)` | Two or more `T[] -> T[]` | Two or more `T[] -> T[]` | Join lists in argument order. Nested elements retain their boundaries. |
 | `gather(xs, positions)` | `(T[], Integer[]) -> T[]` | `(T[], L) -> T[]` | Select entries in the supplied order. Repeated positions are allowed. |
 | `exclude(xs, removed)` | `(T[], T[]) -> T[]` | `(T[], T[]) -> T[]` | Remove every element whose value occurs in `removed`. Preserve the order and duplicates of remaining elements. |
-| `slice(xs, start, end)` | `(T[], Integer, Integer) -> T[]` | `(T[], index, index) -> T[]` | Copy the half-open interval `[start, end)`. |
-| `replace(xs, position, value)` | `(T[], Integer, T) -> T[]` | `(T[], index, T) -> T[]` | Return a copy with one existing element replaced. |
-| `sum(xs)` | `Integer[] -> Integer` | `L -> index` | Add elements with checked arithmetic. The empty sum is `0`. |
-| `product(xs)` | `Integer[] -> Integer` | `L -> index` | Multiply elements with checked arithmetic. The empty product is `1`. Any zero makes the product `0`. |
+| `slice(xs, start, end)` | `(T[], Integer, Integer) -> T[]` | `(T[], u64, u64) -> T[]` | Copy the half-open interval `[start, end)`. |
+| `replace(xs, position, value)` | `(T[], Integer, T) -> T[]` | `(T[], u64, T) -> T[]` | Return a copy with one existing element replaced. |
+| `sum(xs)` | `Integer[] -> Integer` | `L -> u64` | Add elements with checked arithmetic. The empty sum is `0`. |
+| `product(xs)` | `Integer[] -> Integer` | `L -> u64` | Multiply elements with checked arithmetic. The empty product is `1`. Any zero makes the product `0`. |
 | `all(xs)` | `Bool[] -> Bool` | `bool[] -> bool` | Return true when every element is true. `all([])` is true. |
 | `any(xs)` | `Bool[] -> Bool` | `bool[] -> bool` | Return true when at least one element is true. `any([])` is false. |
 | `contains(xs, value)` | `(T[], T) -> Bool` | `(T[], T) -> bool` | Test whether the value occurs in the list. |
@@ -180,7 +193,7 @@ Both functions are available in rules, shape programs, and dtype programs.
 
 | Function | Shape / dtype signature | Rule signature | Behavior |
 | --- | --- | --- | --- |
-| `is_valid_axis_list(axes, rank)` | `(Integer[], Integer) -> Bool` | `(L, index) -> bool` | Require unique axes, each in `[0, rank)`. Invalid axes or rank return false. |
+| `is_valid_axis_list(axes, rank)` | `(Integer[], Integer) -> Bool` | `(L, u64) -> bool` | Require unique axes, each in `[0, rank)`. Invalid axes or rank return false. |
 | `broadcast_shape(a, b)` | `(Integer[], Integer[]) -> Integer[]` | `(L, L) -> L` | Compute a shape using right-aligned broadcasting. Incompatible dimensions fail. |
 
 An axis list can be shorter than the rank. To validate a complete permutation,
@@ -294,7 +307,7 @@ See [attribute construction](../advanced/attributes_and_conditions.md).
 ### Shape programs
 
 Shape parameters are operand shape lists. Inside an operation with a required
-`permutation: index[]` attribute, a transpose shape program can use:
+`permutation: axis[]` attribute, a transpose shape program can use:
 
 ```javascript
 shape(s) {
@@ -334,7 +347,7 @@ and host-function template parameters are unsupported.
 All occurrences of a call's generic element type must agree. For example,
 `concat([f32], [i32])` is a valid dtype list, while `concat([f32], [1])` mixes
 dtype and integer values and fails type checking. Optional or opaque attributes
-cannot be inspected by metadata expressions; required `index`, `i64`, `bool`,
+cannot be inspected by metadata expressions; required `u64`, `i64`, `bool`,
 and `dtype` attributes, including lists, can be read through `attrs.field`.
 
 Integer arithmetic and reductions detect overflow. Division by zero, invalid

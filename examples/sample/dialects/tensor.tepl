@@ -148,7 +148,7 @@ dialect TensorLang {
     op reshape(input: tensor) -> tensor {
         attrs {
             // TEPL adapter metadata from the StableHLO result type.
-            shape: index[];
+            shape: extent[];
         }
         dtype(t) {
             yield t;
@@ -161,7 +161,7 @@ dialect TensorLang {
 
     op transpose(input: tensor) -> tensor {
         attrs {
-            permutation: index[];
+            permutation: axis[];
         }
         dtype(t) {
             yield t;
@@ -175,9 +175,9 @@ dialect TensorLang {
 
     op broadcast_in_dim(input: tensor) -> tensor {
         attrs {
-            broadcast_dimensions: index[];
+            broadcast_dimensions: u64[];
             // TEPL adapter metadata from the StableHLO result type.
-            shape: index[];
+            shape: extent[];
         }
         dtype(t) {
             yield t;
@@ -201,9 +201,9 @@ dialect TensorLang {
 
     op slice(input: tensor) -> tensor {
         attrs {
-            start_indices: index[];
-            limit_indices: index[];
-            strides: index[];
+            start_indices: u64[];
+            limit_indices: u64[];
+            strides: coordinate[];
         }
         dtype(t) {
             yield t;
@@ -233,7 +233,7 @@ dialect TensorLang {
     // StableHLO permits one or more inputs. The assertion enforces nonemptiness.
     op concatenate(inputs: tensor...) -> tensor {
         attrs {
-            dimension: index;
+            dimension: axis;
         }
         dtype(inputs...) {
             assert len(inputs) > 0;
@@ -260,7 +260,7 @@ dialect TensorLang {
     // Single-input/result specialization; init_value is a real scalar operand.
     op reduce(input: tensor, init_value: tensor) -> tensor {
         attrs {
-            dimensions: index[];
+            dimensions: axis[];
             // TEPL adapter handle for the StableHLO body region.
             body: region;
         }
@@ -280,10 +280,10 @@ dialect TensorLang {
         alias: dot;
         attrs {
             // Flattened fields of StableHLO dot_dimension_numbers.
-            lhs_contracting_dimensions: index[];
-            rhs_contracting_dimensions: index[];
-            lhs_batching_dimensions: index[];
-            rhs_batching_dimensions: index[];
+            lhs_contracting_dimensions: axis[];
+            rhs_contracting_dimensions: axis[];
+            lhs_batching_dimensions: axis[];
+            rhs_batching_dimensions: axis[];
             precision_config: precision[];
             algorithm: dot_algorithm?;
         }
@@ -310,23 +310,23 @@ dialect TensorLang {
 
     op convolution(lhs: tensor, rhs: tensor) -> tensor {
         attrs {
-            window_strides: index[];
-            padding: i64[][];
-            lhs_dilation: index[];
-            rhs_dilation: index[];
+            window_strides: coordinate[];
+            padding: coordinate[][];
+            lhs_dilation: coordinate[];
+            rhs_dilation: coordinate[];
             window_reversal: bool[];
             // Flattened fields of StableHLO dimension_numbers.
-            input_batch_dimension: index;
-            input_feature_dimension: index;
-            input_spatial_dimensions: index[];
-            kernel_input_feature_dimension: index;
-            kernel_output_feature_dimension: index;
-            kernel_spatial_dimensions: index[];
-            output_batch_dimension: index;
-            output_feature_dimension: index;
-            output_spatial_dimensions: index[];
-            feature_group_count: index;
-            batch_group_count: index;
+            input_batch_dimension: axis;
+            input_feature_dimension: axis;
+            input_spatial_dimensions: axis[];
+            kernel_input_feature_dimension: axis;
+            kernel_output_feature_dimension: axis;
+            kernel_spatial_dimensions: axis[];
+            output_batch_dimension: axis;
+            output_feature_dimension: axis;
+            output_spatial_dimensions: axis[];
+            feature_group_count: u64;
+            batch_group_count: u64;
             precision_config: precision[];
         }
         shape(l, r) {
@@ -433,7 +433,7 @@ dialect TensorLang {
     // Collective signatures below specialize to one tensor input/result.
     op all_gather(input: tensor) -> tensor {
         attrs {
-            all_gather_dim: index;
+            all_gather_dim: u64;
             replica_groups: replica_groups;
             channel_id: i64;
             use_global_device_ids: bool;
@@ -456,7 +456,7 @@ dialect TensorLang {
 
     op reduce_scatter(input: tensor) -> tensor {
         attrs {
-            scatter_dimension: index;
+            scatter_dimension: u64;
             replica_groups: replica_groups;
             channel_id: i64;
             use_global_device_ids: bool;
@@ -470,9 +470,9 @@ dialect TensorLang {
 
     op all_to_all(input: tensor) -> tensor {
         attrs {
-            split_dimension: index;
-            concat_dimension: index;
-            split_count: index;
+            split_dimension: u64;
+            concat_dimension: u64;
+            split_count: u64;
             replica_groups: replica_groups;
             channel_id: i64;
         }

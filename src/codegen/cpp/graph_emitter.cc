@@ -15,7 +15,7 @@ std::string attribute(const core::AttributeValue& value,
   if (value.kind == K::kNone) return "::std::nullopt";
   if (optional) {
     static const std::map<std::string, std::string> types = {
-        {"index", "::std::uint64_t"},
+        {"u64", "::std::uint64_t"},
         {"i64", "::std::int64_t"},
         {"bool", "bool"},
         {"string", "::std::string"},
@@ -57,7 +57,7 @@ std::string attribute(const core::AttributeValue& value,
   }
   if (field.type == "i64" && value.text == "-9223372036854775808")
     return "(-9223372036854775807LL - 1LL)";
-  return value.text + (field.type == "index" ? "ULL" : "LL");
+  return value.text + (field.type == "u64" ? "ULL" : "LL");
 }
 }  // namespace
 void emitGraphs(const core::Program& program, const Names& names,

@@ -6,9 +6,26 @@ namespace tepl::core::semantics {
 void Context::checkConstructor(const Instance& n, std::size_t field,
                                const S& value) {
   validateSource(value);
+  const auto& attributes = plan.attributes(n);
+  if (attributes.needsSynthesis() && !attributes.isAuto(field)) {
+    if (!equal(canonical(attributes.fields.at(field)), canonical(value)))
+      throw ProofFailure("candidate changed a supplied non-auto attribute",
+                         FailureKind::InvalidCandidate);
+  }
+  if (attributes.isAuto(field) && !n.definition->axis_fields.contains(field))
+    throw ProofFailure("auto is restricted to axis attributes",
+                       FailureKind::InvalidCandidate);
   auto type = plan.metadata_types.find({n.descriptor->value, field});
-  if (type != plan.metadata_types.end() && !elementType(type->second)) {
-    const auto sort = scalarMetadataSort(type->second);
+  if (callIs(value, "none")) {
+    if (type != plan.metadata_types.end() && type->second.optional) return;
+    throw ProofFailure("none requires an optional attribute",
+                       FailureKind::InvalidCandidate);
+  }
+  auto present_type =
+      type != plan.metadata_types.end() ? type->second : core::Type{};
+  present_type.optional = false;
+  if (type != plan.metadata_types.end() && !elementType(present_type)) {
+    const auto sort = scalarMetadataSort(present_type);
     if (sort == value->sort) {
       checkMetadataType(value, type->second);
       return;
@@ -20,7 +37,8 @@ void Context::checkConstructor(const Instance& n, std::size_t field,
       if (source != plan.metadata_types.end() && source->second == type->second)
         return;
     }
-    throw ProofFailure("constructor does not match its scalar attribute type",
+    throw ProofFailure("constructor does not match scalar attribute '" +
+                           n.definition->fields.at(field) + "'",
                        FailureKind::InvalidCandidate);
   }
   if (value->sort != Symbol::Sort::Positions &&
@@ -31,6 +49,8 @@ void Context::checkConstructor(const Instance& n, std::size_t field,
 }
 void Context::checkMetadataType(const S& raw, core::Type type) {
   tick();
+  if (type.optional && callIs(raw, "none")) return;
+  type.optional = false;
   auto element = elementType(type);
   auto x = canonical(raw);
   if (element) {
@@ -41,28 +61,28 @@ void Context::checkMetadataType(const S& raw, core::Type type) {
     if (elementType(*element))
       throw ProofFailure(
           "symbolic nested attribute bounds are not established");
-    if (element->kind != TypeKind::kIndex && element->kind != TypeKind::kI64)
+    if (element->kind != TypeKind::kU64 && element->kind != TypeKind::kI64)
       return;
     auto zero = call("extent_sub", {x, x});
-    auto minimum = call(
-        "offset_extents",
-        {zero, make(Symbol::Kind::Integer, element->kind == TypeKind::kIndex
-                                               ? "0"
-                                               : "-9223372036854775808")});
-    auto maximum = call(
-        "offset_extents",
-        {zero, make(Symbol::Kind::Integer, element->kind == TypeKind::kIndex
-                                               ? "18446744073709551615"
-                                               : "9223372036854775807")});
+    auto minimum =
+        call("offset_extents",
+             {zero, make(Symbol::Kind::Integer, element->kind == TypeKind::kU64
+                                                    ? "0"
+                                                    : "-9223372036854775808")});
+    auto maximum =
+        call("offset_extents",
+             {zero, make(Symbol::Kind::Integer, element->kind == TypeKind::kU64
+                                                    ? "18446744073709551615"
+                                                    : "9223372036854775807")});
     require(call("extent_le", {minimum, x}));
     require(call("extent_le", {x, maximum}));
-  } else if (type.kind == TypeKind::kIndex || type.kind == TypeKind::kI64) {
+  } else if (type.kind == TypeKind::kU64 || type.kind == TypeKind::kI64) {
     auto interval = integerInterval(x);
-    MetadataInteger lo = type.kind == TypeKind::kIndex
+    MetadataInteger lo = type.kind == TypeKind::kU64
                              ? 0
                              : std::numeric_limits<std::int64_t>::min();
     MetadataInteger hi =
-        type.kind == TypeKind::kIndex
+        type.kind == TypeKind::kU64
             ? MetadataInteger(std::numeric_limits<std::uint64_t>::max())
             : std::numeric_limits<std::int64_t>::max();
     if (!interval || interval->first < lo || interval->second > hi)
@@ -113,6 +133,9 @@ void Context::checkMetadata(const S& raw) {
     require(call("<=", {raw->args[2], call("len", {raw->args[0]})}));
   } else if (callIs(raw, "range")) {
     require(call(">=", {raw->args[0], integer(0)}));
+  } else if (callIs(raw, "i64") || callIs(raw, "u64")) {
+    checkMetadataType(raw->args.at(0),
+                      {callIs(raw, "i64") ? TypeKind::kI64 : TypeKind::kU64});
   } else if (callIs(raw, "+") || callIs(raw, "-") || callIs(raw, "*")) {
     if (!integerInterval(raw))
       throw ProofFailure("checked metadata arithmetic may overflow: " +

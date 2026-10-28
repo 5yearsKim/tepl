@@ -1,151 +1,137 @@
-# Exact Feasibility and Constructive Attribute Synthesis
+# Exact Feasibility and Constructive Axis-Attribute Synthesis
 
-**Fragment.** Operations are generalized contraction, full permutation,
-unary summation, and elementwise addition. A contraction pairs equal-extent
-batch and reduction axes using in-range, duplicate-free position lists,
-disjoint on each operand. It outputs batches in list order, then left-free
-and right-free axes in operand order. Unary summation removes an in-range,
-duplicate-free selection of axes and preserves survivor order.
-Addition requires identical ordered shapes.
-These are the complete contracts, with exact-real sum-of-products semantics.
+**Revised October 28, 2026.** The general structural extension is stated at the
+end of this note and proved in Section 12 of the unified proof. It admits fresh
+positive axes and metadata weights while inferring only marked axis fields.
+The earlier specialization below remains a corollary with its original domain.
 
-Let \(\Sigma\) specify source and RHS trees, declared axis semantics, and
-attribute references. Linearity expands the source to \(L=\sum_{j\in J}L_j\).
-Require an explicit RHS sum \(R=\sum_{j\in J}R_j\), where each pair
-\(L_j,R_j\) uses the same nonempty input set \(U_j\), once per input, through
-contraction, permutation, and unary summation. The sets \(U_j\) are distinct
-but may overlap. Every RHS descriptor is an independent unrestricted unknown;
-no other operators or value assumptions are admitted. A single term includes
-the original non-additive fragment.
+**Signed-axis specialization (Sections 1--11).** Operations are generalized contraction,
+full permutation, whole-axis reversal, unary summation, aligned weighted
+scalar products, and separated elementwise addition. Tensors have exact real
+entries, arbitrary finite ranks, and extents at least two; scalars are allowed.
+Broadcast, slice, and reshape are excluded.
 
-Metadata \(p\) supplies shapes and legal source attributes. Inputs vary
-independently; ranks are arbitrary and finite, physical extents are at least
-two, and scalars are allowed. Let \(\operatorname{Valid}_\Sigma(p,\beta)\)
-mean that attributes \(\beta\) make the RHS legal with the source's ordered
-output shape and equal to the source for every input value.
+Contraction pairs equal-extent batch and reduction axes using in-range,
+duplicate-free lists, disjoint on each operand. Its output order is batches,
+left-free axes, then right-free axes. Permutation reorders whole axes. Reversal
+selects any subset of axes and reads coordinate \(n-1-i\) there. Unary sum
+removes selected axes and preserves survivor order. An admitted scalar operation
+has a fixed positive finite arity and
 
-**Theorem (Exact feasibility generation).** A terminating generator produces
-metadata programs \((\Phi_\Sigma,f_\Sigma)\) such that, for every legal
-in-domain \(p\),
+\[
+h(x_1,\ldots,x_k)=q_h\prod_i x_i,
+\qquad q_h\in\mathbb Q\setminus\{0\}.
+\tag{S}
+\]
+
+Its tensor operation has no attributes, requires identical ordered operand
+shapes, and applies the function positionwise without implicit broadcasting.
+The rational coefficient is fixed in the declared semantics, not an unknown
+field or tensor capture. This single condition includes negation, fixed nonzero
+rational scaling, and aligned products of any positive finite arity. A
+structural adapter recognizes the rational coefficient and product of all
+aligned operand reads; it does not decide equivalence of arbitrary scalar code.
+Addition requires identical shapes and retains its restricted role below.
+
+**Attribute boundary of this specialization.** Descriptors select, order, or pair whole axes.
+Operations with extent, coordinate-offset/stride, padding, or target-shape
+fields are excluded on either side, even if those fields are supplied.
+Axis positions identifying which axes to manipulate are permitted; coordinate
+indices identifying elements within an axis are excluded. Input extents remain
+metadata for legality and fixed reversal semantics. Attribute-free operations
+and axis descriptors must still match the exact contracts above; this boundary
+does not admit every operation taking an axis parameter.
+
+Let \(\Sigma\) specify source and fixed RHS trees. Expand the source by
+linearity/bilinearity to \(L=\sum_{j\in J}L_j\). Require an actual RHS sum
+\(R=\sum_{j\in J}R_j\), with each pair using the same nonempty input set
+\(U_j\), once per input, through the non-additive operations above. The sets
+\(U_j\) are distinct but may overlap. All RHS descriptors are independent
+unrestricted unknowns within their operation contracts. There are no unknown
+extent fields, shared holes, standalone constant tensors, or input-value
+assumptions. Fixed coefficients in (S) are part of operation semantics. Synthesis
+changes attributes of the fixed operation tree.
+
+Metadata \(p\) supplies input shapes and legal source attributes. Define
+\(\operatorname{Valid}^\times_\Sigma(p,\beta)\) to require a legal RHS,
+the source's ordered output shape, and equality for every input tensor value.
+The quantifier order is \(\exists\beta\,\forall X\).
+
+**Theorem (Complete constructive axis-attribute synthesis).** A terminating
+generator produces metadata programs \((\Phi^\times_\Sigma,f^\times_\Sigma)\)
+such that, for every admitted specification and legal in-domain metadata,
 
 \[
 \boxed{
 \begin{aligned}
-\Phi_\Sigma(p)&\iff\exists\beta\;\operatorname{Valid}_\Sigma(p,\beta),\\
-\Phi_\Sigma(p)&\Rightarrow
-\operatorname{Valid}_\Sigma(p,f_\Sigma(p)).
+\Phi^\times_\Sigma(p)&\iff\exists\beta\;
+                     \operatorname{Valid}^\times_\Sigma(p,\beta),\\
+\Phi^\times_\Sigma(p)&\Rightarrow
+                     \operatorname{Valid}^\times_\Sigma(p,f^\times_\Sigma(p)).
 \end{aligned}
 }
 \tag{1}
 \]
 
-Both programs terminate; the constructor returns NotApplicable on failure.
-The same programs handle all finite ranks.
+The same programs handle all finite ranks. The constructor returns
+NotApplicable on failure. With aligned scalar operations the procedure uses
+finite semantic-state dynamic programming, potentially with combinatorial
+cost. The previous direct constructor remains a specialization for the
+fragment without the added scalar operations.
 
-**Generated constraints.** Analyze each source term separately. Source
-pairings identify physical input-axis ports; retain these classes even after
-reduction. Let \(I_c\) be input \(c\)'s ordered class sequence, \(F\) the
-ordered output, and \(\sigma(a)\) the inputs containing class \(a\).
-For a RHS node \(v\) with input set \(V_v\), the mandatory axes are
+**Normalize scalar coefficients.** For each expanded non-additive component
+\(E\), compute \(c_E=\prod_h q_h\) once, and erase those coefficients
+to obtain its unweighted network \(N_E\). Interpret an aligned product as
+fixed full-batch contractions, preserving every axis in position order; these
+fixed lists do not introduce new attribute holes. Unary scaling leaves the
+network unchanged. Thus \(E=c_E\mathcal T_{N_E}\).
 
-\[
-M_v=\{a:\sigma(a)\cap V_v\ne\varnothing
- \land(a\in\operatorname{set}(F)\lor\sigma(a)\nsubseteq V_v)\}.
-\tag{2}
-\]
+Lemma 1's signed exactness extends immediately: different networks have a
+one-hot witness giving a nonzero coefficient versus zero; equal networks have
+a satisfying one-hot input exposing their coefficients. Hence universal
+equality is exactly equality of the networks and of \(c_E\). The nonzero
+coefficient assumption is essential to this argument.
 
-Compute canonical live sets \(P_v\) bottom-up. An input keeps
-\(P_v=\operatorname{set}(I_c)\); a permutation keeps its child's set;
-a unary sum sets \(P_v=P_{\mathrm{child}}\cap M_v\).
-At a contraction, set
+**Construct and prove completeness.** At each RHS node retain all legally
+reachable canonical unweighted networks, including ordered shape, with one
+realizing descriptor witness per network. Consider all axis orders at a
+permutation, all subsets at reversal/sum, and all legal pairings, roles, and
+batch orders at contraction. An aligned scalar node has only its fixed
+positionwise alignment, requiring all child shapes to agree. Replay these
+connections as in Section 2; reduced physical input ports remain recorded.
 
-\[
-\begin{aligned}
-B_v&=P_\ell\cap P_r\cap M_v,&
-K_v&=(P_\ell\cap P_r)\setminus M_v,\\
-LF_v&=P_\ell\setminus P_r,&
-RF_v&=P_r\setminus P_\ell,\\
-P_v&=B_v\cup LF_v\cup RF_v.&&
-\end{aligned}
-\tag{3}
-\]
+Induction shows each table contains exactly the realizable networks. Generated
+entries have legal witnesses. Conversely, any legal assignment's child states
+occur by induction and its local choice is considered. Equal child networks
+have equal shapes and normalized values; their scalar coefficients are fixed
+by the subtree. Retaining one witness therefore preserves parent legality and
+values. Independent holes allow witnesses to combine.
 
-Thus completed non-output axes disappear at the first operation that can
-remove them. Require \(P_{\mathrm{root}}=\operatorname{set}(F)\).
+Accept each component exactly when its coefficient matches the source and its
+root table contains the source network; recover the stored witnesses. The
+exactness argument proves component completeness. Multilinearity preserves
+Section 5's separation of distinct input sets, so the witnesses combine to
+prove (1). The actual RHS must already be separated; copying unknowns through
+an RHS expansion and same-input-set cancellation remain excluded.
 
-Propagate a required subsequence \(Q\), starting with \(F\).
-A contraction passes \(Q|_{LF}\) and \(Q|_{RF}\) to its children;
-a unary sum passes \(Q\) unchanged; a permutation passes the empty sequence.
-Here \(Q|_A\) filters by set \(A\), \(\Vert\) concatenates, and \(\preceq\)
-denotes subsequence. Check
+Each finite-rank child has finitely many local choices. Induction gives finite
+tables and witnesses, and syntax-directed generation emits these traversals,
+root checks, and witness recovery. All coefficients are exact rational constants
+computed during generation. This proves termination uniformly across finite
+ranks without reading tensor values or enumerating coordinate grids. The search
+may be combinatorial. The direct core constructor remains a specialization;
+fixed pointwise alignment prevents extending its greedy elimination unchanged.
 
-\[
-\begin{cases}
-Q\preceq I_c,&\text{at an input }c,\\
-Q=(Q|_B)\Vert(Q|_{LF})\Vert(Q|_{RF}),&\text{at a contraction}.
-\end{cases}
-\tag{4}
-\]
-
-Let \(\phi_j\) conjoin the root-set and order checks for term \(j\).
-Then \(\Phi_\Sigma=\bigwedge_j\phi_j\), using only source metadata and the
-fixed RHS structure.
-
-**Proof.**
-*Separate terms.* Scale each input \(X_c\) by an independent real \(z_c\).
-Term \(j\) is multiplied by \(\prod_{c\in U_j}z_c\). Distinct input sets give
-distinct monomials, so coefficient uniqueness makes equality of the sums
-equivalent to equality of every paired term. Source expansion preserves
-legality and shapes by the operation contracts.
-
-*Recover axis relationships.* Each read-once term denotes a sum of products,
-with one factor per input and every index class observed by an input port.
-Equal partitions and ordered output attachments therefore give equal tensors.
-Conversely, attach a named port to each output position. If two partitions
-differ, assign coordinates 0 and 1 to classes separated in one but identified
-in the other. One-hot inputs at the resulting tuples produce 1 versus 0:
-every reduction coordinate is fixed by an input port. Hence equality for all
-inputs forces the same partition and output order.
-
-*Normalize axis lifetimes.* Every valid replacement retains (2), but may
-keep additional axes until a later unary sum. Project its layout at each
-node onto \(P_v\). This projection is realizable: a unary sum can remove
-completed non-output axes, and a dot can contract a completed shared class
-instead of batching it. Every surviving class keeps its batch/free role;
-filtering preserves the relative order of survivors. Permutations can realize
-any projected order, while input layouts are unchanged. Induction therefore
-gives an equivalent realization with exactly the canonical live sets.
-Its root must have precisely \(F\), and its block and input orders satisfy
-(4). Thus every valid assignment passes the generated checks.
-
-*Construct attributes.* Build layouts bottom-up. Inputs retain their order;
-a permutation places \(Q\) first. At a dot, choose a batch order beginning
-with \(Q|_B\), any common order of \(K\), and translate those lists into
-positions in the child layouts. Append child free axes in their existing
-order. At a unary sum, reduce the positions of
-\(P_{\mathrm{child}}\setminus P_v\).
-Inductively each layout contains exactly \(P_v\) and contains \(Q\) as a
-subsequence, by (4). All lookups are defined, paired extents match, and
-the descriptors are legal. Only occurrences of the same source class merge;
-a class disappears only after its supporting ports have joined.
-At the root the layout is exactly \(F\), establishing term equality.
-
-Independent descriptors let the term assignments combine; their output
-shapes agree, so the full sum is legal and equal. Finally, finite source
-expansion and emitted tree traversals implement (2)--(4) and the construction
-using finite metadata operations. Rank affects loop bounds, not program
-structure. This proves (1), termination, and uniform generation. \(\square\)
-
-For LoRA, \(X(W+AB)\to XW+(XA)B\), the distinct input sets are
-\(\{X,W\}\) and \(\{X,A,B\}\); only the latter needs reassociation analysis.
-Unary summation additionally permits
-\(\sum_{i,j}(AB)_{ij}=\sum_k(\sum_i A_{ik})(\sum_j B_{kj})\),
-with reduction and contraction attributes inferred together.
-
-**Scope.** Additional conditions give mathematical-solver applicability
-\(C(p)\land\Phi_\Sigma(p)\). The theorem concerns the specified generator,
-not C++ implementation verification. The
-[unified proof](complete_attribute_synthesis_proof.md) gives the full argument.
+**Scope and implementation.** This is completeness for the specified
+mathematical procedure. Broadcast, slice, reshape, shared holes, repeated
+inputs within a component, singleton/zero extents, zero scaling, standalone
+constants, scalar functions outside (S),
+and strict floating-point reassociation remain outside the theorem. It neither
+formalizes the compiler nor establishes a new XLA coverage count. Extra source
+conditions give applicability \(C\land\Phi^\times_\Sigma\); feasibility of
+all matches under \(C\) requires a separate implication proof. The
+[unified proof](complete_attribute_synthesis_proof.md), Section 11, gives the
+full scalar extension; Sections 1--7 give the direct core constructor.
 
 **Practical TEPL integration.** The complete generator is a specialized reasoning
 procedure. TEPL's general synthesis path may support additional cases without
@@ -160,3 +146,63 @@ results. A bounded restriction recommender verifies each suggestion afresh and
 requires a legal metadata witness; users add reviewed restrictions explicitly.
 The proof's Section 10 describes the implemented acceptance contract and the
 separate implementation-correspondence obligation.
+
+## General structural extension: only axis slots are unknown
+
+The broader theorem in Section 12 of the unified proof admits
+**metadata-weighted signed wiring**: identify whole axes with identity or
+reflection, sum entire domains, reorder surviving axes, and introduce fresh
+positive axes with supplied extents. A nonzero rational factor may be determined
+by the declared semantics, supplied metadata, child shapes, and selected axes.
+This factor is computed, not inferred. Local legality depends only on that
+metadata, those shapes, and the local axis choice. Axis choices are finite and
+independent, and their enumeration respects any supplied axis fields. The
+read-once and distinct-input-set additive restrictions remain.
+
+This single contract includes supplied-extent broadcast (including singleton
+expansion), unit-dimension insertion/removal, keepdims summation, and full-axis
+mean. `axis` fields alone may be `auto`; `extent`, `coordinate`, and general
+`u64`/`i64` fields are supplied programs or defaults. Their values and definedness
+are preserved. Physical inputs and introduced axes have positive extents;
+singletons are allowed, but zero extents are outside this theorem.
+
+Let \(s_\Sigma(p)\) collect the supplied fields, \(\alpha\) the marked axis
+slots, and \(D_\Sigma(p,\alpha)\) the completed descriptors. There are uniform
+terminating structural procedures such that
+
+\[
+\Phi^{\mathrm{wire}}_\Sigma(p)
+\iff \exists\alpha\;\operatorname{Defined}(s_\Sigma(p))\land
+ \operatorname{Valid}_\Sigma(p,D_\Sigma(p,\alpha)),
+\tag{2}
+\]
+
+and on success the recovered axis assignment gives a valid completion without
+changing supplied fields. The domain and arithmetic assumptions are part of the
+statement, not inferred runtime guards.
+
+**Proof idea.** Use the canonical state
+\((\mathbf n,\Pi,\varepsilon,\lambda)\): ordered output shape, signed
+partition of observable non-unit input/output ports, and exact rational weight.
+A unit coordinate is always zero, so its relationships are omitted. A closed
+class with no physical input or output port contributes its extent to the
+weight; a pure output class carries an axis on which the value is constant.
+The remaining partition is exact by the one-hot separation argument, and a
+satisfying one-hot input exposes the nonzero weight. Equal states are
+interchangeable in a parent because both legality and its declared factor depend
+only on the state shapes and fixed local metadata.
+
+Induction therefore proves that the reachable-state tables contain exactly the
+realizable states, with one sufficient witness per state. Match source and RHS
+root states, then combine independent witnesses using capture-scaling separation
+of additive components. All weights must be part of the table key: an eliminated
+broadcast axis can compensate a scalar coefficient. The procedure traverses
+axis structure and exact metadata, not tensor coordinates or tensor entries.
+It may still be combinatorial in axis choices and states.
+
+General convolution, slice, reshape, padding, cumulative sum, and value-dependent
+rearrangement do not enter merely by supplying their non-axis attributes: they
+need a proved adapter to this wiring contract or a different exact symbolic
+representation. The theorem is a mathematical extension, not a completeness
+claim for the current bounded C++ synthesizer, a strict floating-point result,
+or a new measured XLA coverage count.

@@ -21,14 +21,14 @@ class Formula {
     if (builtins::signature(b).result == builtins::SignatureType::kAxisList)
       t = listType(logicalAxisType());
     if (builtins::signature(b).result == builtins::SignatureType::kIntegerList)
-      t = Type{TypeKind::kIndexList};
+      t = Type{TypeKind::kU64List};
     if (builtins::signature(b).result == builtins::SignatureType::kAxisSet)
       t = logicalAxisSetType();
     if (b == B::kConcat) t = listType(logicalAxisType());
     return make(t, BuiltinCall{b, std::move(args)});
   }
   TypedExprPtr query(B b, std::size_t node) {
-    return call(b, {make(Type{TypeKind::kIndex},
+    return call(b, {make(Type{TypeKind::kU64},
                          NumericConstant{std::to_string(node), false})});
   }
   TypedExprPtr equal(TypedExprPtr a, TypedExprPtr b) {

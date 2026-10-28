@@ -41,18 +41,18 @@ op dot_general(lhs: tensor, rhs: tensor) -> tensor {
         }
         attrs {
 
-            lhs_contracting_dimensions: index[];
-            rhs_contracting_dimensions: index[];
-            lhs_batching_dimensions: index[];
-            rhs_batching_dimensions: index[];
+            lhs_contracting_dimensions: axis[];
+            rhs_contracting_dimensions: axis[];
+            lhs_batching_dimensions: axis[];
+            rhs_batching_dimensions: axis[];
         }
     }
 
 op convolution(input: tensor, kernel: tensor) -> tensor {
         alias: conv;
         attrs {
-            strides: index[];
-            dilations: index[];
+            strides: coordinate[];
+            dilations: coordinate[];
         }
         dtype(a, b) {
             assert a == b;
@@ -63,9 +63,9 @@ op convolution(input: tensor, kernel: tensor) -> tensor {
 
 op slice(input: tensor) -> tensor {
         attrs {
-            starts: index[];
-            sizes: index[];
-            strides: index[];
+            starts: coordinate[];
+            sizes: extent[];
+            strides: coordinate[];
         }
         dtype(t) { yield t; }
     }
@@ -73,15 +73,15 @@ op slice(input: tensor) -> tensor {
 op broadcast_in_dim(input: tensor) -> tensor {
         alias: broadcast;
         attrs {
-            dimensions: index[];
-            new_extents: index[];
+            dimensions: axis[];
+            new_extents: extent[];
         }
         dtype(t) { yield t; }
     }
 
 op transpose(input: tensor) -> tensor {
         attrs {
-            permutation: index[];
+            permutation: axis[];
         }
         dtype(t) {
             yield t;
@@ -89,13 +89,13 @@ op transpose(input: tensor) -> tensor {
     }
 
 op reverse(input: tensor) -> tensor {
-        attrs { dimensions: index[]; }
+        attrs { dimensions: axis[]; }
         dtype(t) { yield t; }
     }
 
 op reduce_sum(input: tensor) -> tensor {
         attrs {
-            dimensions: index[];
+            dimensions: axis[];
         }
         dtype(t) {
             assert is_numeric(t);
@@ -170,36 +170,36 @@ op complex(lhs: tensor, rhs: tensor) -> tensor;
     }
 
 op reshape(input: tensor) -> tensor {
-        attrs { shape: index[]; }
+        attrs { shape: extent[]; }
         shape(s) { assert product(s) == product(attrs.shape); yield attrs.shape; }
     }
 
 op concatenate(inputs: tensor...) -> tensor {
-        attrs { dimension: index; }
+        attrs { dimension: axis; }
     }
 
 op pad(input: tensor, value: tensor) -> tensor {
-        attrs { low: i64[]; high: i64[]; interior: index[]; }
+        attrs { low: coordinate[]; high: coordinate[]; interior: coordinate[]; }
     }
 
 op nonnegative_pad(input: tensor, value: tensor) -> tensor {
-        attrs { low: index[]; high: index[]; interior: index[]; }
+        attrs { low: coordinate[]; high: coordinate[]; interior: coordinate[]; }
     }
 
 op dynamic_slice(input: tensor, starts: tensor...) -> tensor {
-        attrs { sizes: index[]; }
+        attrs { sizes: extent[]; }
     }
 
 op dynamic_update_slice(input: tensor, update: tensor, starts: tensor...) -> tensor;
 
 op reduce(input: tensor, init: tensor) -> tensor {
-        attrs { dimensions: index[]; body: region; }
+        attrs { dimensions: axis[]; body: region; }
     }
 
 op convert(input: tensor) -> tensor { attrs { to: dtype; } }
 
     op compare(lhs: tensor, rhs: tensor) -> tensor {
-        attrs {direction: index;}
+        attrs {direction: u64;}
         dtype(a,b) {assert a == b; assert is_numeric(a) || a == bool; yield bool;}
     }
 
@@ -224,106 +224,106 @@ op convert(input: tensor) -> tensor { attrs { to: dtype; } }
     }
 
 op fill() -> tensor {
-        attrs { shape: index[]; value: i64; element_type: dtype; }
+        attrs { shape: extent[]; value: i64; element_type: dtype; }
         dtype() { yield attrs.element_type; }
         shape() { yield attrs.shape; }
     }
 
 op scalar() -> tensor {
-        attrs { value: index; element_type: dtype; shape: index[]; }
+        attrs { value: u64; element_type: dtype; shape: extent[]; }
         dtype() { yield attrs.element_type; }
         shape() { yield attrs.shape; }
     }
 
 op iota() -> tensor {
-        attrs { shape: index[]; dimension: index; element_type: dtype; }
+        attrs { shape: extent[]; dimension: axis; element_type: dtype; }
         dtype() { yield attrs.element_type; }
         shape() { yield attrs.shape; }
     }
 
-op rotate(input: tensor) -> tensor { attrs { dimensions: index[]; shifts: index[]; } }
+op rotate(input: tensor) -> tensor { attrs { dimensions: axis[]; shifts: coordinate[]; } }
 
 op scatter(input: tensor, indices: tensor, updates: tensor) -> tensor {
         attrs {
-            update_window_dims: index[]; inserted_window_dims: index[];
-            scatter_dims_to_operand_dims: index[]; index_vector_dim: index;
-            input_batching_dims: index[]; scatter_indices_batching_dims: index[];
+            update_window_dims: axis[]; inserted_window_dims: axis[];
+            scatter_dims_to_operand_dims: axis[]; index_vector_dim: axis;
+            input_batching_dims: axis[]; scatter_indices_batching_dims: axis[];
             indices_are_sorted: bool; unique_indices: bool; body: region;
         }
     }
 
 op scatter_add(input: tensor, indices: tensor, updates: tensor) -> tensor {
         attrs {
-            update_window_dims: index[]; inserted_window_dims: index[];
-            scatter_dims_to_operand_dims: index[]; index_vector_dim: index;
-            input_batching_dims: index[]; scatter_indices_batching_dims: index[];
+            update_window_dims: axis[]; inserted_window_dims: axis[];
+            scatter_dims_to_operand_dims: axis[]; index_vector_dim: axis;
+            input_batching_dims: axis[]; scatter_indices_batching_dims: axis[];
             indices_are_sorted: bool; unique_indices: bool;
         }
     }
 
 op gather(input: tensor, indices: tensor) -> tensor {
         attrs {
-            offset_dims: index[]; collapsed_slice_dims: index[];
-            start_index_map: index[]; index_vector_dim: index; slice_sizes: index[];
-            operand_batching_dims: index[]; start_indices_batching_dims: index[];
-            shape: index[];
+            offset_dims: axis[]; collapsed_slice_dims: axis[];
+            start_index_map: axis[]; index_vector_dim: axis; slice_sizes: extent[];
+            operand_batching_dims: axis[]; start_indices_batching_dims: axis[];
+            shape: extent[];
         }
     }
 
 op map(lhs: tensor, rhs: tensor) -> tensor { attrs { body: region; } }
 
-op reduce_min(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+op reduce_min(input: tensor, init: tensor) -> tensor { attrs { dimensions: axis[]; } }
 
-op reduce_max(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+op reduce_max(input: tensor, init: tensor) -> tensor { attrs { dimensions: axis[]; } }
 
-op reduce_and(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+op reduce_and(input: tensor, init: tensor) -> tensor { attrs { dimensions: axis[]; } }
 
-op reduce_or(input: tensor, init: tensor) -> tensor { attrs { dimensions: index[]; } }
+op reduce_or(input: tensor, init: tensor) -> tensor { attrs { dimensions: axis[]; } }
 
 op reduce_window(input: tensor, init: tensor) -> tensor {
         attrs {
-            window_dimensions: index[]; window_strides: index[];
-            base_dilations: index[]; window_dilations: index[];
-            padding_low: index[]; padding_high: index[]; body: region;
+            window_dimensions: extent[]; window_strides: coordinate[];
+            base_dilations: coordinate[]; window_dilations: coordinate[];
+            padding_low: coordinate[]; padding_high: coordinate[]; body: region;
         }
     }
 
 op reduce_window_sum(input: tensor, init: tensor) -> tensor {
         attrs {
-            window_dimensions: index[]; window_strides: index[];
-            base_dilations: index[]; window_dilations: index[];
-            padding_low: index[]; padding_high: index[];
+            window_dimensions: extent[]; window_strides: coordinate[];
+            base_dilations: coordinate[]; window_dilations: coordinate[];
+            padding_low: coordinate[]; padding_high: coordinate[];
         }
     }
 
 op reduce_window_min(input: tensor, init: tensor) -> tensor {
         attrs {
-            window_dimensions: index[]; window_strides: index[];
-            base_dilations: index[]; window_dilations: index[];
-            padding_low: index[]; padding_high: index[];
+            window_dimensions: extent[]; window_strides: coordinate[];
+            base_dilations: coordinate[]; window_dilations: coordinate[];
+            padding_low: coordinate[]; padding_high: coordinate[];
         }
     }
 
 op reduce_window_max(input: tensor, init: tensor) -> tensor {
         attrs {
-            window_dimensions: index[]; window_strides: index[];
-            base_dilations: index[]; window_dilations: index[];
-            padding_low: index[]; padding_high: index[];
+            window_dimensions: extent[]; window_strides: coordinate[];
+            base_dilations: coordinate[]; window_dilations: coordinate[];
+            padding_low: coordinate[]; padding_high: coordinate[];
         }
     }
 
 op general_convolution(lhs: tensor, rhs: tensor) -> tensor {
         attrs {
-            window_strides: index[]; padding_low: index[]; padding_high: index[];
-            lhs_dilation: index[]; rhs_dilation: index[]; window_reversal: bool[];
-            input_batch_dimension: index; input_feature_dimension: index;
-            input_spatial_dimensions: index[];
-            kernel_input_feature_dimension: index; kernel_output_feature_dimension: index;
-            kernel_spatial_dimensions: index[];
-            output_batch_dimension: index; output_feature_dimension: index;
-            output_spatial_dimensions: index[];
-            feature_group_count: index; batch_group_count: index;
-            precision_config: precision[]; shape: index[];
+            window_strides: coordinate[]; padding_low: coordinate[]; padding_high: coordinate[];
+            lhs_dilation: coordinate[]; rhs_dilation: coordinate[]; window_reversal: bool[];
+            input_batch_dimension: axis; input_feature_dimension: axis;
+            input_spatial_dimensions: axis[];
+            kernel_input_feature_dimension: axis; kernel_output_feature_dimension: axis;
+            kernel_spatial_dimensions: axis[];
+            output_batch_dimension: axis; output_feature_dimension: axis;
+            output_spatial_dimensions: axis[];
+            feature_group_count: u64; batch_group_count: u64;
+            precision_config: precision[]; shape: extent[];
         }
     }
 }

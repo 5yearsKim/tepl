@@ -38,8 +38,8 @@ These are independent properties:
 
 A dialect contains operation definitions; availability is checked at each
 expression section. Shared names do not imply identical types in every context.
-Metadata uses checked signed `i128`; rule integer positions use unsigned `index`
-(`u64`), and integer pairs may use a shared `index` or `i64` type. There is no
+Metadata uses checked signed `i128`; rule integer positions use unsigned `u64`
+(`u64`), and integer pairs may use a shared `u64` or `i64` type. There is no
 implicit signed/unsigned conversion or floating-point built-in overload.
 
 The axes catalog makes these shared implementations explicit:

@@ -38,7 +38,7 @@ S make(Symbol::Kind k, std::string name, std::size_t owner, std::size_t index,
   if (k == Symbol::Kind::AxisGroup) sort = Symbol::Sort::Axes;
   if (k == Symbol::Kind::Call) {
     if (name == "len" || name == "+" || name == "-" || name == "*" ||
-        name == "index")
+        name == "index" || name == "i64" || name == "u64")
       sort = Symbol::Sort::Integer;
     else if (name == "==" || name == "!=" || name == "&&" || name == "||" ||
              name == "!" || name == "<" || name == "<=" || name == ">" ||
@@ -89,7 +89,8 @@ S attributeSymbol(const Plan& plan, const Instance& node, std::size_t field) {
   if (auto found = plan.metadata_types.find({node.descriptor->value, field});
       found != plan.metadata_types.end())
     sort = scalarMetadataSort(found->second).value_or(sort);
-  return make(node.automatic ? Symbol::Kind::Hole : Symbol::Kind::Field,
+  return make(plan.attributes(node).isAuto(field) ? Symbol::Kind::Hole
+                                                  : Symbol::Kind::Field,
               node.definition->fields.at(field), node.descriptor->value, field,
               {}, sort);
 }

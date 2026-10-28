@@ -57,7 +57,7 @@ bool validGraphLiteral(std::string_view value, DType dtype) {
 }
 
 bool validScalarLiteral(std::string_view value, TypeKind type) {
-  if (type == TypeKind::kIndex) return fitsInteger(value, false, 64);
+  if (type == TypeKind::kU64) return fitsInteger(value, false, 64);
   if (type == TypeKind::kI64) return fitsInteger(value, true, 64);
   if (type != TypeKind::kF64) return false;
   if (value.starts_with('+')) value.remove_prefix(1);

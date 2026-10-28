@@ -1,6 +1,20 @@
 #include "src/core/semantics/ir.h"
 
+#include <algorithm>
+
 namespace tepl::core::semantics {
+bool DescriptorAttributes::needsSynthesis() const {
+  return !isCaptured() &&
+         std::any_of(fields.begin(), fields.end(), [](const auto& f) {
+           return f->kind == Symbol::Kind::Hole;
+         });
+}
+bool DescriptorAttributes::allAuto() const {
+  return !isCaptured() && !fields.empty() &&
+         std::all_of(fields.begin(), fields.end(), [](const auto& f) {
+           return f->kind == Symbol::Kind::Hole;
+         });
+}
 const char* guardKindName(GuardKind kind) {
   switch (kind) {
     case GuardKind::Legality:
@@ -20,17 +34,9 @@ const std::vector<Law>& laws() {
        "positive per-axis integer scales; equal tuple lengths", false},
       {"extent-floor-bound", "s * floor(q/s) <= q",
        "paired tuple lengths; nonnegative q; positive s", false},
-      {"index-coefficient-matching",
-       "o+a*x = p+b*x gives sufficient constructors o:=p, a:=b",
-       "matched scoped coordinate bases; whole coefficient/offset holes; "
-       "independent "
-       "verification",
-       false},
-      {"scalar-parameter-correspondence",
-       "parameter := matching source scalar parameter",
-       "unambiguous source function and parameter slot; declared attribute "
-       "type; "
-       "independent target legality and equivalence verification",
+      {"axis-selector-matching", "reverse selector := matching source selector",
+       "scoped coordinate identities; supplied offsets and coefficients; "
+       "independent legality and equivalence verification",
        false},
       {"index-offset-normalization", "a+(b+x)=(a+b)+x; s*(a+x)=s*a+s*x",
        "paired tuple lengths; metadata offsets; exact integer arithmetic",

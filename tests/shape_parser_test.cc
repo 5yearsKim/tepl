@@ -81,7 +81,7 @@ void testBuiltinCallSyntax() {
 void testStatementsParametersAndSpans() {
   const auto parsed = tepl::parse(R"(dialect D {
   op transpose(input: tensor) -> tensor {
-    attrs { permutation: index[]; }
+    attrs { permutation: axis[]; }
     shape(s) {
       let axes = attrs.permutation;
       assert len(axes) == len(s);
@@ -278,7 +278,7 @@ void testInvalidShapeSyntax() {
 
 void testBuiltinNamesRemainIdentifiers() {
   check(tepl::parse("dialect D { op len(shape: tensor) -> tensor { attrs { "
-                    "shape: index[]; } shape(s) { yield attrs.shape; } } } "
+                    "shape: extent[]; } shape(s) { yield attrs.shape; } } } "
                     "rule r { len => len where { gather(len) && len(len) } }")
             .ok(),
         "Builtin names and shape must remain usable as ordinary identifiers");

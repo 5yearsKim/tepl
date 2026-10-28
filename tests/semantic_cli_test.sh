@@ -62,7 +62,7 @@ TEPL
 if "$compiler" check "$temporary_directory/no_axes.tepl" > "$temporary_directory/error" 2>&1; then exit 1; fi
 grep -Fq 'semantics requires an axes block' "$temporary_directory/error"
 cat > "$temporary_directory/no_semantics.tepl" <<'TEPL'
-dialect D { op identity(x:tensor)->tensor { attrs {p:index[];} } }
+dialect D { op identity(x:tensor)->tensor { attrs {p:axis[];} } }
 rule unsupported { (p: identity X) => (identity X) }
 TEPL
 if "$compiler" check "$temporary_directory/no_semantics.tepl" > "$temporary_directory/error" 2>&1; then exit 1; fi

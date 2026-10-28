@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the explicit v2 JSON Schema and its C++ codec from one field catalog.
+"""Generate the explicit v3 JSON Schema and its C++ codec from one field catalog.
 
 Generated files are checked in; CLI tests compare the public and embedded schemas.
 """
@@ -19,7 +19,7 @@ def variant(name, cpp, values):
     V[name] = (cpp, dict(x.split(':',1) for x in values.split()))
 
 enum('dtype','core::DType',' '.join(f'{s}:k{c}' for s,c in [('bool','Bool'),('i8','I8'),('i16','I16'),('i32','I32'),('i64','I64'),('u8','U8'),('u16','U16'),('u32','U32'),('u64','U64'),('f16','F16'),('bf16','BF16'),('f32','F32'),('f64','F64')]))
-enum('type_kind','core::TypeKind','tensor:kTensor index:kIndex index_list:kIndexList bool:kBool i64:kI64 f64:kF64 descriptor:kDescriptor dtype:kDType string:kString precision:kPrecision opaque:kOpaque')
+enum('type_kind','core::TypeKind','tensor:kTensor u64:kU64 u64_list:kU64List bool:kBool i64:kI64 f64:kF64 descriptor:kDescriptor dtype:kDType string:kString precision:kPrecision opaque:kOpaque')
 enum('descriptor_kind','core::completed::Descriptor::Kind','captured:kCaptured derived:kDerived')
 enum('shape_kind','core::ShapeElement::Kind','dimension:kDimension wildcard:kWildcard sequence:kSequence')
 enum('literal_kind','core::GraphLiteral::Kind','integer:kInteger decimal:kDecimal')
@@ -194,7 +194,7 @@ if 'Codec<std::set<T>>' not in header:
 };
 '''
 (ROOT/'src/executable/codec.h').write_text(header+'\n'.join(code)+'\n} // namespace tepl::executable::detail\n')
-schema={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'TEPL compiled rewrite program v2',**obj({'format':{'const':'tepl.rewrite'},'version':{'const':2},'policy':{'enum':['strict','algebraic']},'capabilities':{'anyOf':[{'const':['tepl.core.v2','tepl.axis-metadata.v2']},{'const':['tepl.core.v2','tepl.axis-metadata.v2','tepl.inferred-applicability.v1']}]},'program':ref('ir'),'axis_definitions':ref('symbol*[][]')}),'$defs':defs}
+schema={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'TEPL compiled rewrite program v3',**obj({'format':{'const':'tepl.rewrite'},'version':{'const':3},'policy':{'enum':['strict','algebraic']},'capabilities':{'anyOf':[{'const':['tepl.core.v3','tepl.axis-metadata.v2']},{'const':['tepl.core.v3','tepl.axis-metadata.v2','tepl.inferred-applicability.v1']}]},'program':ref('ir'),'axis_definitions':ref('symbol*[][]')}),'$defs':defs}
 for name in ('match_operation', 'build_operation'):
     if 'label' in defs[name].get('required', []): defs[name]['required'].remove('label')
 text=json.dumps(schema,indent=2)+'\n'

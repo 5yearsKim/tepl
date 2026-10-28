@@ -4,8 +4,10 @@
 modular soundness theorem for a specified verification discipline. Its short
 paper statement is below; the supporting obligations follow. It complements
 [complete attribute synthesis](complete_attribute_synthesis_proof.md), whose
-exact feasibility result applies to the restricted contraction/permutation/
-unary-summation fragment and its separated additive components. This note
+exact feasibility results cover the signed-axis core and, through a separate
+finite semantic-state construction, aligned weighted scalar products with
+fixed nonzero rational coefficients and separated additive components. Broadcast is outside that completeness theorem. These are mathematical
+procedures, not completeness claims for general TEPL inference. This note
 does not establish that every rule accepted by the current C++ implementation
 meets these obligations, or formally verify that implementation.
 

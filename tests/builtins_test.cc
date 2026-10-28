@@ -60,6 +60,8 @@ void nativeContracts() {
       {B::kExclude, {ints({2, 3, 2, 4}), ints({2})}, ints({3, 4})},
       {B::kSlice, {ints({2, 3, 4}), Integer(1), Integer(3)}, ints({3, 4})},
       {B::kReplace, {ints({2, 3}), Integer(1), Integer(8)}, ints({2, 8})},
+      {B::kToI64, {Integer(-7)}, Integer(-7)},
+      {B::kToU64, {Integer(7)}, Integer(7)},
       {B::kSum, {ints({2, 3})}, Integer(5)},
       {B::kProduct, {ints({2, 3})}, Integer(6)},
       {B::kAll, {bools({true, false})}, false},
@@ -108,6 +110,14 @@ void nativeContracts() {
   assert(integer(evaluateBuiltin(B::kSum, {ints({})}, budget)) == 0);
   assert(integer(evaluateBuiltin(B::kProduct, {ints({})}, budget)) == 1);
   auto max = std::numeric_limits<Integer>::max();
+  fails([&] { evaluateBuiltin(B::kToU64, {Integer(-1)}, budget); });
+  fails([&] {
+    evaluateBuiltin(B::kToI64,
+                    {Integer(std::numeric_limits<std::int64_t>::max()) + 1},
+                    budget);
+  });
+  fails([&] { evaluateBuiltin(B::kToU64, {max}, budget); });
+  fails([&] { evaluateBuiltin(B::kToI64, {true}, budget); });
   assert(integer(evaluateBuiltin(B::kProduct, {ints({max, 2, 0})}, budget)) ==
          0);
   fails([&] { evaluateBuiltin(B::kProduct, {ints({max, 2})}, budget); });
@@ -200,6 +210,11 @@ void visibility() {
       "is_float(f32); yield s; } } }",
       "not available in shape");
   rejects("rule r { X => X where { rank(X) == 0 } }", "unknown builtin");
+  rejects("rule r { X => X where { i64(true) == 0 } }",
+          "operator does not support");
+  rejects("rule r { X => X where { u64(1.0) == 0 } }",
+          "operator does not support");
+
   rejects(
       "dialect D { op copy(x:tensor)->tensor { axes { bind S { x:all_axes(x) "
       "}; assert all([1]); yield S; } semantics {yield x;} } }",
