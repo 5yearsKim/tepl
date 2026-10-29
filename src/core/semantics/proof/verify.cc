@@ -26,8 +26,21 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
     for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
     for (const auto& [value, type] : plan.constructed_metadata)
       c.checkMetadataType(value, type);
-    for (const auto& [id, fields] : candidate.constructors)
-      for (const auto& f : fields) c.wellFormed(f);
+    for (const auto& n : plan.nodes)
+      if (plan.needsSynthesis(n)) {
+        const auto& fields = candidate.constructors.at(n.descriptor->value);
+        for (std::size_t f = 0; f < fields.size(); ++f) {
+          if (plan.attributes(n).isAuto(f)) {
+            c.wellFormed(fields[f]);
+          } else {
+            // Supplied source expressions may contain comprehensions. Check
+            // their evaluation and scoped structure without normalizing away
+            // any undefined subexpression or unbound variable.
+            c.checkMetadata(fields[f]);
+            c.wellFormed(fields[f]);
+          }
+        }
+      }
     for (const auto& g : candidate.guard) {
       c.validateSource(g);
       if (g->sort != Symbol::Sort::Boolean)

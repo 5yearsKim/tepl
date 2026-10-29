@@ -351,6 +351,13 @@ E normalizeScalar(Context& c, const E& e) {
       return law("divide-exponential",
                  binary(Expr::Kind::Product, args[0],
                         apply(F::Exp, {negate(args[1]->args[0])})));
+    // Under the algebraic floating policy, a proven nonzero divisor admits
+    // reciprocal multiplication. Keep 1/y as the canonical reciprocal to
+    // avoid recursively expanding it, and do not apply this to integer divide.
+    if (!integer(args[0], 1) && floating(c, args[1]) && nonzero(c, args[1]))
+      return law("divide-nonzero-reciprocal",
+                 binary(Expr::Kind::Product, args[0],
+                        apply(F::Divide, {constant(1), args[1]})));
   }
   if (f == F::Clamp && is(args[1], F::Clamp) && eq(args[0], args[1]->args[0]) &&
       eq(args[2], args[1]->args[2]))

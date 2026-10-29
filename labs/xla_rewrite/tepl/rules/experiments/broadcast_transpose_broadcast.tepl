@@ -1,0 +1,19 @@
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Equivalent insertion-only broadcast/transpose task, with the intermediate
+// shape expressed as a permutation of the input and inserted extents.
+rule broadcast_transpose_broadcast {
+    X: [Dims...]
+    (p: hlo.transpose (b: hlo.broadcast X)) => (out: hlo.broadcast X)
+    derive {
+        let n = len(p.attrs.permutation);
+        let inv = [sum([if p.attrs.permutation[j] == i then j else 0 for j in range(n)]) for i in range(n)];
+        let d = gather(inv, b.attrs.dimensions);
+        let oldnew = exclude(range(n), b.attrs.dimensions);
+        let allpos = concat(b.attrs.dimensions, oldnew);
+        let allshape = concat(Dims, b.attrs.new_extents);
+        let oldshape = [sum([if allpos[j] == i then allshape[j] else 0 for j in range(n)]) for i in range(n)];
+        let newpos = exclude(range(n), d);
+        out.attrs = {dimensions: auto, new_extents: gather(gather(oldshape, p.attrs.permutation), newpos)};
+    }
+}

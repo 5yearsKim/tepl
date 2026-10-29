@@ -117,7 +117,8 @@ void Context::checkMetadata(const S& raw) {
         liftMetadataMap(*this, raw->args[0], raw->args[1], raw->args[2]);
     if (!lifted)
       throw ProofFailure(
-          "comprehension is outside the pointwise metadata fragment");
+          "comprehension is outside the pointwise metadata fragment: " +
+          format(*raw));
     checkMetadata(lifted);
     return;
   }

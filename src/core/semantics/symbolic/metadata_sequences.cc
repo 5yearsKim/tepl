@@ -102,6 +102,52 @@ S liftMetadataMap(Context& c, const S& seq, const S& var, const S& body) {
   auto rawCall = [](std::string name, std::vector<S> args) {
     return make(Symbol::Kind::Call, std::move(name), 0, 0, std::move(args));
   };
+  // A sum of matching positions is an inverse permutation when the input is
+  // known to be a permutation. Recognize the generic rank-independent source
+  // idiom, not a particular descriptor or rule. Without the permutation fact
+  // there may be multiple matches (or none), so retain the original expression.
+  if (callIs(seq, "range") && seq->args.size() == 1 && callIs(body, "sum") &&
+      body->args.size() == 1 && callIs(body->args[0], "sequence_map") &&
+      body->args[0]->args.size() == 3) {
+    auto inner = body->args[0];
+    auto indices = inner->args[0], j = inner->args[1], value = inner->args[2];
+    auto mentions = [&](const S& root, const S& variable) {
+      std::function<bool(const S&)> visit = [&](const S& x) {
+        c.tick();
+        if (c.equal(x, variable)) return true;
+        return std::any_of(x->args.begin(), x->args.end(), visit);
+      };
+      return visit(root);
+    };
+    if (!c.equal(var, j) && !mentions(seq, var) && !mentions(seq, j) &&
+        c.equal(seq, indices) && callIs(value, "if") &&
+        value->args.size() == 3 && c.equal(value->args[2], integer(0)) &&
+        callIs(value->args[0], "==") && value->args[0]->args.size() == 2) {
+      auto lhs = value->args[0]->args[0], rhs = value->args[0]->args[1];
+      if (c.equal(lhs, var)) std::swap(lhs, rhs);
+      if (c.equal(rhs, var) && callIs(lhs, "index") && lhs->args.size() == 2 &&
+          c.equal(lhs->args[1], j)) {
+        auto permutation = lhs->args[0];
+        if (!mentions(permutation, var) && !mentions(permutation, j) &&
+            c.equal(c.canonical(seq->args[0]),
+                    c.canonical(call("len", {permutation}))) &&
+            c.entails(call("axis_partition", {permutation, seq->args[0]}))) {
+          auto inverse = rawCall("inverse", {permutation});
+          if (c.equal(value->args[1], j)) return inverse;
+          // The same one-match sum may select values from a parallel list.
+          // Checking equal lengths ensures every original index is defined.
+          auto selected = value->args[1];
+          if (callIs(selected, "index") && selected->args.size() == 2 &&
+              c.equal(selected->args[1], j) &&
+              !mentions(selected->args[0], var) &&
+              !mentions(selected->args[0], j) &&
+              c.entails(
+                  call("==", {call("len", {selected->args[0]}), seq->args[0]})))
+            return rawCall("gather", {selected->args[0], inverse});
+        }
+      }
+    }
+  }
   std::function<S(const S&)> lift = [&](const S& x) -> S {
     c.tick();
     if (equal(x, var)) return seq;
@@ -123,6 +169,48 @@ S liftMetadataMap(Context& c, const S& seq, const S& var, const S& body) {
   return lift(body);
 }
 S simplifyMetadataSequence(Context& c, const S& e) {
+  // Permuting an interleaving and then selecting only its inserted elements
+  // preserves those elements in the order induced by the permutation.  This
+  // is a sequence identity independent of tensor operations or axis names.
+  if (callIs(e, "gather") && e->args.size() == 2 &&
+      callIs(e->args[0], "concat") && e->args[0]->args.size() == 2 &&
+      callIs(e->args[1], "gather") && e->args[1]->args.size() == 2) {
+    auto base = e->args[0], selector = e->args[1];
+    auto inv_layout = selector->args[0], transformed = selector->args[1];
+    if (callIs(inv_layout, "inverse") && inv_layout->args.size() == 1 &&
+        callIs(inv_layout->args[0], "concat") &&
+        inv_layout->args[0]->args.size() == 2 &&
+        callIs(transformed, "gather") && transformed->args.size() == 2) {
+      auto layout = inv_layout->args[0], positions = layout->args[0];
+      auto inserted = layout->args[1], permutation = transformed->args[0];
+      auto remaining = transformed->args[1];
+      if (callIs(inserted, "ordered_complement") &&
+          inserted->args.size() == 2 && callIs(inserted->args[0], "range") &&
+          inserted->args[0]->args.size() == 1 &&
+          c.equal(inserted->args[1], positions) &&
+          callIs(remaining, "ordered_complement") &&
+          remaining->args.size() == 2 &&
+          c.equal(remaining->args[0], inserted->args[0]) &&
+          callIs(remaining->args[1], "gather") &&
+          remaining->args[1]->args.size() == 2 &&
+          callIs(remaining->args[1]->args[0], "inverse") &&
+          remaining->args[1]->args[0]->args.size() == 1 &&
+          c.equal(remaining->args[1]->args[0]->args[0], permutation) &&
+          c.equal(remaining->args[1]->args[1], positions)) {
+        auto size = inserted->args[0]->args[0];
+        if (c.entails(call("axis_partition", {permutation, size})) &&
+            c.entails(call("is_valid_axis_list", {positions, size})) &&
+            c.entails(call("==", {call("len", {positions}),
+                                  call("len", {base->args[0]})})) &&
+            c.entails(call("==", {size, call("len", {base})})))
+          return call("gather",
+                      {base->args[1],
+                       call("order_positions",
+                            {call("gather", {call("inverse", {permutation}),
+                                             inserted})})});
+      }
+    }
+  }
   if (e->kind == Symbol::Kind::List && !e->args.empty()) {
     auto first = e->args[0];
     if (callIs(first, "index")) {

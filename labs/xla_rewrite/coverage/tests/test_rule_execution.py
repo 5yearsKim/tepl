@@ -221,6 +221,61 @@ def operation(name, xs, a):
 
 @unittest.skipUnless(COMPILER.is_file(), "build //:tepl to run compiled rewrite checks")
 class CompiledRuleExecutionTest(unittest.TestCase):
+    def test_broadcast_transpose_inference_execution(self):
+        # Different axis orders, scalar input, empty axes, and repeated extents
+        # exercise the original runtime metadata program as well as the proof.
+        cases = [
+            ([2, 3], [0, 2], [4, 2], [2, 3, 0, 1]),
+            ([2, 3], [2, 0], [4, 2], [1, 3, 2, 0]),
+            ([], [], [2, 3], [1, 0]),
+            ([2, 2], [1, 0], [], [1, 0]),
+            ([0, 3], [0, 2], [2], [2, 0, 1]),
+            ([], [], [], []),
+        ]
+        rule = TEPL / "rules/experiments/broadcast_transpose_broadcast.tepl"
+        for shape, dims, extents, permutation in cases:
+            with self.subTest(shape=shape, dims=dims, extents=extents,
+                              permutation=permutation), tempfile.TemporaryDirectory(dir=TEPL) as directory:
+                directory = Path(directory)
+                graph = directory / "input.tepl"
+                graph.write_text(
+                    'from "dialects/hlo.tepl" import HLO as hlo;\n'
+                    + f'graph test {{input X:f32{shape}; yield '
+                    + f'(hlo.transpose[permutation={permutation}] '
+                    + f'(hlo.broadcast[dimensions={dims},new_extents={extents}] X));}}'
+                )
+
+                def cli(*args):
+                    result = subprocess.run([str(COMPILER), *map(str, args)],
+                                            cwd=ROOT, text=True, capture_output=True, timeout=30)
+                    self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+                    return result
+
+                before, after = directory / "before.json", directory / "after.json"
+                exported = directory / "after.tepl"
+                cli("compile", graph, "--rules", rule, "--semantic-policy=algebraic", "-o", before)
+                run = cli("rewrite", before, "--rule", "broadcast_transpose_broadcast",
+                          "--trace", "--max-steps", 1, "-o", exported)
+                self.assertIn("Successfully applied rule 'broadcast_transpose_broadcast'.", run.stderr)
+                cli("compile", exported, "--semantic-policy=algebraic", "-o", after)
+                self.assertEqual(meaning(json.loads(before.read_text())),
+                                 meaning(json.loads(after.read_text())))
+
+    def test_broadcast_transpose_rejects_wrong_extents(self):
+        source = (TEPL / "rules/experiments/broadcast_transpose_broadcast.tepl").read_text()
+        before = "new_extents: gather(gather(oldshape, p.attrs.permutation), newpos)"
+        self.assertIn(before, source)
+        source = source.replace(before, "new_extents: b.attrs.new_extents")
+        with tempfile.TemporaryDirectory(dir=TEPL) as directory:
+            rule = Path(directory) / "wrong.tepl"
+            rule.write_text(source)
+            result = subprocess.run([str(COMPILER), "check", str(rule),
+                                     "--semantic-policy=algebraic", "--rule",
+                                     "broadcast_transpose_broadcast"],
+                                    cwd=ROOT, text=True, capture_output=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotIn("status=proved", result.stdout)
+
     def test_compiled_rules_preserve_dense_results(self):
         fixtures = {
             "reverse_compose": "expr_reverse_compose_general",

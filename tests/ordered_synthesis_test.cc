@@ -12,6 +12,7 @@
 #include "src/core/pipeline.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/symbolic/expr.h"
+#include "src/core/semantics/symbolic/metadata_sequences.h"
 #include "src/core/syntax/parse.h"
 #include "src/inference/evaluate.h"
 #include "tests/index_constructor_eval.h"
@@ -229,6 +230,80 @@ void sequenceComparison() {
          "projection does not reorder an interleaved selector");
   expect(!c.entails(call("==", {gather(base, {3, 0}), a})),
          "out-of-range selectors are not normalized into a valid sequence");
+}
+
+void permutationComprehensions() {
+  Plan p;
+  Context c{p, 1000000};
+  auto values = make(Symbol::Kind::Field, "values", 0, 0);
+  auto permutation = make(Symbol::Kind::Field, "permutation", 1, 0);
+  auto seq = call("range", {call("len", {permutation})});
+  auto i = call("sequence_variable", {integer(1)});
+  auto j = call("sequence_variable", {integer(2)});
+  bool rejected = false;
+  try {
+    c.wellFormed(i);
+  } catch (const ProofFailure&) {
+    rejected = true;
+  }
+  expect(rejected, "free metadata comprehension variables are rejected");
+  c.wellFormed(call("sequence_map", {call("range", {integer(2)}), i,
+                                     call("+", {i, integer(1)})}));
+  rejected = false;
+  try {
+    c.wellFormed(call("+", {i, integer(1)}));
+  } catch (const ProofFailure&) {
+    rejected = true;
+  }
+  expect(rejected, "a bound variable cannot escape its comprehension");
+  rejected = false;
+  try {
+    c.wellFormed(
+        call("sequence_map", {call("range", {integer(2)}), i,
+                              call("unknown_metadata_function", {i})}));
+  } catch (const ProofFailure&) {
+    rejected = true;
+  }
+  expect(rejected, "unknown operations inside comprehensions are rejected");
+  auto inner =
+      call("sequence_map",
+           {seq, j,
+            call("if", {call("==", {call("index", {permutation, j}), i}), j,
+                        integer(0)})});
+  auto inverse_body = call("sum", {inner});
+  expect(!liftMetadataMap(c, seq, i, inverse_body),
+         "inverse sum is not lifted without a permutation proof");
+  c.learn(call("axis_partition", {permutation, call("len", {permutation})}));
+  auto inverse = liftMetadataMap(c, seq, i, inverse_body);
+  expect(inverse && equal(inverse, call("inverse", {permutation})),
+         "unique-match sum represents a proven inverse permutation");
+  auto selected =
+      call("sum",
+           {call("sequence_map",
+                 {seq, j,
+                  call("if", {call("==", {call("index", {permutation, j}), i}),
+                              call("index", {values, j}), integer(0)})})});
+  expect(!liftMetadataMap(c, seq, i, selected),
+         "selection is not lifted without a parallel-list length proof");
+  c.learn(call("==", {call("len", {values}), call("len", {permutation})}));
+  expect(bool(liftMetadataMap(c, seq, i, selected)),
+         "parallel-list selection lifts when both lengths agree");
+  auto wrong =
+      call("sum",
+           {call("sequence_map",
+                 {seq, j,
+                  call("if", {call("==", {call("index", {permutation, j}), i}),
+                              j, integer(1)})})});
+  expect(!liftMetadataMap(c, seq, i, wrong),
+         "nonzero unmatched elements are not an inverse permutation");
+  auto shadowed =
+      call("sum",
+           {call("sequence_map",
+                 {seq, i,
+                  call("if", {call("==", {call("index", {permutation, i}), i}),
+                              i, integer(0)})})});
+  expect(!liftMetadataMap(c, seq, i, shadowed),
+         "shadowing the outer variable cannot be treated as inversion");
 }
 
 void compiledPrograms() {
@@ -553,6 +628,7 @@ int main(int argc, char** argv) {
     layouts();
     multiplePairings();
     sequenceComparison();
+    permutationComprehensions();
     compiledPrograms();
     exhaustive();
     compilerIntegration();

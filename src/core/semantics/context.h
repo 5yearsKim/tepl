@@ -143,6 +143,7 @@ class Context {
   bool active_sets_ = false, sets_ready_ = false;
   SourceCoordinates source_;
   std::map<const Symbol*, S> validated_scope_, validated_expressions_;
+  std::set<Key> bound_sequence_variables_;
   std::vector<S> guards_;
   std::vector<RuleProof::GuardOrigin> guard_origins_;
   std::vector<std::string> steps_;

@@ -519,7 +519,8 @@ S Context::canonical(const S& s) {
     else
       out = call(s->name, std::move(args));
     if (callIs(out, "i64") || callIs(out, "u64")) out = out->args.at(0);
-    if (callIs(out, "sequence_map") || callIs(out, "all") || callIs(out, "any"))
+    if (callIs(out, "gather") || callIs(out, "sequence_map") ||
+        callIs(out, "all") || callIs(out, "any"))
       out = simplifyMetadataSequence(*this, out);
     if (callIs(out, "ordered_complement") && callIs(out->args[0], "range") &&
         callIs(out->args[1], "concat") && out->args[1]->args.size() == 2) {

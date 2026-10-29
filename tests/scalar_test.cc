@@ -229,6 +229,20 @@ void run() {
   check("rule r {X:[] (D.log (D.sqrt (D.exp X)))=>(D.mul 0.5 X)}", true);
   check("rule r {X:[] (D.log (D.sqrt X))=>(D.mul 0.5 (D.log X))}", false);
   check("rule r {(D.div (D.div X Y) Z)=>(D.div X (D.mul Y Z))}", false);
+  // Reciprocal multiplication is valid only for a known nonzero divisor in
+  // the algebraic floating policy, not for integer or strict arithmetic.
+  check("rule r {X:f32[] (D.div X 2:f32)=>(D.mul X (D.div 1:f32 2:f32))}",
+        true);
+  check("rule r {X:f32[] (D.div X 0.5:f32)=>(D.mul X (D.div 1:f32 0.5:f32))}",
+        true);
+  check("rule r {X:f32[] (D.div X 0:f32)=>(D.mul X (D.div 1:f32 0:f32))}",
+        false);
+  check("rule r {X:i32[] (D.div X 2:i32)=>(D.mul X (D.div 1:i32 2:i32))}",
+        false);
+  check("rule r {X:f32[] (D.div X 2:f32)=>(D.mul X (D.div 1:f32 2:f32))}",
+        false, false);
+  check("rule r {X:f32[] Y:f32[] (D.div X Y)=>(D.mul X (D.div 1:f32 Y))}",
+        false);
   check("rule r {(D.exp X)=>(D.exp X)}", false, true,
         "dialect D {op exp(x:tensor)->tensor {dtype(a){assert "
         "is_float(a);yield a;} axes {bind S{x:all_axes(x)};yield S;} "

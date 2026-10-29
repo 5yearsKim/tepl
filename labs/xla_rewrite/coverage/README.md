@@ -8,6 +8,14 @@ or legacy non-axis synthesis.
 
 - [Current report](reports/attribute_synthesis.md): measured scope, inference,
   verification-only outcomes, and unresolved cases.
+- [Semantic and theorem breakdown](reports/semantic_theorem_breakdown.md):
+  broader semantic inventory, theorem candidates, and untested cases.
+- [Expanded semantic run](reports/expanded_semantics.md): separate results for
+  the eleven additional slice and restricted convolution cases.
+- [Reciprocal normalization](reports/reciprocal_normalization.md): a guarded
+  compiler improvement and a separate nonzero-literal companion case.
+- [Broadcast–transpose update](reports/broadcast_transpose_update.md): a
+  separate rerun with a general-rank metadata construction.
 - [Unit-view cost check](reports/unit_view_cost.md): indicative timings for unchanged successful tasks.
 - [Specification size](../specification_size/README.md): a fresh paired axis-only run with whole-rule token counts and a savings breakdown.
 - [Case table](reports/synthesis_cases.md): one outcome per original case,

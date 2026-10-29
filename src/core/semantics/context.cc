@@ -103,8 +103,30 @@ void Context::validateSource(const S& s) {
 }
 void Context::wellFormed(const S& s) {
   tick();
-  if (s && validated_expressions_.contains(s.get())) return;
+  if (bound_sequence_variables_.empty() && s &&
+      validated_expressions_.contains(s.get()))
+    return;
   validateSource(s);
+  if (callIs(s, "sequence_variable")) {
+    if (s->args.size() != 1 || !metadataInteger(s->args[0]) ||
+        *metadataInteger(s->args[0]) < 0 ||
+        !bound_sequence_variables_.contains(key(s)))
+      throw ProofFailure("unbound or invalid metadata sequence variable");
+    return;
+  }
+  if (callIs(s, "sequence_map")) {
+    if (s->args.size() != 3 || !callIs(s->args[1], "sequence_variable") ||
+        s->args[1]->args.size() != 1 || !metadataInteger(s->args[1]->args[0]) ||
+        *metadataInteger(s->args[1]->args[0]) < 0)
+      throw ProofFailure("invalid metadata comprehension binding");
+    wellFormed(s->args[0]);
+    auto variable = key(s->args[1]);
+    if (!bound_sequence_variables_.insert(variable).second)
+      throw ProofFailure("duplicate metadata comprehension binding");
+    ActiveKey active{bound_sequence_variables_, variable};
+    wellFormed(s->args[2]);
+    return;
+  }
   for (const auto& a : s->args) wellFormed(a);
   if (s->kind == Symbol::Kind::AxisGroup) {
     auto found = source_.groups.find({s->owner, s->index});
@@ -116,7 +138,7 @@ void Context::wellFormed(const S& s) {
     require(call("==", {s->args[0], domain}));
   }
   if (s->kind != Symbol::Kind::Call) {
-    validated_expressions_[s.get()] = s;
+    if (bound_sequence_variables_.empty()) validated_expressions_[s.get()] = s;
     return;
   }
   bool valid_arity = false;
@@ -170,7 +192,7 @@ void Context::wellFormed(const S& s) {
     require(call("distinct_axes", {s->args[2]}));
     require(call("==", {call("len", {s->args[1]}), call("len", {s->args[2]})}));
   }
-  validated_expressions_[s.get()] = s;
+  if (bound_sequence_variables_.empty()) validated_expressions_[s.get()] = s;
 }
 
 Context::~Context() {
