@@ -97,9 +97,13 @@ int main() {
     accepts(R"(rule r {(s:transpose X)=>(t:transpose X)
       derive {t.attrs={permutation:auto};}})");
     accepts(R"(rule r {(s:transpose X)=>(transpose X)})");
+    accepts(R"(rule r {(s:transpose X)=>(t:transpose X)
+      derive {t.attrs={};}})");
     accepts(R"(rule r {(s:defaults X)=>(defaults X)})");
     accepts(R"(rule r {(s:defaults X)=>(t:defaults X)
       derive {t.attrs={permutation:auto};}})");
+    accepts(R"(rule r {(s:defaults X)=>(t:defaults X)
+      derive {t.attrs={};}})");
     accepts(R"(rule r {(s:shifted X)=>(shifted[s.attrs] X)})");
     rejects(R"(rule r {(s:defaults X)=>(t:defaults X)
       derive {t.attrs={permutation:auto,optional_axes:auto};}})",
@@ -118,10 +122,25 @@ int main() {
       derive {t.attrs={dimensions:auto,new_extents:s.attrs.new_extents};}})";
     accepts(partial);
     accepts(R"(rule r {(s:broadcast X)=>(t:broadcast X)
+      derive {t.attrs={new_extents:s.attrs.new_extents};}})");
+    accepts(R"(rule r {(s:transpose X)=>(t:transpose X)
+      derive {t.attrs={..s.attrs};}})");
+    accepts(R"(rule r {(s:broadcast X)=>(t:broadcast X)
       derive {t.attrs={..s.attrs,dimensions:auto};}})");
     accepts(R"(rule r {(s:broadcast X)=>(broadcast[s.attrs] X)})");
     accepts(R"(rule r {(reverse (reverse X))=>(reverse X)})");
     rejects(R"(rule r {(s:broadcast X)=>(broadcast X)})", "new_extents");
+    rejects(R"(rule r {(s:broadcast X)=>(t:broadcast X)
+      derive {t.attrs={};}})",
+            "new_extents");
+    rejects(R"(rule r {(s:shifted X)=>(t:shifted X)
+      derive {t.attrs={};}})",
+            "offset");
+    rejects(R"(rule r {(s:settings X)=>(t:settings X)
+      derive {t.attrs={count:7};}})",
+            "tag");
+    rejects(R"(graph g {input X:f32[2];yield (broadcast[new_extents=[1]] X);})",
+            "dimensions");
     rejects(R"(rule r {(s:legacy X)=>(legacy X)})", "only axis");
     rejects(R"(rule r {(s:broadcast X)=>(t:broadcast X)
       derive {t.attrs={dimensions:auto,new_extents:auto};}})",

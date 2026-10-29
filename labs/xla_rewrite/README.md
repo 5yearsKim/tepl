@@ -8,6 +8,7 @@ express, compile and verify.
 - [Coverage](coverage/README.md): experiment inputs, tools and reproduction commands.
 - [Attribute synthesis report](coverage/reports/attribute_synthesis.md): field-level axis inference, verification-only outcomes, and theorem admission candidates.
 - [Compilation report](coverage/reports/compilation.md): language coverage and executable compilation.
+- [Specification size](specification_size/README.md): matched explicit/inferred rule sizes, token attribution, and XLA excerpt review.
 
 `catalog/` contains the source-based catalog. `tepl/` contains the executable
 TEPL project. `coverage/` separates case data (`data/`), measurements (`results/`),

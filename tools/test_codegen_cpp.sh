@@ -66,8 +66,8 @@ for cxx in "${compilers[@]}"; do
     "$cxx" "${flags[@]}" "$optimization" "${extra[@]}" runtime/cpp/tests/values.cc -o "$work_directory/values"
     "$work_directory/values"
     for fixture in strings witnesses; do
-      "$cxx" "${flags[@]}" "$optimization" "${extra[@]}" "$work_directory/$fixture.cc" -o "$work_directory/$fixture"
-      "$work_directory/$fixture"
+      "$cxx" "${flags[@]}" "$optimization" "${extra[@]}" "$work_directory/$fixture.cc" -o "$work_directory/$fixture-test"
+      "$work_directory/$fixture-test"
     done
   done
   # Each public runtime header must supply its own dependencies.

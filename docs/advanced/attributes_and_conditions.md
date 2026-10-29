@@ -59,6 +59,19 @@ derive {
 }
 ```
 
+Required axis fields can also be omitted from a constructor:
+
+```tepl
+derive {
+    result.attrs = {new_extents: source.attrs.new_extents};
+}
+```
+
+Explicit values and spreads supply their fields first, followed by schema
+defaults and optional values. Remaining required axis fields are inferred.
+Required non-axis fields must still be supplied. Explicit `auto` can override
+an axis value from a spread or default.
+
 Only a non-optional `axis` or `axis[]` field may use `auto`, directly as the
 whole field value. `auto` is not an expression usable in arithmetic, lists,
 conditions, or local bindings. A spread can supply the other fields, for example

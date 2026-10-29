@@ -554,6 +554,8 @@ TypedExprPtr ExpressionChecker::lower(const syntax::DescriptorConstructor& v,
       value = attributeDefault(f, origin, [&](Type t) {
         return context_.types.concrete(t, origin);
       });
+      if (!value && section_ == builtins::Context::kDerive && f.allowsAuto())
+        value = make(origin, id, AutoField{});
       if (!value)
         context_.report(origin,
                         "missing required constructor field '" + f.name + "'");

@@ -91,7 +91,7 @@ rule dot_groups {
 }
 rule broadcast_partial {
   (b:t.broadcast (p:t.transpose A)) => (out:t.broadcast A)
-  derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents};}
+  derive {out.attrs={new_extents:b.attrs.new_extents};}
 }
 
 graph configured {

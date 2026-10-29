@@ -9,6 +9,7 @@ or legacy non-axis synthesis.
 - [Current report](reports/attribute_synthesis.md): measured scope, inference,
   verification-only outcomes, and unresolved cases.
 - [Unit-view cost check](reports/unit_view_cost.md): indicative timings for unchanged successful tasks.
+- [Specification size](../specification_size/README.md): a fresh paired axis-only run with whole-rule token counts and a savings breakdown.
 - [Case table](reports/synthesis_cases.md): one outcome per original case,
   including exclusions and the separate negative control.
 - [Protocol](reports/axis_only_scope.md): migration, normalization, admission,

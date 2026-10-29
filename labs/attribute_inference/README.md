@@ -4,6 +4,8 @@ This lab preserves the original full-auto/partial-auto XLA cohorts and their
 recorded rechecks. Those experiments included coordinate and extent inference
 that production TEPL no longer performs. For the current field-level axis-only
 protocol, start with [XLA coverage](../xla_rewrite/coverage/README.md).
+For current explicit/inferred size measurements, use the
+[specification-size experiment](../xla_rewrite/specification_size/README.md).
 
 ## Recorded evidence
 

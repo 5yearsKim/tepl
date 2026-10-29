@@ -1,0 +1,1919 @@
+{
+  "schema_version": 1,
+  "review_method": "Single-analyst line-by-line source inspection; independently unreviewed. Span categories are descriptive dominant-line responsibilities, not causal attribution.",
+  "source_hashes": {
+    "algebraic_simplifier.cc": "cee113d1c8070e890242cba50b912f196b5359be3c0c7ef43bef3c1c7bebd265"
+  },
+  "policy": "Deduplicate file/line tokens across all selected blocks; exclude policy and logging from the five-row primary table; record all omitted-case reasons.",
+  "blocks": [
+    {
+      "id": "transpose_compose",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          10241,
+          10241,
+          "matching"
+        ],
+        [
+          10248,
+          10248,
+          "matching"
+        ],
+        [
+          10249,
+          10249,
+          "management"
+        ],
+        [
+          10250,
+          10251,
+          "construction"
+        ],
+        [
+          10252,
+          10253,
+          "attributes"
+        ],
+        [
+          10254,
+          10254,
+          "matching"
+        ]
+      ],
+      "note": "Operand binding and nested-transpose branch only; omit identity/scatter/bitcast and dot branches."
+    },
+    {
+      "id": "broadcast_inputs",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          5652,
+          5654,
+          "matching"
+        ]
+      ],
+      "note": "Common broadcast operand and descriptor capture, counted once."
+    },
+    {
+      "id": "broadcast_elementwise",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          6347,
+          6351,
+          "legality"
+        ],
+        [
+          6353,
+          6354,
+          "matching"
+        ],
+        [
+          6355,
+          6367,
+          "legality"
+        ],
+        [
+          6369,
+          6372,
+          "matching"
+        ],
+        [
+          6375,
+          6388,
+          "legality"
+        ],
+        [
+          6390,
+          6395,
+          "construction"
+        ],
+        [
+          6399,
+          6401,
+          "attributes"
+        ],
+        [
+          6402,
+          6410,
+          "construction"
+        ],
+        [
+          6411,
+          6413,
+          "logging"
+        ],
+        [
+          6414,
+          6416,
+          "attributes"
+        ],
+        [
+          6417,
+          6418,
+          "construction"
+        ],
+        [
+          6419,
+          6419,
+          "logging"
+        ],
+        [
+          6420,
+          6422,
+          "construction"
+        ],
+        [
+          6423,
+          6423,
+          "logging"
+        ],
+        [
+          6424,
+          6428,
+          "management"
+        ],
+        [
+          5709,
+          5716,
+          "policy"
+        ]
+      ],
+      "note": "Shared elementwise sinking algorithm includes scalar expansion and generic elementwise/user handling beyond the two TEPL binary/equal-map specializations. Configuration dispatch is policy."
+    },
+    {
+      "id": "scalar_permutation_predicate",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          5544,
+          5557,
+          "legality"
+        ]
+      ],
+      "note": "Local permutation predicate; includes the additional sort case. Subset predicate is short-circuited for the selected reverse/transpose cases and is not expanded."
+    },
+    {
+      "id": "scalar_broadcast_permutation",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          5722,
+          5722,
+          "legality"
+        ],
+        [
+          5723,
+          5723,
+          "matching"
+        ],
+        [
+          5724,
+          5727,
+          "management"
+        ],
+        [
+          5728,
+          5729,
+          "legality"
+        ],
+        [
+          5730,
+          5731,
+          "logging"
+        ],
+        [
+          5732,
+          5734,
+          "construction"
+        ],
+        [
+          5735,
+          5743,
+          "management"
+        ]
+      ],
+      "note": "Scalar broadcast through a permutation: retain user traversal and mutation; no iota, broadcast-composition, or unrelated reshape branches."
+    },
+    {
+      "id": "broadcast_compose",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          5755,
+          5755,
+          "matching"
+        ],
+        [
+          5756,
+          5760,
+          "attributes"
+        ],
+        [
+          5761,
+          5761,
+          "management"
+        ],
+        [
+          5762,
+          5764,
+          "construction"
+        ],
+        [
+          5765,
+          5765,
+          "management"
+        ]
+      ],
+      "note": "Nested broadcast descriptor composition and replacement."
+    },
+    {
+      "id": "reduce_inputs",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          8921,
+          8932,
+          "matching"
+        ],
+        [
+          8969,
+          8971,
+          "policy"
+        ]
+      ],
+      "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted."
+    },
+    {
+      "id": "scalar_zero_predicate",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          184,
+          187,
+          "legality"
+        ],
+        [
+          211,
+          225,
+          "legality"
+        ]
+      ],
+      "note": "Local scalar-zero predicate and its effective-scalar predicate; scalar type switching is retained. General primitive/literal library routines are not expanded."
+    },
+    {
+      "id": "reduce_negate",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          8973,
+          8973,
+          "matching"
+        ],
+        [
+          8974,
+          8974,
+          "legality"
+        ],
+        [
+          8975,
+          8975,
+          "matching"
+        ],
+        [
+          8976,
+          8976,
+          "legality"
+        ],
+        [
+          8977,
+          8978,
+          "matching"
+        ],
+        [
+          8979,
+          8980,
+          "management"
+        ],
+        [
+          8981,
+          8982,
+          "construction"
+        ],
+        [
+          8983,
+          8985,
+          "management"
+        ]
+      ],
+      "note": "Only negate/sum commutation. Floating-type and zero-init checks remain legality; scalar/combiner assumptions are built into the TEPL sum dialect."
+    },
+    {
+      "id": "merge_reduces",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          8890,
+          8893,
+          "management"
+        ],
+        [
+          8896,
+          8913,
+          "attributes"
+        ],
+        [
+          8914,
+          8914,
+          "management"
+        ],
+        [
+          8915,
+          8917,
+          "construction"
+        ],
+        [
+          8918,
+          8918,
+          "management"
+        ],
+        [
+          9077,
+          9077,
+          "matching"
+        ],
+        [
+          9078,
+          9079,
+          "legality"
+        ],
+        [
+          9080,
+          9081,
+          "management"
+        ]
+      ],
+      "note": "MergeReduces helper plus actual matching/combiner-equivalence caller. Both retained TEPL reduction-composition cases share this code."
+    },
+    {
+      "id": "reduce_transpose",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          9022,
+          9024,
+          "legality"
+        ],
+        [
+          9029,
+          9029,
+          "matching"
+        ],
+        [
+          9030,
+          9034,
+          "policy"
+        ],
+        [
+          9035,
+          9043,
+          "attributes"
+        ],
+        [
+          9044,
+          9047,
+          "construction"
+        ],
+        [
+          9048,
+          9058,
+          "attributes"
+        ],
+        [
+          9059,
+          9060,
+          "management"
+        ],
+        [
+          9061,
+          9068,
+          "attributes"
+        ],
+        [
+          9069,
+          9071,
+          "construction"
+        ],
+        [
+          9072,
+          9073,
+          "management"
+        ]
+      ],
+      "note": "Reduction-through-transpose branch includes general output-transpose correction; TEPL case is rank two/vector output. Fanout/unconditional-rewrite option is policy."
+    },
+    {
+      "id": "reverse_inputs",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          7107,
+          7107,
+          "policy"
+        ],
+        [
+          7108,
+          7110,
+          "matching"
+        ]
+      ],
+      "note": "Reverse operand capture; layout sensitivity is policy. Trivial-dimension elimination is another rewrite and omitted."
+    },
+    {
+      "id": "reverse_compose",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          7114,
+          7114,
+          "matching"
+        ],
+        [
+          7115,
+          7122,
+          "attributes"
+        ],
+        [
+          7123,
+          7125,
+          "management"
+        ],
+        [
+          7126,
+          7126,
+          "attributes"
+        ],
+        [
+          7127,
+          7127,
+          "management"
+        ],
+        [
+          7128,
+          7128,
+          "construction"
+        ],
+        [
+          7129,
+          7129,
+          "matching"
+        ]
+      ],
+      "note": "Nested-reverse symmetric difference, including empty-result deletion; shared by fixed and general TEPL cases."
+    },
+    {
+      "id": "reverse_scalar_elementwise",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          7133,
+          7141,
+          "matching"
+        ],
+        [
+          7143,
+          7146,
+          "legality"
+        ],
+        [
+          7147,
+          7148,
+          "matching"
+        ],
+        [
+          7149,
+          7150,
+          "construction"
+        ],
+        [
+          7151,
+          7151,
+          "management"
+        ],
+        [
+          7152,
+          7154,
+          "construction"
+        ],
+        [
+          7155,
+          7157,
+          "matching"
+        ],
+        [
+          7158,
+          7159,
+          "construction"
+        ],
+        [
+          7160,
+          7160,
+          "management"
+        ],
+        [
+          7161,
+          7163,
+          "construction"
+        ],
+        [
+          7164,
+          7166,
+          "management"
+        ]
+      ],
+      "note": "Generic binary elementwise commutation with a scalar broadcast, both operand orders. TEPL selects addition with the scalar on one side; side-effect/opcode restrictions are retained."
+    },
+    {
+      "id": "dot_inputs",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          4258,
+          4258,
+          "management"
+        ],
+        [
+          4259,
+          4262,
+          "legality"
+        ],
+        [
+          4263,
+          4267,
+          "matching"
+        ],
+        [
+          4268,
+          4270,
+          "policy"
+        ]
+      ],
+      "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded."
+    },
+    {
+      "id": "dot_maps",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          473,
+          538,
+          "attributes"
+        ]
+      ],
+      "note": "Complete local ConstructToDotMaps and ConstructFromDotMaps axis-map algorithms, once globally, including both input maps and inverse maps."
+    },
+    {
+      "id": "nested_dot",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          3829,
+          3832,
+          "management"
+        ],
+        [
+          3833,
+          3833,
+          "matching"
+        ],
+        [
+          3834,
+          3834,
+          "construction"
+        ],
+        [
+          3837,
+          3852,
+          "matching"
+        ],
+        [
+          3854,
+          3926,
+          "attributes"
+        ],
+        [
+          3930,
+          3932,
+          "legality"
+        ],
+        [
+          3935,
+          4067,
+          "attributes"
+        ],
+        [
+          4068,
+          4086,
+          "policy"
+        ],
+        [
+          4088,
+          4103,
+          "construction"
+        ],
+        [
+          4109,
+          4165,
+          "attributes"
+        ],
+        [
+          4167,
+          4170,
+          "construction"
+        ],
+        [
+          4171,
+          4171,
+          "logging"
+        ],
+        [
+          4172,
+          4172,
+          "management"
+        ],
+        [
+          4173,
+          4173,
+          "construction"
+        ],
+        [
+          4174,
+          4174,
+          "logging"
+        ],
+        [
+          4175,
+          4180,
+          "management"
+        ],
+        [
+          4311,
+          4318,
+          "policy"
+        ]
+      ],
+      "note": "General nested-dot reassociation, including batch/contract maps and optional output transpose; source flop heuristic is excluded. TEPL is ordinary matrix multiplication only. No unrelated HandleDot branches included."
+    },
+    {
+      "id": "dot_operator_inputs",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          3521,
+          3523,
+          "management"
+        ],
+        [
+          3524,
+          3549,
+          "matching"
+        ],
+        [
+          3550,
+          3550,
+          "attributes"
+        ],
+        [
+          3551,
+          3551,
+          "matching"
+        ],
+        [
+          3552,
+          3552,
+          "policy"
+        ],
+        [
+          3553,
+          3553,
+          "attributes"
+        ],
+        [
+          3556,
+          3567,
+          "attributes"
+        ]
+      ],
+      "note": "Shared reverse/broadcast operand selection and dimension maps. Selector also mentions pad, but the pad algorithm is excluded."
+    },
+    {
+      "id": "dot_reverse",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          3570,
+          3570,
+          "matching"
+        ],
+        [
+          3573,
+          3577,
+          "policy"
+        ],
+        [
+          3582,
+          3590,
+          "attributes"
+        ],
+        [
+          3593,
+          3595,
+          "legality"
+        ],
+        [
+          3596,
+          3600,
+          "construction"
+        ],
+        [
+          3603,
+          3603,
+          "policy"
+        ],
+        [
+          3604,
+          3607,
+          "construction"
+        ]
+      ],
+      "note": "Reverse-specific map partition and construction; shape-ratio threshold and threshold multiplier are source policy."
+    },
+    {
+      "id": "dot_broadcast",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          3678,
+          3678,
+          "matching"
+        ],
+        [
+          3681,
+          3721,
+          "attributes"
+        ],
+        [
+          3723,
+          3725,
+          "legality"
+        ],
+        [
+          3727,
+          3728,
+          "construction"
+        ],
+        [
+          3731,
+          3731,
+          "construction"
+        ],
+        [
+          3734,
+          3734,
+          "policy"
+        ],
+        [
+          3735,
+          3742,
+          "construction"
+        ]
+      ],
+      "note": "Broadcast-specific contraction map rewriting and reduction construction; optional residual broadcast retained. Threshold adjustment is policy."
+    },
+    {
+      "id": "dot_operator_finish",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          3744,
+          3746,
+          "legality"
+        ],
+        [
+          3750,
+          3763,
+          "construction"
+        ],
+        [
+          3768,
+          3776,
+          "policy"
+        ],
+        [
+          3777,
+          3781,
+          "management"
+        ],
+        [
+          4320,
+          4320,
+          "policy"
+        ],
+        [
+          4321,
+          4323,
+          "management"
+        ],
+        [
+          4324,
+          4324,
+          "logging"
+        ],
+        [
+          4325,
+          4327,
+          "management"
+        ]
+      ],
+      "note": "Common new-dot construction and actual visitor replacement. Flop threshold and logging excluded; pad-specific source body is not selected."
+    },
+    {
+      "id": "parameter_policy",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          2930,
+          2940,
+          "policy"
+        ]
+      ],
+      "note": "Parameter-like profitability/layout preference predicate, kept in excluded-policy accounting."
+    },
+    {
+      "id": "precision_policy",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          379,
+          384,
+          "policy"
+        ]
+      ],
+      "note": "Precision-configuration propagation, outside the ideal-algebraic TEPL profile; excluded rather than credited as a saving."
+    },
+    {
+      "id": "transpose_dot",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          10241,
+          10241,
+          "matching"
+        ],
+        [
+          10262,
+          10270,
+          "policy"
+        ],
+        [
+          10273,
+          10273,
+          "management"
+        ],
+        [
+          10274,
+          10274,
+          "policy"
+        ],
+        [
+          10275,
+          10277,
+          "matching"
+        ],
+        [
+          10279,
+          10281,
+          "policy"
+        ],
+        [
+          10283,
+          10285,
+          "matching"
+        ],
+        [
+          10287,
+          10288,
+          "attributes"
+        ],
+        [
+          10293,
+          10305,
+          "legality"
+        ],
+        [
+          10308,
+          10310,
+          "attributes"
+        ],
+        [
+          10311,
+          10313,
+          "legality"
+        ],
+        [
+          10315,
+          10317,
+          "attributes"
+        ],
+        [
+          10318,
+          10318,
+          "management"
+        ],
+        [
+          10319,
+          10322,
+          "construction"
+        ],
+        [
+          10323,
+          10328,
+          "management"
+        ]
+      ],
+      "note": "Canonical transpose(dot) branch, appropriate for the rank-two TEPL case; exclude the separate arbitrary noncanonical-dot branch, and parameter/precision preference policy."
+    },
+    {
+      "id": "swap_dot",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          2943,
+          2944,
+          "management"
+        ],
+        [
+          2945,
+          2949,
+          "policy"
+        ],
+        [
+          2951,
+          2955,
+          "attributes"
+        ],
+        [
+          2956,
+          2958,
+          "policy"
+        ],
+        [
+          2960,
+          2964,
+          "construction"
+        ],
+        [
+          2965,
+          2966,
+          "logging"
+        ],
+        [
+          2967,
+          2983,
+          "attributes"
+        ],
+        [
+          2984,
+          2985,
+          "construction"
+        ],
+        [
+          2986,
+          2993,
+          "management"
+        ],
+        [
+          4384,
+          4387,
+          "management"
+        ]
+      ],
+      "note": "Operand and output-permutation swap helper and call site. Parameter placement gate and precision policy excluded; general batching permutation retained."
+    },
+    {
+      "id": "normalize_dot_operand",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          2995,
+          3012,
+          "attributes"
+        ],
+        [
+          3013,
+          3013,
+          "construction"
+        ],
+        [
+          3014,
+          3014,
+          "attributes"
+        ]
+      ],
+      "note": "Local batch-major/contracting-minor normalization, shared by no-contraction and strength-reduction helpers; general transpose path retained."
+    },
+    {
+      "id": "dot_no_contract",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          3783,
+          3786,
+          "management"
+        ],
+        [
+          3787,
+          3790,
+          "construction"
+        ],
+        [
+          3791,
+          3793,
+          "policy"
+        ],
+        [
+          3794,
+          3797,
+          "construction"
+        ],
+        [
+          3798,
+          3800,
+          "policy"
+        ],
+        [
+          3801,
+          3803,
+          "attributes"
+        ],
+        [
+          3804,
+          3806,
+          "construction"
+        ],
+        [
+          3807,
+          3813,
+          "attributes"
+        ],
+        [
+          3814,
+          3818,
+          "construction"
+        ],
+        [
+          3819,
+          3827,
+          "management"
+        ],
+        [
+          4285,
+          4287,
+          "policy"
+        ],
+        [
+          4288,
+          4288,
+          "legality"
+        ],
+        [
+          4289,
+          4290,
+          "management"
+        ]
+      ],
+      "note": "No-contracting-dimension multiply rewrite and dispatch. General broadcasting retained; preferred-type conversions and feature/precision gates excluded."
+    },
+    {
+      "id": "dot_batch_contract_predicate",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          540,
+          548,
+          "legality"
+        ]
+      ],
+      "note": "Complete local predicate used by dot-to-reduce dispatch."
+    },
+    {
+      "id": "dot_product_reduce",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          4182,
+          4184,
+          "management"
+        ],
+        [
+          4185,
+          4188,
+          "construction"
+        ],
+        [
+          4189,
+          4191,
+          "policy"
+        ],
+        [
+          4193,
+          4196,
+          "construction"
+        ],
+        [
+          4197,
+          4199,
+          "policy"
+        ],
+        [
+          4201,
+          4214,
+          "attributes"
+        ],
+        [
+          4215,
+          4216,
+          "construction"
+        ],
+        [
+          4217,
+          4223,
+          "attributes"
+        ],
+        [
+          4224,
+          4230,
+          "construction"
+        ],
+        [
+          4232,
+          4232,
+          "attributes"
+        ],
+        [
+          4233,
+          4237,
+          "policy"
+        ],
+        [
+          4238,
+          4239,
+          "attributes"
+        ],
+        [
+          4240,
+          4240,
+          "construction"
+        ],
+        [
+          4241,
+          4241,
+          "policy"
+        ],
+        [
+          4242,
+          4243,
+          "management"
+        ],
+        [
+          4252,
+          4256,
+          "construction"
+        ],
+        [
+          4331,
+          4333,
+          "policy"
+        ],
+        [
+          4334,
+          4336,
+          "legality"
+        ],
+        [
+          4337,
+          4337,
+          "policy"
+        ],
+        [
+          4338,
+          4339,
+          "management"
+        ]
+      ],
+      "note": "Product/reduction construction, rank-general outer-dimension broadcasting, and caller; scalar f32 dot specialization in TEPL. Preferred-type/precision and CPU strength-reduction policy excluded."
+    },
+    {
+      "id": "add_reduce",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          3016,
+          3021,
+          "construction"
+        ],
+        [
+          3022,
+          3022,
+          "attributes"
+        ],
+        [
+          3023,
+          3023,
+          "policy"
+        ],
+        [
+          3024,
+          3026,
+          "construction"
+        ]
+      ],
+      "note": "Local zero-init sum-reduction builder. General scalar-add computation construction is treated as a primitive library dependency, like TEPL sum semantics."
+    },
+    {
+      "id": "reduce_dot_batch",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          9203,
+          9203,
+          "matching"
+        ],
+        [
+          9207,
+          9208,
+          "policy"
+        ],
+        [
+          9209,
+          9211,
+          "matching"
+        ],
+        [
+          9212,
+          9214,
+          "legality"
+        ],
+        [
+          9215,
+          9239,
+          "attributes"
+        ],
+        [
+          9241,
+          9244,
+          "construction"
+        ],
+        [
+          9245,
+          9245,
+          "management"
+        ],
+        [
+          9246,
+          9246,
+          "construction"
+        ],
+        [
+          9247,
+          9248,
+          "management"
+        ],
+        [
+          9249,
+          9251,
+          "construction"
+        ],
+        [
+          9252,
+          9254,
+          "management"
+        ]
+      ],
+      "note": "Convert reduced batch dimensions to contracting dimensions, including optional remaining reduction; TEPL fixes ranks and reduces one batch axis. Feature flags excluded."
+    },
+    {
+      "id": "multiply_broadcast_constant",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          5065,
+          5066,
+          "matching"
+        ],
+        [
+          5190,
+          5190,
+          "matching"
+        ],
+        [
+          5193,
+          5195,
+          "policy"
+        ],
+        [
+          5196,
+          5204,
+          "matching"
+        ],
+        [
+          5206,
+          5207,
+          "legality"
+        ],
+        [
+          5208,
+          5208,
+          "attributes"
+        ],
+        [
+          5209,
+          5209,
+          "matching"
+        ],
+        [
+          5210,
+          5210,
+          "legality"
+        ],
+        [
+          5211,
+          5216,
+          "construction"
+        ],
+        [
+          5218,
+          5218,
+          "management"
+        ],
+        [
+          5219,
+          5223,
+          "construction"
+        ],
+        [
+          5224,
+          5226,
+          "management"
+        ]
+      ],
+      "note": "Only multiply-constant-into-broadcast rewrite, including original literal/nonconstant matching. TEPL captures a scalar C and proves the more general algebraic equation; numerical fast-math gating is excluded, not counted as a saving."
+    },
+    {
+      "id": "dot_transposed_operands",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          2864,
+          2866,
+          "management"
+        ],
+        [
+          2867,
+          2870,
+          "matching"
+        ],
+        [
+          2873,
+          2874,
+          "matching"
+        ],
+        [
+          2875,
+          2877,
+          "legality"
+        ],
+        [
+          2878,
+          2878,
+          "matching"
+        ],
+        [
+          2882,
+          2890,
+          "legality"
+        ],
+        [
+          2899,
+          2908,
+          "attributes"
+        ],
+        [
+          2910,
+          2914,
+          "construction"
+        ],
+        [
+          2915,
+          2915,
+          "attributes"
+        ],
+        [
+          2916,
+          2919,
+          "construction"
+        ],
+        [
+          2920,
+          2922,
+          "management"
+        ],
+        [
+          2923,
+          2923,
+          "construction"
+        ],
+        [
+          2924,
+          2925,
+          "management"
+        ],
+        [
+          4378,
+          4382,
+          "management"
+        ]
+      ],
+      "note": "Both-input transpose removal helper and dispatch, retaining general canonical batch handling and both operand orders. Rank-two TEPL specialization; precision helper separately excluded."
+    },
+    {
+      "id": "reduce_dot_free",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          8779,
+          8782,
+          "management"
+        ],
+        [
+          8783,
+          8783,
+          "policy"
+        ],
+        [
+          8784,
+          8784,
+          "matching"
+        ],
+        [
+          8788,
+          8788,
+          "matching"
+        ],
+        [
+          8789,
+          8789,
+          "legality"
+        ],
+        [
+          8790,
+          8791,
+          "matching"
+        ],
+        [
+          8792,
+          8792,
+          "legality"
+        ],
+        [
+          8794,
+          8808,
+          "attributes"
+        ],
+        [
+          8811,
+          8816,
+          "construction"
+        ],
+        [
+          8819,
+          8862,
+          "attributes"
+        ],
+        [
+          8865,
+          8868,
+          "construction"
+        ],
+        [
+          8871,
+          8881,
+          "policy"
+        ],
+        [
+          8882,
+          8882,
+          "logging"
+        ],
+        [
+          8883,
+          8888,
+          "management"
+        ],
+        [
+          9016,
+          9018,
+          "management"
+        ]
+      ],
+      "note": "Reduce-free-output-dimension into dot operands, including complete local dot maps via shared helper; original flop/profitability gate excluded. TEPL selects a rank-two free dimension."
+    },
+    {
+      "id": "reduce_broadcast_original",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          9322,
+          9322,
+          "matching"
+        ],
+        [
+          9323,
+          9323,
+          "policy"
+        ],
+        [
+          9324,
+          9330,
+          "attributes"
+        ],
+        [
+          9331,
+          9334,
+          "legality"
+        ],
+        [
+          9335,
+          9336,
+          "attributes"
+        ],
+        [
+          9338,
+          9338,
+          "legality"
+        ],
+        [
+          9340,
+          9341,
+          "attributes"
+        ],
+        [
+          9342,
+          9342,
+          "policy"
+        ],
+        [
+          9343,
+          9346,
+          "construction"
+        ],
+        [
+          9350,
+          9364,
+          "attributes"
+        ],
+        [
+          9366,
+          9366,
+          "management"
+        ],
+        [
+          9367,
+          9368,
+          "construction"
+        ],
+        [
+          9369,
+          9370,
+          "management"
+        ]
+      ],
+      "note": "Only reduction of original base-tensor axes through broadcast: mapping legality, surviving axes, and replacement. Replication-count reduction is a different branch and excluded."
+    }
+  ],
+  "cases": [
+    {
+      "case": "transpose_compose",
+      "status": "reviewed",
+      "blocks": [
+        "transpose_compose"
+      ],
+      "note": "Operand binding and nested-transpose branch only; omit identity/scatter/bitcast and dot branches.",
+      "tepl_scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed."
+    },
+    {
+      "case": "broadcast_add",
+      "status": "reviewed",
+      "blocks": [
+        "broadcast_elementwise"
+      ],
+      "note": "Shared elementwise sinking algorithm includes scalar expansion and generic elementwise/user handling beyond the two TEPL binary/equal-map specializations. Configuration dispatch is policy.",
+      "tepl_scope": "Only binary addition, equal base shapes, identical broadcast maps and added extents; excludes other elementwise functions and scalar expansion."
+    },
+    {
+      "case": "broadcast_multiply",
+      "status": "reviewed",
+      "blocks": [
+        "broadcast_elementwise"
+      ],
+      "note": "Shared elementwise sinking algorithm includes scalar expansion and generic elementwise/user handling beyond the two TEPL binary/equal-map specializations. Configuration dispatch is policy.",
+      "tepl_scope": "Only binary multiplication, equal base shapes, identical maps and added extents."
+    },
+    {
+      "case": "scalar_broadcast_reverse",
+      "status": "reviewed",
+      "blocks": [
+        "broadcast_inputs",
+        "scalar_permutation_predicate",
+        "scalar_broadcast_permutation"
+      ],
+      "note": "Common broadcast operand and descriptor capture, counted once. Local permutation predicate; includes the additional sort case. Subset predicate is short-circuited for the selected reverse/transpose cases and is not expanded. Scalar broadcast through a permutation: retain user traversal and mutation; no iota, broadcast-composition, or unrelated reshape branches.",
+      "tepl_scope": "Only the reverse member of the parameterized indexing schema; input broadcast map is empty."
+    },
+    {
+      "case": "scalar_broadcast_transpose",
+      "status": "reviewed",
+      "blocks": [
+        "broadcast_inputs",
+        "scalar_permutation_predicate",
+        "scalar_broadcast_permutation"
+      ],
+      "note": "Common broadcast operand and descriptor capture, counted once. Local permutation predicate; includes the additional sort case. Subset predicate is short-circuited for the selected reverse/transpose cases and is not expanded. Scalar broadcast through a permutation: retain user traversal and mutation; no iota, broadcast-composition, or unrelated reshape branches.",
+      "tepl_scope": "Only a rank-two transpose with permutation [1,0] and scalar broadcast."
+    },
+    {
+      "case": "reduce_negate",
+      "status": "reviewed",
+      "blocks": [
+        "reduce_inputs",
+        "scalar_zero_predicate",
+        "reduce_negate"
+      ],
+      "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Local scalar-zero predicate and its effective-scalar predicate; scalar type switching is retained. General primitive/literal library routines are not expanded. Only negate/sum commutation. Floating-type and zero-init checks remain legality; scalar/combiner assumptions are built into the TEPL sum dialect.",
+      "tepl_scope": "Only sum with implicit zero initializer, matching the catalog arithmetic case."
+    },
+    {
+      "case": "reduce_compose",
+      "status": "reviewed",
+      "blocks": [
+        "reduce_inputs",
+        "merge_reduces"
+      ],
+      "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. MergeReduces helper plus actual matching/combiner-equivalence caller. Both retained TEPL reduction-composition cases share this code.",
+      "tepl_scope": "Rank-three sum, inner axis 1 then outer axis 1; symbolic extents. Does not cover arbitrary combiners/initializers."
+    },
+    {
+      "case": "reduce_transpose",
+      "status": "reviewed",
+      "blocks": [
+        "reduce_inputs",
+        "reduce_transpose"
+      ],
+      "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Reduction-through-transpose branch includes general output-transpose correction; TEPL case is rank two/vector output. Fanout/unconditional-rewrite option is policy.",
+      "tepl_scope": "Rank-two transpose [1,0], sum over output axis 0, implicit zero initializer."
+    },
+    {
+      "case": "reverse_compose_disjoint",
+      "status": "reviewed",
+      "blocks": [
+        "reverse_inputs",
+        "reverse_compose"
+      ],
+      "note": "Reverse operand capture; layout sensitivity is policy. Trivial-dimension elimination is another rewrite and omitted. Nested-reverse symmetric difference, including empty-result deletion; shared by fixed and general TEPL cases.",
+      "tepl_scope": "Rank-two disjoint lists [0] and [1]; probes a case beyond identical-list cancellation."
+    },
+    {
+      "case": "reverse_add_scalar",
+      "status": "reviewed",
+      "blocks": [
+        "reverse_inputs",
+        "reverse_scalar_elementwise"
+      ],
+      "note": "Reverse operand capture; layout sensitivity is policy. Trivial-dimension elimination is another rewrite and omitted. Generic binary elementwise commutation with a scalar broadcast, both operand orders. TEPL selects addition with the scalar on one side; side-effect/opcode restrictions are retained.",
+      "tepl_scope": "Only addition and a scalar broadcast; tests the compound rule directly, not a two-rule sequence."
+    },
+    {
+      "case": "dot_associate",
+      "status": "reviewed",
+      "blocks": [
+        "dot_inputs",
+        "dot_maps",
+        "nested_dot"
+      ],
+      "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Complete local ConstructToDotMaps and ConstructFromDotMaps axis-map algorithms, once globally, including both input maps and inverse maps. General nested-dot reassociation, including batch/contract maps and optional output transpose; source flop heuristic is excluded. TEPL is ordinary matrix multiplication only. No unrelated HandleDot branches included.",
+      "tepl_scope": "Ordinary rank-two matrix products without batch axes; every attribute is reused explicitly."
+    },
+    {
+      "case": "dot_transpose_output",
+      "status": "reviewed",
+      "blocks": [
+        "transpose_dot",
+        "parameter_policy",
+        "precision_policy"
+      ],
+      "note": "Canonical transpose(dot) branch, appropriate for the rank-two TEPL case; exclude the separate arbitrary noncanonical-dot branch, and parameter/precision preference policy. Parameter-like profitability/layout preference predicate, kept in excluded-policy accounting. Precision-configuration propagation, outside the ideal-algebraic TEPL profile; excluded rather than credited as a saving.",
+      "tepl_scope": "Rank-two matrix product, output transpose [1,0]; explicit swapped contraction attributes."
+    },
+    {
+      "case": "dot_move_reverse",
+      "status": "reviewed",
+      "blocks": [
+        "dot_inputs",
+        "dot_operator_inputs",
+        "dot_reverse",
+        "dot_operator_finish"
+      ],
+      "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Shared reverse/broadcast operand selection and dimension maps. Selector also mentions pad, but the pad algorithm is excluded. Reverse-specific map partition and construction; shape-ratio threshold and threshold multiplier are source policy. Common new-dot construction and actual visitor replacement. Flop threshold and logging excluded; pad-specific source body is not selected.",
+      "tepl_scope": "Rank-one inner product; reversal of its sole contracting axis; no free/batch axes."
+    },
+    {
+      "case": "reduce_compose_leading",
+      "status": "reviewed",
+      "blocks": [
+        "reduce_inputs",
+        "merge_reduces"
+      ],
+      "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. MergeReduces helper plus actual matching/combiner-equivalence caller. Both retained TEPL reduction-composition cases share this code.",
+      "tepl_scope": "Rank-three sum with inner axis 0 then outer axis 0; implicit zero initializer. Compared with the nonleading-axis case."
+    },
+    {
+      "case": "broadcast_compose_append",
+      "status": "reviewed",
+      "blocks": [
+        "broadcast_inputs",
+        "broadcast_compose"
+      ],
+      "note": "Common broadcast operand and descriptor capture, counted once. Nested broadcast descriptor composition and replacement.",
+      "tepl_scope": "Arbitrary input rank, broadcasts only append new dimensions; concatenates new extents explicitly."
+    },
+    {
+      "case": "dot_swap_operands",
+      "status": "reviewed",
+      "blocks": [
+        "dot_inputs",
+        "swap_dot",
+        "parameter_policy"
+      ],
+      "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Operand and output-permutation swap helper and call site. Parameter placement gate and precision policy excluded; general batching permutation retained. Parameter-like profitability/layout preference predicate, kept in excluded-policy accounting.",
+      "tepl_scope": "Rank-two matrix product. Proves the identity for any captured X/Y; does not implement parameter-like policy screening."
+    },
+    {
+      "case": "dot_no_contraction",
+      "status": "reviewed",
+      "blocks": [
+        "dot_inputs",
+        "normalize_dot_operand",
+        "dot_no_contract"
+      ],
+      "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Local batch-major/contracting-minor normalization, shared by no-contraction and strength-reduction helpers; general transpose path retained. No-contracting-dimension multiply rewrite and dispatch. General broadcasting retained; preferred-type conversions and feature/precision gates excluded.",
+      "tepl_scope": "Rank-one operands, no batches or contractions; same-type ideal arithmetic, no conversions."
+    },
+    {
+      "case": "dot_reduce_product",
+      "status": "reviewed",
+      "blocks": [
+        "dot_inputs",
+        "normalize_dot_operand",
+        "dot_batch_contract_predicate",
+        "dot_product_reduce",
+        "add_reduce"
+      ],
+      "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Local batch-major/contracting-minor normalization, shared by no-contraction and strength-reduction helpers; general transpose path retained. Complete local predicate used by dot-to-reduce dispatch. Product/reduction construction, rank-general outer-dimension broadcasting, and caller; scalar f32 dot specialization in TEPL. Preferred-type/precision and CPU strength-reduction policy excluded. Local zero-init sum-reduction builder. General scalar-add computation construction is treated as a primitive library dependency, like TEPL sum semantics.",
+      "tepl_scope": "Rank-one inner product to multiply then sum; same-type ideal arithmetic, no widened accumulation."
+    },
+    {
+      "case": "dot_reduce_batch",
+      "status": "reviewed",
+      "blocks": [
+        "reduce_inputs",
+        "reduce_dot_batch"
+      ],
+      "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Convert reduced batch dimensions to contracting dimensions, including optional remaining reduction; TEPL fixes ranks and reduces one batch axis. Feature flags excluded.",
+      "tepl_scope": "Rank-one batched product reduced over its sole batch axis; no remaining output axes."
+    },
+    {
+      "case": "expr_reverse_compose_general",
+      "status": "reviewed",
+      "blocks": [
+        "reverse_inputs",
+        "reverse_compose"
+      ],
+      "note": "Reverse operand capture; layout sensitivity is policy. Trivial-dimension elimination is another rewrite and omitted. Nested-reverse symmetric difference, including empty-result deletion; shared by fixed and general TEPL cases.",
+      "tepl_scope": "General symmetric difference computed with existing list builtins; no auto."
+    },
+    {
+      "case": "catalog_broadcast_divide_broadcast",
+      "status": "deferred",
+      "blocks": [],
+      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
+      "tepl_scope": "Scalar Y broadcast to an arbitrary output shape."
+    },
+    {
+      "case": "catalog_broadcast_multiply_constant_into_broadcast",
+      "status": "reviewed",
+      "blocks": [
+        "multiply_broadcast_constant"
+      ],
+      "note": "Only multiply-constant-into-broadcast rewrite, including original literal/nonconstant matching. TEPL captures a scalar C and proves the more general algebraic equation; numerical fast-math gating is excluded, not counted as a saving.",
+      "tepl_scope": "Scalar factor C is a captured scalar; literal-only profitability does not affect the identity."
+    },
+    {
+      "case": "catalog_broadcast_transpose",
+      "status": "deferred",
+      "blocks": [],
+      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
+      "tepl_scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions."
+    },
+    {
+      "case": "catalog_broadcast_inserted_unit_dims",
+      "status": "deferred",
+      "blocks": [],
+      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
+      "tepl_scope": "Rank-one X; reshape inserts a leading unit axis; the outer broadcast appends axes."
+    },
+    {
+      "case": "catalog_broadcast_drop_unit_dims",
+      "status": "deferred",
+      "blocks": [],
+      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
+      "tepl_scope": "Rank-two operand with leading unit axis; broadcast appends axes."
+    },
+    {
+      "case": "catalog_broadcast_transpose_broadcast",
+      "status": "deferred",
+      "blocks": [],
+      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
+      "tepl_scope": "General insertion-only broadcast/permutation equation; source sorted-map/layout policy remains in the catalog."
+    },
+    {
+      "case": "catalog_indexing_reverse_inserted_unit_dims",
+      "status": "deferred",
+      "blocks": [],
+      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
+      "tepl_scope": "Insert one leading unit axis into rank-one input."
+    },
+    {
+      "case": "catalog_dot_transpose_both_operands",
+      "status": "reviewed",
+      "blocks": [
+        "dot_inputs",
+        "dot_transposed_operands",
+        "precision_policy"
+      ],
+      "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Both-input transpose removal helper and dispatch, retaining general canonical batch handling and both operand orders. Rank-two TEPL specialization; precision helper separately excluded. Precision-configuration propagation, outside the ideal-algebraic TEPL profile; excluded rather than credited as a saving.",
+      "tepl_scope": "Rank-two matrix transposes, no batches."
+    },
+    {
+      "case": "catalog_dot_move_broadcast",
+      "status": "reviewed",
+      "blocks": [
+        "dot_inputs",
+        "dot_operator_inputs",
+        "dot_broadcast",
+        "dot_operator_finish"
+      ],
+      "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Shared reverse/broadcast operand selection and dimension maps. Selector also mentions pad, but the pad algorithm is excluded. Broadcast-specific contraction map rewriting and reduction construction; optional residual broadcast retained. Threshold adjustment is policy. Common new-dot construction and actual visitor replacement. Flop threshold and logging excluded; pad-specific source body is not selected.",
+      "tepl_scope": "One broadcast-created contraction axis; replacement dot is an outer product."
+    },
+    {
+      "case": "catalog_dot_reduce_output_free",
+      "status": "reviewed",
+      "blocks": [
+        "reduce_inputs",
+        "reduce_dot_free",
+        "dot_maps",
+        "scalar_zero_predicate"
+      ],
+      "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Reduce-free-output-dimension into dot operands, including complete local dot maps via shared helper; original flop/profitability gate excluded. TEPL selects a rank-two free dimension. Complete local ConstructToDotMaps and ConstructFromDotMaps axis-map algorithms, once globally, including both input maps and inverse maps. Local scalar-zero predicate and its effective-scalar predicate; scalar type switching is retained. General primitive/literal library routines are not expanded.",
+      "tepl_scope": "Reduce the left free axis of a rank-two dot; implicit sum initializer zero."
+    },
+    {
+      "case": "catalog_dot_scalar_multipliers",
+      "status": "excluded",
+      "blocks": [],
+      "note": "Source-mapping mismatch: ScalarMultiplyReduction (704\u2013853) is called at 11039 from HandleConvolution; there is no call in HandleDot in this pinned snapshot. Its valid TEPL dot identity is retained but cannot support a corresponding XLA dot-excerpt count.",
+      "tepl_scope": "Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity."
+    },
+    {
+      "case": "catalog_reduction_broadcast_original_axes",
+      "status": "reviewed",
+      "blocks": [
+        "reduce_inputs",
+        "reduce_broadcast_original"
+      ],
+      "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Only reduction of original base-tensor axes through broadcast: mapping legality, surviving axes, and replacement. Replication-count reduction is a different branch and excluded.",
+      "tepl_scope": "Sum specialization; rank-one base and one broadcast-created axis."
+    }
+  ]
+}
