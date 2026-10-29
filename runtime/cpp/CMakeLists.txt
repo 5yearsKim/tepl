@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.20)
+project(tepl_runtime LANGUAGES CXX)
+# Consumers supply the separately pinned egg-c dependency.
+if(NOT TARGET eggc::eggc)
+  find_package(eggc CONFIG REQUIRED)
+endif()
+add_library(tepl_runtime INTERFACE)
+add_library(tepl::runtime ALIAS tepl_runtime)
+target_compile_features(tepl_runtime INTERFACE cxx_std_20)
+target_include_directories(tepl_runtime INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
+target_link_libraries(tepl_runtime INTERFACE eggc::eggc)

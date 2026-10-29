@@ -376,3 +376,19 @@ cc_test(
     srcs = ["axis_auto_test.cc"],
     deps = ["//src/core:pipeline", "//src/core/semantics:proof", "//src/executable", "//src/rewrite"],
 )
+
+cc_test(
+    name = "codegen_cpp_test",
+    size = "small",
+    srcs = ["codegen_cpp_test.cc"],
+    deps = ["//src/codegen", "//src/core:pipeline", "//src/core/syntax:syntax"],
+)
+
+sh_test(
+    name = "cpp_codegen_test",
+    size = "large",
+    srcs = ["cpp_codegen_test.sh"],
+    args = ["$(rootpath //:tepl)", "$(rootpath :codegen_semantic_reference)", "$(rootpath @eggc//:include/eggc/all.hpp)"],
+    data = [":codegen_semantic_reference", "//:tepl", "//:cpp_codegen_sources", "@eggc//:headers", "@eggc//:include/eggc/all.hpp"] + glob(["codegen/rust/*.tepl", "codegen/cpp/*.cc", "codegen/cpp/*.tepl"]),
+    env_inherit = ["PATH", "HOME", "CXX"],
+)

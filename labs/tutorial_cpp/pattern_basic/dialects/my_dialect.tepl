@@ -1,9 +1,0 @@
-dialect MyDialect {
-    op add(lhs: tensor, rhs: tensor) -> tensor;
-
-    op dot(lhs: tensor, rhs: tensor) -> tensor {
-        attrs {
-            axis: axis;
-        }
-    }
-}

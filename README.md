@@ -17,8 +17,9 @@
 <p align="center"><a href="https://5yearskim.github.io/tepl/">Official Documentation</a></p>
 
 The active compiler uses an explicit [compilation pipeline](src/core/README.md)
-and supports checking, executable compilation, greedy rewriting, and Rust/egg
-code generation from verified executable programs. C++ generation is deferred.
+and supports checking, executable compilation, greedy rewriting, and Rust/egg or
+C++20/egg-c code generation from verified executable programs. Both targets use
+shared runtimes.
 
 The same tensor computation can be expressed in different ways—with very different costs. In machine learning, choosing the right form can make a big difference: depending on tensor dimensions, `(XA)B` can require far less computation than `X(AB)`.
 
@@ -137,7 +138,7 @@ Even this simple rewrite needs separate nested trees for the pattern and replace
 
 ## ✨ Write a rule in TEPL, a language dedicated to tensor rewrites
 
-TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates Rust code for egg. The Rust backend supports attribute capture, synthesized attributes, shape/dtype analysis, and multiple dialects. C++ generation is deferred.
+TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates Rust code for egg or C++20 code for egg-c. Both backends support attribute capture, synthesized attributes, shape/dtype analysis, and multiple dialects.
 
 Here is the complete TEPL rule, using the example tensor dialect. Save it as `examples/sample/rules/transpose_negate.tepl`:
 
@@ -162,7 +163,7 @@ TEPL keeps tensor rewrites concise while supporting the features needed for real
 - **Multiple dialects:** Define and import your own operation dialects, and write rules that rewrite between them.
 - **Self-contained attribute logic:** Use builtins, local expressions, descriptor constructors, and `auto` synthesis for guards and attribute transformations.
 - **Direct graph rewriting:** Compile portable JSON, run greedy rewrites, and export the result as readable TEPL.
-- **E-graph integration:** Generate rewrites for egg with generated tensor analysis and a shared Rust runtime.
+- **E-graph integration:** Generate rewrites for egg or egg-c with generated tensor analysis and shared Rust/C++ runtimes.
 
 ## Run generated Rust
 
@@ -220,3 +221,16 @@ highlighting and code formatting to your editor.
 - [🧠 Core concepts](https://5yearskim.github.io/tepl/2_core_concept_tepl/) — Understand TEPL's tensor patterns and rewrite rules.
 - [🦀 Rust tutorial](https://5yearskim.github.io/tepl/tutorial/rust/01_build/) — Build TEPL and get started with tensor rewrites in Rust.
 - [🛠️ Developer guide](https://5yearskim.github.io/tepl/developer_guide/) — Build, test, and contribute to TEPL.
+
+## Run generated C++
+
+```sh
+bazel build //:tepl
+bazel-bin/tepl generate examples/rewrite --target cpp --cpp-namespace my_ir --out /tmp/my_app/generated
+cmake -S labs/tutorial_cpp -B /tmp/tepl-tutorial-cpp
+cmake --build /tmp/tepl-tutorial-cpp
+ctest --test-dir /tmp/tepl-tutorial-cpp --output-on-failure
+```
+
+Applications depend on the separate [C++20 runtime](runtime/cpp/README.md) and
+egg-c. See the [C++ tutorial](labs/tutorial_cpp/README.md) for a complete example.

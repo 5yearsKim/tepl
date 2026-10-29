@@ -224,7 +224,7 @@ bazel-bin/tepl generate /tmp/simple.json --target rust -o /tmp/generated
 
 Extended rule expressions, constructors, and axis contracts are translated into
 native Rust functions. The shared Rust runtime provides builtins, metadata
-analysis, and egg integration. C++ generation is deferred.
+analysis, and egg integration. C++20 generation targets egg-c through the shared [C++ runtime](../../runtime/cpp/README.md).
 
 ## Changing the format
 

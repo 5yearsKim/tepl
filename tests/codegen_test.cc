@@ -45,7 +45,7 @@ void equivalentInputs() {
   assert(
       tepl::codegen::synchronize(b.files, directory.path(), options).current());
   tepl::codegen::Options target;
-  target.target = tepl::codegen::Target::kCpp;
+  target.target = tepl::codegen::Target::kPython;
   auto unsupported = tepl::codegen::generate(p, target);
   assert(!unsupported.ok() && unsupported.files.empty());
 }

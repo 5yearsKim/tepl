@@ -1,96 +1,76 @@
 #include "src/codegen/cpp/backend.h"
 
-#include "src/codegen/common/rule_plan.h"
-#include "src/codegen/cpp/analysis_emitter.h"
+#include "src/codegen/common/project_plan.h"
 #include "src/codegen/cpp/dialect_emitter.h"
 #include "src/codegen/cpp/graph_emitter.h"
-#include "src/codegen/cpp/names.h"
+#include "src/codegen/cpp/metadata_emitter.h"
 #include "src/codegen/cpp/rule_emitter.h"
-#include "src/codegen/cpp/template_files.h"
-
 namespace tepl::codegen::cpp {
-namespace {
-void replace(std::string& text, const std::string& marker,
-             const std::string& value) {
-  std::size_t position = 0;
-  while ((position = text.find(marker, position)) != std::string::npos) {
-    text.replace(position, marker.size(), value);
-    position += value.size();
-  }
-}
-}  // namespace
-GenerationResult Backend::generate(const program::Program& executable,
-                                   const Options& options) const {
-  const auto& program = executable.ir();
+GenerationResult generate(const executable::ExecutableProgram& executable,
+                          const Options& options) {
   GenerationResult result;
-  result.diagnostics = unsupportedRuleExpressions(program);
-  if (!result.diagnostics.empty()) return result;
   try {
-    auto project =
-        planProject(program, options.rules_root, options.graphs_root);
-    Names names(program, project, options.cpp_namespace);
-    std::string includes;
-    for (const auto& d : names.dialects)
-      includes += "#include \"dialects/" + d.file_stem + ".h\"\n";
-    for (auto file : templateFiles()) {
-      file.path.erase(0, 4);
-      if (file.path == "op_node.h") {
-        replace(file.contents, "// @tepl:dialect-includes", includes);
-        replace(file.contents, "// @tepl:op-types",
-                emitOpUnion(program, names));
-      }
-      replace(file.contents, "@TEPL_NAMESPACE@", options.cpp_namespace);
-      result.files.push_back(std::move(file));
-    }
+    const auto& p = executable.ir();
+    auto project = planProject(p, options.rules_root, options.graphs_root);
+    Names names(p, project, options.cpp_namespace);
     result.files.push_back(
-        {"analysis/shape.h", emitShapeInference(program, names)});
-    result.files.push_back(
-        {"analysis/dtype.h", emitDTypeInference(program, names)});
-    std::string dialect_index = "#pragma once\n";
+        {"program.h", emitProgram(p, names, executable.policy())});
+    result.files.push_back({"metadata.h", emitMetadata(p, names)});
+    std::string dialects = "#pragma once\n";
     for (const auto& d : names.dialects) {
+      dialects += "#include \"" + d.file_stem + ".h\"\n";
       result.files.push_back(
-          {"dialects/" + d.file_stem + ".h", emitDialect(program, names, d)});
-      dialect_index += "#include \"" + d.file_stem + ".h\"\n";
+          {"dialects/" + d.file_stem + ".h", emitDialect(p, names, d)});
     }
-    result.files.push_back({"dialects/dialects.h", dialect_index});
+    result.files.push_back({"dialects/dialects.h", dialects});
+    for (const auto& module : names.modules)
+      result.files.push_back({"rules/" + module.path + ".h",
+                              emitRules(executable, names, module)});
     for (const auto& [directory, children] : names.module_indexes) {
-      std::string index = "#pragma once\n";
+      std::string contents = "#pragma once\n";
+      if (directory.empty()) contents += "#include \"../program.h\"\n";
       for (const auto& child : children) {
-        const auto path = directory.empty() ? child : directory + "/" + child;
-        bool is_directory = names.module_indexes.contains(path);
-        index +=
-            "#include \"" + child + (is_directory ? "/rules.h" : ".h") + "\"\n";
+        auto path = directory.empty() ? child : directory + "/" + child;
+        contents += "#include \"" + child +
+                    (names.module_indexes.contains(path) ? "/rules.h" : ".h") +
+                    "\"\n";
+      }
+      if (directory.empty()) {
+        contents +=
+            "namespace " + names.root.substr(2) +
+            "::rules {\ninline ::tepl_runtime::EvalResult<::std::vector<" +
+            names.root +
+            "::Rewrite>> all() {\nreturn ::tepl_runtime::evaluate([] { return "
+            "::std::vector<" +
+            names.root + "::Rewrite>{\n";
+        for (const auto& module : names.modules)
+          for (auto id : module.rules)
+            contents += module.qualified + "::" + names.rule(id) +
+                        "::definition().build().value(),\n";
+        contents += "}; }); } }\n";
       }
       result.files.push_back(
           {"rules/" + (directory.empty() ? "" : directory + "/") + "rules.h",
-           index});
+           contents});
     }
-    for (const auto& module : names.modules) {
-      std::vector<const core::Rule*> rules;
-      for (auto id : module.rules) rules.push_back(&program.rules.at(id.value));
-      result.files.push_back({"rules/" + module.path + ".h",
-                              emitRules(program, names, rules, module)});
-    }
-    emitGraphs(program, names, project, result);
+    emitGraphs(p, names, project, result);
     result.files.push_back(
         {"generated.h",
-         "#pragma once\n#include \"op_node.h\"\n#include "
-         "\"analysis/analysis.h\"\n#include \"builtins/builtins.h\"\n#include "
-         "\"rewriting/rewrite.h\"\n#include \"rules/rules.h\"\n#include "
-         "\"graphs/graphs.h\"\n"});
-    // GCC can treat byte-identical #pragma once headers with matching
-    // timestamps as the same file. Namespace-specific contents keep
-    // wrapper/index headers distinct when multiple generated libraries share a
-    // translation unit.
+         "#pragma once\n#include \"program.h\"\n#include "
+         "\"rules/rules.h\"\n#include \"graphs/graphs.h\"\n"});
+    // GCC can coalesce byte-identical pragma-once wrappers with equal
+    // timestamps. Relative includes require distinct identity for every
+    // namespace and path.
     for (auto& file : result.files)
-      file.contents.insert(0, "// Generated by TEPL. C++ namespace: " +
-                                  options.cpp_namespace + ".\n");
-  } catch (const NameError& error) {
+      file.contents.insert(
+          0, "// Generated by TEPL. C++ namespace: " + options.cpp_namespace +
+                 ". File: " + file.path + ".\n");
+  } catch (const NameError& e) {
     result.files.clear();
-    result.diagnostics.push_back({error.origin, error.what()});
-  } catch (const std::invalid_argument& error) {
+    result.diagnostics.push_back({e.origin, e.what()});
+  } catch (const std::exception& e) {
     result.files.clear();
-    result.diagnostics.push_back({{}, error.what()});
+    result.diagnostics.push_back({{}, e.what()});
   }
   return result;
 }

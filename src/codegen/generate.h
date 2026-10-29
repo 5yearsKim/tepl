@@ -4,7 +4,7 @@
 #include "src/executable/program.h"
 
 namespace tepl::codegen {
-// Generation is pure: validated executable IR in, Rust source files out.
+// Generation is pure: validated executable IR in, target source files out.
 GenerationResult generate(const executable::ExecutableProgram& program,
                           const Options& options = {});
 }  // namespace tepl::codegen

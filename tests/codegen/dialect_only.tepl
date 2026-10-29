@@ -1,4 +1,0 @@
-dialect __ {
-    attrs __ { self_: u64; type: string[]; type_: u64; match: u64; gen: u64; }
-    op _1() -> tensor { attrs: __; }
-}

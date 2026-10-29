@@ -1,7 +1,7 @@
 # TEPL command-line reference
 
 The `tepl` command initializes projects, parses source files, checks declarations,
-compiles portable JSON, runs greedy rewrites, and generates Rust for egg. C++ generation is deferred. See the [build guide](../tutorial/rust/01_build.md)
+compiles portable JSON, runs greedy rewrites, and generates Rust for egg and C++20 for egg-c. See the [build guide](../tutorial/rust/01_build.md)
 to build the executable. Examples below assume `tepl` is on your `PATH`; from
 the repository root, you can use `bazel-bin/tepl` instead.
 
@@ -263,7 +263,7 @@ C++ API, metadata checks, and export limitations.
 
 ## `generate`
 
-Generate Rust modules from TEPL source, a project directory, or compiled JSON:
+Generate Rust modules or C++ headers from TEPL source, a project directory, or compiled JSON:
 
 ```sh
 tepl generate examples/rewrite --out my_app/src/generated
@@ -276,20 +276,25 @@ functions, rules, and graph builders. Add the shared `tepl-runtime` crate to the
 application. Generation does not create a Cargo application or run it. See the
 [Rust tutorial](../tutorial/rust/02_run.md).
 
+For C++, use `--target cpp --cpp-namespace my_ir --out my_app/generated` and add
+the separate [C++ runtime](../../runtime/cpp/README.md) and egg-c dependencies.
+The generated `generated.h` includes the complete program API.
+
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `-o`, `--out` | Required | Generated module directory. |
-| `--target` | `rust` | Rust is implemented. C++ and Python report a diagnostic. |
+| `--target` | `rust` | `rust` and `cpp` are implemented; Python reports a diagnostic. |
+| `--cpp-namespace` | `tepl_generated` | Namespace for generated C++ declarations. |
 | `--rules` | None | Additional rule source file or directory; source input only. |
 | `--rules-root` | Inferred | Root for rule module paths. |
 | `--graphs-root` | Inferred | Root for graph module paths. |
 | `--check` | Off | Compare generated output without updating files. |
-| `--format` | On | Format generated Rust with `rustfmt`, using edition 2024. |
+| `--format` | On | Use `rustfmt` (edition 2024) for Rust or `clang-format` for C++. |
 | `--no-format` | Off | Skip generated-output formatting. |
 
 Source input is compiled to `ExecutableProgram`; JSON input is validated and
 loaded into the same representation. Completed conditions, attribute constructors,
-and axis derivations are translated into Rust functions. No source files are
+and axis derivations are translated into target-language functions. No source files are
 needed when generating from compiled JSON.
 
 By default, source paths beneath `rules/` and `graphs/` retain their nested module
@@ -297,8 +302,8 @@ paths. Other source paths use filename stems. Explicit roots override this
 convention and must contain the corresponding sources. Use the same root options
 when comparing source and JSON output.
 
-Formatting finishes before output synchronization. If `rustfmt` is unavailable,
-use `--no-format`. Formatting applies to generated Rust, not TEPL source.
+Formatting finishes before output synchronization. If the selected formatter is unavailable,
+use `--no-format`. Formatting applies to generated source, not TEPL source.
 
 ### Check generated files
 

@@ -27,12 +27,6 @@ cc_binary(
 sh_binary(name = "format", srcs = ["tools/format.sh"])
 
 cc_binary(
-    name = "embed_templates",
-    srcs = ["tools/embed_templates.cc"],
-    visibility = ["//src/codegen:__pkg__"],
-)
-
-cc_binary(
     name = "builtin_reference",
     visibility = ["//tests:__pkg__"],
     srcs = ["tools/builtin_reference.cc"],
@@ -42,5 +36,11 @@ cc_binary(
 filegroup(
     name = "rust_codegen_sources",
     srcs = glob(["examples/semantic/**/*.tepl", "examples/semantic/**/tepl.toml", "examples/sample/**/*.tepl", "examples/sample/**/tepl.toml"]) + ["tools/test_codegen.sh"],
+    visibility = ["//tests:__pkg__"],
+)
+
+filegroup(
+    name = "cpp_codegen_sources",
+    srcs = ["//runtime/cpp:sources", "tools/test_codegen_cpp.sh", ":rust_codegen_sources"],
     visibility = ["//tests:__pkg__"],
 )

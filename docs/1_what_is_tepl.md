@@ -361,4 +361,4 @@ extraction cost model.
 - [Design philosophy](design_philosophy.md): principles and core concepts.
 - [Example rules](../examples/sample/rules): tensor rewrites in TEPL.
 - [Rust runtime guide](../labs/rust-egg/README.md): analysis and rewrites with egg.
-- [C++ runtime guide](../templates/cpp/README.md): generated code for egg-c.
+- [C++ runtime guide](../runtime/cpp/README.md): generated code for egg-c.

@@ -62,8 +62,11 @@ int main(int argc, char** argv) {
       ->required();
   generate->add_flag("--check", write_options.check,
                      "Check generated output without changing files");
-  generate->add_flag("--format,!--no-format", write_options.format,
-                     "Format generated Rust with rustfmt (default: on)");
+  generate->add_flag(
+      "--format,!--no-format", write_options.format,
+      "Format generated code with rustfmt or clang-format (default: on)");
+  generate->add_option("--cpp-namespace", generation_options.cpp_namespace,
+                       "Namespace for generated C++ declarations");
   generate->add_option("--rules-root", generation_options.rules_root,
                        "Root for generated rule module paths");
   generate->add_option("--graphs-root", generation_options.graphs_root,

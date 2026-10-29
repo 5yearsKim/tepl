@@ -85,7 +85,7 @@ bazel-bin/tepl generate examples/sample --out my_app/src/generated
 ```
 
 Rust is the implemented output target. Generated modules depend on the shared
-`tepl-runtime` crate. C++ generation is deferred.
+`tepl-runtime` crate. C++20 generation targets egg-c through the shared [C++ runtime](../runtime/cpp/README.md).
 Follow the [Rust tutorial](tutorial/rust/02_run.md) to connect generated code
 to an application and run the optimizer.
 

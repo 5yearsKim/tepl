@@ -35,3 +35,13 @@ http_archive(
     sha256 = "0ed13668906e86dbc0dcddf30fdee68c10203dea4e83852b4edb810821bee3c4",
     url = "https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip",
 )
+
+# Used by the optional C++ runtime and integration tests, not the compiler.
+http_archive(
+    name = "eggc",
+    type = "tar.gz",
+    build_file = "//third_party:eggc.BUILD.bazel",
+    sha256 = "89d2ffbd7999edb65ae3c180d1c9caf72117fb1e8f1f39bf90107e4bb8d8b4f9",
+    strip_prefix = "egg-c-0c28bd5050b85ed10e915b5348c27f760ed31ae5",
+    url = "https://codeload.github.com/5yearsKim/egg-c/tar.gz/0c28bd5050b85ed10e915b5348c27f760ed31ae5",
+)

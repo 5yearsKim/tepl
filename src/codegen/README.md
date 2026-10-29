@@ -1,12 +1,13 @@
-# Rust code generation
+# Code generation
 
-`generate(ExecutableProgram, Options)` returns Rust source files and diagnostics.
+`generate(ExecutableProgram, Options)` returns target source files and diagnostics.
 It does not read source files, repeat semantic verification, solve attributes, or
 write output. The CLI compiles source or validates and loads JSON before calling
 this interface.
 
 The generated module depends on the shared [`tepl-runtime`](../../runtime/rust/)
-crate and Rust edition 2024. C++ and Python generation are unavailable.
+crate and Rust edition 2024. The C++20 backend uses the shared
+[`C++ runtime`](../../runtime/cpp/); Python generation is unavailable.
 
 ## Boundaries
 
@@ -81,3 +82,21 @@ and output facts with generated Rust. This includes mixed explicit/auto fields,
 source and derived-descriptor guards, logical-axis identity/order, and empty, zero,
 and singleton dimensions. Runtime tests cover numeric boundaries,
 resource limits, metadata merging, and axis identity.
+
+## C++ backend
+
+`cpp/` mirrors Rust's backend, naming, expression, metadata, dialect, rule, and
+graph emitter boundaries. Both consume completed executable IR and share project
+planning and output synchronization. C++ emits `program.h`, `metadata.h`,
+`dialects/`, `rules/`, `graphs/`, and an umbrella `generated.h`. Runtime algorithms
+remain in `runtime/cpp`, rather than being copied into generated output.
+
+C++ namespaces are configurable with `--cpp-namespace`. Keywords receive a
+trailing underscore, and spelling/module collisions fail before synchronization.
+Definitions are inline or templated for multiple translation units. `clang-format`
+formats generated C++; `--check` and manifest ownership work as for Rust.
+
+The generated `Program` satisfies the C++ runtime concept corresponding to Rust's
+trait, including shape/dtype inference and typed attribute conversion. The runtime
+adapts witness-preserving matching and prepared replacement insertion to egg-c.
+See [runtime contracts and validation](../../runtime/cpp/README.md).

@@ -1,5 +1,6 @@
 #include "src/codegen/generate.h"
 
+#include "src/codegen/cpp/backend.h"
 #include "src/codegen/rust/backend.h"
 namespace tepl::codegen {
 std::string_view targetName(Target target) {
@@ -15,6 +16,7 @@ std::string_view targetName(Target target) {
 }
 GenerationResult generate(const executable::ExecutableProgram& program,
                           const Options& options) {
+  if (options.target == Target::kCpp) return cpp::generate(program, options);
   if (options.target != Target::kRust)
     return {{},
             {{{},

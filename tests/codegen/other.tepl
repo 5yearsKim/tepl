@@ -1,1 +1,0 @@
-dialect Other { op add(lhs: tensor, rhs: tensor) -> tensor; }

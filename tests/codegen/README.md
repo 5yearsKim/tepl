@@ -1,16 +1,19 @@
 # Code generation fixtures
 
-The active integration suite uses `rust/` and the sample and semantic projects
-through `tools/test_codegen.sh` and `//tests:rust_codegen_test`.
+Rust and C++ share the current source fixtures in `rust/`, along with the sample
+and semantic projects. `tools/test_codegen.sh` and `tools/test_codegen_cpp.sh`
+generate temporary applications and compare source/JSON output.
 
-`current.tepl` covers field-level axis synthesis, preserved supplied/default
-fields, logical-axis sets and sequences, and guards on derived descriptors.
-`codegen_semantic_reference` evaluates each graph/rule pair with the native
-engine and emits independent Rust assertions for applicability, descriptors,
-replacement trees, and shape/dtype facts. These run in debug and release modes.
+`current.tepl` covers field-level synthesis, preserved supplied/default fields,
+logical axes and guards on derived descriptors. `codegen_semantic_reference` uses
+the native evaluator to generate independent Rust assertions or C++ assertions
+(`--cpp`) for applicability, descriptors, replacement trees, and output facts.
+Both backends execute them in debug and optimized builds.
 
-Other sibling fixtures and `cpp/` contain historical tests for the retired
-generator interfaces. C++ generation is unavailable; its integration script
-reports that status without attempting regeneration. Obsolete host-call fixtures
-have been removed. `$` calls and host `fn` parameters are rejected by
-`//tests:syntax_test` and `//tests:core_test`.
+`cpp/integration.cc` checks egg-c execution, witness pairing, rejection before
+insertion, metadata refinement/conflicts, literals, binders, multiple namespaces,
+and typed construction. `cpp/odr.cc` verifies multiple translation units. Runtime
+numeric boundaries and logical-axis checks live in `runtime/cpp/tests/values.cc`.
+`cpp/strings.cc` preserves embedded NUL bytes; `cpp/witnesses.*` checks metadata
+refinement across competing attribute witnesses. The retired host-function runtime
+and fixtures have been removed.

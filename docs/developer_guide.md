@@ -64,7 +64,7 @@ target when a module only reads the output of a stage.
 | Runtime program and serialization | `src/executable/` |
 | Shared definitions and builtin catalogs | `src/shared/` |
 | Shared generation plans and language emitters | [src/codegen/](../src/codegen/README.md) |
-| Reusable runtime algorithms | [runtime/rust/](../runtime/rust/README.md); C++ templates remain deferred |
+| Reusable runtime algorithms | [runtime/rust/](../runtime/rust/README.md) and [runtime/cpp/](../runtime/cpp/README.md) |
 | Compiler and generated-code fixtures | `tests/`, `tests/codegen/` |
 
 Edit the grammar and AST builder when changing syntax. Bazel regenerates the
@@ -130,7 +130,7 @@ Rust integration needs Cargo, Rust with edition 2024 support, and `rustfmt`.
 The integration script uses Cargo's local dependency cache. Run the compiler
 suite for frontend changes and the Rust integration suite for emitter or runtime
 changes. The script builds TEPL by default; pass a compiler binary and the
-`codegen_reference` helper to use existing builds. C++ generation is deferred.
+`codegen_reference` helper to use existing builds. C++ validation uses `tools/test_codegen_cpp.sh` and `//tests:cpp_codegen_test`.
 
 ## Develop Rust runtime logic
 
@@ -144,7 +144,7 @@ Its `src/ir/` is generated and ignored by Git.
 
 `tools/test_codegen.sh` generates temporary applications, compares source and
 JSON output, checks builtin behavior against the executable evaluator, and runs
-Rust tests in debug and release modes. C++ generation remains deferred.
+Rust tests in debug and release modes. C++ validation also runs debug and optimized UBSan programs with native semantic-reference comparisons.
 
 ## Language and runtime documentation
 
