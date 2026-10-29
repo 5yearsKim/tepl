@@ -1,4 +1,6 @@
-> Within the supported read-once fragment, tensor equivalence can be reduced to matching logical-axis connections and output ordering. Once these are known, RHS attributes can be constructed directly without searching through possible assignments.
+> 본 연구는 axis-structural multilinear 계약을 만족하는 rewrite에서, 주어진 메타데이터를 보존하면서 RHS의 `axis` attribute만 합성하는 문제를 다룬다. 값의 계산은 각 독립적인 operand에 대해 선형이며, 좌표 관계는 전체 축의 연결·방향·출력 순서·축소로 표현한다. Addition은 별도의 합성 규칙으로 다룬다.
+
+**문서 구성.** Section 2는 axis-only 합성 문제와 본문 정리의 범위를 정의한다. Sections 3–5는 \(N(T)=(P,\sim,F)\)를 이용한 중간 축의 직접 구성과 완전성을 증명한다. 구체적인 구성 규칙은 Appendix A에, 직접 구성의 확장은 Appendix B에, 확장 표현과 지원 경계는 Appendix C에 정리한다.
 
 ## 2. Problem Definition
 
@@ -28,7 +30,7 @@ Tensor rewrite는 다음 두 symbolic expression으로 구성된다.
 \boxed{L\Rightarrow R}
 \]
 
-여기서 LHS \(L\)의 attribute는 주어지고, RHS \(R\)의 attribute는 미정이다.
+여기서 LHS \(L\)의 attribute는 주어진다. RHS \(R\)에서는 `auto`로 표시된 적격 `axis` field만 미정이며, 나머지 field는 명시한 식 또는 schema의 기본값으로 주어진다. 명시적으로 주어진 `axis` field도 합성 중 변경하지 않는다.
 
 메타데이터와 미정 attribute를 다음과 같이 정의한다.
 
@@ -37,7 +39,7 @@ Tensor rewrite는 다음 두 symbolic expression으로 구성된다.
 s &= (s_1,\ldots,s_n) && \text{Input shapes}\\
 \alpha &= \text{LHS attributes}\\
 p &= (s,\alpha) && \text{Metadata}\\
-\beta &= \text{RHS attributes}
+\beta &= \text{Completed RHS attributes}
 \end{aligned}
 \]
 
@@ -49,9 +51,40 @@ p &= (s,\alpha) && \text{Metadata}\\
 L_p(X),\qquad R_{p,\beta}(X)
 \]
 
+#### Attribute의 역할과 합성 경계
+
+Attribute의 역할은 정수 저장 타입과 구분한다.
+
+| 선언 | 의미 | 저장 타입 | `auto` 허용 |
+| --- | --- | --- | --- |
+| `axis`, `axis[]` | 텐서의 축을 선택·정렬·대응시키는 축 위치 | `u64` | 허용 |
+| `extent`, `extent[]` | 축의 크기 또는 명시적으로 주어진 목표 shape | `u64` | 허용하지 않음 |
+| `coordinate`, `coordinate[]` | 좌표의 시작점, offset, stride, padding 양 등의 메타데이터 | `i64` | 허용하지 않음 |
+
+예를 들어 축 위치 1은 `axis`, 그 축의 크기 8은 `extent`, 그 축 안에서의 시작 위치 2는 `coordinate`에 해당한다. `axis`는 숫자로 표현되는 attribute의 역할이며, 연산 선언의 `axes`는 논리적 축 구조를 나타낸다. 이전의 공개 타입 `index`는 사용하지 않는다.
+
+`coordinate`는 메타데이터 parameter를 뜻하며, gather 등의 index tensor에 담긴 값을 뜻하지 않는다. 또한 `i64`로 저장한다는 사실만으로 음수 stride나 padding이 합법적인 것은 아니다. 각 연산의 계약이 허용 범위를 정한다.
+
+**현재 구현의 제한.** `auto`는 non-optional `axis` 또는 `axis[]` field에만 허용한다. Optional field의 부재(`None`)까지 선택하는 기능은 구현되어 있지 않다. 이는 axis-only라는 의미적 경계와 별개이다. Optional axis까지 정리를 확장하려면 부재의 의미를 정의하고, 부재와 모든 합법적인 값의 선택을 빠짐없이 처리해야 한다. 빈 축 목록 `[]`은 `None`과 다르며 허용된다.
+
+예를 들어 broadcast의 다음 선언은 축 mapping만 요청한다.
+
+```tepl
+derive {
+    out.attrs = {
+        dimensions: auto,
+        new_extents: source.attrs.new_extents
+    };
+}
+```
+
+여기서 `new_extents`는 주어진 식으로 유지된다. 합성기가 축 후보의 출력 shape를 계산하는 것은 `extent` attribute를 합성하는 것과 다르다. Descriptor를 생략하더라도 미지수가 될 수 있는 것은 적격 `axis` field뿐이며, 나머지 필수 field는 명시하거나 기본값으로 제공해야 한다.
+
+합성기는 `auto`로 표시된 axis field만 결정하며, 나머지 field는 주어진 식이나 기본값을 그대로 유지한다.
+
 ### 2.3 Valid Attribute Assignment
 
-RHS attribute \(\beta\)가 유효하려면 다음 조건을 만족해야 한다.
+완성된 RHS attribute \(\beta\)가 유효하려면 다음 조건을 만족해야 한다.
 
 \[
 \boxed{
@@ -68,7 +101,21 @@ L_p(X)=R_{p,\beta}(X)
 
 여기서 \(X\)는 \(p\)에 지정된 입력 shape를 만족하는 모든 텐서 값을 의미한다.
 
-\(\operatorname{Legal}_R\)는 모든 중간 연산의 유효성을 포함하며, shape는 축 순서를 포함한 벡터이다. Attribute는 텐서 값이 아니라 metadata에만 의존한다. 따라서 존재성의 양화 순서는 \(\exists\beta\,\forall X\)이다.
+\(\operatorname{Legal}_R\)는 모든 중간 연산의 유효성을 포함하며, shape는 축 순서를 포함한 벡터이다. 합성 문제에서는 여기에 주어진 field의 유효성과 보존 조건을 적용한다.
+
+하나의 rewrite를 고정하자. 여기서 \(a\)는 `auto` axis 대입, \(F(p)\)는 주어진 field의 값, \(D(p,a)\)는 그 값을 보존하고 \(a\)를 채운 전체 RHS attribute \(\beta\)이다. 주어진 식은 metadata \(p\)에만 의존하며, \(\operatorname{Defined}\)는 정수 범위와 타입 변환을 포함해 그 식이 유효하게 평가됨을 뜻한다.
+
+\[
+\boxed{
+\operatorname{Complete}(p,a)
+\iff
+\operatorname{Defined}(F(p))
+\land
+\operatorname{Valid}(p,D(p,a))
+}
+\]
+
+Axis 대입값은 텐서 값이 아니라 metadata에만 의존한다. 따라서 존재성의 양화 순서는 \(\exists a\,\forall X\)이며, extent나 coordinate에 대한 존재 양화는 없다.
 
 ### 2.4 Attribute Synthesis Problem
 
@@ -76,92 +123,89 @@ L_p(X)=R_{p,\beta}(X)
 
 **1. Feasibility**
 
-유효한 RHS attribute가 존재하는 조건을 결정한다.
+주어진 field를 보존하는 유효한 axis 대입값이 존재하는 조건을 결정한다.
 
 \[
 \boxed{
 \operatorname{check}(p)
 \iff
-\exists\beta:\operatorname{Valid}(p,\beta)
+\exists a:\operatorname{Complete}(p,a)
 }
 \]
 
 **2. Attribute Construction**
 
-조건이 성립하면 유효한 RHS attribute를 생성한다.
+조건이 성립하면 `auto` slot을 채울 axis 대입값을 생성한다.
 
 \[
 \boxed{
 \operatorname{check}(p)
 \Rightarrow
-\operatorname{Valid}(p,\operatorname{build}(p))
+\operatorname{Complete}(p,\operatorname{build}(p))
 }
 \]
 
-두 조건은 모든 유효한 LHS 메타데이터 \(p\)에 대해 성립해야 한다.
+두 조건은 정리가 명시한 domain 안의 모든 유효한 LHS 메타데이터 \(p\)에 대해 성립해야 한다. 생성된 전체 RHS descriptor는 \(D(p,\operatorname{build}(p))\)이다. 주어진 field의 식이 정의되지 않으면 \(\operatorname{check}(p)\)는 거짓이어야 한다.
 
-따라서 본 연구의 목표는 특정 shape에서만 동작하는 해를 구하는 것이 아니라, symbolic rewrite로부터 모든 유효한 메타데이터에 적용할 수 있는 \(\operatorname{check}\)와 \(\operatorname{build}\)를 생성하는 것이다.
+따라서 본 연구의 목표는 특정 shape에서만 동작하는 해를 구하는 것이 아니라, symbolic rewrite로부터 해당 domain의 모든 유효한 메타데이터에 적용할 수 있는 \(\operatorname{check}\)와 \(\operatorname{build}\)를 생성하는 것이다. 이는 **주어진 field를 조건으로 하는 axis 합성의 완전성**이며, 미지의 extent나 coordinate까지 포함한 전체 descriptor 합성의 완전성이 아니다.
+
+본문은 중간 축과 순서를 직접 구성하며, 부록은 더 넓은 표현과 별도 구조 상태 탐색을 구분한다. 어느 경우에도 tensor 좌표 격자를 열거하지 않는다. 지원 여부는 `axis` 타입만이 아니라 명시한 연산 계약과 합성 절차로 결정한다.
 
 ### 2.5 Scope and Assumptions
 
-Sections 3–5의 수학적 알고리즘과 완전성 증명은 아래 조건을 공통으로 사용한다. 이후에는 이 조건들을 다시 나열하지 않고, 필요한 성질이 증명에서 어떻게 쓰이는지 설명한다. TEPL이 일반 검증으로 처리하는 더 넓은 범위는 Section 6.4에서 다룬다.
+본문 정리는 **axis-structural multilinear** 계산 중 아래 선언 형태를 대상으로 한다. 전체 축을 연결·재배열·합산하며, 값은 독립적인 입력 원소들의 곱과 합으로 계산한다. Multilinear는 다른 입력을 고정하면 각 입력에 대해 선형이라는 뜻이다. Addition은 Section 5.3의 항별 결합으로 따로 다룬다.
 
-**연산의 의미**
+추론 대상은 RHS의 독립적인 `axis` field뿐이며, extent와 coordinate는 추론하지 않는다(Section 2.2). Reverse, 새 축, 가중치 등을 포함하는 더 넓은 계약은 Appendix C.4로 구분한다.
 
-사용하는 연산은 contraction, permutation, unary summation, addition이며, 각 연산의 계약은 다음과 같다.
+아래 반례·경계 예시는 현재 직접 구성의 범위를 보여주며, 다른 알고리즘의 처리 가능성까지 배제하지 않는다.
 
-| 연산 | Attribute, legality, 출력 규칙 |
-| --- | --- |
-| Permutation | 입력 축 위치의 전체 permutation \(\pi\)를 사용한다. 출력 위치 \(j\)는 입력 위치 \(\pi_j\)에 대응한다. |
-| Unary summation | 범위 내의 중복 없는 축 위치 목록 \(d\)를 사용한다. 해당 축을 합산하여 제거하고, 남은 축은 입력의 상대적 순서를 유지한다. |
-| Contraction | 네 ordered list \((b_\ell,b_r,k_\ell,k_r)\)를 사용한다. 각 목록은 범위 내이며 중복이 없고, 각 operand에서 batch와 contraction 목록은 서로 겹치지 않는다. 양쪽 batch 목록과 양쪽 contraction 목록은 각각 길이가 같고 대응 축의 크기도 같다. 대응하는 인덱스의 입력 값을 곱하고 contraction 축을 합산한다. 출력은 batch-list 순서, 왼쪽의 선택되지 않은 축 순서, 오른쪽의 선택되지 않은 축 순서로 구성된다. |
-| Addition | 동일한 ordered shape를 가진 operand의 원소별 합이다. Attribute와 broadcasting은 없다. |
+| 조건 | 본문 정리의 제한 | 반례·경계 예시 |
+| --- | --- | --- |
+| **D1. 전체 축 구조** | 전체 축을 같은 방향으로 연결·재배열·합산한다. 새 축, 좌표의 분할·병합, 추가 가중치는 없다. | `slice([a,b,c,d], 시작=1, 길이=2) = [b,c]`처럼 축 내부의 일부 좌표만 선택한다. |
+| **D2. 자유로운 RHS 축 선택** | 아래 선언의 RHS axis field는 모두 `auto`이다. 명시한 legality 외에 고정된 선택·선택 개수·layout 제약은 없으며, 빈 목록도 허용한다. | 공유 축을 batch로 남기도록 고정한 `dot` 뒤에서 `sum`으로 그 축을 제거한다. 나중에 합산하는 유효한 해가 존재한다. |
+| **D3. 출력 순서 규칙** | 출력 축은 자유롭게 재배열하거나, 입력의 상대적 순서를 유지하거나, 정해진 축 그룹 순서로 이어 붙인다. | 두 그룹 \((i_1,i_2)\), \((j_1,j_2)\)를 \((i_1,j_1,i_2,j_2)\)로 교대로 배치하는 출력 선언. |
+| **D4. 독립적인 axis 미지수** | 서로 다른 RHS field와 노드는 미지수를 공유하지 않는다. | \(A+\operatorname{transpose}(B)\)를 \(\operatorname{transpose}_\pi(A)+\operatorname{transpose}_\pi(B)\)로 바꾼다. 독립적인 정사각 입력에서 첫 항은 identity, 둘째 항은 swap을 요구하므로 공유 \(\pi\)로는 결합할 수 없다. |
 
-빈 attribute 목록을 허용한다. 위 조건이 연산의 전체 legality 계약이며, 추가 layout 제약이나 backend별 attribute 제약은 없다. Unary summation은 합산만을 의미하며, 다른 reducer나 keepdims는 포함하지 않는다.
+본문에서 다루는 모든 operation은 어떤 입력 축을 연결하고, 어떤 축을 합산하며, 남은 축을 어떤 순서로 출력하는지를 선언한다.
 
-**입력과 계산**
+예를 들어, contraction은 두 입력의 축을 대응시켜 같은 좌표의 원소를 곱한다. 대응된 축 중 출력에 남기는 축을 batch, 합산하여 제거하는 축을 contraction, 대응시키지 않고 그대로 남기는 축을 free라 한다. 출력은 batch → left-free → right-free 순서이며, free 축은 각 입력의 상대적 순서를 유지한다.
 
-- 입력 rank는 임의의 유한 값이며, rank-zero 텐서도 허용한다. 존재하는 모든 입력 축의 크기는 2 이상이다.
-- 각 입력 텐서의 값은 독립적으로 바뀔 수 있으며, 대칭성이나 sparsity 등 값에 대한 추가 가정은 없다.
-- 계산은 exact real arithmetic을 사용한다. 유한 합의 순서 변경과 분배법칙을 사용할 수 있지만, strict floating-point 동등성을 보장하지는 않는다.
-- Metadata \(p\)는 LHS의 모든 중간 연산을 합법적으로 만드는 shape와 attribute를 제공한다.
+입력 텐서와 rewrite의 구조에는 다음을 가정한다.
 
-**표현식의 구조**
+- Rank는 유한하며, scalar도 허용한다.
+- 입력 값은 서로 독립이고, 계산에는 반올림 오차가 없다고 가정한다. LHS의 모든 연산은 유효해야 한다.
+- 각 항(component)은 하나 이상의 입력을 각각 한 번씩 사용하는 tree이다. 대응하는 LHS와 RHS 항은 같은 입력 집합을 사용한다.
+- 덧셈이 있으면 LHS는 전개할 수 있어야 하고, RHS는 이미 항들의 합이어야 한다. 항마다 입력 집합은 달라야 하지만, 일부 입력을 공유해도 된다.
 
-**Read-once component**는 비어 있지 않은 입력 집합의 각 텐서를 정확히 한 번 사용하는 contraction/permutation/unary-summation tree이다. 단일 component에서는 LHS와 RHS가 동일한 입력 집합을 사용한다.
+D2–D4에 의해 이 기본 범위의 RHS attribute \(\beta\)는 독립적인 axis 대입 \(a\)와 동일시한다. 따라서 이후 \(\operatorname{Valid}(p,\operatorname{build}(p))\)는 Section 2.3의 completion 조건의 특수 경우이다. LHS에서 복사되는 captured attribute는 원래 값을 유지한다.
 
-Addition이 있으면 LHS를 선형성과 쌍선형성으로 전개하여 \(L=\sum_t L_t\)로 나타낸다. 실제 RHS는 처음부터 대응하는 항들의 명시적인 합 \(R=\sum_t R_t\)이어야 한다.
-
-1. 각 \(L_t,R_t\)는 read-once component이다.
-2. 대응하는 \(L_t,R_t\)는 동일한 입력 집합 \(U_t\)를 사용하며, 서로 다른 항은 서로 다른 입력 집합을 가진다. 단, 입력 집합 간 일부 입력을 공유할 수 있다.
-
-**Attribute의 자유도**
-
-모든 RHS attribute는 서로 독립적인 미지수이며, 위 연산 계약 외의 제약은 없다. 고정된 attribute나 여러 연산이 공유하는 unknown은 제외한다. LHS 전개로 복사된 captured attribute는 원래 값을 공유하며, RHS 전개로 하나의 unknown을 여러 독립적인 unknown으로 바꾸는 것은 허용하지 않는다.
-
-규칙의 구조와 attribute 조건은 합성 전에 문법적으로 검사하고, 입력 shape와 LHS legality는 metadata로 확인한다. Singleton/zero extent, component 안의 반복 입력, 같은 입력 집합을 가진 여러 항, 상수, subtraction/cancellation 및 위 표에 없는 연산은 이 완전성 정리의 대상이 아니다. 범위 밖이라는 사실은 유효한 rewrite가 없다는 뜻이 아니라, 별도의 검증이 필요하다는 뜻이다.
+새 연산으로 직접 구성을 확장하려면 Section 5.4의 성질을 증명해야 한다.
 
 ## 3. Axis-Based Representation
+
+이 절은 Section 2.5의 선언 형태와 가정을 따른다. D1의 전체 축 구조를 \(N(T)\)로 표현하며, 더 넓은 표현은 Appendix C에서 다룬다.
 
 텐서 표현식의 의미를 입력 축의 연결 관계와 출력 축의 순서로 나타내는 *Axis-Based Representation*을 정의한다.
 
 ### 3.1 Logical Axes
 
-Logical axis는 [NumPy의 einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html)에서 같은 인덱스 기호로 표시하는 축들을 하나로 묶은 것으로 이해할 수 있다. 예를 들어 `np.einsum('ik,kj->ij', A, B)`에서 두 입력의 `k`축은 같은 인덱스를 사용한다. 이 글에서는 이러한 축의 묶음을 입력 axis port들의 동치류로 표현한다.
+**Logical axis**는 같은 좌표를 사용하는 입력 축들을 묶은 것이다. 예를 들어 NumPy의 `np.einsum('ik,kj->ij', A, B)`에서는 A의 두 번째 축과 B의 첫 번째 축이 같은 기호 `k`를 사용하므로 하나의 logical axis에 속한다. 출력 `ij`에 없는 `k`는 합산된다.
 
-하나의 read-once component의 입력 집합을 \(\mathcal X\)라 하자. 입력 텐서 \(X\)의 \(d\)번째 축을 port \((X,d)\)로 표시하면, 전체 port 집합은 다음과 같다.
+입력 텐서 \(X\)의 축 위치 \(d\)를 **port** \((X,d)\)로 표시한다. 한 component의 입력 집합이 \(\mathcal X\)이면 모든 입력 port의 집합은 다음과 같다.
 
 \[
 P=\{(X,d)\mid X\in\mathcal X,\ 0\le d<\operatorname{rank}(X)\}
 \]
 
-같은 인덱스를 사용하도록 직접 또는 간접적으로 연결된 port들을 \(p\sim q\)로 표시한다. 이 동치 관계로 묶인 집합 하나가 logical axis이며, 전체 logical axis 집합은 다음과 같다.
+두 port가 같은 logical axis에 속하면 \(p\sim q\)로 쓴다. 전체 logical axis 집합은 다음과 같다. \(P/{\sim}\)는 연결된 port들을 하나씩 묶은 집합이라는 뜻이다.
 
 \[
 \boxed{\mathcal A=P/{\sim}}
 \]
 
-축 크기가 같다는 이유만으로 같은 logical axis가 되지는 않는다. 또한 합산으로 출력에서 사라진 축도 입력 축 사이의 연결을 나타내므로 기록에 남긴다.
+크기가 같다는 이유만으로 축을 연결하지는 않는다. 합산되어 출력에서 사라진 축의 연결도 기록에 남긴다.
+
+**Symbolic Axis Group.** 여러 logical axis의 순서 있는 목록을 symbolic axis group이라 부르고 \(\vec I,\vec J,\vec K\)로 표시한다. 예를 들어 \(\vec K=(k_1,k_2)\)는 두 개의 별도 축이며, 두 입력이 이 그룹을 공유하면 같은 위치의 축끼리 대응한다. 그룹 길이는 미리 고정하지 않는다. 이는 표기를 줄이기 위한 것으로, 정리와 증명은 개별 축을 기준으로 한다.
 
 ### 3.2 Axis Representation
 
@@ -172,6 +216,8 @@ P=\{(X,d)\mid X\in\mathcal X,\ 0\le d<\operatorname{rank}(X)\}
 \]
 
 여기서 \(P\)는 입력 axis port 집합, \(\sim\)은 같은 인덱스를 사용하는 port들의 연결 관계, \(F\)는 최종 출력에 남는 logical axis를 순서대로 나열한 것이다. 이를 \(T\)의 *Axis Representation*이라 부른다.
+
+이 정의와 아래 예제는 기본 fragment에 대한 것이다. 방향, 새 출력 축, scalar weight 및 singleton 정규화가 필요한 경우에는 Appendix C의 확장 표현 \(N^+(T)\)를 사용하며, 본문의 \(N(T)\)와 구분한다.
 
 핵심은 \(N(T)\)만으로 어떤 입력 원소를 곱하고 어떤 인덱스를 합산할지 알 수 있다는 것이다. 연결된 입력 축에는 같은 인덱스를 넣어 원소들을 곱한다. \(F\)에 있는 축은 그 순서대로 출력에 남기고, 나머지 logical axis의 가능한 인덱스 조합에 대해 합산한다.
 
@@ -202,6 +248,18 @@ N(T)=
 C_{ij}=\sum_k A_{ik}B_{kj}.
 \]
 
+같은 구조를 여러 축으로 확장한 contraction은 symbolic axis group으로 간단히 표시할 수 있다.
+
+\[
+\begin{aligned}
+A\text{의 축 순서}:&\quad \vec I\Vert\vec K,\\
+B\text{의 축 순서}:&\quad \vec K\Vert\vec J,\\
+F=&\quad \vec I\Vert\vec J.
+\end{aligned}
+\]
+
+\(\Vert\)는 그룹 안의 축들을 순서대로 이어 붙인다는 뜻이다. 두 입력의 \(\vec K\)에서 같은 위치의 축끼리 연결하고 합산한다. \(P\)는 여전히 모든 개별 입력 port를 기록하고, \(\sim\)은 각 대응 축의 연결을 기록한다. 따라서 그룹 표기를 사용해도 \(N(T)=(P,\sim,F)\)의 정의는 같다. 위 행렬 곱은 \(\vec I=(i)\), \(\vec K=(k)\), \(\vec J=(j)\)인 경우이다.
+
 ### 3.3 Semantic Equivalence
 
 두 표현식이 모든 입력에서 같은 결과를 내는 것과, 두 표현식의 축 연결 및 출력 순서가 같은 것은 동치이다.
@@ -221,7 +279,7 @@ C_{ij}=\sum_k A_{ik}B_{kj}.
 
 증명에는 read-once tree의 다음 성질을 사용한다. 각 동치류에는 적어도 하나의 입력 port가 있고, 같은 입력의 port가 둘 이상 들어가지는 않는다. 또한 하나의 logical axis는 각 노드의 출력에서 최대 한 번만 나타난다.
 
-Contraction은 서로 겹치지 않는 입력 subtree의 축을 연결한다. 따라서 같은 자식에 따로 남은 두 축을 나중에 서로 합칠 수는 없으며, 제거된 축도 다시 나타나지 않는다. 이 성질은 Section 4의 축 분석에서도 사용한다.
+Contraction은 서로 겹치지 않는 입력 subtree의 축을 연결한다. 따라서 같은 자식에 따로 남은 두 축을 나중에 서로 합칠 수는 없으며, 제거된 축도 다시 나타나지 않는다. 이 성질은 Section 4의 중간 축 분석에서도 사용한다.
 
 **Proof.**
 
@@ -268,15 +326,17 @@ R(A^*,B^*)&=\left(\sum_i A^*_i\right)
 \end{aligned}
 \]
 
-## 4. Attribute Synthesis Algorithm
+## 4. Direct Attribute Synthesis Algorithm
 
 본 절에서는 LHS의 axis representation을 기반으로 RHS attribute를 생성하는 알고리즘을 정의한다. 아래에서 사용하는 logical axis와 최종 출력 순서 \(F\)는 LHS에서 가져온다.
 
-알고리즘은 세 단계로 구성된다: (1) intermediate axes 결정, (2) ordering feasibility 검사, (3) attribute 생성.
+알고리즘은 세 단계로 구성된다: (1) intermediate axes 결정, (2) ordering feasibility 검사, (3) attribute 생성. 각 중간 노드에서 하나의 canonical live set을 구성하며, 가능한 표현들의 집합을 탐색하지 않는다. 새로운 연산으로의 일반화 조건은 Section 5.4에 정리한다.
 
-### 4.1 Canonical Intermediate Axis Analysis
+### 4.1 Determining the Output Axes at Each Node
 
-이 절의 목표는 RHS의 각 노드 \(v\)에서 실제로 남길 logical axis 집합 \(P_v\)를 계산하는 것이다. 이를 위해 먼저 제거하면 안 되는 축의 집합 \(M_v\)를 구한다. \(M_v\)는 보조 집합이며, 여기에 각 연산이 어떤 축을 제거할 수 있는지를 반영하여 \(P_v\)를 결정한다.
+**이 단계의 목표는 RHS의 각 노드에서 “어떤 축을 출력에 남길 것인가”를 결정하는 것이다.** 그 결과가 노드별 축 집합 \(P_v\)이다. 이후 Section 4.3에서 이 축들의 순서 요구와 실현 가능성을 검사하고, Section 4.4에서 실제 axis attribute를 구성한다.
+
+\(P_v\)를 구하기 위해 먼저 앞으로 필요한 축 \(M_v\)를 찾는다. 그런 다음 필요한 축을 보존하면서 연산의 규칙에 따라 \(P_v\)를 구성한다. 즉, \(M_v\)는 반드시 지켜야 할 조건을 제공하고, \(P_v\)는 이 단계에서 구성할 결과이다.
 
 먼저 다음을 정의한다.
 
@@ -284,6 +344,7 @@ R(A^*,B^*)&=\left(\sum_i A^*_i\right)
 - \(\sigma(a)\): logical axis \(a\)를 사용하는 입력 텐서 집합
 - \(F\): LHS의 최종 출력 축 순서
 - \(M_v\): 노드 \(v\)에서 반드시 유지해야 하는 축 집합
+- \(P_v\): 노드 \(v\)의 출력에 남는 logical axes의 집합
 
 Mandatory axes는 다음과 같다.
 
@@ -300,35 +361,38 @@ a\in\mathcal A\ \middle|
 
 즉, 현재 subtree에서 사용되는 축(\(\sigma(a)\cap U_v\neq\varnothing\)) 중, 최종 출력에 필요(\(a\in\operatorname{set}(F)\))하거나 subtree 외부의 입력과도 연결되는(\(\sigma(a)\nsubseteq U_v\)) 축은 반드시 유지한다.
 
-\(M_v\)의 축은 모두 남겨야 하므로 \(M_v\subseteq P_v\)이다. 다만 불필요한 축도 현재 연산이 제거할 수 없으면 \(P_v\)에 남는다. 예를 들어 dot은 양쪽이 공유하는 축 중 \(M_v\)에 없는 축을 합산하지만, 한쪽에만 있는 free 축은 그대로 남긴다.
-
-이처럼 필요한 축은 유지하고, 나머지는 제거할 수 있는 가장 이른 지점에서 제거하여 canonical live set \(P_v\)를 정한다. 다음 연산별 규칙을 RHS에 bottom-up으로 적용한다.
-
-입력 텐서 \(X\)의 축을 LHS의 logical axis 이름으로 표시한 순서 목록을 \(I_X\)라 하자. 예를 들어 행렬 곱의 두 입력은 \(I_A=(i,k)\), \(I_B=(k,j)\)이다. Unary 연산의 자식을 \(u\)라 하면, 각 노드의 규칙은 다음과 같다.
-
-| 노드 | 축 집합 \(P_v\) | 의미 |
-| --- | --- | --- |
-| Input \(X\) | \(\operatorname{set}(I_X)\) | 입력의 모든 축에서 시작한다. |
-| Permutation | \(P_u\) | 순서만 바꾸므로 축 집합은 그대로다. |
-| Unary summation | \(P_u\cap M_v\) | 자식의 축 중 반드시 필요한 축만 남긴다. |
-| Contraction | \(B_v\cup LF_v\cup RF_v\) | Batch와 free 축을 남기고 contraction 축 \(K_v\)를 제거한다. |
-
-Contraction의 왼쪽과 오른쪽 자식을 각각 \(\ell,r\)이라 하면, 표에서 사용한 네 축 집합은 다음과 같다.
+\(P_v\)는 노드 \(v\)의 출력에 남는 logical axes의 집합이다. 앞으로 필요한 축을 보존해야 하므로 다음을 만족한다.
 
 \[
-\begin{aligned}
-B_v &= P_\ell\cap P_r\cap M_v\\
-K_v &= (P_\ell\cap P_r)\setminus M_v\\
-LF_v &= P_\ell\setminus P_r\\
-RF_v &= P_r\setminus P_\ell
-\end{aligned}
+\boxed{M_v\subseteq P_v}
 \]
 
-여기서 \(B_v,K_v,LF_v,RF_v\)는 각각 batch, reduction, left-free, right-free axes이다.
+\(P_v\)는 이 조건과 연산의 합법적인 축 규칙에 따라 구성하며, 구체적인 구성 규칙은 Appendix A.1에 둔다. 포함 조건만으로 \(P_v\)가 하나로 결정되는 것은 아니다.
 
-Contraction은 양쪽이 공유하는 completed non-output class를 제거한다. 한쪽에만 있는 class는 불필요하더라도 free axis로 남긴다. Unary summation은 남아 있는 completed non-output class를 제거할 수 있다. 여기서 completed는 해당 class의 모든 supporting input이 현재 subtree에 포함됨을 의미한다.
+입력 \(X\)의 logical-axis 순서를 \(I_X\)라 하고, \(P_X=\operatorname{set}(I_X)\)에서 시작한다. \(F\)와 \(\sigma\)는 LHS에서 미리 구한다. RHS를 bottom-up으로 순회하면서 \(U_v\)와 \(M_v\)를 계산하고, 자식의 축 정보와 부록의 규칙으로 \(P_v\)를 구성한다.
 
-Bottom-up 귀납으로 \(M_v\subseteq P_v\)이며 \(P_v\)의 모든 class가 \(U_v\) 안에 support를 가짐을 확인할 수 있다. 전체 port 집합 \(P\)와 노드별 live set \(P_v\)는 구분한다.
+그룹 표기는 같은 역할의 축들을 묶어 보여주지만, \(M_v,P_v\)는 개별 축의 집합이다. 그룹 일부만 필요하면 순서를 유지하며 나누고, 불필요한 부분을 제거할 수 있는지는 연산 규칙에 따른다.
+
+**그룹으로 보는 예제.** RHS가 `dot(dot(A,B),C)`이고, LHS에서 얻은 축 연결과 최종 출력 순서가 다음과 같다고 하자. 서로 다른 그룹은 서로 다른 logical axes를 나타낸다.
+
+\[
+A:\vec I\Vert\vec K,\qquad
+B:\vec K\Vert\vec J,\qquad
+C:\vec J\Vert\vec L,\qquad
+F=\vec I\Vert\vec L.
+\]
+
+중간 노드 \(v=\operatorname{dot}(A,B)\)에서는 \(U_v=\{A,B\}\)이다. 이 subtree 밖의 원래 입력은 C이며, 각 그룹의 역할은 다음과 같다.
+
+| 그룹 | 앞으로 필요한 이유 | 이 dot에서의 처리 |
+| --- | --- | --- |
+| \(\vec I\) | 최종 출력에 필요 | 유지 |
+| \(\vec J\) | 밖의 입력 C와 연결해야 함 | 유지 |
+| \(\vec K\) | A와 B 안에서 역할이 끝남 | 대응 축들을 합산 |
+
+이 경우에는 \(\vec K\)를 합산하여 \(M_v=P_v=\operatorname{set}(\vec I)\cup\operatorname{set}(\vec J)\)를 얻는다. 다른 연산에서는 불필요한 축을 제거하지 못해 \(P_v\)가 \(M_v\)보다 클 수 있다. \(P_v\)는 축 집합만 정하며, 출력 순서의 요구와 실현 가능성은 Section 4.3에서 다룬다.
+
+D1의 전체 축 연결과 D2의 선택 자유도 아래, 부록의 규칙이 유효한 해를 놓치지 않음을 다음 절에서 증명한다. 전체 입력 port 집합 \(P\)와 노드별 출력 축 집합 \(P_v\)는 구분한다.
 
 마지막으로 RHS root에서 다음을 검사한다. 중간에는 불필요한 축이 남을 수 있지만, 최종 출력에는 필요한 축만 남아야 한다.
 
@@ -340,7 +404,7 @@ P_{\mathrm{root}}=\operatorname{set}(F)
 
 ### 4.2 Canonicalization Lemma
 
-Canonical intermediate axes만 고려해도 유효한 RHS attribute assignment를 놓치지 않음을 보인다.
+D2의 선택 자유도를 사용하여, Appendix A.1의 canonical 중간 축으로 바꾸어도 유효한 해를 잃지 않음을 보인다.
 
 **Lemma 2 (Canonicalization Preserves Feasibility).**
 
@@ -409,168 +473,100 @@ Root에서는 반드시 남길 축과 원래 출력 축이 모두 \(\operatornam
 
 ### 4.3 Axis Ordering Feasibility
 
-Intermediate axis 집합 \(P_v\)가 결정되어도, 각 연산의 출력 순서 제약을 만족하는지 확인해야 한다.
-
-이를 위해 노드 \(v\)에서 반드시 만족해야 하는 ordered subsequence를 \(Req_v\)로 정의한다.
-
-두 sequence \(A,B\)에 대해 \(A\preceq B\)는 \(A\)가 \(B\)의 subsequence임을, \(\Vert\)는 sequence concatenation을 의미한다.
-
-\(S|_P\)는 \(S\)에서 집합 \(P\)에 속한 축만 원래 순서대로 남기는 filter이다.
-
-Root에서 시작하여 top-down으로 다음과 같이 전달한다.
-
-**Root**
+중간 축 집합 \(P_v\)를 정한 뒤에는 각 노드가 필요한 출력 순서를 실현할 수 있는지 확인한다. 노드 \(v\)의 출력에 반드시 포함되어야 하는 ordered subsequence를 \(Req_v\)라 하며, root의 요구는 LHS 출력 순서이다.
 
 \[
-Req_{\mathrm{root}}=F
+Req_{\mathrm{root}}=F.
 \]
 
-**Permutation**
+두 sequence \(A,B\)에 대해 \(A\preceq B\)는 \(A\)가 \(B\)의 subsequence임을 뜻한다. \(\Vert\)는 sequence concatenation이며, \(S|_P\)는 \(S\)에서 집합 \(P\)에 속한 축만 기존 순서대로 남기는 filter이다.
+
+**그룹으로 보는 순서 요구.** \(\vec I=(i_1,i_2)\), \(\vec J=(j_1,j_2)\)일 때,
 
 \[
-Req_u=[]
+Req_v=\vec I\Vert\vec J=(i_1,i_2,j_1,j_2)
 \]
 
-Permutation은 임의의 축 순서를 구성할 수 있으므로 자식에 ordering requirement를 전달하지 않는다.
+는 I의 축들이 먼저, J의 축들이 나중에 나타나야 한다는 뜻이며, 각 그룹 내부의 순서도 유지해야 한다. \(Req_v\)는 subsequence 요구이므로 그룹을 연속된 블록으로 배치할 필요는 없다. 예를 들어 \(x\)가 \(P_v\)에 남아 있는 다른 축이면 \((i_1,x,i_2,j_1,j_2)\)도 이 순서 요구를 만족하지만, \((i_2,i_1,j_1,j_2)\)는 만족하지 않는다. 전체 layout의 legality는 해당 연산의 계약도 만족해야 한다. 그룹 표기는 기존의 개별 축 순서 검사를 바꾸지 않는다.
 
-**Unary Summation**
+D3의 출력 형식에 따라 각 노드에 **순서 전달 규칙**을 둔다. 이 규칙은 현재 요구 \(Req_v\), 이미 계산한 중간 축 집합 및 메타데이터를 읽고, 다음 두 결과를 직접 계산한다.
+
+- \(C_v\): 해당 노드에서 만족해야 하는 순서 제약의 검사 결과.
+- 각 자식 \(u\)에 대한 \(Req_u\): 자식에게 전달할 순서 요구.
+
+입력 노드에는 자식이 없으며 실제 축 순서 \(I_v\)가 고정되어 있으므로,
 
 \[
-Req_u=Req_v
+C_v=[Req_v\preceq I_v]
 \]
 
-**Contraction**
+로 둔다. 연산 노드의 규칙은 그 연산의 출력 계약에 따른다. 연산별 정의는 Appendix A에 모으고, 본문에서는 공통 인터페이스를 사용한다.
 
-\[
-Req_\ell=Req_v|_{LF_v},
-\qquad
-Req_r=Req_v|_{RF_v}
-\]
+허용된 출력 형식에서는 부모의 요구를 현재 검사 \(C_v\)와 자식별 요구로 정확히 나눌 수 있다. 각 규칙은 Appendix A.2에 정의한다. 순서 전달의 필요성은 Section 5.1에서 직접 보이고, 구성의 세 귀납 성질은 Section 5.2에서 증명한다. \(C_v\)는 미지수나 일반적인 존재성 oracle이 아니라 이 규칙으로 계산하는 참·거짓 값이다.
 
-Batch 축의 순서 요구는 child에 전달하지 않는다. Batch attribute list는 child의 물리적 축 위치를 임의의 순서로 선택할 수 있으므로, 필요한 batch 순서는 현재 contraction에서 직접 구성할 수 있다. 반면 free 축의 순서는 child에서 상속되므로 해당 subsequence를 전달해야 한다.
-
-Contraction의 출력은 batch, left-free, right-free 순서를 따라야 하므로 다음 조건을 검사한다.
+Root에서 시작하여 요구를 top-down으로 전달한 뒤 다음을 검사한다. \(V_R\)는 입력 노드를 포함한 RHS의 모든 노드이다.
 
 \[
 \boxed{
-Req_v=
-(Req_v|_{B_v})\Vert
-(Req_v|_{LF_v})\Vert
-(Req_v|_{RF_v})
+\operatorname{check}(p)
+=
+[P_{\mathrm{root}}=\operatorname{set}(F)]
+\land
+\bigwedge_{v\in V_R}C_v
 }
 \]
 
-또한 입력 노드에서는 입력의 실제 axis order \(I_v\)에 대해 다음을 검사한다.
+이 식은 다음 두 질문을 뜻한다.
 
-\[
-\boxed{
-Req_v\preceq I_v
-}
-\]
+1. **최종 출력에 남는 축이 목표와 같은가?**
+2. **모든 노드에서 요구하는 순서를 실현할 수 있는가?**
 
-전체 feasibility condition은 다음과 같이 정의한다.
+Root의 축 집합이 다르면 즉시 거짓을 반환한다. 그 외에는 요구를 전달하면서 검사하고, 실패한 경우 constructor를 실행하지 않는다. 각 규칙은 부적합한 요구를 포함해 유한한 검사 결과를 반환해야 한다. 따라서 `check(p)`는 명시한 메타데이터 domain에서 정의된다.
 
-\[
-\boxed{
-\begin{aligned}
-\operatorname{check}(p)={}&
-[P_{\mathrm{root}}=\operatorname{set}(F)]\\
-&\land\bigwedge_{\text{input }v}
-[Req_v\preceq I_v]\\
-&\land\bigwedge_{\text{contraction }v}
-\left[
-Req_v=
-(Req_v|_{B_v})\Vert
-(Req_v|_{LF_v})\Vert
-(Req_v|_{RF_v})
-\right]
-\end{aligned}
-}
-\]
+이 검사는 Section 2.5의 선언에서 도출한 규칙을 실행하며, 가능한 축 표현이나 attribute 대입을 열거하지 않는다.
 
 ### 4.4 Attribute Construction
 
-\(\operatorname{check}(p)\)가 참이면 RHS를 bottom-up으로 순회하여 실제 attributes를 생성한다. 각 연산의 출력 규칙에 맞춰 \(P_v\)의 축들을 \(Req_v\)를 만족하는 순서로 배치하고, logical axis 이름을 실제 축 위치로 바꾸어 attribute를 만든다.
+**이 단계의 목표는 정해진 축과 순서를 실제 RHS axis attribute로 바꾸는 것이다.** \(\operatorname{check}(p)\)가 참이면 RHS를 bottom-up으로 순회하며 다음을 수행한다.
 
-생성한 assignment에서 노드 \(v\)의 출력 축 순서를 \(\operatorname{Ord}_v\)로 쓰며, 여기서는 assignment 인자를 생략한다. 생성된 순서는 다음 조건을 만족한다.
+**1. 연산에서 실현 가능한 출력 순서를 구성한다.** 자식의 출력 순서와 해당 연산의 구성 규칙으로 노드 \(v\)의 출력 순서 \(\operatorname{Ord}_v\)를 정한다. 이 순서는 다음을 만족해야 한다.
 
 \[
 \boxed{
 \operatorname{set}(\operatorname{Ord}_v)=P_v,
 \qquad
-Req_v\preceq \operatorname{Ord}_v
+Req_v\preceq\operatorname{Ord}_v
 }
 \]
 
-즉, 남기는 축은 정확히 \(P_v\)이고(\(\operatorname{set}(\operatorname{Ord}_v)=P_v\)), 그 순서는 요구된 subsequence를 포함해야 한다(\(Req_v\preceq\operatorname{Ord}_v\)).
+D2–D3에 따른 Appendix A.3의 규칙으로 이 순서를 실현한다. 출력 순서를 임의로 고르는 것이 아니라, 자식의 순서와 연산의 허용 형식으로 구성한다.
 
-**Input**
+**2. 선택한 축 그룹을 위치 목록으로 바꾼다.** \(\operatorname{pos}(S,\vec G)\)는 그룹 \(\vec G\)의 각 축이 순서 목록 \(S\)의 어디에 있는지, 그룹 순서대로 나열한 것이다. 위치는 0부터 센다.
 
-\[
-\operatorname{Ord}_v=I_v
-\]
-
-**Permutation**
-
-자식의 축을 재배열하여 \(Req_v\)를 먼저 배치하고, 나머지 축은 child의 기존 순서대로 뒤에 배치한다. Permutation attribute는 이 순서에 대응하는 dimension positions로 생성한다.
-
-**Unary Summation**
+예를 들어 자식의 출력 순서와 선택한 그룹이
 
 \[
-\operatorname{Ord}_v=\operatorname{Ord}_u|_{P_v}
+\operatorname{Ord}_u=(i_1,k_1,i_2,k_2),
+\qquad \vec K=(k_1,k_2)
 \]
 
-제거할 축 \(P_u\setminus P_v\)의 위치를 reduction attribute로 지정한다.
-
-**Contraction**
-
-Batch axes \(B_v\) 중 요구된 축을 \(Req_v|_{B_v}\)의 순서대로 먼저 배치하고, 나머지 batch axes를 고정된 순서로 추가하여 sequence \(b\)를 구성한다.
-
-Reduction axes \(K_v\)도 고정된 순서 \(k\)로 나열한다.
-
-\(\operatorname{pos}(S,A)\)는 목록 \(A\)의 축들을 그 순서대로 \(S\)에서 찾아 위치를 나열한다. 위치는 0부터 세며, 예를 들어 다음과 같다.
+이면,
 
 \[
-\operatorname{pos}((i,k,j),(j,i))=[2,0].
+\boxed{\operatorname{pos}(\operatorname{Ord}_u,\vec K)=[1,3]}
 \]
 
-Contraction attribute는 \(\beta_v=(b_\ell,b_r,k_\ell,k_r)\)이다. 앞의 두 목록은 왼쪽·오른쪽 batch 위치, 뒤의 두 목록은 왼쪽·오른쪽 contraction 위치이며, 다음과 같이 생성한다.
+이다. 따라서 이 자식에서 \(\vec K\)를 선택하는 axis-list attribute는 `[1,3]`이 된다. 각 축이 목록에 한 번씩 존재하는지와 그 위치 목록이 연산의 계약을 만족하는지는 구성 규칙의 legality 조건으로 확인한다. Symbolic group을 실제 위치 목록으로 바꾸더라도 그룹 내부의 축 순서는 유지한다.
+
+**3. 노드별 attribute를 결합한다.** D4에 의해 노드별 대입은 충돌하지 않으므로 이를 모아 최종 대입을 얻는다.
 
 \[
-\boxed{
-\begin{aligned}
-b_\ell &= \operatorname{pos}(\operatorname{Ord}_\ell,b),\\
-b_r &= \operatorname{pos}(\operatorname{Ord}_r,b),\\
-k_\ell &= \operatorname{pos}(\operatorname{Ord}_\ell,k),\\
-k_r &= \operatorname{pos}(\operatorname{Ord}_r,k).
-\end{aligned}
-}
+\boxed{\beta=\operatorname{build}(p)}
 \]
 
-출력 축 순서는 다음과 같다.
+여기서 \(\beta\)는 Section 2.5의 기본 범위에서 서로 독립적인 RHS axis 대입이다. 이 절차는 가능한 attribute 조합을 열거하지 않고, 중간 축 분석과 순서 검사 결과로 attribute를 직접 구성한다.
 
-\[
-\boxed{
-\operatorname{Ord}_v=
-b\Vert
-(\operatorname{Ord}_\ell|_{LF_v})
-\Vert
-(\operatorname{Ord}_r|_{RF_v})
-}
-\]
-
-모든 RHS 노드에서 생성된 attributes를 결합하여 최종 assignment를 얻는다.
-
-\[
-\boxed{
-\beta=\operatorname{build}(p)
-}
-\]
-
-따라서 알고리즘은 가능한 RHS attribute 조합을 열거하지 않고, canonical axis analysis와 ordering constraints를 통해 직접 attribute를 생성한다.
-
-위 절차는 rewrite의 고정된 트리 구조로부터 \(\operatorname{check}\)와 \(\operatorname{build}\) 프로그램으로 생성할 수 있으며, 생성된 프로그램은 지원 범위 내 임의의 유한 rank를 가진 텐서에 적용할 수 있다.
-
+Rewrite의 고정된 tree와 검증된 연산 규칙으로부터 \(\operatorname{check}\)와 \(\operatorname{build}\) 프로그램을 생성할 수 있다. 생성된 프로그램은 지원 범위 내 임의의 유한 rank에 적용하며, 작성 시 구체적인 축 수를 고정할 필요는 없다.
 
 ## 5. Correctness and Completeness
 
@@ -578,7 +574,7 @@ b\Vert
 
 **Theorem 1 (Complete Constructive Attribute Synthesis).**
 
-Section 2.5의 조건을 만족하는 symbolic tensor rewrite와 metadata \(p\)에 대해 다음이 성립한다. 단일 component의 \(\operatorname{check}\)와 \(\operatorname{build}\)는 Section 4의 알고리즘이며, addition을 포함하는 경우에는 Section 5.3에서 설명하듯 component별 검사 결과와 attribute assignment를 결합한다.
+Section 2.5의 제한·선언 형태·rewrite 가정을 만족하는 규칙에 대해, Section 4에서 도출한 \(\operatorname{check}\)와 \(\operatorname{build}\)는 다음을 만족한다. 분리된 addition은 Section 5.3의 component별 결합을 사용한다.
 
 **Completeness**
 
@@ -604,131 +600,78 @@ Section 2.5의 조건을 만족하는 symbolic tensor rewrite와 metadata \(p\)�
 
 ### 5.1 Necessity
 
-**Lemma 3 (Necessity).**
-
-유효한 RHS attribute assignment가 존재한다면, Section 4의 feasibility condition을 반드시 만족한다.
+**Lemma 3 (Necessity).** 유효한 RHS attribute assignment가 존재하면 Section 4.3의 검사를 통과한다.
 
 \[
 \boxed{
 \exists\beta:\operatorname{Valid}(p,\beta)
-\Rightarrow \operatorname{check}(p)
+\Rightarrow\operatorname{check}(p)
 }
 \]
 
-**Proof.**
-
-유효한 assignment \(\beta\)가 존재한다고 가정하자.
-
-Lemma 2에 의해 각 노드의 intermediate axis 집합이 \(P_v\)인 canonical assignment \(\beta'\)가 존재한다.
-
-이 assignment는 LHS와 동일한 최종 출력을 생성하므로,
+**Proof.** 유효한 대입 \(\beta\)가 있다고 하자. D1–D2 아래 증명한 Lemma 2에 의해 같은 결과를 내면서 각 노드에 canonical 축 집합 \(P_v\)를 남기는 대입 \(\beta'\)가 존재한다. 따라서 root에서는
 
 \[
 P_{\mathrm{root}}=\operatorname{set}(F)
 \]
 
-를 만족한다.
+이고, 실제 출력 순서가 \(F\)이므로 \(Req_{\mathrm{root}}=F\)를 만족한다.
 
-Root의 요구 순서 \(F\)에서 시작하여 top-down 귀납을 적용한다. 각 노드의 canonical output이 \(Req_v\)를 subsequence로 포함한다고 가정한다. Contraction의 출력은 batch, left-free, right-free의 세 block으로 이루어지므로 \(Req_v\)도 그 block 순서를 따라야 한다. 각 free subsequence는 해당 child에 존재해야 하며, batch 순서는 child의 순서와 무관하게 선택할 수 있다.
+이제 root에서 아래로 내려간다. 현재 노드의 합법적인 출력이 \(Req_v\)를 포함한다고 하자. D3에서 허용하는 출력 형식은 자유로운 재배열, 입력 순서를 유지한 부분목록, 정해진 순서로 이어 붙인 그룹들이다.
 
-Unary summation은 남는 축의 순서를 보존하므로 child가 같은 요구를 만족해야 한다. Permutation은 child에 순서 요구를 주지 않는다. 따라서 Section 4.3의 전달 규칙은 canonical assignment에서 반드시 성립하는 요구만을 전달하며, 모든 contraction에서 다음 조건이 성립한다.
+입력 순서를 유지하는 부분에서는 출력의 요구 순서가 자식 순서에도 포함되므로, 해당 요구를 자식에게 전달할 수 있다. 자유롭게 재배열하는 부분은 현재 노드에서 순서를 정하므로 자식에게 추가 순서를 요구하지 않는다. 그룹들을 이어 붙이는 경우에는 \(Req_v\)도 그 그룹 순서를 따를 수밖에 없어 현재 검사 \(C_v\)가 참이며, 각 입력에서 물려받는 부분의 요구도 해당 자식에서 만족한다. 재배열과 부분목록 형식의 local 검사는 참으로 정의되어 있다.
 
-\[
-Req_v=
-(Req_v|_{B_v})\Vert
-(Req_v|_{LF_v})\Vert
-(Req_v|_{RF_v})
-\]
+따라서 각 노드에서 \(C_v\)가 참이고, 자식에게 전달한 요구도 만족된다는 성질이 유지된다. 입력 노드에 도달하면 \(Req_v\preceq I_v\)이므로 입력 검사도 통과한다.
 
-입력 노드에서는
-
-\[
-Req_v\preceq I_v
-\]
-
-가 성립한다.
-
-따라서
-
-\[
-\operatorname{check}(p)=\top.
-\]
-
-\(\square\)
+따라서 모든 노드의 \(C_v\)가 참이며, root의 축 집합 검사도 통과하므로 \(\operatorname{check}(p)=\mathrm{true}\)이다. \(\square\)
 
 ### 5.2 Sufficiency
 
-**Lemma 4 (Sufficiency).**
-
-Feasibility condition이 성립하면, Section 4의 attribute constructor는 유효한 RHS assignment를 생성한다.
+**Lemma 4 (Sufficiency).** Section 4.3의 검사를 통과하면 Section 4.4가 유효한 RHS attribute를 구성한다.
 
 \[
 \boxed{
 \operatorname{check}(p)
-\Rightarrow
-\operatorname{Valid}(p,\operatorname{build}(p))
+\Rightarrow\operatorname{Valid}(p,\operatorname{build}(p))
 }
 \]
 
-**Proof.**
+**Proof.** \(\operatorname{check}(p)=\mathrm{true}\)라고 하자. RHS를 bottom-up으로 구성하면서 각 노드에서 다음 세 성질을 유지한다.
 
-\(\operatorname{check}(p)=\top\)이라고 가정하자.
+1. 구성한 attribute와 중간 연산이 합법적이다.
+2. 출력 축은 \(P_v\)이고 요구 순서를 만족한다.
+3. 입력 port의 연결은 LHS 연결을 해당 subtree의 입력에 제한한 것과 같다. 합산되어 출력에서 사라진 class도 연결 기록에 포함한다.
 
-RHS 트리에 대한 structural induction을 통해 각 노드 \(v\)에서 다음이 성립함을 보인다.
-
-\[
-\boxed{
-\operatorname{set}(\operatorname{Ord}_v)=P_v
-\quad\land\quad
-Req_v\preceq \operatorname{Ord}_v
-}
-\]
-
-Input에서는 실제 입력 축 순서를 사용하므로 성립한다.
-
-Permutation은 필요한 순서를 자유롭게 구성할 수 있으며, unary summation은 지정된 축만 제거하면서 나머지 순서를 유지한다.
-
-Contraction에서는 \(B_v,K_v,LF_v,RF_v\)에 따라 batch 및 reduction attributes를 생성한다. Feasibility condition에 의해 요구되는 축 순서가 contraction의 출력 규칙을 만족하므로 귀납 조건이 유지된다. 각 축이 child에 한 번씩 존재하므로 모든 position lookup이 정의된다. 대응 축은 같은 LHS class에 속하여 크기가 같고, batch/reduction 집합은 서로 겹치지 않으므로 모든 attribute가 합법적이다.
-
-축 집합과 순서 외에, 다음 partition invariant를 함께 유지한다.
-
-> 노드 \(v\)까지 구성한 port partition은 LHS partition을 \(U_v\)의 입력 port들에 제한한 것과 같다. 출력에서 제거된 class도 이 partition에 포함한다.
-
-Input에서는 한 입력의 서로 다른 축이 같은 class에 속하지 않으므로 성립한다. Permutation과 unary summation은 port를 병합하지 않아 partition을 보존한다. Contraction의 양쪽 subtree에 support가 있는 LHS class는 각 child에서 mandatory이므로 양쪽 canonical live set에 존재한다. 현재 contraction은 이 두 occurrence를 연결하고, 서로 다른 LHS class는 연결하지 않는다. 따라서 두 child의 partition을 합친 결과는 LHS partition을 현재 subtree에 제한한 것과 같다.
-
-Class를 제거할 때에는 최종 출력에 필요하지 않고 모든 support가 이미 subtree 안에 있다. Partition invariant에 의해 그 supporting port들이 연결되어 있으므로 이후에 필요한 연결을 잃지 않는다. 따라서 root의 전체 port partition은 LHS와 같다.
-
-Root에서는
+두 번째 성질은 다음 식으로 나타낸다.
 
 \[
-P_{\mathrm{root}}=\operatorname{set}(F),
-\qquad
-F\preceq \operatorname{Ord}_{\mathrm{root}}
+\operatorname{set}(\operatorname{Ord}_v)=P_v,
+\qquad Req_v\preceq\operatorname{Ord}_v.
 \]
 
-이므로,
+입력 노드에서는 실제 입력 축 순서를 사용한다. 순서 검사를 통과했으므로 요구를 만족하고, 한 입력의 서로 다른 축은 서로 다른 logical axis이므로 연결 성질도 성립한다.
 
-\[
-\operatorname{Ord}_{\mathrm{root}}=F.
-\]
+연산 노드에서는 자식들이 위 성질을 만족한다고 가정한다. Section 2.5의 제한과 Section 4.4의 구성 규칙으로 다음을 확인한다.
 
-결국 RHS와 LHS의 axis representation이 일치한다.
+- **합법성.** 선택할 축은 해당 자식에 한 번씩 존재하므로 범위 내의 중복 없는 위치 목록을 얻는다. 연결하는 축은 같은 LHS class에 속하여 extent가 같고, batch와 합산 축은 서로 겹치지 않는다. 따라서 D2의 legality 조건을 만족하며, D4에 의해 자식의 대입과 충돌 없이 결합한다.
+- **출력 축과 순서.** 구성은 \(P_v\)의 각 축을 정확히 한 번 남긴다. D3의 재배열 형식에서는 요구 축을 먼저 배치하고, 부분목록 형식에서는 자식이 만족한 요구를 유지한다. Block 형식에서는 자유롭게 정하는 batch 순서와 자식에게서 물려받는 free 순서를 결합한다. 현재 검사 \(C_v\)가 block 순서를 확인하므로 이 경우에도 \(Req_v\preceq\operatorname{Ord}_v\)이다.
+- **연결 보존.** 양쪽 subtree에 걸친 LHS class는 각 자식의 mandatory 축이므로 양쪽에 남아 있으며, 구성은 같은 class의 축끼리만 연결한다. 재배열과 합산은 새로운 연결을 만들지 않는다. 또한 \(M_v\) 밖의 축만 합산하므로, 제거되는 축은 모든 supporting input이 현재 subtree 안에 있고 최종 출력에도 필요하지 않다. 따라서 이후 필요한 연결을 잃지 않으며, 합산한 class도 연결 기록에는 남는다.
+
+따라서 세 성질은 모든 노드에서 유지된다.
+
+Root에서는 \(P_{\mathrm{root}}=\operatorname{set}(F)\)이고 \(F\preceq\operatorname{Ord}_{\mathrm{root}}\)이다. 각 출력 축이 한 번씩 나타나므로 \(\operatorname{Ord}_{\mathrm{root}}=F\)이다. 전체 입력 연결도 LHS와 같으므로,
 
 \[
 N(L)=N(R)
 \]
 
-Lemma 1에 의해 두 표현식은 모든 입력에 대해 동일한 결과를 생성한다. 또한 생성된 모든 attributes는 합법적이므로,
+이다. Lemma 1에 의해 두 표현식은 모든 입력 값에서 같은 결과를 낸다. 구성한 attribute도 합법적이므로 \(\operatorname{Valid}(p,\operatorname{build}(p))\)가 성립한다. \(\square\)
 
-\[
-\operatorname{Valid}(p,\operatorname{build}(p)).
-\]
+### 5.3 Extension to Multiple Terms
 
-\(\square\)
+Addition은 동일한 ordered shape의 텐서들을 원소별로 더하는 연산이며, attribute와 broadcasting은 없다.
 
-### 5.3 Extension to Addition
-
-Section 2.5에서 정한 additive component에 대해 전체 동등성을 항별 동등성으로 나눌 수 있음을 보인다.
+Section 2.5에서 정한 additive component에 대해 전체 동등성을 항별 동등성으로 나눌 수 있음을 보인다. 이 절의 독립적인 component별 구성은 명시적으로 분리된 RHS 합을 대상으로 하며, Appendix C.4.3의 unary linear context에는 공동 상태 구성이 추가로 필요하다.
 
 \[
 L=\sum_{t\in J}L_t,
@@ -784,88 +727,293 @@ RHS에도 같은 scaling 식이 성립한다. 임의의 입력 값 \(X\)와 출�
 
 Axis partition은 component마다 별도로 구성한다. 같은 입력이 여러 항에 나타나더라도 addition은 출력 좌표를 정렬할 뿐, 서로 다른 항의 입력 port를 하나의 class로 병합하지 않는다.
 
-이 과정에서 Section 2.5의 구조와 attribute 조건이 필요한 이유도 드러난다. 입력 집합이 같은 두 항은 scaling으로 분리되지 않는다. 또한 독립적인 정사각 행렬 \(A,B\)에 대해 \(A+\operatorname{transpose}(B)\)를 \(\operatorname{transpose}_\pi(A)+\operatorname{transpose}_\pi(B)\)로 만들려면, 첫 항은 identity를, 두 번째 항은 swap을 요구한다. 하나의 unknown을 공유하면 항별 해를 합칠 수 없는 예이다.
+입력 집합이 같은 항들은 위 scaling으로 분리되지 않는다. 또한 component별 대입의 결합에는 D4가 필요하며, 공유 미지수의 반례는 Section 2.5에 제시했다.
 
 Lemma 3과 Lemma 4는 단일 component의 필요충분성과 constructor의 올바름을 보인다. 위의 항별 동등성과 assignment 결합을 적용하면 addition을 포함하는 전체 규칙에도 같은 보장이 성립한다. 따라서 Theorem 1의 증명이 완성된다. \(\square\)
+### 5.4 Generalizing the Direct Constructor
 
-## 6. Application to TEPL
+D1–D4와 Section 2.5의 선언 형태에서는 앞의 구체적인 규칙을 증명했다. 다른 선언을 추가하려면 다음 성질을 새 규칙에 대해 확인한다.
 
-앞 절의 정리는 명시한 수학적 합성 알고리즘에 대한 것이다. TEPL에 적용할 때에는 연산 선언을 이 모델로 옮기는 과정, 규칙의 조건 아래에서 constructor를 검증하는 과정, 그리고 현재 구현 범위를 구분해야 한다.
+1. **해를 보존하는 중간 축 구성:** 원래 해를 canonical \(P_v\)로 바꾸어도 합법적인 대입과 전체 계산 결과를 보존한다(Lemma 2의 귀납 단계).
+2. **정확한 순서 전달:** 가능한 부모 순서를 \(C_v\)와 자식별 요구로 빠짐없이 분해한다.
+3. **합법적인 구성:** 검사를 통과한 자식 layout들에서 요구 순서와 전체 축 연결을 보존하는 attribute를 직접 구성한다.
 
-### 6.1 From Operation Declarations to the Model
+각 규칙은 축·메타데이터에 대한 종료하는 절차여야 한다. 고정된 field가 있으면 이를 보존하고, 방향·가중치가 추가되면 그 제약도 함께 실현해야 한다.
 
-TEPL의 연산 선언은 attribute schema, 축의 연결과 출력 순서를 나타내는 axes, 원소 값을 나타내는 semantics를 제공한다. 합성기는 연산 이름만으로 contraction이나 permutation이라고 판단하는 대신, 선언이 Section 2.5의 계약과 일치하는지 구조적으로 확인한다.
+**Proposition 2 (Composition of Direct Construction Rules).** 정확한 축 표현, read-once 구조, 독립적인 axis slot 아래에서 위 세 성질을 만족하는 규칙들을 조합하면 같은 필요성·충분성 증명을 적용할 수 있다.
 
-예를 들어 contraction에서는 선언의 네 field, axis binding, 출력 순서 및 값의 계산이 Section 2.5의 contraction 계약에 대응하는지 확인한다. 선언에 추가 제약이 있는지도 함께 검사한다.
+**Proof.** 첫 성질로 Lemma 2의 bottom-up 귀납을 확장한다. 두 번째 성질로 유효한 해가 모든 순서 검사를 통과함을 보인다. 반대로 세 번째 성질을 bottom-up으로 적용하여 합법적인 대입을 구성한다. Root에서 전체 연결과 출력 순서가 목표와 같으므로 exactness에 의해 동등하다. \(\square\)
 
-선언 field와 표준 역할 사이의 adapter를 \(\rho_v\)라 하자. 허용된 선언에서는 field가 서로 다르고 빠짐없이 대응하므로, RHS 전체 adapter는 선언상의 assignment와 표준 모델의 assignment 사이의 전단사이다. LHS adapter는 captured field의 값과 공유 관계를 그대로 읽는다.
+이는 새 연산의 세 성질 자체를 대신 증명하지 않는다. 현재 확인한 직접 확장은 Appendix B에, 더 넓은 표현과 지원 경계는 Appendix C에 정리한다.
 
-각 연산 계약에 대한 structural induction으로 이 변환이 legality, ordered shape 및 tensor value를 보존함을 보일 수 있다. 따라서 모델에 들어오는 선언은 attribute 해를 잃거나 추가하지 않는다. 지원 템플릿의 구조적 인식은 유한 검사이며, 임의의 연산 선언이 의미적으로 같은지를 결정하는 일반 oracle을 가정하지 않는다.
+## Appendix A. Concrete Construction Rules
 
-### 6.2 Verification and Condition Suggestions
+Permutation은 입력 축의 전체 재배열이다. Unary summation은 범위 내의 중복 없는 축 위치 목록을 선택해 해당 축의 전체 범위를 합산하고 제거하며, 남은 축의 상대적 순서를 유지한다. 빈 목록을 허용하고 keepdims나 추가 legality 제약은 두지 않는다.
 
-사용자가 작성한 where 조건을 \(C(p)\), RHS attribute를 생성하는 프로그램을 \(f\)라 하자. TEPL은 합법적인 모든 source metadata에서 \(C(p)\)만으로 생성한 RHS의 유효성을 보장할 수 있는지 검증한다.
+### A.1 Reduction Sets and Remaining Axes
+
+Section 4.1의 \(P_v\)를 계산하기 위해, \(R_v\)를 현재 노드에서 합산하여 제거하도록 정한 축 집합이라 하자. 새 축을 만들지 않는 Section 2.5의 기본 연산에서는 다음 식을 사용한다.
+
+\[
+P_v=\left(\bigcup_{u\in\operatorname{children}(v)}P_u\right)\setminus R_v,
+\qquad
+R_v\subseteq\bigcup_{u\in\operatorname{children}(v)}P_u,
+\qquad R_v\cap M_v=\varnothing.
+\]
+
+\(\operatorname{children}(v)\)는 해당 연산에 직접 입력을 주는 자식 노드들이다. 자식의 축을 같은 LHS logical-axis identity로 표시하므로 공유 축은 합집합에 한 번만 나타난다. 입력 노드는 별도의 초기값 \(P_X=\operatorname{set}(I_X)\)를 사용한다.
+
+\(R_v\)는 위 조건만으로 임의 선택하지 않고, 자식의 축과 \(M_v\)를 사용하여 아래 규칙으로 정한다. 이 규칙은 해당 연산의 자유로운 axis attribute와 전체 legality 계약을 전제로 한다.
+
+입력 텐서 \(X\)의 축을 LHS의 logical axis 이름으로 표시한 순서 목록을 \(I_X\)라 하자. 예를 들어 행렬 곱의 두 입력은 \(I_A=(i,k)\), \(I_B=(k,j)\)이다. Unary 연산의 자식을 \(u\)라 하면, 각 노드의 규칙은 다음과 같다.
+
+| 노드 | 합산할 축 \(R_v\) | 남는 축 \(P_v\) |
+| --- | --- | --- |
+| Input \(X\) | 해당 없음: 초기값 사용 | \(\operatorname{set}(I_X)\) |
+| Permutation | \(\varnothing\) | \(P_u\) |
+| Unary summation | \(P_u\setminus M_v\) | \(P_u\cap M_v\) |
+| Contraction | \(K_v=(P_\ell\cap P_r)\setminus M_v\) | \((P_\ell\cup P_r)\setminus K_v=B_v\cup LF_v\cup RF_v\) |
+
+Contraction의 왼쪽과 오른쪽 자식을 각각 \(\ell,r\)이라 하면, 표에서 사용한 네 축 집합은 다음과 같다.
+
+\[
+\begin{aligned}
+B_v &= P_\ell\cap P_r\cap M_v\\
+K_v &= (P_\ell\cap P_r)\setminus M_v\\
+LF_v &= P_\ell\setminus P_r\\
+RF_v &= P_r\setminus P_\ell
+\end{aligned}
+\]
+
+여기서 \(B_v,K_v,LF_v,RF_v\)는 각각 batch, reduction, left-free, right-free axes이다.
+
+Contraction은 양쪽이 공유하는 completed non-output class를 제거한다. 한쪽에만 있는 class는 불필요하더라도 free axis로 남긴다. Unary summation은 남아 있는 completed non-output class를 제거할 수 있다. 여기서 completed는 해당 class의 모든 supporting input이 현재 subtree에 포함됨을 의미한다.
+
+이 규칙의 projection/lifting 성질은 Section 4.2에서 증명한다. 일반적인 이름으로 표현하더라도 연산별 규칙과 그 증명 의무는 유지된다.
+
+### A.2 Ordering Rules
+
+Section 4.3의 \(C_v\)와 자식 요구는 기본 연산에 대해 다음과 같이 계산한다. 이 규칙은 Section 2.5의 자유로운 axis attribute와 Section 4.1의 canonical 축 집합을 전제로 한다.
+
+| 노드 | 자식에게 전달할 요구 | Local 검사 \(C_v\) |
+| --- | --- | --- |
+| Input | 없음 | \(Req_v\preceq I_v\) |
+| Permutation | \(Req_u=[]\) | \(\mathrm{true}\) |
+| Unary summation | \(Req_u=Req_v\) | \(\mathrm{true}\) |
+| Contraction | \(Req_\ell=Req_v|_{LF_v}\), \(Req_r=Req_v|_{RF_v}\) | 아래의 batch/free block 순서 검사 |
+
+표는 \(Req_v\)가 \(P_v\)의 중복 없는 subsequence 요구인 경우에 적용한다. 잘못된 축이나 중복을 포함하는 요구에는 검사 규칙이 거짓을 반환한다. 정상적인 root 요구와 위 전달 규칙에서는 이 조건이 유지된다.
+
+Permutation은 현재 노드에서 순서를 자유롭게 정하므로 자식에게 요구를 전달하지 않는다. Unary summation은 남은 축의 순서를 유지하므로 같은 요구를 자식에게 전달한다.
+
+Batch 축의 순서 요구는 child에 전달하지 않는다. Batch attribute list는 child의 물리적 축 위치를 임의의 순서로 선택할 수 있으므로, 필요한 batch 순서는 현재 contraction에서 직접 구성할 수 있다. 반면 free 축의 순서는 child에서 상속되므로 해당 subsequence를 전달해야 한다.
+
+Contraction의 출력은 batch, left-free, right-free 순서를 따라야 하므로 다음 조건을 검사한다.
 
 \[
 \boxed{
-\forall p:\quad
-\operatorname{Legal}_L(p)\land C(p)
-\Rightarrow \operatorname{Valid}(p,f(p)).
+Req_v=
+(Req_v|_{B_v})\Vert
+(Req_v|_{LF_v})\Vert
+(Req_v|_{RF_v})
 }
 \]
 
-여기서 \(\operatorname{Legal}_L\)은 LHS의 legality이다. 이 절의 metadata와 Valid에는 dtype 및 선택한 arithmetic policy도 반영하며, \(f(p)\)가 정의되지 않으면 유효하지 않은 것으로 본다.
 
-완전성 정리의 가정과 TEPL의 dtype·arithmetic 조건을 만족하는 경우에는, source legality 아래에서 \(C(p)\Rightarrow\operatorname{check}(p)\)를 보이면 된다. 더 넓은 연산에서는 생성한 RHS의 유효성을 직접 검증한다(Section 6.4).
+이 정의를 Section 4.3에 대입하면 전체 식은 입력의 subsequence 검사와 contraction의 block 순서 검사의 conjunction이 된다. Permutation과 summation의 local 검사는 참이지만, 자식에게 전달한 요구는 계속 검사하므로 순서 제약을 생략한 것이 아니다. 순서 전달의 필요성은 Section 5.1에서 직접 증명한다. 구성의 세 귀납 성질과 전체 tree에서의 충분성은 Section 5.2에서 증명한다.
 
-충분성을 증명하지 못하면 규칙을 거절한다. 이때 `--suggest-where`를 요청하면, 기존 조건에 더할 조건 \(G(p)\)를 찾아 새로운 합성과 독립 검증으로 다음을 확인한다.
+### A.3 Attribute Construction Rules
+
+Section 4.4의 공통 절차는 기본 연산에 대해 다음과 같이 구체화한다. 자식의 출력 순서는 이미 구성되어 있으며, Section 4.3의 검사를 통과한 경우에 적용한다.
+
+**Input**
+
+\[
+\operatorname{Ord}_v=I_v
+\]
+
+**Permutation**
+
+자식의 축을 재배열하여 \(Req_v\)를 먼저 배치하고, 나머지 축은 child의 기존 순서대로 뒤에 배치한다. Permutation attribute는 이 순서에 대응하는 dimension positions로 생성한다.
+
+**Unary Summation**
+
+\[
+\operatorname{Ord}_v=\operatorname{Ord}_u|_{P_v}
+\]
+
+제거할 축 \(P_u\setminus P_v\)의 위치를 reduction attribute로 지정한다.
+
+**Contraction**
+
+Batch axes \(B_v\) 중 요구된 축을 \(Req_v|_{B_v}\)의 순서대로 먼저 배치하고, 나머지 batch axes를 고정된 순서로 추가하여 sequence \(b\)를 구성한다.
+
+Reduction axes \(K_v\)도 고정된 순서 \(k\)로 나열한다.
+
+위치 목록은 Section 4.4의 \(\operatorname{pos}\)로 계산한다.
+
+Contraction attribute는 \(\beta_v=(b_\ell,b_r,k_\ell,k_r)\)이다. 앞의 두 목록은 왼쪽·오른쪽 batch 위치, 뒤의 두 목록은 왼쪽·오른쪽 contraction 위치이며, 다음과 같이 생성한다.
 
 \[
 \boxed{
-\forall p:\quad
-\operatorname{Legal}_L(p)\land C(p)\land G(p)
-\Rightarrow \operatorname{Valid}(p,f(p)).
+\begin{aligned}
+b_\ell &= \operatorname{pos}(\operatorname{Ord}_\ell,b),\\
+b_r &= \operatorname{pos}(\operatorname{Ord}_r,b),\\
+k_\ell &= \operatorname{pos}(\operatorname{Ord}_\ell,k),\\
+k_r &= \operatorname{pos}(\operatorname{Ord}_r,k).
+\end{aligned}
 }
 \]
 
-추천 조건은 실제로 만족 가능한지도 구체적인 metadata로 확인한다. 검색은 제한적이므로 항상 조건을 찾거나 가장 약한 조건을 보장하지는 않는다. 사용자가 추천 조건을 where에 추가하면 다시 검증하며, 컴파일러가 조건을 몰래 추가하거나 추천만으로 원래 규칙을 수락하지는 않는다. 검증된 프로그램은 match에서 얻은 metadata로 RHS attribute를 계산한다.
+출력 축 순서는 다음과 같다.
 
-### 6.3 Example: Reassociation with a Suggested Condition
-
-다음은 `examples/semantic/reassociate.tepl`에 작성한 where 조건 없는 reassociation 규칙이다. TensorLang의 import와 use 선언은 생략한다.
-
-~~~tepl
-rule reassociate {
-    (source: dot (inner: dot A B) C)
-    => (dot A (dot B C))
+\[
+\boxed{
+\operatorname{Ord}_v=
+b\Vert
+(\operatorname{Ord}_\ell|_{LF_v})
+\Vert
+(\operatorname{Ord}_r|_{RF_v})
 }
-~~~
+\]
 
-이 상태에서는 일반적인 dot의 reassociation을 증명하지 못해 규칙이 거절된다. 다음 명령으로 충분조건을 추천받을 수 있다.
 
-~~~sh
-tepl check examples/semantic/reassociate.tepl \
-  --semantic-policy=algebraic --suggest-where --rule reassociate
-~~~
+이 규칙들이 합법적인 attribute와 요구를 만족하는 출력 순서를 구성하고 전체 축 연결을 보존한다는 것은 Section 5.2에서 bottom-up 귀납으로 증명한다.
 
-추천된 규칙의 where 절은 다음과 같다.
+## Appendix B. Extensions of the Direct Constructor
 
-~~~tepl
-where {
-    source.attrs.lhs_batching_dimensions == inner.axes.B.positions
+다음은 Section 4의 직접 구성을 유지하면서 추가할 수 있는 확장이다. 고정 배율의 근거는 아래에 제시하고, 방향 검사를 추가하는 reverse는 별도의 증명을 참조한다.
+
+### B.1 Fixed Unary Scaling without Structural Search
+
+기본 fragment의 tree 안에 attribute-free unary 연산 \(T\mapsto qT\)를 허용하자. 여기서 \(q\)는 선언에 고정된 0이 아닌 유리수이다. Negation은 \(q=-1\)인 경우이다. 이 연산은 shape와 축 순서를 바꾸지 않고 추가 legality 제약도 부과하지 않는다. Tensor 값에 의존하는 배율, 0 배율, axis 선택에 따라 달라지는 배율은 이 절의 대상이 아니다.
+
+Component \(E\)의 모든 unary 배율을 곱한 값을 \(c_E\), 그 unary 노드를 제거한 tree를 \(\bar E\)라 하자. 남은 tree가 Section 2.5의 계약을 만족해야 한다. 유한 합의 선형성과 곱의 다중선형성으로
+
+\[
+E=c_E\bar E
+\]
+
+가 성립한다. Unary 노드를 제거해도 shape, legality 및 원래 axis slot의 대응은 유지된다. 따라서 동일한 입력 집합의 component에 대해 다음이 성립한다.
+
+\[
+\boxed{
+\operatorname{check}_{\mathrm{scale}}(p)
+=[c_L=c_R]\land\operatorname{check}_{\mathrm{direct}}(\bar L,\bar R;p)
 }
-~~~
+\]
 
-`source`와 `inner`는 두 dot 연산에 붙인 이름이다. `inner.axes.B`의 `B`는 입력 텐서가 아니라 batch 축 그룹을 뜻한다. 추천 조건은 바깥 dot의 왼쪽 batch 축 목록이 안쪽 dot의 batch 출력 축 목록과 같도록 요구한다.
+**증명.** 계수는 고정되어 있고 0이 아니다. 정규화된 두 tree의 축 표현이 다르면 Lemma 1의 one-hot 입력이 한쪽을 1, 다른 쪽을 0으로 만들어, 원래 표현도 서로 다르다. 축 표현이 같으면 그 연결을 만족하는 one-hot 입력에서 정규화된 값이 1이므로 원래 값의 동등성은 \(c_L=c_R\)를 요구한다. 계수와 축 표현이 모두 같으면 동등성은 자명하다. 그러므로 배율을 정확히 비교한 뒤 기존 직접 constructor를 실행하고, 얻은 axis 대입을 원래 tree의 같은 slot에 넣으면 된다. \(\square\)
 
-앞 절의 기호로는 원래 조건이 \(C(p)=\top\)이고, 추천된 조건이 \(G(p)\)이다. 이 where 절을 원래 규칙에 추가하고 다시 검사하면, TEPL은 RHS의 두 dot에 생략된 attribute를 생성하고 변환의 유효성을 검증한다. 추천만 받은 상태에서는 원래 규칙이 여전히 거절되며, 추천은 필요충분조건이 아닌 검증된 충분조건이다.
+이는 구조 상태 탐색 없이 가능한 직접 확장이다. 분리된 addition에는 Section 5.3의 서로 다른 입력 집합 조건 아래 component별로 적용한다. 다중 operand의 aligned product는 unary 배율과 다르므로, 이 논증으로 자동 포함하지 않는다.
 
-### 6.4 Broader Operators with Soundness
+### B.2 Reversal with an Additional Orientation Check
 
-TEPL은 실용성을 위해 broadcast, slice, convolution뿐 아니라 reverse(축 내부의 원소 순서 뒤집기), negate(부호 반전), subtract(뺄셈), zero_like(같은 shape의 영 텐서 생성) 등 완전성 정리 밖의 연산도 지원한다.
+Reverse는 축 집합이나 출력 순서를 바꾸지 않으므로 기존 live-set과 ordering 분석을 유지할 수 있다. 다만 unsigned \(N(T)\)만 비교해서는 방향을 알 수 없다. 각 살아 있는 logical axis에 방향 bit를 붙이고 입력·출력의 방향과 연결된 operand의 방향이 일치하는지 별도로 검사해야 한다. Reverse 노드의 attribute는 자식과 출력 방향 bit가 다른 축을 선택하여 구성한다.
 
-이 경우 수락한 규칙의 정확성(soundness)은 보장하지만, 유효한 attribute가 존재할 때 반드시 찾아내는 완전성(completeness)은 보장하지 않는다. 합성이나 검증에 실패해도 유효한 RHS가 없다는 뜻은 아니다.
+이는 전체 구조 상태를 탐색하는 방식과 구분되는 직접 확장이다. 자유롭게 선택할 수 있는 reverse 축 목록, 기존의 read-once·extent domain 등 제한 아래에서, canonicalization과 방향 제약의 동시 실현성은 [영문 Sections 3–4.2](../proofs/completeness.md#42-orientation-feasibility-without-descriptor-enumeration)에 증명되어 있다. 고정된 reverse 목록이나 추가 layout 제약까지 자동으로 포함하지 않으며, 한국어 본문의 unsigned constructor가 수정 없이 reverse를 처리한다는 뜻도 아니다.
 
-이 연산들은 좌표 변환이나 음수 계수, 항의 상쇄 등을 다루므로 앞 절의 축 분석만으로 처리하기 어렵다. TEPL은 RHS attribute 후보를 생성한 뒤, 독립적인 검증기로 작성된 where 조건 아래에서 RHS의 legality, 출력 shape 및 값의 동등성을 확인한다. 예를 들어 연속된 두 slice를 하나로 합칠 때는 시작 위치와 stride를 계산하고, 합성된 slice가 범위 안에서 원래와 같은 원소를 읽는지 검증한다.
+## Appendix C. Extended Representation and Scope
 
-현재 TEPL의 완전성 기반 합성은 contraction/permutation을 중심으로 구현되어 있으며, 본 정리의 전체 범위로 확장하는 작업은 남아 있다.
+### C.1 Domain of the Basic Representation
+
+Sections 3–5의 기본 표현과 직접 구성 증명은 모든 입력 축의 크기가 **2 이상**인 특수 경우에 한정된다. 특히 Lemma 1의 분리 증명은 서로 다른 좌표 0과 1을 사용하므로 singleton에 그대로 적용할 수 없다. Appendix C.4의 확장 계약은 singleton도 허용한다. Appendix C의 확장 표현은 Appendix C.3.1에 따라 unit class를 제거한 뒤 비단위 class에 분리 논증을 적용하고, ordered shape를 별도로 보존한다. 따라서 기본 표현의 정의를 바꾸지 않고 singleton을 포함하는 확장 범위를 별도로 다룬다.
+
+### C.2 Extended Axis Representation
+
+본문의 \(N(T)=(P,\sim,F)\)는 기본 fragment의 의미를 정확히 표현한다. Appendix C.4의 더 넓은 계약에서는 그 표현을 다음과 같이 확장할 수 있다. 여기서 입력 집합과 합법적인 메타데이터는 고정한다.
+
+\[
+\boxed{N^+(T)=(s,\Pi,w)}
+\]
+
+- \(s\)는 singleton 위치를 포함한 전체 ordered output shape이다.
+- \(\Pi\)는 입력 port와 출력 위치 port 사이의 정규화된 연결 구조이며, 상대적인 방향도 포함한다. 출력 port가 없는 입력 연결 class는 합산되는 좌표를 기록하고, 입력 port가 없는 출력 class는 독립적인 새 출력 축을 기록한다.
+- \(w\)는 선언된 scaling과 닫힌 축의 합산 계수를 포함하는 정확한 유리수 가중치이다.
+
+Appendix C.3의 규칙으로 unit class, 방향 표기 및 닫힌 축을 정규화한다. 입력에 연결된 class의 extent는 고정된 입력 shape에서, 출력에만 연결된 class의 extent는 \(s\)에서 알 수 있다. 입력과 출력 모두에 연결되지 않은 class는 가중치에 반영한다.
+
+| 확장 대상 | 추가로 필요한 정보 |
+| --- | --- |
+| Reverse | 연결의 상대적인 방향 |
+| Supplied-extent broadcast | 입력 연결이 없는 출력 축과 그 크기 |
+| Rational scaling, mean, fresh-axis reduction | Scalar weight |
+| Singleton 입력·출력 | Unit 연결의 정규화와 전체 output shape 보존 |
+
+기본 fragment에서는 기존 \(P,\sim\)를 유지한 채 \(F\)의 각 위치에 출력 port를 붙이면 \(\Pi\)를 얻는다. 모든 방향은 같고 \(w=1\)이며, \(s\)는 입력 extent와 \(F\)에서 결정된다. 따라서 기존 표현은 확장 표현의 특수 경우로 포함된다. 이 대응을 설명하기 위해 본문에서 \(P\), \(\sim\), \(F\)의 정의나 행렬 곱 예제를 변경할 필요는 없다.
+
+일반 계약을 만족하는 단일 read-once component에 대해서는 확장 표현의 exactness, 즉 모든 입력 값에서의 동등성과 \(N^+(L)=N^+(R)\)의 동치가 성립한다. 이 주장은 본문의 Lemma 1을 그대로 적용한 결과가 아니라, [영문 Section 12.2](../proofs/completeness.md#122-canonical-boundary-state-and-exactness)의 확장 exactness 논증에 따른다. Addition은 서로 다른 입력 집합의 component를 구분하고 원래 axis 선택의 공유를 보존하는 별도 구성이 필요하다.
+
+확장 표현의 exactness만으로 Section 4의 직접 구성까지 완전해지는 것은 아니다. 직접 확장은 Appendix B와 Section 5.4를, 별도의 구조 상태 탐색은 Appendix C.4.4를 따른다.
+
+### C.3 Canonicalization
+
+다음은 Appendix C.4의 일반 계약에 필요한 정규화 규칙이다. 별도의 지원 연산을 추가하는 확장이 아니라, 같은 의미를 가진 축 구조를 같은 상태로 표현하기 위한 규칙이다. 자세한 exactness 증명은 [영문 Section 12.2](../proofs/completeness.md#122-canonical-boundary-state-and-exactness)에 제시되어 있다.
+
+#### C.3.1 Singleton Normalization
+
+크기 1인 축의 좌표는 항상 0이므로, 그 축의 연결과 방향은 값에 차이를 만들지 않는다. 따라서 canonical 연결 상태에서는 unit class를 제거하되, **전체 ordered output shape에는 크기 1인 축과 그 위치를 유지한다**. 이는 실제 텐서의 shape를 임의로 바꾸는 변환이 아니다. Unit 축에 대한 합산의 계수는 1이다. 이 정규화를 통해 일반 정리는 singleton 입력과 출력을 포함한다.
+
+크기 1인 입력 축의 좌표는 항상 0이다. Supplied-target broadcast가 이 축을 확장하는 경우, 그 unit 좌표를 제거하고 주어진 목표 extent의 새 축을 도입하는 것으로 표현한다. 이는 살아 있는 비단위 좌표의 크기를 변경하는 것이 아니다.
+
+#### C.3.2 Orientation Convention
+
+각 비단위 연결 class에서 고정된 port 순서에 따라 대표 port를 하나 고르고, 그 방향을 정방향으로 둔다. 다른 port에는 대표와 방향이 같은지 반대인지를 기록한다. 대표를 바꾸거나 모든 방향 bit를 함께 뒤집어도 상대적인 좌표 관계는 같으므로, 이 기준으로 같은 연결이 항상 같은 표현을 갖게 한다. 반전은 크기 \(n\)인 축에서 \(t\mapsto n-1-t\)를 뜻한다.
+
+#### C.3.3 Closed-Axis Weights
+
+입력 port도 출력 port도 남지 않은 독립적인 축을 합산하면, 그 축의 extent만큼 동일한 값을 더한다. 크기가 \(n\)이면 이 class를 제거하고 전체 가중치에 \(n\)을 **class당 한 번** 곱한다. 예를 들어 scalar \(x\)를 길이 3으로 broadcast한 뒤 전체 합산하면 \(3x\)이다. 입력 port에 연결된 일반적인 reduction 축은 입력 값에 영향을 주므로 이 규칙으로 제거하지 않는다. 가중치는 정확한 유리수로 계산하며, 좌표를 열거하지 않는다.
+
+### C.4 Broader Axis-Structural Multilinear Contract
+
+이 절은 본문 Section 2.5보다 넓은 확장 계약을 정의한다. 이 계약에 속한다는 사실만으로 본문의 직접 구성 완전성이 성립하지는 않는다. 직접 확장은 Section 5.4의 증명 의무를, 별도의 구조 상태 탐색은 Appendix C.4.4의 논증을 따른다.
+
+#### C.4.1 Axis-Structural Multilinear Contract
+
+Addition을 제외한 각 연산은 다음 구조로 표현되어야 한다.
+
+1. **전체 축의 연결과 방향.** 서로 다른 operand의 같은 extent를 가진 축을 연결할 수 있다. 각 연결은 좌표를 그대로 대응시키거나 축 전체를 반전한다. 크기 \(n\)인 축에서 허용되는 대응은 \(t\) 또는 \(n-1-t\)이다. 하나의 연결된 class에는 각 operand의 축이 최대 하나만 포함되며, 연결은 forest로 표현한다. 좌표를 반전의 고정점 등 특정 위치에 제한하는 추가 방정식은 허용하지 않는다.
+2. **주어진 extent의 새 축.** 주어진 메타데이터나 선언 상수로 크기가 결정되는 독립적인 축을 도입할 수 있다. 크기가 같다는 이유만으로 두 축의 좌표를 동일시하지 않는다.
+3. **출력과 전체 축소.** 연결된 축들 중 출력에 남길 축과 그 순서를 선택하고, 나머지 축은 전체 좌표 범위에 걸쳐 합산한다. 하나의 class는 출력에서 최대 한 번 나타난다. 유지되는 비단위 축의 크기를 변경하거나 그 좌표를 분할·병합하지 않는다.
+4. **값의 계산.** 위 좌표 대응에 따라 각 operand의 값을 곱하고 전체 축소를 수행한 뒤, 0이 아닌 유리수 가중치 \(w\)를 적용한다. 가중치는 주어진 메타데이터, 자식의 ordered shape, 해당 연산의 axis 선택으로 결정되며, 텐서 값에 의존하거나 별도의 합성 미지수가 되어서는 안 된다.
+5. **국소 legality와 유한 선택.** Legality 역시 주어진 메타데이터, 자식의 ordered shape, 해당 연산의 axis 선택으로 결정된다. 모든 합법적인 axis 선택은 rank와 메타데이터 목록 길이로 제한되는 유한 절차로 열거할 수 있어야 한다. 메타데이터 계산은 축·목록 순회와 정확한 산술로 종료하며, 텐서 좌표 구간을 순회하지 않는다.
+
+고정된 메타데이터와 axis 선택 아래에서 각 연산은 독립적인 operand마다 선형이다. 대표적인 확장과 필요한 표현 정보는 Appendix C.2의 표에 정리했다.
+
+#### C.4.2 Input and Arithmetic Domain
+
+유한 rank, 독립 입력 값, exact real arithmetic 및 LHS legality는 Section 2.5를 따른다. 다만 이 확장에서는 입력 축과 새 축의 extent를 양수로 허용하여 singleton을 포함한다. Zero extent는 제외하고 Appendix C.3의 정규화를 적용한다. 주어진 field의 유효성과 보존은 Sections 2.2–2.3을 따른다.
+
+#### C.4.3 Rewrite Structure and Addition
+
+Read-once component와 서로 다른 component의 입력 집합 조건은 Section 2.5를 따른다. 독립 상수 component, component 내부의 반복 입력 및 같은 입력 집합을 가진 항 사이의 cancellation은 제외한다. Addition의 의미는 Section 5.3과 같지만, 이 확장에서는 RHS의 합 바깥에 계약 내 unary linear 연산도 허용한다. 비가산 다중 operand 노드의 각 자식은 단일 component로 제한한다.
+
+Unary linear 연산을 합에 분배할 때에는 원래 하나였던 axis 선택을 모든 component에 동일하게 적용한다. 복사된 occurrence를 서로 독립적인 미지수로 바꾸어서는 안 된다. 구성 알고리즘은 component별 상태를 함께 기록하고, 원래 tree의 하나의 일관된 대입을 복원해야 한다. 서로 다른 원래 `auto` slot은 독립적이며, 여러 노드가 임의로 하나의 미지수를 공유하는 경우는 이 범위에 포함하지 않는다.
+
+#### C.4.4 Alternative Structural-State Search
+
+각 노드에서 가능한 정규화된 축 표현의 집합을 만들고, root에서 목표 표현과 일치하는 상태의 axis 대입을 복원하는 방법은 본문의 직접 구성과 별도이다. 모든 합법적인 local axis 선택과 주어진 field를 보존하고, 자식 상태가 부모 계산에 필요한 의미와 legality 정보를 모두 담으면 상태 집합에 대한 귀납으로 완전성을 보인다. 자세한 논증은 [영문 Sections 12.3–12.7](../proofs/completeness.md#123-complete-construction)을 참조한다. 좌표 격자나 원소별 다항식을 열거하지 않지만 상태 수는 조합적으로 증가할 수 있고, 정확한 산술 비용도 메타데이터의 bit 길이에 의존한다. 이 결과를 본문의 직접 구성 완전성으로 간주하지 않는다.
+
+### C.5 Boundary and Checked Normalization
+
+다음 표는 원래 직접 구성의 보장을 그대로 적용할 수 없는 경우를 구분한다. 추가 증명이 없다는 것은 직접 방식으로 지원하는 것이 불가능하다는 뜻이 아니다.
+
+| 범위 | 현재 직접 구성에서 필요한 추가 작업 또는 실패 이유 |
+| --- | --- |
+| 고정되거나 제한된 RHS axis field | Canonical 대입이 주어진 field를 바꿀 수 있다. 각 제한 아래에서 projection/lifting을 다시 증명해야 한다. |
+| Aligned elementwise multiplication 및 다중 operand product | 연결된 축을 출력에 남겨야 하므로, 일반 contraction처럼 해당 노드에서 즉시 합산할 수 없다. 별도의 live-set과 ordering adapter가 필요하다. |
+| Supplied-extent broadcast | 입력 port가 없는 새 축을 만들 수 있다. 기존 입력-support 기반 \(M_v,P_v\)만으로는 이를 나타내지 못하며, 새 축의 생존과 위치를 위한 직접 규칙이 필요하다. |
+| Mean, keepdims, 새 축 도입 후 reduction | 선택한 extent에 따른 계수, 유지되는 unit 출력 위치 또는 닫힌 축의 계수를 보존해야 한다. 기존 축 제거·순서 증명만으로 충분하지 않다. |
+| Singleton 입력·출력, unit-only reshape | 원래 \(N(T)\)의 exactness domain 밖이다. 정규화와 shape 보존뿐 아니라 원래 대입을 복원하는 직접 adapter의 증명이 필요하다. |
+| 합 바깥의 unary 연산, 여러 component가 공유하는 axis 선택 | 기존 Section 5.3은 component별 독립 구성을 사용한다. 한 선택이 모든 component에 동시에 맞는지 검사하는 추가 직접 절차가 필요하다. |
+| 일반 slice·window, split/merge reshape, convolution, padding, cumulative sum, sort, tensor-index gather/scatter | 축 내부 선택·좌표 분할 및 결합·출력 위치에 따른 합산 범위·값에 따른 접근은 Appendix C.4의 전체 축 계약 밖이다. 비-axis attribute가 주어져도 이 경계는 바뀌지 않는다. 더 풍부한 의미나 아래의 검증된 정규화가 필요하다. |
+
+고정된 batch 선택이 조기 합산을 막는 구체적인 반례는 Section 2.5의 D2 예시와 같다.
+
+Aligned multiplication도 같은 구분이 필요하다. `sum(A * B)`는 올바른 내적이지만, `A * B` 자체에는 축을 합산하는 attribute가 없다. 여기서 “불필요하므로 지금 제거”를 적용할 수 없다. 해당 노드에서 축을 남기는 새로운 규칙을 만들고 Section 5.4의 성질을 증명할 수는 있으나, 원래 contraction 규칙의 재사용만으로 완전성이 성립하지는 않는다.
+
+정리하면, 현재 직접 증명 범위는 Section 2.5와 Appendix B.1의 고정 unary 배율 확장이다. Reverse는 Appendix B.2의 별도 signed 직접 구성 증명으로 다룰 수 있다. 위 표의 나머지 항목은 현재 직접 constructor의 완전성 보장에 포함하지 않는다. 이 범위는 별도의 구조 상태 탐색 정리의 범위와 구분한다.
+
+**검증된 정규화(checked normalization)**를 통해 계약 내 표현으로 바꿀 수 있는 제한된 경우는 포함한다. 정규화는 의미, legality, 주어진 field를 보존하고, 원래 문제와 정규화된 문제의 합법적인 axis 대입을 양방향으로 대응시키며, 원래 표현의 해를 복원할 수 있어야 한다. 새로운 독립적인 미지수를 만들어서는 안 된다.
+
+예를 들어 unit 축만 삽입·제거하고 비단위 축의 순서를 보존하는 reshape는 unit broadcast와 singleton sum으로 정규화할 수 있다. 이때 adapter가 정한 축 위치는 고정하며, 원래 문제의 모든 합법적인 completion에 정규화가 유효한지 확인해야 한다. 이 조건을 통과하면 확장 계약의 표현으로 다룰 수 있다. 본문의 직접 구성에 포함하려면 Section 5.4의 성질도 증명해야 한다. 범위 밖이라는 사실은 유효한 rewrite가 없다는 뜻이 아니다.
