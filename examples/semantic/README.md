@@ -3,7 +3,7 @@
 `tepl check` compiles a rewrite into attribute constructors and a checked
 semantic graph under the rule’s explicit conditions. No concrete shapes,
 attributes, or tensor values are supplied. Native C++ executes completed
-constructors; Rust generation remains deferred. The [greedy engine](../../docs/advanced/greedy_rewriting.md)
+constructors. Rust generation emits the same completed constructors for egg. The [greedy engine](../../docs/advanced/greedy_rewriting.md)
 can execute compiled constructors on concrete graphs; see
 [`examples/rewrite/auto.tepl`](../rewrite/auto.tepl).
 
@@ -610,7 +610,8 @@ Nested convolution distribution still reuses `inner.attrs` and `outer.attrs`: ge
 inversion of composed coefficients and intermediate-domain correspondence
 remain outside direct matching. Padding and configurable layouts remain
 deferred. General calculated-access matching is bounded and incomplete;
-an unestablished proof is rejected. Code generation remains unsupported.
+an unestablished proof is rejected. Verified executable expressions can be
+generated as Rust for egg.
 
 ## Slice and coordinate offsets
 
@@ -671,7 +672,8 @@ bazel run //:tepl -- check examples/semantic/rules/slice.tepl \
 The three examples require no concrete metadata and introduce no extra guards.
 Pure Slice composition also checks under the default strict policy using
 `--rule compose_slice`. The distribution examples use the algebraic policy
-required by the current scalar normalizer. Code generation is not supported.
+required by the current scalar normalizer. Verified executable expressions are
+supported by Rust generation.
 
 ## Implementation and verification
 
@@ -739,5 +741,6 @@ Shape/dtype programs and ordinary rules without semantic definitions remain
 supported.
 
 The legacy solver, plan format, and native compatibility runtime have been
-removed. Code generation migration is deferred; the active compiler and greedy
-engine use the verified executable pipeline.
+removed. Rust generation and the greedy engine both consume the verified
+executable pipeline. Rust evaluates completed metadata expressions and never
+performs proof search or attribute synthesis.

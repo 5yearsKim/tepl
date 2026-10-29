@@ -47,6 +47,7 @@ rule identity {
 rule short_circuit {(D.copy X)=>X where {true || len(range(18446744073709551615))==0}}
 rule false_guard {(D.sink X)=>X where {false && len(range(18446744073709551615))==0}}
 rule invalid_guard {(D.sink X)=>X where {1 / 0 == 0}}
+rule valid_sink {(D.sink X)=>X}
 rule invalid_rhs {(D.sink X)=>(p: D.transpose X) derive {p.attrs={permutation:[9],enabled:true,note:none,precision:default,signed:0};}}
 rule incompatible_rhs {(D.sink X)=>(D.scalar X)}
 rule require_shape {X:[Dims...] (D.unknown X)=>X where {len(Dims)>0}}

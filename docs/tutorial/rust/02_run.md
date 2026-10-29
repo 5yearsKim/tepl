@@ -30,6 +30,16 @@ The example captures two transpose attribute values, computes their composed
 permutation in `derive`, and removes an identity transpose through a `where`
 condition. Both blocks become ordinary Rust functions using shared builtins.
 
+For automatic axis attributes, generate the semantic example instead:
+
+```sh
+bazel-bin/tepl generate examples/rewrite/auto.tepl --out /path/to/my_app/src/generated
+```
+
+The compiler completes its omitted RHS permutation. Rust evaluates the resulting
+metadata expression on each match, using the same path as explicit derivations.
+This example's graph constructor is `generated::graphs::auto::graph_example::build()`.
+
 You can generate the same module from compiled JSON:
 
 ```sh
@@ -70,6 +80,9 @@ The generated graph constructor registers input metadata before insertion.
 
 The checked runner propagates errors from egg callbacks. Applications choose
 iteration limits, extraction costs, and how to use the resulting graph.
+Candidate evaluation failures are skipped; inspect
+`result.egraph.analysis.rejections()` for their rule names, source locations,
+and errors. Conflicting metadata and resource limits stop execution.
 
 The repository's [Rust lab](../../../labs/rust-egg/README.md) contains a runnable
 version of this example.

@@ -39,7 +39,12 @@ executable data and generation options agree.
 Expression emission is exhaustive over completed executable expressions.
 Generated functions call shared builtins and internal intrinsics, preserve
 short-circuit evaluation, and check value ranges. Synthesized attributes become
-ordinary functions returning their concrete schema structs.
+ordinary functions returning their concrete schema structs. Field-level `auto`,
+supplied fields, and defaults are already resolved before generation; Rust does
+not distinguish their origin. Logical-axis values and sets have dedicated runtime
+type checks, separate from opaque attributes and numeric positions. Source
+conditions run first, derivations run in their own local scope, and dependent
+conditions run afterward with the original `where` locals.
 
 ## Runtime
 
@@ -57,7 +62,9 @@ Matching keeps attribute values with their concrete node witnesses. The egg
 adapter rematches during application to recover those witnesses using current
 canonical tensor bindings. All conditions, derivations, and RHS validation finish
 before insertion and union. A known output metadata mismatch rejects a candidate.
-Missing required metadata skips it. Evaluation errors and conflicts stop execution.
+Missing required metadata skips it. Expression failures reject a candidate and
+record a rule diagnostic in `analysis.rejections()`; conflicts and resource limits
+stop execution.
 
 ## Validate
 
@@ -68,5 +75,9 @@ cargo test --manifest-path runtime/rust/Cargo.toml --locked
 
 `tools/test_codegen.sh` generates temporary test applications from source and
 JSON, compiles the full sample and semantic projects, and executes focused
-fixtures in debug and release modes. Runtime tests cover numeric boundaries,
+fixtures in debug and release modes. A separate native reference evaluates
+individual matches and compares guards, completed descriptors, replacement trees,
+and output facts with generated Rust. This includes mixed explicit/auto fields,
+source and derived-descriptor guards, logical-axis identity/order, and empty, zero,
+and singleton dimensions. Runtime tests cover numeric boundaries,
 resource limits, metadata merging, and axis identity.

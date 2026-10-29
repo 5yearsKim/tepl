@@ -52,7 +52,8 @@ let result = tepl_runtime::runner::run(runner, &rules)?;
 ```
 
 Conditions with unavailable required metadata skip a match. Evaluation errors
-report diagnostics. Conflicting metadata stops optimization; egg cannot undo a
+reject candidates and record rule/source diagnostics in
+`result.egraph.analysis.rejections()`. Conflicting metadata stops optimization; egg cannot undo a
 union after discovering a conflict. Replacements are prepared and checked before
 insertion, and known output metadata mismatches reject the candidate.
 

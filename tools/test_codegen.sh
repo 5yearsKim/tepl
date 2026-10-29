@@ -3,13 +3,15 @@ set -euo pipefail
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$project_root"
 if [[ $# == 0 ]]; then
-    bazel build //:tepl //tests:codegen_reference
+    bazel build //:tepl //tests:codegen_reference //tests:codegen_semantic_reference
     compiler="$project_root/bazel-bin/tepl"
 else
     compiler="$1"
 fi
 reference="${2:-$project_root/bazel-bin/tests/codegen_reference}"
+semantic_reference="${3:-$project_root/bazel-bin/tests/codegen_semantic_reference}"
 if [[ ! -x "$reference" ]]; then bazel build //tests:codegen_reference; fi
+if [[ ! -x "$semantic_reference" ]]; then bazel build //tests:codegen_semantic_reference; fi
 work_directory="$(mktemp -d "${TEST_TMPDIR:-${TMPDIR:-/tmp}}/tepl-rust-codegen.XXXXXX")"
 trap 'rm -rf "$work_directory"' EXIT
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$work_directory/target}"
@@ -28,6 +30,9 @@ TOML
 diff -ru "$work_directory/src/expressions" "$work_directory/src/loaded"
 "$compiler" generate "$work_directory/compiled.json" --out "$work_directory/src/expressions" --check
 "$compiler" generate tests/codegen/rust/empty.tepl --out "$work_directory/src/empty"
+"$compiler" compile tests/codegen/rust/current.tepl --semantic-policy algebraic --out "$work_directory/current.json"
+"$compiler" generate "$work_directory/current.json" --out "$work_directory/src/current"
+"$compiler" generate tests/codegen/rust/current.tepl --semantic-policy algebraic --out "$work_directory/src/current" --check
 "$compiler" generate examples/semantic --semantic-policy algebraic --out "$work_directory/src/semantic"
 "$compiler" generate examples/sample --out "$work_directory/src/sample"
 # Nested Rust keyword modules also work after relocating the generated module.
@@ -44,12 +49,14 @@ pub mod semantic;
 pub mod empty;
 pub mod sample;
 pub mod components;
+pub mod current;
 RUST
 cp tests/codegen/rust/generated.rs "$work_directory/tests/generated.rs"
 "$reference" > "$work_directory/tests/reference.rs"
+"$semantic_reference" "$work_directory/current.json" > "$work_directory/tests/semantic_reference.rs"
 cargo test --offline --manifest-path "$work_directory/Cargo.toml" --all-targets
 # Overflow and error handling must not depend on debug overflow checks.
-cargo test --offline --release --manifest-path "$work_directory/Cargo.toml" --test generated
+cargo test --offline --release --manifest-path "$work_directory/Cargo.toml" --tests
 cargo test --offline --locked --manifest-path "$project_root/runtime/rust/Cargo.toml"
 # Check mode reports drift without rewriting, and synchronization removes only owned files.
 printf '\n// changed\n' >> "$work_directory/src/expressions/mod.rs"

@@ -178,11 +178,12 @@ Invalid indexing, overflow, or failed evaluation rejects a match before
 insertion. Boolean operators and conditionals short-circuit. Local initializers
 execute in their phase even when unused. Conditions depending on explicit RHS
 descriptors execute after derivation; independent source conditions execute
-first. Cached axis analysis is shared by feasibility and attribute construction.
+first. Source logical-axis properties become pure metadata computations; proofs
+and attribute synthesis remain compiler responsibilities.
 
 Both inferred and explicit attributes must satisfy legality and semantic checks
 under the selected arithmetic policy. Native C++ execution supports the new
-conditions; Rust/code-generation backend migration remains deferred.
+conditions. Rust generation consumes the same completed executable expressions.
 
 Legacy `@` descriptor bindings, `->` group projections, and whole-descriptor
 `[auto]` syntax remain unsupported. Use field-level `auto` in a descriptor

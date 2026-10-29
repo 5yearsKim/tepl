@@ -47,7 +47,7 @@ rule compose_transposes {
 ```
 
 Import paths are relative to the rule file. Constructors are checked by the
-frontend; their Rust/C++ execution support is deferred.
+frontend and emitted as ordinary Rust computations for egg. C++ execution support is deferred.
 
 ### Tensor constraints and shape-generic rules
 

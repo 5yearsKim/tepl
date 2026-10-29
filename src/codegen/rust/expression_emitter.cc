@@ -71,6 +71,10 @@ std::string scalarType(const core::Type& t) {
     case K::kPrecision:
       return "Precision";
     case K::kOpaque:
+      if (t.opaque_name == core::logicalAxisType().opaque_name)
+        return "LogicalAxis";
+      if (t.opaque_name == core::logicalAxisSetType().opaque_name)
+        return "LogicalAxisSet";
       return "Opaque";
     case K::kDescriptor:
       return "Descriptor(" + num(t.schema.value().value) + ")";

@@ -1,6 +1,7 @@
 use e::dialects::d;
 use rt::values::AttributeValue;
 use s::dialects::tensor_lang as t;
+use tepl_generated_tests::current as c;
 use tepl_generated_tests::{expressions as e, semantic as s};
 use tepl_runtime::{self as rt, EvalError, Fact, NodeKind, Program, TensorFacts, Value};
 
@@ -301,7 +302,7 @@ fn short_circuit_and_required_metadata() {
     assert_ne!(out.egraph.find(root), out.egraph.find(x));
 }
 #[test]
-fn invalid_evaluation_is_reported_without_inserting_rhs() {
+fn invalid_candidates_are_reported_without_inserting_rhs_or_stopping_other_rules() {
     for definition in [
         e::rules::expressions::rule_invalid_guard::definition(),
         e::rules::expressions::rule_invalid_rhs::definition(),
@@ -310,13 +311,25 @@ fn invalid_evaluation_is_reported_without_inserting_rhs() {
         let x = input(&mut graph, "X", vec![2]);
         let root = enode(&mut graph, d::Op::Sink, vec![x]);
         let before = graph.total_size();
+        let rule_name = definition.name;
+        let source = definition.source;
         let rule = definition.build().unwrap();
         let found = rule.search(&graph);
         assert!(rule.apply(&mut graph, &found).is_empty());
         assert_eq!(before, graph.total_size());
         assert_ne!(graph.find(root), graph.find(x));
-        assert!(matches!(graph.analysis.check(), Err(EvalError::Invalid(_))));
-        assert!(rt::runner::runner(graph).is_err());
+        graph.analysis.check().unwrap();
+        let rejected = graph.analysis.rejections();
+        assert_eq!(rejected.len(), 1);
+        assert_eq!(rejected[0].rule, rule_name);
+        assert_eq!(rejected[0].source, source);
+        assert!(matches!(rejected[0].error, EvalError::Invalid(_)));
+        let out = run(
+            graph,
+            vec![e::rules::expressions::rule_valid_sink::definition()],
+        )
+        .unwrap();
+        assert_eq!(out.egraph.find(root), out.egraph.find(x));
     }
     let mut graph = e::EGraph::default();
     let x = input(&mut graph, "X", vec![2]);
@@ -467,4 +480,39 @@ fn input_registration_is_atomic_and_precedes_insertion() {
     );
     assert_eq!(graph[late].data.shape, Fact::Unknown);
     graph.analysis.check().unwrap();
+}
+
+#[test]
+fn logical_axis_guards_run_in_egg_with_empty_zero_and_singleton_dimensions() {
+    for built in [
+        c::graphs::current::graph_identity::build().unwrap(),
+        c::graphs::current::graph_empty::build().unwrap(),
+        c::graphs::current::graph_zero_singleton::build().unwrap(),
+    ] {
+        let root = built.root;
+        let x = built.bindings["X"];
+        let expected = built.graph[root].data.clone();
+        let out = run(
+            built.graph,
+            vec![c::rules::current::rule_logical_axes::definition()],
+        )
+        .unwrap();
+        assert_eq!(out.egraph[root].data, expected);
+        assert!(
+            out.egraph[root]
+                .nodes
+                .iter()
+                .any(|node| node.operands() == [out.egraph.find(x)])
+        );
+        assert!(out.egraph.analysis.rejections().is_empty());
+    }
+    let built = c::graphs::current::graph_nonidentity::build().unwrap();
+    let before = built.graph.total_size();
+    let out = run(
+        built.graph,
+        vec![c::rules::current::rule_logical_axes::definition()],
+    )
+    .unwrap();
+    assert_eq!(out.egraph.total_size(), before);
+    assert!(out.egraph.analysis.rejections().is_empty());
 }

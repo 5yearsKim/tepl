@@ -128,6 +128,34 @@ fn identity_and_order_are_independent_of_extents() {
         ints(&[3])
     );
 }
+
+#[test]
+fn logical_axis_types_are_checked_separately_from_opaque_attributes_and_positions() {
+    use tepl_runtime::values::{ScalarType, checked};
+    let axis = Value::Axis(Axis {
+        owner: 0,
+        group: 0,
+        member: 0,
+        extent: 1,
+    });
+    let axes = Value::List(vec![axis.clone()]);
+    assert_eq!(
+        checked(axis.clone(), ScalarType::LogicalAxis, 0, false).unwrap(),
+        axis
+    );
+    assert_eq!(
+        checked(axes.clone(), ScalarType::LogicalAxis, 1, false).unwrap(),
+        axes
+    );
+    assert_eq!(
+        checked(axes.clone(), ScalarType::LogicalAxisSet, 0, false).unwrap(),
+        axes
+    );
+    assert!(checked(axis.clone(), ScalarType::Opaque, 0, false).is_err());
+    assert!(checked(Value::Integer(1), ScalarType::LogicalAxis, 0, false).is_err());
+    assert!(checked(ints(&[1]), ScalarType::LogicalAxisSet, 0, false).is_err());
+    assert!(checked(axis, ScalarType::LogicalAxisSet, 0, false).is_err());
+}
 #[test]
 fn fact_merge_reports_changes_and_conflicts() {
     let mut shape = Fact::Unknown;

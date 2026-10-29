@@ -344,9 +344,9 @@ sh_test(
     name = "rust_codegen_test",
     size = "medium",
     srcs = ["rust_codegen_test.sh"],
-    args = ["$(rootpath //:tepl)", "$(rootpath :codegen_reference)"],
+    args = ["$(rootpath //:tepl)", "$(rootpath :codegen_reference)", "$(rootpath :codegen_semantic_reference)"],
     data = [
-        ":codegen_reference", "//:tepl", "//:rust_codegen_sources", "//runtime/rust:runtime",
+        ":codegen_reference", ":codegen_semantic_reference", "//:tepl", "//:rust_codegen_sources", "//runtime/rust:runtime",
     ] + glob(["codegen/rust/*"]),
     env_inherit = ["PATH", "HOME", "CARGO_HOME", "RUSTUP_HOME"],
 )
@@ -361,6 +361,12 @@ cc_test(
 cc_binary(
     name = "codegen_reference",
     srcs = ["codegen_reference.cc"],
+    deps = ["//src/codegen", "//src/rewrite"],
+)
+
+cc_binary(
+    name = "codegen_semantic_reference",
+    srcs = ["codegen_semantic_reference.cc"],
     deps = ["//src/codegen", "//src/rewrite"],
 )
 

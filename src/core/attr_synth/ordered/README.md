@@ -31,8 +31,9 @@ unit-coordinate normalization; this implementation retains its original domain. 
 indices. This is a theorem admission boundary; general TEPL verification has a
 broader operation scope.
 
-This implementation stage covers the C++ compiler and structural solver.
-Rust code-generation and runtime changes are deferred.
+The compiler owns construction and verification. Rust code generation consumes
+completed executable expressions; the Rust runtime evaluates these expressions
+on concrete matches without linking or reproducing the structural solver.
 
 ## Entry points
 

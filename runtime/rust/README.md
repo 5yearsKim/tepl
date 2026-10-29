@@ -53,7 +53,10 @@ let node = generated::OpNode::operation(
 values used to evaluate operation contracts and synthesized attributes.
 
 False conditions skip a rewrite. Missing required metadata also skips it.
-Evaluation errors produce diagnostics, and conflicting metadata stops execution.
+Evaluation failures reject the candidate and are available through
+`graph.analysis.rejections()`, with the rule name and source location. Only the
+first failure per rule is retained. Conflicting metadata and resource limits
+stop execution.
 A replacement with a different known output shape or dtype is rejected before
 insertion. Use `runner::runner` and `runner::run` to receive errors from egg
 callbacks; direct egg integration can inspect `graph.analysis.check()`.
@@ -62,7 +65,8 @@ callbacks; direct egg integration can inspect `graph.analysis.check()`.
 node, and time limits before passing it to `runner::run`. Cost models and
 extraction remain application choices.
 
-The generated/runtime ABI is checked at Rust compile time. No dynamic semantic
+The generated/runtime ABI is checked at Rust compile time. Regenerate existing
+modules when updating the runtime (current ABI: 2). No dynamic semantic
 library, host callback implementation, JSON interpreter, or runtime solver is
 required.
 

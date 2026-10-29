@@ -359,7 +359,8 @@ dimensions that fit `u64`.
 - In a rule, a builtin failure rejects the rewrite candidate before insertion.
   Pure conditions can prune search when their bindings are ready. Extended rule
   expressions run in the [greedy engine](../advanced/greedy_rewriting.md).
-  Rust/C++ generation for these forms remains deferred and reports a diagnostic.
+  Generated Rust follows the same candidate-rejection behavior. C++ generation
+  remains deferred.
 - In a shape or dtype program, a failed assertion or evaluated builtin makes
   inference invalid. Missing required tensor metadata can leave inference
   unknown. Assertions remain active in optimized builds.

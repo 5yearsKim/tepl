@@ -1,7 +1,7 @@
 # TEPL command-line reference
 
 The `tepl` command initializes projects, parses source files, checks declarations,
-compiles portable JSON and runs greedy rewrites. Rust/C++ backend migration is deferred. See the [build guide](../tutorial/rust/01_build.md)
+compiles portable JSON, runs greedy rewrites, and generates Rust for egg. C++ generation is deferred. See the [build guide](../tutorial/rust/01_build.md)
 to build the executable. Examples below assume `tepl` is on your `PATH`; from
 the repository root, you can use `bazel-bin/tepl` instead.
 

@@ -4,6 +4,7 @@
 
 #include "src/codegen/rust/code_writer.h"
 #include "src/codegen/rust/expression_emitter.h"
+#include "src/shared/catalog/axis_conditions.h"
 namespace tepl::codegen::rust {
 namespace {
 std::string num(std::size_t n) { return std::to_string(n); }
@@ -133,14 +134,23 @@ std::string emitRules(const executable::ExecutableProgram& executable,
                ", extents)");
       out.close();
     }
+    const auto schedule = core::completed::scheduleWhere(rule);
+    auto conditions = [&](const auto& statements) {
+      for (const auto& condition : statements) {
+        if (std::holds_alternative<core::completed::LocalLet>(condition->value))
+          out.line("let _ = " + e.rule(*condition) + ";");
+        else
+          out.line("if !(" + e.rule(*condition) +
+                   ").boolean()? { return Ok(false); }");
+      }
+    };
     out.open("pub fn check_where(ctx: &mut Context<'_>) -> EvalResult<bool>");
-    for (const auto& condition : rule.conditions) {
-      if (std::holds_alternative<core::completed::LocalLet>(condition->value))
-        out.line("let _ = " + e.rule(*condition) + ";");
-      else
-        out.line("if !(" + e.rule(*condition) +
-                 ").boolean()? { return Ok(false); }");
-    }
+    conditions(schedule.source);
+    out.line("let where_locals = ::std::mem::take(&mut ctx.bindings.locals);");
+    out.line("let result = derive(ctx);");
+    out.line("ctx.bindings.locals = where_locals;");
+    out.line("result?;");
+    conditions(schedule.replacement);
     out.line("Ok(true)");
     out.close();
     // Each derived descriptor has a concrete schema at this boundary.
@@ -176,7 +186,6 @@ std::string emitRules(const executable::ExecutableProgram& executable,
         "pub fn prepare(ctx: &mut Context<'_>) -> "
         "EvalResult<Option<Replacement>>");
     out.line("if !check_where(ctx)? { return Ok(None); }");
-    out.line("derive(ctx)?;");
     out.line("Ok(Some(" + rhs(p, *rule.rhs) + "))");
     out.close();
     out.open("pub fn definition() -> rt::RuleDefinition<" + root +

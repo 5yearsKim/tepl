@@ -13,7 +13,7 @@ pub mod runner;
 pub mod types;
 pub mod values;
 
-pub use analysis::{Fact, TensorAnalysis, TensorFacts};
+pub use analysis::{Fact, RewriteRejection, TensorAnalysis, TensorFacts};
 pub use egg;
 pub use error::{EvalError, EvalResult};
 pub use node::{Node, NodeKind, Program};
@@ -22,4 +22,4 @@ pub use types::DType;
 pub use values::{Budget, Value};
 
 /// Generated code and runtime must use the same execution ABI.
-pub const RUNTIME_ABI: u32 = 1;
+pub const RUNTIME_ABI: u32 = 2;

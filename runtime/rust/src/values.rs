@@ -191,6 +191,8 @@ pub enum ScalarType {
     DType,
     String,
     Precision,
+    LogicalAxis,
+    LogicalAxisSet,
     Opaque,
     Descriptor(usize),
 }
@@ -233,6 +235,14 @@ pub fn checked(
             crate::types::Precision::from_value(&value)?;
         }
         ScalarType::Tensor => require(matches!(value, Value::Tensor(_)), "expected tensor")?,
+        ScalarType::LogicalAxis => {
+            require(matches!(value, Value::Axis(_)), "expected logical axis")?
+        }
+        ScalarType::LogicalAxisSet => {
+            for axis in value.list()? {
+                require(matches!(axis, Value::Axis(_)), "expected logical axis")?;
+            }
+        }
         ScalarType::Descriptor(id) => require(
             matches!(value, Value::Descriptor { schema, .. } if schema == id),
             "descriptor schema mismatch",

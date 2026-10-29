@@ -342,6 +342,9 @@ impl<P: Program> Adapter<P> {
                         }
                     }
                     Ok(None) | Err(EvalError::Unavailable(_)) => {}
+                    Err(e @ EvalError::Invalid(_)) => {
+                        graph.analysis.reject(self.0.source, self.0.name, e);
+                    }
                     Err(e) => return Err(e),
                 }
             }

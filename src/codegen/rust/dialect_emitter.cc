@@ -102,7 +102,7 @@ std::string emitProgram(const executable::ProgramData& p, const Names& n,
   out.line(
       "pub mod dialects;\npub mod metadata;\npub mod rules;\npub mod graphs;");
   out.line("pub const SEMANTIC_POLICY: &str = " + quote(policy) + ";");
-  out.line("pub const RUNTIME_ABI: u32 = 1;");
+  out.line("pub const RUNTIME_ABI: u32 = 2;");
   out.line("const _: () = assert!(rt::RUNTIME_ABI == RUNTIME_ABI);");
   out.line(derive_copy);
   out.line("pub struct Program;");

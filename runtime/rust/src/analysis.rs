@@ -67,6 +67,7 @@ pub struct TensorAnalysis<P: Program> {
     inputs: BTreeMap<String, TensorFacts>,
     inserted_inputs: BTreeSet<String>,
     diagnostic: Mutex<Option<EvalError>>,
+    rejections: Mutex<BTreeMap<(&'static str, &'static str), EvalError>>,
     marker: PhantomData<P>,
 }
 impl<P: Program> Default for TensorAnalysis<P> {
@@ -75,6 +76,7 @@ impl<P: Program> Default for TensorAnalysis<P> {
             inputs: BTreeMap::new(),
             inserted_inputs: BTreeSet::new(),
             diagnostic: Mutex::new(None),
+            rejections: Mutex::new(BTreeMap::new()),
             marker: PhantomData,
         }
     }
@@ -127,6 +129,27 @@ impl<P: Program> TensorAnalysis<P> {
             None => Ok(()),
         }
     }
+    /// The first evaluation failure for each rule; rejected candidates do not
+    /// poison the graph or prevent other witnesses and rules from applying.
+    pub fn rejections(&self) -> Vec<RewriteRejection> {
+        self.rejections
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(&(source, rule), error)| RewriteRejection {
+                source,
+                rule,
+                error: error.clone(),
+            })
+            .collect()
+    }
+    pub(crate) fn reject(&self, source: &'static str, rule: &'static str, error: EvalError) {
+        self.rejections
+            .lock()
+            .unwrap()
+            .entry((source, rule))
+            .or_insert(error);
+    }
     pub fn infer_node(&self, node: &Node<P>, operands: &[TensorFacts]) -> EvalResult<TensorFacts> {
         self.infer_node_with_budget(node, operands, &mut Budget::default())
     }
@@ -161,6 +184,13 @@ impl<P: Program> TensorAnalysis<P> {
             }
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RewriteRejection {
+    pub source: &'static str,
+    pub rule: &'static str,
+    pub error: EvalError,
 }
 impl<P: Program> Analysis<Node<P>> for TensorAnalysis<P> {
     type Data = TensorFacts;
