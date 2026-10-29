@@ -1,5 +1,10 @@
 # Bounded early rejection with sparse inputs
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 > Host-function APIs shown here describe earlier generated artifacts. The
 > current frontend uses pure builtins and descriptor constructors; the extended
 > rule backend and application integrations await migration.

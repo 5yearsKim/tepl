@@ -111,12 +111,13 @@ is local to its rule and must be bound by a matched tensor before use.
 ## Inference and rewrite checks
 
 Dtype programs use the same [inference outcomes](shape.md#expressions-and-inference)
-as shape programs. Omitting a dtype block provides no generated dtype inference;
-the host may supply it. Unknown metadata is not a dtype value.
+as shape programs. Omitting a dtype block leaves the inferred dtype unknown.
+Applications supply input dtypes. Unknown metadata is not a dtype value.
 
-With tensor analysis enabled, replacement validation requires the root's dtype
-and shape to match the original. Internal nodes may change dtype through explicit
-conversions. Equal output metadata alone does not prove a rewrite correct:
+Replacement validation rejects known dtype or shape disagreements between the
+original and replacement roots. Unknown facts can be refined by known facts.
+Internal nodes may change dtype through explicit conversions. Equal output
+metadata alone does not prove a rewrite correct:
 intermediate conversions can lose information.
 
 For complete operation definitions, see the

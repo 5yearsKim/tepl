@@ -1,5 +1,10 @@
 # Complete synthesis of a valid convolution replacement
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 **Research proof draft, October 22, 2026.** This gives an exact feasibility
 predicate and constructor for replacing an admitted bilinear affine-access
 expression with one valid convolution. It extends synthesis to spatial
@@ -55,7 +60,7 @@ O'_j=\left\lfloor e_j/s_j\right\rfloor+1.
 \]
 
 This is the fixed-layout, positive-stride/dilation, no-padding contract in
-the [semantic dialect](../semantic/dialects/tensor.tepl). No groups, kernel
+the [semantic dialect](../../../examples/semantic/dialects/tensor.tepl). No groups, kernel
 reversal, extra backend bounds, offsets, or shared stride/dilation restrictions
 are synthesized. Admission requires a syntax-directed derivation of (1) from
 the source operations; it must not assume an arbitrary semantic-equivalence
@@ -233,7 +238,7 @@ The Boolean projection supplies the generated where predicate; successful
 construction supplies the attributes. No tensor values are evaluated.
 
 The general compiler's
-[index_inference.cc](../../src/core/attr_synth/index_inference.cc)
+[index_inference.cc](../../../src/core/attr_synth/legacy/index_inference.cc)
 already matches some coordinate coefficients and proposes constructors, but
 that procedure explicitly rejects some ambiguous, inverse, or coupled cases.
 This theorem does not establish that procedure's completeness. Implementation

@@ -1,40 +1,25 @@
-# Checked operation metadata programs
+# Operation metadata representation
 
-`src/core/checking/dialects/check.cc` calls `metadata::check` for each operation's optional shape
-and dtype blocks after checking its signature and attribute schema. Successful
-checking stores a `metadata::Program` in `Operation::shape` or `Operation::dtype`.
-Programs are checked even when no rule references the operation.
+Operation shape/dtype blocks share checked expressions, statements, symbols, type
+inference, and builtin resolution. `ProgramKind` selects parameter/yield types:
+shape uses integer lists; dtype uses dtype values. Variadic parameters bind lists
+of operand metadata. Programs own their tables and retain no source AST pointers.
 
-Both kinds share expressions, statements, symbols, type inference, and builtin
-resolution. `ProgramKind` determines parameter and yield types: shape parameters
-are integer lists and yield an integer list; dtype parameters and results are
-dtype values. A trailing variadic parameter binds a list of the corresponding
-operand metadata. Each program owns its type and symbol tables, and no AST
-pointers survive checking.
-
-| File | Responsibility |
+| Location | Responsibility |
 | --- | --- |
-| `ir.h` | Checked expressions, symbols, operand bindings, statements, and program kind |
-| `types.*` | Integer, Bool, DType, homogeneous lists, and literal ranges |
-| `../builtins/catalog.def`, `catalog.h`, `catalog.cc` | Shared builtin identities, signatures, domains, and availability |
-| `src/core/checking/metadata/check.*` | Parameters, statements, assertions, and yield contracts |
-| `src/core/checking/metadata/check_context.h` | Program state and name scope |
-| `src/core/checking/metadata/expression.*` | Names, attributes, expressions, and builtin calls |
-| `src/core/checking/metadata/type_inference.*` | Type equations, empty-list inference, and cycle detection |
-| `src/core/semantics/metadata_print.*` | Resolved expressions and types |
+| `ir.h`, `types.*` | Checked expressions, bindings, types, and program kind |
+| `instruction.h`, `inference.h` | Completed symbolic instructions and native inference representation |
+| `src/core/checking/metadata/` | Parameters, statements, contracts, expression/type checks |
+| `src/core/checking/dialects/check.cc` | Invoke metadata checking for every operation |
+| `src/core/semantics/` | Symbolic lowering and compiler-only reasoning |
+| `src/codegen/{rust,cpp}/metadata_emitter.*` | Translate operation contracts into generated functions |
 
-`instruction.h` defines completed symbolic metadata instructions for verified
-programs and runtime evaluation. Compiler symbols and inference holes live in
-`src/core/semantics/symbolic/`.
+Checking runs even if no rule uses an operation. Completed instructions have no
+inference holes. Shape values use checked signed 128-bit computation with unsigned
+64-bit output dimensions; dtype values support equality/classification without
+implicit promotion. Assertions and locals execute in source order.
 
-Integer semantics use checked signed 128-bit computation for u64 shapes and
-signed i64 attributes. Generated evaluators validate dimensions against u64,
-check indices and arithmetic, and preserve short-circuit control flow. Dtype
-values support equality and the five classification predicates, with no
-implicit promotion or arithmetic. Attributes may supply dtype values and lists.
-Assertions and local bindings execute in source order in both backends.
-
-See the [shape reference](../../../docs/references/shape.md) and
-[dtype reference](../../../docs/references/dtype.md). Checker tests live in
-`tests/shape_core_test.cc` and `tests/dtype_program_test.cc`; generated integration
-fixtures exercise both Rust and C++ evaluators and rule bindings.
+See [builtins](../../../design/builtins.md), the
+[execution contract](../../../design/code-generation.md#shared-execution-contract),
+and the public [shape](../../../docs/references/shape.md) and
+[dtype](../../../docs/references/dtype.md) references.

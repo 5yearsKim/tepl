@@ -1,24 +1,24 @@
 # TEPL Rust runtime
 
-Shared execution support for TEPL-generated egg programs. The crate uses egg
-0.11.0 and Rust edition 2024. Generated modules contain operation types and
-program-specific functions; the runtime contains reusable algorithms.
+Shared execution support for generated egg programs. Requires Rust edition 2024
+and egg 0.11.0. Generated modules contain program-specific types and functions;
+this crate supplies reusable execution algorithms.
 
-Add the crate to an application:
+## Generate and consume
+
+Add the runtime to the application:
 
 ```toml
 [dependencies]
 tepl-runtime = { path = "/path/to/tepl/runtime/rust" }
 ```
 
-Generate the example module from the repository root:
-
 ```sh
 bazel build //:tepl
 bazel-bin/tepl generate examples/rewrite --out /path/to/app/src/generated
 ```
 
-Run its rules:
+Run a generated graph and its rules:
 
 ```rust
 mod generated;
@@ -33,43 +33,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-For manual graph construction, create `TensorAnalysis`, register input facts,
-and then insert input and operation nodes. `OpNode::operation` accepts a dialect
-operation, optional typed attributes, and operand IDs. Attribute schema structs
-convert to the combined attribute enum through `Into`.
+See the [Rust/egg application](../../labs/rust-egg/README.md) for a complete demo.
 
-```rust
-use generated::dialects::tensor_lang::{Op, TransposeAttrs};
+## Integration API
 
-let node = generated::OpNode::operation(
-    Op::Transpose,
-    Some(TransposeAttrs { permutation: vec![1, 0] }.into()),
-    vec![input_id],
-)?;
-```
+`Program` is the generated/runtime trait. `Node<Program>`, `TensorAnalysis`,
+`TensorFacts`, and rule helpers use it without depending on the compiler or JSON.
+For manual construction, register input facts before inserting input nodes.
+`OpNode::operation` accepts a dialect operation, optional typed attributes, and
+operand IDs; schema structs convert to the combined attribute enum with `Into`.
 
-`TensorFacts` holds independent shape and dtype facts: `Unknown`, `Known`, or
-`Conflict`. Equal extents do not identify axes. Axis identities are temporary
-values used to evaluate operation contracts and synthesized attributes.
+Fallible functions return `EvalResult<T>`. Invalid candidates are recorded in
+`graph.analysis.rejections()` with rule/source information. `runner::runner`
+returns an egg runner so applications can set iteration, node, and time limits;
+`runner::run` propagates callback errors. Direct egg users can inspect
+`graph.analysis.check()`. Extraction and cost models remain application choices.
 
-False conditions skip a rewrite. Missing required metadata also skips it.
-Evaluation failures reject the candidate and are available through
-`graph.analysis.rejections()`, with the rule name and source location. Only the
-first failure per rule is retained. Conflicting metadata and resource limits
-stop execution.
-A replacement with a different known output shape or dtype is rejected before
-insertion. Use `runner::runner` and `runner::run` to receive errors from egg
-callbacks; direct egg integration can inspect `graph.analysis.check()`.
+The [shared execution contract](../../design/code-generation.md#shared-execution-contract)
+defines fact merging, missing metadata, rejection, evaluation order, and
+replacement validation. Runtime ABI 2 is checked at compile time; regenerate
+modules when updating it. C++ and Rust ABI versions are independent.
 
-`runner::runner` returns an egg runner, so applications can set its iteration,
-node, and time limits before passing it to `runner::run`. Cost models and
-extraction remain application choices.
-
-The generated/runtime ABI is checked at Rust compile time. Regenerate existing
-modules when updating the runtime (current ABI: 2). No dynamic semantic
-library, host callback implementation, JSON interpreter, or runtime solver is
-required.
+## Validate
 
 ```sh
 cargo test --manifest-path runtime/rust/Cargo.toml --locked
+bazel test //tests:rust_codegen_test
 ```

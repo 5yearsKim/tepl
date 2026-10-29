@@ -357,10 +357,9 @@ intermediate multiplication. A yielded shape must contain nonnegative
 dimensions that fit `u64`.
 
 - In a rule, a builtin failure rejects the rewrite candidate before insertion.
-  Pure conditions can prune search when their bindings are ready. Extended rule
-  expressions run in the [greedy engine](../advanced/greedy_rewriting.md).
-  Generated Rust follows the same candidate-rejection behavior. C++ generation
-  remains deferred.
+  Conditions run after structural matching. Extended rule expressions run in the
+  [greedy engine](../advanced/greedy_rewriting.md). Generated Rust and C++ follow
+  the same candidate-rejection behavior.
 - In a shape or dtype program, a failed assertion or evaluated builtin makes
   inference invalid. Missing required tensor metadata can leave inference
   unknown. Assertions remain active in optimized builds.

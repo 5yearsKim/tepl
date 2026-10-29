@@ -13,6 +13,9 @@ Symbolic IR retains textual operation names for formatting, structural keys,
 and proof laws. Its validator resolves those names through these catalogs.
 The native execution boundary resolves them to typed IDs before dispatch.
 
+See the [builtin design](../../../../design/builtins.md) for catalog ownership
+and the change workflow. The inventory below is generated from `catalog.def`.
+
 ## Implementation map
 
 | Responsibility | Location |
@@ -23,7 +26,7 @@ The native execution boundary resolves them to typed IDs before dispatch.
 | Symbolic construction and simplification | `src/core/semantics/symbolic/expr.cc` |
 | Proof obligations and validation | `src/core/semantics/context.cc` |
 | Axis normalization and set reasoning | `src/core/semantics/index_maps/axis_normalize.cc`, `axis_set_proof.cc` |
-| Generated proof operations | `templates/{cpp,rust}/src/builtins/semantic.*` and backend verification emitters |
+| Generated proof operations | `runtime/rust/src/intrinsics.rs`, `runtime/cpp/include/tepl/runtime/intrinsics.h` |
 
 `axis_partition` requires an injective, complete position sequence.
 `inverse` inverts such a permutation. `positions` requires distinct inputs and

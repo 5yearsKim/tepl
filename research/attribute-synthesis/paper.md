@@ -130,7 +130,7 @@ and strict floating-point reassociation remain outside the theorem. It neither
 formalizes the compiler nor establishes a new XLA coverage count. Extra source
 conditions give applicability \(C\land\Phi^\times_\Sigma\); feasibility of
 all matches under \(C\) requires a separate implication proof. The
-[unified proof](complete_attribute_synthesis_proof.md), Section 11, gives the
+[unified proof](proofs/completeness.md), Section 11, gives the
 full scalar extension; Sections 1--7 give the direct core constructor.
 
 **Practical TEPL integration.** The complete generator is a specialized reasoning

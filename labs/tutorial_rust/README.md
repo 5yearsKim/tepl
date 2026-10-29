@@ -1,27 +1,15 @@
-# TEPL Rust tutorial
+# Historical Rust tutorial fixtures
 
-Both demos use generated rule functions and the shared Rust runtime. Conditions
-such as `@dot.axis == 0` are evaluated directly by generated Rust.
+These addition/dot fixtures retain the retired `@descriptor` syntax. They are
+not the current Rust getting-started path, even though the application sources
+have been adapted to parts of the newer runtime API.
 
-From the repository root:
+Use the maintained [Rust/egg transpose application](../rust-egg/README.md) and
+[shared runtime guide](../../runtime/rust/README.md) for working generation and
+execution commands. The [public Rust tutorial](../../docs/tutorial/rust/01_build.md)
+provides language/application setup.
 
-```sh
-bazel build //:tepl
-bazel-bin/tepl generate labs/tutorial_rust/pattern_basic \
-  --out labs/tutorial_rust/src/tepl_pattern_basic
-bazel-bin/tepl generate labs/tutorial_rust/pattern_analyze \
-  --out labs/tutorial_rust/src/tepl_pattern_analyze
-cargo run --manifest-path labs/tutorial_rust/Cargo.toml --bin pattern_basic
-cargo run --manifest-path labs/tutorial_rust/Cargo.toml --bin pattern_analyze
-```
-
-`pattern_basic` explores structural addition and dot rewrites, then extracts a
-minimum-depth expression. Its operations have no metadata contracts, so their
-output metadata remains unknown.
-
-`pattern_analyze` defines shape and dtype contracts and declares input metadata.
-It factors a shared matrix-product operand, checks output metadata preservation,
-and extracts a smaller expression.
-
-Generated modules are ignored by Git. Reusable runtime helpers live in
-[`runtime/rust/`](../../runtime/rust/README.md).
+`pattern_basic/` records the earlier structural rewriting example;
+`pattern_analyze/` records metadata-aware factoring. Migrating those TEPL sources
+and validating both applications is required before presenting them as active
+examples. Generated modules remain ignored by Git.

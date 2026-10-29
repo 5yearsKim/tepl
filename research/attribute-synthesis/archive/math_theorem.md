@@ -1,5 +1,10 @@
 # Research Proposal: Finite-Rank Verification of Tensor Rewrites with Automatic Attribute Inference
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 ## 1. Problem Definition
 
 Goal: Prove that verifying tensor rewrites up to a finite rank \\(K\\) is sufficient to guarantee that valid RHS attributes exist for arbitrary-rank tensors.

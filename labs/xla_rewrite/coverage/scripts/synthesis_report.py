@@ -135,7 +135,7 @@ def render(data, classification):
         f"**{len(candidates)}/{len(axis)} axis cases match structural admission candidates**, including the restricted scalar-reciprocal route. "
         "This is not a full-domain completeness certification: positive extents, supplied-program definedness, and arithmetic domains "
         "remain explicit admission obligations. The broader complete mathematical state-table algorithm is not fully integrated into "
-        "the production solver. See the [proof](../../../../examples/research/complete_attribute_synthesis_proof.md#126-linear-contexts-over-separated-additive-components).",
+        "the production solver. See the [proof](../../../../research/attribute-synthesis/proofs/completeness.md#126-linear-contexts-over-separated-additive-components).",
         "",
         "Unit-only reshape is normalized by a shape-directed adapter to insertion broadcast and singleton-axis removal. "
         "Adapter-generated axis positions are fixed; they are not counted as synthesis targets. The removal adapter preserves "

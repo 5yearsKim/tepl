@@ -46,8 +46,10 @@ rule compose_transposes {
 }
 ```
 
-Import paths are relative to the rule file. Constructors are checked by the
-frontend and emitted as ordinary Rust computations for egg. C++ execution support is deferred.
+With `tepl.toml`, bare import paths are relative to the project root. Otherwise,
+paths are relative to the rule file, as `./` and `../` paths always are.
+Constructors are checked by the frontend and emitted as ordinary Rust or C++
+computations.
 
 ### Tensor constraints and shape-generic rules
 

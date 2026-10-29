@@ -61,5 +61,5 @@ that equivalent expressions disagree; optimization stops with a diagnostic.
 Use the [checked runner](02_run.md#run-egg) to receive these errors.
 
 The [analysis guide](../../advanced/custom_analysis.md) explains merge behavior.
-The [tutorial lab](../../../labs/tutorial_rust/README.md) demonstrates factoring
-a matrix product while preserving output metadata.
+The [Rust lab](../../../labs/rust-egg/README.md) runs generated rules with input
+metadata.

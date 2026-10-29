@@ -30,7 +30,7 @@ Success requires an explicit semantic proof with `additional-guard: true`, all r
 
 ## Theorem coverage and normalization
 
-**32/32 axis cases match structural admission candidates**, including the restricted scalar-reciprocal route. This is not a full-domain completeness certification: positive extents, supplied-program definedness, and arithmetic domains remain explicit admission obligations. The broader complete mathematical state-table algorithm is not fully integrated into the production solver. See the [proof](../../../../examples/research/complete_attribute_synthesis_proof.md#126-linear-contexts-over-separated-additive-components).
+**32/32 axis cases match structural admission candidates**, including the restricted scalar-reciprocal route. This is not a full-domain completeness certification: positive extents, supplied-program definedness, and arithmetic domains remain explicit admission obligations. The broader complete mathematical state-table algorithm is not fully integrated into the production solver. See the [proof](../../../../research/attribute-synthesis/proofs/completeness.md#126-linear-contexts-over-separated-additive-components).
 
 Unit-only reshape is normalized by a shape-directed adapter to insertion broadcast and singleton-axis removal. Adapter-generated axis positions are fixed; they are not counted as synthesis targets. The removal adapter preserves element types without adding HLO reduce_sum's numeric-dtype guard. Every accepted reshape has a known ordered input shape and target shape with identical non-unit coordinates, independently of automatic axis choices.
 

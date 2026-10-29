@@ -1,5 +1,10 @@
 I would extend your current design in four steps. These cover useful XLA rewrites while preserving your existing graph and normalization approach.
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 | Priority | Extension | What it enables | Effort |
 |---|---|---|---|
 | 1 | Strengthen existing axis reasoning | Merge reductions, move transpose through reduction/dot, simplify inferred guards | Small–medium |

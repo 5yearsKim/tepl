@@ -1,15 +1,20 @@
 # Existence and ambiguity of automatic tensor attributes
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 **Research draft, October 11, 2026.** The proposed paper subject is a complete
 description of the attributes that realize a prescribed tensor rewrite:
 when this set is empty, how to construct a member, and when that member is
 unique. The useful specialization is ordered contraction, with an extension
 to independently parameterized additive branches. It covers the structure of
-all four rules in [algebraic.tepl](../rules/algebraic.tepl), under explicit
+all four rules in [algebraic.tepl](../../../examples/semantic/rules/algebraic.tepl), under explicit
 restrictions on metadata and semantics.
 
-This builds on the existing [ordered-contraction theorem](ordered_contractions.md)
-and [degree decomposition](semantic_decomposition_proofs.md). The additions here
+This builds on the existing [ordered-contraction theorem](../archive/ordered_contractions.md)
+and the degree-decomposition note (`semantic_decomposition_proofs.md`, not retained in this checkout). The additions here
 are a characterization and exact count of **all** attribute assignments, an
 explicit connection to ambiguity policy, and a sufficient admission criterion
 that combines those results for distribution and LoRA. These are hand arguments
@@ -472,13 +477,13 @@ source legality conditions and the guard.
 
 The repository already has substantial pieces of this foundation:
 
-- [ordered.cc](../../../src/core/semantics/ordered.cc) extracts conservative
+- ordered.cc extracts conservative
   operation contracts and constructs/checks network witnesses and two-axis
   obstructions. It does not currently count solutions or admit additive rules
   through the product theorem.
-- [semantic_ir.h](../../../src/core/inference/semantic_ir.h) explicitly describes
+- semantic_ir.h explicitly describes
   the compiled constraint plan as a sufficient equality condition.
-- [solver.cc](../../../src/core/semantics/solver.cc) falls back when sufficient
+- solver.cc falls back when sufficient
   constraints are exhausted and independently verifies candidates. This is
   essential: unsatisfiability of a sufficient encoding is not impossibility.
 
@@ -525,7 +530,7 @@ semantic theorem does not make that cost disappear.
 
 ## 9. Evidence and conference positioning
 
-The experiment [check_auto_solution_space.py](check_auto_solution_space.py)
+The experiment [check_auto_solution_space.py](../archive/check_auto_solution_space.py)
 compares the closed-form count with exhaustive enumeration of every legal
 ordered dot descriptor and transpose permutation. All physical dimensions are
 two. It also compares the existing constructor against the oracle's existence
@@ -533,8 +538,8 @@ answer. It uses the same network evaluator as the earlier contraction
 experiment, so network-to-tensor exactness remains a separate proof obligation.
 
 ```sh
-python3 -B examples/semantic/research/check_auto_solution_space.py
-python3 -B examples/semantic/research/check_auto_solution_space.py --max-total-axes 6
+python3 -B research/attribute-synthesis/archive/check_auto_solution_space.py
+python3 -B research/attribute-synthesis/archive/check_auto_solution_space.py --max-total-axes 6
 ```
 
 Results on October 11, 2026, with three inputs of rank at most two and 48 RHS

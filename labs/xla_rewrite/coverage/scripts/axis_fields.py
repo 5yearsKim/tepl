@@ -648,7 +648,7 @@ def classify():
         protocol="axis_only_v1",
         policy="One canonical axis-only rule per in-scope case; original conditions retained; no explicit-baseline or partial-descriptor experiment.",
         theorem_sha256=sha(
-            ROOT / "examples/research/complete_attribute_synthesis_proof.md"
+            ROOT / "research/attribute-synthesis/proofs/completeness.md"
         ),
         dependencies={
             str(path.relative_to(ROOT)): sha(path)
@@ -661,7 +661,7 @@ def classify():
                 TEPL / "dialects/hlo.tepl",
                 TEPL / "dialects/axis_views.tepl",
                 TEPL / "tepl.toml",
-                ROOT / "examples/research/complete_attribute_synthesis_proof.md",
+                ROOT / "research/attribute-synthesis/proofs/completeness.md",
             ]
         },
         cases=rows,

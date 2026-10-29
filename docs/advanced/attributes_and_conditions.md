@@ -182,8 +182,8 @@ first. Source logical-axis properties become pure metadata computations; proofs
 and attribute synthesis remain compiler responsibilities.
 
 Both inferred and explicit attributes must satisfy legality and semantic checks
-under the selected arithmetic policy. Native C++ execution supports the new
-conditions. Rust generation consumes the same completed executable expressions.
+under the selected arithmetic policy. The native engine and generated Rust and
+C++ code use the same completed executable expressions.
 
 Legacy `@` descriptor bindings, `->` group projections, and whole-descriptor
 `[auto]` syntax remain unsupported. Use field-level `auto` in a descriptor

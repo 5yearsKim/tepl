@@ -3,6 +3,7 @@
 Generated Rust programs provide a concrete `TensorAnalysis` backed by the shared
 `tepl-runtime` crate. Custom analysis adapters are deferred. Applications supply
 input metadata; TEPL operation definitions supply shape and dtype contracts.
+The [C++ runtime](../../runtime/cpp/README.md) uses the same fact and conflict model.
 
 ## Build a graph
 
@@ -38,7 +39,8 @@ Merging unknown and known facts preserves the known value. Equal known values
 remain known. Different known values produce a conflict. Rebuilding propagates
 new information through dependent nodes.
 
-Operation evaluators execute compiled shape or axes contracts and dtype programs.
+Operation evaluators execute compiled shape and dtype programs. An axes contract
+provides shape inference when there is no explicit shape program.
 Axis identity is independent of extent: two dimensions of size two may represent
 different axes. The e-class stores the resulting shape, not those temporary
 identities.
@@ -53,9 +55,10 @@ let result = tepl_runtime::runner::run(runner, &rules)?;
 
 Conditions with unavailable required metadata skip a match. Evaluation errors
 reject candidates and record rule/source diagnostics in
-`result.egraph.analysis.rejections()`. Conflicting metadata stops optimization; egg cannot undo a
-union after discovering a conflict. Replacements are prepared and checked before
-insertion, and known output metadata mismatches reject the candidate.
+`result.egraph.analysis.rejections()`. Conflicting metadata and resource limits
+stop optimization; egg cannot undo a union after discovering a conflict.
+Replacements are prepared and checked before insertion, and known output
+metadata mismatches reject the candidate.
 
 If integrating directly with egg, call `graph.analysis.check()` after insertion,
 rewriting, and rebuilding. The runtime runner performs error propagation for you.

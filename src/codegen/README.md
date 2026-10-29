@@ -1,102 +1,28 @@
-# Code generation
+# Code generator
 
-`generate(ExecutableProgram, Options)` returns target source files and diagnostics.
-It does not read source files, repeat semantic verification, solve attributes, or
-write output. The CLI compiles source or validates and loads JSON before calling
-this interface.
+`generate(ExecutableProgram, Options)` returns program-specific files and
+diagnostics. It does not load source, repeat proof/synthesis, or write output.
+Rust and C++ consume the same completed executable IR.
 
-The generated module depends on the shared [`tepl-runtime`](../../runtime/rust/)
-crate and Rust edition 2024. The C++20 backend uses the shared
-[`C++ runtime`](../../runtime/cpp/); Python generation is unavailable.
+| Location | Owns |
+| --- | --- |
+| `common/project_plan.*` | Source membership and module paths |
+| `rust/`, `cpp/` | Naming, target paths, dialect/expression/metadata/rule/graph emitters |
+| `write.*` | Staged formatting, manifest ownership, drift checking |
+| `../../runtime/rust/`, `../../runtime/cpp/` | Reusable execution support |
 
-## Boundaries
+Reject target-name/path collisions before synchronization. Emit every completed
+expression variant explicitly; unhandled variants should fail compilation.
+Generated source depends on the shared runtime and contains no copied templates.
 
-| Component | Input | Output |
-| --- | --- | --- |
-| Project planning | Executable tables and optional module roots | Source module membership |
-| Rust naming | Project plan and declarations | Validated Rust names and paths |
-| Rust emitters | Executable IR and names | Program-specific Rust files |
-| Output synchronization | Generated files and destination | Formatted files and ownership manifest |
-| Rust runtime | Generated program implementation and graph inputs | egg analysis and rewrite execution |
-
-`common/project_plan.*` preserves module paths under `rules/` and `graphs/`.
-Explicit roots override this convention. Naming rejects collisions before any
-files are written. Source and JSON inputs generate the same files when their
-executable data and generation options agree.
-
-## Generated code
-
-- `mod.rs`: combined operation and attribute enums, the runtime `Program`
-  implementation, concrete egg type aliases, and the semantic policy.
-- `dialects/`: dialect operation enums and one public struct per attribute
-  schema. Shared schemas are emitted once and reused by operations.
-- `metadata.rs`: shape, axes, and dtype contract evaluation. Explicit shape
-  programs take precedence over axes contracts, matching the executable engine.
-- `rules/`: patterns, restrictions, ordered conditions, local bindings, typed
-  descriptor derivations, and replacement preparation. `rules::all()` builds
-  the egg rewrites. Each rule also exposes `definition().build()`.
-- `graphs/`: constructors that register input metadata and build egg graphs.
-
-Expression emission is exhaustive over completed executable expressions.
-Generated functions call shared builtins and internal intrinsics, preserve
-short-circuit evaluation, and check value ranges. Synthesized attributes become
-ordinary functions returning their concrete schema structs. Field-level `auto`,
-supplied fields, and defaults are already resolved before generation; Rust does
-not distinguish their origin. Logical-axis values and sets have dedicated runtime
-type checks, separate from opaque attributes and numeric positions. Source
-conditions run first, derivations run in their own local scope, and dependent
-conditions run afterward with the original `where` locals.
-
-## Runtime
-
-The runtime crate owns value conversion, checked arithmetic, axis identity,
-metadata facts, attribute-aware matching, replacement preparation, and checked
-runner integration. Its `Program` trait is the only generated/runtime interface.
-The crate does not depend on generated programs or parse compiled JSON.
-
-Shape and dtype facts merge independently. Unknown means no evidence; differing
-known facts produce a conflict. Input metadata must be registered before its
-node is inserted. Invalid inference and conflicting facts record diagnostics.
-Use the runtime's runner functions to propagate callback errors to the caller.
-
-Matching keeps attribute values with their concrete node witnesses. The egg
-adapter rematches during application to recover those witnesses using current
-canonical tensor bindings. All conditions, derivations, and RHS validation finish
-before insertion and union. A known output metadata mismatch rejects a candidate.
-Missing required metadata skips it. Expression failures reject a candidate and
-record a rule diagnostic in `analysis.rejections()`; conflicts and resource limits
-stop execution.
-
-## Validate
+The [generator design](../../design/code-generation.md) defines emitted layouts,
+backend boundaries, ABI checks, and the common execution contract. Application
+setup belongs in the [Rust](../../runtime/rust/README.md) and
+[C++](../../runtime/cpp/README.md) runtime guides.
 
 ```sh
-bazel test //tests:codegen_test //tests:rust_codegen_test
-cargo test --manifest-path runtime/rust/Cargo.toml --locked
+bazel test //tests:codegen_test //tests:codegen_cpp_test \
+  //tests:rust_codegen_test //tests:cpp_codegen_test
 ```
 
-`tools/test_codegen.sh` generates temporary test applications from source and
-JSON, compiles the full sample and semantic projects, and executes focused
-fixtures in debug and release modes. A separate native reference evaluates
-individual matches and compares guards, completed descriptors, replacement trees,
-and output facts with generated Rust. This includes mixed explicit/auto fields,
-source and derived-descriptor guards, logical-axis identity/order, and empty, zero,
-and singleton dimensions. Runtime tests cover numeric boundaries,
-resource limits, metadata merging, and axis identity.
-
-## C++ backend
-
-`cpp/` mirrors Rust's backend, naming, expression, metadata, dialect, rule, and
-graph emitter boundaries. Both consume completed executable IR and share project
-planning and output synchronization. C++ emits `program.h`, `metadata.h`,
-`dialects/`, `rules/`, `graphs/`, and an umbrella `generated.h`. Runtime algorithms
-remain in `runtime/cpp`, rather than being copied into generated output.
-
-C++ namespaces are configurable with `--cpp-namespace`. Keywords receive a
-trailing underscore, and spelling/module collisions fail before synchronization.
-Definitions are inline or templated for multiple translation units. `clang-format`
-formats generated C++; `--check` and manifest ownership work as for Rust.
-
-The generated `Program` satisfies the C++ runtime concept corresponding to Rust's
-trait, including shape/dtype inference and typed attribute conversion. The runtime
-adapts witness-preserving matching and prepared replacement insertion to egg-c.
-See [runtime contracts and validation](../../runtime/cpp/README.md).
+See [fixture ownership](../../tests/codegen/README.md) before adding a case.

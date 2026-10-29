@@ -1,5 +1,10 @@
 # Two-axis obstructions for attribute realizability
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 **Status:** research draft, October 10, 2026. This note develops a hand proof and
 a standalone exhaustive small-model experiment. It is not a proof-assistant
 development or a novelty claim.
@@ -349,8 +354,8 @@ Other boundaries of the proof:
 Run the accompanying experiment from the repository root:
 
 ```sh
-python3 examples/semantic/research/check_ordered_contractions.py --transpose-cases
-python3 examples/semantic/research/check_ordered_contractions.py --inputs 4 --max-rank 1 --max-total-axes 4 --transpose-cases
+python3 research/attribute-synthesis/archive/check_ordered_contractions.py --transpose-cases
+python3 research/attribute-synthesis/archive/check_ordered_contractions.py --inputs 4 --max-rank 1 --max-total-axes 4 --transpose-cases
 ```
 
 The oracle independently enumerates all legal positional pairings, chooses

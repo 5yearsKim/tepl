@@ -19,7 +19,7 @@ import json
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from check_oriented_axis_synthesis import (
     Tensor, coords, dot_descriptors, polynomial_product, polynomial_sum, subsets,

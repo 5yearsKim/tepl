@@ -1,42 +1,28 @@
-# Native test coverage
+# Tests
 
-For changes to attribute inference, start with:
+Select focused tests for the changed boundary; run the full suite for broader
+changes. Commands below assume the repository root.
 
-```sh
-bazel test //tests:named_nodes_test //tests:attribute_reasoning_test \
-  //tests:ordered_synthesis_test //tests:rewrite_test \
-  //tests:syntax_test //tests:core_test
-```
-
-Run the full active native suite before completing a broader change:
+| Area | Starting targets |
+| --- | --- |
+| Syntax, checking, loading | `//tests:syntax_test`, `//tests:core_test`, `//tests:loading_test` |
+| Axis properties and synthesis | `//tests:named_nodes_test`, `//tests:attribute_reasoning_test`, `//tests:ordered_synthesis_test` |
+| Semantic proofs and suggestions | `//tests:semantic_test`, `//tests:semantic_cli_test`, `//tests:where_suggestions_cli_test` |
+| Concrete execution | `//tests:rewrite_test`, operation-specific tests |
+| Builtin definitions/inventories | `//tests:builtins_test`, `//tests:builtin_reference_test` |
+| Generated code | `//tests:codegen_test`, `//tests:codegen_cpp_test`, `//tests:rust_codegen_test`, `//tests:cpp_codegen_test` |
+| Shared runtimes | `cargo test --manifest-path runtime/rust/Cargo.toml --locked`, `//runtime/cpp:values_test` |
 
 ```sh
 bazel test //tests:all --build_tests_only
 ```
 
-This includes CLI behavior and Rust generation/runtime integration.
+The full `tests` target set includes CLI and Rust/C++ generation integration.
+Standalone runtime and lab-specific checks have their own targets/commands.
+See [codegen fixtures](codegen/README.md) for generated-code ownership and
+[labs](../labs/README.md) for experiment reproduction.
 
-| Test | Main responsibility |
-| --- | --- |
-| `named_nodes_test` | Source node properties, descriptor reuse/derivation, logical-axis evaluation, and invalid reference diagnostics. |
-| `attribute_reasoning_test` | Verified restriction suggestions, practical metadata domains, mixed attributes, repeated-capture identity, candidate/verification separation, and strategy fallback. |
-| `ordered_synthesis_test` | Independent exhaustive attribute oracle, positive/negative certificates, paired contraction order, and high-rank cases. |
-| `semantic_test` | Symbolic laws, arithmetic policy, sufficient user conditions, partial routing, and independent dense references. |
-| `convolution_test` | Calculated reads, coefficient inference, spatial ranks 1–3, empty batch/channel cases, and illegal or corrupted metadata. |
-| `semantic_cli_test` | CLI selection, policy, imports, output, and diagnostic behavior. Operator laws belong to the C++ tests. |
-| Other parser, type, loader, and operator tests | Their own syntax, legality, lifecycle, and operation-specific regressions. |
-
-Keep a case when it exercises a distinct branch, known counterexample, or failure
-mode. Extend the independent oracle for new fragment support or newly
-discovered counterexamples.
-Use small dense tensors: larger extents add cost without exercising another
-axis relationship. Reuse a compiled rule when varying only match metadata.
-
-The convolution examples combine one ordinary case at each spatial rank with
-each empty-axis case at rank one. Empty cases cover input and nested
-distribution; kernel and transpose variants use nonempty data. A two-dimensional
-coefficient example covers differing strides/dilations and uneven division; nested coefficients and a large
-stride have separate cases. The semantic suite retains four-operand explicit
-and inferred dot chains and the inexpensive exhaustive permutation/reduction
-loops. Duplicate recompilation and repeated CLI checks of whole operator
-families are omitted.
+Keep cases that exercise distinct behavior, known counterexamples, or failure
+modes. Prefer independent metadata/tensor oracles, small dense inputs, and reuse
+of compiled rules when varying only metadata. Tests support implementation
+correspondence; they do not establish mathematical completeness or refinement.

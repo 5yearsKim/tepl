@@ -195,7 +195,7 @@ rule compose_transposes_auto {
 - Each omitted RHS descriptor is inferred independently. Use `[source.attrs]` for reuse or assign a complete `result.attrs` in `derive`. Partial attribute pins are not part of the language.
 - Users still define operation semantics and any required correctness conditions. Unsupported inference is rejected with a diagnostic.
 - Constructor synthesis occurs at compile time; application evaluates the constructor on matched metadata.
-- Completed constructors execute in the greedy rewrite engine in native C++. Code-generation backend migration remains deferred.
+- Completed constructors execute in the native C++ greedy rewrite engine and in generated Rust/egg and C++/egg-c programs.
 
 **Introducing attribute inference figure**
 
@@ -1445,7 +1445,7 @@ def synthesize_attribute_programs(rule):
 **Figure 3 — TEPL architecture**
 
 - [Storyboard](figures/tepl_architecture.yaml): half-width overview led by three equally prominent input cards, Rule, Dialect, and Graph. Rule and Dialect feed the compiler; Graph bypasses compilation and feeds the TEPL engine directly. Compiled JSON contains patterns, guards, and attribute programs, while a dashed adapter branch shows the extension point for additional engines.
-- **Caption:** TEPL takes three inputs: a rule specifying the rewrite, a dialect defining operations and their semantics, and a graph to rewrite. The compiler lowers and normalizes the semantics, synthesizes missing attributes, verifies completed rules, and exports reusable rewrite programs. At runtime, the TEPL engine matches patterns, checks guards, evaluates attribute programs, and applies replacements to the input graph. Additional engines, such as an e-graph engine, can integrate through adapters; the dashed branch denotes an extension target.
+- **Caption:** TEPL takes three inputs: a rule specifying the rewrite, a dialect defining operations and their semantics, and a graph to rewrite. The compiler lowers and normalizes the semantics, synthesizes missing attributes, verifies completed rules, and exports reusable rewrite programs. At runtime, the TEPL engine matches patterns, checks guards, evaluates attribute programs, and applies replacements to the input graph. E-graph engines integrate through generated code for Rust/egg and C++/egg-c; the dashed branch denotes engine integration.
 
 - TEPL is implemented in **C++20** and uses **ANTLR** to parse operation definitions and rewrite rules. The system separates rule compilation from rewrite execution.
 - During compilation, the compiler resolves names and checks types, then constructs missing attributes and verifies semantic rules. It lowers the completed rules into an executable representation that can be exported as JSON.

@@ -112,9 +112,9 @@ See [built-in functions](built-ins.md) for signatures and failure behavior.
 Generated Rust and C++ evaluators reuse these programs for e-class analysis and
 replacement validation. A result can be **known**, **unknown** when required
 metadata or inference is unavailable, or **invalid** when a check fails.
-Omitting a shape block supplies no generated shape inference; the host can
-provide it. Checking source validates types and names, while concrete dimensions
-are checked during evaluation.
+An axes contract provides shape inference when there is no shape block. Without
+either, the inferred shape remains unknown. Checking source validates types and
+names, while concrete dimensions are checked during evaluation.
 
 Shape inference does not evaluate tensor contents or prove a rewrite's
 mathematical equivalence. See the [tensor dialect](../../examples/sample/dialects/tensor.tepl)

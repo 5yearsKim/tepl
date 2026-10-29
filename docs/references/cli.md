@@ -206,7 +206,7 @@ Without `--rule`, all semantic rules are checked. Missing conditions or
 unsupported proofs are errors. The previous `--index-rule`, `--verify-small`,
 and `--solver-timeout-ms` options are retired. See the
 [semantic examples](../../examples/semantic/README.md) for the supported fragment.
-Axis-semantic code generation is not yet implemented.
+Both backends generate the completed axis metadata computations.
 
 ## `compile`, `validate`, and `schema`
 

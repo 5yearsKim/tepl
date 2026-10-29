@@ -1,5 +1,10 @@
 # A generic restriction that gives a computable rank cutoff
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 This extends [the original problem](math_theorem.md). This research proposal is
 not a coverage certificate for the current element-semantics implementation.
 

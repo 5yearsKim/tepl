@@ -12,7 +12,7 @@ means. Only axis slots are synthesized; extent/coordinate fields remain supplied
 Sections 12.6--12.7 add linear contexts over separated sums and checked
 normalizations, including unit-only reshape and restricted scalar division.
 The original unsigned theorem and the signed-axis constructor remain special cases.
-The [paper version](complete_attribute_synthesis_paper.md) gives the compact
+The [paper version](../paper.md) gives the compact
 statement. The proof concerns the specified mathematical generators; current
 compiler coverage and remaining implementation obligations are in Section 9,
 and the scalar-extension experiment is in Section 11.4. Section 12 uses no
@@ -802,7 +802,7 @@ in Section 11 and the metadata-weighted extension of Section 12 are likewise
 not integrated. General proofs of some such rules
 do not imply complete attribute search.
 
-The frozen [XLA classification](../../labs/xla_rewrite/coverage/data/synthesis_classification.json)
+The frozen [XLA classification](../../../labs/xla_rewrite/coverage/data/synthesis_classification.json)
 and recorded measurements predate these mathematical extensions. This proof revision
 does not reclassify cases or increase a reported completeness-coverage count;
 that requires a fresh audit of the full admission conditions and case domains.
@@ -811,10 +811,10 @@ claim, not inference of its extent fields.
 
 | Component | Existing implementation and remaining work |
 | --- | --- |
-| Admission and declaration roles | [contract.cc](../../src/core/attr_synth/ordered/contract.cc) recognizes contraction/permutation contracts. Extend templates, descriptor adapters, and admission for sums, reversal, and additive components. |
-| Runtime analysis and construction | [evaluate.cc](../../src/inference/evaluate.cc) and [axis_analysis.cc](../../src/rewrite/axis_analysis.cc) implement the original source replay, forced boundaries, orders, and constructor. Generalization requires signed source replay, (3)--(7a), unary instructions, the root-set check, and the orientation graph. |
-| Compilation | [compile.cc](../../src/core/attr_synth/ordered/compile.cc) emits the original schedules. Add component expansion/scopes and the generalized schedules. |
-| Source restrictions | [restrictions.cc](../../src/core/semantics/restrictions.cc) searches a bounded vocabulary and verifies sufficient source restrictions. Complete generalized feasibility analysis remains a separate extension. |
+| Admission and declaration roles | [contract.cc](../../../src/core/attr_synth/ordered/contract.cc) recognizes contraction/permutation contracts. Extend templates, descriptor adapters, and admission for sums, reversal, and additive components. |
+| Runtime analysis and construction | [evaluate.cc](../../../src/inference/evaluate.cc) and [axis_analysis.cc](../../../src/rewrite/axis_analysis.cc) implement the original source replay, forced boundaries, orders, and constructor. Generalization requires signed source replay, (3)--(7a), unary instructions, the root-set check, and the orientation graph. |
+| Compilation | [compile.cc](../../../src/core/attr_synth/ordered/compile.cc) emits the original schedules. Add component expansion/scopes and the generalized schedules. |
+| Source restrictions | [restrictions.cc](../../../src/core/semantics/restrictions.cc) searches a bounded vocabulary and verifies sufficient source restrictions. Complete generalized feasibility analysis remains a separate extension. |
 
 The general semantic verifier already proves some additive/reduction rules;
 that does not establish complete attribute search for them. Fully explicit
@@ -829,7 +829,7 @@ solutions had the source network. This corroborates canonicalization but
 does not replace its proof or independently prove the network semantics.
 
 For the reversal extension,
-[`check_oriented_axis_synthesis.py`](check_oriented_axis_synthesis.py) is a
+[`check_oriented_axis_synthesis.py`](../scripts/check_oriented_axis_synthesis.py) is a
 standalone finite research check. It enumerates all semantically distinct
 positional descriptor possibilities for each selected skeleton (including all
 four ordered contraction lists; sum and reverse selection lists are represented
@@ -850,7 +850,7 @@ single components, not additive admission or arbitrary ranks. Reproduce from
 the repository root with:
 
 ```sh
-python3 examples/research/check_oriented_axis_synthesis.py
+python3 research/attribute-synthesis/scripts/check_oriented_axis_synthesis.py
 ```
 
 This finite check supports the mathematical construction and catches small
@@ -1072,7 +1072,7 @@ Sections 7 and 10.
 
 ### 11.4 Finite validation
 
-[`check_pointwise_axis_synthesis.py`](check_pointwise_axis_synthesis.py)
+[`check_pointwise_axis_synthesis.py`](../scripts/check_pointwise_axis_synthesis.py)
 implements the equivalent coefficient-decorated state procedure: each subtree
 coefficient is constant across its table, so keeping it in a key gives the
 same deduplication and feasibility result as normalizing it out. A separate oracle enumerates concrete
@@ -1098,13 +1098,13 @@ nonintegral coefficients. As before, additive admission is justified by the
 proof rather than exercised by this single-component experiment.
 
 ```sh
-python3 examples/research/check_pointwise_axis_synthesis.py
+python3 research/attribute-synthesis/scripts/check_pointwise_axis_synthesis.py
 ```
 
 These finite checks support the derivation, not arbitrary-rank correctness,
 additive admission, compiler refinement, or a new XLA coverage count. The former
 supplied-extent broadcast experiment is archived in
-[`legacy/check_supplied_broadcast_axis_synthesis.py`](legacy/check_supplied_broadcast_axis_synthesis.py)
+[`legacy/check_supplied_broadcast_axis_synthesis.py`](../archive/check_supplied_broadcast_axis_synthesis.py)
 and is excluded from the active theorem and its validation counts.
 
 ## 12. Completeness for metadata-weighted signed wiring
@@ -1431,7 +1431,7 @@ case by itself. No updated XLA completeness count is asserted here.
 
 ### 12.5 Finite validation, separate from the proof
 
-[`check_supplied_axis_synthesis.py`](check_supplied_axis_synthesis.py) implements
+[`check_supplied_axis_synthesis.py`](../scripts/check_supplied_axis_synthesis.py) implements
 the boundary-state constructor for broadcast, permutations, reversals,
 contractions, aligned products, unit-axis removal, sums, means, and keepdims
 variants. Its synthesis side uses only signed partitions, local axis choices,
@@ -1454,7 +1454,7 @@ different dimension factorizations, and the factor of one shared reduced class
 rather than one factor per original broadcast axis.
 
 ```sh
-python3 examples/research/check_supplied_axis_synthesis.py
+python3 research/attribute-synthesis/scripts/check_supplied_axis_synthesis.py
 ```
 
 These finite checks validate the instantiated procedure on the tested cases.

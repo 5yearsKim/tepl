@@ -15,3 +15,9 @@ readable reports (`reports/`), tools
 (`scripts/`) and Python tests (`tests/`). Compilation and verification are
 separate measurements. Structural compilation uses declarations without value
 semantics; synthesis successes require semantic verification and compilation.
+
+Recorded reports/results identify their measured source and compiler revisions.
+Their numbers are not refreshed by documentation changes. Reproduce a frozen run
+at its recorded revision; active scripts track the current research proof path
+for future runs. Broader mathematical arguments are indexed in
+[research](../../research/attribute-synthesis/README.md).

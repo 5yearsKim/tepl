@@ -1,5 +1,10 @@
 # Sparse counterexamples for compile-time attribute rejection
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 **Status:** theorem and research proposal, October 11, 2026. A bounded
 [explicit-attribute early checker](early_verification.md) now implements degree
 analysis, sparse Z3 queries, confirmed witnesses, and Rust host-function

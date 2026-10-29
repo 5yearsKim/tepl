@@ -15,6 +15,13 @@ or legacy non-axis synthesis.
   and success criteria.
 - [TEPL project](../tepl/README.md): source fixtures and canonical migrated rules.
 
+The checked-in reports and JSON are frozen measurements. Integrity checks,
+including the snapshot-dependent tests in `tests/test_synthesis.py`, require
+the recorded source/tool/compiler revision. The sequence below creates a new
+classification and run for a changed checkout. Documentation relocation alone
+can change recorded proof/source hashes; keep old outcomes and hashes intact
+rather than rewriting them to match the current tree.
+
 ## Reproduce
 
 From the repository root:

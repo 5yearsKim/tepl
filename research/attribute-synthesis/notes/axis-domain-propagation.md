@@ -1,5 +1,10 @@
 # Axis-domain propagation before attribute synthesis
 
+> Historical research material. Implementation references and reproduction
+> instructions describe the earlier approach. See the
+> [current synthesis design](../../../design/attribute-synthesis.md) and
+> [research index](../README.md) for present scope.
+
 ## Scope
 
 This implementation simplifies the **sufficient access-matching constraints** at

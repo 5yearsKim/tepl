@@ -343,17 +343,17 @@ dialect Elementwise {
 
 TEPL generates inference code for both e-class analysis and replacement
 validation. Its runtime handles unknown, invalid, and conflicting metadata.
-The host supplies input types and any required inference missing from the dialect.
+The host supplies input metadata. Operation contracts determine the inferred facts.
 
 🔒 **Conditions and derivations:** `where` states legality conditions; `derive`
 computes replacement attributes using builtins and descriptor constructors.
 The [LoRA rule](../examples/sample/rules/lora.tepl) uses explicit axis guards
 and descriptor copies. Floating-point reassociation requires an explicit
-numerical policy. Extended rule execution support is deferred.
+numerical policy. Rust and C++ generation support these expressions.
 
 🔌 **Host integration:** Define or import dialects, write rules, generate code,
-and run it with an e-graph optimizer. TEPL supports multiple dialects and custom
-analysis hooks. The host chooses rules, numerical policy, search limits, and
+and run it with an e-graph optimizer. TEPL supports multiple dialects and generated
+tensor analysis. The host chooses rules, numerical policy, search limits, and
 extraction cost model.
 
 ## 📚 Learn more

@@ -1,37 +1,31 @@
 # Example projects
 
-Each TEPL project has a `tepl.toml`, `dialects/` and `rules/` directories, plus
-optional `graphs/`. The config records `tepl-version = "0.1.0"` and marks the
-project root. Pass the project directory to `tepl check` or `tepl generate`.
+These directories contain runnable TEPL projects. A `tepl.toml` marks each root;
+`dialects/`, `rules/`, and optional `graphs/` hold its declarations.
 
-- [semantic](semantic/): operation semantics, symbolic verification, and explicit or synthesized attributes.
-- [sample](sample/): tensor and scalar dialects, shape and dtype programs,
-  reusable rules, LoRA rewrites, and concrete graph builders.
-- [rewrite](rewrite/): compiled programs and greedy graph rewriting.
+| Project | Demonstrates |
+| --- | --- |
+| [sample](sample/README.md) | Multiple dialects, metadata contracts, pure expressions, descriptors, concrete graphs |
+| [semantic](semantic/README.md) | Axis/value semantics, verification, and field-level attribute synthesis |
+| [rewrite](rewrite/README.md) | Portable compilation, greedy rewriting, and transpose composition |
 
-Rules and graphs use project-root imports:
-
-```tepl
-from "dialects/tensor.tepl" import TensorLang as t;
-from "rules/abstract.tepl" import {commute};
-```
-
-Paths resolve from the nearest `tepl.toml`, independently of the importing
-file's depth or your working directory. `rewrite/auto.tepl` uses an explicit
-cross-project import, `"../semantic/dialects/tensor.tepl"`, to share the semantic
-dialect. The `research/` directory contains notes and scripts rather than a TEPL
-project.
-
-Run the sample from the repository root:
+Run from the repository root:
 
 ```sh
+bazel build //:tepl
 bazel-bin/tepl check examples/sample
-bazel-bin/tepl generate examples/sample/rules/simple.tepl --out my_app/src/generated
+bazel-bin/tepl generate examples/sample --out /tmp/app/src/generated
 ```
 
-To add another project, run `bazel-bin/tepl init examples/<name>`, then add your
-`.tepl` files. This creates the config and starter dialect and rule. TEPL projects
-need no Bazel configuration.
+Use `--target cpp` for C++ output. Both generated targets support completed rule
+expressions and descriptor construction. Add the appropriate
+[Rust](../runtime/rust/README.md) or [C++](../runtime/cpp/README.md) shared runtime.
 
-Extended rule expressions and descriptor constructors currently support frontend
-checking. Their code generation and execution support is deferred.
+Bare imports resolve against the nearest `tepl.toml`; explicit `./` and `../`
+imports remain relative to the importing file. `rewrite/auto.tepl` explicitly
+shares the semantic dialect from a neighboring project. Create another project
+with `bazel-bin/tepl init examples/<name>`.
+
+Research notes and finite theorem checks now live in
+[research/](../research/README.md); measured experiments and applications live in
+[labs/](../labs/README.md).

@@ -14,7 +14,7 @@ from functools import lru_cache
 from itertools import permutations, product
 from math import factorial
 
-from examples.research.check_ordered_contractions import (
+from check_ordered_contractions import (
     apply_dot,
     construct,
     is_transpose,

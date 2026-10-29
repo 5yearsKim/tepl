@@ -156,7 +156,7 @@ def dependencies():
     files += [
         HERE / "data/synthesis_classification.json",
         HERE / "data/verification_cases.json",
-        ROOT / "examples/research/complete_attribute_synthesis_proof.md",
+        ROOT / "research/attribute-synthesis/proofs/completeness.md",
     ]
     return {str(p.relative_to(ROOT)): sha(p) for p in sorted(set(files))}
 
