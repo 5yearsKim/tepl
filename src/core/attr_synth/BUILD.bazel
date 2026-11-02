@@ -8,15 +8,15 @@ cc_library(
         "synthesize.cc",
         "construct.cc", "construct.h",
         "axis_selectors.cc",
-        "ordered/contract.cc",
+        "ordered/contract.cc", "ordered/extensions.cc", "ordered/extensions.h",
         "ordered/construct.cc", "ordered/construct.h",
-        "ordered/requirements.cc", "ordered/requirements.h",
     ],
     hdrs = ["synthesize.h", "axis_selectors.h", "ordered/contract.h"],
     deps = [
         "//src/core/semantics:model",
         "//src/core/semantics:reasoning",
         "//src/shared/metadata",
+        "//src/inference",
     ],
     visibility = ["//visibility:public"],
 )

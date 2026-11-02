@@ -147,6 +147,8 @@ class Suggestion {
     const auto& n = p.nodes.at(id);
     auto c = *axis::recognizeOrdered(*n.definition);
     auto group = c.kind == axis::OrderedContract::Kind::Permutation ? 0
+                 : c.kind == axis::OrderedContract::Kind::Summation
+                     ? (role == 1 ? c.contract_group : c.left_free_group)
                  : role == 0 ? c.batch_group
                  : role == 1 ? c.contract_group
                  : role == 2 ? c.left_free_group

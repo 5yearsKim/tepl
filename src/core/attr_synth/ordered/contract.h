@@ -21,12 +21,16 @@ std::optional<Contract> recognize(const Definition&);
 
 struct Admission {
   std::map<std::size_t, Contract> operations;
+  inference::Program program;
   std::string reason;
   bool admitted() const { return reason.empty(); }
 };
 
-// Read-once trees, equal named captures, independent unrestricted RHS fields.
-// This checks schema structure; concrete extent-domain checks are separate.
-Admission admit(const Plan&, inference::Mode = inference::Mode::Synthesize);
+// Read-once components, matched capture sets, independent unrestricted RHS
+// fields. This checks schema structure; concrete extent-domain checks are
+// separate. Preserve original descriptor identities while selecting an expanded
+// pair.
+Plan componentPlan(const Plan&, const inference::Component&);
+Admission admit(const Plan&, inference::Mode = inference::Mode::Synthesize, bool extensions = false);
 
 }  // namespace tepl::core::attr_synth::ordered

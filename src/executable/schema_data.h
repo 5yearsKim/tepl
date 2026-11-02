@@ -33,6 +33,21 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
             "tepl.axis-metadata.v2",
             "tepl.inferred-applicability.v1"
           ]
+        },
+        {
+          "const": [
+            "tepl.core.v3",
+            "tepl.axis-metadata.v2",
+            "tepl.core-dag.v1"
+          ]
+        },
+        {
+          "const": [
+            "tepl.core.v3",
+            "tepl.axis-metadata.v2",
+            "tepl.core-dag.v1",
+            "tepl.core-schemas.v1"
+          ]
         }
       ]
     },
@@ -249,6 +264,7 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
         "axis_rhs_group_members",
         "axis_rhs_group_positions",
         "axis_contract",
+        "axis_feasible",
         "axis_live",
         "difference"
       ]
@@ -318,7 +334,47 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
       "enum": [
         "input",
         "permutation",
-        "contraction"
+        "contraction",
+        "summation",
+        "addition",
+        "reverse",
+        "broadcast",
+        "multiplication",
+        "negation",
+        "unit_removal"
+      ]
+    },
+    "emission_op": {
+      "enum": [
+        "input",
+        "output",
+        "empty",
+        "union",
+        "intersect",
+        "difference",
+        "filter",
+        "concat",
+        "positions",
+        "equal",
+        "same_set",
+        "distinct",
+        "subset",
+        "source_field",
+        "source_extents",
+        "source_shape",
+        "length",
+        "range",
+        "plus",
+        "gather",
+        "inverse",
+        "symmetric_difference",
+        "complement",
+        "pullback",
+        "remap",
+        "source_field2",
+        "source_field3",
+        "singleton",
+        "broadcast_transpose_extents"
       ]
     },
     "position": {
@@ -1374,6 +1430,28 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
       ],
       "additionalProperties": false
     },
+    "inference_component": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference_instruction"
+          }
+        },
+        "replacement": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference_instruction"
+          }
+        }
+      },
+      "required": [
+        "source",
+        "replacement"
+      ],
+      "additionalProperties": false
+    },
     "inference_program": {
       "type": "object",
       "properties": {
@@ -1391,12 +1469,86 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
           "items": {
             "$ref": "#/$defs/inference_instruction"
           }
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference_component"
+          }
         }
       },
       "required": [
         "mode",
         "source",
         "replacement"
+      ],
+      "additionalProperties": false
+    },
+    "emission_expression": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "$ref": "#/$defs/emission_op"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "capture": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "op",
+        "args",
+        "capture"
+      ],
+      "additionalProperties": false
+    },
+    "core_program": {
+      "type": "object",
+      "properties": {
+        "program": {
+          "$ref": "#/$defs/inference_program"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/emission_expression"
+            }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/id"
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "program",
+        "nodes",
+        "checks",
+        "attributes"
       ],
       "additionalProperties": false
     },
@@ -1473,6 +1625,16 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
           "anyOf": [
             {
               "$ref": "#/$defs/inference_program"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "core": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/core_program"
             },
             {
               "type": "null"

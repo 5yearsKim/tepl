@@ -26,6 +26,17 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
     for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
     for (const auto& [value, type] : plan.constructed_metadata)
       c.checkMetadataType(value, type);
+    // These source-only expressions are total on the admitted domain. Prove
+    // them from source legality and the written guard before checking any
+    // conditional builder expression. No feasibility fact is assumed.
+    for (const auto& condition : candidate.feasibility) {
+      c.validateSource(condition);
+      if (condition->sort != Symbol::Sort::Boolean)
+        throw ProofFailure("feasibility obligation must be Boolean",
+                           FailureKind::InvalidCandidate);
+      c.wellFormed(condition);
+      c.require(condition, GuardKind::CoordinateOrder);
+    }
     for (const auto& n : plan.nodes)
       if (plan.needsSynthesis(n)) {
         const auto& fields = candidate.constructors.at(n.descriptor->value);

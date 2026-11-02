@@ -21,7 +21,9 @@ std::string_view stopReasonName(StopReason s) {
 }
 Result run(const executable::ExecutableProgram& program,
            const core::ConcreteGraph& input, const Options& options) {
-  executable::validate(program);
+  // ExecutableProgram is an immutable snapshot validated by its only factories
+  // (lowering and loading). Revalidating it here would repeat guard/DAG checks
+  // on every application; only the caller-owned graph needs validation.
   executable::validateGraph(program.ir(), input);
   if (!options.rule.empty()) {
     std::size_t count = 0;

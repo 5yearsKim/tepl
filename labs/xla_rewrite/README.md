@@ -6,6 +6,7 @@ express, compile and verify.
 - [Catalog](catalog/README.md): pinned XLA sources, equations, conditions and counting policy.
 - [TEPL project](tepl/README.md): local HLO dialects, explicit rules and input graphs.
 - [Coverage](coverage/README.md): experiment inputs, tools and reproduction commands.
+- [Operation-family coverage](coverage/reports/operation_families.md): overlapping case counts by participating operations, with separate transpose and reshape families.
 - [Attribute synthesis report](coverage/reports/attribute_synthesis.md): field-level axis inference, verification-only outcomes, and theorem admission candidates.
 - [Compilation report](coverage/reports/compilation.md): language coverage and executable compilation.
 - [Specification size](specification_size/README.md): matched explicit/inferred rule sizes, token attribution, and XLA excerpt review.

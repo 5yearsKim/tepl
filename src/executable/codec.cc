@@ -1,4 +1,5 @@
 #include "src/executable/codec.h"
+#include "src/inference/extensions.h"
 
 #include <algorithm>
 #include <charconv>
@@ -121,11 +122,19 @@ ExecutableProgram load(std::string_view text) {
     ExecutableProgram p;
     p.policy_ = j.at("policy");
     p.ir_ = detail::unpack<ProgramData>(j.at("program"));
+    bool core = false;
+    for(const auto& r:p.ir_.rules)core |= r.core.has_value();
+    if(core && (p.policy_!="algebraic" || std::find(j.at("capabilities").begin(),j.at("capabilities").end(),"tepl.core-dag.v1")==j.at("capabilities").end()))
+      throw std::invalid_argument("missing core DAG capability or algebraic policy");
+    for (const auto& r : p.ir_.rules) if (r.core && inference::hasExtensions(r.core->program) &&
+        std::find(j.at("capabilities").begin(), j.at("capabilities").end(), "tepl.core-schemas.v1") == j.at("capabilities").end())
+      throw std::invalid_argument("missing core schema capability");
     bool inference = false;
     for (const auto& r : p.ir_.rules) inference |= r.inference.has_value();
     if (inference && j.at("capabilities").size() != 3)
       throw std::invalid_argument("missing inferred-applicability capability");
     p.axes_ = detail::unpack<decltype(p.axes_)>(j.at("axis_definitions"));
+    for(const auto& r:p.ir_.rules)if(r.core)p.cores_.emplace(r.id.value,inference::emit(r.core->program));
     validate(p);
     return p;
   } catch (const Json::exception& e) {
@@ -146,6 +155,8 @@ std::string serialize(const ExecutableProgram& p) {
       j["capabilities"].push_back("tepl.inferred-applicability.v1");
       break;
     }
+  for(const auto& r:p.ir_.rules)if(r.core){j["capabilities"].push_back("tepl.core-dag.v1");break;}
+  for (const auto& r : p.ir_.rules) if (r.core && inference::hasExtensions(r.core->program)) { j["capabilities"].push_back("tepl.core-schemas.v1"); break; }
   const auto spec = Json::parse(schema());
   check(j, spec, spec, "$");
   return j.dump(2) + "\n";

@@ -57,6 +57,11 @@ bool hasWitness(const Plan& plan, const Rule& rule) {
         continue;
       }
       auto left = ranks.at(n.inputs[0]);
+      if (n.kind == inference::Kind::Addition) {
+        // Actual shape legality is checked by analyze below.
+        ranks.push_back(left);
+        continue;
+      }
       auto& fields = metadata.descriptors[*n.descriptor];
       if (n.kind == inference::Kind::Permutation) {
         if (fields.empty()) {
@@ -68,6 +73,14 @@ bool hasWitness(const Plan& plan, const Rule& rule) {
                          fields[n.fields[0]].end());
         }
         ranks.push_back(left);
+      } else if (n.kind == inference::Kind::Summation) {
+        if (fields.empty()) {
+          fields.resize(1);
+          for (std::size_t i = 0; i < left; ++i)
+            if (attempt > 4 && choose(2)) fields[n.fields[0]].push_back(i);
+        }
+        if (fields[n.fields[0]].size() > left) break;
+        ranks.push_back(left - fields[n.fields[0]].size());
       } else {
         auto right = ranks.at(n.inputs[1]);
         if (fields.empty()) {
@@ -228,6 +241,7 @@ std::string suggestRestrictions(const Plan& input, const Rule& rule,
             identity);
         continue;
       }
+      if (contract->kind != axis::OrderedContract::Kind::Contraction) continue;
       for (std::size_t operand = 0; operand < 2; ++operand) {
         auto child = n.inputs[operand];
         const auto& producer = plan.nodes[child];

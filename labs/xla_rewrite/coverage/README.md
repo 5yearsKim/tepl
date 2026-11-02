@@ -20,6 +20,9 @@ or legacy non-axis synthesis.
 - [Specification size](../specification_size/README.md): a fresh paired axis-only run with whole-rule token counts and a savings breakdown.
 - [Case table](reports/synthesis_cases.md): one outcome per original case,
   including exclusions and the separate negative control.
+- [Operation-family coverage](reports/operation_families.md): overlapping family
+  memberships across the 209 rewrite cases, with separate transpose and reshape
+  families, representative operations, and counts with percentages.
 - [Protocol](reports/axis_only_scope.md): migration, normalization, admission,
   and success criteria.
 - [TEPL project](../tepl/README.md): source fixtures and canonical migrated rules.
@@ -72,6 +75,9 @@ mathematical procedure is not fully implemented by the production search.
 | [scripts/run_synthesis.py](scripts/run_synthesis.py) | One-task runner; no legacy inference modes |
 | [scripts/synthesis_report.py](scripts/synthesis_report.py) | Integrity validation and report generation |
 | [tests/test_synthesis.py](tests/test_synthesis.py) | Migration, domain, and success-accounting regressions |
+| [data/operation_family_mapping.json](data/operation_family_mapping.json) | Complete operation-to-family mapping for corpus reporting |
+| [data/case_families.json](data/case_families.json) | Generated per-case memberships and family counts, excluding the control from summaries |
+| [scripts/operation_families.py](scripts/operation_families.py) | Generate or check the family classification and report without rerunning measurements |
 
 ## Corpus and structural compilation
 

@@ -1,0 +1,13 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+cc_binary(name="benchmark",srcs=["accepted_core.cc", "dense_reference.h"],deps=["//src/core:pipeline","//src/rewrite","@nlohmann_json//:json"])
+cc_test(name="acceptance_test",copts=["-UNDEBUG"],size="medium",srcs=["accepted_core.cc", "dense_reference.h"],args=["--test"]+["$(rootpath %s)"%p for p in glob(["inputs/*.tepl"])],data=glob(["inputs/*.tepl"]),deps=["//src/core:pipeline","//src/rewrite","@nlohmann_json//:json"])
+
+cc_test(
+    name="extensions_test",
+    copts=["-UNDEBUG"], size="medium",
+    srcs=["extensions_test.cc", "dense_reference.h"],
+    args=["$(rootpath inputs/extension_dialect.txt)"],
+    data=["inputs/extension_dialect.txt"],
+    deps=["//src/core:pipeline", "//src/rewrite", "//src/inference", "@nlohmann_json//:json"],
+)

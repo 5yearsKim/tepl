@@ -16,6 +16,10 @@ std::string_view targetName(Target target) {
 }
 GenerationResult generate(const executable::ExecutableProgram& program,
                           const Options& options) {
+  for (const auto& rule : program.ir().rules)
+    if (rule.core)
+      return {{},
+              {{{}, "core DAG requires the native portable-program runtime"}}};
   if (options.target == Target::kCpp) return cpp::generate(program, options);
   if (options.target != Target::kRust)
     return {{},

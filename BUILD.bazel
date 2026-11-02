@@ -8,10 +8,12 @@ exports_files(glob(["examples/**/*.tepl", "examples/**/tepl.toml"]) + ["docs/ref
 
 cc_binary(
     name = "tepl",
-    srcs = ["src/cli/main.cc", "src/cli/semantic_report.cc", "src/cli/semantic_report.h"],
+    srcs = ["src/cli/main.cc", "src/cli/semantic_report.cc", "src/cli/semantic_report.h", "src/cli/core_emission.cc", "src/cli/core_emission.h"],
     visibility = ["//tests:__pkg__"],
     deps = [
         "//src/core:pipeline",
+        "//src/core/attr_synth:ordered",
+        "@nlohmann_json//:json",
         "//src/codegen",
         "//src/codegen:write",
         "//src/core/syntax:syntax",

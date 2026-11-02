@@ -10,3 +10,23 @@ cc_binary(
         "@nlohmann_json//:json",
     ],
 )
+
+cc_binary(
+    name = "core_emission_benchmark",
+    srcs = ["core_emission_benchmark.cc"],
+    deps = ["//src/core:pipeline", "//src/core/attr_synth:ordered", "@nlohmann_json//:json"],
+)
+
+cc_binary(
+    name = "certified_benchmark",
+    srcs = ["certified_benchmark.cc"],
+    deps = [
+        "//src/core:pipeline",
+        "//src/core/resolution",
+        "//src/core/checking",
+        "//src/core/semantics",
+        "//src/core/lowering",
+        "//src/executable",
+        "@nlohmann_json//:json",
+    ],
+)

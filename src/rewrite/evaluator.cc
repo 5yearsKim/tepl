@@ -320,6 +320,49 @@ bool Evaluator::evaluateWhere() {
   if (!allowed) return false;
   auto where_locals = std::move(bindings_.locals);
   bindings_.locals.clear();
+  if (rule.core) {
+    inference::Metadata metadata;
+    for (auto c : rule.core->program.source.back().captures) {
+      const auto& node = graph_.nodes.at(bindings_.captures.at(c));
+      if (!node.shape)
+        throw ConditionUnavailable("core input shape unavailable");
+      metadata.shapes[c] = *node.shape;
+    }
+    for (const auto& n : rule.core->program.source)
+      if (n.descriptor) {
+        auto& fields = metadata.descriptors[*n.descriptor];
+        if (!fields.empty()) continue;
+        for (const auto& field :
+             bindings_.descriptors.at(*n.descriptor).fields) {
+          inference::List xs;
+          for (const auto& x : list(field)) {
+            auto v = integer(x);
+            if (v < 0 || v > std::numeric_limits<std::int64_t>::max())
+              throw EvaluationError("core axis integer range");
+            xs.push_back(static_cast<std::int64_t>(v));
+          }
+          fields.push_back(std::move(xs));
+        }
+      }
+    auto result = inference::executeSound(program_.core(rule_), metadata,
+                                          {budget_.steps, budget_.max_list});
+    budget_.charge(result.work);
+    if (result.status == inference::Status::ResourceLimit)
+      throw LimitError(result.reason);
+    if (result.status != inference::Status::Solved)
+      throw EvaluationError("core constructor precondition failed");
+    for (const auto& [id, fields] : result.attributes) {
+      auto schema =
+          program_.ir().types.at(rule.descriptors.at(id).type.value).schema;
+      DescriptorValue descriptor{schema->value, {}};
+      for (const auto& field : fields) {
+        List xs;
+        for (auto x : field) xs.emplace_back(Integer(x));
+        descriptor.fields.emplace_back(std::move(xs));
+      }
+      bindings_.descriptors[id] = std::move(descriptor);
+    }
+  }
   for (const auto& d : rule.derivations) {
     auto value = eval(*d.value);
     if (d.target)

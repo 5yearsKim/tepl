@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "src/core/semantics/ir.h"
+#include "src/inference/emission.h"
 
 namespace tepl::core::attr_synth {
 
@@ -13,6 +14,10 @@ enum class Strategy { Identity, Ordered, General };
 // Steps and guard origins are diagnostics, never proof evidence.
 struct Result {
   bool constructed = false;
+  // Guaranteed structural construction for admitted plans, before symbolic
+  // normalization. Retained even if bounded expression specialization fails.
+  std::optional<inference::Emission> metadata_program;
+  semantics::SymbolPtr output_shape;
   semantics::ConstructorCandidate candidate;
   std::string reason;
   std::vector<semantics::RuleProof::GuardOrigin> guard_origins;

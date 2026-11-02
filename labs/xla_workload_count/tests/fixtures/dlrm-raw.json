@@ -1,0 +1,176 @@
+{
+  "distinct_rule_sites": 33,
+  "input": "evaluation/xla-rewrite-count/inputs/dlrm.hlo",
+  "model_compilations": 1,
+  "pass_invocations": 8,
+  "rule_identity": "Outermost successful transformation branch, identified by function and original source line; equivalent branches remain separate variants",
+  "rules": [
+    {
+      "applications": 1,
+      "function": "HandleAnd",
+      "original_line": 1405
+    },
+    {
+      "applications": 24,
+      "function": "HandleBroadcast",
+      "original_line": 5605
+    },
+    {
+      "applications": 5,
+      "function": "HandleBroadcast",
+      "original_line": 5645
+    },
+    {
+      "applications": 5,
+      "function": "HandleBroadcast",
+      "original_line": 5681
+    },
+    {
+      "applications": 2,
+      "function": "HandleBroadcast",
+      "original_line": 5723
+    },
+    {
+      "applications": 1,
+      "function": "HandleCompare",
+      "original_line": 5761
+    },
+    {
+      "applications": 1,
+      "function": "HandleCompare",
+      "original_line": 5767
+    },
+    {
+      "applications": 1,
+      "function": "HandleConstant",
+      "original_line": 2317
+    },
+    {
+      "applications": 4,
+      "function": "HandleDivide",
+      "original_line": 2478
+    },
+    {
+      "applications": 16,
+      "function": "HandleDivide",
+      "original_line": 2614
+    },
+    {
+      "applications": 12,
+      "function": "HandleGetTupleElement",
+      "original_line": 5389
+    },
+    {
+      "applications": 1,
+      "function": "HandleMultiply",
+      "original_line": 5025
+    },
+    {
+      "applications": 1,
+      "function": "HandleMultiply",
+      "original_line": 5056
+    },
+    {
+      "applications": 1,
+      "function": "HandleMultiply",
+      "original_line": 5132
+    },
+    {
+      "applications": 17,
+      "function": "HandleMultiply",
+      "original_line": 5165
+    },
+    {
+      "applications": 1,
+      "function": "HandleReduce",
+      "original_line": 8870
+    },
+    {
+      "applications": 5,
+      "function": "HandleReduce",
+      "original_line": 9009
+    },
+    {
+      "applications": 5,
+      "function": "HandleReduce",
+      "original_line": 9023
+    },
+    {
+      "applications": 14,
+      "function": "HandleReshape",
+      "original_line": 6744
+    },
+    {
+      "applications": 44,
+      "function": "HandleReshape",
+      "original_line": 6750
+    },
+    {
+      "applications": 4,
+      "function": "HandleReshape",
+      "original_line": 6898
+    },
+    {
+      "applications": 1,
+      "function": "HandleReshape",
+      "original_line": 6945
+    },
+    {
+      "applications": 2,
+      "function": "HandleSelect",
+      "original_line": 9840
+    },
+    {
+      "applications": 1,
+      "function": "HandleTranspose",
+      "original_line": 10114
+    },
+    {
+      "applications": 1,
+      "function": "HandleTranspose",
+      "original_line": 10118
+    },
+    {
+      "applications": 1,
+      "function": "RemoveDegenerateDimensionFromDot",
+      "original_line": 2742
+    },
+    {
+      "applications": 2,
+      "function": "RemoveDegenerateDimensionFromDot",
+      "original_line": 2744
+    },
+    {
+      "applications": 22,
+      "function": "ReplaceReduceWithReshape",
+      "original_line": 8661
+    },
+    {
+      "applications": 1,
+      "function": "RewriteAsMultiplyDotWithZeroLhsContractingDim",
+      "original_line": 3785
+    },
+    {
+      "applications": 2,
+      "function": "SimplifyTransposeOfBroadcast",
+      "original_line": 2824
+    },
+    {
+      "applications": 1,
+      "function": "TryToSinkBroadcastAfterElementwiseOps",
+      "original_line": 6358
+    },
+    {
+      "applications": 1,
+      "function": "operator()",
+      "original_line": 2590
+    },
+    {
+      "applications": 6,
+      "function": "operator()",
+      "original_line": 10187
+    }
+  ],
+  "scope": "All AlgebraicSimplifier invocations in one normal XLA CPU compilation",
+  "total_applications": 206
+}

@@ -21,6 +21,7 @@ sh_test(
 
 cc_test(
     name = "attribute_reasoning_test",
+    copts = ["-UNDEBUG"],
     size = "medium",
     srcs = ["attribute_reasoning_test.cc"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
@@ -30,11 +31,12 @@ cc_test(
 
 cc_test(
     name = "ordered_synthesis_test",
+    copts = ["-UNDEBUG"],
     size = "medium",
     srcs = ["ordered_synthesis_test.cc", "index_constructor_eval.h", "index_reference.h"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
     data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
-    deps = ["//src/core/attr_synth:ordered", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:reasoning", "@rules_cc//cc/runfiles"],
+    deps = ["//src/core/attr_synth", "//src/core/attr_synth:ordered", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:reasoning", "//src/core/semantics:proof", "//src/executable", "//src/shared/catalog", "@rules_cc//cc/runfiles"],
 )
 
 cc_test(
@@ -270,6 +272,7 @@ cc_test(
 
 cc_test(
     name = "rewrite_test",
+    copts = ["-UNDEBUG"],
     size = "small",
     srcs = ["rewrite_test.cc"],
     args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
@@ -353,6 +356,7 @@ sh_test(
 
 cc_test(
     name = "codegen_test",
+    copts = ["-UNDEBUG"],
     size = "small",
     srcs = ["codegen_test.cc"],
     deps = ["//src/codegen", "//src/codegen:write", "//src/core:pipeline", "//src/core/syntax:syntax", "//src/support:temporary_directory"],
@@ -372,6 +376,7 @@ cc_binary(
 
 cc_test(
     name = "axis_auto_test",
+    copts = ["-UNDEBUG"],
     size = "small",
     srcs = ["axis_auto_test.cc"],
     deps = ["//src/core:pipeline", "//src/core/semantics:proof", "//src/executable", "//src/rewrite"],
@@ -379,6 +384,7 @@ cc_test(
 
 cc_test(
     name = "codegen_cpp_test",
+    copts = ["-UNDEBUG"],
     size = "small",
     srcs = ["codegen_cpp_test.cc"],
     deps = ["//src/codegen", "//src/core:pipeline", "//src/core/syntax:syntax"],

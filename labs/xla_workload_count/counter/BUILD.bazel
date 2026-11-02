@@ -1,0 +1,6 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+cc_binary(
+ name="rewrite_count",srcs=["driver.cc"],
+ copts=["-std=c++17","-fexceptions"],linkopts=["-ldl"],linkstatic=True,
+ deps=["//xla/hlo/transforms/simplifiers:algebraic_simplifier","//xla/hlo/evaluator:hlo_evaluator","//xla/hlo/transforms/simplifiers:hlo_dce","@com_google_absl//absl/algorithm:container","//xla/service:transpose_folding","//xla/service:hlo_verifier","//xla/service:hlo_runner","//xla/hlo/parser:hlo_parser","//xla/hlo/ir:hlo","//xla:literal","//xla:literal_comparison","//xla:literal_util","//xla:shape_util","//xla:util","//xla:xla_data_proto_cc","//xla/pjrt/plugin/xla_cpu:xla_cpu_pjrt_client","//xla/tsl/platform:statusor","@com_google_absl//absl/status","@com_google_absl//absl/status:statusor","@com_google_absl//absl/status:status_macros","@com_google_absl//absl/container:flat_hash_set","@com_google_absl//absl/strings:string_view","@com_google_absl//absl/types:span","@llvm-project//llvm:Support"],
+)

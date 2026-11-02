@@ -24,6 +24,9 @@ struct Builder {
     for (const auto& rule : checked.rules) {
       executable::Rule lowered;
       static_cast<completed::RuleData&>(lowered) = rule;
+      if (lowered.core)
+        output.cores_.emplace(lowered.id.value,
+                              inference::emit(lowered.core->program));
       output.ir_.rules.push_back(std::move(lowered));
       output.axes_.push_back(input.axes(rule.id.value));
     }

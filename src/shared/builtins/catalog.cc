@@ -80,6 +80,7 @@ bool isAxisQuery(Builtin b) {
     case Builtin::kAxisSourceGroupMembers:
     case Builtin::kAxisContract:
     case Builtin::kAxisLive:
+    case Builtin::kAxisFeasible:
     case Builtin::kAxisDomain:
     case Builtin::kAxisRequired:
     case Builtin::kAxisBatch:

@@ -1,4 +1,5 @@
 #include "src/inference/evaluate.h"
+#include "src/inference/extensions.h"
 
 #include <algorithm>
 #include <numeric>
@@ -94,7 +95,8 @@ struct Replay {
   std::map<std::size_t, std::vector<AxisSequence>> groups;
 
   Replay(const Program& p, const Metadata& m, const Attributes& a, Work& w,
-         Status error = Status::InvalidSource)
+         Status error = Status::InvalidSource,
+         std::uint64_t minimum_extent = DomainRequirements::minimum_extent)
       : attributes(a), work(w), invalid(error) {
     for (auto capture : p.source.back().captures) {
       work.tick();
@@ -106,7 +108,7 @@ struct Replay {
       for (std::size_t i = 0; i < it->second.size(); ++i) {
         work.tick();
         work.size(network.ports.size() + 1);
-        if (it->second[i] < 2)
+        if (it->second[i] < minimum_extent)
           throw Failure{Status::OutsideDomain, "ordered extents must be >= 2"};
         layout.push_back(network.ports.size());
         network.ports.push_back({capture, i, it->second[i]});
@@ -153,6 +155,21 @@ struct Replay {
       auto& out = layouts[id];
       if (n.kind == Kind::Input) {
         out = network.inputs.at(*n.capture);
+      } else if (n.kind == Kind::Addition) {
+        const auto& left = layouts[n.inputs[0]];
+        const auto& right = layouts[n.inputs[1]];
+        if (left.size() != right.size())
+          throw Failure{invalid, "addition operand ranks differ"};
+        for (std::size_t i = 0; i < left.size(); ++i) {
+          work.tick();
+          if (network.ports[left[i]].extent != network.ports[right[i]].extent)
+            throw Failure{invalid, "addition operand shapes differ"};
+        }
+        // This schedule checks source legality only. Additive equivalence is
+        // checked in separate component networks; never join their ports here.
+        out = left;
+        groups[n.node].resize(5);
+        groups[n.node][4] = out;
       } else {
         auto it = attributes.find(*n.descriptor);
         if (it == attributes.end())
@@ -172,6 +189,17 @@ struct Replay {
           if (permutation.size() != left.size())
             throw Failure{invalid, "permutation is not full rank"};
           for (auto i : permutation) out.push_back(left[i]);
+        } else if (n.kind == Kind::Summation) {
+          const auto& dimensions = fields[n.fields[0]];
+          selection(dimensions, left.size(), left_used);
+          for (auto i : dimensions) g[1].push_back(left[i]);
+          for (std::size_t i = 0; i < left.size(); ++i) {
+            work.tick();
+            if (!left_used.contains(i)) {
+              out.push_back(left[i]);
+              g[2].push_back(left[i]);
+            }
+          }
         } else {
           const auto& right = layouts[n.inputs[1]];
           const auto& lb = fields[n.fields[0]];
@@ -255,18 +283,36 @@ struct Analysis {
         work.tick();
         if (!intersect(s, captures, work).empty() &&
             (final.contains(a) || !difference(s, captures, work).empty()))
-          r.live.insert(a);
+          r.mandatory_axes.insert(a);
       }
       if (n.kind == Kind::Contraction) {
         const auto& left =
-            result.requirements.at(program.replacement[n.inputs[0]].node).live;
+            result.requirements.at(program.replacement[n.inputs[0]].node)
+                .retained_axes;
         const auto& right =
-            result.requirements.at(program.replacement[n.inputs[1]].node).live;
+            result.requirements.at(program.replacement[n.inputs[1]].node)
+                .retained_axes;
         auto shared = intersect(left, right, work);
-        r.batch = intersect(shared, r.live, work);
-        r.contract = difference(shared, r.live, work);
+        r.batch = intersect(shared, r.mandatory_axes, work);
+        r.contract = difference(shared, r.mandatory_axes, work);
         r.left_free = difference(left, right, work);
         r.right_free = difference(right, left, work);
+        r.retained_axes = r.batch;
+        r.retained_axes.insert(r.left_free.begin(), r.left_free.end());
+        r.retained_axes.insert(r.right_free.begin(), r.right_free.end());
+      } else if (n.kind == Kind::Input) {
+        r.retained_axes = set(result.source.inputs.at(*n.capture), work);
+      } else {
+        const auto& child =
+            result.requirements.at(program.replacement[n.inputs[0]].node)
+                .retained_axes;
+        r.retained_axes = n.kind == Kind::Summation
+                              ? intersect(child, r.mandatory_axes, work)
+                              : child;
+        if (n.kind == Kind::Summation) {
+          r.contract = difference(child, r.retained_axes, work);
+          r.left_free = r.retained_axes;
+        }
       }
     }
   }
@@ -282,6 +328,9 @@ struct Analysis {
       if (n.kind == Kind::Permutation)
         result.requirements[program.replacement[n.inputs[0]].node]
             .required_order = {};
+      if (n.kind == Kind::Summation)
+        result.requirements[program.replacement[n.inputs[0]].node]
+            .required_order = r.required_order;
       if (n.kind == Kind::Contraction) {
         result.requirements[program.replacement[n.inputs[0]].node]
             .required_order = filter(r.required_order, r.left_free, work);
@@ -294,10 +343,27 @@ struct Analysis {
   std::optional<Obstruction> obstruction() {
     std::map<std::size_t, const Instruction*> instructions;
     for (const auto& n : program.replacement) instructions[n.node] = &n;
+    const auto root = program.replacement.back().node;
+    const auto& retained = result.requirements.at(root).retained_axes;
+    if (retained != final) {
+      auto extra = difference(retained, final, work);
+      auto missing = difference(final, retained, work);
+      auto axis = extra.empty() ? *missing.begin() : *extra.begin();
+      return Obstruction{root, axis, axis, Obstruction::Kind::RetainedSet};
+    }
     for (const auto& [id, r] : result.requirements) {
       work.tick();
+      auto q = set(r.required_order, work);
+      if (q.size() != r.required_order.size() ||
+          !difference(q, r.retained_axes, work).empty()) {
+        auto extra = difference(q, r.retained_axes, work);
+        auto axis = extra.empty() ? r.required_order.front() : *extra.begin();
+        return Obstruction{id, axis, axis, Obstruction::Kind::Requirement};
+      }
       const auto& n = *instructions.at(id);
-      if (n.kind == Kind::Permutation || r.required_order.size() < 2) continue;
+      if (n.kind == Kind::Permutation || n.kind == Kind::Summation ||
+          r.required_order.size() < 2)
+        continue;
       std::map<AxisId, std::size_t> input_positions;
       if (n.capture) {
         const auto& order = result.source.inputs.at(*n.capture);
@@ -333,8 +399,13 @@ struct Analysis {
       auto& fields = result.attributes[*n.descriptor];
       fields.resize(n.fields.size());
       if (n.kind == Kind::Permutation) {
-        output = extend(r.required_order, r.live, left, work);
+        output = extend(r.required_order, r.retained_axes, left, work);
         fields[n.fields[0]] = positions(left, output, work);
+      } else if (n.kind == Kind::Summation) {
+        auto removed = difference(set(left, work), r.retained_axes, work);
+        fields[n.fields[0]] =
+            positions(left, filter(left, removed, work), work);
+        output = filter(left, r.retained_axes, work);
       } else {
         const auto& right =
             result.layouts.at(program.replacement[n.inputs[1]].node);
@@ -367,13 +438,43 @@ Attributes explicitAttributes(const Program& p, const Metadata& m) {
 
 Result run(const Program& p, const Metadata& m, const Limits& limits,
            bool construct, bool analyze_only = false) {
+  if (hasExtensions(p)) { Result r; r.status=Status::Unsupported; r.reason="schema extensions require certified emission"; return r; }
   Work work(limits);
   Result out;
   try {
     validate(p);
     Replay replay(p, m, m.descriptors, work);
     auto source = replay.run(p.source);
-    if (analyze_only) {
+    if (!p.components.empty()) {
+      // The original schedule establishes legality, not a shared additive
+      // axis network. Only the component results expose equivalence classes.
+      out.status = analyze_only ? Status::Analyzed
+                   : construct  ? Status::Solved
+                                : Status::Feasible;
+      if (!analyze_only && p.mode == Mode::Validate) {
+        auto attrs = explicitAttributes(p, m);
+        Replay rhs(p, m, attrs, work, Status::InvalidReplacement);
+        rhs.run(p.replacement);  // Check every actual addition's shape.
+        out.status = Status::Solved;
+      }
+      for (const auto& component : p.components) {
+        Program single{p.mode, component.source, component.replacement, {}};
+        auto r = run(single, m, {work.remaining, work.max_axes}, construct,
+                     analyze_only);
+        work.charge(r.work);
+        if (r.status != out.status) {
+          out.status = r.status;
+          out.reason = r.reason;
+        }
+        out.components.push_back(std::move(r));
+        if (out.status != Status::Analyzed && out.status != Status::Solved &&
+            out.status != Status::Feasible)
+          break;
+      }
+      if (out.status == Status::Solved)
+        for (const auto& r : out.components)
+          out.attributes.insert(r.attributes.begin(), r.attributes.end());
+    } else if (analyze_only) {
       Analysis a(p, work, std::move(source));
       if (p.mode == Mode::Synthesize) {
         a.boundaries();
@@ -404,7 +505,8 @@ Result run(const Program& p, const Metadata& m, const Limits& limits,
       a.ordering();
       if (auto witness = a.obstruction()) {
         a.result.status = Status::Impossible;
-        a.result.reason = "required axes have incompatible relative order";
+        a.result.reason =
+            "retained axes or required relative order are incompatible";
         a.result.obstruction = witness;
       } else if (construct) {
         a.construct();
@@ -426,6 +528,29 @@ Result run(const Program& p, const Metadata& m, const Limits& limits,
 }
 }  // namespace
 
+Result replaySource(const Program& p, const Metadata& m, const Limits& limits,
+                    bool allow_degenerate) {
+  if (hasExtensions(p)) { Result r; r.status=Status::Unsupported; r.reason="schema extensions require certified emission"; return r; }
+  Work work(limits);
+  Result out;
+  try {
+    validate(p);
+    Replay replay(p, m, m.descriptors, work, Status::InvalidSource,
+                  allow_degenerate ? 0 : DomainRequirements::minimum_extent);
+    out.source = replay.run(p.source);
+    out.replay_layouts = std::move(replay.outputs);
+    out.replay_groups = std::move(replay.groups);
+    out.status = Status::Analyzed;
+  } catch (const Failure& f) {
+    out.status = f.status;
+    out.reason = f.reason;
+  } catch (const std::invalid_argument& e) {
+    out.reason = e.what();
+  }
+  out.work = work.initial - work.remaining;
+  return out;
+}
+
 Result evaluate(const Program& p, const Metadata& m, const Limits& limits) {
   return run(p, m, limits, true);
 }
@@ -434,42 +559,97 @@ Result analyze(const Program& p, const Metadata& m, const Limits& limits) {
 }
 Result construct(const Program& p, const Result& analysis,
                  const Limits& limits) {
+  if (hasExtensions(p)) { Result r; r.status=Status::Unsupported; r.reason="schema extensions require certified emission"; return r; }
   Work work(limits);
   Result out;
   try {
     if (p.mode != Mode::Synthesize || analysis.status != Status::Analyzed)
       throw std::invalid_argument(
           "constructor requires analyzed synthesis metadata");
+    validate(p);
+    if (!p.components.empty()) {
+      if (analysis.components.size() != p.components.size())
+        throw std::invalid_argument("missing component analysis");
+      out.status = Status::Solved;
+      for (std::size_t i = 0; i < p.components.size(); ++i) {
+        const auto& component = p.components[i];
+        Program single{p.mode, component.source, component.replacement, {}};
+        auto r = inference::construct(single, analysis.components[i],
+                                      {work.remaining, work.max_axes});
+        work.charge(r.work);
+        out.components.push_back(std::move(r));
+        if (out.components.back().status != Status::Solved) {
+          out.status = out.components.back().status;
+          out.reason = out.components.back().reason;
+          break;
+        }
+      }
+      if (out.status == Status::Solved)
+        for (const auto& r : out.components)
+          out.attributes.insert(r.attributes.begin(), r.attributes.end());
+      out.work = work.initial - work.remaining;
+      return out;
+    }
     Analysis a(p, work, analysis.source);
-    a.result.requirements = analysis.requirements;
+    a.boundaries();
+    a.ordering();
+    if (a.result.requirements != analysis.requirements)
+      throw std::invalid_argument("inconsistent analyzed requirements");
+    if (auto witness = a.obstruction()) {
+      a.result.status = Status::Impossible;
+      a.result.reason =
+          "retained axes or required relative order are incompatible";
+      a.result.obstruction = witness;
+      a.result.work = work.initial - work.remaining;
+      return std::move(a.result);
+    }
     a.construct();
     a.result.status = Status::Solved;
     out = std::move(a.result);
   } catch (const Failure& f) {
+    out = {};
     out.status = f.status;
     out.reason = f.reason;
+  } catch (const std::invalid_argument& e) {
+    out = {};
+    out.reason = e.what();
   }
   out.work = work.initial - work.remaining;
   return out;
 }
 Result replayReplacement(const Program& p, const Metadata& m,
                          const Limits& limits) {
+  if (hasExtensions(p)) { Result r; r.status=Status::Unsupported; r.reason="schema extensions require certified emission"; return r; }
   Work work(limits);
   Result out;
   try {
     validate(p);
     auto attrs = explicitAttributes(p, m);
     Replay replay(p, m, attrs, work, Status::InvalidReplacement);
-    out.source = replay.run(p.replacement);
-    out.replay_layouts = replay.outputs;
-    out.replay_groups = std::move(replay.groups);
-    out.layouts = std::move(replay.outputs);
+    auto network = replay.run(p.replacement);
+    if (p.components.empty()) {
+      out.source = std::move(network);
+      out.replay_layouts = replay.outputs;
+      out.replay_groups = std::move(replay.groups);
+      out.layouts = std::move(replay.outputs);
+    } else {
+      for (const auto& component : p.components) {
+        Program single{p.mode, component.source, component.replacement, {}};
+        auto r = replayReplacement(single, m, {work.remaining, work.max_axes});
+        work.charge(r.work);
+        if (r.status != Status::Analyzed) throw Failure{r.status, r.reason};
+        out.components.push_back(std::move(r));
+      }
+    }
     out.attributes = std::move(attrs);
     out.status = Status::Analyzed;
   } catch (const Failure& f) {
     out = {};
     out.status = f.status;
     out.reason = f.reason;
+  } catch (const std::invalid_argument& e) {
+    out = {};
+    out.reason = e.what();
   }
   out.work = work.initial - work.remaining;
   return out;
@@ -483,6 +663,36 @@ bool check(const Program& p, const Metadata& m, const Result& r) {
     validate(p);
     Replay replay(p, m, m.descriptors, work);
     auto source = replay.run(p.source);
+    if (!p.components.empty()) {
+      if (r.source != SourceNetwork{}) return false;
+      if (!r.requirements.empty() || !r.layouts.empty() || r.obstruction ||
+          r.components.empty() || r.components.size() > p.components.size())
+        return false;
+      Attributes attributes;
+      bool impossible = false;
+      for (std::size_t i = 0; i < r.components.size(); ++i) {
+        const auto& component = p.components[i];
+        const auto& certificate = r.components[i];
+        Program single{p.mode, component.source, component.replacement, {}};
+        if (!check(single, m, certificate)) return false;
+        impossible |= certificate.status == Status::Impossible;
+        if (r.status != Status::Impossible && certificate.status != r.status)
+          return false;
+        attributes.insert(certificate.attributes.begin(),
+                          certificate.attributes.end());
+      }
+      if (r.status == Status::Impossible)
+        return impossible && r.attributes.empty();
+      if (r.components.size() != p.components.size() ||
+          r.attributes != attributes)
+        return false;
+      if (r.status == Status::Solved) {
+        Replay rhs(p, m, r.attributes, work, Status::InvalidReplacement);
+        rhs.run(p.replacement);
+        return true;
+      }
+      return r.status == Status::Feasible;
+    }
     if (source != r.source) return false;
     if (p.mode == Mode::Validate) {
       if (r.status != Status::Solved || !r.requirements.empty() ||

@@ -5,9 +5,11 @@
 
 #include "src/executable/program.h"
 #include "src/inference/evaluate.h"
+#include "src/inference/extensions.h"
 #include "src/shared/builtins/axes.h"
 #include "src/shared/builtins/intrinsics/catalog.h"
 #include "src/shared/catalog/axis_conditions.h"
+#include "src/shared/catalog/core_guard.h"
 #include "src/shared/metadata/ordered.h"
 #include "src/shared/types/literal.h"
 
@@ -38,26 +40,52 @@ void validateInference(const ProgramData& p, const Rule& r) {
               "inference capture mismatch");
       return id;
     }
-    require(operation && operation->value < p.operations.size() && descriptor &&
+    require(operation && operation->value < p.operations.size() &&
                 n.operation == operation->value &&
-                n.descriptor == descriptor->value,
+                n.descriptor ==
+                    (descriptor ? std::optional<std::size_t>{descriptor->value}
+                                : std::nullopt),
             "inference operation/descriptor mismatch");
     const auto& op = p.operations[operation->value];
     require(bool(op.axis_contract), "inference operation lacks axis contract");
-    auto c = core::axis::recognizeOrdered(*op.axis_contract);
-    require(c.has_value(), "inference operation is outside ordered templates");
-    auto kind = c->kind == core::axis::OrderedContract::Kind::Permutation
+    auto c = inference::hasExtensions(program) ? core::axis::recognizeCoreShape(*op.axis_contract) : core::axis::recognizeOrdered(*op.axis_contract);
+    require(c.has_value(), "inference operation is outside core templates: " + op.name);
+    if (c->kind == core::axis::OrderedContract::Kind::Negation) {
+      require(n.kind == inference::Kind::Negation && n.fields.empty() && !descriptor && !op.attributes, "invalid core negation");
+      return id;
+    }
+    if (c->kind == core::axis::OrderedContract::Kind::Addition) {
+      require((n.kind == inference::Kind::Addition ||
+               (inference::hasExtensions(program) && n.kind == inference::Kind::Multiplication)) && n.fields.empty() &&
+                  !descriptor && !op.attributes,
+              "inference addition must be attribute-free");
+      return id;
+    }
+    auto kind = c->kind == core::axis::OrderedContract::Kind::UnitRemoval
+                    ? inference::Kind::UnitRemoval
+                : c->kind == core::axis::OrderedContract::Kind::Reverse
+                    ? inference::Kind::Reverse
+                : c->kind == core::axis::OrderedContract::Kind::Broadcast
+                    ? inference::Kind::Broadcast
+                : c->kind == core::axis::OrderedContract::Kind::Permutation
                     ? inference::Kind::Permutation
+                : c->kind == core::axis::OrderedContract::Kind::Summation
+                    ? inference::Kind::Summation
                     : inference::Kind::Contraction;
     auto fields =
-        kind == inference::Kind::Permutation
+        (kind == inference::Kind::Reverse || kind == inference::Kind::UnitRemoval) ? std::vector<std::size_t>{0}
+        : kind == inference::Kind::Broadcast ? std::vector<std::size_t>{0, 1}
+        : kind == inference::Kind::Permutation
             ? std::vector<std::size_t>{c->permutation}
+        : kind == inference::Kind::Summation
+            ? std::vector<std::size_t>{c->dimensions}
             : std::vector<std::size_t>{c->left_batch, c->right_batch,
                                        c->left_contract, c->right_contract};
     require(n.kind == kind && n.fields == fields,
             "inference field adapter mismatch");
-    require(op.attributes && descriptor->value < r.descriptors.size(),
-            "invalid inference descriptor");
+    require(
+        op.attributes && descriptor && descriptor->value < r.descriptors.size(),
+        "invalid inference descriptor");
     for (const auto& field :
          p.attribute_schemas.at(op.attributes->value).fields)
       require((field.type == "u64" || field.type == "i64") &&
@@ -136,6 +164,10 @@ void ids(const V& v) {
 void validate(const ExecutableProgram& program) {
   using namespace core;
   const auto& p = program.ir();
+  for (const auto& r : p.rules)
+    if (r.core)
+      require(program.policy() == "algebraic",
+              "core DAG requires algebraic semantics");
   require(program.axes_.size() == p.rules.size(),
           "axis definition table size mismatch");
   auto fieldType = [](const AttributeField& f) {
@@ -446,6 +478,15 @@ void validate(const ExecutableProgram& program) {
     require(!r.inference,
             "runtime applicability inference is unsupported; compile a rule "
             "with verified source conditions");
+    if (r.core) {
+      require(!r.inference,
+              "core DAG cannot coexist with applicability inference");
+      require(inference::validatePortable(*r.core),
+              "core DAG differs from structural emitter");
+      auto proxy = r;
+      proxy.inference = r.core->program;
+      validateInference(p, proxy);
+    }
     ids(r.captures);
     ids(r.dimensions);
     ids(r.descriptors);
@@ -786,6 +827,16 @@ void validate(const ExecutableProgram& program) {
         descriptors.insert(d.target->value);
       }
     }
+    if (r.core)
+      for (const auto& n : r.core->program.replacement)
+        if (n.descriptor) {
+          require(*n.descriptor < r.descriptors.size() &&
+                      r.descriptors[*n.descriptor].kind ==
+                          completed::Descriptor::Kind::kDerived,
+                  "invalid core descriptor");
+          require(descriptors.insert(*n.descriptor).second,
+                  "core descriptor already assigned");
+        }
     locals = std::move(where_locals);
     for (const auto& e : where_schedule.replacement) {
       expr(e);
@@ -828,6 +879,18 @@ void validate(const ExecutableProgram& program) {
     };
     build(r.rhs);
     validateInference(p, r);
+    if (r.core)
+      require(core::completed::coreTypes(
+                  r.core->program,
+                  [&](std::size_t id) -> const core::metadata::Program* {
+                    return id < p.operations.size() && p.operations[id].dtype
+                               ? &*p.operations[id].dtype
+                               : nullptr;
+                  }),
+              "core dtype contracts are not certified");
+    if (r.core)
+      require(core::completed::coreGuard(r),
+              "written guard does not certify core feasibility");
     completed::validateAxisConditions(r);
   }
   for (const auto& g : p.graphs) validateGraph(p, g);

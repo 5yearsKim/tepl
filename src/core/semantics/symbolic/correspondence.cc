@@ -157,6 +157,7 @@ Correspondence correspond(Context& c, const TensorMeaning& lhs, const Terms& lt,
         return leaves;
       };
   visit(c.plan.rhs);
+  result.mandatory_boundaries = result.boundaries;
   // Value dependencies alone do not determine a broadcast's tensor interface.
   // Propagate the consumer's output frame through whole-operand bindings. This
   // follows the declared shape contract, including renamed/custom operations;

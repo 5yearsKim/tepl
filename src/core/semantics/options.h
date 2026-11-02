@@ -5,11 +5,15 @@ namespace tepl::core {
 enum class SemanticPolicy { kStrict, kAlgebraic };
 struct SemanticOptions {
   SemanticPolicy semantic_policy = SemanticPolicy::kStrict;
+  bool core_backend = false;
+  bool certified_backend = false;
 };
 
 namespace semantics {
 struct InspectionOptions : SemanticOptions {
   bool inspect_semantic_rules = false;
+  // Inspection-only plan preparation; cannot authorize executable lowering.
+  bool defer_semantic_proofs = false;
   bool suggest_conditions = false;
   std::string semantic_rule;
   InspectionOptions() = default;

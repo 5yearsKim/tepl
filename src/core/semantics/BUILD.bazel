@@ -51,7 +51,7 @@ cc_library(
     name = "rule_proof",
     srcs = ["prove_rule.cc"],
     hdrs = ["prove_rule.h"],
-    deps = [":model", ":proof", "//src/core/attr_synth"],
+    deps = [":model", ":proof", "//src/core/attr_synth", "//src/inference"],
     visibility = ["//visibility:public"],
 )
 

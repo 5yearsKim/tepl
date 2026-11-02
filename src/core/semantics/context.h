@@ -57,7 +57,7 @@ class Context {
 
   void enableSetReasoning() { sets_ready_ = true; }
   void tick();
-  void sourceScope(std::size_t);
+  void sourceScope(std::size_t, bool import_assumptions = true);
   void validateSource(const S&);
   void wellFormed(const S&);
   void checkMetadata(const S&);

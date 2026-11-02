@@ -23,6 +23,8 @@ std::string show(const Terms&);
 struct Correspondence {
   std::map<std::size_t, S> anchors;
   std::map<std::size_t, S> boundaries;
+  // Value support boundaries before general interface propagation.
+  std::map<std::size_t, S> mandatory_boundaries;
   std::map<std::size_t, S> interfaces;
 };
 Correspondence correspond(Context&, const TensorMeaning&, const Terms&,

@@ -1,5 +1,6 @@
 #include "src/shared/catalog/axis_conditions.h"
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -37,6 +38,8 @@ class Formula {
   }
 };
 TypedExprPtr requiredExpression(const inference::Program& p, std::size_t node) {
+  if (!p.components.empty())
+    throw std::invalid_argument("axis requirements need a component scope");
   Formula f{{}, [](Type) { return TypeId{0}; }};
   if (node == p.replacement.back().node) return f.call(B::kAxisSourceOrder);
   for (const auto& parent : p.replacement)
@@ -44,6 +47,8 @@ TypedExprPtr requiredExpression(const inference::Program& p, std::size_t node) {
       if (p.replacement[parent.inputs[i]].node == node) {
         if (parent.kind == inference::Kind::Permutation)
           return f.make(listType(logicalAxisType()), ListExpr{});
+        if (parent.kind == inference::Kind::Summation)
+          return requiredExpression(p, parent.node);
         return f.call(B::kAxisFilter,
                       {requiredExpression(p, parent.node),
                        f.query(i == 0 ? B::kAxisLeftFree : B::kAxisRightFree,
@@ -136,12 +141,25 @@ std::vector<TypedExprPtr> axisConditions(
     const std::function<TypeId(Type)>& type) {
   Formula f{origin, type};
   std::vector<TypedExprPtr> result{f.call(B::kAxisDomain)};
+  if (!p.components.empty()) {
+    result.push_back(f.call(B::kAxisFeasible));
+    return result;
+  }
   if (p.mode == inference::Mode::Validate) {
     result.push_back(f.call(B::kAxisRhsLegal));
     result.push_back(
         f.equal(f.call(B::kAxisSourcePartition), f.call(B::kAxisRhsPartition)));
     result.push_back(
         f.equal(f.call(B::kAxisSourceOrder), f.call(B::kAxisRhsOrder)));
+    return result;
+  }
+  if (std::any_of(
+          p.source.begin(), p.source.end(),
+          [](const auto& n) { return n.kind == inference::Kind::Summation; }) ||
+      std::any_of(
+          p.replacement.begin(), p.replacement.end(),
+          [](const auto& n) { return n.kind == inference::Kind::Summation; })) {
+    result.push_back(f.call(B::kAxisFeasible));
     return result;
   }
   for (const auto& n : p.replacement) {
@@ -183,7 +201,9 @@ WhereSchedule scheduleWhere(const RuleData& r) {
         [&](const auto& v) {
           using T = std::decay_t<decltype(v)>;
           if constexpr (std::is_same_v<T, BuiltinCall>)
-            result = builtins::isReplacementAxisQuery(v.builtin);
+            result = builtins::isReplacementAxisQuery(v.builtin) ||
+                     (v.builtin == B::kAxisFeasible && r.inference &&
+                      r.inference->mode == inference::Mode::Validate);
           else if constexpr (std::is_same_v<T, LocalRef>)
             result = dependent.contains(v.local.value);
           else if constexpr (std::is_same_v<T, DescriptorRef> ||

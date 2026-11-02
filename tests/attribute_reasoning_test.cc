@@ -131,11 +131,17 @@ rule remove {(p: transpose (dot A B))=>(dot A B)
   expect(trans.find("len(p.attrs.permutation) == 2") != std::string::npos,
          "recommendations preserve user restrictions");
   compile(trans);
-  expect(suggest(R"(
+  auto impossible = parseRule(R"(
 rule impossible {(p: transpose (dot A B))=>(dot A B)
  where {p.attrs.permutation == [] && p.attrs.permutation == [0]}}
-)")
-             .empty(),
+)");
+  auto inspected = core::inspect(
+      *impossible.program, {core::SemanticPolicy::kAlgebraic, true, {}, true});
+  // Guard-independent construction can now reach a vacuous verification of
+  // this contradictory guard. Neither a proof nor Unknown warrants suggesting
+  // a restriction without a concrete legal witness.
+  expect(inspected.ok() &&
+             inspected.program->rules[0].semantic_plan->suggested_rule.empty(),
          "never recommend a condition without a concrete legal witness");
 }
 void independentVerification() {

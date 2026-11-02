@@ -1,0 +1,10 @@
+
+HloModule NoFoldBatchDotTransposeIdentity
+
+ENTRY entry_computation {
+  x = f32[7,7,2,3]{3,2,1,0} parameter(0)
+  y = f32[7,7,3,2]{3,2,1,0} parameter(1)
+  transpose = f32[7,7,3,2]{3,2,1,0} transpose(y), dimensions={0,1,2,3}
+  ROOT dot = f32[7,7,2,2]{3,2,1,0} dot(x, transpose), lhs_contracting_dims={3},
+            rhs_contracting_dims={2}, lhs_batch_dims={0,1}, rhs_batch_dims={0,1}
+}

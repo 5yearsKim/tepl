@@ -13,6 +13,7 @@
 #include "src/core/semantics/symbolic/symbol.h"
 #include "src/shared/catalog/ids.h"
 #include "src/shared/metadata/ir.h"
+#include "src/shared/metadata/inference.h"
 #include "src/shared/source/source.h"
 #include "src/shared/types/types.h"
 
@@ -36,11 +37,14 @@ enum class ProofStatus { Proved, Unknown };
 enum class GuardKind { Legality, CoordinateOrder, ReductionDomain };
 const char* guardKindName(GuardKind);
 struct ConstructorCandidate {
+  // Proof obligations, never assumptions or automatically inserted guards.
+  std::vector<SymbolPtr> feasibility;
   std::map<std::size_t, std::vector<SymbolPtr>> constructors;
   std::vector<SymbolPtr> guard;
 };
 struct RuleProof : ConstructorCandidate {
   ProofStatus status = ProofStatus::Unknown;
+  std::optional<inference::Program> core;
   std::string reason;
   struct GuardOrigin {
     SymbolPtr condition;
@@ -78,6 +82,8 @@ struct Plan {
   std::string suggested_rule;
   std::size_t lhs = 0, rhs = 0;
   bool algebraic = false;
+  bool core_backend = false;
+  bool certified_backend = false;
   RuleProof proof;
   std::map<std::size_t, std::string> descriptor_names;
   std::vector<SymbolPtr> assumptions;

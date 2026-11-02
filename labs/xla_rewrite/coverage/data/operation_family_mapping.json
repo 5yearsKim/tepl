@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "policy": "Each canonical local HLO graph operation maps to exactly one family. Each original rewrite case receives the union of families on its LHS and RHS; metadata functions and opaque captured subgraphs are excluded.",
+  "families": [
+    {
+      "id": "elementwise",
+      "label": "Elementwise",
+      "examples": "Add, multiply, compare, select, exp, log",
+      "operations": [
+        "add", "multiply", "negate", "subtract", "zero_like", "divide",
+        "exp", "log", "sqrt", "rsqrt", "abs", "power", "maximum",
+        "minimum", "logical_not", "logical_and", "logical_or", "logical_xor",
+        "real", "imag", "complex", "select", "remainder", "convert",
+        "compare", "clamp", "cbrt", "erf", "logistic", "tanh", "fill",
+        "scalar", "map"
+      ]
+    },
+    {
+      "id": "indexing",
+      "label": "Indexing",
+      "examples": "Slice, gather, scatter, reverse, pad, concatenate",
+      "operations": [
+        "slice", "reverse", "concatenate", "pad", "nonnegative_pad",
+        "dynamic_slice", "dynamic_update_slice", "iota", "rotate",
+        "scatter", "scatter_add", "gather"
+      ]
+    },
+    {
+      "id": "reduction",
+      "label": "Reduction",
+      "examples": "Reduce sum, reduce min/max, reduce window",
+      "operations": [
+        "reduce_sum", "reduce", "reduce_min", "reduce_max", "reduce_and",
+        "reduce_or", "reduce_window", "reduce_window_sum", "reduce_window_min",
+        "reduce_window_max"
+      ]
+    },
+    {
+      "id": "broadcast",
+      "label": "Broadcast",
+      "examples": "Broadcast in dimension",
+      "operations": ["broadcast_in_dim"]
+    },
+    {
+      "id": "dot",
+      "label": "Dot",
+      "examples": "Generalized dot",
+      "operations": ["dot_general"]
+    },
+    {
+      "id": "transpose",
+      "label": "Transpose",
+      "examples": "Transpose",
+      "operations": ["transpose"]
+    },
+    {
+      "id": "reshape",
+      "label": "Reshape",
+      "examples": "Reshape",
+      "operations": ["reshape"]
+    },
+    {
+      "id": "convolution",
+      "label": "Convolution",
+      "examples": "Convolution",
+      "operations": ["convolution", "general_convolution"]
+    }
+  ]
+}

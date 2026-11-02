@@ -65,7 +65,7 @@ void Context::assignAttribute(std::size_t descriptor, std::size_t field,
   }
   attributes_.resolved.clear();
 }
-void Context::sourceScope(std::size_t id) {
+void Context::sourceScope(std::size_t id, bool import_assumptions) {
   tick();
   const auto& n = plan.nodes.at(id);
   source_.nodes.insert(id);
@@ -74,8 +74,8 @@ void Context::sourceScope(std::size_t id) {
     source_.fields[n.descriptor->value] = n.definition->fields.size();
     source_.field_nodes[n.descriptor->value] = id;
   }
-  for (auto child : n.inputs) sourceScope(child);
-  if (id == plan.lhs)
+  for (auto child : n.inputs) sourceScope(child, false);
+  if (import_assumptions && id == plan.lhs)
     for (const auto& assumption : plan.assumptions) {
       validateSource(assumption);
       learn(assumption);

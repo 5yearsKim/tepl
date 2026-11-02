@@ -38,8 +38,9 @@ prove that every attribute assignment is impossible.
 
 Shared lowering/reasoning lives in `//src/core/semantics:reasoning`. Synthesis and
 `//src/core/semantics:proof` depend on it without depending on each other.
-`//src/core/semantics:rule_proof` coordinates them. The concrete ordered adapters
-have a separate `//src/core/attr_synth:ordered` target using `//src/inference`.
+`//src/core/semantics:rule_proof` coordinates them. The ordered strategies share `//src/inference` component decomposition and
+validation. The `//src/core/attr_synth:ordered` target exposes compilation to
+standalone concrete callers.
 
 The identity route copies descriptors for matching operation trees. Verification
 checks operation/operand/attribute identity, including repeated captures, before
@@ -57,54 +58,95 @@ membership, ordering requirements, and positional descriptor construction.
 | `recognize(Definition)` | Recognize a conservative axis/value template independently of operation, group, and field names |
 | `admit(Plan, Mode)` | Check semantic/tree restrictions and the RHS attribute policy |
 | `compile(Plan, Mode)` | Produce completed postorder instructions and field adapters |
-| `deriveRequirements(...)` | Propagate required subsequences before choosing attributes |
-| `construct(...)` | Construct symbolic positional fields bottom-up |
+| `inference::emit(...)` | Construct the shared symbolic metadata IR using the proved three passes |
+| `construct(Context&, EmissionBlock, ...)` | Specialize the shared IR into independently checked positional expressions |
 
 `contract.*` recognizes generalized contractions with batch/left-free/right-free
-output order and unrestricted full permutations. It rejects extra contraction
-assertions and recognizes ordinary permutation legality for transposes. This is
-a conservative recognizer, not a decision procedure for equivalent spellings.
+output order, unrestricted full permutations, whole-axis unary sums preserving
+survivor order, and attribute-free addition of equally shaped operands. Extra
+semantic restrictions are rejected. This is a conservative recognizer, not a
+decision procedure for equivalent spellings.
+
+Addition is processed around the single-component constructor: distribute the
+source, require an explicit separated RHS sum, and match components by distinct
+input sets. Every component is read-once, although input sets may overlap.
+Source descriptor copies keep their captured identities. RHS unknowns remain
+independent across the original replacement tree; distribution never copies them.
+Component axis partitions remain separate, and actual additions must have equal
+ordered operand shapes.
 
 After identity fails, an admitted ordered attempt can record
-`law: ordered-requirements-construction`. Ordering constraints must follow from
-source legality and written conditions. They are never inserted as runtime
-applicability guards. Failure of admission or bounded symbolic reasoning leaves
+`law: ordered-requirements-construction`. Generation returns source-only
+feasibility obligations and attribute expressions defined when those obligations
+hold. Generation does not specialize its predicate using the written guard
+or call the guard prover as a construction precondition. A fresh
+verifier must prove feasibility from source legality and the written conditions,
+then check builder definedness, legality, and equivalence. Generation may succeed
+while guard verification remains Unknown. Feasibility is never assumed or inserted
+as an automatic runtime guard. Admission or bounded verification failure leaves
 general synthesis available.
 
-The complete concrete solver retains its original contraction/permutation,
-read-once, extent-at-least-two domain; rank-zero tensors and empty attribute
+The concrete solver covers contraction, permutation, summation, and separated
+addition in its extent-at-least-two domain. `Compilation::domain_requirements`
+exposes that domain separately from admission. Rank-zero tensors and empty axis
 lists are allowed. Singleton/zero extents, mixed supplied/automatic descriptors,
-and repeated captures can be supported by other verified compiler routes without
-expanding that solver's completeness claim.
+and repeated captures within a component remain outside its completeness claim;
+other verified compiler routes may support them.
+
+## Shared constructor and residual program
+
+Both ordered symbolic synthesis and native execution now start with the same
+`inference::emit` metadata IR. Emission precedes proof-context creation and
+normalization. `attr_synth::Result::metadata_program` remains available even if
+bounded expression specialization fails. The duplicate symbolic membership,
+requirement and layout recurrences are removed; the symbolic adapter interprets
+IR nodes through established axis mappings/partitions. A paired contraction
+permutation is an optional finite-sum reindexing checked by the independent
+verifier. Membership-set enumeration is unobservable; ordered axes remain
+sequence values.
+
+The completeness guarantee concerns construction and interpretation of this
+residual program on admitted plans. Independent guard certification and optional
+Rust/C++ expression lowering may still be unresolved. Existing CLI policy modes,
+portable schemas, broader construction, and sound extensions retain their
+boundaries; no complete guard prover or broader completeness is claimed.
 
 ## Native metadata evaluation
 
 [`src/inference/evaluate.h`](../src/inference/evaluate.h) interprets completed
 instructions from [`inference.h`](../src/shared/metadata/inference.h), without
-compiler plans or symbolic search. The ordered `concrete.*` convenience APIs
-adapt plans for compiler-side callers and solver tests.
+compiler plans or symbolic search. `ordered::compile` adapts semantic plans for
+compiler-side callers and solver tests.
 
 1. Extract named physical input ports and captured positional attributes. Retain
    the complete port partition, including reduced classes, and output order.
-2. Derive required live classes at each RHS subtree from capture supports and
-   the final output interface.
-3. Propagate ordering requirements from the root. Contractions require
-   nondecreasing batch/left-free/right-free roles; a transpose removes its
-   child's ordering requirement.
-4. Check subsequences and block order with ordinary metadata expressions.
-5. Choose complete layouts and translate common logical pairing sequences into
-   positions on both operands.
+2. Derive mandatory classes M from capture support and the output interface,
+   then canonical retained classes P bottom-up. Inputs keep all axes; permutations
+   preserve them; sums retain mandatory child axes; contractions retain mandatory
+   shared axes and all unpaired axes.
+3. Propagate required subsequences from the root. Contractions require
+   batch/left-free/right-free block order; a transpose removes its child's order
+   requirement; a sum passes the surviving-axis requirement unchanged.
+4. Check distinctness, membership in P, input subsequences, contraction block
+   order, and exact equality of the root retained set with the target output set.
+5. Choose complete layouts and translate logical selections into positional
+   fields. Sums remove selected child axes and preserve survivor order.
+
+For additive programs these passes run independently per matched component.
+Their predicates are conjoined and independent assignments combined. Results
+expose component networks rather than a merged global partition. Serialized
+component schedules are validated against the original trees.
 
 Logical identity is a physical-port equivalence class, never an extent or a
 capture-support set alone. `analyze` establishes requirements without deciding
-applicability; `construct` requires established preconditions;
+applicability; `construct` checks feasibility before using analyzed metadata;
 `replayReplacement` checks actual replacement descriptors. The standalone
 `feasibility` and `evaluate` APIs support certificates and mathematical tests.
 `inference::check()` independently rebuilds source requirements and checks actual
 RHS layouts, partitions, and output order without trusting constructor choices.
 
-Only a checked order inversion yields an impossibility certificate in the
-admitted concrete domain. Missing metadata, unsupported operations, invalid
+A checked order inversion or retained-set obstruction yields an impossibility
+certificate in the admitted concrete domain. Missing metadata, unsupported operations, invalid
 source descriptors, out-of-domain extents, and exhausted work have separate
 outcomes. Concrete impossibility is not currently used to reject an entire
 rank-polymorphic rule schema.

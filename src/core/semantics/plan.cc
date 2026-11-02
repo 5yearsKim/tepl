@@ -120,6 +120,9 @@ struct Builder {
       auto role = argument(1);
       auto group = contract->kind == axis::OrderedContract::Kind::Permutation
                        ? 0
+                   : contract->kind == axis::OrderedContract::Kind::Summation
+                       ? (role == 1 ? contract->contract_group
+                                    : contract->left_free_group)
                    : role == 0 ? contract->batch_group
                    : role == 1 ? contract->contract_group
                    : role == 2 ? contract->left_free_group
@@ -603,6 +606,8 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
               else
                 throw std::runtime_error("unrecognized semantic axis group");
             }
+            if (contract->kind == axis::OrderedContract::Kind::Summation)
+              role = group == contract->contract_group ? 1 : 2;
             if (ref->rhs && rule.descriptors.at(it->descriptor->value).kind ==
                                 Descriptor::Kind::kInferred) {
               query = role == 0   ? B::kAxisBatch
@@ -668,6 +673,7 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
           if (auto* b = std::get_if<BuiltinCall>(&e.value))
             found = builtins::isReplacementAxisQuery(b->builtin) ||
                     b->builtin == builtins::Builtin::kAxisDomain ||
+                    b->builtin == builtins::Builtin::kAxisFeasible ||
                     b->builtin == builtins::Builtin::kAxisSourcePartition;
           forEachExpressionChild(
               e, [&](const auto& child) { found |= axisQueries(child); });
@@ -683,7 +689,11 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
           "and check --suggest-where for a verified suggestion");
     const Rule suggestion_source = rule;
     b.assumptions();
-    if (selected) {
+    b.plan.core_backend = context.options.core_backend;
+    b.plan.certified_backend = context.options.certified_backend;
+    if (context.options.defer_semantic_proofs && !context.options.inspect_semantic_rules)
+      throw std::runtime_error("deferred proofs require inspection mode");
+    if (selected && !context.options.defer_semantic_proofs) {
       b.plan.proof = proveRule(b.plan);
       if (b.plan.proof.status != ProofStatus::Proved &&
           context.options.suggest_conditions)

@@ -1,0 +1,416 @@
+// Index-semantic IR for compiler-side graph lowering and attribute inference.
+// Rule compilation synthesizes symbolic attribute constructors and checks a
+// bounded algebraic fragment without concrete metadata. Generated Rust evaluates
+// completed constructors; see ../README.md.
+//
+// Axis groups and mappings
+// ------------------------
+// bind G { operand: positions, ... }; creates a fresh ordered logical axis
+// group and registers its operand mappings for use in semantics.
+// Example: bind G { lhs: [2, 0], rhs: [1, 3] };
+//     G[0] <-> lhs axis 2 <-> rhs axis 1
+//     G[1] <-> lhs axis 0 <-> rhs axis 3
+// Corresponding positions must have equal extents. Equal extents alone never
+// identify logical axes: sharing a group explicitly establishes that identity.
+//
+// Each group stores ordered axis identities and extents. Each operand binding
+// stores the equally long ordered list of physical positions. Group lengths
+// may be symbolic; groups can be empty and are never flattened into one axis.
+// Members remain individually selectable, so later operations may split groups.
+// bind N = group(extents) declares fresh axes without an operand binding.
+// place(S,p,N) puts S at positions p and fills the remaining positions with N.
+// Batching/contraction/free are local roles, not permanent types of an axis.
+//
+// Generic checks supplied by the axes block:
+//   * Each position list is distinct and in range for its operand.
+//   * Bindings within one group have equal lengths and corresponding extents.
+//   * Implicit operands bind every input dimension exactly once.
+//   * Explicit Read operands may bind a disjoint subset (or none); each read
+//     supplies a full-rank coordinate tuple with checked lengths and bounds.
+// These checks are legality constraints, retained through algebraic rewriting.
+//
+// bind names and their operand mappings are available in semantics; let locals
+// remain local to the axes block. No semantics parameter list is needed.
+// axes yields the ordered output-axis sequence; semantics yields the value
+// expression. The compiler pairs these results into the tensor meaning.
+// Output axes define the evaluation interface independently of value reads.
+// Tensor operands must align; scalar constants may be independent of axes.
+// Its extents determine the output shape; there is no separate shape block.
+// `++` concatenates ordered sequences.
+// all_axes(t) = [0, ..., rank(t)-1]; ordered_complement(S, T) removes T from S
+// while preserving S's order. permute(S, p)[i] = S[p[i]].
+//
+// Algebraic graph
+// ---------------
+// Operand references inside semantics use the mappings registered by bind.
+// Const(n) is an exact signed integer scalar; its value is independent of axes.
+// Add and Product add/multiply scalar values at a logical coordinate assignment;
+// Product shares common coordinates and retains independent coordinates.
+// Reduce(G, e) binds G and sums e over the Cartesian product of G's domains.
+// Read(t, tuple) evaluates t at calculated integer coordinates. Coords(G)
+// returns G's coordinate tuple, IndexAdd is elementwise index addition, and
+// Concat joins coordinate tuples. These are separate from scalar arithmetic.
+// IndexScale and IndexOffset accept metadata expressions for per-axis values.
+// IndexSelect(tuple, positions) selects distinct in-range entries in list order.
+// IndexReverse(Coords(G), positions) reflects selected coordinates about their
+// original extent minus one. Empty domains perform no reads.
+// Reduce([], e) = e. A domain with any zero extent has sum zero.
+// This describes a value and its interface, not storage allocation. Operation
+// operands and attrs are visible in both blocks.
+//
+// Composition connects producer output positions to consumer operand positions,
+// renaming free logical axes and freshening internal reduction binders as needed.
+// Input tensor identities and repeated occurrences are preserved. Transpose
+// changes the ordered interface without adding an arithmetic node.
+//
+// For RHS auto attributes, position sequences and group lengths remain symbolic.
+// Matching generates constraints on these bindings, together with legality and
+// ordered-output equality. This representation alone does not establish a
+// complete matching algorithm or uniqueness of inferred attributes.
+//
+// Arithmetic below is ideal mathematical arithmetic. Dtype legality is separate
+// from permission to use associativity, distributivity, or reduction reordering;
+// a numerical policy must justify those transformations for the target execution.
+dialect TensorLang {
+    // Elementwise addition with identical shapes; no broadcasting.
+    op add(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) };
+            yield S;
+        }
+        semantics {
+            yield Add(lhs, rhs);
+        }
+    }
+
+    // Elementwise multiplication with identical shapes; no broadcasting.
+    op multiply(lhs: tensor, rhs: tensor) -> tensor {
+        alias: mul;
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) };
+            yield S;
+        }
+        semantics {
+            yield Product(lhs, rhs);
+        }
+    }
+
+    op negate(input: tensor) -> tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes { bind S { input: all_axes(input) }; yield S; }
+        semantics { yield Product(Const(-1), input); }
+    }
+
+    op subtract(lhs: tensor, rhs: tensor) -> tensor {
+        dtype(a, b) { assert a == b; assert is_numeric(a); yield a; }
+        axes { bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) }; yield S; }
+        semantics { yield Add(lhs, Product(Const(-1), rhs)); }
+    }
+
+    // The input supplies axes and dtype; its element values are unused.
+    op zero_like(input: tensor) -> tensor {
+        dtype(t) { assert is_numeric(t); yield t; }
+        axes { bind S { input: all_axes(input) }; yield S; }
+        semantics { yield Const(0); }
+    }
+
+    op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+        // TEPL shorthand, not a separate StableHLO dot operation.
+        alias: dot;
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        attrs {
+            // Flattened fields of StableHLO dot_dimension_numbers.
+            lhs_contracting_dimensions: axis[];
+            rhs_contracting_dimensions: axis[];
+            lhs_batching_dimensions: axis[];
+            rhs_batching_dimensions: axis[];
+        }
+        axes {
+            let lb = attrs.lhs_batching_dimensions;
+            let rb = attrs.rhs_batching_dimensions;
+            let lc = attrs.lhs_contracting_dimensions;
+            let rc = attrs.rhs_contracting_dimensions;
+
+            let lf = ordered_complement(all_axes(lhs), lb ++ lc);
+            let rf = ordered_complement(all_axes(rhs), rb ++ rc);
+
+            bind B { lhs: lb, rhs: rb };
+            bind K { lhs: lc, rhs: rc };
+            bind I { lhs: lf };
+            bind J { rhs: rf };
+
+            // Generic partition checks reject batch/contraction overlap.
+            // Shared-group checks enforce paired lengths and extents.
+            yield B ++ I ++ J;
+        }
+        semantics {
+            yield Reduce(K, Product(lhs, rhs));
+        }
+
+        // Example: lhs [i, k0, b, k1], rhs [k1, j, k0, b].
+        // Group       lhs positions    rhs positions    output positions
+        // B = [b]         [2]              [3]                 [0]
+        // K = [k0,k1]     [1,3]            [2,0]                --
+        // I = [i]         [0]              --                  [1]
+        // J = [j]         --               [1]                 [2]
+        // out[b,i,j] = sum(k0,k1) lhs[i,k0,b,k1] * rhs[k1,j,k0,b].
+    }
+
+    // Valid convolution (cross-correlation), positive strides/dilations, no padding.
+    // input [N, spatial..., C], kernel [kernel_spatial..., C, F].
+    // Spatial groups have arbitrary equal lengths, not a fixed 2D rank.
+    op convolution(input: tensor, kernel: tensor) -> tensor {
+        alias: conv;
+        attrs {
+            strides: coordinate[];
+            dilations: coordinate[];
+        }
+        dtype(a, b) {
+            assert a == b;
+            assert is_numeric(a);
+            yield a;
+        }
+        axes {
+            assert rank(input) >= 3;
+            assert rank(kernel) == rank(input);
+            let spatial = ordered_complement(all_axes(input), [0, rank(input) - 1]);
+            let window = range(rank(kernel) - 2);
+            let input_sizes = gather(shape(input), spatial);
+            let window_sizes = gather(shape(kernel), window);
+            assert is_positive_extents(window_sizes);
+            assert len(attrs.strides) == len(spatial);
+            assert len(attrs.dilations) == len(spatial);
+            assert is_positive_extents(attrs.strides);
+            assert is_positive_extents(attrs.dilations);
+            let effective_window = offset_extents(
+                extent_mul(attrs.dilations, offset_extents(window_sizes, -1)), 1);
+            assert extent_le(effective_window, input_sizes);
+
+            bind N { input: [0] };
+            bind C { input: [rank(input) - 1], kernel: [rank(kernel) - 2] };
+            bind F { kernel: [rank(kernel) - 1] };
+            bind Window { kernel: window };
+            bind O = group(offset_extents(
+                extent_floor_div(extent_sub(input_sizes, effective_window), attrs.strides), 1));
+            yield N ++ O ++ F;
+        }
+        semantics {
+            yield Reduce(Window, Reduce(C,
+                Product(
+                    Read(input, Concat(Coords(N), IndexAdd(IndexScale(attrs.strides, Coords(O)), IndexScale(attrs.dilations, Coords(Window))), Coords(C))),
+                    kernel
+                )
+            ));
+        }
+    }
+
+    // Select positive-size windows. sizes counts output elements, not limits.
+    op slice(input: tensor) -> tensor {
+        attrs {
+            starts: coordinate[];
+            sizes: extent[];
+            strides: coordinate[];
+        }
+        dtype(t) { yield t; }
+        axes {
+            assert len(attrs.starts) == rank(input);
+            assert len(attrs.sizes) == rank(input);
+            assert len(attrs.strides) == rank(input);
+            assert is_valid_extents(attrs.starts);
+            assert is_positive_extents(attrs.sizes);
+            assert is_positive_extents(attrs.strides);
+            let last = extent_add(attrs.starts,
+                extent_mul(attrs.strides, offset_extents(attrs.sizes, -1)));
+            assert extent_le(last, offset_extents(shape(input), -1));
+            bind O = group(attrs.sizes);
+            yield O;
+        }
+        semantics {
+            yield Read(input,
+                IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O))));
+        }
+    }
+
+    // Insert axes only. Existing dimensions retain their extents. The mapping
+    // is an ordered injection and may also reorder existing axes.
+    // new_extents follows the increasing order of unoccupied output positions.
+    op broadcast_in_dim(input: tensor) -> tensor {
+        alias: broadcast;
+        attrs {
+            dimensions: axis[];
+            new_extents: extent[];
+        }
+        dtype(t) { yield t; }
+        axes {
+            bind S { input: all_axes(input) };
+            bind N = group(attrs.new_extents);
+            yield place(S, attrs.dimensions, N);
+        }
+        semantics { yield input; }
+    }
+
+    op transpose(input: tensor) -> tensor {
+        attrs {
+            permutation: axis[];
+        }
+        dtype(t) {
+            yield t;
+        }
+        axes {
+            bind S { input: all_axes(input) };
+
+            assert is_valid_axis_list(attrs.permutation, rank(input));
+            assert len(attrs.permutation) == rank(input);
+            // Output axis i carries input axis permutation[i].
+            yield permute(S, attrs.permutation);
+        }
+        semantics {
+            yield input;
+        }
+    }
+
+    // Reverse selected axes without changing their order or extents.
+    op reverse(input: tensor) -> tensor {
+        attrs { dimensions: axis[]; }
+        dtype(t) { yield t; }
+        axes {
+            bind S { input: all_axes(input) };
+            assert is_valid_axis_list(attrs.dimensions, rank(input));
+            yield S;
+        }
+        semantics {
+            yield Read(input, IndexReverse(Coords(S), attrs.dimensions));
+        }
+    }
+
+    // Reduced axes are removed (keepdims = false). An empty dimensions list
+    // gives identity; selecting all dimensions gives a scalar, with output [].
+    op reduce_sum(input: tensor) -> tensor {
+        attrs {
+            dimensions: axis[];
+        }
+        dtype(t) {
+            assert is_numeric(t);
+            yield t;
+        }
+        axes {
+            let reduced = attrs.dimensions;
+            let retained = ordered_complement(all_axes(input), reduced);
+
+            bind K { input: reduced };
+            bind F { input: retained };
+
+            yield F;
+        }
+        semantics {
+            yield Reduce(K, input);
+        }
+    }
+}
+
+rule chain_automatic_9 {
+    A1: f32[B, D0, D1]
+    A2: f32[B, D1, D2]
+    A3: f32[B, D2, D3]
+    A4: f32[B, D3, D4]
+    A5: f32[B, D4, D5]
+    A6: f32[B, D5, D6]
+    A7: f32[B, D6, D7]
+    A8: f32[B, D7, D8]
+    A9: f32[B, D8, D9]
+    A10: f32[B, D9, D10]
+
+    (l9: dot (l8: dot (l7: dot (l6: dot (l5: dot (l4: dot (l3: dot (l2: dot (l1: dot A1 A2) A3) A4) A5) A6) A7) A8) A9) A10)
+    =>
+    (dot A1 (dot A2 (dot A3 (dot A4 (dot A5 (dot A6 (dot A7 (dot A8 (dot A9 A10)))))))))
+    where {
+        B > 0
+        && D0 > 0
+        && D1 > 0
+        && D2 > 0
+        && D3 > 0
+        && D4 > 0
+        && D5 > 0
+        && D6 > 0
+        && D7 > 0
+        && D8 > 0
+        && D9 > 0
+        && D10 > 0
+        && l1.attrs.lhs_contracting_dimensions == [2]
+        && l1.attrs.rhs_contracting_dimensions == [1]
+        && l1.attrs.lhs_batching_dimensions == [0]
+        && l1.attrs.rhs_batching_dimensions == [0]
+        && l2.attrs.lhs_contracting_dimensions == [2]
+        && l2.attrs.rhs_contracting_dimensions == [1]
+        && l2.attrs.lhs_batching_dimensions == [0]
+        && l2.attrs.rhs_batching_dimensions == [0]
+        && l3.attrs.lhs_contracting_dimensions == [2]
+        && l3.attrs.rhs_contracting_dimensions == [1]
+        && l3.attrs.lhs_batching_dimensions == [0]
+        && l3.attrs.rhs_batching_dimensions == [0]
+        && l4.attrs.lhs_contracting_dimensions == [2]
+        && l4.attrs.rhs_contracting_dimensions == [1]
+        && l4.attrs.lhs_batching_dimensions == [0]
+        && l4.attrs.rhs_batching_dimensions == [0]
+        && l5.attrs.lhs_contracting_dimensions == [2]
+        && l5.attrs.rhs_contracting_dimensions == [1]
+        && l5.attrs.lhs_batching_dimensions == [0]
+        && l5.attrs.rhs_batching_dimensions == [0]
+        && l6.attrs.lhs_contracting_dimensions == [2]
+        && l6.attrs.rhs_contracting_dimensions == [1]
+        && l6.attrs.lhs_batching_dimensions == [0]
+        && l6.attrs.rhs_batching_dimensions == [0]
+        && l7.attrs.lhs_contracting_dimensions == [2]
+        && l7.attrs.rhs_contracting_dimensions == [1]
+        && l7.attrs.lhs_batching_dimensions == [0]
+        && l7.attrs.rhs_batching_dimensions == [0]
+        && l8.attrs.lhs_contracting_dimensions == [2]
+        && l8.attrs.rhs_contracting_dimensions == [1]
+        && l8.attrs.lhs_batching_dimensions == [0]
+        && l8.attrs.rhs_batching_dimensions == [0]
+        && l9.attrs.lhs_contracting_dimensions == [2]
+        && l9.attrs.rhs_contracting_dimensions == [1]
+        && l9.attrs.lhs_batching_dimensions == [0]
+        && l9.attrs.rhs_batching_dimensions == [0]
+    }
+}
+graph ordinary {
+ input A1:f32[2,2,2];
+ input A2:f32[2,2,2];
+ input A3:f32[2,2,2];
+ input A4:f32[2,2,2];
+ input A5:f32[2,2,2];
+ input A6:f32[2,2,2];
+ input A7:f32[2,2,2];
+ input A8:f32[2,2,2];
+ input A9:f32[2,2,2];
+ input A10:f32[2,2,2];
+ yield (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] A1 A2) A3) A4) A5) A6) A7) A8) A9) A10);
+}
+graph singleton {
+ input A1:f32[1,1,1];
+ input A2:f32[1,1,1];
+ input A3:f32[1,1,1];
+ input A4:f32[1,1,1];
+ input A5:f32[1,1,1];
+ input A6:f32[1,1,1];
+ input A7:f32[1,1,1];
+ input A8:f32[1,1,1];
+ input A9:f32[1,1,1];
+ input A10:f32[1,1,1];
+ yield (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] (dot[lhs_contracting_dimensions=[2],rhs_contracting_dimensions=[1],lhs_batching_dimensions=[0],rhs_batching_dimensions=[0]] A1 A2) A3) A4) A5) A6) A7) A8) A9) A10);
+}

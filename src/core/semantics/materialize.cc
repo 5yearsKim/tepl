@@ -8,6 +8,8 @@
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
 #include "src/shared/catalog/axis_conditions.h"
+#include "src/shared/catalog/core_guard.h"
+#include "src/inference/extensions.h"
 namespace tepl::core::semantics {
 Materialized materialize(InspectionData checked) {
   Materialized output;
@@ -56,6 +58,24 @@ Materialized materialize(InspectionData checked) {
     if (plan && !plan->proof.guard.empty())
       throw std::invalid_argument(
           "unresolved obligations cannot become runtime guards");
+    if (plan && plan->proof.core) {
+      for (auto& d : r.descriptors)
+        if (d.kind == core::Descriptor::Kind::kInferred)
+          d.kind = core::Descriptor::Kind::kDerived;
+      r.derivations.erase(
+          std::remove_if(r.derivations.begin(), r.derivations.end(),
+                         [&](const auto& d) {
+                           if (!d.target) return inference::hasExtensions(*plan->proof.core);
+                           return d.target &&
+                                  std::any_of(
+                                      plan->proof.core->replacement.begin(),
+                                      plan->proof.core->replacement.end(),
+                                      [&](const auto& n) {
+                                        return n.descriptor == d.target->value;
+                                      });
+                         }),
+          r.derivations.end());
+    }
     for (auto& derivation : r.derivations) {
       if (!derivation.target) continue;
       auto& descriptor = r.descriptors.at(derivation.target->value);
@@ -76,6 +96,13 @@ Materialized materialize(InspectionData checked) {
           core::TypedExpr{r.origin, descriptor.type, std::move(ctor)});
     }
     auto completed_rule = completion.rule(std::move(static_cast<RuleData&>(r)));
+    if (plan && plan->proof.core) {
+      completed_rule.core =
+          inference::portable(inference::emit(*plan->proof.core));
+      if (!completed::coreGuard(completed_rule))
+        throw std::invalid_argument(
+            "core guard certificate does not match completed conditions");
+    }
     completed::validateAxisConditions(completed_rule);
     if (coordinates)
       for (const auto& [key, value] : coordinates->source().groups)

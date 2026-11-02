@@ -15,6 +15,9 @@ class ExecutableProgram {
   const std::vector<core::completed::SymbolPtr>& axes(std::size_t rule) const {
     return axes_.at(rule);
   }
+  const inference::Emission& core(std::size_t rule) const {
+    return cores_.at(rule);
+  }
   const std::string& policy() const { return policy_; }
 
  private:
@@ -22,6 +25,7 @@ class ExecutableProgram {
   ProgramData ir_;
   std::vector<std::vector<core::completed::SymbolPtr>> axes_;
   std::string policy_ = "strict";
+  std::map<std::size_t, inference::Emission> cores_;
   friend struct core::lowering::Builder;
   friend ExecutableProgram load(std::string_view);
   friend std::string serialize(const ExecutableProgram&);

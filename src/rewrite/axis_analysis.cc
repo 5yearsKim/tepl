@@ -87,8 +87,18 @@ Value AxisAnalysis::query(core::builtins::Builtin b,
   using B = core::builtins::Builtin;
   const auto& s = source();
   if (b == B::kAxisDomain) return s.status == inference::Status::Analyzed;
+  if (b == B::kAxisFeasible) {
+    if (rule_.inference->mode == inference::Mode::Validate) metadata(true);
+    auto r = inference::feasibility(*rule_.inference, metadata_,
+                                    {budget_.steps, budget_.max_list});
+    charge(r);
+    return r.status == inference::Status::Feasible ||
+           r.status == inference::Status::Solved;
+  }
   if (s.status != inference::Status::Analyzed)
     throw ConditionUnavailable(s.reason);
+  if (!rule_.inference->components.empty())
+    throw ConditionUnavailable("additive axes require a component scope");
   if (b == B::kAxisRhsLegal)
     return replacement().status == inference::Status::Analyzed;
   if (b == B::kAxisCaptureOrder)
@@ -160,7 +170,7 @@ Value AxisAnalysis::query(core::builtins::Builtin b,
   const inference::AxisSet* set = nullptr;
   if (b == B::kAxisBatch) set = &r.batch;
   if (b == B::kAxisContract) set = &r.contract;
-  if (b == B::kAxisLive) set = &r.live;
+  if (b == B::kAxisLive) set = &r.retained_axes;
   if (b == B::kAxisLeftFree) set = &r.left_free;
   if (b == B::kAxisRightFree) set = &r.right_free;
   if (!set) throw EvaluationError("unknown axis query");

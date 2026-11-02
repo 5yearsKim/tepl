@@ -53,5 +53,6 @@ TEPL_BUILTIN(kAxisRhsGroupOrder, "axis_rhs_group_order", kList, kNodeGroup, kAxi
 TEPL_BUILTIN(kAxisRhsGroupMembers, "axis_rhs_group_members", kList, kNodeGroup, kAxisSet, false, kCommon, 2, false)
 TEPL_BUILTIN(kAxisRhsGroupPositions, "axis_rhs_group_positions", kList, kNodeGroup, kIntegerList, false, kCommon, 2, false)
 TEPL_BUILTIN(kAxisContract, "axis_contract", kList, kInteger, kAxisSet, false, kCommon, 2, false)
+TEPL_BUILTIN(kAxisFeasible, "axis_feasible", kList, kNoArguments, kBoolean, false, kCommon, 2, false)
 TEPL_BUILTIN(kAxisLive, "axis_live", kList, kInteger, kAxisSet, false, kCommon, 2, false)
 TEPL_BUILTIN(kAxisDifference, "difference", kList, kAxisSets, kAxisSet, false, kCommon, 6, false)
