@@ -1600,6 +1600,231 @@
         ]
       ],
       "note": "Only reduction of original base-tensor axes through broadcast: mapping legality, surviving axes, and replacement. Replication-count reduction is a different branch and excluded."
+    },
+    {
+      "id": "section_broadcast_transpose",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          5668,
+          5671,
+          "legality"
+        ],
+        [
+          5672,
+          5672,
+          "management"
+        ],
+        [
+          5673,
+          5674,
+          "construction"
+        ],
+        [
+          5675,
+          5675,
+          "attributes"
+        ],
+        [
+          5676,
+          5676,
+          "management"
+        ]
+      ],
+      "note": "Equal-rank/equal-element-count broadcast to transpose; inverse permutation is attribute reasoning. Earlier broadcast-to-reshape branch excluded."
+    },
+    {
+      "id": "section_broadcast_inserted_units",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          5680,
+          5680,
+          "management"
+        ],
+        [
+          5681,
+          5684,
+          "legality"
+        ],
+        [
+          5685,
+          5688,
+          "attributes"
+        ],
+        [
+          5690,
+          5701,
+          "management"
+        ],
+        [
+          5702,
+          5702,
+          "management"
+        ],
+        [
+          5703,
+          5705,
+          "construction"
+        ],
+        [
+          5706,
+          5707,
+          "management"
+        ]
+      ],
+      "note": "Complete unit-insertion elision branch, including original-value-recovery bookkeeping. General insertion positions exceed the TEPL rank-one specialization. Shape/HLO APIs remain library dependencies."
+    },
+    {
+      "id": "section_broadcast_drop_units",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          5766,
+          5768,
+          "policy"
+        ],
+        [
+          5769,
+          5769,
+          "policy"
+        ],
+        [
+          5770,
+          5770,
+          "legality"
+        ],
+        [
+          5771,
+          5772,
+          "construction"
+        ],
+        [
+          5773,
+          5779,
+          "attributes"
+        ],
+        [
+          5780,
+          5780,
+          "management"
+        ],
+        [
+          5781,
+          5782,
+          "construction"
+        ],
+        [
+          5783,
+          5783,
+          "management"
+        ]
+      ],
+      "note": "Drop degenerate operand dimensions and update broadcast map. Feature/layout gates excluded as policy. Original source combines feature gating and shape legality in one if; the two lines are assigned separately. General unit positions exceed the TEPL specialization."
+    },
+    {
+      "id": "section_transpose_of_broadcast",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          2797,
+          2798,
+          "management"
+        ],
+        [
+          2799,
+          2800,
+          "matching"
+        ],
+        [
+          2801,
+          2803,
+          "legality"
+        ],
+        [
+          2822,
+          2826,
+          "attributes"
+        ],
+        [
+          2827,
+          2829,
+          "legality"
+        ],
+        [
+          2833,
+          2858,
+          "policy"
+        ],
+        [
+          2859,
+          2859,
+          "management"
+        ],
+        [
+          2860,
+          2861,
+          "construction"
+        ],
+        [
+          2862,
+          2862,
+          "management"
+        ],
+        [
+          10567,
+          10568,
+          "management"
+        ]
+      ],
+      "note": "Complete insertion-only transpose-of-broadcast helper and actual transpose caller. Sorted-map legality retained; layout-sensitive policy excluded. TEPL permits unsorted axis maps and supplies an alternative general-rank shape expression. No unrelated HandleTranspose branches."
+    },
+    {
+      "id": "section_reverse_inserted_units",
+      "file": "algebraic_simplifier.cc",
+      "spans": [
+        [
+          7170,
+          7170,
+          "matching"
+        ],
+        [
+          7171,
+          7171,
+          "attributes"
+        ],
+        [
+          7173,
+          7176,
+          "legality"
+        ],
+        [
+          7177,
+          7191,
+          "attributes"
+        ],
+        [
+          7193,
+          7193,
+          "management"
+        ],
+        [
+          7194,
+          7198,
+          "construction"
+        ],
+        [
+          7199,
+          7200,
+          "management"
+        ],
+        [
+          7080,
+          7095,
+          "attributes"
+        ]
+      ],
+      "note": "Reverse through unit-inserting reshape, including the complete transformation-specific CountElementsLessThan helper once. General insertion/reverse positions exceed the rank-one TEPL specialization. Shared reverse input capture counted once via the base block."
     }
   ],
   "cases": [
@@ -1813,13 +2038,6 @@
       "tepl_scope": "General symmetric difference computed with existing list builtins; no auto."
     },
     {
-      "case": "catalog_broadcast_divide_broadcast",
-      "status": "deferred",
-      "blocks": [],
-      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
-      "tepl_scope": "Scalar Y broadcast to an arbitrary output shape."
-    },
-    {
       "case": "catalog_broadcast_multiply_constant_into_broadcast",
       "status": "reviewed",
       "blocks": [
@@ -1830,38 +2048,47 @@
     },
     {
       "case": "catalog_broadcast_transpose",
-      "status": "deferred",
-      "blocks": [],
-      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
-      "tepl_scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions."
+      "status": "reviewed",
+      "blocks": [
+        "broadcast_inputs",
+        "section_broadcast_transpose"
+      ],
+      "note": "Broadcast to transpose only; prior degenerate reshape branch is not selected."
     },
     {
       "case": "catalog_broadcast_inserted_unit_dims",
-      "status": "deferred",
-      "blocks": [],
-      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
-      "tepl_scope": "Rank-one X; reshape inserts a leading unit axis; the outer broadcast appends axes."
+      "status": "reviewed",
+      "blocks": [
+        "broadcast_inputs",
+        "section_broadcast_inserted_units"
+      ],
+      "note": "Rank-general XLA insertion elision against the rank-one TEPL rule; source-size comparison does not require original TEPL proof success."
     },
     {
       "case": "catalog_broadcast_drop_unit_dims",
-      "status": "deferred",
-      "blocks": [],
-      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
-      "tepl_scope": "Rank-two operand with leading unit axis; broadcast appends axes."
+      "status": "reviewed",
+      "blocks": [
+        "broadcast_inputs",
+        "section_broadcast_drop_units"
+      ],
+      "note": "Rank-general XLA degenerate-dimension removal against a leading-unit TEPL specialization."
     },
     {
       "case": "catalog_broadcast_transpose_broadcast",
-      "status": "deferred",
-      "blocks": [],
-      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
-      "tepl_scope": "General insertion-only broadcast/permutation equation; source sorted-map/layout policy remains in the catalog."
+      "status": "reviewed",
+      "blocks": [
+        "section_transpose_of_broadcast"
+      ],
+      "note": "Compare with the successful TEPL companion metadata construction; source sorted-map restrictions are broader/different from TEPL axis semantics."
     },
     {
       "case": "catalog_indexing_reverse_inserted_unit_dims",
-      "status": "deferred",
-      "blocks": [],
-      "note": "Original explicit counterpart is unproved in this cohort; excluded from the three-way common-success table. No XLA excerpt size is claimed.",
-      "tepl_scope": "Insert one leading unit axis into rank-one input."
+      "status": "reviewed",
+      "blocks": [
+        "reverse_inputs",
+        "section_reverse_inserted_units"
+      ],
+      "note": "General XLA insertion-remapping algorithm against a single-leading-unit TEPL specialization."
     },
     {
       "case": "catalog_dot_transpose_both_operands",

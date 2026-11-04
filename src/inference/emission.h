@@ -2,6 +2,7 @@
 #include <variant>
 
 #include "src/inference/evaluate.h"
+#include "src/inference/timing.h"
 
 namespace tepl::inference {
 // A rank-independent, producer-first expression DAG. Input/Output read only
@@ -51,7 +52,8 @@ Result predicate(const Emission&, const Metadata&, const Limits& = {});
 Result execute(const Emission&, const Metadata&, const Limits& = {});
 // Soundness-only execution allows zero/singleton extents. A false canonical
 // predicate here is Inapplicable, never mathematical infeasibility.
-Result executeSound(const Emission&, const Metadata&, const Limits& = {});
+Result executeSound(const Emission&, const Metadata&, const Limits& = {},
+                    ExecutionTiming* = nullptr);
 struct Portable {
   Program program;
   std::vector<std::vector<Expression>> nodes;

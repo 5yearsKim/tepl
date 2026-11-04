@@ -9,7 +9,7 @@ express, compile and verify.
 - [Operation-family coverage](coverage/reports/operation_families.md): overlapping case counts by participating operations, with separate transpose and reshape families.
 - [Attribute synthesis report](coverage/reports/attribute_synthesis.md): field-level axis inference, verification-only outcomes, and theorem admission candidates.
 - [Compilation report](coverage/reports/compilation.md): language coverage and executable compilation.
-- [Specification size](specification_size/README.md): matched explicit/inferred rule sizes, token attribution, and XLA excerpt review.
+- [Token-count experiment](specification_size/README.md): XLA, explicit TEPL, and axis inferred TEPL by LHS, `where`, `derive`, RHS, and other syntax; 30 matched rules and a 31-case TEPL table.
 
 `catalog/` contains the source-based catalog. `tepl/` contains the executable
 TEPL project. `coverage/` separates case data (`data/`), measurements (`results/`),

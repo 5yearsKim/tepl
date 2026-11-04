@@ -242,8 +242,11 @@ Emission emit(const Program& p) {
 }
 namespace {
 Result runEmission(const Emission& e, const Metadata& m, const Limits& limits,
-                   bool build, bool allow_degenerate = false) {
-  if (hasExtensions(e.original)) return executeExtension(e, m, limits, build);
+                   bool build, bool allow_degenerate = false,
+                   ExecutionTiming* timing = nullptr) {
+  if (timing) *timing = {};
+  if (hasExtensions(e.original))
+    return executeExtension(e, m, limits, build, timing);
   Result out;
   std::size_t remaining = limits.work;
   try {
@@ -268,6 +271,7 @@ Result runEmission(const Emission& e, const Metadata& m, const Limits& limits,
       }
       engines.push_back(
           Interpreter{block, source.source, limits, remaining, {}});
+      detail::PhaseTimer phase(timing ? &timing->feasibility_us : nullptr);
       for (auto q : block.checks)
         if (!std::get<bool>(engines.back().eval(q))) {
           out.status =
@@ -277,7 +281,8 @@ Result runEmission(const Emission& e, const Metadata& m, const Limits& limits,
         }
     }
     out.status = build ? Status::Solved : Status::Feasible;
-    if (build)
+    if (build) {
+      detail::PhaseTimer phase(timing ? &timing->construction_us : nullptr);
       for (std::size_t i = 0; i < engines.size(); ++i) {
         auto& vm = engines[i];
         const auto& block = e.blocks[i];
@@ -296,6 +301,7 @@ Result runEmission(const Emission& e, const Metadata& m, const Limits& limits,
         } else
           out.components.push_back(std::move(part));
       }
+    }
   } catch (const Stop& s) {
     out = {};
     out.status = s.status;
@@ -312,8 +318,8 @@ Result execute(const Emission& e, const Metadata& m, const Limits& limits) {
   return runEmission(e, m, limits, true);
 }
 Result executeSound(const Emission& e, const Metadata& m,
-                    const Limits& limits) {
-  return runEmission(e, m, limits, true, true);
+                    const Limits& limits, ExecutionTiming* timing) {
+  return runEmission(e, m, limits, true, true, timing);
 }
 Portable portable(const Emission& e) {
   Portable p;

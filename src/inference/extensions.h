@@ -28,5 +28,5 @@ bool hasExtensions(const Program&);
 EmissionBlock emitExtension(const Program&);
 MetadataTerm emissionTerm(const EmissionBlock&, std::size_t);
 Result executeExtension(const Emission&, const Metadata&, const Limits&,
-                        bool build);
+                        bool build, ExecutionTiming* = nullptr);
 }  // namespace tepl::inference

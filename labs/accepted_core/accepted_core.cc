@@ -19,10 +19,9 @@ void invalid(const Json& j) {
 }
 int main(int argc, char** argv) {
   try {
-    bool test = argc > 1 && std::string(argv[1]) == "--test";
-    Json rows = Json::array();
     unsigned negative = 0, numeric = 0;
-    for (int arg = test ? 2 : 1; arg < argc; ++arg) {
+    require(argc > 1, "expected correctness fixtures");
+    for (int arg = 1; arg < argc; ++arg) {
       auto source = read(argv[arg]);
       auto parsed = parse(source, argv[arg]);
       require(parsed.ok(), "fixture parsing " + std::string(argv[arg]));
@@ -136,50 +135,9 @@ int main(int argc, char** argv) {
                 "numeric mismatch " + rule + ":" + graph.name);
         ++numeric;
       }
-      if (!test)
-        for (int round = -1; round < 10; ++round) {
-          double compile_ms = timeMs([&] {
-            auto z = compile(*parsed.program);
-            require(z.ir().rules[0].core.has_value(), "compile");
-          });
-          double load_ms = timeMs([&] {
-            auto z = executable::load(serialized);
-            require(z.ir().rules[0].core.has_value(), "load");
-          });
-          rows.push_back({{"rule", rule},
-                          {"phase", "compile"},
-                          {"round", round},
-                          {"ms", compile_ms},
-                          {"bytes", serialized.size()}});
-          rows.push_back({{"rule", rule},
-                          {"phase", "load_validate"},
-                          {"round", round},
-                          {"ms", load_ms}});
-          for (const auto& graph : loaded.ir().graphs) {
-            rewrite::Options options;
-            options.max_steps = 1;
-            options.rule = rule;
-            std::size_t rewrites = 0;
-            double runtime_ms =
-                timeMs([&] {
-                  for (int i = 0; i < 100; ++i)
-                    rewrites +=
-                        rewrite::run(loaded, graph, options).rewrite_count;
-                }) /
-                100;
-            require(rewrites == 100, "runtime count");
-            rows.push_back({{"rule", rule},
-                            {"phase", "rewrite"},
-                            {"graph", graph.name},
-                            {"round", round},
-                            {"batch", 100},
-                            {"ms", runtime_ms}});
-          }
-        }
     }
     std::cout << Json({{"numeric_graph_checks", numeric},
-                       {"negative_checks", negative},
-                       {"samples", rows}})
+                       {"negative_checks", negative}})
                      .dump(2)
               << "\n";
   } catch (const std::exception& e) {

@@ -105,6 +105,54 @@ algebraic_simplifier.cc SHA-256 cee113d1c8070e890242cba50b912f196b5359be3c0c7ef4
 00547 [legality]           rhs_rank);
 00548 [legality] }
 ...
+02797 [management] absl::Status AlgebraicSimplifierVisitor::SimplifyTransposeOfBroadcast(
+02798 [management]     HloInstruction* transpose, absl::Span<const int64_t> dimensions) {
+02799 [matching]   HloInstruction* broadcast = transpose->mutable_operand(0);
+02800 [matching]   if (broadcast->opcode() != HloOpcode::kBroadcast ||
+02801 [legality]       !absl::c_is_sorted(broadcast->dimensions())) {
+02802 [legality]     return absl::OkStatus();
+02803 [legality]   }
+...
+02822 [attributes]   auto inv_perm = InversePermutation(dimensions);
+02823 [attributes]   absl::InlinedVector<int64_t, 8> new_bcast_dims;
+02824 [attributes]   for (int64_t dim : broadcast->dimensions()) {
+02825 [attributes]     new_bcast_dims.push_back(inv_perm[dim]);
+02826 [attributes]   }
+02827 [legality]   if (!absl::c_is_sorted(new_bcast_dims)) {
+02828 [legality]     return absl::OkStatus();
+02829 [legality]   }
+...
+02833 [policy]   if (options_.is_layout_sensitive()) {
+02834 [policy]     std::vector<int64_t> perm1(new_bcast_dims.size());
+02835 [policy]     absl::c_iota(perm1, 0);
+02836 [policy]     std::vector<int64_t> perm2 = perm1;
+02837 [policy]     Layout operand_layout = broadcast->mutable_operand(0)->shape().layout();
+02838 [policy]     absl::c_sort(perm1, [&](int a, int b) {
+02839 [policy]       return operand_layout.minor_to_major(a) <
+02840 [policy]              operand_layout.minor_to_major(b);
+02841 [policy]     });
+02842 [policy]     Layout transpose_layout = transpose->shape().layout();
+02843 [policy]     // Extract the part of the layout that corresponds to the broadcasted
+02844 [policy]     // dimensions.
+02845 [policy]     std::vector<int64_t> extracted_layout;
+02846 [policy]     extracted_layout.reserve(new_bcast_dims.size());
+02847 [policy]     for (int64_t dim : transpose_layout.minor_to_major()) {
+02848 [policy]       if (absl::c_binary_search(new_bcast_dims, dim)) {
+02849 [policy]         extracted_layout.push_back(dim);
+02850 [policy]       }
+02851 [policy]     }
+02852 [policy]     absl::c_sort(perm2, [&](int a, int b) {
+02853 [policy]       return extracted_layout[a] < extracted_layout[b];
+02854 [policy]     });
+02855 [policy]     if (perm1 != perm2) {
+02856 [policy]       return absl::OkStatus();
+02857 [policy]     }
+02858 [policy]   }
+02859 [management]   return ReplaceInstruction(
+02860 [construction]       transpose, MakeBroadcastHlo(broadcast->mutable_operand(0), new_bcast_dims,
+02861 [construction]                                   transpose->shape()));
+02862 [management] }
+...
 02864 [management] absl::StatusOr<bool>
 02865 [management] AlgebraicSimplifierVisitor::RemoveTransposesFromDotOperands(
 02866 [management]     HloDotInstruction* dot) {
@@ -1011,6 +1059,45 @@ algebraic_simplifier.cc SHA-256 cee113d1c8070e890242cba50b912f196b5359be3c0c7ef4
 05653 [matching]   CHECK(Match(broadcast, m::Broadcast(m::Op(&operand))));
 05654 [matching]   auto dims = *broadcast->mutable_dimensions();
 ...
+05668 [legality]   if (broadcast->shape().dimensions().size() ==
+05669 [legality]           operand->shape().dimensions().size() &&
+05670 [legality]       ShapeUtil::ElementsIn(broadcast->shape()) ==
+05671 [legality]           ShapeUtil::ElementsIn(operand->shape())) {
+05672 [management]     return ReplaceWithNewInstruction(
+05673 [construction]         broadcast, HloInstruction::CreateTranspose(
+05674 [construction]                        broadcast->shape(), operand,
+05675 [attributes]                        InversePermutation(broadcast->dimensions())));
+05676 [management]   }
+...
+05680 [management]   {
+05681 [legality]     std::optional<ShapeUtil::ShapeEqualityDescriptor> reshape_degenerate =
+05682 [legality]         operand->ReshapeMerelyInsertsOrDeletes1SizedDimensions();
+05683 [legality]     if (reshape_degenerate.has_value() &&
+05684 [legality]         reshape_degenerate->deleted_dimensions.empty()) {
+05685 [attributes]       absl::c_reverse(reshape_degenerate->inserted_dimensions);
+05686 [attributes]       for (auto inserted_index : reshape_degenerate->inserted_dimensions) {
+05687 [attributes]         dims.erase(dims.begin() + inserted_index);
+05688 [attributes]       }
+...
+05690 [management]       HloModule* module = broadcast->parent()->parent();
+05691 [management]       module->mutable_original_value_recovery_table()
+05692 [management]           .BuildAndAddRecoveryComputation(
+05693 [management]               operand, operand->mutable_operand(0),
+05694 [management]               [](xla::HloComputation::Builder& builder, const ShapeIndex& index,
+05695 [management]                  const OriginalArray& old_original_array,
+05696 [management]                  const xla::Shape& old_shape, const xla::Shape& new_shape) {
+05697 [management]                 xla::HloInstruction* param = builder.AddInstruction(
+05698 [management]                     xla::HloInstruction::CreateParameter(0, new_shape, "p"));
+05699 [management]                 return builder.AddInstruction(
+05700 [management]                     xla::HloInstruction::CreateReshape(old_shape, param));
+05701 [management]               });
+05702 [management]       return ReplaceWithNewInstruction(
+05703 [construction]           broadcast,
+05704 [construction]           HloInstruction::CreateBroadcast(broadcast->shape(),
+05705 [construction]                                           operand->mutable_operand(0), dims));
+05706 [management]     }
+05707 [management]   }
+...
 05709 [policy]   if (options_.enable_sink_broadcast()) {
 05710 [policy]     ABSL_ASSIGN_OR_RETURN(bool sink_succeeded,
 05711 [policy]                           TryToSinkBroadcastAfterElementwiseOps(broadcast));
@@ -1054,6 +1141,24 @@ algebraic_simplifier.cc SHA-256 cee113d1c8070e890242cba50b912f196b5359be3c0c7ef4
 05763 [construction]         HloInstruction::CreateBroadcast(
 05764 [construction]             broadcast->shape(), operand->mutable_operand(0), new_dimensions));
 05765 [management]   }
+05766 [policy]   if (options_.is_layout_sensitive()) {
+05767 [policy]     return absl::OkStatus();
+05768 [policy]   }
+05769 [policy]   if (options_.enable_broadcast_degenerate_dimension() &&
+05770 [legality]       ShapeUtil::HasDegenerateDimensions(operand->shape())) {
+05771 [construction]     auto new_operand = operand->AddInstruction(HloInstruction::CreateReshape(
+05772 [construction]         ShapeUtil::DropDegenerateDimensions(operand->shape()), operand));
+05773 [attributes]     std::vector<int64_t> new_dims;
+05774 [attributes]     new_dims.reserve(new_operand->shape().dimensions().size());
+05775 [attributes]     for (int64_t i = 0; i < operand->shape().dimensions().size(); ++i) {
+05776 [attributes]       if (operand->shape().dimensions(i) != 1) {
+05777 [attributes]         new_dims.push_back(dims[i]);
+05778 [attributes]       }
+05779 [attributes]     }
+05780 [management]     return ReplaceWithNewInstruction(
+05781 [construction]         broadcast, HloInstruction::CreateBroadcast(broadcast->shape(),
+05782 [construction]                                                    new_operand, new_dims));
+05783 [management]   }
 ...
 06347 [legality]   TF_RET_CHECK(broadcast->opcode() == HloOpcode::kBroadcast);
 06348 [legality]   bool changed = false;
@@ -1135,6 +1240,23 @@ algebraic_simplifier.cc SHA-256 cee113d1c8070e890242cba50b912f196b5359be3c0c7ef4
 06427 [management]   return changed;
 06428 [management] }
 ...
+07080 [attributes] int64_t CountElementsLessThan(absl::Span<const int64_t> elements,
+07081 [attributes]                               int64_t value) {
+07082 [attributes]   int64_t low = 0;
+07083 [attributes]   int64_t high = elements.size() - 1;
+07084 [attributes]   int64_t count = 0;
+07085 [attributes]   while (low <= high) {
+07086 [attributes]     const int64_t mid = low + (high - low) / 2;
+07087 [attributes]     if (elements.at(mid) < value) {
+07088 [attributes]       count = mid + 1;
+07089 [attributes]       low = mid + 1;
+07090 [attributes]     } else {
+07091 [attributes]       high = mid - 1;
+07092 [attributes]     }
+07093 [attributes]   }
+07094 [attributes]   return count;
+07095 [attributes] }
+...
 07107 [policy]   if (!options_.is_layout_sensitive()) {
 07108 [matching]     absl::Span<const int64_t> reverse_dims = reverse->dimensions();
 07109 [matching]     HloInstruction* inner = reverse->mutable_operand(0);
@@ -1191,6 +1313,38 @@ algebraic_simplifier.cc SHA-256 cee113d1c8070e890242cba50b912f196b5359be3c0c7ef4
 07164 [management]       }
 07165 [management]       return absl::OkStatus();
 07166 [management]     }
+...
+07170 [matching]     if (inner_opcode == HloOpcode::kReshape) {
+07171 [attributes]       Shape* inner_shape = inner->mutable_shape();
+...
+07173 [legality]       std::optional<ShapeUtil::ShapeEqualityDescriptor> reshape_degenerate =
+07174 [legality]           inner->ReshapeMerelyInsertsOrDeletes1SizedDimensions();
+07175 [legality]       if (reshape_degenerate.has_value() &&
+07176 [legality]           reshape_degenerate->deleted_dimensions.empty()) {
+07177 [attributes]         std::vector<int64_t> new_reverse_dims;
+07178 [attributes]         // for each reverse dimension dim, count the number of degenerate
+07179 [attributes]         // dimensions that are added 'before' dim by the reshape operation.
+07180 [attributes]         for (auto dim : reverse_dims) {
+07181 [attributes]           // trivial dimensions don't need to be reversed.
+07182 [attributes]           if (inner_shape->dimensions(dim) == 1) {
+07183 [attributes]             continue;
+07184 [attributes]           }
+07185 [attributes]           auto new_dim =
+07186 [attributes]               dim -
+07187 [attributes]               CountElementsLessThan(
+07188 [attributes]                   absl::MakeConstSpan(reshape_degenerate->inserted_dimensions),
+07189 [attributes]                   dim);
+07190 [attributes]           new_reverse_dims.push_back(new_dim);
+07191 [attributes]         }
+...
+07193 [management]         return ReplaceInstruction(
+07194 [construction]             reverse,
+07195 [construction]             *MakeReshapeHlo(
+07196 [construction]                 *inner_shape,
+07197 [construction]                 *MakeReverseHlo(reverse->mutable_operand(0)->mutable_operand(0),
+07198 [construction]                                 new_reverse_dims)));
+07199 [management]       }
+07200 [management]     }
 ...
 08779 [management] std::optional<absl::Status>
 08780 [management] AlgebraicSimplifierVisitor::ReorderReduceDotToDotReduce(
@@ -1588,3 +1742,6 @@ algebraic_simplifier.cc SHA-256 cee113d1c8070e890242cba50b912f196b5359be3c0c7ef4
 10326 [management]   if (did_transpose_of_dot) {
 10327 [management]     return absl::OkStatus();
 10328 [management]   }
+...
+10567 [management]   ABSL_RETURN_IF_ERROR(
+10568 [management]       SimplifyTransposeOfBroadcast(transpose, transpose->dimensions()));

@@ -11,7 +11,8 @@ mathematical arguments and finite theorem checks are in
 | [tutorial_cpp](tutorial_cpp/README.md) | Maintained C++20/egg-c CMake application |
 | [tutorial_rust](tutorial_rust/README.md) | Historical tutorial fixtures using retired descriptor syntax |
 | [xla_rewrite](xla_rewrite/README.md) | Pinned XLA catalog, canonical axis-only tasks, compilation/verification measurements |
-| [reasoning_scalability](reasoning_scalability/README.md) | Synthetic inference cost/rank scaling and independent references |
+| [reasoning_scalability](reasoning_scalability/README.md) | Main scaling experiment: rank-polymorphic chain/additive compilation and matching metadata execution |
+| [accepted_core](accepted_core/README.md) | Core/extension correctness tests with independent numerical references |
 | [attribute_inference](attribute_inference/README.md) | Historical full/partial-auto cohorts and recorded rechecks |
 
 An experiment README should identify scope, reproduction commands, primary

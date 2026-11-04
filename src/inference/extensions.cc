@@ -1020,21 +1020,28 @@ struct ExtensionVM {
 };
 }  // namespace
 Result executeExtension(const Emission& e, const Metadata& m,
-                        const Limits& limits, bool build) {
+                        const Limits& limits, bool build,
+                        ExecutionTiming* timing) {
+  if (timing) *timing = {};
   Result r;
   ExtensionVM vm{e.blocks.at(0), m, limits, limits.work, {}};
   try {
     vm.sourceLegality();
-    for (auto id : vm.b.checks)
-      if (vm.eval(id) != List{1}) {
-        r.status = Status::Inapplicable;
-        r.reason = "schema feasibility predicate is false";
-        r.work = limits.work - vm.remaining;
-        return r;
-      }
-    if (build)
+    {
+      detail::PhaseTimer phase(timing ? &timing->feasibility_us : nullptr);
+      for (auto id : vm.b.checks)
+        if (vm.eval(id) != List{1}) {
+          r.status = Status::Inapplicable;
+          r.reason = "schema feasibility predicate is false";
+          r.work = limits.work - vm.remaining;
+          return r;
+        }
+    }
+    if (build) {
+      detail::PhaseTimer phase(timing ? &timing->construction_us : nullptr);
       for (const auto& [id, fields] : vm.b.attributes)
         for (auto x : fields) r.attributes[id].push_back(vm.eval(x));
+    }
     r.status = build ? Status::Solved : Status::Feasible;
   } catch (const ExtensionStop& stop) {
     r.status = stop.status;

@@ -1,4 +1,4 @@
-"""Contraction workloads and shared paths for the bounded inference benchmark."""
+"""Automatic, rank-polymorphic workloads for the main scaling experiment."""
 
 from dataclasses import dataclass
 import hashlib
@@ -64,32 +64,79 @@ def internal(node):
 def expression(node, automatic=False):
     if not node.children:
         return node.name
-    inferred = automatic(node) if callable(automatic) else automatic
-    label = "" if inferred else node.name + ": "
+    label = "" if automatic else node.name + ": "
     return f"({label}dot {expression(node.children[0], automatic)} {expression(node.children[1], automatic)})"
 
 
-def dot_source(size, mode):
+def capture_shape(leaf):
+    # "b" denotes an entire leading batch sequence, not one concrete axis.
+    return ','.join(['Batch...'] + ['D' + axis[1:] for axis in leaf.axes if axis != 'b'])
+
+
+def field_expression(field):
+    return {
+        'lhs_contracting_dimensions': '[len(Batch)+1]',
+        'rhs_contracting_dimensions': '[len(Batch)]',
+        'lhs_batching_dimensions': 'range(len(Batch))',
+        'rhs_batching_dimensions': 'range(len(Batch))',
+    }[field]
+
+
+def positive_extents(dimensions):
+    return ['all([d>0 for d in Batch])'] + [f'D{i}>0' for i in range(dimensions)]
+
+
+def dot_source(size):
     n = size + 1
     leaves, lhs, rhs = chain(n)
-    name = f"chain_{mode}_{size}"
-    inferred = lambda node: mode == "automatic" or (mode == "partial" and int(node.name[1:]) % 2 == 1)
+    name = f"chain_automatic_{size}"
     lines = [f"rule {name} {{"]
     for leaf in leaves:
-        dims = ["B" if a == "b" else "D" + a[1:] for a in leaf.axes]
-        lines.append(f"    {leaf.name}: f32[{', '.join(dims)}]")
-    lines += ["", "    " + expression(lhs), "    =>", "    " + expression(rhs, inferred), "    where {"]
-    conditions = [f"{d} > 0" for d in ["B"] + [f"D{i}" for i in range(n + 1)]]
+        lines.append(f"    {leaf.name}: f32[{capture_shape(leaf)}]")
+    lines += ["", "    " + expression(lhs), "    =>", "    " + expression(rhs, True), "    where {"]
+    conditions = positive_extents(n + 1)
     for node in internal(lhs):
-        conditions += [f"{node.name}.attrs.{field} == {node.attrs[field]}" for field in FIELDS]
+        conditions += [f"{node.name}.attrs.{field} == {field_expression(field)}" for field in FIELDS]
     lines.append("        " + "\n        && ".join(conditions))
     lines.append("    }")
-    derived = [node for node in internal(rhs) if not inferred(node)]
-    if derived:
-        lines.append("    derive {")
-        for node in derived:
-            fields = ", ".join(f"{f}: {node.attrs[f]}" for f in FIELDS)
-            lines.append(f"        {node.name}.attrs = {{ {fields} }};")
-        lines.append("    }")
     lines.append("}")
     return name, "\n".join(lines) + "\n"
+
+
+def additive_source(terms, dots_per_term=2):
+    """Disjoint read-once chains; shared output dimensions make sums legal."""
+    captures, conditions, left, right = [], [], [], []
+    for term in range(terms):
+        leaves, lhs, rhs = chain(dots_per_term + 1)
+        # Both trees share leaves, so rename each object exactly once.
+        seen = set()
+        def visit(node):
+            if id(node) in seen:
+                return
+            seen.add(id(node))
+            node.name = f"t{term}_" + node.name
+            for child in node.children:
+                visit(child)
+        visit(lhs)
+        visit(rhs)
+        for leaf in leaves:
+            captures.append(f"{leaf.name}:f32[{capture_shape(leaf)}]")
+        for node in internal(lhs):
+            conditions.extend(f"{node.name}.attrs.{f}=={field_expression(f)}" for f in FIELDS)
+        left.append(expression(lhs))
+        right.append(expression(rhs, True))
+    def balanced(xs, op):
+        if len(xs) == 1:
+            return xs[0]
+        mid = len(xs) // 2
+        return f"({op} {balanced(xs[:mid], op)} {balanced(xs[mid:], op)})"
+    def conjunction(xs):
+        if len(xs) == 1:
+            return xs[0]
+        mid = len(xs) // 2
+        return f"({conjunction(xs[:mid])} && {conjunction(xs[mid:])})"
+    conditions += positive_extents(dots_per_term + 2)
+    name = f"terms_automatic_{terms}"
+    return name, (f"rule {name} {{\n" + '\n'.join(captures) + '\n' +
+                  balanced(left, 'add') + ' => ' + balanced(right, 'add') +
+                  '\nwhere {' + conjunction(conditions) + '}\n}\n')

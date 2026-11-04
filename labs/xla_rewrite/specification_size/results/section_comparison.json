@@ -1,0 +1,1965 @@
+{
+  "protocol": "xla_tepl_literal_sections_v2",
+  "cases": [
+    {
+      "case": "transpose_compose",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/transpose_compose.tepl",
+        "original_file_sha256": "369e9afaa47599809cd7c31f13b8be1e39b91612faee38156bd173cde857bbe5",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule transpose_compose {\n    (attr_outer: transpose (attr_inner: transpose X)) => (attr_combined: transpose X)\n    \nderive {\n\n attr_combined.attrs = {permutation: gather(attr_inner.attrs.permutation, attr_outer.attrs.permutation)};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 0,
+          "attributes": 26,
+          "construction": 6,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/transpose_compose.tepl",
+        "input_file_sha256": "655999a05f7b335c6743b5c964b3980bbf9678d2a496d92e779951804723f0d0",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule transpose_compose {\n    ( transpose ( transpose X)) => ( transpose X)\n    \n\n}\n",
+        "parts": {
+          "matching": 7,
+          "legality": 0,
+          "attributes": 0,
+          "construction": 4,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_combined",
+          "operation": "transpose",
+          "field": "permutation",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_combined"
+        }
+      ],
+      "xla_mapping": {
+        "case": "transpose_compose",
+        "status": "reviewed",
+        "blocks": [
+          "transpose_compose"
+        ],
+        "note": "Operand binding and nested-transpose branch only; omit identity/scatter/bitcast and dot branches.",
+        "tepl_scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed."
+      }
+    },
+    {
+      "case": "broadcast_add",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/broadcast_add.tepl",
+        "original_file_sha256": "71e4f867eb4ed33f21758faeb55c5dcf421ce1e11abfd1b52f2b77d4dd13534c",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule broadcast_add {\n    (add (attr_left: broadcast X) (attr_right: broadcast Y)) => (axis_eval_0: broadcast (add X Y))\n    where { attr_left.attrs.dimensions == attr_right.attrs.dimensions\n         && attr_left.attrs.new_extents == attr_right.attrs.new_extents }\nderive {\n\n axis_eval_0.attrs = {dimensions: attr_left.attrs.dimensions, new_extents: attr_left.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 26,
+          "attributes": 25,
+          "construction": 10,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/broadcast_add.tepl",
+        "input_file_sha256": "db212dac80518c111db4f976bb7b1e0a95a3661c9085672674483218063cf8a4",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule broadcast_add {\n    (add (attr_left: broadcast X) (attr_right: broadcast Y)) => (axis_eval_0: broadcast (add X Y))\n    where { attr_left.attrs.dimensions == attr_right.attrs.dimensions\n         && attr_left.attrs.new_extents == attr_right.attrs.new_extents }\nderive {\n axis_eval_0.attrs = {new_extents: attr_left.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 26,
+          "attributes": 17,
+          "construction": 10,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@247",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        }
+      ],
+      "xla_mapping": {
+        "case": "broadcast_add",
+        "status": "reviewed",
+        "blocks": [
+          "broadcast_elementwise"
+        ],
+        "note": "Shared elementwise sinking algorithm includes scalar expansion and generic elementwise/user handling beyond the two TEPL binary/equal-map specializations. Configuration dispatch is policy.",
+        "tepl_scope": "Only binary addition, equal base shapes, identical broadcast maps and added extents; excludes other elementwise functions and scalar expansion."
+      }
+    },
+    {
+      "case": "broadcast_multiply",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/broadcast_multiply.tepl",
+        "original_file_sha256": "4a851cce42cb5d835b39bf3593eca6fe3ff1e9abbfb8307241c0b0c385c5a88d",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule broadcast_multiply {\n    (mul (attr_left: broadcast X) (attr_right: broadcast Y)) => (axis_eval_0: broadcast (mul X Y))\n    where { attr_left.attrs.dimensions == attr_right.attrs.dimensions\n         && attr_left.attrs.new_extents == attr_right.attrs.new_extents }\nderive {\n\n axis_eval_0.attrs = {dimensions: attr_left.attrs.dimensions, new_extents: attr_left.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 26,
+          "attributes": 25,
+          "construction": 10,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/broadcast_multiply.tepl",
+        "input_file_sha256": "18bcae1a626d79445e706a491ea5c6e9d6e72bb27be0462f8a8ac100ad82cfc0",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule broadcast_multiply {\n    (mul (attr_left: broadcast X) (attr_right: broadcast Y)) => (axis_eval_0: broadcast (mul X Y))\n    where { attr_left.attrs.dimensions == attr_right.attrs.dimensions\n         && attr_left.attrs.new_extents == attr_right.attrs.new_extents }\nderive {\n axis_eval_0.attrs = {new_extents: attr_left.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 26,
+          "attributes": 17,
+          "construction": 10,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@252",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        }
+      ],
+      "xla_mapping": {
+        "case": "broadcast_multiply",
+        "status": "reviewed",
+        "blocks": [
+          "broadcast_elementwise"
+        ],
+        "note": "Shared elementwise sinking algorithm includes scalar expansion and generic elementwise/user handling beyond the two TEPL binary/equal-map specializations. Configuration dispatch is policy.",
+        "tepl_scope": "Only binary multiplication, equal base shapes, identical maps and added extents."
+      }
+    },
+    {
+      "case": "scalar_broadcast_reverse",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/scalar_broadcast_reverse.tepl",
+        "original_file_sha256": "9dc905e3dc2f3677c0eeda933658006547c4009ddf747fc0775e45449683640c",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule scalar_broadcast_reverse {\n    (attr_r: reverse (attr_b: broadcast C)) => (axis_eval_0: broadcast C)\n    where { attr_b.attrs.dimensions == [] }\nderive {\n\n axis_eval_0.attrs = {dimensions: attr_b.attrs.dimensions, new_extents: attr_b.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 11,
+          "attributes": 25,
+          "construction": 6,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/scalar_broadcast_reverse.tepl",
+        "input_file_sha256": "048a770725e4d4634f761f642a6d7f3ada6c2bb3916dcaadb3b7ae8077367e8a",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule scalar_broadcast_reverse {\n    ( reverse (attr_b: broadcast C)) => (axis_eval_0: broadcast C)\n    where { attr_b.attrs.dimensions == [] }\nderive {\n axis_eval_0.attrs = {new_extents: attr_b.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 9,
+          "legality": 11,
+          "attributes": 17,
+          "construction": 6,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@237",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true,
+          "canonical_node": "axis_eval_0"
+        }
+      ],
+      "xla_mapping": {
+        "case": "scalar_broadcast_reverse",
+        "status": "reviewed",
+        "blocks": [
+          "broadcast_inputs",
+          "scalar_permutation_predicate",
+          "scalar_broadcast_permutation"
+        ],
+        "note": "Common broadcast operand and descriptor capture, counted once. Local permutation predicate; includes the additional sort case. Subset predicate is short-circuited for the selected reverse/transpose cases and is not expanded. Scalar broadcast through a permutation: retain user traversal and mutation; no iota, broadcast-composition, or unrelated reshape branches.",
+        "tepl_scope": "Only the reverse member of the parameterized indexing schema; input broadcast map is empty."
+      }
+    },
+    {
+      "case": "scalar_broadcast_transpose",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/scalar_broadcast_transpose.tepl",
+        "original_file_sha256": "c56c3b0fc434290162b4610b5f7fdd3ad0565c0cbef6aee424406e345b9c4b7a",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule scalar_broadcast_transpose {\n    (attr_p: transpose (attr_b: broadcast C)) => (attr_out: broadcast C)\n    where { attr_b.attrs.dimensions == [] && len(attr_b.attrs.new_extents) == 2\n         && attr_p.attrs.permutation == [1, 0] }\n    \nderive {\n\n attr_out.attrs = {dimensions: attr_b.attrs.dimensions, new_extents: gather(attr_b.attrs.new_extents, [1, 0])};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 34,
+          "attributes": 34,
+          "construction": 6,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/scalar_broadcast_transpose.tepl",
+        "input_file_sha256": "4c1b9006c5b94f3dcba8b8d0ce5fd0cf853d1e793edb8fea17b6c666ad6426d8",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule scalar_broadcast_transpose {\n    (attr_p: transpose (attr_b: broadcast C)) => (attr_out: broadcast C)\n    where { attr_b.attrs.dimensions == [] && len(attr_b.attrs.new_extents) == 2\n         && attr_p.attrs.permutation == [1, 0] }\n    \nderive {\n attr_out.attrs = {new_extents: gather(attr_b.attrs.new_extents, [1, 0])};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 34,
+          "attributes": 26,
+          "construction": 6,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "scalar_broadcast_transpose",
+        "status": "reviewed",
+        "blocks": [
+          "broadcast_inputs",
+          "scalar_permutation_predicate",
+          "scalar_broadcast_permutation"
+        ],
+        "note": "Common broadcast operand and descriptor capture, counted once. Local permutation predicate; includes the additional sort case. Subset predicate is short-circuited for the selected reverse/transpose cases and is not expanded. Scalar broadcast through a permutation: retain user traversal and mutation; no iota, broadcast-composition, or unrelated reshape branches.",
+        "tepl_scope": "Only a rank-two transpose with permutation [1,0] and scalar broadcast."
+      }
+    },
+    {
+      "case": "reduce_negate",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/reduce_negate.tepl",
+        "original_file_sha256": "03253e862ab0a4a200e8edf03b9028f2de3afbeb9654b05343fe54c63400804d",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reduce_negate {\n    (attr_r: reduce_sum (negate X)) => (negate (axis_eval_0: reduce_sum X))\nderive {\n\n axis_eval_0.attrs = {dimensions: attr_r.attrs.dimensions};\n}\n}\n",
+        "parts": {
+          "matching": 9,
+          "legality": 0,
+          "attributes": 17,
+          "construction": 9,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/reduce_negate.tepl",
+        "input_file_sha256": "ac4f46ed494e31a5469247a39e053569ebf366f9c110639f3d535ef360e8e3bd",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reduce_negate {\n    ( reduce_sum (negate X)) => (negate ( reduce_sum X))\n\n}\n",
+        "parts": {
+          "matching": 7,
+          "legality": 0,
+          "attributes": 0,
+          "construction": 7,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@226",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        }
+      ],
+      "xla_mapping": {
+        "case": "reduce_negate",
+        "status": "reviewed",
+        "blocks": [
+          "reduce_inputs",
+          "scalar_zero_predicate",
+          "reduce_negate"
+        ],
+        "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Local scalar-zero predicate and its effective-scalar predicate; scalar type switching is retained. General primitive/literal library routines are not expanded. Only negate/sum commutation. Floating-type and zero-init checks remain legality; scalar/combiner assumptions are built into the TEPL sum dialect.",
+        "tepl_scope": "Only sum with implicit zero initializer, matching the catalog arithmetic case."
+      }
+    },
+    {
+      "case": "reduce_compose",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/reduce_compose.tepl",
+        "original_file_sha256": "f2ecac700c11aab94eac36514bb0cd3357ac92539886bac3e6001238d3641add",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reduce_compose {\n    X: [I, J, K]\n    (attr_outer: reduce_sum (attr_inner: reduce_sum X)) => (attr_out: reduce_sum X)\n    where { attr_inner.attrs.dimensions == [1] && attr_outer.attrs.dimensions == [1] }\n    \nderive {\n\n attr_out.attrs = {dimensions: [1, 2]};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 22,
+          "attributes": 17,
+          "construction": 6,
+          "other": 14
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/reduce_compose.tepl",
+        "input_file_sha256": "d59026b9f3e794a9294ea167f6e8466669920f7560a1fd096c664234531347b1",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reduce_compose {\n    X: [I, J, K]\n    (attr_outer: reduce_sum (attr_inner: reduce_sum X)) => ( reduce_sum X)\n    where { attr_inner.attrs.dimensions == [1] && attr_outer.attrs.dimensions == [1] }\n    \n\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 22,
+          "attributes": 0,
+          "construction": 4,
+          "other": 14
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "reduce_compose",
+        "status": "reviewed",
+        "blocks": [
+          "reduce_inputs",
+          "merge_reduces"
+        ],
+        "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. MergeReduces helper plus actual matching/combiner-equivalence caller. Both retained TEPL reduction-composition cases share this code.",
+        "tepl_scope": "Rank-three sum, inner axis 1 then outer axis 1; symbolic extents. Does not cover arbitrary combiners/initializers."
+      }
+    },
+    {
+      "case": "reduce_transpose",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/reduce_transpose.tepl",
+        "original_file_sha256": "0595fc2091d697876b15400eba2b0afe4876a736e2ee76a8444c6f5f71133416",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reduce_transpose {\n    X: [I, J]\n    (attr_r: reduce_sum (attr_p: transpose X)) => (attr_out: reduce_sum X)\n    where { attr_p.attrs.permutation == [1, 0] && attr_r.attrs.dimensions == [0] }\n    \nderive {\n\n attr_out.attrs = {dimensions: [1]};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 24,
+          "attributes": 15,
+          "construction": 6,
+          "other": 12
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/reduce_transpose.tepl",
+        "input_file_sha256": "0017c9363a2dfe583233e4d7051c83309997f6f085e911ca714e55673774056c",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reduce_transpose {\n    X: [I, J]\n    (attr_r: reduce_sum (attr_p: transpose X)) => ( reduce_sum X)\n    where { attr_p.attrs.permutation == [1, 0] && attr_r.attrs.dimensions == [0] }\n    \n\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 24,
+          "attributes": 0,
+          "construction": 4,
+          "other": 12
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "reduce_transpose",
+        "status": "reviewed",
+        "blocks": [
+          "reduce_inputs",
+          "reduce_transpose"
+        ],
+        "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Reduction-through-transpose branch includes general output-transpose correction; TEPL case is rank two/vector output. Fanout/unconditional-rewrite option is policy.",
+        "tepl_scope": "Rank-two transpose [1,0], sum over output axis 0, implicit zero initializer."
+      }
+    },
+    {
+      "case": "reverse_compose_disjoint",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/reverse_compose_disjoint.tepl",
+        "original_file_sha256": "dc5860223177950c6fe59ffaad6b6e7240c12f000bf3ff651737f049c9b6bc1a",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reverse_compose_disjoint {\n    X: [I, J]\n    (attr_outer: reverse (attr_inner: reverse X)) => (attr_out: reverse X)\n    where { attr_inner.attrs.dimensions == [0] && attr_outer.attrs.dimensions == [1] }\n    \nderive {\n\n attr_out.attrs = {dimensions: [0, 1]};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 22,
+          "attributes": 17,
+          "construction": 6,
+          "other": 12
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/reverse_compose_disjoint.tepl",
+        "input_file_sha256": "98f53aa534fff95617bc9bc56b086f81cafb83fdf700ee74671cee713bbac854",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reverse_compose_disjoint {\n    X: [I, J]\n    (attr_outer: reverse (attr_inner: reverse X)) => ( reverse X)\n    where { attr_inner.attrs.dimensions == [0] && attr_outer.attrs.dimensions == [1] }\n    \n\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 22,
+          "attributes": 0,
+          "construction": 4,
+          "other": 12
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "reverse_compose_disjoint",
+        "status": "reviewed",
+        "blocks": [
+          "reverse_inputs",
+          "reverse_compose"
+        ],
+        "note": "Reverse operand capture; layout sensitivity is policy. Trivial-dimension elimination is another rewrite and omitted. Nested-reverse symmetric difference, including empty-result deletion; shared by fixed and general TEPL cases.",
+        "tepl_scope": "Rank-two disjoint lists [0] and [1]; probes a case beyond identical-list cancellation."
+      }
+    },
+    {
+      "case": "reverse_add_scalar",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/reverse_add_scalar.tepl",
+        "original_file_sha256": "c2f620797b08a8abdd2ac1e9b66fcdbab2cfcf4506333ab409698d6b10213fc0",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reverse_add_scalar {\n    (attr_r: reverse (add X (attr_b: broadcast C))) => (add (axis_eval_0: reverse X) (axis_eval_1: broadcast C))\n    where { attr_b.attrs.dimensions == [] }\nderive {\n\n axis_eval_0.attrs = {dimensions: attr_r.attrs.dimensions};\n axis_eval_1.attrs = {dimensions: attr_b.attrs.dimensions, new_extents: attr_b.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 11,
+          "attributes": 39,
+          "construction": 15,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/reverse_add_scalar.tepl",
+        "input_file_sha256": "66aa413fb48e6d6953b5b4532cd79408ea5327a8c4fce07a66ef63f49d56d1f1",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule reverse_add_scalar {\n    ( reverse (add X (attr_b: broadcast C))) => (add ( reverse X) (axis_eval_1: broadcast C))\n    where { attr_b.attrs.dimensions == [] }\nderive {\n \n axis_eval_1.attrs = {new_extents: attr_b.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 13,
+          "legality": 11,
+          "attributes": 17,
+          "construction": 13,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@248",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@274",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true,
+          "canonical_node": "axis_eval_1"
+        }
+      ],
+      "xla_mapping": {
+        "case": "reverse_add_scalar",
+        "status": "reviewed",
+        "blocks": [
+          "reverse_inputs",
+          "reverse_scalar_elementwise"
+        ],
+        "note": "Reverse operand capture; layout sensitivity is policy. Trivial-dimension elimination is another rewrite and omitted. Generic binary elementwise commutation with a scalar broadcast, both operand orders. TEPL selects addition with the scalar on one side; side-effect/opcode restrictions are retained.",
+        "tepl_scope": "Only addition and a scalar broadcast; tests the compound rule directly, not a two-rule sequence."
+      }
+    },
+    {
+      "case": "dot_associate",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/dot_associate.tepl",
+        "original_file_sha256": "853c4e1d69405bd2985c85686695c35551bbed0a53417588c1e707b248a54a2d",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule dot_associate {\n    X: [M, K]\n    Y: [K, N]\n    Z: [N, P]\n    (attr_outer: dot (attr_inner: dot X Y) Z) => (axis_eval_1: dot X (axis_eval_0: dot Y Z))\n    where { attr_inner.attrs.lhs_batching_dimensions == []\n         && attr_inner.attrs.rhs_batching_dimensions == []\n         && attr_inner.attrs.lhs_contracting_dimensions == [1]\n         && attr_inner.attrs.rhs_contracting_dimensions == [0]\n         && attr_outer.attrs.lhs_batching_dimensions == []\n         && attr_outer.attrs.rhs_batching_dimensions == []\n         && attr_outer.attrs.lhs_contracting_dimensions == [1]\n         && attr_outer.attrs.rhs_contracting_dimensions == [0] }\nderive {\n\n axis_eval_0.attrs = {lhs_contracting_dimensions: attr_outer.attrs.lhs_contracting_dimensions, rhs_contracting_dimensions: attr_outer.attrs.rhs_contracting_dimensions, lhs_batching_dimensions: attr_outer.attrs.lhs_batching_dimensions, rhs_batching_dimensions: attr_outer.attrs.rhs_batching_dimensions};\n axis_eval_1.attrs = {lhs_contracting_dimensions: attr_inner.attrs.lhs_contracting_dimensions, rhs_contracting_dimensions: attr_inner.attrs.rhs_contracting_dimensions, lhs_batching_dimensions: attr_inner.attrs.lhs_batching_dimensions, rhs_batching_dimensions: attr_inner.attrs.rhs_batching_dimensions};\n}\n}\n",
+        "parts": {
+          "matching": 13,
+          "legality": 78,
+          "attributes": 79,
+          "construction": 13,
+          "other": 26
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/dot_associate.tepl",
+        "input_file_sha256": "7d140765c1c11f985825a6807c07c1cfbda4ba8b11b8543eba9d5d4b45a54c08",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule dot_associate {\n    X: [M, K]\n    Y: [K, N]\n    Z: [N, P]\n    (attr_outer: dot (attr_inner: dot X Y) Z) => ( dot X ( dot Y Z))\n    where { attr_inner.attrs.lhs_batching_dimensions == []\n         && attr_inner.attrs.rhs_batching_dimensions == []\n         && attr_inner.attrs.lhs_contracting_dimensions == [1]\n         && attr_inner.attrs.rhs_contracting_dimensions == [0]\n         && attr_outer.attrs.lhs_batching_dimensions == []\n         && attr_outer.attrs.rhs_batching_dimensions == []\n         && attr_outer.attrs.lhs_contracting_dimensions == [1]\n         && attr_outer.attrs.rhs_contracting_dimensions == [0] }\n\n}\n",
+        "parts": {
+          "matching": 13,
+          "legality": 78,
+          "attributes": 0,
+          "construction": 9,
+          "other": 26
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@295",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@295",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@295",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@295",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@270",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        },
+        {
+          "node": "rhs@270",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        },
+        {
+          "node": "rhs@270",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        },
+        {
+          "node": "rhs@270",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        }
+      ],
+      "xla_mapping": {
+        "case": "dot_associate",
+        "status": "reviewed",
+        "blocks": [
+          "dot_inputs",
+          "dot_maps",
+          "nested_dot"
+        ],
+        "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Complete local ConstructToDotMaps and ConstructFromDotMaps axis-map algorithms, once globally, including both input maps and inverse maps. General nested-dot reassociation, including batch/contract maps and optional output transpose; source flop heuristic is excluded. TEPL is ordinary matrix multiplication only. No unrelated HandleDot branches included.",
+        "tepl_scope": "Ordinary rank-two matrix products without batch axes; every attribute is reused explicitly."
+      }
+    },
+    {
+      "case": "dot_transpose_output",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/dot_transpose_output.tepl",
+        "original_file_sha256": "f06ac980577dc734b1353e9e2b4f9ceb62b82804c7ad804762fe928166ed55a7",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule dot_transpose_output {\n    X: [M, K]\n    Y: [K, N]\n    (attr_p: transpose (attr_d: dot X Y)) => (attr_out: dot Y X)\n    where { attr_p.attrs.permutation == [1, 0]\n         && attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == [1]\n         && attr_d.attrs.rhs_contracting_dimensions == [0] }\n    \nderive {\n\n attr_out.attrs = {lhs_contracting_dimensions: [0], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [], rhs_batching_dimensions: []};\n}\n}\n",
+        "parts": {
+          "matching": 12,
+          "legality": 52,
+          "attributes": 31,
+          "construction": 7,
+          "other": 19
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/dot_transpose_output.tepl",
+        "input_file_sha256": "199462098489d415b7b16ccc144841c30e6b3045da33e21a17a5bfdbaa8f8ea7",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule dot_transpose_output {\n    X: [M, K]\n    Y: [K, N]\n    (attr_p: transpose (attr_d: dot X Y)) => ( dot Y X)\n    where { attr_p.attrs.permutation == [1, 0]\n         && attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == [1]\n         && attr_d.attrs.rhs_contracting_dimensions == [0] }\n    \n\n}\n",
+        "parts": {
+          "matching": 12,
+          "legality": 52,
+          "attributes": 0,
+          "construction": 5,
+          "other": 19
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "dot_transpose_output",
+        "status": "reviewed",
+        "blocks": [
+          "transpose_dot",
+          "parameter_policy",
+          "precision_policy"
+        ],
+        "note": "Canonical transpose(dot) branch, appropriate for the rank-two TEPL case; exclude the separate arbitrary noncanonical-dot branch, and parameter/precision preference policy. Parameter-like profitability/layout preference predicate, kept in excluded-policy accounting. Precision-configuration propagation, outside the ideal-algebraic TEPL profile; excluded rather than credited as a saving.",
+        "tepl_scope": "Rank-two matrix product, output transpose [1,0]; explicit swapped contraction attributes."
+      }
+    },
+    {
+      "case": "dot_move_reverse",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/dot_move_reverse.tepl",
+        "original_file_sha256": "7f3fad77b00b71fe8a6eb9c49054df0d224cfa65189ca2937c5423890d2e1be0",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule dot_move_reverse {\n    X: [K]\n    Y: [K]\n    (attr_d: dot (attr_r: reverse X) Y) => (axis_eval_1: dot X (axis_eval_0: reverse Y))\n    where { attr_r.attrs.dimensions == [0]\n         && attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == [0]\n         && attr_d.attrs.rhs_contracting_dimensions == [0] }\nderive {\n\n axis_eval_0.attrs = {dimensions: attr_r.attrs.dimensions};\n axis_eval_1.attrs = {lhs_contracting_dimensions: attr_d.attrs.lhs_contracting_dimensions, rhs_contracting_dimensions: attr_d.attrs.rhs_contracting_dimensions, lhs_batching_dimensions: attr_d.attrs.lhs_batching_dimensions, rhs_batching_dimensions: attr_d.attrs.rhs_batching_dimensions};\n}\n}\n",
+        "parts": {
+          "matching": 12,
+          "legality": 50,
+          "attributes": 55,
+          "construction": 12,
+          "other": 15
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/dot_move_reverse.tepl",
+        "input_file_sha256": "d8d7da93d22f579981bd70968d3e4ebac1525fc3ae3026dc9d65806672a8871f",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule dot_move_reverse {\n    X: [K]\n    Y: [K]\n    (attr_d: dot (attr_r: reverse X) Y) => ( dot X ( reverse Y))\n    where { attr_r.attrs.dimensions == [0]\n         && attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == [0]\n         && attr_d.attrs.rhs_contracting_dimensions == [0] }\n\n}\n",
+        "parts": {
+          "matching": 12,
+          "legality": 50,
+          "attributes": 0,
+          "construction": 8,
+          "other": 15
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@268",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@247",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        },
+        {
+          "node": "rhs@247",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        },
+        {
+          "node": "rhs@247",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        },
+        {
+          "node": "rhs@247",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        }
+      ],
+      "xla_mapping": {
+        "case": "dot_move_reverse",
+        "status": "reviewed",
+        "blocks": [
+          "dot_inputs",
+          "dot_operator_inputs",
+          "dot_reverse",
+          "dot_operator_finish"
+        ],
+        "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Shared reverse/broadcast operand selection and dimension maps. Selector also mentions pad, but the pad algorithm is excluded. Reverse-specific map partition and construction; shape-ratio threshold and threshold multiplier are source policy. Common new-dot construction and actual visitor replacement. Flop threshold and logging excluded; pad-specific source body is not selected.",
+        "tepl_scope": "Rank-one inner product; reversal of its sole contracting axis; no free/batch axes."
+      }
+    },
+    {
+      "case": "reduce_compose_leading",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/reduce_compose_leading.tepl",
+        "original_file_sha256": "9ba866415c0e7424a4580b52038f74cb68ead2a62484927efa5ef553fae8e46c",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{reduce_sum};\n\nrule reduce_compose_leading {\n    X: [I, J, K]\n    (attr_outer: reduce_sum (attr_inner: reduce_sum X)) => (attr_out: reduce_sum X)\n    where { attr_inner.attrs.dimensions == [0] && attr_outer.attrs.dimensions == [0] }\n    \nderive {\n\n attr_out.attrs = {dimensions: [0, 1]};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 22,
+          "attributes": 17,
+          "construction": 6,
+          "other": 14
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/reduce_compose_leading.tepl",
+        "input_file_sha256": "78c7a6a255ad64a61811bffc6d678fa34c3e9c415e060d3b22566f283ad86cdd",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{reduce_sum};\n\nrule reduce_compose_leading {\n    X: [I, J, K]\n    (attr_outer: reduce_sum (attr_inner: reduce_sum X)) => ( reduce_sum X)\n    where { attr_inner.attrs.dimensions == [0] && attr_outer.attrs.dimensions == [0] }\n    \n\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 22,
+          "attributes": 0,
+          "construction": 4,
+          "other": 14
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "reduce_compose_leading",
+        "status": "reviewed",
+        "blocks": [
+          "reduce_inputs",
+          "merge_reduces"
+        ],
+        "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. MergeReduces helper plus actual matching/combiner-equivalence caller. Both retained TEPL reduction-composition cases share this code.",
+        "tepl_scope": "Rank-three sum with inner axis 0 then outer axis 0; implicit zero initializer. Compared with the nonleading-axis case."
+      }
+    },
+    {
+      "case": "broadcast_compose_append",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/broadcast_compose_append.tepl",
+        "original_file_sha256": "66b586ca6c61e08a3e29514cb9e9d74900c2bc8a44388f4bb417c722c7aec406",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{broadcast};\n\nrule broadcast_compose_append {\n    X: [Dims...]\n    (attr_outer: broadcast (attr_inner: broadcast X)) => (attr_out: broadcast X)\n    where { attr_inner.attrs.dimensions == range(len(Dims))\n         && attr_outer.attrs.dimensions == range(len(Dims) + len(attr_inner.attrs.new_extents)) }\n    \nderive {\n\n attr_out.attrs = {dimensions: attr_inner.attrs.dimensions, new_extents: concat(attr_inner.attrs.new_extents, attr_outer.attrs.new_extents)};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 39,
+          "attributes": 34,
+          "construction": 6,
+          "other": 11
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/broadcast_compose_append.tepl",
+        "input_file_sha256": "cd8ede18aa7ab8fd12cfd837efce8a6888dc6fbdb82cf93515ac0e088c57261b",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{broadcast};\n\nrule broadcast_compose_append {\n    X: [Dims...]\n    (attr_outer: broadcast (attr_inner: broadcast X)) => (attr_out: broadcast X)\n    where { attr_inner.attrs.dimensions == range(len(Dims))\n         && attr_outer.attrs.dimensions == range(len(Dims) + len(attr_inner.attrs.new_extents)) }\n    \nderive {\n attr_out.attrs = {new_extents: concat(attr_inner.attrs.new_extents, attr_outer.attrs.new_extents)};\n}\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 39,
+          "attributes": 26,
+          "construction": 6,
+          "other": 11
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "broadcast_compose_append",
+        "status": "reviewed",
+        "blocks": [
+          "broadcast_inputs",
+          "broadcast_compose"
+        ],
+        "note": "Common broadcast operand and descriptor capture, counted once. Nested broadcast descriptor composition and replacement.",
+        "tepl_scope": "Arbitrary input rank, broadcasts only append new dimensions; concatenates new extents explicitly."
+      }
+    },
+    {
+      "case": "dot_swap_operands",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/dot_swap_operands.tepl",
+        "original_file_sha256": "8719f49b6a3a89a0ec4a569541beaf7937df54227346ac1e6da8fd981d1fb0d4",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{dot, transpose};\n\nrule dot_swap_operands {\n    X: [M, K]\n    Y: [K, N]\n    (attr_d: dot X Y) => (attr_p: transpose (attr_out: dot Y X))\n    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == [1]\n         && attr_d.attrs.rhs_contracting_dimensions == [0] }\n    \nderive {\n\n attr_out.attrs = {lhs_contracting_dimensions: [0], rhs_contracting_dimensions: [1], lhs_batching_dimensions: [], rhs_batching_dimensions: []};\n attr_p.attrs = {permutation: [1, 0]};\n}\n}\n",
+        "parts": {
+          "matching": 7,
+          "legality": 40,
+          "attributes": 45,
+          "construction": 12,
+          "other": 19
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/dot_swap_operands.tepl",
+        "input_file_sha256": "2ca556aff36ff57d29fe8c27840e1907a6ac1de714617f06b9f65dd0116a1915",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{dot, transpose};\n\nrule dot_swap_operands {\n    X: [M, K]\n    Y: [K, N]\n    (attr_d: dot X Y) => ( transpose ( dot Y X))\n    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == [1]\n         && attr_d.attrs.rhs_contracting_dimensions == [0] }\n    \n\n}\n",
+        "parts": {
+          "matching": 7,
+          "legality": 40,
+          "attributes": 0,
+          "construction": 8,
+          "other": 19
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_p",
+          "operation": "transpose",
+          "field": "permutation",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_p"
+        }
+      ],
+      "xla_mapping": {
+        "case": "dot_swap_operands",
+        "status": "reviewed",
+        "blocks": [
+          "dot_inputs",
+          "swap_dot",
+          "parameter_policy"
+        ],
+        "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Operand and output-permutation swap helper and call site. Parameter placement gate and precision policy excluded; general batching permutation retained. Parameter-like profitability/layout preference predicate, kept in excluded-policy accounting.",
+        "tepl_scope": "Rank-two matrix product. Proves the identity for any captured X/Y; does not implement parameter-like policy screening."
+      }
+    },
+    {
+      "case": "dot_no_contraction",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/dot_no_contraction.tepl",
+        "original_file_sha256": "7beba6edbde2afd362ebf6234537d4a65525449a5f8b1c24dd5d9c76fed0570b",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{dot, broadcast, mul};\n\nrule dot_no_contraction {\n    X: [M]\n    Y: [N]\n    (attr_d: dot X Y) => (mul (attr_left: broadcast X) (attr_right: broadcast Y))\n    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == []\n         && attr_d.attrs.rhs_contracting_dimensions == [] }\n    \nderive {\n\n attr_left.attrs = {dimensions: [0], new_extents: [N]};\n attr_right.attrs = {dimensions: [1], new_extents: [M]};\n}\n}\n",
+        "parts": {
+          "matching": 7,
+          "legality": 38,
+          "attributes": 39,
+          "construction": 15,
+          "other": 15
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/dot_no_contraction.tepl",
+        "input_file_sha256": "a0648beb9b429bc508998a8fb94a6c2977e9e272e2aaacea4f6b6dd6f193caf1",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{dot, broadcast, mul};\n\nrule dot_no_contraction {\n    X: [M]\n    Y: [N]\n    (attr_d: dot X Y) => (mul (attr_left: broadcast X) (attr_right: broadcast Y))\n    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == []\n         && attr_d.attrs.rhs_contracting_dimensions == [] }\n    \nderive {\n attr_left.attrs = {new_extents: [N]};\n attr_right.attrs = {new_extents: [M]};\n}\n}\n",
+        "parts": {
+          "matching": 7,
+          "legality": 38,
+          "attributes": 27,
+          "construction": 15,
+          "other": 15
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_left",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_left"
+        },
+        {
+          "node": "attr_right",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_right"
+        }
+      ],
+      "xla_mapping": {
+        "case": "dot_no_contraction",
+        "status": "reviewed",
+        "blocks": [
+          "dot_inputs",
+          "normalize_dot_operand",
+          "dot_no_contract"
+        ],
+        "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Local batch-major/contracting-minor normalization, shared by no-contraction and strength-reduction helpers; general transpose path retained. No-contracting-dimension multiply rewrite and dispatch. General broadcasting retained; preferred-type conversions and feature/precision gates excluded.",
+        "tepl_scope": "Rank-one operands, no batches or contractions; same-type ideal arithmetic, no conversions."
+      }
+    },
+    {
+      "case": "dot_reduce_product",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/dot_reduce_product.tepl",
+        "original_file_sha256": "51b08f6b1b8beeea0b7e27086e8b461890db060d0e05da55d75f77a01ed59a42",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{dot, mul, reduce_sum};\n\nrule dot_reduce_product {\n    X: [K]\n    Y: [K]\n    (attr_d: dot X Y) => (attr_r: reduce_sum (mul X Y))\n    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == [0]\n         && attr_d.attrs.rhs_contracting_dimensions == [0] }\n    \nderive {\n\n attr_r.attrs = {dimensions: [0]};\n}\n}\n",
+        "parts": {
+          "matching": 7,
+          "legality": 40,
+          "attributes": 15,
+          "construction": 10,
+          "other": 15
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/dot_reduce_product.tepl",
+        "input_file_sha256": "d172baa95e7e9ec3eb94370c8ac3db4d33d800e5fc1bc7bdd25f44ff8f931ea7",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{dot, mul, reduce_sum};\n\nrule dot_reduce_product {\n    X: [K]\n    Y: [K]\n    (attr_d: dot X Y) => ( reduce_sum (mul X Y))\n    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []\n         && attr_d.attrs.lhs_contracting_dimensions == [0]\n         && attr_d.attrs.rhs_contracting_dimensions == [0] }\n    \n\n}\n",
+        "parts": {
+          "matching": 7,
+          "legality": 40,
+          "attributes": 0,
+          "construction": 8,
+          "other": 15
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_r",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_r"
+        }
+      ],
+      "xla_mapping": {
+        "case": "dot_reduce_product",
+        "status": "reviewed",
+        "blocks": [
+          "dot_inputs",
+          "normalize_dot_operand",
+          "dot_batch_contract_predicate",
+          "dot_product_reduce",
+          "add_reduce"
+        ],
+        "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Local batch-major/contracting-minor normalization, shared by no-contraction and strength-reduction helpers; general transpose path retained. Complete local predicate used by dot-to-reduce dispatch. Product/reduction construction, rank-general outer-dimension broadcasting, and caller; scalar f32 dot specialization in TEPL. Preferred-type/precision and CPU strength-reduction policy excluded. Local zero-init sum-reduction builder. General scalar-add computation construction is treated as a primitive library dependency, like TEPL sum semantics.",
+        "tepl_scope": "Rank-one inner product to multiply then sum; same-type ideal arithmetic, no widened accumulation."
+      }
+    },
+    {
+      "case": "dot_reduce_batch",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/dot_reduce_batch.tepl",
+        "original_file_sha256": "3a2c2bf3296bf0de54886fedea00533eca22c9ade72a23b995d88e2ee321f00b",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{dot, reduce_sum};\n\nrule dot_reduce_batch {\n    X: [K]\n    Y: [K]\n    (attr_r: reduce_sum (attr_d: dot X Y)) => (attr_out: dot X Y)\n    where { attr_d.attrs.lhs_batching_dimensions == [0] && attr_d.attrs.rhs_batching_dimensions == [0]\n         && attr_d.attrs.lhs_contracting_dimensions == []\n         && attr_d.attrs.rhs_contracting_dimensions == [] && attr_r.attrs.dimensions == [0] }\n    \nderive {\n\n attr_out.attrs = {lhs_contracting_dimensions: [0], rhs_contracting_dimensions: [0], lhs_batching_dimensions: [], rhs_batching_dimensions: []};\n}\n}\n",
+        "parts": {
+          "matching": 12,
+          "legality": 50,
+          "attributes": 31,
+          "construction": 7,
+          "other": 15
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/dot_reduce_batch.tepl",
+        "input_file_sha256": "5cef72a42d6a37f9f71d7ccb0c41cd327658ff1374f590434ab6d604e30ff194",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{dot, reduce_sum};\n\nrule dot_reduce_batch {\n    X: [K]\n    Y: [K]\n    (attr_r: reduce_sum (attr_d: dot X Y)) => ( dot X Y)\n    where { attr_d.attrs.lhs_batching_dimensions == [0] && attr_d.attrs.rhs_batching_dimensions == [0]\n         && attr_d.attrs.lhs_contracting_dimensions == []\n         && attr_d.attrs.rhs_contracting_dimensions == [] && attr_r.attrs.dimensions == [0] }\n    \n\n}\n",
+        "parts": {
+          "matching": 12,
+          "legality": 50,
+          "attributes": 0,
+          "construction": 5,
+          "other": 15
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "dot_reduce_batch",
+        "status": "reviewed",
+        "blocks": [
+          "reduce_inputs",
+          "reduce_dot_batch"
+        ],
+        "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Convert reduced batch dimensions to contracting dimensions, including optional remaining reduction; TEPL fixes ranks and reduces one batch axis. Feature flags excluded.",
+        "tepl_scope": "Rank-one batched product reduced over its sole batch axis; no remaining output axes."
+      }
+    },
+    {
+      "case": "expr_reverse_compose_general",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/expr_reverse_compose_general.tepl",
+        "original_file_sha256": "3d971904f70680ecef41f27eec5a40f87c039d87a2d991e7db847cd8af3f5014",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Expression check under the source conditions recorded in the catalog.\nrule expr_reverse_compose_general {\n    (attr_outer: hlo.reverse (attr_inner: hlo.reverse X)) => (attr_out: hlo.reverse X) \nderive {\n\n attr_out.attrs = {dimensions: concat(exclude(attr_inner.attrs.dimensions, attr_outer.attrs.dimensions), exclude(attr_outer.attrs.dimensions, attr_inner.attrs.dimensions))};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 0,
+          "attributes": 44,
+          "construction": 8,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/expr_reverse_compose_general.tepl",
+        "input_file_sha256": "6c7475096add0dd5ae198fb8b1159dec844f8dd14e9e9de63bd7bf54b9bf1f3c",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Expression check under the source conditions recorded in the catalog.\nrule expr_reverse_compose_general {\n    ( hlo.reverse ( hlo.reverse X)) => ( hlo.reverse X) \n\n}\n",
+        "parts": {
+          "matching": 11,
+          "legality": 0,
+          "attributes": 0,
+          "construction": 6,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "expr_reverse_compose_general",
+        "status": "reviewed",
+        "blocks": [
+          "reverse_inputs",
+          "reverse_compose"
+        ],
+        "note": "Reverse operand capture; layout sensitivity is policy. Trivial-dimension elimination is another rewrite and omitted. Nested-reverse symmetric difference, including empty-result deletion; shared by fixed and general TEPL cases.",
+        "tepl_scope": "General symmetric difference computed with existing list builtins; no auto."
+      }
+    },
+    {
+      "case": "catalog_broadcast_multiply_constant_into_broadcast",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_multiply_constant_into_broadcast.tepl",
+        "original_file_sha256": "1fbb04f836f40fe7ffd1257b873b06b0f39e2c6c1306ef44613048ec8089de9a",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-multiply-constant-into-broadcast\n// Scope: Scalar factor C is a captured scalar; literal-only profitability does not affect the identity.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_multiply_constant_into_broadcast {\n    Y: [Dims...] C: []\n     (hlo.multiply (hlo.multiply X (attr_out: hlo.broadcast C)) (attr_b: hlo.broadcast Y)) => (hlo.multiply X (axis_eval_0: hlo.broadcast (hlo.multiply Y (attr_base: hlo.broadcast C))))\n     where { attr_out.attrs.dimensions == [] }\n     \nderive {\n\n attr_base.attrs = {dimensions: [], new_extents: Dims};\n axis_eval_0.attrs = {dimensions: attr_b.attrs.dimensions, new_extents: attr_b.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 27,
+          "legality": 11,
+          "attributes": 40,
+          "construction": 27,
+          "other": 15
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_broadcast_multiply_constant_into_broadcast.tepl",
+        "input_file_sha256": "0f331629599b2d875dc2358d91288e58c849be1b1cb7aabec3d57cf7305067d6",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-multiply-constant-into-broadcast\n// Scope: Scalar factor C is a captured scalar; literal-only profitability does not affect the identity.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_multiply_constant_into_broadcast {\n    Y: [Dims...] C: []\n     (hlo.multiply (hlo.multiply X (attr_out: hlo.broadcast C)) (attr_b: hlo.broadcast Y)) => (hlo.multiply X (axis_eval_0: hlo.broadcast (hlo.multiply Y (attr_base: hlo.broadcast C))))\n     where { attr_out.attrs.dimensions == [] }\n     \nderive {\n attr_base.attrs = {new_extents: Dims};\n axis_eval_0.attrs = {new_extents: attr_b.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 27,
+          "legality": 11,
+          "attributes": 27,
+          "construction": 27,
+          "other": 15
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_base",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true,
+          "canonical_node": "attr_base"
+        },
+        {
+          "node": "rhs@477",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_broadcast_multiply_constant_into_broadcast",
+        "status": "reviewed",
+        "blocks": [
+          "multiply_broadcast_constant"
+        ],
+        "note": "Only multiply-constant-into-broadcast rewrite, including original literal/nonconstant matching. TEPL captures a scalar C and proves the more general algebraic equation; numerical fast-math gating is excluded, not counted as a saving.",
+        "tepl_scope": "Scalar factor C is a captured scalar; literal-only profitability does not affect the identity."
+      }
+    },
+    {
+      "case": "catalog_broadcast_transpose",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_transpose.tepl",
+        "original_file_sha256": "a23615a7d4748dec308f7bb442408d0c522404ae87c374cb28309f7c6cca76ee",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-transpose\n// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_transpose {\n    (attr_b: hlo.broadcast X) => (attr_p: hlo.transpose X)\n     where { attr_b.attrs.new_extents == [] }\n     \nderive {\n\n attr_p.attrs = {permutation: [sum([if attr_b.attrs.dimensions[j] == i then j else 0 for j in range(len(attr_b.attrs.dimensions))]) for i in range(len(attr_b.attrs.dimensions))]};\n}\n}\n",
+        "parts": {
+          "matching": 8,
+          "legality": 11,
+          "attributes": 62,
+          "construction": 8,
+          "other": 5
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_broadcast_transpose.tepl",
+        "input_file_sha256": "563acb82bf18282f7cbda74970eb730a5c2e6cc2543147d86e7aacfd2717a4f9",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-transpose\n// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_transpose {\n    (attr_b: hlo.broadcast X) => ( hlo.transpose X)\n     where { attr_b.attrs.new_extents == [] }\n     \n\n}\n",
+        "parts": {
+          "matching": 8,
+          "legality": 11,
+          "attributes": 0,
+          "construction": 6,
+          "other": 5
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_p",
+          "operation": "transpose",
+          "field": "permutation",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_p"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_broadcast_transpose",
+        "status": "reviewed",
+        "blocks": [
+          "broadcast_inputs",
+          "section_broadcast_transpose"
+        ],
+        "note": "Broadcast to transpose only; prior degenerate reshape branch is not selected."
+      }
+    },
+    {
+      "case": "catalog_broadcast_inserted_unit_dims",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_inserted_unit_dims.tepl",
+        "original_file_sha256": "772c098a0648536643ae6135b3703ad7d42d945f474928c3f33241bffce0eaf2",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/axis_views.tepl\" import AxisViews as axis_view;\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-inserted-unit-dims\n// Scope: Rank-one X; reshape inserts a leading unit axis; the outer broadcast appends axes.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_inserted_unit_dims {\n    X: [N]\n     (attr_b: hlo.broadcast (axis_eval_0: hlo.broadcast X)) => (attr_out: hlo.broadcast X)\n     where { [1,N] == [1,N] && attr_b.attrs.dimensions == [0,1]  && (axis_eval_0.attrs.dimensions == [1]) && (axis_eval_0.attrs.new_extents == [1])}\n     \nderive {\n\n attr_out.attrs = {dimensions: [1], new_extents: concat([1], attr_b.attrs.new_extents)};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 50,
+          "attributes": 30,
+          "construction": 8,
+          "other": 10
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_broadcast_inserted_unit_dims.tepl",
+        "input_file_sha256": "40708cb132fdcf6031b7d74b20718498f1c7c5fe742b3a4757fbc8efb8875740",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/axis_views.tepl\" import AxisViews as axis_view;\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-inserted-unit-dims\n// Scope: Rank-one X; reshape inserts a leading unit axis; the outer broadcast appends axes.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_inserted_unit_dims {\n    X: [N]\n     (attr_b: hlo.broadcast (axis_eval_0: hlo.broadcast X)) => (attr_out: hlo.broadcast X)\n     where { [1,N] == [1,N] && attr_b.attrs.dimensions == [0,1]  && (axis_eval_0.attrs.dimensions == [1]) && (axis_eval_0.attrs.new_extents == [1])}\n     \nderive {\n attr_out.attrs = {new_extents: concat([1], attr_b.attrs.new_extents)};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 50,
+          "attributes": 24,
+          "construction": 8,
+          "other": 10
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_broadcast_inserted_unit_dims",
+        "status": "reviewed",
+        "blocks": [
+          "broadcast_inputs",
+          "section_broadcast_inserted_units"
+        ],
+        "note": "Rank-general XLA insertion elision against the rank-one TEPL rule; source-size comparison does not require original TEPL proof success."
+      }
+    },
+    {
+      "case": "catalog_broadcast_drop_unit_dims",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_drop_unit_dims.tepl",
+        "original_file_sha256": "72266f337f530b6e04864efdd88eafe7f2c5cf415d42be3ad50bc6eaafc2355e",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/axis_views.tepl\" import AxisViews as axis_view;\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-drop-unit-dims\n// Scope: Rank-two operand with leading unit axis; broadcast appends axes.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_drop_unit_dims {\n    X: [A,N]\n     (attr_b: hlo.broadcast X) => (attr_out: hlo.broadcast (axis_eval_0: axis_view.remove_unit_axes X))\n     where { A == 1 && attr_b.attrs.dimensions == [0,1] }\n     \nderive {\n\n axis_eval_0.attrs = {dimensions: [0]};\n attr_out.attrs = {dimensions: [1], new_extents: concat([1],attr_b.attrs.new_extents)};\n}\n}\n",
+        "parts": {
+          "matching": 8,
+          "legality": 18,
+          "attributes": 42,
+          "construction": 15,
+          "other": 12
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_broadcast_drop_unit_dims.tepl",
+        "input_file_sha256": "d53db0c7bfdc1ba009ee69a322bf598f2c93501088ecebcfb2c87bf1bedbe205",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/axis_views.tepl\" import AxisViews as axis_view;\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-drop-unit-dims\n// Scope: Rank-two operand with leading unit axis; broadcast appends axes.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_drop_unit_dims {\n    X: [A,N]\n     (attr_b: hlo.broadcast X) => (attr_out: hlo.broadcast (axis_eval_0: axis_view.remove_unit_axes X))\n     where { A == 1 && attr_b.attrs.dimensions == [0,1] }\n     \nderive {\n axis_eval_0.attrs = {dimensions: [0]};\n attr_out.attrs = {new_extents: concat([1],attr_b.attrs.new_extents)};\n}\n}\n",
+        "parts": {
+          "matching": 8,
+          "legality": 18,
+          "attributes": 36,
+          "construction": 15,
+          "other": 12
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_broadcast_drop_unit_dims",
+        "status": "reviewed",
+        "blocks": [
+          "broadcast_inputs",
+          "section_broadcast_drop_units"
+        ],
+        "note": "Rank-general XLA degenerate-dimension removal against a leading-unit TEPL specialization."
+      }
+    },
+    {
+      "case": "catalog_broadcast_transpose_broadcast",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_broadcast_transpose_broadcast.tepl",
+        "original_file_sha256": "4d87969e5c4027d0d281db99ddb0e95685e5479116fd3ea84f62ad593ff8b4f2",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Equivalent insertion-only broadcast/transpose task, with the intermediate\n// shape expressed as a permutation of the input and inserted extents.\nrule broadcast_transpose_broadcast {\n    X: [Dims...]\n    (p: hlo.transpose (b: hlo.broadcast X)) => (out: hlo.broadcast X)\n    \nderive {\nlet n = len(p.attrs.permutation);\nlet inv = [sum([if p.attrs.permutation[j] == i then j else 0 for j in range(n)]) for i in range(n)];\nlet d = gather(inv, b.attrs.dimensions);\nlet oldnew = exclude(range(n), b.attrs.dimensions);\nlet allpos = concat(b.attrs.dimensions, oldnew);\nlet allshape = concat(Dims, b.attrs.new_extents);\nlet oldshape = [sum([if allpos[j] == i then allshape[j] else 0 for j in range(n)]) for i in range(n)];\nlet newpos = exclude(range(n), d);\n \n \n \n \n \n \n \n \n out.attrs = {dimensions: d, new_extents: gather(gather(oldshape, p.attrs.permutation), newpos)};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 0,
+          "attributes": 194,
+          "construction": 8,
+          "other": 11
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/experiments/broadcast_transpose_broadcast.tepl",
+        "input_file_sha256": "c03a8e863697cbaf4a4fdfa7170b4ba0cf3caa9bf7f87a7f18ea8e6a9193d0da",
+        "source": "from \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Equivalent insertion-only broadcast/transpose task, with the intermediate\n// shape expressed as a permutation of the input and inserted extents.\nrule broadcast_transpose_broadcast {\n    X: [Dims...]\n    (p: hlo.transpose (b: hlo.broadcast X)) => (out: hlo.broadcast X)\n    derive {\n        let n = len(p.attrs.permutation);\n        let inv = [sum([if p.attrs.permutation[j] == i then j else 0 for j in range(n)]) for i in range(n)];\n        let d = gather(inv, b.attrs.dimensions);\n        let oldnew = exclude(range(n), b.attrs.dimensions);\n        let allpos = concat(b.attrs.dimensions, oldnew);\n        let allshape = concat(Dims, b.attrs.new_extents);\n        let oldshape = [sum([if allpos[j] == i then allshape[j] else 0 for j in range(n)]) for i in range(n)];\n        let newpos = exclude(range(n), d);\n        out.attrs = {new_extents: gather(gather(oldshape, p.attrs.permutation), newpos)};\n    }\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 0,
+          "attributes": 190,
+          "construction": 8,
+          "other": 11
+        }
+      },
+      "fields": [
+        {
+          "node": "out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_broadcast_transpose_broadcast",
+        "status": "reviewed",
+        "blocks": [
+          "section_transpose_of_broadcast"
+        ],
+        "note": "Compare with the successful TEPL companion metadata construction; source sorted-map restrictions are broader/different from TEPL axis semantics."
+      }
+    },
+    {
+      "case": "catalog_indexing_reverse_inserted_unit_dims",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_indexing_reverse_inserted_unit_dims.tepl",
+        "original_file_sha256": "2968de58136cb8896c3f7573825016547d93ee8de22f890d55477c3a85bea50c",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/axis_views.tepl\" import AxisViews as axis_view;\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: indexing-reverse-inserted-unit-dims\n// Scope: Insert one leading unit axis into rank-one input.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_indexing_reverse_inserted_unit_dims {\n    X: [N]\n     (attr_r: hlo.reverse (axis_eval_0: hlo.broadcast X)) => (axis_eval_1: hlo.broadcast (attr_out: hlo.reverse X))\n     where { [1,N]==[1,N]  && (axis_eval_0.attrs.dimensions == [1]) && (axis_eval_0.attrs.new_extents == [1])}\n     \nderive {\n\n attr_out.attrs = {dimensions: [d-1 for d in exclude(attr_r.attrs.dimensions,[0])]};\n axis_eval_1.attrs = {dimensions: [1], new_extents: [1]};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 38,
+          "attributes": 50,
+          "construction": 15,
+          "other": 10
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_indexing_reverse_inserted_unit_dims.tepl",
+        "input_file_sha256": "3c71b5ad090648d5d58f8465f0544d6755a8dab11ce0d5dbb4256610eb57dd49",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/axis_views.tepl\" import AxisViews as axis_view;\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: indexing-reverse-inserted-unit-dims\n// Scope: Insert one leading unit axis into rank-one input.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_indexing_reverse_inserted_unit_dims {\n    X: [N]\n     ( hlo.reverse (axis_eval_0: hlo.broadcast X)) => (axis_eval_1: hlo.broadcast ( hlo.reverse X))\n     where { [1,N]==[1,N]  && (axis_eval_0.attrs.dimensions == [1]) && (axis_eval_0.attrs.new_extents == [1])}\n     \nderive {\n \n axis_eval_1.attrs = {dimensions: [1], new_extents: [1]};\n}\n}\n",
+        "parts": {
+          "matching": 13,
+          "legality": 38,
+          "attributes": 21,
+          "construction": 13,
+          "other": 10
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_indexing_reverse_inserted_unit_dims",
+        "status": "reviewed",
+        "blocks": [
+          "reverse_inputs",
+          "section_reverse_inserted_units"
+        ],
+        "note": "General XLA insertion-remapping algorithm against a single-leading-unit TEPL specialization."
+      }
+    },
+    {
+      "case": "catalog_dot_transpose_both_operands",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_transpose_both_operands.tepl",
+        "original_file_sha256": "8a7f6a428e7dd25780aba5ebeae8b283f552441fef20135ce12aec7a2e285cae",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-transpose-both-operands\n// Scope: Rank-two matrix transposes, no batches.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_transpose_both_operands {\n    X: [K,M] Y: [N,K]\n     (attr_d: hlo.dot (attr_p: hlo.transpose X) (attr_q: hlo.transpose Y)) => (axis_eval_1: hlo.transpose (axis_eval_0: hlo.dot Y X))\n     where { attr_p.attrs.permutation==[1,0] && attr_q.attrs.permutation==[1,0] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\nderive {\n\n axis_eval_0.attrs = {lhs_contracting_dimensions: attr_d.attrs.lhs_contracting_dimensions, rhs_contracting_dimensions: attr_d.attrs.rhs_contracting_dimensions, lhs_batching_dimensions: attr_d.attrs.lhs_batching_dimensions, rhs_batching_dimensions: attr_d.attrs.rhs_batching_dimensions};\n axis_eval_1.attrs = {permutation: attr_p.attrs.permutation};\n}\n}\n",
+        "parts": {
+          "matching": 23,
+          "legality": 64,
+          "attributes": 55,
+          "construction": 16,
+          "other": 19
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_dot_transpose_both_operands.tepl",
+        "input_file_sha256": "4c45dfd326a03fc1e914a4b987885254ced57a64dbc88d69c29596656ec2bfa1",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-transpose-both-operands\n// Scope: Rank-two matrix transposes, no batches.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_transpose_both_operands {\n    X: [K,M] Y: [N,K]\n     (attr_d: hlo.dot (attr_p: hlo.transpose X) (attr_q: hlo.transpose Y)) => ( hlo.transpose ( hlo.dot Y X))\n     where { attr_p.attrs.permutation==[1,0] && attr_q.attrs.permutation==[1,0] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\n\n}\n",
+        "parts": {
+          "matching": 23,
+          "legality": 64,
+          "attributes": 0,
+          "construction": 12,
+          "other": 19
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@383",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@383",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@383",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@383",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@354",
+          "operation": "transpose",
+          "field": "permutation",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_1"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_dot_transpose_both_operands",
+        "status": "reviewed",
+        "blocks": [
+          "dot_inputs",
+          "dot_transposed_operands",
+          "precision_policy"
+        ],
+        "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Both-input transpose removal helper and dispatch, retaining general canonical batch handling and both operand orders. Rank-two TEPL specialization; precision helper separately excluded. Precision-configuration propagation, outside the ideal-algebraic TEPL profile; excluded rather than credited as a saving.",
+        "tepl_scope": "Rank-two matrix transposes, no batches."
+      }
+    },
+    {
+      "case": "catalog_dot_move_broadcast",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_move_broadcast.tepl",
+        "original_file_sha256": "9c7aff5547ee31f80443a21dedad95cd653c984eca40e56ac450e6b618178c9a",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-move-broadcast\n// Scope: One broadcast-created contraction axis; replacement dot is an outer product.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_move_broadcast {\n    X: [K] Y: [J,N]\n     (attr_d: hlo.dot (attr_b: hlo.broadcast X) Y) => (attr_out: hlo.dot X (attr_sum: hlo.reduce_sum Y))\n     where { attr_b.attrs.dimensions==[0] && attr_b.attrs.new_extents==[J] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\n     \nderive {\n\n attr_sum.attrs = {dimensions: [0]};\n attr_out.attrs = {lhs_contracting_dimensions: [], rhs_contracting_dimensions: [], lhs_batching_dimensions: [], rhs_batching_dimensions: []};\n}\n}\n",
+        "parts": {
+          "matching": 16,
+          "legality": 60,
+          "attributes": 41,
+          "construction": 16,
+          "other": 17
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_dot_move_broadcast.tepl",
+        "input_file_sha256": "6958ecd84ce11ce828d80242ec247577f3f5fdfe648da591f6b3d87fa755a2bd",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-move-broadcast\n// Scope: One broadcast-created contraction axis; replacement dot is an outer product.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_move_broadcast {\n    X: [K] Y: [J,N]\n     (attr_d: hlo.dot (attr_b: hlo.broadcast X) Y) => ( hlo.dot X ( hlo.reduce_sum Y))\n     where { attr_b.attrs.dimensions==[0] && attr_b.attrs.new_extents==[J] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\n     \n\n}\n",
+        "parts": {
+          "matching": 16,
+          "legality": 60,
+          "attributes": 0,
+          "construction": 12,
+          "other": 17
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_sum",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_sum"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_dot_move_broadcast",
+        "status": "reviewed",
+        "blocks": [
+          "dot_inputs",
+          "dot_operator_inputs",
+          "dot_broadcast",
+          "dot_operator_finish"
+        ],
+        "note": "Shared HandleDot entry/capture only, not other dot rewrites or sharding checks. Layout policy excluded. Shared reverse/broadcast operand selection and dimension maps. Selector also mentions pad, but the pad algorithm is excluded. Broadcast-specific contraction map rewriting and reduction construction; optional residual broadcast retained. Threshold adjustment is policy. Common new-dot construction and actual visitor replacement. Flop threshold and logging excluded; pad-specific source body is not selected.",
+        "tepl_scope": "One broadcast-created contraction axis; replacement dot is an outer product."
+      }
+    },
+    {
+      "case": "catalog_dot_reduce_output_free",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_reduce_output_free.tepl",
+        "original_file_sha256": "6ef13497509f466595daee12138a5d8b7130c02d07eea2908217c88d9bde90d5",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-reduce-output-free\n// Scope: Reduce the left free axis of a rank-two dot; implicit sum initializer zero.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_reduce_output_free {\n    X: [M,K] Y: [K,N]\n     (attr_r: hlo.reduce_sum (attr_d: hlo.dot X Y)) => (attr_out: hlo.dot (axis_eval_0: hlo.reduce_sum X) Y)\n     where { attr_r.attrs.dimensions==[0] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\n     \nderive {\n\n axis_eval_0.attrs = {dimensions: attr_r.attrs.dimensions};\n attr_out.attrs = {lhs_contracting_dimensions: [0], rhs_contracting_dimensions: [0], lhs_batching_dimensions: [], rhs_batching_dimensions: []};\n}\n}\n",
+        "parts": {
+          "matching": 16,
+          "legality": 50,
+          "attributes": 45,
+          "construction": 16,
+          "other": 19
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_dot_reduce_output_free.tepl",
+        "input_file_sha256": "05338c1a5de875992d7bb91f5f2d9fd82722927a9a91a3a6f3eb2a010e66789f",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-reduce-output-free\n// Scope: Reduce the left free axis of a rank-two dot; implicit sum initializer zero.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_reduce_output_free {\n    X: [M,K] Y: [K,N]\n     (attr_r: hlo.reduce_sum (attr_d: hlo.dot X Y)) => ( hlo.dot ( hlo.reduce_sum X) Y)\n     where { attr_r.attrs.dimensions==[0] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\n     \n\n}\n",
+        "parts": {
+          "matching": 16,
+          "legality": 50,
+          "attributes": 0,
+          "construction": 12,
+          "other": 19
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@376",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_dot_reduce_output_free",
+        "status": "reviewed",
+        "blocks": [
+          "reduce_inputs",
+          "reduce_dot_free",
+          "dot_maps",
+          "scalar_zero_predicate"
+        ],
+        "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Reduce-free-output-dimension into dot operands, including complete local dot maps via shared helper; original flop/profitability gate excluded. TEPL selects a rank-two free dimension. Complete local ConstructToDotMaps and ConstructFromDotMaps axis-map algorithms, once globally, including both input maps and inverse maps. Local scalar-zero predicate and its effective-scalar predicate; scalar type switching is retained. General primitive/literal library routines are not expanded.",
+        "tepl_scope": "Reduce the left free axis of a rank-two dot; implicit sum initializer zero."
+      }
+    },
+    {
+      "case": "catalog_dot_scalar_multipliers",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_dot_scalar_multipliers.tepl",
+        "original_file_sha256": "d3151678eea346a7e464a58c1ead949d170f26422d51e5409d87125e97906dd0",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-scalar-multipliers\n// Scope: Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_scalar_multipliers {\n    X: f32[M,K] Y: f32[K,N] Scale: f32[]\n     (attr_d: hlo.dot (hlo.multiply (attr_b: hlo.broadcast Scale) X) Y) => (hlo.multiply (attr_out: hlo.broadcast Scale) (axis_eval_0: hlo.dot X Y))\n     where { attr_b.attrs.dimensions==[] && attr_b.attrs.new_extents==[M,K] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\n     \nderive {\n\n attr_out.attrs = {dimensions: [], new_extents: [M,N]};\n axis_eval_0.attrs = {lhs_contracting_dimensions: attr_d.attrs.lhs_contracting_dimensions, rhs_contracting_dimensions: attr_d.attrs.rhs_contracting_dimensions, lhs_batching_dimensions: attr_d.attrs.lhs_batching_dimensions, rhs_batching_dimensions: attr_d.attrs.rhs_batching_dimensions};\n}\n}\n",
+        "parts": {
+          "matching": 22,
+          "legality": 61,
+          "attributes": 60,
+          "construction": 22,
+          "other": 26
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_dot_scalar_multipliers.tepl",
+        "input_file_sha256": "6799c8f91881774f197c8dd9f5a7c15695c45f85bb66718ad4a54432145fb09e",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-scalar-multipliers\n// Scope: Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_scalar_multipliers {\n    X: f32[M,K] Y: f32[K,N] Scale: f32[]\n     (attr_d: hlo.dot (hlo.multiply (attr_b: hlo.broadcast Scale) X) Y) => (hlo.multiply (attr_out: hlo.broadcast Scale) ( hlo.dot X Y))\n     where { attr_b.attrs.dimensions==[] && attr_b.attrs.new_extents==[M,K] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\n     \nderive {\n attr_out.attrs = {new_extents: [M,N]};\n \n}\n}\n",
+        "parts": {
+          "matching": 22,
+          "legality": 61,
+          "attributes": 17,
+          "construction": 20,
+          "other": 26
+        }
+      },
+      "fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true,
+          "canonical_node": "attr_out"
+        },
+        {
+          "node": "rhs@487",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@487",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@487",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "rhs@487",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_dot_scalar_multipliers",
+        "status": "excluded",
+        "blocks": [],
+        "note": "Source-mapping mismatch: ScalarMultiplyReduction (704\u2013853) is called at 11039 from HandleConvolution; there is no call in HandleDot in this pinned snapshot. Its valid TEPL dot identity is retained but cannot support a corresponding XLA dot-excerpt count.",
+        "tepl_scope": "Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity."
+      }
+    },
+    {
+      "case": "catalog_reduction_broadcast_original_axes",
+      "explicit": {
+        "original_file": "labs/xla_rewrite/tepl/rules/semantic/catalog_reduction_broadcast_original_axes.tepl",
+        "original_file_sha256": "d278e7dd4c3fc7ea4988969a937079fd49b59aae446164cb5d00d689e7c3e0e8",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: reduction-broadcast-original-axes\n// Scope: Sum specialization; rank-one base and one broadcast-created axis.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_reduction_broadcast_original_axes {\n    X: [N]\n     (attr_r: hlo.reduce_sum (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast (axis_eval_0: hlo.reduce_sum X))\n     where { attr_b.attrs.dimensions==[0] && len(attr_b.attrs.new_extents)==1 && attr_r.attrs.dimensions==[0] }\n     \nderive {\n\n axis_eval_0.attrs = {dimensions: attr_r.attrs.dimensions};\n attr_out.attrs = {dimensions: [], new_extents: attr_b.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 33,
+          "attributes": 36,
+          "construction": 15,
+          "other": 10
+        }
+      },
+      "inferred": {
+        "input_file": "labs/xla_rewrite/tepl/rules/axis/catalog_reduction_broadcast_original_axes.tepl",
+        "input_file_sha256": "40436b1e523c4f27e6714951f5a1ce878e6e66bab5372895058272aa49a7cafd",
+        "source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: reduction-broadcast-original-axes\n// Scope: Sum specialization; rank-one base and one broadcast-created axis.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_reduction_broadcast_original_axes {\n    X: [N]\n     (attr_r: hlo.reduce_sum (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast ( hlo.reduce_sum X))\n     where { attr_b.attrs.dimensions==[0] && len(attr_b.attrs.new_extents)==1 && attr_r.attrs.dimensions==[0] }\n     \nderive {\n \n attr_out.attrs = {new_extents: attr_b.attrs.new_extents};\n}\n}\n",
+        "parts": {
+          "matching": 15,
+          "legality": 33,
+          "attributes": 17,
+          "construction": 13,
+          "other": 10
+        }
+      },
+      "fields": [
+        {
+          "node": "rhs@387",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "axis_eval_0"
+        },
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false,
+          "canonical_node": "attr_out"
+        }
+      ],
+      "xla_mapping": {
+        "case": "catalog_reduction_broadcast_original_axes",
+        "status": "reviewed",
+        "blocks": [
+          "reduce_inputs",
+          "reduce_broadcast_original"
+        ],
+        "note": "Reduce operand, init, output shape, dimensions and combiner capture. Layout-sensitive dispatch is separate policy; unrelated tuple/trivial-reduce rewrites omitted. Only reduction of original base-tensor axes through broadcast: mapping legality, surviving axes, and replacement. Replication-count reduction is a different branch and excluded.",
+        "tepl_scope": "Sum specialization; rank-one base and one broadcast-created axis."
+      }
+    }
+  ],
+  "matched_cases": [
+    "transpose_compose",
+    "broadcast_add",
+    "broadcast_multiply",
+    "scalar_broadcast_reverse",
+    "scalar_broadcast_transpose",
+    "reduce_negate",
+    "reduce_compose",
+    "reduce_transpose",
+    "reverse_compose_disjoint",
+    "reverse_add_scalar",
+    "dot_associate",
+    "dot_transpose_output",
+    "dot_move_reverse",
+    "reduce_compose_leading",
+    "broadcast_compose_append",
+    "dot_swap_operands",
+    "dot_no_contraction",
+    "dot_reduce_product",
+    "dot_reduce_batch",
+    "expr_reverse_compose_general",
+    "catalog_broadcast_multiply_constant_into_broadcast",
+    "catalog_broadcast_transpose",
+    "catalog_broadcast_inserted_unit_dims",
+    "catalog_broadcast_drop_unit_dims",
+    "catalog_broadcast_transpose_broadcast",
+    "catalog_indexing_reverse_inserted_unit_dims",
+    "catalog_dot_transpose_both_operands",
+    "catalog_dot_move_broadcast",
+    "catalog_dot_reduce_output_free",
+    "catalog_reduction_broadcast_original_axes"
+  ],
+  "matched": {
+    "xla": {
+      "matching": 1291,
+      "legality": 1226,
+      "attributes": 4915,
+      "construction": 1668,
+      "other": 922
+    },
+    "explicit": {
+      "matching": 385,
+      "legality": 920,
+      "attributes": 1225,
+      "construction": 320,
+      "other": 355
+    },
+    "inferred": {
+      "matching": 369,
+      "legality": 920,
+      "attributes": 462,
+      "construction": 268,
+      "other": 355
+    }
+  },
+  "all_tepl": {
+    "explicit": {
+      "matching": 407,
+      "legality": 981,
+      "attributes": 1285,
+      "construction": 342,
+      "other": 381
+    },
+    "inferred": {
+      "matching": 391,
+      "legality": 981,
+      "attributes": 479,
+      "construction": 288,
+      "other": 381
+    }
+  },
+  "xla_excluded": {
+    "policy": 1380,
+    "logging": 107
+  },
+  "evaluation_run_at_utc": "2026-10-29T21:49:30.161183+00:00",
+  "compiler_sha256": "a647eb68c4de993dc4e77b79c69382b4f69de4905b90b7447901e3e30770d87e",
+  "dependencies": {
+    "labs/xla_rewrite/specification_size/scripts/section_comparison.py": "a405e0aff45a9f3368e4b9720695f36d53a9fc85c0583ec93c350763f92dc55b",
+    "labs/xla_rewrite/specification_size/protocol.md": "2ac155ed2aed53be858d0a3063063e26152dd2632f1b1339a13ecf9376a03430",
+    "labs/xla_rewrite/specification_size/data/xla_spans.json": "94fa09642a5a0c8a7bce485f63b0667a13fff1df4c51aafe71f29eb03508c3f6",
+    "labs/xla_rewrite/coverage/results/broadcast_update.json": "1011dce4825fa722c7c97f602297b2a20ff24b7376d02ba0ee32a6c706f83553",
+    "labs/xla_rewrite/specification_size/scripts/support.py": "de014e32de44e9a3242391f87945500cee6572860930ed30fe533a780665b725",
+    "labs/xla_rewrite/coverage/scripts/synthesis_cases.py": "486dff0055522dbe4d91594144ff4fe9259a2292896b2ca681cca73449bcb0b9",
+    "labs/xla_rewrite/coverage/scripts/axis_fields.py": "17e6b2c98c18f004a965f5be9c9ddf744031c0db48ef6ae650799300f4578cba",
+    "labs/xla_rewrite/coverage/scripts/hlo_support.py": "ccd8da6e62088165de01855832c5e05848ffe27a5d687361f1751766f44a7aee",
+    "labs/xla_rewrite/coverage/scripts/paths.py": "dc571850c32b4a8ef94db81f4070620aadd7533e6718f48d83fb25ba2264a5c1",
+    "labs/xla_rewrite/tepl/dialects/hlo_structural.tepl": "1db2814d33785dc90c4037c050e16db3b3e301701c4908559aa82d7296c3bfcb",
+    "labs/xla_rewrite/tepl/dialects/axis_views.tepl": "b264a0d9f6ad16c4b0f7a42fe76174335418219160208cc977546469279d1b4a",
+    "labs/xla_rewrite/tepl/dialects/hlo.tepl": "dbb9cd54ab5657656cfad70722241a816e5b324a61833fe90f882e677e000aa9",
+    "labs/xla_rewrite/catalog/upstream/algebraic_simplifier.cc": "cee113d1c8070e890242cba50b912f196b5359be3c0c7ef43bef3c1c7bebd265",
+    "labs/xla_rewrite/specification_size/results/section_verification.json": "da7310ed95046f238710f91ad33053e545347eb81bbf5b9919607135a3734ebe"
+  },
+  "verification": {
+    "run_at_utc": "2026-11-04T19:32:54.484604+00:00",
+    "compiler_sha256": "f6437fc7366aa5a45272305466a5172b2fc548ef55956459da26932315ae5055",
+    "explicit_accepted": 28,
+    "inferred_accepted": 31
+  }
+}

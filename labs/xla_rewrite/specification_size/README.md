@@ -1,52 +1,71 @@
-# XLA specification size
+# XLA rewrite token-count experiment
 
-This experiment compares matched explicit and inferred RHS axis specifications
-with the current compiler. It records where lexical token savings come from,
-along with per-rule proof, compilation, and JSON-validation evidence.
+This is the main source-size experiment for XLA-derived TEPL rewrites. It
+compares **XLA**, **explicit TEPL**, and **axis inferred TEPL** by five sections:
+matching (LHS), legality checks (`where`), attribute reasoning (`derive`),
+replacement construction (RHS), and other syntax. Whole-rule counts include
+complete `where` and `derive` blocks; comments and whitespace cost zero.
 
-- [Responsibility report](reports/responsibility.md): reviewed XLA excerpts,
-  original explicit TEPL, compact inferred TEPL, and the five-row contribution table.
-- [Responsibility LaTeX table](reports/responsibility.tex): measured table for a paper.
-- [Omission protocol](responsibility_protocol.md) and
-  [source annotations](reports/xla_excerpts.txt): compaction and XLA boundaries.
-- [Matched-field report](reports/specification_size.md): paired totals, component and family
-  breakdowns, all attempted cases, and limitations.
-- [LaTeX table](reports/specification_size.tex): generated table for a paper.
-- [Protocol](protocol.md): cohort, counting, attribution, and XLA excerpt review.
-- [Measurements](results/measurement.json): source snapshots, counts, diagnostics,
-  hashes, and verification results.
-- [XLA excerpt manifest](data/xla_excerpts.json): source contexts and reviewed
-  excerpt boundaries. Context ranges do not establish a compression ratio.
+The graph uses **30 matched rules** with XLA source mappings. A separate table
+covers **all 31 successful synthesis cases** in TEPL; the remaining dot scalar
+multiplier case has no corresponding XLA dot implementation in the snapshot.
 
-Run from the repository root:
+| Cohort | XLA tokens | Explicit TEPL tokens | Axis inferred TEPL tokens |
+|---|---:|---:|---:|
+| 30 matched rules | 10,022 | 3,205 | 2,374 |
+| All 31 successful TEPL cases | — | 3,396 | 2,520 |
+
+Explicit TEPL spells out axis transformations in `derive`. Axis inferred TEPL
+omits inferable axis fields, unused labels, and empty assignments/blocks. Both
+use the same normalized graphs and conditions; supplied non-axis attributes,
+required labels/helpers, and fixed adapters remain counted. All 31 compact
+inferred variants pass proof, compilation, and JSON validation. Three explicit
+variants remain unproved and are retained for source counting with diagnostics.
+
+XLA excerpts are annotated by responsibility and shared code is counted once.
+Policy/logging and shared library implementations are outside the comparison.
+XLA branches can cover broader behavior than the TEPL specializations. These
+lexical counts do not measure runtime speed or authoring effort.
+
+## Results and inputs
+
+- [Main report and both tables](reports/section_comparison.md)
+- Graph: [PNG](reports/section_comparison.png) / [SVG](reports/section_comparison.svg)
+- [LaTeX tables](reports/section_comparison.tex)
+- [Measurements and complete source snapshots](results/section_comparison.json)
+- [Proof, compilation, and validation evidence](results/section_verification.json)
+- [Counting protocol](protocol.md)
+- [XLA source annotation ledger](data/xla_spans.json) and [annotated excerpts](reports/section_xla_excerpts.txt)
+- [Synthesis coverage and frozen evaluation](../coverage/README.md)
+
+## Reproduce
+
+Run from the repository root. Checking measurements needs only Python's standard
+library; graph generation additionally requires `matplotlib`.
 
 ```sh
-bazel build //:tepl
-python3 labs/xla_rewrite/specification_size/scripts/measure.py --run --jobs 4 --timeout 30
-python3 labs/xla_rewrite/specification_size/scripts/responsibility.py --run --jobs 4 --timeout 30
-python3 labs/xla_rewrite/specification_size/scripts/measure.py --check
-python3 labs/xla_rewrite/specification_size/scripts/responsibility.py --check
+python3 labs/xla_rewrite/specification_size/scripts/section_comparison.py --check
 python3 -m unittest discover -s labs/xla_rewrite/specification_size/tests -p 'test_*.py'
 ```
 
-Without flags, the script regenerates the Markdown and LaTeX reports from an
-unchanged result. `--check` checks input hashes, accounting, and report contents
-without a new compiler run. `--compiler PATH` selects a compiler. `--run` replaces
-this experiment's current measurements and reports; archive them before a new
-published measurement. It does not regenerate the frozen coverage experiment.
+Regenerate reports and figures from hash-matched sources and existing proof
+evidence:
 
-The selected 32-case cohort is fixed before observing new outcomes. The primary
-size comparison includes only pairs that both verify, compile, and validate;
-all failed cases remain visible. Extent and other non-axis fields stay supplied.
-Original files are also measured so migration changes are not credited to
-inference. The separate [axis-only evaluation](../coverage/README.md) reports
-inference coverage over its wider scope.
+```sh
+python3 labs/xla_rewrite/specification_size/scripts/section_comparison.py
+```
 
-The historical [full-auto size proxy](../../attribute_inference/reports/corpus.md)
-uses a different protocol. Its numbers should not be combined with this run.
+To refresh proof, compilation, and JSON validation of both representations:
 
-The responsibility experiment additionally omits inferable constructor fields,
-empty assignments/blocks, and unused node labels. Every representation is checked
-with the same compiler; its main table uses a common verified cohort and reviewed
-XLA source mappings. Source policy and logging are recorded separately, shared
-XLA helpers count once, and broader XLA behavior is identified in the audit notes.
+```sh
+bazel build //:tepl
+python3 labs/xla_rewrite/specification_size/scripts/section_comparison.py --run --jobs 4 --timeout 30
+```
+
+`--compiler PATH` selects a compiler (default: `bazel-bin/tepl`). `--run` replaces
+this experiment's verification and generated outputs. Without it, the script
+requires recorded verification to match the exact measured source corpus.
+Frozen synthesis coverage results are inputs and are never rewritten here.
+
+There is one runner (`scripts/section_comparison.py`) and one shared helper
+module (`scripts/support.py`); the helper has no separate experiment/report mode.

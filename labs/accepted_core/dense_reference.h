@@ -1,8 +1,7 @@
 #pragma once
-// Acceptance and cost driver: public compile/load/rewrite APIs, independent
-// dense integer tensor interpreter. Compile/load/runtime timers are disjoint.
+// Correctness fixtures for public compile/load/rewrite APIs, with an independent
+// dense integer tensor interpreter.
 #include <algorithm>
-#include <chrono>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -23,14 +22,6 @@ std::string read(const std::string& p) {
   std::ifstream f(p);
   require(bool(f), p);
   return {std::istreambuf_iterator<char>(f), {}};
-}
-template <class F>
-double timeMs(F fn) {
-  auto t = std::chrono::steady_clock::now();
-  fn();
-  return std::chrono::duration<double, std::milli>(
-             std::chrono::steady_clock::now() - t)
-      .count();
 }
 std::size_t size(const Shape& s) {
   std::size_t n = 1;

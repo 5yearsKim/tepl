@@ -17,7 +17,7 @@ or legacy non-axis synthesis.
 - [Broadcast–transpose update](reports/broadcast_transpose_update.md): a
   separate rerun with a general-rank metadata construction.
 - [Unit-view cost check](reports/unit_view_cost.md): indicative timings for unchanged successful tasks.
-- [Specification size](../specification_size/README.md): a fresh paired axis-only run with whole-rule token counts and a savings breakdown.
+- [Token-count experiment](../specification_size/README.md): the main five-section XLA/explicit/inferred comparison over 30 mapped rules, plus all 31 successful TEPL cases.
 - [Case table](reports/synthesis_cases.md): one outcome per original case,
   including exclusions and the separate negative control.
 - [Operation-family coverage](reports/operation_families.md): overlapping family
