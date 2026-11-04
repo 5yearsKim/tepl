@@ -134,3 +134,10 @@ graph structural {
   input X:f32[2,3];
   yield (Configured.structural[value=7] X);
 }
+
+// Implicit feasibility must agree with native execution for both metadata cases.
+rule conditional_dot {X:[Dims...] (t.dot X Y)=>(t.dot Y X)
+ where {len(Dims)==1}}
+graph q_false {input X:f32[2];input Y:f32[3];yield(t.dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] X Y);}
+graph q_true {input X:f32[2];input Y:f32[2];yield(t.dot[lhs_contracting_dimensions=[0],rhs_contracting_dimensions=[0],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] X Y);}
+graph c_false {input X:f32[];input Y:f32[];yield(t.dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] X Y);}

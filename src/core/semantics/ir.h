@@ -37,7 +37,7 @@ enum class ProofStatus { Proved, Unknown };
 enum class GuardKind { Legality, CoordinateOrder, ReductionDomain };
 const char* guardKindName(GuardKind);
 struct ConstructorCandidate {
-  // Proof obligations, never assumptions or automatically inserted guards.
+  // Generated feasibility and independently validated attribute builders.
   std::vector<SymbolPtr> feasibility;
   std::map<std::size_t, std::vector<SymbolPtr>> constructors;
   std::vector<SymbolPtr> guard;
@@ -79,11 +79,9 @@ struct DescriptorAttributes {
 };
 struct Plan {
   std::vector<Instance> nodes;
-  std::string suggested_rule;
   std::size_t lhs = 0, rhs = 0;
   bool algebraic = false;
   bool core_backend = false;
-  bool certified_backend = false;
   RuleProof proof;
   std::map<std::size_t, std::string> descriptor_names;
   std::vector<SymbolPtr> assumptions;

@@ -69,7 +69,7 @@ std::optional<inference::MetadataTerm> metadataTerm(const SymbolPtr& s) {
   return comprehension(std::move(out));
 }
 bool suppliedExtensionFields(const Plan& p, const inference::Program& program,
-                             const inference::LayoutFacts& f) {
+                             const inference::MetadataFacts& f) {
   auto b = inference::emitExtension(program);
   std::set<std::string> safe;
   std::function<void(const inference::MetadataTerm&)> remember =

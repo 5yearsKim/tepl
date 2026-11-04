@@ -11,13 +11,6 @@ cc_test(
     deps = ["//src/core:pipeline", "//src/rewrite", "@rules_cc//cc/runfiles"],
 )
 
-sh_test(
-    name = "where_suggestions_cli_test",
-    size = "small",
-    srcs = ["where_suggestions_cli_test.sh"],
-    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/restriction_suggestions.tepl)", "$(rootpath //:examples/semantic/explicit_axis_conditions.tepl)"],
-    data = ["//:tepl", "//:examples/semantic/explicit_axis_conditions.tepl", "//:examples/semantic/restriction_suggestions.tepl", "//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
-)
 
 cc_test(
     name = "attribute_reasoning_test",

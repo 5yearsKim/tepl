@@ -76,12 +76,12 @@ establish strict floating-point equality.
 
 A successful attempt establishes legal, defined RHS construction, matching shape
 and dtype, and equivalent values in ordered output coordinates for every legal
-source match satisfying the declared conditions. Partial metadata computations,
+source match satisfying the declared conditions and generated feasibility q. Partial metadata computations,
 including inverse permutations and position lookup, need definedness evidence.
 
 | Outcome | Meaning |
 | --- | --- |
-| Proved | Required obligations follow under the selected policy; no extra applicability guard is introduced |
+| Proved | Required obligations follow under the selected policy and C && q; q is retained for matching |
 | Unknown | The fragment, correspondence, implication query, or budget did not establish the result |
 
 Failure to construct or prove one candidate does not prove that every RHS
@@ -97,9 +97,9 @@ All accepted semantic rules have zero unresolved obligations; those obligations
 cannot be converted into hidden runtime guards. Unsupported cases and exhausted
 budgets produce diagnostics; unexpected implementation exceptions propagate.
 
-Conditions on groups and metadata remain explicit. Forward/reverse
-reassociation and LoRA have example-specific routing restrictions; general
-weakest-condition inference is not a production guarantee. The exact admission
+Written conditions on groups and metadata remain effective. Generated
+feasibility restricts applications without replacing semantic or backend
+conditions. The exact admission
 restrictions of a research theorem are separate from practical proof success.
 
 ## Implementation and validation

@@ -9,8 +9,8 @@
 #include "src/core/attr_synth/ordered/extensions.h"
 #include "src/core/attr_synth/synthesize.h"
 #include "src/core/semantics/proof/verify.h"
-#include "src/inference/certificate.h"
-#include "src/shared/catalog/core_guard.h"
+#include "src/inference/metadata_facts.h"
+#include "src/shared/catalog/dtype_contracts.h"
 
 namespace tepl::core::semantics {
 namespace {
@@ -37,11 +37,15 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
     proof.reason = "time limit exceeded: inference pipeline deadline";
     return true;
   };
-  if (plan.core_backend || plan.certified_backend) {
+  if (plan.core_backend) {
     auto admission = attr_synth::ordered::admit(plan);
-    if (!admission.admitted() && plan.certified_backend) admission = attr_synth::ordered::admit(plan, inference::Mode::Synthesize, true);
-    const bool extensions = admission.admitted() && inference::hasExtensions(admission.program);
-    if (!admission.admitted() || (!extensions && !plan.derived_metadata.empty())) {
+    if (!admission.admitted())
+      admission =
+          attr_synth::ordered::admit(plan, inference::Mode::Synthesize, true);
+    const bool extensions =
+        admission.admitted() && inference::hasExtensions(admission.program);
+    if (!admission.admitted() ||
+        (!extensions && !plan.derived_metadata.empty())) {
       proof.reason =
           "core backend requires admitted automatic fields without derive "
           "helpers: " +
@@ -49,9 +53,10 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
       return proof;
     }
     if (extensions) {
-      try { inference::emitExtension(admission.program); }
-      catch (const std::invalid_argument&) {
-        proof.reason = "outside certified view/reindexing schemas";
+      try {
+        inference::emitExtension(admission.program);
+      } catch (const std::invalid_argument&) {
+        proof.reason = "outside supported view/reindexing schemas";
         return proof;
       }
     }
@@ -67,7 +72,7 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
           "legality";
       return proof;
     }
-    inference::LayoutFacts facts;
+    inference::MetadataFacts facts;
     auto integerValue = [](const SymbolPtr& x, std::int64_t& n) {
       if (x->kind != Symbol::Kind::Integer) return false;
       auto r =
@@ -76,63 +81,33 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
     };
     auto fact = [&](const SymbolPtr& a, const SymbolPtr& b) {
       if (auto x = attr_synth::ordered::metadataTerm(a))
-        if (auto y = attr_synth::ordered::metadataTerm(b)) facts.equalities.emplace_back(*x, *y);
+        if (auto y = attr_synth::ordered::metadataTerm(b))
+          facts.equalities.emplace_back(*x, *y);
       if (a->kind == Symbol::Kind::Call && a->name == "len" &&
           a->args.size() == 1) {
         std::int64_t n;
         if (a->args[0]->kind == Symbol::Kind::Field && integerValue(b, n) &&
             n >= 0) {
           auto x = a->args[0];
-          auto [it, ok] =
-              facts.lengths.emplace(std::pair{x->owner, x->index}, n);
-          facts.inconsistent |=
-              !ok && it->second != static_cast<std::size_t>(n);
-        }
-        if (a->args[0]->kind == Symbol::Kind::Shape &&
-            b->kind == Symbol::Kind::Call && b->name == "+" &&
-            b->args.size() == 2)
-          for (int i = 0; i < 2; ++i) {
-            auto len = b->args[i];
-            if (integerValue(b->args[1 - i], n) && n == 2 &&
-                len->kind == Symbol::Kind::Call && len->name == "len" &&
-                len->args.size() == 1 &&
-                len->args[0]->kind == Symbol::Kind::Field) {
-              auto x = len->args[0];
-              facts.batch_plus_two.insert(
-                  {a->args[0]->owner, x->owner, x->index});
-            }
-          }
-      }
-
-      if (a->kind == Symbol::Kind::Field && b->kind == Symbol::Kind::Call &&
-          b->name == "range" && b->args.size() == 1) {
-        auto n = b->args[0];
-        if (n->kind == Symbol::Kind::Call && n->name == "len" &&
-            n->args.size() == 1 && n->args[0]->kind == Symbol::Kind::Field) {
-          auto x = n->args[0];
-          facts.batch_prefixes.insert({a->owner, a->index, x->owner, x->index});
+          facts.lengths.emplace(std::pair{x->owner, x->index}, n);
         }
       }
 
       if (a->kind == Symbol::Kind::Field && b->kind == Symbol::Kind::List) {
-        auto [length, fresh] = facts.lengths.emplace(std::pair{a->owner, a->index}, b->args.size());
-        facts.inconsistent |= !fresh && length->second != b->args.size();
+        facts.lengths.emplace(std::pair{a->owner, a->index}, b->args.size());
         inference::List list;
         for (const auto& x : b->args) {
           std::int64_t n;
           if (!integerValue(x, n)) return;
           list.push_back(n);
         }
-        auto [it, ok] =
-            facts.fields.emplace(std::pair{a->owner, a->index}, list);
-        facts.inconsistent |= !ok && it->second != list;
+        facts.fields.emplace(std::pair{a->owner, a->index}, list);
       }
       std::int64_t n;
       if (a->kind == Symbol::Kind::Call && a->name == "len" &&
           a->args.size() == 1 && a->args[0]->kind == Symbol::Kind::Shape &&
           integerValue(b, n) && n >= 0) {
-        auto [it, ok] = facts.ranks.emplace(a->args[0]->owner, n);
-        facts.inconsistent |= !ok && it->second != static_cast<std::size_t>(n);
+        facts.ranks.emplace(a->args[0]->owner, n);
       }
     };
     std::function<void(const SymbolPtr&)> collect = [&](const auto& x) {
@@ -146,22 +121,19 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
     };
     for (const auto& a : plan.assumptions) collect(a);
     if (expired()) return proof;
-    if (!inference::certify(admission.program, facts,
-                            {std::min<std::size_t>(max_work, 5000000), 4096})) {
+    if (extensions && !attr_synth::ordered::suppliedExtensionFields(
+                          plan, admission.program, facts)) {
       proof.reason =
-          "core guard proof unresolved; no runtime feasibility guard was added";
-      return proof;
-    }
-    if (extensions && !attr_synth::ordered::suppliedExtensionFields(plan, admission.program, facts)) {
-      proof.reason = "core schema cannot certify supplied fields or derive helpers";
+          "core schema cannot validate supplied fields or derive helpers";
       return proof;
     }
     proof.status = ProofStatus::Proved;
     proof.core = std::move(admission.program);
-    proof.reason = extensions ? "core schema guard and supplied metadata certified; sound for all legal extents" :
-        "core guard implies canonical feasibility; DAG builder is sound for all legal extents";
-    proof.steps.push_back(
-        "verified: source-layout guard certificate and core emission theorem");
+    proof.reason =
+        extensions ? "core schema and supplied metadata validated; sound for "
+                     "all legal extents"
+                   : "conditional DAG builder is sound for all legal extents";
+    proof.steps.push_back("verified: conditional core emission theorem");
     return proof;
   }
   for (auto strategy :

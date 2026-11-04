@@ -110,7 +110,7 @@ Version 3 uses `u64` for unsigned integer metadata and removes the old `index`
 type spelling. Recompile older source programs after migrating their attribute
 roles; version 2 executable artifacts must be recompiled as well.
 
-The envelope contains `format: "tepl.rewrite"`, `version: 3`, an arithmetic
+The envelope contains `format: "tepl.rewrite"`, `version: 4`, an arithmetic
 `policy`, required `capabilities`, the `program` tables, and rule-scoped
 `axis_definitions`. Rules contain explicit match and replacement trees,
 constraints, typed conditions, and descriptor derivations. Expression variants

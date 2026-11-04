@@ -385,9 +385,7 @@ classes, independently of extents and numeric positions.
 properties lower to pure metadata expressions and do not impose an extent >= 2
 restriction. Numeric node-query functions are internal.
 
-Use `check --semantic-policy=algebraic --suggest-where --rule NAME` to search
-for a verified sufficient source restriction. Every suggestion is proved under
-the original conditions and checked for a legal witness; the bounded search
-does not guarantee a weakest condition. Add a reviewed suggestion to source
-before compiling. Runtime feasibility queries, including `axis_domain()` and
-inferred RHS boundary queries, are unsupported.
+Generated feasibility predicates are compiled separately from user conditions.
+A false predicate skips a match before RHS attributes are evaluated. Source
+logical-axis properties remain available; internal runtime query functions are
+unsupported in written conditions.

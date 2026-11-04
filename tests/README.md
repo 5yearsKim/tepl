@@ -7,7 +7,7 @@ changes. Commands below assume the repository root.
 | --- | --- |
 | Syntax, checking, loading | `//tests:syntax_test`, `//tests:core_test`, `//tests:loading_test` |
 | Axis properties and synthesis | `//tests:named_nodes_test`, `//tests:attribute_reasoning_test`, `//tests:ordered_synthesis_test` |
-| Semantic proofs and suggestions | `//tests:semantic_test`, `//tests:semantic_cli_test`, `//tests:where_suggestions_cli_test` |
+| Semantic proofs and feasibility | `//tests:semantic_test`, `//tests:semantic_cli_test` |
 | Concrete execution | `//tests:rewrite_test`, operation-specific tests |
 | Builtin definitions/inventories | `//tests:builtins_test`, `//tests:builtin_reference_test` |
 | Generated code | `//tests:codegen_test`, `//tests:codegen_cpp_test`, `//tests:rust_codegen_test`, `//tests:cpp_codegen_test` |

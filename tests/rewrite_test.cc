@@ -84,7 +84,7 @@ graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
   assert(again.ir().graphs[0].nodes.size() == 2);
   // Strict schema and semantic validation catch independent error classes.
   auto j = nlohmann::json::parse(json);
-  assert(j["version"] == 3);
+  assert(j["version"] == 4);
   j["version"] = 2;
   expectInvalid(j);
   j = nlohmann::json::parse(json);
@@ -154,6 +154,21 @@ void builtinCatalogs() {
    ["positions"]["name"] = "distinct_axes";
   expectInvalid(j, "unsupported metadata instruction");
 }
+void feasibilityBeforeBuilder() {
+  // Inject q into a structural-runtime fixture with an undefined builder.
+  auto p = compile("rule r {(copy X)=>(p:transpose X) derive {p.attrs={permutation:gather([], [0])};}} graph g {input X:f32[2];yield(copy X);}");
+  auto j = nlohmann::json::parse(executable::serialize(p));
+  auto& rule = j["program"]["rules"][0];
+  rule["feasibility"] = nlohmann::json::array({{{"kind","bool"},{"sort","bool"},{"name","false"},{"owner",0},{"index",0},{"args",nlohmann::json::array()}}});
+  auto blocked = executable::load(j.dump());
+  assert(rewrite::run(blocked, blocked.ir().graphs[0]).rewrite_count == 0);
+  rule["feasibility"][0]["name"] = "true";
+  auto exposed = executable::load(j.dump());
+  bool failed = false;
+  try { rewrite::run(exposed, exposed.ir().graphs[0]); }
+  catch (const rewrite::EvaluationError&) { failed = true; }
+  assert(failed);
+}
 void guardsAndFailure() {
   const std::string graph = "graph g {input X:f32[2];yield (copy X);}";
   auto p = compile(
@@ -167,14 +182,29 @@ void guardsAndFailure() {
       graph);
   assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 0);
   p = compile("rule r {(copy X)=>X where {1 / 0 == 0}}" + graph);
-  assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 0);
+  {
+    bool failed = false;
+    try { rewrite::run(p, p.ir().graphs[0]); }
+    catch (const rewrite::EvaluationError&) { failed = true; }
+    assert(failed); // Evaluation failures remain distinct from non-application.
+  }
   p = compile("rule r {(copy X)=>(scalar X)}" + graph);
-  assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 0);
+  {
+    bool failed = false;
+    try { rewrite::run(p, p.ir().graphs[0]); }
+    catch (const rewrite::EvaluationError&) { failed = true; }
+    assert(failed); // Evaluation failures remain distinct from non-application.
+  }
   p = compile(
       "rule r {(copy X)=>(p: transpose X) derive "
       "{p.attrs={permutation:[9]};}}" +
       graph);
-  assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 0);
+  {
+    bool failed = false;
+    try { rewrite::run(p, p.ir().graphs[0]); }
+    catch (const rewrite::EvaluationError&) { failed = true; }
+    assert(failed); // Evaluation failures remain distinct from non-application.
+  }
   p = compile("rule r {(copy X)=>(copy X)}" + graph);
   assert(rewrite::run(p, p.ir().graphs[0]).stop_reason ==
          rewrite::StopReason::FixedPoint);
@@ -306,6 +336,7 @@ int main(int argc, char** argv) {
   try {
     constructors();
     builtinCatalogs();
+    feasibilityBeforeBuilder();
     guardsAndFailure();
     sharingAndLimits();
     metadataAndDepth();

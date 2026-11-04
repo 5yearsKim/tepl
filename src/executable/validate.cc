@@ -9,7 +9,7 @@
 #include "src/shared/builtins/axes.h"
 #include "src/shared/builtins/intrinsics/catalog.h"
 #include "src/shared/catalog/axis_conditions.h"
-#include "src/shared/catalog/core_guard.h"
+#include "src/shared/catalog/dtype_contracts.h"
 #include "src/shared/metadata/ordered.h"
 #include "src/shared/types/literal.h"
 
@@ -479,6 +479,7 @@ void validate(const ExecutableProgram& program) {
             "runtime applicability inference is unsupported; compile a rule "
             "with verified source conditions");
     if (r.core) {
+      require(r.derivations.empty(), "core DAG cannot contain residual derivations");
       require(!r.inference,
               "core DAG cannot coexist with applicability inference");
       require(inference::validatePortable(*r.core),
@@ -812,6 +813,10 @@ void validate(const ExecutableProgram& program) {
         require(type(e->type) == Type{TypeKind::kBool},
                 "where result must be bool");
     }
+    for (const auto& q : r.feasibility) {
+      sym(q);
+      require(q->sort == completed::Symbol::Sort::Boolean, "feasibility must be Boolean");
+    }
     auto where_locals = locals;
     locals.clear();
     for (const auto& d : r.derivations) {
@@ -887,10 +892,7 @@ void validate(const ExecutableProgram& program) {
                                ? &*p.operations[id].dtype
                                : nullptr;
                   }),
-              "core dtype contracts are not certified");
-    if (r.core)
-      require(core::completed::coreGuard(r),
-              "written guard does not certify core feasibility");
+              "invalid core dtype contracts");
     completed::validateAxisConditions(r);
   }
   for (const auto& g : p.graphs) validateGraph(p, g);

@@ -79,7 +79,7 @@ materialization. Source conditions remain explicit throughout this process.
 validation, and serialization. [`src/rewrite/`](../src/rewrite/) reads executable
 and shared data without linking parsing, checking, or proof algorithms.
 Executable operations retain shape contracts; scalar value semantics stay in
-the compiler. The wire format is version 2; older versions are rejected.
+the compiler. The wire format is version 4; older versions are rejected.
 
 Verified and executable rules use `core::completed` expressions and metadata
 instructions. They have no symbolic holes or unresolved output-group references.

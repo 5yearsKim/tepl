@@ -75,13 +75,21 @@ int main(int argc, char** argv) {
 
         q = j;
         q["program"]["rules"][0]["conditions"] = Json::array();
-        invalid(q);
+        auto conditional = executable::load(q.dump());
+        for (const auto& g : conditional.ir().graphs) {
+          auto out = rewrite::run(conditional, g);
+          require(reference(conditional.ir(), g) == reference(conditional.ir(), out.graph), "conditional rewrite values");
+        }
         ++negative;
       }
       if (rule.starts_with("chain_automatic")) {
         q = j;
         q["program"]["rules"][0]["conditions"] = Json::array();
-        invalid(q);
+        auto conditional = executable::load(q.dump());
+        for (const auto& g : conditional.ir().graphs) {
+          auto out = rewrite::run(conditional, g);
+          require(reference(conditional.ir(), g) == reference(conditional.ir(), out.graph), "conditional rewrite values");
+        }
         ++negative;
         for (bool disjunction : {false, true}) {
           auto changed = source;
@@ -95,10 +103,10 @@ int main(int argc, char** argv) {
                           : "");
           auto bad = parse(changed, "missing.tepl");
           require(bad.ok(), "negative parse");
-          require(!core::compile(*bad.program,
+          require(core::compile(*bad.program,
                                  {core::SemanticPolicy::kAlgebraic, true})
                        .ok(),
-                  "insufficient guard accepted");
+                  "conditional constructor compiles without implying feasibility");
           ++negative;
         }
       }

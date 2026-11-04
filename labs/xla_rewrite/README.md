@@ -23,3 +23,10 @@ Their numbers are not refreshed by documentation changes. Reproduce a frozen run
 at its recorded revision; active scripts track the current research proof path
 for future runs. Broader mathematical arguments are indexed in
 [research](../../research/attribute-synthesis/README.md).
+
+TEPL applicability now combines each written guard with compiled feasibility.
+A false feasibility check skips the candidate before evaluating RHS attributes.
+Semantic, shape/dimension and backend guards in the rule corpus remain intact.
+Current scripts use `--core` for supported metadata DAG/schema construction;
+compiled TEPL programs use format version 4. Historical results retain their
+recorded revisions and must be rerun to measure the new compiler.

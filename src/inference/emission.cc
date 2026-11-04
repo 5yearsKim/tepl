@@ -271,7 +271,7 @@ Result runEmission(const Emission& e, const Metadata& m, const Limits& limits,
       for (auto q : block.checks)
         if (!std::get<bool>(engines.back().eval(q))) {
           out.status =
-              allow_degenerate ? Status::Unsupported : Status::Impossible;
+              allow_degenerate ? Status::Inapplicable : Status::Impossible;
           out.work = limits.work - remaining;
           return out;
         }

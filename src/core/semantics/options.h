@@ -6,7 +6,6 @@ enum class SemanticPolicy { kStrict, kAlgebraic };
 struct SemanticOptions {
   SemanticPolicy semantic_policy = SemanticPolicy::kStrict;
   bool core_backend = false;
-  bool certified_backend = false;
 };
 
 namespace semantics {
@@ -14,14 +13,12 @@ struct InspectionOptions : SemanticOptions {
   bool inspect_semantic_rules = false;
   // Inspection-only plan preparation; cannot authorize executable lowering.
   bool defer_semantic_proofs = false;
-  bool suggest_conditions = false;
   std::string semantic_rule;
   InspectionOptions() = default;
   InspectionOptions(SemanticPolicy p, bool inspect = false,
-                    std::string rule = {}, bool suggest = false)
+                    std::string rule = {})
       : SemanticOptions{p},
         inspect_semantic_rules(inspect),
-        suggest_conditions(suggest),
         semantic_rule(std::move(rule)) {}
 };
 }  // namespace semantics

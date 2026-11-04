@@ -149,56 +149,11 @@ symbolic mapper, including operations without attributes. RHS attributes must be
 Runtime RHS feasibility queries are not supported; use source restrictions
 that the compiler can prove sufficient.
 
-## Verified restriction suggestions
+## Implicit feasibility
 
-Run `check --semantic-policy=algebraic --suggest-where --rule NAME` to search
-for a concise sufficient source restriction. For example, reassociation can
-be proved under:
-
-```tepl
-where {
-    outer.attrs.lhs_batching_dimensions == inner.axes.B.positions
-}
-```
-
-The compiler verifies the whole rule under each proposed restriction using a
-fresh proof context. It also finds a concrete legal metadata witness to avoid
-vacuous recommendations. It tries individual predicates and small conjunctions,
-then removes clauses when verification still succeeds. The search is bounded;
-a recommendation is verified sufficient, not necessarily weakest or shortest.
-An unproved rule remains unproved until the user adds a restriction and the
-normal compiler verifies it.
-
-Only written conditions control applicability. `axis_domain()` and runtime
-RHS feasibility queries have been removed. Source group order, membership,
-positions, and input axis order lower to ordinary metadata expressions.
-Singleton and zero extents remain valid where operation semantics permit them.
-Explicit RHS descriptors may be combined with automatic descriptors; final
-verification checks all definitions and generated constructors together.
-
-## Guards and local expressions
-
-`where` contains ordered local bindings followed by one Boolean expression.
-Only bindings end with `;`. Combine predicates with `&&` or `||`. Omit the block
-for unconditional rules; inherited rules require both guards. Locals are visible
-after their declaration within their own block; `where` locals are unavailable
-in `derive`. Comprehensions have their own variable scopes.
-
-Expressions support arithmetic, lists, indexing, comprehensions, conditionals,
-and [builtins](../references/built-ins.md). `++` means `concat`. Indices use
-unsigned 64-bit integers, signed integers use `i64`, and arithmetic is checked.
-Invalid indexing, overflow, or failed evaluation rejects a match before
-insertion. Boolean operators and conditionals short-circuit. Local initializers
-execute in their phase even when unused. Conditions depending on explicit RHS
-descriptors execute after derivation; independent source conditions execute
-first. Source logical-axis properties become pure metadata computations; proofs
-and attribute synthesis remain compiler responsibilities.
-
-Both inferred and explicit attributes must satisfy legality and semantic checks
-under the selected arithmetic policy. The native engine and generated Rust and
-C++ code use the same completed executable expressions.
-
-Legacy `@` descriptor bindings, `->` group projections, and whole-descriptor
-`[auto]` syntax remain unsupported. Use field-level `auto` in a descriptor
-constructor or omit an eligible all-axis descriptor. Non-axis inference is
-retained only in `src/core/attr_synth/legacy/` and is not built or invoked.
+Each rule compiles its written condition C, a generated feasibility predicate q,
+and an attribute program f once. A legal match must satisfy C and q before f
+runs. A false q skips the match. No additional source syntax is needed.
+Compilation validates builder definedness, replacement legality and equivalence
+under C && q. Unsupported proofs remain unresolved. Written semantic and backend
+conditions retain their meaning, including shape and dimension restrictions.

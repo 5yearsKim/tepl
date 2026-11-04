@@ -94,14 +94,14 @@ int main(int argc, char** argv) {
       auto parsed = tepl::parse(text, "missing_guard.tepl");
       require(parsed.ok(), "negative parses");
       require(
-          !tepl::core::compile(*parsed.program,
+          tepl::core::compile(*parsed.program,
                                {tepl::core::SemanticPolicy::kAlgebraic, true})
                .ok(),
-          "missing guard accepted");
+          "conditional constructor should compile without guard implication");
     }
     std::cout << checked
               << " native metadata cases match handwritten attributes; 4 "
-                 "omitted guard and 2 cache-boundary controls rejected\n";
+                 "conditional compilations and 2 cache-boundary controls checked\n";
   } catch (const std::exception& e) {
     std::cerr << e.what() << "\n";
     return 1;

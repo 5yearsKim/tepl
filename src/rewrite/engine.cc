@@ -99,8 +99,6 @@ Result run(const executable::ExecutableProgram& program,
             break;
           } catch (const ConditionUnavailable&) {
             continue;
-          } catch (const EvaluationError&) {
-            continue;
           }
         }
         if (changed) break;

@@ -153,7 +153,7 @@ int main() {
 )";
 }
 void cppCase(const executable::ProgramData& p, const core::ConcreteGraph& graph,
-             const executable::Rule& rule, bool allowed,
+             const executable::Rule& rule, bool allowed, bool invalid,
              const Bindings& bindings, const core::ConcreteGraph& candidate,
              std::size_t root) {
   std::cout << "{ auto built=c::graphs::current::graph_" << graph.name
@@ -168,7 +168,12 @@ void cppCase(const executable::ProgramData& p, const core::ConcreteGraph& graph,
                "constraints,binding,built.graph))continue;\n"
             << "rt::RuleContext<c::Program> "
                "ctx(built.graph,built.root,std::move(binding));\n"
-            << "auto rhs=definition.prepare(ctx).value(); if(rhs) {\n";
+            << "auto result=definition.prepare(ctx);\n";
+  if (invalid) {
+    std::cout << "assert(!result); ++prepared; } assert(prepared==1); }\n";
+    return;
+  }
+  std::cout << "auto rhs=result.value(); if(rhs) {\n";
   if (allowed) {
     for (const auto& d : rule.derivations)
       if (d.target)
@@ -232,7 +237,7 @@ fn check(rhs: &rt::PreparedReplacement<c::Program>, graph: &c::EGraph, expected:
       for (const auto& rule : p.rules) {
         Budget budget;
         Bindings bindings;
-        bool allowed = false;
+        bool allowed = false, invalid = false;
         auto candidate = graph;
         std::size_t root = graph.root;
         try {
@@ -245,12 +250,13 @@ fn check(rhs: &rt::PreparedReplacement<c::Program>, graph: &c::EGraph, expected:
           }
         } catch (const EvaluationError&) {
           allowed = false;
+          invalid = true;
         } catch (const ConditionUnavailable&) {
           allowed = false;
         }
         allowed ? ++accepted : ++rejected;
         if (cpp) {
-          cppCase(p, graph, rule, allowed, bindings, candidate, root);
+          cppCase(p, graph, rule, allowed, invalid, bindings, candidate, root);
           continue;
         }
         std::cout
@@ -267,7 +273,13 @@ fn check(rhs: &rt::PreparedReplacement<c::Program>, graph: &c::EGraph, expected:
                "bindings,&built.graph).unwrap() {continue;}\n"
             << "let mut "
                "ctx=rt::RuleContext::new(&built.graph,built.root,bindings);\n"
-            << "if let Some(rhs)=(definition.prepare)(&mut ctx).unwrap() {\n";
+            << "let result=(definition.prepare)(&mut ctx);\n";
+        if (invalid) {
+          std::cout << "assert!(result.is_err()); prepared.push(()); } "
+                       "assert_eq!(prepared.len(),1); }\n";
+          continue;
+        }
+        std::cout << "if let Some(rhs)=result.unwrap() {\n";
         if (allowed) {
           for (const auto& derivation : rule.derivations)
             if (derivation.target)

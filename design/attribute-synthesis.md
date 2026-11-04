@@ -18,7 +18,7 @@ Materialization replaces only automatic fields and preserves supplied expression
 and defaults. Unresolved holes cannot enter executable IR. Optional operation
 labels remain occurrence metadata, separate from tensor captures and descriptors.
 `node.attrs` resolves to a descriptor reference; source spelling is retained for
-compiler diagnostics and suggestions.
+compiler diagnostics.
 
 ## Construction and verification
 
@@ -80,10 +80,9 @@ After identity fails, an admitted ordered attempt can record
 feasibility obligations and attribute expressions defined when those obligations
 hold. Generation does not specialize its predicate using the written guard
 or call the guard prover as a construction precondition. A fresh
-verifier must prove feasibility from source legality and the written conditions,
-then check builder definedness, legality, and equivalence. Generation may succeed
-while guard verification remains Unknown. Feasibility is never assumed or inserted
-as an automatic runtime guard. Admission or bounded verification failure leaves
+verifier validates the source-only predicate and checks builder definedness,
+legality, and equivalence under the written conditions and generated feasibility.
+Generated feasibility is retained in executable IR and evaluated before builders. Admission or bounded verification failure leaves
 general synthesis available.
 
 The concrete solver covers contraction, permutation, summation, and separated
@@ -106,7 +105,7 @@ verifier. Membership-set enumeration is unobservable; ordered axes remain
 sequence values.
 
 The completeness guarantee concerns construction and interpretation of this
-residual program on admitted plans. Independent guard certification and optional
+residual program on admitted plans. Independent conditional verification and optional
 Rust/C++ expression lowering may still be unresolved. Existing CLI policy modes,
 portable schemas, broader construction, and sound extensions retain their
 boundaries; no complete guard prover or broader completeness is claimed.
@@ -151,18 +150,12 @@ source descriptors, out-of-domain extents, and exhausted work have separate
 outcomes. Concrete impossibility is not currently used to reject an entire
 rank-polymorphic rule schema.
 
-## Conditions and suggestions
+## Conditions and feasibility
 
-Source logical-axis references remain typed until both semantic trees exist,
-then lower to pure metadata expressions. Membership uses `LogicalAxisSet`,
-ordered axes use `LogicalAxis[]`, and positions use `u64[]`.
-
-`check --suggest-where` performs bounded search over source-group equalities and
-identity permutations. Each proposal needs fresh synthesis, independent
-verification, and a concrete legal metadata witness under the proposed
-restriction. That witness establishes non-vacuity, not universal equivalence.
-Suggestions are reviewable source; they do not change the original rule's
-acceptance or compiled applicability. Search failure means no suggestion found.
+Source logical-axis references lower to pure metadata expressions. The compiled
+rule retains the written condition C separately from generated feasibility q.
+The runtime evaluates q before any conditional builder expression. Candidate
+semantic obligations remain compilation requirements under C && q.
 
 ## Research and validation
 
@@ -173,9 +166,9 @@ that production search implements their full completeness guarantees.
 
 ```sh
 bazel test //tests:ordered_synthesis_test //tests:attribute_reasoning_test \
-  //tests:where_suggestions_cli_test //tests:named_nodes_test
+  //tests:named_nodes_test
 ```
 
 Tests exercise positive/negative certificates, independent attribute oracles,
-metadata domains, repeated inputs, defaults, suggestions, and corrupted
+metadata domains, repeated inputs, defaults, conditional feasibility, and corrupted
 constructors. They provide implementation evidence, not formal refinement proof.

@@ -8,7 +8,6 @@
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
 #include "src/shared/catalog/axis_conditions.h"
-#include "src/shared/catalog/core_guard.h"
 #include "src/inference/extensions.h"
 namespace tepl::core::semantics {
 Materialized materialize(InspectionData checked) {
@@ -99,10 +98,10 @@ Materialized materialize(InspectionData checked) {
     if (plan && plan->proof.core) {
       completed_rule.core =
           inference::portable(inference::emit(*plan->proof.core));
-      if (!completed::coreGuard(completed_rule))
-        throw std::invalid_argument(
-            "core guard certificate does not match completed conditions");
     }
+    if (plan)
+      for (const auto& q : plan->proof.feasibility)
+        completed_rule.feasibility.push_back(completion.symbol(q));
     completed::validateAxisConditions(completed_rule);
     if (coordinates)
       for (const auto& [key, value] : coordinates->source().groups)

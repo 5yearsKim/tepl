@@ -35,17 +35,34 @@ void rejects(const std::string& text) {
   auto parsed = parseRule(text);
   expect(
       !core::compile(*parsed.program, {core::SemanticPolicy::kAlgebraic}).ok(),
-      "unproved replacement is rejected at compile time");
+      "unproved replacement is rejected at compile time: " + text);
 }
-std::string suggest(const std::string& text) {
-  auto parsed = parseRule(text);
-  auto inspected = core::inspect(
-      *parsed.program, {core::SemanticPolicy::kAlgebraic, true, {}, true});
-  expect(inspected.ok(), "suggestion search preserves an inspection result");
-  const auto& plan = *inspected.program->rules.at(0).semantic_plan;
-  expect(plan.proof.status == core::semantics::ProofStatus::Unknown,
-         "a suggestion never accepts the original rule");
-  return plan.suggested_rule;
+void conditionalFeasibility() {
+  auto p = compile(R"(
+rule conditional {A:[Dims...] (dot A B)=>(dot B A) where {len(Dims)==1}}
+graph skip {input A:f32[2];input B:f32[3];yield(dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B);}
+graph apply {input A:f32[2];input B:f32[2];yield(dot[lhs_contracting_dimensions=[0],rhs_contracting_dimensions=[0],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B);}
+graph guard {input A:f32[];input B:f32[];yield(dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B);}
+)");
+  expect(!p.ir().rules[0].feasibility.empty(),
+         "compiled q survives verification");
+  auto loaded = executable::load(executable::serialize(p));
+  rewrite::Options options;
+  options.max_steps = 1;
+  for (const auto* program : {&p, &loaded}) {
+    expect(rewrite::run(*program, program->ir().graphs[0], options)
+                   .rewrite_count == 0,
+           "C true, q false skips normally before a partial attribute builder");
+    auto out = rewrite::run(*program, program->ir().graphs[1], options);
+    expect(
+        out.rewrite_count == 1 && out.graph.nodes.back().shape ==
+                                      std::optional<std::vector<std::uint64_t>>(
+                                          std::vector<std::uint64_t>{}),
+        "same compiled rule succeeds when q holds");
+    expect(rewrite::run(*program, program->ir().graphs[2], options)
+                   .rewrite_count == 0,
+           "explicit guard remains enforced");
+  }
 }
 void identityAndPracticalDomains() {
   auto identity = compile("rule identity {(dot A B)=>(dot A B)}");
@@ -98,51 +115,12 @@ rule invalid {
  derive {q.attrs={permutation: []};}
 }
 )");
-  rejects("rule unequal {(dot A B)=>(dot B A)}");
-  rejects(R"(
-rule unsafe {(p: transpose A)=>A
+  compile("rule conditionally_commuting {(dot A B)=>(dot B A)}");
+  rejects("rule unequal {(add A A)=>A}");
+  compile(R"(
+rule conditionally_identity {(p: transpose A)=>A
  where {subsequence(A.axes.order,concat(A.axes.order,A.axes.order))}}
 )");
-}
-void recommendations() {
-  const std::string association = R"(
-rule associate {(d: dot (inner: dot A B) C)=>(dot A (dot B C))}
-)";
-  rejects(association);
-  auto text = suggest(association);
-  expect(!text.empty(), "find a verified nonvacuous reassociation restriction");
-  expect(text.find("inner.axes.B.positions") != std::string::npos &&
-             text.find("axis_domain") == std::string::npos,
-         "suggest source group relationships without an extent restriction");
-  auto p = compile(text);
-  expect(p.ir().rules[0].conditions.size() == 1 && !p.ir().rules[0].inference,
-         "one written condition suffices; no hidden additional filtering");
-  auto loaded = executable::load(executable::serialize(p));
-  expect(loaded.ir().rules[0].conditions.size() == 1,
-         "serialized rules retain exactly the declared applicability");
-
-  auto trans = suggest(R"(
-rule remove {(p: transpose (dot A B))=>(dot A B)
- where {len(p.attrs.permutation) == 2}}
-)");
-  expect(!trans.empty() &&
-             trans.find("range(len(p.attrs.permutation))") != std::string::npos,
-         "discover an identity-permutation sufficient restriction");
-  expect(trans.find("len(p.attrs.permutation) == 2") != std::string::npos,
-         "recommendations preserve user restrictions");
-  compile(trans);
-  auto impossible = parseRule(R"(
-rule impossible {(p: transpose (dot A B))=>(dot A B)
- where {p.attrs.permutation == [] && p.attrs.permutation == [0]}}
-)");
-  auto inspected = core::inspect(
-      *impossible.program, {core::SemanticPolicy::kAlgebraic, true, {}, true});
-  // Guard-independent construction can now reach a vacuous verification of
-  // this contradictory guard. Neither a proof nor Unknown warrants suggesting
-  // a restriction without a concrete legal witness.
-  expect(inspected.ok() &&
-             inspected.program->rules[0].semantic_plan->suggested_rule.empty(),
-         "never recommend a condition without a concrete legal witness");
 }
 void independentVerification() {
   using namespace core::semantics;
@@ -289,9 +267,9 @@ int main(int argc, char** argv) {
     std::ifstream input(files->Rlocation(argv[1]));
     dialect.assign(std::istreambuf_iterator<char>(input), {});
     expect(!dialect.empty(), "tensor dialect");
+    conditionalFeasibility();
     identityAndPracticalDomains();
     mixedAttributes();
-    recommendations();
     independentVerification();
     synthesisBoundary();
     explicitConditionIntegrity();

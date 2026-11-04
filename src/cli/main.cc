@@ -108,17 +108,13 @@ int main(int argc, char** argv) {
                       "Maximum graph node count");
   rewrite->add_flag("--trace", rewrite_options.trace,
                     "Report applied rules on stderr");
-  bool core_backend=false, certified_backend=false;
+  bool core_backend=false;
   for(auto* command:{check,compile,rewrite,generate}) {
-    auto* core_option=command->add_flag("--core",core_backend,"Use the original whole-axis core constructor");
-    command->add_flag("--certified",certified_backend,"Use core construction and sound certified schema extensions")->excludes(core_option);
+    command->add_flag("--core",core_backend,"Use the metadata DAG constructor and supported schemas");
   }
   std::string semantic_policy = "strict";
   std::string semantic_rule;
-  bool suggest_conditions = false;
   core_emit->add_option("--rule", semantic_rule, "Select a core rule");
-  check->add_flag("--suggest-where", suggest_conditions,
-                  "Search for a verified sufficient where restriction");
   check->add_option("--rule", semantic_rule,
                     "Select a semantic rule for compile-time proof");
   for (auto* command : {check, generate, compile, rewrite, core_emit}) {
@@ -297,9 +293,8 @@ int main(int argc, char** argv) {
       return 0;
     }
     if (*check) {
-      tepl::core::InspectionOptions options{policy,true,semantic_rule,suggest_conditions};
+      tepl::core::InspectionOptions options{policy,true,semantic_rule};
       options.core_backend=core_backend;
-      options.certified_backend=certified_backend;
       auto inspected = tepl::core::inspect(*result.program,options);
       diagnostics(inspected.diagnostics);
       if (!inspected.ok()) return 1;
@@ -308,8 +303,8 @@ int main(int argc, char** argv) {
       return tepl::checkSemanticRules(*inspected.program, semantic_rule,
                                       std::cout);
     }
-    if((core_backend || certified_backend) && *generate){std::cerr<<"core DAG export currently supports portable JSON and native rewrite execution\n";return 1;}
-    auto compiled = tepl::core::compile(*result.program, {policy,core_backend,certified_backend});
+    if(core_backend && *generate){std::cerr<<"core DAG export currently supports portable JSON and native rewrite execution\n";return 1;}
+    auto compiled = tepl::core::compile(*result.program, {policy,core_backend});
     diagnostics(compiled.diagnostics);
     if (!compiled.ok()) return 1;
     return execute(*compiled.program);

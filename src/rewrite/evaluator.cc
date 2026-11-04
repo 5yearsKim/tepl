@@ -318,6 +318,8 @@ bool Evaluator::evaluateWhere() {
     }
   }
   if (!allowed) return false;
+  for (const auto& q : rule.feasibility)
+    if (!boolean(symbolic(*q))) return false;
   auto where_locals = std::move(bindings_.locals);
   bindings_.locals.clear();
   if (rule.core) {
@@ -349,6 +351,7 @@ bool Evaluator::evaluateWhere() {
     budget_.charge(result.work);
     if (result.status == inference::Status::ResourceLimit)
       throw LimitError(result.reason);
+    if (result.status == inference::Status::Inapplicable) return false;
     if (result.status != inference::Status::Solved)
       throw EvaluationError("core constructor precondition failed");
     for (const auto& [id, fields] : result.attributes) {

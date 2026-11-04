@@ -18,24 +18,11 @@ tepl rewrite <file-or-project-or-json> [--rules file-or-directory] [--rule name]
 tepl generate <file-or-project-or-json> --out <directory> [options]
 ```
 
-`check --suggest-where --semantic-policy=algebraic` searches for a verified
-sufficient source restriction when a rule is unproved. Select a rule with
-`--rule NAME`. Suggestions preserve the original conditions and derivations;
-review and add them to source before compiling. The original unproved rule
-still exits with status 1. Search is bounded and does not promise a weakest
-condition or a suggestion for every rule.
-
-```sh
-tepl check examples/semantic/restriction_suggestions.tepl \
-  --semantic-policy=algebraic --suggest-where --rule remove_output_permutation
-tepl compile examples/semantic/explicit_axis_conditions.tepl \
-  --semantic-policy=algebraic -o verified.json
-tepl rewrite verified.json --graph feasible --trace
-```
-
-`compile` and `rewrite` require proof under the source's written conditions.
-The old `--infer-applicability` condition-insertion mode has been removed.
-Runtime feasibility programs from that mode are rejected when loading JSON.
+Applicability combines the written `where` condition with compiled feasibility
+checks. False feasibility skips a match before constructing RHS attributes.
+`--core` selects the metadata DAG constructor, including supported schema
+extensions. Generated C++/Rust currently require the symbolic expression path;
+unsupported DAG exports report an error. Compiled artifacts use format version 4.
 
 | Command | Purpose | Input |
 | --- | --- | --- |

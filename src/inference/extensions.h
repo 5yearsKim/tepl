@@ -18,16 +18,15 @@ MetadataTerm termNumber(std::int64_t);
 MetadataTerm termCall(std::string, std::vector<MetadataTerm>);
 std::string termKey(const MetadataTerm&);
 using MetadataEquality = std::pair<MetadataTerm, MetadataTerm>;
-struct LayoutFacts;
-MetadataTerm normalizeMetadata(MetadataTerm, const LayoutFacts&);
+struct MetadataFacts;
+MetadataTerm normalizeMetadata(MetadataTerm, const MetadataFacts&);
 bool metadataEqual(const MetadataTerm&, const MetadataTerm&,
-                   const LayoutFacts&);
+                   const MetadataFacts&);
 bool hasExtensions(const Program&);
 // Rejects every unrecognized graph pair; never falls back to canonical
 // emission.
 EmissionBlock emitExtension(const Program&);
 MetadataTerm emissionTerm(const EmissionBlock&, std::size_t);
-bool certifyExtension(const Program&, const LayoutFacts&);
 Result executeExtension(const Emission&, const Metadata&, const Limits&,
                         bool build);
 }  // namespace tepl::inference

@@ -126,6 +126,8 @@ struct RuleData {
   std::vector<CaptureConstraint> constraints;
   // Ordered where statements: Boolean guards or LocalLet nodes.
   std::vector<TypedExprPtr> conditions;
+  // Generated source-only feasibility checks, evaluated before derivations.
+  std::vector<SymbolPtr> feasibility;
   std::vector<Local> locals;
   std::vector<Derivation> derivations;
   BuildExprPtr rhs;

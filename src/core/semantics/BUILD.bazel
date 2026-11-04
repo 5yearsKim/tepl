@@ -59,7 +59,6 @@ cc_library(
     name = "semantics",
     srcs = [
         "plan.cc", "program.cc", "materialize.cc", "completion.cc",
-        "suggestion.cc", "restrictions.cc", "suggestion.h",
         "compilation_context.h", "materialize.h", "completion.h",
     ],
     hdrs = ["verify.h", "inspect.h"],

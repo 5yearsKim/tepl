@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the explicit v3 JSON Schema and its C++ codec from one field catalog.
+"""Generate the explicit v4 JSON Schema and its C++ codec from one field catalog.
 
 Generated files are checked in; CLI tests compare the public and embedded schemas.
 """
@@ -101,7 +101,7 @@ struct('inference_program','inference::Program','mode:inference_mode source:infe
 enum('emission_op','inference::Op','input:Input output:Output empty:Empty union:Union intersect:Intersect difference:Difference filter:Filter concat:Concat positions:Positions equal:Equal same_set:SameSet distinct:Distinct subset:Subset source_field:SourceField source_extents:SourceExtents source_shape:SourceShape length:Length range:Range plus:Plus gather:Gather inverse:Inverse symmetric_difference:SymmetricDifference complement:Complement pullback:Pullback remap:Remap source_field2:SourceField2 source_field3:SourceField3 singleton:Singleton broadcast_transpose_extents:BroadcastTransposeExtents')
 struct('emission_expression','inference::Expression','op:emission_op args:id[] capture:id')
 struct('core_program','inference::Portable','program:inference_program nodes:emission_expression[][] checks:id[][] attributes:id[][][]')
-struct('rule','Rule','id:id name:string source_name:string origin:origin captures:capture[] dimensions:dimension[] descriptors:descriptor[] lhs:pattern* constraints:constraint[] conditions:expr*[] locals:local[] derivations:derivation[] rhs:build* dtypes:dtype_variable[] inference:inference_program? core:core_program?')
+struct('rule','Rule','id:id name:string source_name:string origin:origin captures:capture[] dimensions:dimension[] descriptors:descriptor[] lhs:pattern* constraints:constraint[] conditions:expr*[] feasibility:symbol*[] locals:local[] derivations:derivation[] rhs:build* dtypes:dtype_variable[] inference:inference_program? core:core_program?')
 struct('attribute','core::AttributeValue','kind:attribute_kind text:string elements:attribute[]')
 struct('graph_node','core::ConcreteNode','kind:node_kind origin:origin text:string dtype:dtype? shape:extent[]? operation:id? operands:id[] attributes:attribute[]')
 struct('graph','core::ConcreteGraph','id:id name:string source_name:string origin:origin nodes:graph_node[] bindings:binding[] root:id')
@@ -205,7 +205,7 @@ if 'Codec<std::set<T>>' not in header:
 };
 '''
 (ROOT/'src/executable/codec.h').write_text(header+'\n'.join(code)+'\n} // namespace tepl::executable::detail\n')
-schema={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'TEPL compiled rewrite program v3',**obj({'format':{'const':'tepl.rewrite'},'version':{'const':3},'policy':{'enum':['strict','algebraic']},'capabilities':{'anyOf':[{'const':['tepl.core.v3','tepl.axis-metadata.v2']},{'const':['tepl.core.v3','tepl.axis-metadata.v2','tepl.inferred-applicability.v1']},{'const':['tepl.core.v3','tepl.axis-metadata.v2','tepl.core-dag.v1']},{'const':['tepl.core.v3','tepl.axis-metadata.v2','tepl.core-dag.v1','tepl.core-schemas.v1']}]},'program':ref('ir'),'axis_definitions':ref('symbol*[][]')}),'$defs':defs}
+schema={'$schema':'https://json-schema.org/draft/2020-12/schema','title':'TEPL compiled rewrite program v4',**obj({'format':{'const':'tepl.rewrite'},'version':{'const':4},'policy':{'enum':['strict','algebraic']},'capabilities':{'anyOf':[{'const':['tepl.core.v3','tepl.axis-metadata.v2']},{'const':['tepl.core.v3','tepl.axis-metadata.v2','tepl.inferred-applicability.v1']},{'const':['tepl.core.v3','tepl.axis-metadata.v2','tepl.core-dag.v1']},{'const':['tepl.core.v3','tepl.axis-metadata.v2','tepl.core-dag.v1','tepl.core-schemas.v1']}]},'program':ref('ir'),'axis_definitions':ref('symbol*[][]')}),'$defs':defs}
 for name in ('match_operation', 'build_operation'):
     if 'label' in defs[name].get('required', []): defs[name]['required'].remove('label')
 text=json.dumps(schema,indent=2)+'\n'

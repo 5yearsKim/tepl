@@ -316,11 +316,13 @@ struct ConstructorEvaluator {
     try {
       for (const auto& g : assumptions)
         if (!std::get<bool>(eval(g))) return false;
+      for (const auto& q : proof.feasibility)
+        if (!std::get<bool>(eval(q))) return false;
       for (const auto& g : proof.guard)
         if (!std::get<bool>(eval(g))) return false;
       return true;
-    } catch (const std::exception&) {
-      return false;
+    } catch (const std::exception& e) {
+      throw std::runtime_error(std::string("metadata predicate evaluation: ") + e.what());
     }
   }
   std::map<std::size_t, std::vector<List>> construct() {

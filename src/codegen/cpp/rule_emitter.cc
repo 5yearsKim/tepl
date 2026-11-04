@@ -174,6 +174,8 @@ std::string emitRules(const executable::ExecutableProgram& executable,
     };
     auto schedule = core::completed::scheduleWhere(rule);
     emitConditions(schedule.source);
+    for (const auto& q : rule.feasibility)
+      out.line("if (!(" + e.symbolic(*q) + ").boolean()) return false;");
     out.line(
         "{ rt::LocalScope scope(ctx.bindings.locals,true); derive(ctx); }");
     emitConditions(schedule.replacement);

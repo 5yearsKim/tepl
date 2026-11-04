@@ -1,6 +1,6 @@
 {
   "format": "tepl.rewrite",
-  "version": 3,
+  "version": 4,
   "policy": "algebraic",
   "capabilities": [
     "tepl.core.v3",
@@ -12705,6 +12705,7 @@
             }
           }
         ],
+        "feasibility": [],
         "locals": [],
         "derivations": [],
         "rhs": {
@@ -14549,6 +14550,7 @@
             }
           }
         ],
+        "feasibility": [],
         "locals": [],
         "derivations": [],
         "rhs": {

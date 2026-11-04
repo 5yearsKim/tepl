@@ -22,7 +22,7 @@ executable::ExecutableProgram compiled(const std::string& text) {
   for (const auto& d : parsed.diagnostics) std::cerr << d.message << '\n';
   require(parsed.ok(), "extension parses");
   auto result = core::compile(*parsed.program,
-                              {core::SemanticPolicy::kAlgebraic, false, true});
+                              {core::SemanticPolicy::kAlgebraic, true});
   for (const auto& d : result.diagnostics) std::cerr << d.message << '\n';
   require(result.ok(), "extension compiles");
   return std::move(*result.program);
@@ -32,12 +32,12 @@ void rejected(const std::string& text, const std::string& defs = {}) {
       parse((defs.empty() ? definitions : defs) + text, "negative.tepl");
   require(parsed.ok(), "negative parses");
   require(!core::compile(*parsed.program,
-                         {core::SemanticPolicy::kAlgebraic, false, true})
+                         {core::SemanticPolicy::kAlgebraic, true})
                .ok(),
-          "unsound or unsupported schema accepted");
+          "unsound or unsupported schema accepted: " + text);
   ++negative;
 }
-void invalid(Json j) {
+void invalid(Json j, const std::string& diagnostic = {}) {
   bool bad = false;
   try {
     executable::load(j.dump());
@@ -85,8 +85,17 @@ void test(const std::string& source, bool requires_guard = false) {
   invalid(q);
   if (requires_guard) {
     q = j;
+    q["program"]["rules"][0]["derivations"] = Json::array({
+        {{"value", j["program"]["rules"][0]["conditions"][0]}}});
+    invalid(q, "residual derivations");
+    q = j;
     q["program"]["rules"][0]["conditions"] = Json::array();
-    invalid(q);
+    auto conditional = executable::load(q.dump());
+    for (const auto& g : conditional.ir().graphs) {
+      auto out = rewrite::run(conditional, g);
+      require(reference(conditional.ir(), g) == reference(conditional.ir(), out.graph),
+              "implicit schema feasibility preserves values");
+    }
   }
 }
 int main(int argc, char** argv) {
@@ -142,7 +151,7 @@ int main(int argc, char** argv) {
       rule.erase(
           pos,
           std::string(" && a.attrs.new_extents==b.attrs.new_extents").size());
-      rejected(rule);
+      compiled(rule);  // q now checks equality of the broadcast embeddings.
     }
     test(
         "rule compose {X:[D...] (a:broadcast(b:broadcast X))=>(c:broadcast X) "
@@ -233,11 +242,11 @@ int main(int argc, char** argv) {
         "dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]]X "
         "Y);}",
         true);
-    rejected(
+    compiled(
         "rule bad {(a:reverse(b:broadcast X))=>(c:broadcast X) derive "
         "{c.attrs={dimensions:auto,new_extents:b.attrs.new_extents};}}");
-    rejected("rule bad {(a:reverse(b:reverse X))=>X}");
-    rejected(
+    compiled("rule bad {(a:reverse(b:reverse X))=>X}");
+    compiled(
         "rule bad {(a:broadcast X)=>(b:transpose X) derive "
         "{b.attrs={permutation:auto};}}");
     rejected(
@@ -434,23 +443,26 @@ rule permute {X:[D...] (p:transpose(b:broadcast X))=>(out:broadcast X)
     auto badUnit = unit;
     badAt = badUnit.find("A==1");
     badUnit.replace(badAt, 4, "A==2");
-    rejected(badUnit);
+    auto infeasibleUnit = compiled(badUnit +
+        "graph impossible_unit {input X:f32[2,3];yield(broadcast[dimensions=[0,1],new_extents=[4]] X);}");
+    require(rewrite::run(infeasibleUnit, infeasibleUnit.ir().graphs[0]).rewrite_count == 0,
+            "false unit-axis feasibility skips an illegal unit-removal builder");
     auto badNested = nested;
     badAt = badNested.find("c.attrs.dimensions==[]");
     badNested.replace(badAt, std::string("c.attrs.dimensions==[]").size(),
                       "true");
-    rejected(badNested);
+    compiled(badNested); // Feasibility checks the required scalar embedding.
     auto badMoved = moved;
     badAt = badMoved.find("lhs_contracting_dimensions==[2,3]");
     badMoved.replace(badAt,
                      std::string("lhs_contracting_dimensions==[2,3]").size(),
                      "lhs_contracting_dimensions==[2]");
-    rejected(badMoved);
+    compiled(badMoved); // Feasibility checks contraction compatibility.
     auto badScalar = scalar;
     badAt = badScalar.find("b.attrs.dimensions==[]");
     badScalar.replace(badAt, std::string("b.attrs.dimensions==[]").size(),
                       "true");
-    rejected(badScalar);
+    compiled(badScalar); // Feasibility checks the scalar-factor schema.
     alteredPermute = permute;
     badAt = alteredPermute.find("then allshape[j] else 0");
     alteredPermute.replace(badAt, std::string("then allshape[j] else 0").size(),
@@ -478,10 +490,10 @@ rule permute {X:[D...] (p:transpose(b:broadcast X))=>(out:broadcast X)
     rejected(alteredPermute);
     auto strict = parse(definitions + nested, "strict_core.tepl");
     require(strict.ok(), "strict core parses");
-    require(!core::compile(*strict.program,
-                           {core::SemanticPolicy::kAlgebraic, true, false})
+    require(core::compile(*strict.program,
+                           {core::SemanticPolicy::kAlgebraic, true})
                  .ok(),
-            "canonical core admitted extension");
+            "unified core admits supported extension");
     ++negative;
     std::cout << "schema tests: " << checks << " dense/graph checks, "
               << negative << " rejection checks\n";

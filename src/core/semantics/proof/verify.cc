@@ -1,5 +1,7 @@
 #include "src/core/semantics/proof/verify.h"
 
+#include <functional>
+
 #include "src/core/semantics/symbolic/normalize.h"
 
 namespace tepl::core::semantics {
@@ -8,6 +10,21 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
                  std::chrono::steady_clock::time_point deadline) {
   Context c{plan, max_work, deadline};
   RuleProof proof;
+  auto retainPredicateAxes = [&] {
+    std::set<std::pair<std::size_t, std::size_t>> groups;
+    std::set<const Symbol*> visited;
+    for (const auto& axis : proof.axis_definitions)
+      if (axis->kind == Symbol::Kind::AxisGroup)
+        groups.insert({axis->owner, axis->index});
+    std::function<void(const SymbolPtr&)> visit = [&](const SymbolPtr& value) {
+      if (!visited.insert(value.get()).second) return;
+      if (value->kind == Symbol::Kind::AxisGroup &&
+          groups.insert({value->owner, value->index}).second)
+        proof.axis_definitions.push_back(value);
+      for (const auto& child : value->args) visit(child);
+    };
+    for (const auto& q : candidate.feasibility) visit(q);
+  };
   try {
     c.sourceScope(plan.lhs);
     for (const auto& n : plan.nodes)
@@ -23,20 +40,19 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
         }
       }
     auto lhs = lowerSource(c);
-    for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
-    for (const auto& [value, type] : plan.constructed_metadata)
-      c.checkMetadataType(value, type);
-    // These source-only expressions are total on the admitted domain. Prove
-    // them from source legality and the written guard before checking any
-    // conditional builder expression. No feasibility fact is assumed.
+    // Establish source-only predicate definedness before using q as a premise.
+    // Builder definedness and semantic obligations are checked under C && q.
     for (const auto& condition : candidate.feasibility) {
       c.validateSource(condition);
       if (condition->sort != Symbol::Sort::Boolean)
         throw ProofFailure("feasibility obligation must be Boolean",
                            FailureKind::InvalidCandidate);
       c.wellFormed(condition);
-      c.require(condition, GuardKind::CoordinateOrder);
+      c.learn(condition);
     }
+    for (const auto& value : plan.derived_metadata) c.checkMetadata(value);
+    for (const auto& [value, type] : plan.constructed_metadata)
+      c.checkMetadataType(value, type);
     for (const auto& n : plan.nodes)
       if (plan.needsSynthesis(n)) {
         const auto& fields = candidate.constructors.at(n.descriptor->value);
@@ -79,6 +95,7 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
           return true;
         });
     if (identical) {
+      proof.feasibility = candidate.feasibility;
       proof.constructors = candidate.constructors;
       proof.status = ProofStatus::Proved;
       proof.reason =
@@ -98,6 +115,7 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
       }
       for (const auto& [id, group] : c.source().groups)
         proof.axis_definitions.push_back(group);
+      retainPredicateAxes();
       return proof;
     }
     auto lt = normalize(c, lhs.value, &proof.rewrites);
@@ -114,6 +132,7 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
     c.require(call("==", {lhs.axes, rhs.axes}), GuardKind::CoordinateOrder);
     c.require(call("==", {lhs.shape, rhs.shape}));
     c.require(call("==", {lhs.dtype, rhs.dtype}));
+    proof.feasibility = candidate.feasibility;
     proof.constructors = candidate.constructors;
     proof.guard = c.guards();
     proof.guard_origins = c.guardOrigins();
@@ -133,6 +152,7 @@ RuleProof verify(const Plan& plan, const ConstructorCandidate& candidate,
       for (const auto& r : t.reads) proof.accesses[r->occurrence] = r->axes;
     for (const auto& t : checked)
       for (const auto& r : t.reads) proof.accesses[r->occurrence] = r->axes;
+    retainPredicateAxes();
     proof.lhs_axes = lhs.axes;
     proof.rhs_axes = rhs.axes;
     return proof;

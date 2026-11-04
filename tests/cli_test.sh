@@ -21,6 +21,8 @@ check_exit 0 --help
 grep -Fq 'parse' "$output"
 grep -Fq 'init' "$output"
 check_exit 0 -h
+check_exit 2 check "$example" --suggest-where
+check_exit 2 check "$example" --certified
 
 # Initialization creates a usable project without relying on external templates.
 check_exit 0 init --help

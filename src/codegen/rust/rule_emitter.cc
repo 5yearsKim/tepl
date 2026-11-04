@@ -146,6 +146,8 @@ std::string emitRules(const executable::ExecutableProgram& executable,
     };
     out.open("pub fn check_where(ctx: &mut Context<'_>) -> EvalResult<bool>");
     conditions(schedule.source);
+    for (const auto& q : rule.feasibility)
+      out.line("if !(" + e.symbolic(*q) + ").boolean()? { return Ok(false); }");
     out.line("let where_locals = ::std::mem::take(&mut ctx.bindings.locals);");
     out.line("let result = derive(ctx);");
     out.line("ctx.bindings.locals = where_locals;");

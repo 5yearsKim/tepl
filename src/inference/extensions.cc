@@ -7,7 +7,7 @@
 #include <numeric>
 #include <stdexcept>
 
-#include "src/inference/certificate.h"
+#include "src/inference/metadata_facts.h"
 
 namespace tepl::inference {
 MetadataTerm termField(std::size_t d, std::size_t f) {
@@ -59,7 +59,7 @@ bool contains(const List& a, std::int64_t x) {
 }
 // Both compilation and loading use exactly these conservative simplifications.
 // In particular, no index or extent check is erased by algebraic cancellation.
-T simplify(T t, const LayoutFacts& f) {
+T simplify(T t, const MetadataFacts& f) {
   for (auto& a : t.args) a = simplify(std::move(a), f);
   if (t.op == "broadcast_transpose_extents" && t.args.size() == 4) {
     auto shape = t.args[0], d = t.args[1], e = t.args[2], p = t.args[3];
@@ -459,6 +459,8 @@ struct Builder {
         auto zero = singleton(0), one = singleton(1),
              inputShape = shapeOf(a.inputs[0]);
         check(field(si), unary(Op::Range, unary(Op::Length, inputShape)));
+        b.checks.push_back(binary(Op::Subset, zero,
+            unary(Op::Range, unary(Op::Length, inputShape))));
         check(binary(Op::Gather, inputShape, zero), one);
         set(remove, {zero});
         set(ri, {binary(Op::Complement, field(si), zero),
@@ -579,7 +581,7 @@ struct Builder {
         return std::move(b);
       }
     }
-    throw std::invalid_argument("outside certified view/reindexing schemas");
+    throw std::invalid_argument("outside supported view/reindexing schemas");
   }
 };
 }  // namespace
@@ -665,10 +667,10 @@ MetadataTerm emissionTerm(const EmissionBlock& b, std::size_t id) {
   for (auto i : e.args) args.push_back(emissionTerm(b, i));
   return {name, std::move(args)};
 }
-MetadataTerm normalizeMetadata(MetadataTerm t, const LayoutFacts& f) {
+MetadataTerm normalizeMetadata(MetadataTerm t, const MetadataFacts& f) {
   return simplify(std::move(t), f);
 }
-bool metadataEqual(const T& a, const T& b, const LayoutFacts& f) {
+bool metadataEqual(const T& a, const T& b, const MetadataFacts& f) {
   // Finite congruence closure of the exact positive equalities. Each term is
   // simplified only using literal source facts or total identities above.
   std::vector<T> terms;
@@ -717,28 +719,6 @@ bool metadataEqual(const T& a, const T& b, const LayoutFacts& f) {
     if (!changed) break;
   }
   return root(ai) == root(bi);
-}
-bool certifyExtension(const Program& p, const LayoutFacts& f) {
-  try {
-    auto b = emitExtension(p);
-    for (auto i : b.checks) {
-      auto t = emissionTerm(b, i);
-      if (t.op == "==") {
-        if (!metadataEqual(t.args[0], t.args[1], f)) return false;
-      } else if (t.op == "subset") {
-        auto a = literal(simplify(t.args[0], f)),
-             c = literal(simplify(t.args[1], f));
-        if (!a || !c || std::any_of(a->begin(), a->end(), [&](auto x) {
-              return !contains(*c, x);
-            }))
-          return false;
-      } else
-        return false;
-    }
-    return true;
-  } catch (const std::invalid_argument&) {
-    return false;
-  }
 }
 namespace {
 struct ExtensionStop {
@@ -1047,8 +1027,8 @@ Result executeExtension(const Emission& e, const Metadata& m,
     vm.sourceLegality();
     for (auto id : vm.b.checks)
       if (vm.eval(id) != List{1}) {
-        r.status = Status::Unsupported;
-        r.reason = "source metadata does not satisfy certified schema";
+        r.status = Status::Inapplicable;
+        r.reason = "schema feasibility predicate is false";
         r.work = limits.work - vm.remaining;
         return r;
       }

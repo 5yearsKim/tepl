@@ -45,7 +45,6 @@ Result<VerifiedProgram> verify(const checking::TypedProgram& input,
                                const SemanticOptions& options) {
   InspectionOptions inspection{options.semantic_policy, false, {}};
   inspection.core_backend = options.core_backend;
-  inspection.certified_backend = options.certified_backend;
   auto inspected = inspect(input, inspection);
   Result<VerifiedProgram> result;
   result.diagnostics = std::move(inspected.diagnostics);

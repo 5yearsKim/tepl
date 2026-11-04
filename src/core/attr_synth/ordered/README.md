@@ -31,11 +31,11 @@ contraction block order, and exact root retained-set equality. Summation removes
 unneeded retained axes without reordering survivors; a later sum may have an
 empty reduction list after a contraction eliminates its axes early.
 
-Symbolic generation does not use the written guard to simplify its predicate,
-prove feasibility, or assume it. The independent
-verifier must establish the generated obligations from source legality and the
-written guard before checking the conditional builders. A guard proof may remain
-Unknown after successful generation. No runtime guard is automatically added.
+Symbolic generation produces q independently of the written guard. The verifier
+checks q's source scope and definedness, then validates builders, operation
+legality and semantic equivalence under C && q. The runtime evaluates q before
+builders; false q is ordinary non-application. Bounded conditional verification
+may remain unresolved after successful generation.
 
 The [synthesis design](../../../../design/attribute-synthesis.md) describes
 integration, evaluation, and validation. The
@@ -44,7 +44,7 @@ current proofs and their relationship to implementation.
 
 ```sh
 bazel test //tests:ordered_synthesis_test //tests:attribute_reasoning_test \
-  //tests:where_suggestions_cli_test //tests:named_nodes_test
+  //tests:named_nodes_test
 ```
 
 ## One constructor, two realizations
@@ -62,7 +62,8 @@ symbolic adapter specializes IR operations through existing source mappings and
 partitions. It may jointly reorder paired contraction selectors into source
 reduction order, preserving the finite sum and output layout. Its candidate is
 still checked by a fresh independent verifier, including original definedness.
-No candidate obligation becomes an assumption or an extra runtime guard.
+Generated feasibility becomes an explicit runtime predicate; semantic obligations
+remain compilation requirements under that predicate.
 
 The native interpreter executes the same residual IR, using source port-class
 replay and finite metadata operations. Checks are evaluated before any partial
@@ -70,10 +71,8 @@ position builder. Symbolic simplification is not a precondition of emission or
 native execution. Resources, missing/illegal metadata, and out-of-domain extents
 remain distinct from infeasibility. The completeness domain is unchanged.
 
-`core-emit` exposes the residual IR without accepting a rewrite. `--core` and
-`--certified` retain their certification/admission policies and native portable
-format; the ordinary symbolic exporter uses checked specialization. Rust/C++
-exports still require successful expression lowering. These interfaces do not
-select different canonical constructors, and successful IR emission does not
-prove the written guard. Broader general construction and sound schema
-extensions remain outside the complete-constructor theorem.
+`core-emit` exposes residual IR for inspection. `--core` compiles supported
+constructors and schema extensions with match-time feasibility. The symbolic
+exporter retains feasibility expressions in generated Rust/C++. Successful
+emission alone does not prove arbitrary tensor equivalence; admission and
+conditional semantic validation remain required.

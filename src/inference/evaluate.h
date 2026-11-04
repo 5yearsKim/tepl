@@ -42,6 +42,7 @@ struct Obstruction {
   bool operator==(const Obstruction&) const = default;
 };
 enum class Status {
+  Inapplicable,
   Analyzed,
   Feasible,
   Solved,

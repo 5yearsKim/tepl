@@ -697,15 +697,14 @@ void summations() {
   expect(generated.constructed && !generated.candidate.feasibility.empty(),
          "check/build expressions compile even without an implied guard");
   expect(verify(negative, generated.candidate).status == ProofStatus::Unknown,
-         "unproved feasibility does not become an assumption");
+         "conditional builder validation may remain unresolved");
   auto json = tepl::executable::detail::Codec<Program>::pack(code);
   auto restored = tepl::executable::detail::Codec<Program>::unpack(json);
   expect(restored == code &&
              feasibility(restored, nm).status == Status::Impossible,
          "summation instructions and adapters survive serialization");
-  expect(tepl::core::completed::axisWhere(code).find("axis_feasible") !=
-             std::string::npos,
-         "generated checks include retained-set feasibility");
+  expect(!tepl::inference::emit(code).blocks[0].checks.empty(),
+         "generated program retains feasibility checks");
   nm.descriptors[negative.nodes[negative.lhs].descriptor->value] = {{0, 0}};
   expect(solve(negative, nm).status == Status::InvalidSource,
          "duplicate reduction dimensions are illegal source metadata");
@@ -1086,7 +1085,7 @@ rule sum_rows {
   lowerSource(source);
   RuleProof recipe;
   recipe.constructors = generated_sum.candidate.constructors;
-  recipe.guard = generated_sum.candidate.feasibility;
+  recipe.feasibility = generated_sum.candidate.feasibility;
   for (const auto& [_, group] : source.source().groups)
     recipe.axis_definitions.push_back(group);
   auto source_sum = sum_rule.nodes[sum_rule.lhs].inputs[0];
@@ -1107,7 +1106,7 @@ rule sum_rows {
                         {0}),
       "symbolic builders generate the reduction and paired contraction axes");
   expect(generated_sum.candidate.guard.empty(),
-         "no implicit runtime guard is added");
+         "no unresolved semantic obligation becomes a runtime guard");
   auto p = parse(R"(
 rule internal_order {
   A: [M,N] B: [K]

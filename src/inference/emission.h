@@ -50,7 +50,7 @@ Emission emit(const Program&);
 Result predicate(const Emission&, const Metadata&, const Limits& = {});
 Result execute(const Emission&, const Metadata&, const Limits& = {});
 // Soundness-only execution allows zero/singleton extents. A false canonical
-// predicate here is Unsupported, never mathematical infeasibility.
+// predicate here is Inapplicable, never mathematical infeasibility.
 Result executeSound(const Emission&, const Metadata&, const Limits& = {});
 struct Portable {
   Program program;

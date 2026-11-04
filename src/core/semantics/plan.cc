@@ -8,7 +8,6 @@
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
 #include "src/core/semantics/prove_rule.h"
-#include "src/core/semantics/suggestion.h"
 #include "src/core/semantics/symbolic/normalize.h"
 #include "src/shared/metadata/ordered.h"
 
@@ -685,34 +684,18 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
     if (explicit_axis_conditions)
       throw std::runtime_error(
           "runtime feasibility queries are unsupported; use source metadata "
-          "restrictions "
-          "and check --suggest-where for a verified suggestion");
-    const Rule suggestion_source = rule;
+          "restrictions");
     b.assumptions();
     b.plan.core_backend = context.options.core_backend;
-    b.plan.certified_backend = context.options.certified_backend;
     if (context.options.defer_semantic_proofs && !context.options.inspect_semantic_rules)
       throw std::runtime_error("deferred proofs require inspection mode");
     if (selected && !context.options.defer_semantic_proofs) {
       b.plan.proof = proveRule(b.plan);
-      if (b.plan.proof.status != ProofStatus::Proved &&
-          context.options.suggest_conditions)
-        b.plan.suggested_rule =
-            suggestRestrictions(b.plan, suggestion_source, context.output);
     }
     if (selected && !context.options.inspect_semantic_rules &&
         b.plan.proof.status != ProofStatus::Proved) {
       auto message =
           "cannot verify rule '" + rule.name + "': " + b.plan.proof.reason;
-      message +=
-          ". Add an explicit where condition establishing the unresolved "
-          "requirement, or change the rewrite. Use check --suggest-where to "
-          "search for a verified restriction.";
-      if (!b.plan.suggested_rule.empty())
-        message +=
-            "\nVerified sufficient restriction (bounded search; not "
-            "necessarily weakest):\n" +
-            b.plan.suggested_rule;
       context.report(rule.origin, std::move(message));
     }
     rule.semantic_plan = std::make_shared<Plan>(std::move(b.plan));

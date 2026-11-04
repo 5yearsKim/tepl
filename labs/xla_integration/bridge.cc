@@ -141,7 +141,7 @@ extern "C" int tepl_xla_fold(void* opaque, int side, TeplList lhs, TeplList rhs,
     for (const auto& r : p.ir().rules)
       if (r.name == (side ? "fold_rhs" : "fold_lhs")) rule_id = r.id.value;
     if (rule_id == p.ir().rules.size() || !p.ir().rules[rule_id].core)
-      throw std::runtime_error("expected certified folding rule");
+      throw std::runtime_error("expected metadata DAG folding rule");
     rewrite::Budget budget;
     for (std::size_t i = 0; i < graph.nodes.size(); ++i)
       rewrite::infer(p.ir(), graph, i, budget);

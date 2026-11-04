@@ -40,7 +40,7 @@ For general explanations, use:
 - [Semantic verification design](../../design/semantic-verification.md): contracts,
   normalization, acceptance, implementation ownership, and tests.
 - [Attribute synthesis design](../../design/attribute-synthesis.md): strategies,
-  ordered admission, suggestions, and the executable boundary.
+  ordered admission, conditional feasibility, and the executable boundary.
 - [Research](../../research/attribute-synthesis/README.md): mathematical arguments
   and their admitted domains, separately from production implementation coverage.
 

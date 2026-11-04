@@ -4,14 +4,14 @@
 namespace tepl::executable::detail {
 inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "TEPL compiled rewrite program v3",
+  "title": "TEPL compiled rewrite program v4",
   "type": "object",
   "properties": {
     "format": {
       "const": "tepl.rewrite"
     },
     "version": {
-      "const": 3
+      "const": 4
     },
     "policy": {
       "enum": [
@@ -1600,6 +1600,12 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
             "$ref": "#/$defs/expr"
           }
         },
+        "feasibility": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/symbol"
+          }
+        },
         "locals": {
           "type": "array",
           "items": {
@@ -1653,6 +1659,7 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
         "lhs",
         "constraints",
         "conditions",
+        "feasibility",
         "locals",
         "derivations",
         "rhs",

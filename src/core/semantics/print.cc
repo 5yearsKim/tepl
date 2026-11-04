@@ -166,8 +166,6 @@ std::string format(const Plan& p) {
   out << "      additional-guard: "
       << (p.proof.status == ProofStatus::Unknown ? "unresolved" : "true")
       << '\n';
-  if (!p.suggested_rule.empty())
-    out << "      suggested-rule:\n" << p.suggested_rule << "\n";
   for (const auto& g : p.proof.guard) out << "        " << render(*g) << '\n';
   if (!p.proof.guard_origins.empty()) {
     out << "      guard-origins (unresolved obligations):\n";
@@ -175,9 +173,6 @@ std::string format(const Plan& p) {
       out << "        [" << guardKindName(g.kind) << "] "
           << render(*g.condition) << '\n';
   }
-  if (!p.suggested_rule.empty())
-    out << "      suggestion: verified sufficient restriction; bounded search, "
-           "not necessarily weakest\n";
   out << "      reason: " << p.proof.reason << '\n';
   std::ostringstream bindings;
   if (!p.proof.axis_definitions.empty())

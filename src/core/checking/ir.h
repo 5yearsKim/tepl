@@ -10,7 +10,7 @@ struct Rule : RuleData {
       if (d.kind == Descriptor::Kind::kInferred) return true;
     return false;
   }
-  // Source spellings keep suggested rules usable with qualified imports.
+  // Source spellings preserve qualified operation names in diagnostics.
   std::map<std::size_t, std::string> operation_spellings;
 };
 struct ProgramData : ProgramTables {
