@@ -27,7 +27,7 @@ cutoff. The configuration portfolio and attribute samples are bounded search.
 ## Run inside the compiler
 
 ```sh
-bazel run //:tepl -- check examples/semantic/rules/explicit.tepl \
+bazel run //:tepl -- check tests/fixtures/semantic/rules/explicit.tepl \
     --semantic-policy algebraic --verify-small
 ```
 

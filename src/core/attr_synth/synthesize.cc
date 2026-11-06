@@ -57,9 +57,11 @@ Result run(const Plan& plan, std::size_t max_work,
     auto reductions = call("unique_axes", {call("concat", std::move(all))});
     if (admitted) {
       if (!metadata_program)
-        throw std::invalid_argument("ordered specialization requires metadata IR");
-      candidate = ordered::construct(c, *metadata_program, match, lhs.axes,
-                                      reductions).candidate;
+        throw std::invalid_argument(
+            "ordered specialization requires metadata IR");
+      candidate =
+          ordered::construct(c, *metadata_program, match, lhs.axes, reductions)
+              .candidate;
     } else {
       construct(c, target, match, lhs, reductions, lt);
     }

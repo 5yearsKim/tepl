@@ -7,8 +7,8 @@
 #include "src/core/semantics/completion.h"
 #include "src/core/semantics/context.h"
 #include "src/core/semantics/graph.h"
-#include "src/shared/catalog/axis_conditions.h"
 #include "src/inference/extensions.h"
+#include "src/shared/catalog/axis_conditions.h"
 namespace tepl::core::semantics {
 Materialized materialize(InspectionData checked) {
   Materialized output;
@@ -64,7 +64,8 @@ Materialized materialize(InspectionData checked) {
       r.derivations.erase(
           std::remove_if(r.derivations.begin(), r.derivations.end(),
                          [&](const auto& d) {
-                           if (!d.target) return inference::hasExtensions(*plan->proof.core);
+                           if (!d.target)
+                             return inference::hasExtensions(*plan->proof.core);
                            return d.target &&
                                   std::any_of(
                                       plan->proof.core->replacement.begin(),

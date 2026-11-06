@@ -10,7 +10,8 @@
 namespace tepl::core::attr_synth::ordered {
 using namespace semantics;
 namespace {
-std::optional<Contract> recognizeDefinition(const Definition& d, bool extensions) {
+std::optional<Contract> recognizeDefinition(const Definition& d,
+                                            bool extensions) {
   auto c = extensions ? axis::recognizeCoreShape(d) : axis::recognizeOrdered(d);
   if (!c || !d.value) return {};
   auto read = [](const Value& v, std::size_t i) {
@@ -20,8 +21,10 @@ std::optional<Contract> recognizeDefinition(const Definition& d, bool extensions
     const auto& v = *d.value;
     if (v.kind != Value::Kind::Product || v.args.size() != 2) return {};
     for (int side = 0; side < 2; ++side)
-      if (v.args[side]->kind == Value::Kind::Const && v.args[side]->constant == -1 &&
-          v.args[side]->args.empty() && read(*v.args[1-side], 0)) return c;
+      if (v.args[side]->kind == Value::Kind::Const &&
+          v.args[side]->constant == -1 && v.args[side]->args.empty() &&
+          read(*v.args[1 - side], 0))
+        return c;
     return {};
   }
   if (c->kind == Contract::Kind::Reverse) {
@@ -31,17 +34,24 @@ std::optional<Contract> recognizeDefinition(const Definition& d, bool extensions
         v.access->args.size() != 1 || !v.access->parameter ||
         v.access->parameter->kind != Meta::Kind::Attribute ||
         v.access->parameter->index != 0 ||
-        v.access->parameter->type != axis::Type::Positions) return {};
+        v.access->parameter->type != axis::Type::Positions)
+      return {};
     auto coords = v.access->args[0];
     return coords && coords->kind == IndexValue::Kind::Coordinates &&
-        coords->group == 0 && coords->args.empty() && !coords->parameter ? c : std::nullopt;
+                   coords->group == 0 && coords->args.empty() &&
+                   !coords->parameter
+               ? c
+               : std::nullopt;
   }
-  if (c->kind == Contract::Kind::Permutation || c->kind == Contract::Kind::Broadcast)
+  if (c->kind == Contract::Kind::Permutation ||
+      c->kind == Contract::Kind::Broadcast)
     return read(*d.value, 0) ? c : std::nullopt;
   if (c->kind == Contract::Kind::Addition) {
-    if (extensions && d.value->kind == Value::Kind::Product) c->kind = Contract::Kind::Multiplication;
+    if (extensions && d.value->kind == Value::Kind::Product)
+      c->kind = Contract::Kind::Multiplication;
     return (d.value->kind == Value::Kind::Add ||
-            (extensions && d.value->kind == Value::Kind::Product)) && d.value->args.size() == 2 &&
+            (extensions && d.value->kind == Value::Kind::Product)) &&
+                   d.value->args.size() == 2 &&
                    ((read(*d.value->args[0], 0) &&
                      read(*d.value->args[1], 1)) ||
                     (read(*d.value->args[0], 1) && read(*d.value->args[1], 0)))
@@ -51,7 +61,8 @@ std::optional<Contract> recognizeDefinition(const Definition& d, bool extensions
   if (d.value->kind != Value::Kind::Reduce || d.value->args.size() != 1 ||
       d.value->index != c->contract_group)
     return {};
-  if (c->kind == Contract::Kind::Summation || c->kind == Contract::Kind::UnitRemoval)
+  if (c->kind == Contract::Kind::Summation ||
+      c->kind == Contract::Kind::UnitRemoval)
     return read(*d.value->args[0], 0) ? c : std::nullopt;
   const auto& product = *d.value->args[0];
   if (product.kind != Value::Kind::Product || product.args.size() != 2 ||
@@ -62,7 +73,9 @@ std::optional<Contract> recognizeDefinition(const Definition& d, bool extensions
 }
 
 }  // namespace
-std::optional<Contract> recognize(const Definition& d) { return recognizeDefinition(d, false); }
+std::optional<Contract> recognize(const Definition& d) {
+  return recognizeDefinition(d, false);
+}
 
 Admission admit(const Plan& p, inference::Mode mode, bool extensions) {
   Admission out;
@@ -90,7 +103,8 @@ Admission admit(const Plan& p, inference::Mode mode, bool extensions) {
           "definitions");
     auto c = recognizeDefinition(*n.definition, extensions);
     if (!c) return fail("operation is outside ordered axis/value contracts");
-    const bool addition = c->kind == Contract::Kind::Addition || c->kind == Contract::Kind::Multiplication;
+    const bool addition = c->kind == Contract::Kind::Addition ||
+                          c->kind == Contract::Kind::Multiplication;
     const bool attribute_free = addition || c->kind == Contract::Kind::Negation;
     if (!attribute_free && !n.descriptor)
       return fail("ordered operation requires an axis descriptor");
@@ -156,7 +170,9 @@ Admission admit(const Plan& p, inference::Mode mode, bool extensions) {
             i.fields = {c.permutation};
             break;
           case Contract::Kind::UnitRemoval:
-            i.kind = inference::Kind::UnitRemoval; i.fields = {0}; break;
+            i.kind = inference::Kind::UnitRemoval;
+            i.fields = {0};
+            break;
           case Contract::Kind::Summation:
             i.kind = inference::Kind::Summation;
             i.fields = {c.dimensions};
@@ -173,12 +189,15 @@ Admission admit(const Plan& p, inference::Mode mode, bool extensions) {
             i.kind = inference::Kind::Multiplication;
             break;
           case Contract::Kind::Negation:
-            i.kind = inference::Kind::Negation; break;
+            i.kind = inference::Kind::Negation;
+            break;
           case Contract::Kind::Reverse:
-            i.kind = inference::Kind::Reverse; i.fields = {0};
+            i.kind = inference::Kind::Reverse;
+            i.fields = {0};
             break;
           case Contract::Kind::Broadcast:
-            i.kind = inference::Kind::Broadcast; i.fields = {0, 1};
+            i.kind = inference::Kind::Broadcast;
+            i.fields = {0, 1};
             break;
         }
       }
@@ -195,7 +214,8 @@ Admission admit(const Plan& p, inference::Mode mode, bool extensions) {
     out.program.components = inference::decompose(out.program);
     inference::validate(out.program);
     if (extensions && !inference::hasExtensions(out.program))
-      out.reason = "supplied fields remain outside canonical synthesis admission";
+      out.reason =
+          "supplied fields remain outside canonical synthesis admission";
   } catch (const std::invalid_argument& e) {
     out.reason = e.what();
   }

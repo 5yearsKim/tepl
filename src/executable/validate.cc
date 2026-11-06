@@ -48,16 +48,22 @@ void validateInference(const ProgramData& p, const Rule& r) {
             "inference operation/descriptor mismatch");
     const auto& op = p.operations[operation->value];
     require(bool(op.axis_contract), "inference operation lacks axis contract");
-    auto c = inference::hasExtensions(program) ? core::axis::recognizeCoreShape(*op.axis_contract) : core::axis::recognizeOrdered(*op.axis_contract);
-    require(c.has_value(), "inference operation is outside core templates: " + op.name);
+    auto c = inference::hasExtensions(program)
+                 ? core::axis::recognizeCoreShape(*op.axis_contract)
+                 : core::axis::recognizeOrdered(*op.axis_contract);
+    require(c.has_value(),
+            "inference operation is outside core templates: " + op.name);
     if (c->kind == core::axis::OrderedContract::Kind::Negation) {
-      require(n.kind == inference::Kind::Negation && n.fields.empty() && !descriptor && !op.attributes, "invalid core negation");
+      require(n.kind == inference::Kind::Negation && n.fields.empty() &&
+                  !descriptor && !op.attributes,
+              "invalid core negation");
       return id;
     }
     if (c->kind == core::axis::OrderedContract::Kind::Addition) {
       require((n.kind == inference::Kind::Addition ||
-               (inference::hasExtensions(program) && n.kind == inference::Kind::Multiplication)) && n.fields.empty() &&
-                  !descriptor && !op.attributes,
+               (inference::hasExtensions(program) &&
+                n.kind == inference::Kind::Multiplication)) &&
+                  n.fields.empty() && !descriptor && !op.attributes,
               "inference addition must be attribute-free");
       return id;
     }
@@ -73,7 +79,9 @@ void validateInference(const ProgramData& p, const Rule& r) {
                     ? inference::Kind::Summation
                     : inference::Kind::Contraction;
     auto fields =
-        (kind == inference::Kind::Reverse || kind == inference::Kind::UnitRemoval) ? std::vector<std::size_t>{0}
+        (kind == inference::Kind::Reverse ||
+         kind == inference::Kind::UnitRemoval)
+            ? std::vector<std::size_t>{0}
         : kind == inference::Kind::Broadcast ? std::vector<std::size_t>{0, 1}
         : kind == inference::Kind::Permutation
             ? std::vector<std::size_t>{c->permutation}
@@ -479,7 +487,8 @@ void validate(const ExecutableProgram& program) {
             "runtime applicability inference is unsupported; compile a rule "
             "with verified source conditions");
     if (r.core) {
-      require(r.derivations.empty(), "core DAG cannot contain residual derivations");
+      require(r.derivations.empty(),
+              "core DAG cannot contain residual derivations");
       require(!r.inference,
               "core DAG cannot coexist with applicability inference");
       require(inference::validatePortable(*r.core),
@@ -815,7 +824,8 @@ void validate(const ExecutableProgram& program) {
     }
     for (const auto& q : r.feasibility) {
       sym(q);
-      require(q->sort == completed::Symbol::Sort::Boolean, "feasibility must be Boolean");
+      require(q->sort == completed::Symbol::Sort::Boolean,
+              "feasibility must be Boolean");
     }
     auto where_locals = locals;
     locals.clear();

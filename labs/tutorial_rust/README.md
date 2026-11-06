@@ -6,7 +6,7 @@ have been adapted to parts of the newer runtime API.
 
 Use the maintained [Rust/egg transpose application](../rust-egg/README.md) and
 [shared runtime guide](../../runtime/rust/README.md) for working generation and
-execution commands. The [public Rust tutorial](../../docs/tutorial/rust/01_build.md)
+execution commands. The [public Rust tutorial](../../docs/runtime/egraphs/rust/run.md)
 provides language/application setup.
 
 `pattern_basic/` records the earlier structural rewriting example;

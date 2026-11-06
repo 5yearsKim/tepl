@@ -1,4 +1,4 @@
-from "../../../examples/semantic/dialects/tensor.tepl" import TensorLang as t
+from "../../../tests/fixtures/semantic/dialects/tensor.tepl" import TensorLang as t
 
 // Non-axis fields are supplied or defaulted; only permutation is synthesized.
 dialect Configured {

@@ -1,31 +1,38 @@
-# Example projects
+# TEPL examples
 
-These directories contain runnable TEPL projects. A `tepl.toml` marks each root;
-`dialects/`, `rules/`, and optional `graphs/` hold its declarations.
+Start with one small file, learn an advanced feature, then explore a complete project.
+Run all commands from the repository root after `bazel build //:tepl`.
 
-| Project | Demonstrates |
+| Start here | What you get |
 | --- | --- |
-| [sample](sample/README.md) | Multiple dialects, metadata contracts, pure expressions, descriptors, concrete graphs |
-| [semantic](semantic/README.md) | Axis/value semantics, verification, and field-level attribute synthesis |
-| [rewrite](rewrite/README.md) | Portable compilation, greedy rewriting, and transpose composition |
+| [Basic](basic/README.md) | Standalone programs for patterns, shapes/dtypes, attributes, and sharing |
+| [Advanced](advanced/README.md) | Focused projects for verification, axis inference, reusable rules, and coordinates |
+| [Complete projects](projects/README.md) | Transpose simplification and a LoRA transformation |
 
-Run from the repository root:
+## Run your first example
 
 ```sh
-bazel build //:tepl
-bazel-bin/tepl check examples/sample
-bazel-bin/tepl generate examples/sample --out /tmp/app/src/generated
+bazel-bin/tepl rewrite examples/basic/double_negation.tepl --trace -o /tmp/result.tepl
 ```
 
-Use `--target cpp` for C++ output. Both generated targets support completed rule
-expressions and descriptor construction. Add the appropriate
-[Rust](../runtime/rust/README.md) or [C++](../runtime/cpp/README.md) shared runtime.
+The result is a graph that yields its original input `X`.
+Each example's README explains its purpose, command, and expected result.
 
-Bare imports resolve against the nearest `tepl.toml`; explicit `./` and `../`
-imports remain relative to the importing file. `rewrite/auto.tepl` explicitly
-shares the semantic dialect from a neighboring project. Create another project
-with `bazel-bin/tepl init examples/<name>`.
+## Choose a file or a project
 
-Research notes and finite theorem checks now live in
-[research/](../research/README.md); measured experiments and applications live in
-[labs/](../labs/README.md).
+Basic examples contain their dialect, rules, and graph in one file. Run each file
+individually; `basic/` is a collection, not one combined TEPL project.
+
+Advanced examples and complete projects each have their own `tepl.toml`,
+`dialects/`, `rules/`, and `graphs/`. Run the individual project directory.
+Imports are local to that project, and arithmetic policy is set in its manifest.
+
+Generate Rust or C++ from the same input when you need an e-graph integration:
+
+```sh
+bazel-bin/tepl generate examples/projects/transpose --out /tmp/app/src/generated
+```
+
+See [runtime integration](../docs/runtime/index.md). Host applications live in
+[labs](../labs/README.md); broad regression catalogs live in
+[tests/fixtures](../tests/fixtures/README.md).

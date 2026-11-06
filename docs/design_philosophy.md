@@ -1,150 +1,29 @@
-# TEPL design philosophy
+# Design philosophy
 
-TEPL is a declarative language for tensor graph rewrites, guided by four principles.
+TEPL centers the rewrite: its graph structure, applicability, and replacement
+should be readable together.
 
-- **Make rewrites readable.**
-  Express graph structure, transformation intent, and tensor metadata clearly,
-  with explicit shape, dtype, and legality constraints.
+## Keep the transformation visible
 
-- **Keep rules self-contained.**
-  Express guards and attribute transformations with pure expressions, reusable
-  builtins, descriptor constructors, and semantic synthesis. Applications select
-  the numerical policy and supply input metadata.
+Patterns and replacements use the same expression syntax. Tensor constraints,
+conditions, and attribute derivations stay close to the rule. Use
+[reusable rules](language/reusable-rules.md) when they clarify a shared transformation.
 
-- **Extensible architecture.**
-  Use shape-generic rules to express rewrites across tensor sizes and ranks, and
-  rule polymorphism to reuse transformations across operations.
-  Extend the operation vocabulary through dialects while keeping the core language small.
+## Make meaning explicit
 
-- **Validate early, search efficiently.**
-  Validate rewrite definitions before search wherever possible. Use explicit
-  constraints to reject candidates as soon as the necessary information is
-  available, retaining runtime checks for match-dependent metadata.
+Dialects define the operation vocabulary and its contracts. Shape/dtype inference
+supports metadata checks; axis and value contracts enable supported
+[semantic verification](language/semantics.md). Applications choose a numerical
+policy consistent with their execution semantics.
 
-## Core concepts
+## Automate bookkeeping
 
-### Declarative graph rewrites
+Pure builtins and descriptor constructors express metadata calculations.
+[Axis attribute inference](language/axis-inference.md) constructs supported
+replacement mappings without moving the mathematical rule into host code.
 
-A rule describes a matched graph and its replacement with `LHS => RHS`.
-Operations use S-expressions; repeated names refer to the same captured value.
+## Keep execution a choice
 
-The [attribute examples](../examples/sample/rules/attributes.tepl) combine
-patterns, builtins, and explicit attribute construction:
-
-```tepl
-from "dialects/tensor.tepl" import TensorLang as t
-
-rule compose_transposes {
-    (outer: t.transpose (inner: t.transpose X))
-    => (combined: t.transpose X)
-    derive {
-        combined.attrs = {
-            ..outer.attrs,
-            permutation: gather(inner.attrs.permutation, outer.attrs.permutation)
-        }
-    }
-}
-```
-
-With `tepl.toml`, bare import paths are relative to the project root. Otherwise,
-paths are relative to the rule file, as `./` and `../` paths always are.
-Constructors are checked by the frontend and emitted as ordinary Rust or C++
-computations.
-
-### Tensor constraints and shape-generic rules
-
-Declarations constrain matches. Named dimensions express equality; named
-sequences support varying ranks.
-
-```javascript
-X: [Batch..., M, K]   // Any batch rank, followed by dimensions M and K
-W: [K, N]            // Shares dimension K with X
-Y: bf16[M, N]        // Restricts both shape and dtype
-Z: f32[...]          // Any shape, with dtype f32
-S: f32[]             // A rank-zero tensor
-```
-
-`_` matches one arbitrary dimension; `...` matches zero or more.
-Each shape permits at most one sequence. Dtype annotations never insert casts
-or imply promotion; an omitted dtype is unrestricted.
-
-### Builtins and operator descriptors
-
-Calls resolve to reusable builtins. Rules do not call application functions.
-
-Descriptors hold operation attributes. A pattern captures them with `name.attrs`;
-the replacement can reuse them or use derived descriptors.
-
-```javascript
-(outer: dot X W)
-```
-
-Here, `outer.attrs` captures the dot operation's attributes, separately from `X`
-and `W`. Descriptors contain operation attributes, not output tensor metadata.
-
-### Explicit conditions and derivations
-
-`where` states when a rewrite is legal. `derive` computes attributes for
-replacement operations.
-
-```javascript
-where K % 128 == 0
-derive {
-    xa.attrs = { ..outer.attrs }
-}
-```
-
-Both blocks use matched inputs, captured descriptors, and shape variables.
-Derivations run in source order and cannot inspect newly constructed RHS values.
-Numerical transformations such as floating-point reassociation require explicit
-numerical policy.
-
-### Extensible dialects and polymorphic rules
-
-Dialects define operations and attribute schemas without expanding the core
-language syntax.
-
-```javascript
-dialect TensorLang {
-    op add(lhs: tensor, rhs: tensor) -> tensor
-    op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul }
-    op concatenate(first: tensor, second: tensor, rest: tensor...) -> tensor {
-        attrs { axis: axis }
-    }
-}
-```
-
-Abstract rules parameterize operations (`op`). Concrete rules bind those
-parameters and may add constraints. Conditions and derivations use builtins;
-host-function parameters and callbacks are unsupported.
-
-```javascript
-abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
-    (F X Y) => (F Y X)
-}
-
-// Requires host semantics in which swapping add operands is valid.
-rule commute_add extends commute(F = t.add)
-
-rule commute_small_vectors extends commute(F = t.add) {
-    X: [N]
-    Y: [N]
-    where N <= 1024
-}
-```
-
-Here, `t` is the imported dialect alias from the LoRA example.
-Instances preserve the inherited graph and combine its constraints with their
-own; they cannot replace the graph or its `derive` block.
-
-### Validation and constrained search
-
-- **Before search:** validate operation names, arity, types, descriptor references,
-  and concrete rule instances.
-- **During search:** use shape and dtype constraints and eligible pure `where`
-  conditions to reject candidates as bindings become available.
-- **Before insertion:** finish legality checks and derivations, validate the
-  complete replacement, and require its root shape and dtype to match the original.
-
-A failed check or missing required metadata rejects the match. Rejected matches
-leave no partial replacement in the graph.
+A checked program can run in the [TEPL engine](runtime/engine/run.md) or generate
+code for [e-graph integration](runtime/egraphs/overview.md). Host applications
+choose rules, resource limits, and, for e-graphs, extraction costs.

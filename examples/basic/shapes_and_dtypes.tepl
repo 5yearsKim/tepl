@@ -1,0 +1,41 @@
+// Match two tensors with the same floating-point dtype and matrix dimensions.
+dialect Basic {
+  op negate(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_float(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op add(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_float(a)
+      yield a
+    }
+    shape(a, b) {
+      assert a == b
+      yield a
+    }
+  }
+}
+
+rule simplify_matrix_add {
+  dtype T
+  X: T[M, N]
+  Y: T[M, N]
+
+  (Basic.add (Basic.negate (Basic.negate X)) Y) => (Basic.add X Y)
+
+  where is_float(T)
+}
+
+graph example {
+  input X: f32[2, 3]
+  input Y: f32[2, 3]
+
+  yield (Basic.add (Basic.negate (Basic.negate X)) Y)
+}

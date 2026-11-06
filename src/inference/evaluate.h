@@ -83,7 +83,8 @@ std::vector<Component> decompose(const Program&);
 // Structural validation of completed instructions; throws invalid_argument.
 void validate(const Program&);
 // Replay only source contracts; does not derive RHS requirements or attributes.
-Result replaySource(const Program&, const Metadata&, const Limits& = {}, bool allow_degenerate = false);
+Result replaySource(const Program&, const Metadata&, const Limits& = {},
+                    bool allow_degenerate = false);
 // Analyze once and either construct attributes or replay the explicit RHS.
 // Impossible is used only for exact synthesis infeasibility in the domain.
 Result evaluate(const Program&, const Metadata&, const Limits& = {});

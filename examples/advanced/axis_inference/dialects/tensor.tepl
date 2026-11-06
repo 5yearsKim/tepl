@@ -1,0 +1,20 @@
+dialect TensorLang {
+  op transpose(input: tensor) -> tensor {
+    attrs {
+      permutation: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+    axes {
+      bind S { input: all_axes(input) }
+      assert is_valid_axis_list(attrs.permutation, rank(input))
+      assert len(attrs.permutation) == rank(input)
+      // Output axis i carries input axis permutation[i].
+      yield permute(S, attrs.permutation)
+    }
+    semantics {
+      yield input
+    }
+  }
+}

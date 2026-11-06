@@ -10,6 +10,7 @@
 /generated/
 
 # Documentation environment and build output
+/.venv/
 /.venv-docs/
 /site/
 

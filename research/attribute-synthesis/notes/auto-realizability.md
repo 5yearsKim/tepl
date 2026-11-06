@@ -10,7 +10,7 @@ description of the attributes that realize a prescribed tensor rewrite:
 when this set is empty, how to construct a member, and when that member is
 unique. The useful specialization is ordered contraction, with an extension
 to independently parameterized additive branches. It covers the structure of
-all four rules in [algebraic.tepl](../../../examples/semantic/rules/algebraic.tepl), under explicit
+all four rules in [algebraic.tepl](../../../tests/fixtures/semantic/rules/algebraic.tepl), under explicit
 restrictions on metadata and semantics.
 
 This builds on the existing [ordered-contraction theorem](../archive/ordered_contractions.md)

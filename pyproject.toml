@@ -1,0 +1,13 @@
+[project]
+name = "tepl-docs"
+version = "0.1.0"
+description = "Documentation tooling for TEPL"
+requires-python = ">=3.10"
+dependencies = [
+    # Keep MkDocs 1.x and its compatible Material theme together.
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.7.7",
+]
+
+[tool.uv]
+package = false

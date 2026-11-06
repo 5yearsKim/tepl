@@ -459,8 +459,8 @@ struct Builder {
         auto zero = singleton(0), one = singleton(1),
              inputShape = shapeOf(a.inputs[0]);
         check(field(si), unary(Op::Range, unary(Op::Length, inputShape)));
-        b.checks.push_back(binary(Op::Subset, zero,
-            unary(Op::Range, unary(Op::Length, inputShape))));
+        b.checks.push_back(binary(
+            Op::Subset, zero, unary(Op::Range, unary(Op::Length, inputShape))));
         check(binary(Op::Gather, inputShape, zero), one);
         set(remove, {zero});
         set(ri, {binary(Op::Complement, field(si), zero),

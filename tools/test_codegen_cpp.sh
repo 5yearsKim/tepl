@@ -37,8 +37,8 @@ diff -ru "$work_directory/expressions" "$work_directory/loaded"
 printf 'dialect N {attrs A {note:string } op copy(x:tensor)->tensor {attrs:A dtype(t){yield t }shape(s){yield s }}}\nrule identity {(node:N.copy X)=>X where node.attrs.note=="a\000b" }\ngraph g {input X:f32[2] yield (N.copy[note="a\000b"] X) }\n' > "$work_directory/strings.tepl"
 "$compiler" generate "$work_directory/strings.tepl" --target cpp --cpp-namespace strings --out "$work_directory/strings"
 "$compiler" generate tests/codegen/cpp/witnesses.tepl --target cpp --cpp-namespace witnesses --out "$work_directory/witnesses"
-"$compiler" generate examples/semantic --semantic-policy algebraic --target cpp --cpp-namespace semantic --out "$work_directory/semantic" --no-format
-"$compiler" generate examples/sample --target cpp --cpp-namespace sample --out "$work_directory/sample" --no-format
+"$compiler" generate tests/fixtures/semantic --semantic-policy algebraic --target cpp --cpp-namespace semantic --out "$work_directory/semantic" --no-format
+"$compiler" generate tests/fixtures/language --target cpp --cpp-namespace sample --out "$work_directory/sample" --no-format
 # Relocation, nested keyword modules, and separate generated namespaces.
 mkdir -p "$work_directory/names/rules/class" "$work_directory/components"
 cp tests/codegen/rust/names.tepl "$work_directory/names/rules/class/while.tepl"

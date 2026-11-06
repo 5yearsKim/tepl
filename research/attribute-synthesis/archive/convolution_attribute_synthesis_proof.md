@@ -60,7 +60,7 @@ O'_j=\left\lfloor e_j/s_j\right\rfloor+1.
 \]
 
 This is the fixed-layout, positive-stride/dilation, no-padding contract in
-the [semantic dialect](../../../examples/semantic/dialects/tensor.tepl). No groups, kernel
+the [semantic dialect](../../../tests/fixtures/semantic/dialects/tensor.tepl). No groups, kernel
 reversal, extra backend bounds, offsets, or shared stride/dilation restrictions
 are synthesized. Admission requires a syntax-directed derivation of (1) from
 the source operations; it must not assume an arbitrary semantic-equivalence

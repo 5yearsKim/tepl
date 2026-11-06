@@ -19,7 +19,8 @@ bazel test //tests:all --build_tests_only
 
 The full `tests` target set includes CLI and Rust/C++ generation integration.
 Standalone runtime and lab-specific checks have their own targets/commands.
-See [codegen fixtures](codegen/README.md) for generated-code ownership and
+See [source fixture catalogs](fixtures/README.md) for regression inputs,
+[codegen fixtures](codegen/README.md) for generated-code ownership, and
 [labs](../labs/README.md) for experiment reproduction.
 
 Keep cases that exercise distinct behavior, known counterexamples, or failure

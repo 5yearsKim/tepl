@@ -119,5 +119,5 @@ metadata alone does not prove a rewrite correct:
 intermediate conversions can lose information.
 
 For complete operation definitions, see the
-[dtype example dialect](../../examples/sample/dialects/dtype.tepl) and its
-[rewrite rules](../../examples/sample/rules/dtype.tepl).
+[conversion regression dialect](../../tests/fixtures/language/dialects/dtype.tepl)
+and its [rewrite rules](../../tests/fixtures/language/rules/dtype.tepl).

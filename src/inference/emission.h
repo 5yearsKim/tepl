@@ -21,8 +21,22 @@ enum class Op {
   SameSet,
   Distinct,
   Subset,
-  SourceField, SourceExtents, SourceShape, Length, Range, Plus, Gather,
-  Inverse, SymmetricDifference, Complement, Pullback, Remap, SourceField2, SourceField3, Singleton, BroadcastTransposeExtents
+  SourceField,
+  SourceExtents,
+  SourceShape,
+  Length,
+  Range,
+  Plus,
+  Gather,
+  Inverse,
+  SymmetricDifference,
+  Complement,
+  Pullback,
+  Remap,
+  SourceField2,
+  SourceField3,
+  Singleton,
+  BroadcastTransposeExtents
 };
 struct Expression {
   Op op;

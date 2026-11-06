@@ -1,7 +1,7 @@
 # TEPL command-line reference
 
 The `tepl` command initializes projects, parses source files, checks declarations,
-compiles portable JSON, runs greedy rewrites, and generates Rust for egg and C++20 for egg-c. See the [build guide](../tutorial/rust/01_build.md)
+compiles portable JSON, runs greedy rewrites, and generates Rust for egg and C++20 for egg-c. See the [build guide](../getting-started/install.md)
 to build the executable. Examples below assume `tepl` is on your `PATH`; from
 the repository root, you can use `bazel-bin/tepl` instead.
 
@@ -133,8 +133,8 @@ their own config; imports in each file use that file's nearest config.
 | `"../dialects/tensor.tepl"` | Relative to the importing file's directory. |
 | `"/absolute/path/tensor.tepl"` | Filesystem absolute path. |
 
-For example, `examples/semantic/tepl.toml` lets
-`examples/semantic/rules/basic.tepl` use this import from any nesting depth:
+For example, `examples/advanced/semantic_verification/tepl.toml` lets
+`examples/advanced/semantic_verification/rules/remove_identity.tepl` use this import from any nesting depth:
 
 ```tepl
 from "dialects/tensor.tepl" import TensorLang as t
@@ -185,9 +185,9 @@ the importing directory if the project-root target is missing.
 ## `parse`
 
 ```sh
-tepl parse examples/sample/rules/basic.tepl
-tepl parse examples/sample/rules/basic.tepl --tree
-tepl parse examples/sample/rules/basic.tepl --ast
+tepl parse examples/basic/shapes_and_dtypes.tepl
+tepl parse examples/basic/shapes_and_dtypes.tepl --tree
+tepl parse examples/basic/shapes_and_dtypes.tepl --ast
 ```
 
 | Option | Meaning |
@@ -206,8 +206,8 @@ source.
 ## `check`
 
 ```sh
-tepl check examples/sample
-tepl check examples/sample/graphs/bindings.tepl
+tepl check examples/projects/transpose
+tepl check examples/basic/shared_graphs.tepl
 ```
 
 The checker resolves operation visibility, expands rule inheritance, and validates
@@ -223,7 +223,7 @@ For operations with axis semantics, the checker also constructs inferred RHS
 attributes and proves rewrite correctness under explicit conditions:
 
 ```sh
-tepl check examples/semantic/rules/algebraic.tepl \
+tepl check examples/advanced/semantic_verification/rules/contraction_algebra.tepl \
   --semantic-policy=algebraic --rule associate
 ```
 
@@ -236,13 +236,13 @@ tepl check examples/semantic/rules/algebraic.tepl \
 Without `--rule`, all semantic rules are checked. Missing conditions or
 unsupported proofs are errors. The previous `--index-rule`, `--verify-small`,
 and `--solver-timeout-ms` options are retired. See the
-[semantic examples](../../examples/semantic/README.md) for the supported fragment.
+[advanced examples](../../examples/advanced/README.md) for the supported fragment.
 Both backends generate the completed axis metadata computations.
 
 ## `compile`, `validate`, and `schema`
 
 ```sh
-tepl compile examples/rewrite -o /tmp/program.json
+tepl compile examples/projects/transpose -o /tmp/program.json
 tepl validate /tmp/program.json
 tepl schema -o /tmp/rewrite-program.schema.json
 ```
@@ -260,9 +260,9 @@ in the loader. `compile` and `schema` write to stdout when `-o` is omitted.
 
 ```sh
 tepl rewrite /tmp/program.json --trace -o /tmp/result.tepl
-tepl rewrite examples/rewrite/graphs/transpose.tepl \
-  --rules examples/rewrite/rules --rule compose_transposes --trace
-tepl rewrite examples/rewrite/auto.tepl --max-steps 100
+tepl rewrite examples/projects/transpose/graphs/transpose.tepl \
+  --rules examples/projects/transpose/rules --rule compose_transposes --trace
+tepl rewrite examples/projects/transpose --max-steps 100
 ```
 
 | Option | Default | Meaning |
@@ -289,23 +289,24 @@ concrete attributes, and dialect imports. Statistics and
 `Successfully applied rule '<name>'.` for each application. A limit stops
 execution with exit code `3` and exports the current graph.
 
-See [greedy rewriting](../advanced/greedy_rewriting.md) for the compiled format,
-C++ API, metadata checks, and export limitations.
+See [run rewrites](../runtime/engine/run.md) for execution and metadata checks,
+[embed the engine](../runtime/engine/embed.md) for the C++ API, and the
+[compiled format](program-format.md) for serialization and export limitations.
 
 ## `generate`
 
 Generate Rust modules or C++ headers from TEPL source, a project directory, or compiled JSON:
 
 ```sh
-tepl generate examples/rewrite --out my_app/src/generated
-tepl compile examples/rewrite --out /tmp/program.json
+tepl generate examples/projects/transpose --out my_app/src/generated
+tepl compile examples/projects/transpose --out /tmp/program.json
 tepl generate /tmp/program.json --out my_app/src/generated
 ```
 
 The destination contains program-specific operation types, dialects, metadata
 functions, rules, and graph builders. Add the shared `tepl-runtime` crate to the
 application. Generation does not create a Cargo application or run it. See the
-[Rust tutorial](../tutorial/rust/02_run.md).
+[Rust tutorial](../runtime/egraphs/rust/run.md).
 
 For C++, use `--target cpp --cpp-namespace my_ir --out my_app/generated` and add
 the separate [C++ runtime](../../runtime/cpp/README.md) and egg-c dependencies.
@@ -342,10 +343,10 @@ Use the same input, module roots, and formatting settings as the command
 that produced the output:
 
 ```sh
-tepl generate examples/sample --out my_app/src/generated --check
+tepl generate examples/projects/transpose --out my_app/src/generated --check
 
 # For output originally generated with --no-format:
-tepl generate examples/sample --out my_app/src/generated --no-format --check
+tepl generate examples/projects/transpose --out my_app/src/generated --no-format --check
 ```
 
 `--check` regenerates the expected output and, when enabled, formats it in a

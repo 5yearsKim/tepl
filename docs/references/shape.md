@@ -117,6 +117,6 @@ either, the inferred shape remains unknown. Checking source validates types and
 names, while concrete dimensions are checked during evaluation.
 
 Shape inference does not evaluate tensor contents or prove a rewrite's
-mathematical equivalence. See the [tensor dialect](../../examples/sample/dialects/tensor.tepl)
-for more operation definitions and the [core concepts](../2_core_concept_tepl.md)
+mathematical equivalence. See the [shape and dtype example](../../examples/basic/shapes_and_dtypes.tepl)
+for more operation definitions and the [core concepts](../language/core-concepts.md)
 for how dialects, rules, and graphs work together.

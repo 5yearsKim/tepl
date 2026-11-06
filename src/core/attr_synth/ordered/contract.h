@@ -31,6 +31,7 @@ struct Admission {
 // separate. Preserve original descriptor identities while selecting an expanded
 // pair.
 Plan componentPlan(const Plan&, const inference::Component&);
-Admission admit(const Plan&, inference::Mode = inference::Mode::Synthesize, bool extensions = false);
+Admission admit(const Plan&, inference::Mode = inference::Mode::Synthesize,
+                bool extensions = false);
 
 }  // namespace tepl::core::attr_synth::ordered

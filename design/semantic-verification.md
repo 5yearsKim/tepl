@@ -5,7 +5,7 @@ written conditions, under the selected arithmetic policy. Attribute constructors
 and conditions depend on metadata, not tensor values. The executable result
 contains completed computations; runtimes do not repeat proof search.
 
-Use the [semantic example project](../examples/semantic/README.md) for runnable
+Use the [semantic examples](../examples/advanced/README.md) for runnable
 rules, and the [public metadata reference](../docs/references/metadata-reasoning.md)
 for language syntax. [Attribute synthesis](attribute-synthesis.md) describes
 candidate construction and the ordered specialization.
@@ -36,8 +36,8 @@ establish logical-axis identity.
 Scale/offset metadata can use pure expressions. Production `auto` infers axis
 selectors only: it does not construct convolution strides, slice starts/sizes,
 or other coordinate/extent fields. The
-[convolution](../examples/semantic/rules/convolution.tepl) and
-[slice](../examples/semantic/rules/slice.tepl) rules supply those fields explicitly.
+[convolution](../tests/fixtures/semantic/rules/convolution.tepl) and
+[slice](../tests/fixtures/semantic/rules/slice.tepl) rules supply those fields explicitly.
 Broadcast examples similarly supply new extents while requesting axis mappings.
 Mathematical extensions with broader operation contracts are described separately
 in [research](../research/attribute-synthesis/README.md).

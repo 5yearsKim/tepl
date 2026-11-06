@@ -21,7 +21,7 @@ cc_binary(
 cc_test(
     name = "timing_test",
     srcs = ["timing_test.cc"],
-    args = ["$(rootpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rootpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = ["//src/core:pipeline", "//src/inference"],
 )

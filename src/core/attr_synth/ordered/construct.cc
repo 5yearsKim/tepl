@@ -16,7 +16,8 @@ Construction construct(Context& c, const inference::EmissionBlock& program,
   std::set<std::size_t> contractions;
   for (const auto& node : program.source.replacement)
     if (node.kind == inference::Kind::Contraction) {
-      auto positions = program.attributes.at(*node.descriptor).at(node.fields.at(2));
+      auto positions =
+          program.attributes.at(*node.descriptor).at(node.fields.at(2));
       contractions.insert(program.expressions.at(positions).args.at(1));
     }
 
@@ -32,16 +33,26 @@ Construction construct(Context& c, const inference::EmissionBlock& program,
     for (auto reference : expression.args) args.push_back(values.at(reference));
     S value;
     switch (expression.op) {
-      case Op::Input: value = inputs.at(expression.capture); break;
-      case Op::Output: value = source_output; break;
-      case Op::Empty: value = call("empty_axes", {}); break;
+      case Op::Input:
+        value = inputs.at(expression.capture);
+        break;
+      case Op::Output:
+        value = source_output;
+        break;
+      case Op::Empty:
+        value = call("empty_axes", {});
+        break;
       // These IR nodes denote membership sets. Their enumeration order is
       // unobservable: ordered consumers always filter an explicit traversal.
-      case Op::Union: value = c.support(call("union_axes", std::move(args))); break;
+      case Op::Union:
+        value = c.support(call("union_axes", std::move(args)));
+        break;
       case Op::Intersect:
-        value = c.intersect(c.support(args.at(0)), c.support(args.at(1))); break;
+        value = c.intersect(c.support(args.at(0)), c.support(args.at(1)));
+        break;
       case Op::Difference:
-        value = c.difference(c.support(args.at(0)), c.support(args.at(1))); break;
+        value = c.difference(c.support(args.at(0)), c.support(args.at(1)));
+        break;
       case Op::Filter:
         value = c.filter(args.at(0), args.at(1));
         if (contractions.contains(values.size())) {
@@ -50,18 +61,33 @@ Construction construct(Context& c, const inference::EmissionBlock& program,
           // membership, feasibility or output layout. The independent
           // verifier still checks the resulting complete candidate.
           auto preferred = c.filter(reduction_order, args.at(1));
-          value = call("concat", {preferred, c.filter(args.at(0),
-                                 c.difference(args.at(1), preferred))});
+          value =
+              call("concat",
+                   {preferred,
+                    c.filter(args.at(0), c.difference(args.at(1), preferred))});
         }
         break;
-      case Op::Concat: value = call("concat", std::move(args)); break;
-      case Op::Positions: value = c.positions(args.at(0), args.at(1)); break;
-      case Op::Equal: value = call("==", std::move(args)); break;
-      case Op::SameSet: value = call("same_set", std::move(args)); break;
-      case Op::Distinct: value = call("distinct_axes", std::move(args)); break;
-      case Op::Subset: value = call("subset", std::move(args)); break;
+      case Op::Concat:
+        value = call("concat", std::move(args));
+        break;
+      case Op::Positions:
+        value = c.positions(args.at(0), args.at(1));
+        break;
+      case Op::Equal:
+        value = call("==", std::move(args));
+        break;
+      case Op::SameSet:
+        value = call("same_set", std::move(args));
+        break;
+      case Op::Distinct:
+        value = call("distinct_axes", std::move(args));
+        break;
+      case Op::Subset:
+        value = call("subset", std::move(args));
+        break;
       default:
-        throw std::invalid_argument("noncanonical operation in symbolic IR adapter");
+        throw std::invalid_argument(
+            "noncanonical operation in symbolic IR adapter");
     }
     values.push_back(c.canonical(value));
   }

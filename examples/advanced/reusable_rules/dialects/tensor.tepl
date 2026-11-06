@@ -1,0 +1,11 @@
+dialect TensorLang {
+  op negate(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+}

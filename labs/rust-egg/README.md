@@ -1,6 +1,6 @@
 # Generated TEPL rewrites with egg
 
-This lab runs the transpose rules from `examples/rewrite/`. Generated code lives
+This lab runs the transpose rules from `examples/projects/transpose/`. Generated code lives
 in `src/ir/` and depends on the shared `tepl-runtime` crate. Application code
 supplies graph inputs, selects rules, and extracts a result.
 
@@ -8,7 +8,7 @@ From the repository root:
 
 ```sh
 bazel build //:tepl
-bazel-bin/tepl generate examples/rewrite --out labs/rust-egg/src/ir
+bazel-bin/tepl generate examples/projects/transpose --out labs/rust-egg/src/ir
 cargo test --manifest-path labs/rust-egg/Cargo.toml --locked --all-targets
 cargo run --manifest-path labs/rust-egg/Cargo.toml --example transpose
 ```

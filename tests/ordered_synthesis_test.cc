@@ -53,15 +53,18 @@ void checkEmission(const tepl::inference::Program& code,
   using Result = tepl::inference::Result;
   auto emitted = emit(code);
   auto actual = execute(emitted, m);
-  auto decision = predicate(emitted,m);
-  if ((actual.status==Status::Solved && decision.status!=Status::Feasible) ||
-      (actual.status!=Status::Solved && actual.status!=decision.status) || !decision.attributes.empty())
+  auto decision = predicate(emitted, m);
+  if ((actual.status == Status::Solved &&
+       decision.status != Status::Feasible) ||
+      (actual.status != Status::Solved && actual.status != decision.status) ||
+      !decision.attributes.empty())
     throw std::runtime_error("emitted predicate is independent of builders");
   if (actual.status != reference.status)
     throw std::runtime_error("emission disagrees with concrete constructor");
   if (actual.status == Status::Solved) {
     auto completed = m;
-    completed.descriptors.insert(actual.attributes.begin(), actual.attributes.end());
+    completed.descriptors.insert(actual.attributes.begin(),
+                                 actual.attributes.end());
     auto replay = replayReplacement(code, completed);
     if (replay.status != Status::Analyzed)
       throw std::runtime_error("emitted attributes are illegal");
@@ -70,12 +73,15 @@ void checkEmission(const tepl::inference::Program& code,
              source.source.output == target.source.output;
     };
     if (code.components.empty()) {
-      if (!same(actual,replay))throw std::runtime_error("emission changes network");
+      if (!same(actual, replay))
+        throw std::runtime_error("emission changes network");
     } else {
-      if(actual.components.size()!=code.components.size() || replay.components.size()!=code.components.size())
+      if (actual.components.size() != code.components.size() ||
+          replay.components.size() != code.components.size())
         throw std::runtime_error("emission lost additive component");
-      for(std::size_t i=0;i<code.components.size();++i)
-        if(!same(actual.components[i],replay.components[i]))throw std::runtime_error("emission merged component axes");
+      for (std::size_t i = 0; i < code.components.size(); ++i)
+        if (!same(actual.components[i], replay.components[i]))
+          throw std::runtime_error("emission merged component axes");
     }
   }
   ++emission_checks;
@@ -88,7 +94,8 @@ void expect(bool condition, const std::string& message) {
 Plan parse(const std::string& rule, bool defer = false) {
   auto parsed = tepl::parse(dialect + rule, "ordered.tepl");
   expect(parsed.ok(), "ordered fixture parses");
-  tepl::core::InspectionOptions options{tepl::core::SemanticPolicy::kAlgebraic, true};
+  tepl::core::InspectionOptions options{tepl::core::SemanticPolicy::kAlgebraic,
+                                        true};
   options.defer_semantic_proofs = defer;
   auto inspected = tepl::core::inspect(*parsed.program, options);
   if (!inspected.ok())
@@ -618,7 +625,7 @@ void exhaustive() {
             for (const auto& source : enumerate(p, p.lhs, ports, total)) {
               m.descriptors = source.attributes;
               auto result = tepl::inference::evaluate(*compiled.program, m);
-              checkEmission(*compiled.program,m,result);
+              checkEmission(*compiled.program, m, result);
               bool exists = targets.contains(signature(source));
               auto predicate =
                   tepl::inference::feasibility(*compiled.program, m);
@@ -739,9 +746,10 @@ void guardIndependentFeasibility() {
          "symbolic and native realizations share the exact constructed IR");
   auto limited = tepl::core::attr_synth::synthesize(
       p, tepl::core::attr_synth::Strategy::Ordered, 0);
-  expect(!limited.constructed && limited.metadata_program &&
-             *limited.metadata_program == *emitted,
-         "bounded specialization cannot prevent or discard structural emission");
+  expect(
+      !limited.constructed && limited.metadata_program &&
+          *limited.metadata_program == *emitted,
+      "bounded specialization cannot prevent or discard structural emission");
   auto domain = p;
   domain.assumptions.clear();
   Context coordinates{domain, 1000000};
@@ -761,9 +769,11 @@ void guardIndependentFeasibility() {
     expect(feasible == dimensions.empty(),
            "the predicate stays exact outside the written guard");
     tepl::inference::Metadata native;
-    native.shapes[0].assign(metadata.shapes.at(0).begin(), metadata.shapes.at(0).end());
+    native.shapes[0].assign(metadata.shapes.at(0).begin(),
+                            metadata.shapes.at(0).end());
     native.descriptors = metadata.descriptors;
-    auto decision = tepl::inference::predicate(*generated.metadata_program, native);
+    auto decision =
+        tepl::inference::predicate(*generated.metadata_program, native);
     expect((decision.status == tepl::inference::Status::Feasible) == feasible,
            "symbolic specialization preserves the native IR predicate");
   }
@@ -786,8 +796,8 @@ void sharedIRPairedReindexing() {
   recipe.constructors = generated.candidate.constructors;
   for (const auto& [_, group] : source.source().groups)
     recipe.axis_definitions.push_back(group);
-  tepl::core::semantics::Metadata symbolic_metadata{
-      {{2, 3, 4}, {4, 3, 5}}, metadata.descriptors};
+  tepl::core::semantics::Metadata symbolic_metadata{{{2, 3, 4}, {4, 3, 5}},
+                                                    metadata.descriptors};
   tepl::test::ConstructorEvaluator symbolic(symbolic_metadata, recipe);
   auto attributes = symbolic.construct();
   auto native = execute(*generated.metadata_program, metadata);
@@ -798,8 +808,8 @@ void sharedIRPairedReindexing() {
              native.attributes.at(descriptor).at(contract.left_contract),
          "specialization exercises a genuine paired contraction permutation");
   metadata.descriptors.insert(attributes.begin(), attributes.end());
-  auto replacement = replayReplacement(generated.metadata_program->original,
-                                       metadata);
+  auto replacement =
+      replayReplacement(generated.metadata_program->original, metadata);
   expect(replacement.status == Status::Analyzed &&
              replacement.source.classes == native.source.classes &&
              replacement.source.output == native.source.output,
@@ -848,7 +858,7 @@ void exhaustiveSummations() {
         for (const auto& source : enumerate(p, p.lhs, ports, total)) {
           metadata.descriptors = source.attributes;
           auto result = tepl::inference::evaluate(code, metadata);
-          checkEmission(code,metadata,result);
+          checkEmission(code, metadata, result);
           bool exists = targets.contains(signature(source));
           expect(
               (result.status == Status::Solved) == exists &&
@@ -898,7 +908,7 @@ void additiveComponents() {
   Metadata m{{{0, {2, 3}}, {1, {2, 3}}, {2, {3, 4}}}, {}};
   setDot(p, m, p.lhs, {}, {}, {1}, {0});
   auto result = evaluate(*compiled.program, m);
-  checkEmission(*compiled.program,m,result);
+  checkEmission(*compiled.program, m, result);
   expect(
       result.status == Status::Solved && check(p, m, result),
       "distribution constructs and independently checks component witnesses: " +
@@ -1020,44 +1030,70 @@ void totalEmission() {
   using namespace tepl::inference;
   using Metadata = tepl::inference::Metadata;
   using Status = tepl::inference::Status;
-  auto p=parse("rule r {(transpose (transpose A)) => (transpose A)}");
-  auto compiled=ord::compile(p);
-  expect(bool(compiled.emission),"core compilation emits a closed DAG");
-  auto without_guard=p;without_guard.assumptions.clear();
-  expect(compiled.emission==ord::compile(without_guard).emission,"emission does not depend on guard proof");
-  for(unsigned rank: {0u,1u,2u,8u,32u,128u}) {
-    Metadata m{{{0,std::vector<std::uint64_t>(rank,2)}},{}};
-    List reverse;for(unsigned i=rank;i-->0;)reverse.push_back(i);
-    for(const auto& n:compiled.program->source)if(n.descriptor)m.descriptors[*n.descriptor]={reverse};
-    checkEmission(*compiled.program,m,evaluate(*compiled.program,m));
-    expect(execute(*compiled.emission,m).status==Status::Solved,"same emitted DAG executes at every tested rank");
-    expect(execute(*compiled.emission,m,{0}).status==Status::ResourceLimit,"budget exhaustion is not infeasibility");
-    if(rank) {m.shapes[0][0]=1;expect(execute(*compiled.emission,m).status==Status::OutsideDomain,"singleton outside complete domain");}
+  auto p = parse("rule r {(transpose (transpose A)) => (transpose A)}");
+  auto compiled = ord::compile(p);
+  expect(bool(compiled.emission), "core compilation emits a closed DAG");
+  auto without_guard = p;
+  without_guard.assumptions.clear();
+  expect(compiled.emission == ord::compile(without_guard).emission,
+         "emission does not depend on guard proof");
+  for (unsigned rank : {0u, 1u, 2u, 8u, 32u, 128u}) {
+    Metadata m{{{0, std::vector<std::uint64_t>(rank, 2)}}, {}};
+    List reverse;
+    for (unsigned i = rank; i-- > 0;) reverse.push_back(i);
+    for (const auto& n : compiled.program->source)
+      if (n.descriptor) m.descriptors[*n.descriptor] = {reverse};
+    checkEmission(*compiled.program, m, evaluate(*compiled.program, m));
+    expect(execute(*compiled.emission, m).status == Status::Solved,
+           "same emitted DAG executes at every tested rank");
+    expect(execute(*compiled.emission, m, {0}).status == Status::ResourceLimit,
+           "budget exhaustion is not infeasibility");
+    if (rank) {
+      m.shapes[0][0] = 1;
+      expect(execute(*compiled.emission, m).status == Status::OutsideDomain,
+             "singleton outside complete domain");
+    }
   }
   // Emission is syntactic even when the written guard prover is incomplete.
-  auto sum=parse("rule r {(dot (reduce_sum A) B) => (reduce_sum (dot A B))}");
-  auto emitted=ord::compile(sum);
-  expect(bool(emitted.emission),"sum movement emits without symbolic set proofs");
-  auto addition=parse("rule r {(add (transpose A) B) => (add A B)}",true);
-  auto ac=ord::compile(addition);
-  Metadata am{{{0,{2,2}},{1,{2,2}}},{}};
-  for(const auto& i:ac.program->source)if(i.descriptor)am.descriptors[*i.descriptor]={{1,0}};
-  auto ar=execute(*ac.emission,am);
-  expect(ar.status==Status::Impossible && ar.attributes.empty(),"component checks are conjoined before returning attributes");
-  checkEmission(*ac.program,am,evaluate(*ac.program,am));
-  std::string left="A0",right="A11";
-  for(int i=1;i<=11;++i)left="(dot "+left+" A"+std::to_string(i)+")";
-  for(int i=10;i>=0;--i)right="(dot A"+std::to_string(i)+" "+right+")";
-  auto chain=parse("rule r {"+left+" => "+right+"}",true);
-  expect(chain.proof.status==ProofStatus::Unknown,"emission-only preparation has no acceptance proof");
-  auto cc=ord::compile(chain);
-  expect(bool(cc.emission),"long chain emits without theorem-prover queries");
+  auto sum = parse("rule r {(dot (reduce_sum A) B) => (reduce_sum (dot A B))}");
+  auto emitted = ord::compile(sum);
+  expect(bool(emitted.emission),
+         "sum movement emits without symbolic set proofs");
+  auto addition = parse("rule r {(add (transpose A) B) => (add A B)}", true);
+  auto ac = ord::compile(addition);
+  Metadata am{{{0, {2, 2}}, {1, {2, 2}}}, {}};
+  for (const auto& i : ac.program->source)
+    if (i.descriptor) am.descriptors[*i.descriptor] = {{1, 0}};
+  auto ar = execute(*ac.emission, am);
+  expect(ar.status == Status::Impossible && ar.attributes.empty(),
+         "component checks are conjoined before returning attributes");
+  checkEmission(*ac.program, am, evaluate(*ac.program, am));
+  std::string left = "A0", right = "A11";
+  for (int i = 1; i <= 11; ++i)
+    left = "(dot " + left + " A" + std::to_string(i) + ")";
+  for (int i = 10; i >= 0; --i)
+    right = "(dot A" + std::to_string(i) + " " + right + ")";
+  auto chain = parse("rule r {" + left + " => " + right + "}", true);
+  expect(chain.proof.status == ProofStatus::Unknown,
+         "emission-only preparation has no acceptance proof");
+  auto cc = ord::compile(chain);
+  expect(bool(cc.emission), "long chain emits without theorem-prover queries");
   Metadata cm;
-  for(auto cap:cc.program->source.back().captures)cm.shapes[cap]={2,2,2};
-  for(const auto& i:cc.program->source)if(i.descriptor){auto& fields=cm.descriptors[*i.descriptor];fields.resize(4);fields[i.fields[0]]={0};fields[i.fields[1]]={0};fields[i.fields[2]]={2};fields[i.fields[3]]={1};}
-  checkEmission(*cc.program,cm,evaluate(*cc.program,cm));
-  auto bad=parse("rule r {(dot A A) => (dot A A)}");
-  expect(!ord::compile(bad).emission,"repeated-input component rejected before emission");
+  for (auto cap : cc.program->source.back().captures)
+    cm.shapes[cap] = {2, 2, 2};
+  for (const auto& i : cc.program->source)
+    if (i.descriptor) {
+      auto& fields = cm.descriptors[*i.descriptor];
+      fields.resize(4);
+      fields[i.fields[0]] = {0};
+      fields[i.fields[1]] = {0};
+      fields[i.fields[2]] = {2};
+      fields[i.fields[3]] = {1};
+    }
+  checkEmission(*cc.program, cm, evaluate(*cc.program, cm));
+  auto bad = parse("rule r {(dot A A) => (dot A A)}");
+  expect(!ord::compile(bad).emission,
+         "repeated-input component rejected before emission");
 }
 
 void compilerIntegration() {

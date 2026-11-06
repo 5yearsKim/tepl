@@ -1,0 +1,23 @@
+dialect Basic {
+  op negate(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_float(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+}
+
+rule cancel_double_negate {
+  (Basic.negate (Basic.negate X)) => X
+}
+
+graph example {
+  input X: f32[2, 3]
+
+  let negated = (Basic.negate X)
+
+  yield (Basic.negate negated)
+}

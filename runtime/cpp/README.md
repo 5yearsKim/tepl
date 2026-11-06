@@ -9,7 +9,7 @@ signed `__int128` support; MSVC is deferred. The tested egg-c revision is
 
 ```sh
 bazel build //:tepl
-bazel-bin/tepl generate examples/rewrite --target cpp \
+bazel-bin/tepl generate examples/projects/transpose --target cpp \
   --cpp-namespace my_ir --out /path/to/app/generated
 ```
 

@@ -322,7 +322,8 @@ struct ConstructorEvaluator {
         if (!std::get<bool>(eval(g))) return false;
       return true;
     } catch (const std::exception& e) {
-      throw std::runtime_error(std::string("metadata predicate evaluation: ") + e.what());
+      throw std::runtime_error(std::string("metadata predicate evaluation: ") +
+                               e.what());
     }
   }
   std::map<std::size_t, std::vector<List>> construct() {

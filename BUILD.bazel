@@ -38,7 +38,7 @@ cc_binary(
 
 filegroup(
     name = "rust_codegen_sources",
-    srcs = glob(["examples/semantic/**/*.tepl", "examples/semantic/**/tepl.toml", "examples/sample/**/*.tepl", "examples/sample/**/tepl.toml"]) + ["tools/test_codegen.sh"],
+    srcs = ["//tests/fixtures:codegen_sources", "tools/test_codegen.sh"],
     visibility = ["//tests:__pkg__"],
 )
 

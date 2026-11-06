@@ -162,14 +162,23 @@ void feasibilityBeforeBuilder() {
       "yield(copy X) }");
   auto j = nlohmann::json::parse(executable::serialize(p));
   auto& rule = j["program"]["rules"][0];
-  rule["feasibility"] = nlohmann::json::array({{{"kind","bool"},{"sort","bool"},{"name","false"},{"owner",0},{"index",0},{"args",nlohmann::json::array()}}});
+  rule["feasibility"] =
+      nlohmann::json::array({{{"kind", "bool"},
+                              {"sort", "bool"},
+                              {"name", "false"},
+                              {"owner", 0},
+                              {"index", 0},
+                              {"args", nlohmann::json::array()}}});
   auto blocked = executable::load(j.dump());
   assert(rewrite::run(blocked, blocked.ir().graphs[0]).rewrite_count == 0);
   rule["feasibility"][0]["name"] = "true";
   auto exposed = executable::load(j.dump());
   bool failed = false;
-  try { rewrite::run(exposed, exposed.ir().graphs[0]); }
-  catch (const rewrite::EvaluationError&) { failed = true; }
+  try {
+    rewrite::run(exposed, exposed.ir().graphs[0]);
+  } catch (const rewrite::EvaluationError&) {
+    failed = true;
+  }
   assert(failed);
 }
 void guardsAndFailure() {
@@ -187,16 +196,24 @@ void guardsAndFailure() {
   p = compile("rule r {(copy X)=>X where 1 / 0 == 0 }" + graph);
   {
     bool failed = false;
-    try { rewrite::run(p, p.ir().graphs[0]); }
-    catch (const rewrite::EvaluationError&) { failed = true; }
-    assert(failed); // Evaluation failures remain distinct from non-application.
+    try {
+      rewrite::run(p, p.ir().graphs[0]);
+    } catch (const rewrite::EvaluationError&) {
+      failed = true;
+    }
+    assert(
+        failed);  // Evaluation failures remain distinct from non-application.
   }
   p = compile("rule r {(copy X)=>(scalar X)}" + graph);
   {
     bool failed = false;
-    try { rewrite::run(p, p.ir().graphs[0]); }
-    catch (const rewrite::EvaluationError&) { failed = true; }
-    assert(failed); // Evaluation failures remain distinct from non-application.
+    try {
+      rewrite::run(p, p.ir().graphs[0]);
+    } catch (const rewrite::EvaluationError&) {
+      failed = true;
+    }
+    assert(
+        failed);  // Evaluation failures remain distinct from non-application.
   }
   p = compile(
       "rule r {(copy X)=>(p: transpose X) derive "
@@ -204,9 +221,13 @@ void guardsAndFailure() {
       graph);
   {
     bool failed = false;
-    try { rewrite::run(p, p.ir().graphs[0]); }
-    catch (const rewrite::EvaluationError&) { failed = true; }
-    assert(failed); // Evaluation failures remain distinct from non-application.
+    try {
+      rewrite::run(p, p.ir().graphs[0]);
+    } catch (const rewrite::EvaluationError&) {
+      failed = true;
+    }
+    assert(
+        failed);  // Evaluation failures remain distinct from non-application.
   }
   p = compile("rule r {(copy X)=>(copy X)}" + graph);
   assert(rewrite::run(p, p.ir().graphs[0]).stop_reason ==

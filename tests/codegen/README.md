@@ -1,8 +1,9 @@
 # Code generation fixtures
 
-Rust and C++ share the current source fixtures in `rust/`, along with the sample
-and semantic projects. `tools/test_codegen.sh` and `tools/test_codegen_cpp.sh`
-generate temporary applications and compare source/JSON output.
+Rust and C++ share the current source fixtures in `rust/`, along with the language
+and semantic catalogs in [fixtures](../fixtures/README.md). `tools/test_codegen.sh`
+and `tools/test_codegen_cpp.sh` generate temporary applications and compare
+source/JSON output.
 
 `current.tepl` covers field-level synthesis, preserved supplied/default fields,
 logical axes and guards on derived descriptors. `codegen_semantic_reference` uses

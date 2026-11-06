@@ -300,7 +300,7 @@ derive {
 ```
 
 A scalar or list value cannot replace a complete descriptor assignment.
-See [attribute construction](../advanced/attributes_and_conditions.md).
+See [attribute construction](rule-expressions.md).
 
 ### Shape programs
 
@@ -356,7 +356,7 @@ dimensions that fit `u64`.
 
 - In a rule, a builtin failure rejects the rewrite candidate before insertion.
   Conditions run after structural matching. Extended rule expressions run in the
-  [greedy engine](../advanced/greedy_rewriting.md). Generated Rust and C++ follow
+  [greedy engine](../runtime/engine/run.md). Generated Rust and C++ follow
   the same candidate-rejection behavior.
 - In a shape or dtype program, a failed assertion or evaluated builtin makes
   inference invalid. Missing required tensor metadata can leave inference
@@ -372,7 +372,7 @@ names, signatures, and contexts.
 ## Logical-axis conditions
 
 Named node properties expose logical axes without compiler node numbers. See
-[the syntax and complete example](../advanced/attributes_and_conditions.md#semantic-axis-properties).
+[the syntax and complete example](rule-expressions.md#semantic-axis-properties).
 `node.axes.G.members` is a `LogicalAxisSet`; `node.axes.G.order` and
 `node.axes.order` are `LogicalAxis[]`. Identities represent source-port
 classes, independently of extents and numeric positions.

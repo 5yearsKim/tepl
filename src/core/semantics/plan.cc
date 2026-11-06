@@ -687,7 +687,8 @@ bool compile(CompilationContext& context, InspectedRule& rule) {
           "restrictions");
     b.assumptions();
     b.plan.core_backend = context.options.core_backend;
-    if (context.options.defer_semantic_proofs && !context.options.inspect_semantic_rules)
+    if (context.options.defer_semantic_proofs &&
+        !context.options.inspect_semantic_rules)
       throw std::runtime_error("deferred proofs require inspection mode");
     if (selected && !context.options.defer_semantic_proofs) {
       b.plan.proof = proveRule(b.plan);
