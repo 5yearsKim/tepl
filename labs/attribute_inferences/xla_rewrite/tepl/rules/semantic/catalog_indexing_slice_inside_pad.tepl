@@ -1,11 +1,32 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-slice-inside-pad
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_slice_inside_pad {
-    X: [Dims...]
-     (attr_s: hlo.slice (attr_p: hlo.nonnegative_pad X C)) => (attr_out: hlo.slice X)
-     where { attr_s.attrs.strides==[1 for d in Dims] && attr_p.attrs.interior==[0 for d in Dims] && all([u64(attr_s.attrs.starts[i])>=u64(attr_p.attrs.low[i]) && u64(attr_s.attrs.starts[i])+attr_s.attrs.sizes[i]<=u64(attr_p.attrs.low[i])+Dims[i] for i in range(len(Dims))]) }
-     derive { attr_out.attrs={..attr_s.attrs,starts:[attr_s.attrs.starts[i]-attr_p.attrs.low[i] for i in range(len(Dims))]}; }
+  X: [Dims...]
+
+  (attr_s: hlo.slice (attr_p: hlo.nonnegative_pad X C))
+  =>
+  (attr_out: hlo.slice X)
+
+  where
+    attr_s.attrs.strides == [1 for d in Dims]
+      && attr_p.attrs.interior == [0 for d in Dims]
+      && all(
+        [
+          u64(attr_s.attrs.starts[i]) >= u64(attr_p.attrs.low[i])
+            && u64(attr_s.attrs.starts[i]) + attr_s.attrs.sizes[i]
+              <= u64(attr_p.attrs.low[i]) + Dims[i]
+          for i in range(len(Dims))
+        ]
+      ) derive {
+    attr_out.attrs = {
+      ..attr_s.attrs,
+      starts: [
+        attr_s.attrs.starts[i] - attr_p.attrs.low[i]
+        for i in range(len(Dims))
+      ]
+    }
+  }
 }

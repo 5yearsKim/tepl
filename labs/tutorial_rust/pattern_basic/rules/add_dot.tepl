@@ -1,17 +1,15 @@
-from "../dialects/my_dialect.tepl" import MyDialect as d;
+from "../dialects/my_dialect.tepl" import MyDialect as d
 
 rule associate_add {
-    (d.add (d.add X Y) Z) => (d.add X (d.add Y Z))
+  (d.add (d.add X Y) Z) => (d.add X (d.add Y Z))
 }
 
 rule swap_add {
-    (d.add X Y) => (d.add Y X)
+  (d.add X Y) => (d.add Y X)
 }
 
 rule swap_dot {
-    (d.dot[@dot] X Y) => (d.dot[@dot] Y X)
+  (dot: d.dot X Y) => (d.dot[dot.attrs] Y X)
 
-    where {
-        @dot.axis == 0
-    }
+  where dot.attrs.axis == 0
 }

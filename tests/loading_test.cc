@@ -88,16 +88,16 @@ void importResolution() {
       {"/virtual/tepl.toml",
        "tepl-version = '0.2.0'\n[check]\nsemantic-policy = 'algebraic'"},
       {"/virtual/dialects/base.tepl",
-       "dialect D { op negate(x: tensor) -> tensor; }"},
-      {"/virtual/dialects/export.tepl", "import \"dialects/base.tepl\";"},
+       "dialect D { op negate(x: tensor) -> tensor }"},
+      {"/virtual/dialects/export.tepl", "import \"dialects/base.tepl\""},
       {"/virtual/rules/template.tepl", "abstract rule identity() { X => X }"},
   };
   const tepl::SourceFile source{"/virtual/rules/nested/main.tepl", R"(
-    from "dialects/base.tepl" import D as d;
-    from "../../dialects/./base.tepl" import D as same;
-    import "dialects/export.tepl";
-    from "rules/template.tepl" import {identity};
-    rule inherited extends identity();
+    from "dialects/base.tepl" import D as d
+    from "../../dialects/./base.tepl" import D as same
+    import "dialects/export.tepl"
+    from "rules/template.tepl" import {identity}
+    rule inherited extends identity()
     rule direct { (d.negate X) => (same.negate X) }
     rule legacy { (negate X) => X }
   )"};
@@ -120,17 +120,17 @@ void importResolution() {
   loader.files = {
       {"/one/tepl.toml", ""},
       {"/two/tepl.toml", ""},
-      {"/one/dialects/d.tepl", "dialect D { op first(x:tensor)->tensor; }"},
-      {"/two/dialects/d.tepl", "dialect D { op second(x:tensor)->tensor; }"},
+      {"/one/dialects/d.tepl", "dialect D { op first(x:tensor)->tensor }"},
+      {"/two/dialects/d.tepl", "dialect D { op second(x:tensor)->tensor }"},
   };
   auto project = tepl::loadProject(
       std::vector<tepl::SourceFile>{
           {"/one/rules/first.tepl", R"(
-        from "dialects/d.tepl" import D as d;
+        from "dialects/d.tepl" import D as d
         rule first { (d.first X) => X }
       )"},
           {"/two/rules/second.tepl", R"(
-        from "dialects/d.tepl" import D as d;
+        from "dialects/d.tepl" import D as d
         rule second { (d.second X) => X }
       )"},
       },
@@ -140,10 +140,10 @@ void importResolution() {
   // Cycle detection uses resolved identities across relative and root imports.
   loader.files = {
       {"/virtual/tepl.toml", ""},
-      {"/virtual/dialects/a.tepl", "import \"dialects/b.tepl\";"},
-      {"/virtual/dialects/b.tepl", "import \"./a.tepl\";"},
+      {"/virtual/dialects/a.tepl", "import \"dialects/b.tepl\""},
+      {"/virtual/dialects/b.tepl", "import \"./a.tepl\""},
   };
-  parsed = tepl::parse("import \"dialects/a.tepl\";", source.identity);
+  parsed = tepl::parse("import \"dialects/a.tepl\"", source.identity);
   assert(parsed.ok());
   loaded = tepl::loadImports(*parsed.program, loader);
   assert(!loaded.ok() && loaded.diagnostics.size() == 1);

@@ -51,7 +51,7 @@ def split_fields(text):
             depth += 1
         elif char in ")]}":
             depth -= 1
-        elif char in ",;" and depth == 0:
+        elif char == "," and depth == 0:
             if text[start:i].strip():
                 parts.append(text[start:i].strip())
             start = i + 1
@@ -93,7 +93,7 @@ def fields(inventory):
         match = re.search(r"\battrs\s*{([^}]+)}", data["text"])
         result[op] = []
         if match:
-            for item in split_fields(match[1]):
+            for item in re.split(r"\s+(?=\w+\s*:)", match[1].strip()):
                 m = re.fullmatch(
                     r"(\w+)\s*:\s*(\w+)(\[\])?(\?)?(?:\s*=\s*(.*))?", item, re.S
                 )
@@ -122,18 +122,20 @@ class AxisTask:
         self.rhs = {n.label: n for n in self.rule.rhs.operations() if n.label}
         self.providers, self.locals, self.remaining = {}, {}, []
         for tokens, text in self.rule.statements():
-            m = re.fullmatch(r"\s*(\w+)\.attrs\s*=\s*(.*);\s*", text, re.S)
+            m = re.fullmatch(r"\s*(\w+)\.attrs\s*=\s*(.*?)\s*", text, re.S)
             if m:
                 self.providers[m[1]] = m[2]
             else:
                 self.remaining.append(text)
-                m = re.fullmatch(r"\s*let\s+(\w+)\s*=\s*(.*);\s*", text, re.S)
+                m = re.fullmatch(r"\s*let\s+(\w+)\s*=\s*(.*?)\s*", text, re.S)
                 if m:
                     self.locals[m[1]] = m[2]
         self.guards = {}
-        clean = re.sub(r"//[^\n]*", "", source)
-        where = re.search(r"\bwhere\s*{(.*?)}", clean, re.S)
-        self.conditions = where[1] if where else ""
+        condition = self.rule.condition_span()
+        self.conditions = (
+            re.sub(r"//[^\n]*", "", source[condition[0] : condition[1]])
+            if condition else ""
+        )
         self.units = set()
         for atom in conjuncts(self.conditions):
             m = re.fullmatch(r"(\w+)\.attrs\.(\w+)\s*==\s*(\[[^\]]*\])", atom)
@@ -265,7 +267,7 @@ class AxisTask:
                 label
                 + ".attrs = {"
                 + ", ".join(k + ": " + v for k, v in values.items())
-                + "};"
+                + "}"
             )
         else:
             self.normalization_conditions.extend(
@@ -386,7 +388,7 @@ class AxisTask:
                 label
                 + ".attrs = {"
                 + ", ".join(f["name"] + ": " + values[f["name"]] for f in schema)
-                + "};"
+                + "}"
             )
             attrs = ""
         else:
@@ -420,13 +422,11 @@ class AxisTask:
             extra = " && ".join("(" + x + ")" for x in self.normalization_conditions)
             original = self.conditions
             if original:
-                text = text.replace(
-                    "where {" + original + "}",
-                    "where {" + original + " && " + extra + "}",
-                )
+                start, end = Rule(text).condition_span()
+                text = text[:start] + "(" + original + ") && " + extra + text[end:]
             else:
                 end = text.rfind("}")
-                text = text[:end] + "where { " + extra + " }\n" + text[end:]
+                text = text[:end] + "where " + extra + "\n" + text[end:]
         remaining = list(self.remaining)
         while True:
             kept = []
@@ -460,7 +460,7 @@ class AxisTask:
         return (
             "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\n"
             + (
-                'from "dialects/axis_views.tepl" import AxisViews as axis_view;\n'
+                'from "dialects/axis_views.tepl" import AxisViews as axis_view\n'
                 if self.normalizations
                 else ""
             )

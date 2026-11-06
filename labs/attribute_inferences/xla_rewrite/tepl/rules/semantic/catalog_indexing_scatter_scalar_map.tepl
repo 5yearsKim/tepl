@@ -1,11 +1,23 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-scatter-scalar-map
 // Scope: Single operand/result, empty scalar index vector, whole-tensor combining region.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_scatter_scalar_map {
-    X: [Dims...] Y: [Dims...] Indices: [Zero]
-     (attr_s: hlo.scatter X Indices Y) => (attr_body: hlo.map X Y)
-     where { Zero==0 && attr_s.attrs.index_vector_dim==0 && attr_s.attrs.update_window_dims==range(len(Dims)) && attr_s.attrs.inserted_window_dims==[] && attr_s.attrs.scatter_dims_to_operand_dims==[] && attr_s.attrs.input_batching_dims==[] && attr_s.attrs.scatter_indices_batching_dims==[] }
-     derive { attr_body.attrs={body:attr_s.attrs.body}; }
+  X: [Dims...]
+  Y: [Dims...]
+  Indices: [Zero]
+
+  (attr_s: hlo.scatter X Indices Y) => (attr_body: hlo.map X Y)
+
+  where
+    Zero == 0
+      && attr_s.attrs.index_vector_dim == 0
+      && attr_s.attrs.update_window_dims == range(len(Dims))
+      && attr_s.attrs.inserted_window_dims == []
+      && attr_s.attrs.scatter_dims_to_operand_dims == []
+      && attr_s.attrs.input_batching_dims == []
+      && attr_s.attrs.scatter_indices_batching_dims == [] derive {
+    attr_body.attrs = { body: attr_s.attrs.body }
+  }
 }

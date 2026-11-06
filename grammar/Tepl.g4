@@ -10,9 +10,9 @@ program
     ;
 
 importDecl
-    : IMPORT STRING ';'
-    | FROM STRING IMPORT ID (AS ID)? ';'
-    | FROM STRING IMPORT '{' ruleImportNames '}' ';'
+    : IMPORT STRING
+    | FROM STRING IMPORT ID (AS ID)?
+    | FROM STRING IMPORT '{' ruleImportNames '}'
     ;
 
 ruleImportNames
@@ -20,7 +20,7 @@ ruleImportNames
     ;
 
 useDecl
-    : USE ID ('::' '{' opName (',' opName)* '}')? ';'
+    : USE ID ('::' '{' opName (',' opName)* '}')?
     ;
 
 // Shared operation names: used by imports, dialects, and rewrite rules
@@ -45,7 +45,7 @@ attrsDecl
     ;
 
 opDecl
-    : OP opName '(' operandDecls? ')' '->' ID (';' | '{' opProperties? '}')
+    : OP opName '(' operandDecls? ')' '->' ID ('{' opProperties? '}')?
     ;
 
 operandDecls
@@ -76,7 +76,7 @@ axesProperty
 axisStatement
     : shapeStatement
     | {getCurrentToken()->getText() == "bind"}? ID ID
-      ('{' axisBinding (',' axisBinding)* '}' | '=' shapeExpr) ';'
+      ('{' axisBinding (',' axisBinding)* '}' | '=' shapeExpr)
     ;
 
 axisBinding
@@ -110,12 +110,12 @@ shapeVariadicInput
     ;
 
 shapeStatement
-    : LET ID '=' shapeExpr ';'     # ShapeLetStatement
-    | ASSERT shapeExpr ';'         # ShapeAssertStatement
+    : LET ID '=' shapeExpr     # ShapeLetStatement
+    | ASSERT shapeExpr        # ShapeAssertStatement
     ;
 
 shapeYield
-    : YIELD shapeExpr ';'
+    : YIELD shapeExpr
     ;
 
 // Shape expressions contain metadata only; host calls and graph captures are
@@ -182,7 +182,7 @@ shapeArguments
 
 semanticsProperty
     : {getCurrentToken()->getText() == "semantics"}? ID
-      '{' YIELD semanticExpr ';' '}'
+      '{' YIELD semanticExpr '}'
     ;
 
 semanticExpr
@@ -197,16 +197,16 @@ semanticArguments
     ;
 
 aliasProperty
-    : ALIAS ':' ID ';'
+    : ALIAS ':' ID
     ;
 
 attrsProperty
-    : ATTRS ':' ID ';'                 # SharedAttrsProperty
+    : ATTRS ':' ID                    # SharedAttrsProperty
     | ATTRS '{' attrField* '}'         # InlineAttrsProperty
     ;
 
 attrField
-    : ID ':' attrType attrDefault? ';'
+    : ID ':' attrType attrDefault?
     ;
 
 attrType
@@ -221,17 +221,17 @@ attrDefault
 // graph/input remain contextual so existing operation identifiers still work.
 concreteGraphDecl
     : {getCurrentToken()->getText() == "graph"}? ID ID '{'
-      concreteInput* concreteLet* YIELD concreteExpr ';' '}'
+      concreteInput* concreteLet* YIELD concreteExpr '}'
     ;
 concreteInput
     : {getCurrentToken()->getText() == "input"}? ID ID
-      (':' (dtypeName concreteShape? | concreteShape))? ';'
+      (':' (dtypeName concreteShape? | concreteShape))?
     ;
 concreteShape
     : '[' (INT (',' INT)*)? ']'
     ;
 concreteLet
-    : LET ID '=' concreteExpr ';'
+    : LET ID '=' concreteExpr
     ;
 concreteExpr
     : ID
@@ -255,7 +255,7 @@ concreteValue
 ruleDecl
     : RULE ID rewriteBody
     | ABSTRACT RULE ID '(' ruleParameters? ')' rewriteBody
-    | RULE ID inheritanceClause (';' | inheritedBody)
+    | RULE ID inheritanceClause inheritedBody?
     ;
 
 rewriteBody
@@ -300,7 +300,7 @@ inheritedBody
 // Rule declarations: tensor shapes (including rank-zero tensors)
 
 dtypeDecl
-    : {getCurrentToken()->getText() == "dtype"}? ID ID ';'
+    : {getCurrentToken()->getText() == "dtype"}? ID ID
     ;
 
 shapeDecl
@@ -364,9 +364,13 @@ attribute
 
 
 // Rule semantics: legality conditions and derived metadata
+// A simple guard follows where directly. Blocks use local bindings and an
+// explicit yield, so expression boundaries do not depend on line breaks.
+// Statements throughout TEPL are keyword- or structure-delimited; no semicolons.
 
 whereBlock
-    : WHERE '{' whereStatement* constraintExpr '}'
+    : WHERE ({getCurrentToken()->getText() != "{"}? constraintExpr
+            | '{' whereStatement+ YIELD constraintExpr '}')
     ;
 
 deriveBlock
@@ -374,11 +378,11 @@ deriveBlock
     ;
 
 whereStatement
-    : LET ID '=' constraintExpr ';'
+    : LET ID '=' constraintExpr
     ;
 deriveStatement
-    : LET ID '=' constraintExpr ';'
-    | nodeAttrs '=' constraintExpr ';'
+    : LET ID '=' constraintExpr
+    | nodeAttrs '=' constraintExpr
     ;
 
 // Pure expressions shared by where and derive

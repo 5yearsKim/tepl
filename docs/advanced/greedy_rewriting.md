@@ -23,9 +23,9 @@ and preserves the shared input of an addition. The result is readable source:
 ```tepl
 // The exporter also emits the dialect import.
 graph example {
-    input X: f32[2, 3];
-    let shared = (d0.add X X);
-    yield shared;
+    input X: f32[2, 3]
+    let shared = (d0.add X X)
+    yield shared
 }
 ```
 

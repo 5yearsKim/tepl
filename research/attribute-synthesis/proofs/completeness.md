@@ -127,7 +127,7 @@ derive {
     out.attrs = {
         dimensions: auto,
         new_extents: source.attrs.new_extents
-    };
+    }
 }
 ```
 
@@ -703,9 +703,7 @@ restrictions that the compiler proves sufficient. For example:
 
 ~~~tepl
 (source: dot (inner: dot A B) C) => (dot A (dot B C))
-where {
-    source.attrs.lhs_batching_dimensions == inner.axes.B.positions
-}
+where source.attrs.lhs_batching_dimensions == inner.axes.B.positions
 ~~~
 
 This is a sufficient restriction, not a presentation of the complete feasibility

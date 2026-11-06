@@ -1,10 +1,15 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-slice-pad-cancel
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_slice_pad_cancel {
-    X: [Dims...]
-     (attr_s: hlo.slice (attr_p: hlo.nonnegative_pad X C)) => X
-     where { attr_s.attrs.starts==attr_p.attrs.low && attr_s.attrs.sizes==Dims && attr_s.attrs.strides==[v+1 for v in attr_p.attrs.interior] }
+  X: [Dims...]
+
+  (attr_s: hlo.slice (attr_p: hlo.nonnegative_pad X C)) => X
+
+  where
+    attr_s.attrs.starts == attr_p.attrs.low
+      && attr_s.attrs.sizes == Dims
+      && attr_s.attrs.strides == [v + 1 for v in attr_p.attrs.interior]
 }

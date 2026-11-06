@@ -93,12 +93,11 @@ def dot_source(size):
     lines = [f"rule {name} {{"]
     for leaf in leaves:
         lines.append(f"    {leaf.name}: f32[{capture_shape(leaf)}]")
-    lines += ["", "    " + expression(lhs), "    =>", "    " + expression(rhs, True), "    where {"]
+    lines += ["", "    " + expression(lhs), "    =>", "    " + expression(rhs, True), "    where"]
     conditions = positive_extents(n + 1)
     for node in internal(lhs):
         conditions += [f"{node.name}.attrs.{field} == {field_expression(field)}" for field in FIELDS]
     lines.append("        " + "\n        && ".join(conditions))
-    lines.append("    }")
     lines.append("}")
     return name, "\n".join(lines) + "\n"
 
@@ -139,4 +138,4 @@ def additive_source(terms, dots_per_term=2):
     name = f"terms_automatic_{terms}"
     return name, (f"rule {name} {{\n" + '\n'.join(captures) + '\n' +
                   balanced(left, 'add') + ' => ' + balanced(right, 'add') +
-                  '\nwhere {' + conjunction(conditions) + '}\n}\n')
+                  '\nwhere ' + conjunction(conditions) + '\n}\n')

@@ -1,11 +1,44 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: convolution-pointwise-dot
 // Scope: One-spatial-axis pointwise convolution in canonical layouts, no grouping or padding.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_convolution_pointwise_dot {
-    X: [N,L,C] W: [One,C,F]
-     (attr_c: hlo.general_convolution X W) => (attr_out: hlo.reshape (attr_d: hlo.dot (attr_x: hlo.reshape X) (attr_w: hlo.reshape W)))
-     where { One==1 && attr_c.attrs.feature_group_count==1 && attr_c.attrs.batch_group_count==1 && attr_c.attrs.input_batch_dimension==0 && attr_c.attrs.input_feature_dimension==2 && attr_c.attrs.input_spatial_dimensions==[1] && attr_c.attrs.kernel_input_feature_dimension==1 && attr_c.attrs.kernel_output_feature_dimension==2 && attr_c.attrs.kernel_spatial_dimensions==[0] && attr_c.attrs.output_batch_dimension==0 && attr_c.attrs.output_feature_dimension==2 && attr_c.attrs.output_spatial_dimensions==[1] && attr_c.attrs.window_strides==[1] && attr_c.attrs.lhs_dilation==[1] && attr_c.attrs.rhs_dilation==[1] && attr_c.attrs.padding_low==[0] && attr_c.attrs.padding_high==[0] && attr_c.attrs.window_reversal==[false] }
-     derive { attr_x.attrs={shape:[N*L,C]}; attr_w.attrs={shape:[C,F]}; attr_d.attrs={lhs_batching_dimensions:[],rhs_batching_dimensions:[],lhs_contracting_dimensions:[1],rhs_contracting_dimensions:[0]}; attr_out.attrs={shape:[N,L,F]}; }
+  X: [N, L, C]
+  W: [One, C, F]
+
+  (attr_c: hlo.general_convolution X W)
+  =>
+  (attr_out: hlo.reshape
+    (attr_d: hlo.dot (attr_x: hlo.reshape X) (attr_w: hlo.reshape W)))
+
+  where
+    One == 1
+      && attr_c.attrs.feature_group_count == 1
+      && attr_c.attrs.batch_group_count == 1
+      && attr_c.attrs.input_batch_dimension == 0
+      && attr_c.attrs.input_feature_dimension == 2
+      && attr_c.attrs.input_spatial_dimensions == [1]
+      && attr_c.attrs.kernel_input_feature_dimension == 1
+      && attr_c.attrs.kernel_output_feature_dimension == 2
+      && attr_c.attrs.kernel_spatial_dimensions == [0]
+      && attr_c.attrs.output_batch_dimension == 0
+      && attr_c.attrs.output_feature_dimension == 2
+      && attr_c.attrs.output_spatial_dimensions == [1]
+      && attr_c.attrs.window_strides == [1]
+      && attr_c.attrs.lhs_dilation == [1]
+      && attr_c.attrs.rhs_dilation == [1]
+      && attr_c.attrs.padding_low == [0]
+      && attr_c.attrs.padding_high == [0]
+      && attr_c.attrs.window_reversal == [false] derive {
+    attr_x.attrs = { shape: [N * L, C] }
+    attr_w.attrs = { shape: [C, F] }
+    attr_d.attrs = {
+      lhs_batching_dimensions: [],
+      rhs_batching_dimensions: [],
+      lhs_contracting_dimensions: [1],
+      rhs_contracting_dimensions: [0]
+    }
+    attr_out.attrs = { shape: [N, L, F] }
+  }
 }

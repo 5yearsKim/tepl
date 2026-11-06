@@ -1,14 +1,53 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-rotate-compose
 // Scope: Arbitrary-rank rotation over positive-extent selected axes; shifts combined modulo extent.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_rotate_compose {
-    X: [Dims...]
-     (attr_q: hlo.rotate (attr_p: hlo.rotate X)) => (attr_out: hlo.rotate X)
-     where { all([Dims[d]>0 for d in concat(attr_p.attrs.dimensions,attr_q.attrs.dimensions)]) }
-     derive {
-      let axes=exclude(range(len(Dims)),exclude(range(len(Dims)),concat(attr_p.attrs.dimensions,attr_q.attrs.dimensions)));
-      attr_out.attrs={dimensions:axes,shifts:[i64((sum([if attr_p.attrs.dimensions[i]==d then u64(attr_p.attrs.shifts[i]) else 0 for i in range(len(attr_p.attrs.dimensions))])+sum([if attr_q.attrs.dimensions[i]==d then u64(attr_q.attrs.shifts[i]) else 0 for i in range(len(attr_q.attrs.dimensions))])) % Dims[d]) for d in axes]};
-     }
+  X: [Dims...]
+
+  (attr_q: hlo.rotate (attr_p: hlo.rotate X)) => (attr_out: hlo.rotate X)
+
+  where
+    all(
+      [
+        Dims[d] > 0
+        for d in concat(attr_p.attrs.dimensions, attr_q.attrs.dimensions)
+      ]
+    ) derive {
+    let axes = exclude(
+      range(len(Dims)),
+      exclude(
+        range(len(Dims)),
+        concat(attr_p.attrs.dimensions, attr_q.attrs.dimensions)
+      )
+    )
+    attr_out.attrs = {
+      dimensions: axes,
+      shifts: [
+        i64(
+          (
+            sum(
+              [
+                if attr_p.attrs.dimensions[i] == d
+                  then u64(attr_p.attrs.shifts[i])
+                  else 0
+                for i in range(len(attr_p.attrs.dimensions))
+              ]
+            )
+              + sum(
+                [
+                  if attr_q.attrs.dimensions[i] == d
+                    then u64(attr_q.attrs.shifts[i])
+                    else 0
+                  for i in range(len(attr_q.attrs.dimensions))
+                ]
+              )
+          )
+            % Dims[d]
+        )
+        for d in axes
+      ]
+    }
+  }
 }

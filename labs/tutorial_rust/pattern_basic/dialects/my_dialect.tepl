@@ -1,9 +1,9 @@
 dialect MyDialect {
-    op add(lhs: tensor, rhs: tensor) -> tensor;
+  op add(lhs: tensor, rhs: tensor) -> tensor
 
-    op dot(lhs: tensor, rhs: tensor) -> tensor {
-        attrs {
-            axis: axis;
-        }
+  op dot(lhs: tensor, rhs: tensor) -> tensor {
+    attrs {
+      axis: axis
     }
+  }
 }

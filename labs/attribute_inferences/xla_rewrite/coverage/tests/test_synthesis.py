@@ -43,8 +43,8 @@ class SynthesisTest(unittest.TestCase):
         )
 
         def conditions(rule):
-            start = rule.values.index("where")
-            return rule.values[start : rule.closing(start + 1, "{", "}") + 1]
+            start, end = rule.condition_span()
+            return rule.source[start:end]
 
         self.assertEqual(conditions(before), conditions(after))
 
@@ -66,7 +66,7 @@ class SynthesisTest(unittest.TestCase):
         source = """rule r {
           (s: hlo.broadcast X) => (t: hlo.broadcast X)
           derive { t.attrs={dimensions:s.attrs.dimensions,
-                            new_extents:gather(s.attrs.new_extents,t.attrs.dimensions)}; }
+                            new_extents:gather(s.attrs.new_extents,t.attrs.dimensions)} }
         }"""
         with self.assertRaisesRegex(ValueError, "automatic RHS axis"):
             axis_fields.AxisTask(source).generate()
@@ -74,8 +74,8 @@ class SynthesisTest(unittest.TestCase):
     def test_supplied_helper_cannot_hide_rhs_axis_dependency(self):
         source = """rule r {
           (s: hlo.broadcast X) => (t: hlo.broadcast X)
-          derive { let e = gather(s.attrs.new_extents,t.attrs.dimensions);
-                   t.attrs={dimensions:s.attrs.dimensions,new_extents:e}; }
+          derive { let e = gather(s.attrs.new_extents,t.attrs.dimensions)
+                   t.attrs={dimensions:s.attrs.dimensions,new_extents:e} }
         }"""
         with self.assertRaisesRegex(ValueError, "automatic RHS axis"):
             axis_fields.AxisTask(source).generate()
@@ -104,7 +104,7 @@ class SynthesisTest(unittest.TestCase):
         self.assertNotIn("hlo.reduce_sum", source)
         self.assertEqual(len(task.targets), 1)
         view = (TEPL / "dialects/axis_views.tepl").read_text()
-        self.assertIn("dtype(t) { yield t; }", view)
+        self.assertIn('dtype(t) { yield t }', view)
         self.assertNotIn("is_numeric", view)
 
     def test_reshape_after_auto_dot_must_not_use_handwritten_shape(self):
@@ -115,7 +115,7 @@ class SynthesisTest(unittest.TestCase):
 
     def test_disjunction_or_negation_is_not_a_unit_view_premise(self):
         base = """rule r { X:[N]
-          (s: hlo.reshape X) => X where { CONDITION }
+          (s: hlo.reshape X) => X where CONDITION
         }"""
         for condition in ["s.attrs.shape==[1,N] || N==2", "!(s.attrs.shape==[1,N])"]:
             with self.subTest(condition=condition), self.assertRaises(ValueError):

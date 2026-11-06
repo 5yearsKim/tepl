@@ -1,12 +1,21 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: indexing-reshape-update
 // Scope: Insert a leading unit dimension into a rank-one dynamic update.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_reshape_update {
-    X: [N] Y: [M]
-     (attr_r: hlo.reshape (hlo.dynamic_update_slice X Y S))
-     => (hlo.dynamic_update_slice (hlo.reshape[attr_r.attrs] X) (attr_update: hlo.reshape Y) 0 S)
-     where { attr_r.attrs.shape==[1,N] }
-     derive { attr_update.attrs={shape:[1,M]}; }
+  X: [N]
+  Y: [M]
+
+  (attr_r: hlo.reshape (hlo.dynamic_update_slice X Y S))
+  =>
+  (hlo.dynamic_update_slice
+    (hlo.reshape[attr_r.attrs] X)
+    (attr_update: hlo.reshape Y)
+    0
+    S)
+
+  where attr_r.attrs.shape == [1, N] derive {
+    attr_update.attrs = { shape: [1, M] }
+  }
 }

@@ -34,7 +34,7 @@ diff -ru "$work_directory/expressions" "$work_directory/loaded"
 "$compiler" generate tests/codegen/rust/current.tepl --semantic-policy algebraic --target cpp --out "$work_directory/current" --check
 "$reference" "$work_directory/current.json" --cpp > "$work_directory/reference.cc"
 # Preserve arbitrary string bytes in both graph attributes and rule expressions.
-printf 'dialect N {attrs A {note:string;} op copy(x:tensor)->tensor {attrs:A;dtype(t){yield t;}shape(s){yield s;}}}\nrule identity {(node:N.copy X)=>X where {node.attrs.note=="a\000b"}}\ngraph g {input X:f32[2];yield (N.copy[note="a\000b"] X);}\n' > "$work_directory/strings.tepl"
+printf 'dialect N {attrs A {note:string } op copy(x:tensor)->tensor {attrs:A dtype(t){yield t }shape(s){yield s }}}\nrule identity {(node:N.copy X)=>X where node.attrs.note=="a\000b" }\ngraph g {input X:f32[2] yield (N.copy[note="a\000b"] X) }\n' > "$work_directory/strings.tepl"
 "$compiler" generate "$work_directory/strings.tepl" --target cpp --cpp-namespace strings --out "$work_directory/strings"
 "$compiler" generate tests/codegen/cpp/witnesses.tepl --target cpp --cpp-namespace witnesses --out "$work_directory/witnesses"
 "$compiler" generate examples/semantic --semantic-policy algebraic --target cpp --cpp-namespace semantic --out "$work_directory/semantic" --no-format

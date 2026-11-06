@@ -7,14 +7,14 @@
 namespace {
 const std::string dialect = R"(
 dialect D {
-  op input(x: tensor) -> tensor;
-  op graph(x: tensor) -> tensor;
-  op add(x: tensor, y: tensor) -> tensor;
+  op input(x: tensor) -> tensor
+  op graph(x: tensor) -> tensor
+  op add(x: tensor, y: tensor) -> tensor
   op config(x: tensor) -> tensor {
-    attrs { axis: u64; flags: bool[] = []; note: string?; }
+    attrs { axis: u64 flags: bool[] = [] note: string? }
   }
-  op many(x: tensor...) -> tensor;
-  op opaque() -> tensor { attrs { value: elements; } }
+  op many(x: tensor...) -> tensor
+  op opaque() -> tensor { attrs { value: elements } }
 }
 )";
 tepl::core::semantics::InspectionData check(const std::string& source) {
@@ -28,16 +28,16 @@ tepl::core::semantics::InspectionData check(const std::string& source) {
 int main() {
   const auto program = check(R"(
     graph example {
-      input X: f32[2, 3];
-      let N = (D.input X);
-      let same = N;
-      let unused = (D.config[axis = +001] N);
-      yield (D.add same (D.graph N));
+      input X: f32[2, 3]
+      let N = (D.input X)
+      let same = N
+      let unused = (D.config[axis = +001] N)
+      yield (D.add same (D.graph N))
     }
-    graph scalar { yield -128:i8; }
-    graph plain { input X; yield X; }
-    graph variadic { yield (D.many); }
-    graph partial { input X: [2]; input Y: f32; yield (D.add X Y); }
+    graph scalar { yield -128:i8 }
+    graph plain { input X yield X }
+    graph variadic { yield (D.many) }
+    graph partial { input X: [2] input Y: f32 yield (D.add X Y) }
   )");
   assert(program.graphs.size() == 5);
   const auto& graph = program.graphs.front();

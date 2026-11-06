@@ -1,11 +1,17 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: broadcast-dynamic-slice-broadcast
 // Scope: Rank-one base broadcast to rank two; two scalar dynamic start operands.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_dynamic_slice_broadcast {
-    X: [N]
-     (attr_s: hlo.dynamic_slice (attr_b: hlo.broadcast X) S0 S1) => (attr_out: hlo.broadcast (attr_inner: hlo.dynamic_slice X S0))
-     where { attr_b.attrs.dimensions == [0] && len(attr_s.attrs.sizes)==2 }
-     derive { attr_inner.attrs={sizes:[attr_s.attrs.sizes[0]]}; attr_out.attrs={dimensions:[0],new_extents:[attr_s.attrs.sizes[1]]}; }
+  X: [N]
+
+  (attr_s: hlo.dynamic_slice (attr_b: hlo.broadcast X) S0 S1)
+  =>
+  (attr_out: hlo.broadcast (attr_inner: hlo.dynamic_slice X S0))
+
+  where attr_b.attrs.dimensions == [0] && len(attr_s.attrs.sizes) == 2 derive {
+    attr_inner.attrs = { sizes: [attr_s.attrs.sizes[0]] }
+    attr_out.attrs = { dimensions: [0], new_extents: [attr_s.attrs.sizes[1]] }
+  }
 }

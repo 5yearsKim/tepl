@@ -19,9 +19,9 @@ tepl::executable::ExecutableProgram compile(const std::string& source) {
 }
 void equivalentInputs() {
   auto p = compile(R"(
-    dialect D {op copy(x:tensor)->tensor {dtype(t){yield t;}shape(s){yield s;}}}
-    rule copy {(D.copy X)=>X where {true || 1/0==0}}
-    graph g {input X:f32[2,3];yield (D.copy X);}
+    dialect D {op copy(x:tensor)->tensor {dtype(t){yield t }shape(s){yield s }}}
+    rule copy {(D.copy X)=>X where true || 1/0==0 }
+    graph g {input X:f32[2,3] yield (D.copy X) }
   )");
   auto a = tepl::codegen::generate(p);
   auto b = tepl::codegen::generate(
@@ -51,10 +51,10 @@ void equivalentInputs() {
 }
 void namingFailuresAreAtomic() {
   for (const auto& source :
-       {"dialect D {attrs Op {x: u64;}op copy(x:tensor)->tensor {attrs:Op;}}",
-        "dialect D {op self_(x:tensor)->tensor;}",
-        "dialect D {op foo_bar(x:tensor)->tensor;op "
-        "FooBar(x:tensor)->tensor;}"}) {
+       {"dialect D {attrs Op {x: u64 }op copy(x:tensor)->tensor {attrs:Op }}",
+        "dialect D {op self_(x:tensor)->tensor }",
+        "dialect D {op foo_bar(x:tensor)->tensor op "
+        "FooBar(x:tensor)->tensor }"}) {
     auto result = tepl::codegen::generate(compile(source));
     assert(!result.ok() && result.files.empty());
   }

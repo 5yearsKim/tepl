@@ -1,11 +1,19 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: indexing-pad-negative
 // Scope: Rank-one low crop -1 and high padding +2; signed pad metadata retained and crop bounds use nonnegative shape arithmetic.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_pad_negative {
-    X: [N]
-     (attr_p: hlo.pad X C) => (attr_crop: hlo.slice (attr_out: hlo.pad X C))
-     where { N>=1 && attr_p.attrs.low==[-1] && attr_p.attrs.high==[2] && attr_p.attrs.interior==[0] }
-     derive { attr_out.attrs={low:[0],high:[2],interior:[0]}; attr_crop.attrs={starts:[1],sizes:[N+1],strides:[1]}; }
+  X: [N]
+
+  (attr_p: hlo.pad X C) => (attr_crop: hlo.slice (attr_out: hlo.pad X C))
+
+  where
+    N >= 1
+      && attr_p.attrs.low == [-1]
+      && attr_p.attrs.high == [2]
+      && attr_p.attrs.interior == [0] derive {
+    attr_out.attrs = { low: [0], high: [2], interior: [0] }
+    attr_crop.attrs = { starts: [1], sizes: [N + 1], strides: [1] }
+  }
 }

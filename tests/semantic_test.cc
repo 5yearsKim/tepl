@@ -224,8 +224,7 @@ rule selected_shape_association {
   =>
 )";
   const std::string conditions = R"(
-  where {
-    Batch > 0 && M > 0 && K > 0 && L > 0 && N > 0
+  where Batch > 0 && M > 0 && K > 0 && L > 0 && N > 0
     && inner.attrs.lhs_contracting_dimensions == [2]
     && inner.attrs.rhs_contracting_dimensions == [1]
     && inner.attrs.lhs_batching_dimensions == [0]
@@ -234,7 +233,6 @@ rule selected_shape_association {
     && outer.attrs.rhs_contracting_dimensions == [1]
     && outer.attrs.lhs_batching_dimensions == [0]
     && outer.attrs.rhs_batching_dimensions == [0]
-  }
 )";
   const std::string constructor = R"({
     lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1],
@@ -242,7 +240,7 @@ rule selected_shape_association {
   })";
   const auto explicit_rule = prefix + "(r1: dot A (r2: dot B C))" + conditions +
                              "derive { r1.attrs = " + constructor +
-                             "; r2.attrs = " + constructor + "; }}";
+                             " r2.attrs = " + constructor + " }}";
   auto explicit_plan = symbolicPlan(explicit_rule);
   proved(explicit_plan);
   expect(
@@ -284,7 +282,7 @@ void dotChainAssociationTests() {
     for (int i = count - 1; i >= 1; --i)
       rhs = "(" + (automatic ? std::string{} : "r" + std::to_string(i) + ": ") +
             "dot A" + std::to_string(i) + " " + rhs + ")";
-    rule += lhs + " => " + rhs + " where { Batch > 0";
+    rule += lhs + " => " + rhs + " where Batch > 0";
     for (int i = 0; i <= count; ++i)
       rule += " && D" + std::to_string(i) + " > 0";
     for (int i = 2; i <= count; ++i) {
@@ -294,11 +292,10 @@ void dotChainAssociationTests() {
               ".lhs_batching_dimensions == [0] && " + d +
               ".rhs_batching_dimensions == [0]";
     }
-    rule += " }";
     if (!automatic) {
       rule += " derive {";
       for (int i = 1; i < count; ++i)
-        rule += " r" + std::to_string(i) + ".attrs = " + constructor + ";";
+        rule += " r" + std::to_string(i) + ".attrs = " + constructor + " ";
       rule += " }";
     }
     auto plan = symbolicPlan(rule + " }");
@@ -372,8 +369,8 @@ void symbolicTests() {
   for (const auto& [id, fields] : sum.proof.constructors)
     expect(fields[0]->kind == Symbol::Kind::Field && fields[0]->owner == 0,
            "symbolic reduction dimensions copied");
-  auto nonlinear = replace(dialect, "yield Reduce(K, input);",
-                           "yield Reduce(K, Product(input, input));");
+  auto nonlinear = replace(dialect, "yield Reduce(K, input)",
+                           "yield Reduce(K, Product(input, input))");
   expect(symbolicPlan("rule r {(d: reduce_sum (add A B)) => (add (reduce_sum "
                       "A) (reduce_sum B))}",
                       true, nonlinear)
@@ -410,12 +407,12 @@ void symbolicTests() {
          "copied-and-edited IR cannot spoof structural cache");
   auto unguardedExplicit = symbolicPlan(
       "rule r {(d: reduce_sum A) => (out: reduce_sum A) derive "
-      "{out.attrs={dimensions:[]};}}");
+      "{out.attrs={dimensions:[]} }}");
   expect(unguardedExplicit.proof.status == ProofStatus::Unknown,
          "unguarded explicit reduction rejected");
   auto explicit_reduction = symbolicPlan(
-      "rule r {(d: reduce_sum A) => (out: reduce_sum A) where { "
-      "d.attrs.dimensions == range(0) } derive {out.attrs={dimensions:[]};}}");
+      "rule r {(d: reduce_sum A) => (out: reduce_sum A) where "
+      "d.attrs.dimensions == range(0) derive {out.attrs={dimensions:[]} }}");
   proved(explicit_reduction);
   auto withoutCondition = explicit_reduction;
   withoutCondition.assumptions.clear();
@@ -428,9 +425,9 @@ void symbolicTests() {
               .proof.status == ProofStatus::Unknown,
       "unguarded reassociation rejected");
   auto association = symbolicPlan(
-      "rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C)) where { "
+      "rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C)) where "
       "d.attrs.lhs_batching_dimensions == inner.axes.B.positions && "
-      "d.attrs.lhs_contracting_dimensions == inner.axes.J.positions }}");
+      "d.attrs.lhs_contracting_dimensions == inner.axes.J.positions }");
   expect(association.proof.status == ProofStatus::Proved,
          "reassociation has a checked routing guard");
   Metadata matrix{{{2, 3}, {3, 4}, {4, 5}},
@@ -460,9 +457,9 @@ void symbolicTests() {
         dot(ma, dot(mb, mc, constructed.at(3)), constructed.at(2)));
   }
   auto reverse = symbolicPlan(
-      "rule r {(outer: dot A (inner: dot B C)) => (dot (dot A B) C) where { "
+      "rule r {(outer: dot A (inner: dot B C)) => (dot (dot A B) C) where "
       "outer.attrs.rhs_batching_dimensions == inner.axes.B.positions && "
-      "outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions }}");
+      "outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions }");
   expect(reverse.proof.status == ProofStatus::Proved,
          "reverse association supported with guard");
   tepl::test::ConstructorEvaluator reverseEval(matrix, reverse);
@@ -473,9 +470,9 @@ void symbolicTests() {
       dot(dot(aa, ab, reverseAttrs.at(3)), ac, reverseAttrs.at(2)));
   auto lora = symbolicPlan(
       "rule r {(outer: dot X (add W (inner: dot A B))) => (add (dot X W) (dot "
-      "(dot X A) B)) where { outer.attrs.rhs_batching_dimensions == "
+      "(dot X A) B)) where outer.attrs.rhs_batching_dimensions == "
       "inner.axes.B.positions && outer.attrs.rhs_contracting_dimensions == "
-      "inner.axes.I.positions }}");
+      "inner.axes.I.positions }");
   proved(lora);
   Metadata lm{{{2, 3}, {3, 4}, {3, 2}, {2, 4}},
               {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}};
@@ -491,9 +488,9 @@ void symbolicTests() {
   proved(trans);
   auto cycle = symbolicPlan(
       "rule r { A: [K, M, N] (d: dot A B) => (dot (cycle: transpose A) B) "
-      "where { d.attrs.lhs_batching_dimensions == range(0) && "
-      "d.attrs.lhs_contracting_dimensions == range(1) } derive "
-      "{cycle.attrs={permutation:[1,2,0]};}}");
+      "where d.attrs.lhs_batching_dimensions == range(0) && "
+      "d.attrs.lhs_contracting_dimensions == range(1) derive "
+      "{cycle.attrs={permutation:[1,2,0]} }}");
   proved(cycle);
   Metadata good{{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}};
   tepl::test::ConstructorEvaluator goodEval(good, cycle);
@@ -544,7 +541,7 @@ void symbolicTests() {
          "partial-group batch routing remains an explicit restriction");
 
   auto renamed = replace(dialect, "dot_general", "contract");
-  renamed = replace(renamed, "alias: dot;", "alias: arbitrary;");
+  renamed = replace(renamed, "alias: dot", "alias: arbitrary");
   renamed = replace(renamed, "lhs_contracting_dimensions", "left_axes");
   renamed = replace(renamed, "bind K", "bind Reduction");
   renamed = replace(renamed, "Reduce(K,", "Reduce(Reduction,");
@@ -554,29 +551,28 @@ void symbolicTests() {
   alternate = replace(alternate, "op dot_general(", "op dot_variant(");
   alternate = replace(alternate, "op add(", "op other_add(");
   alternate = replace(alternate, "op multiply(", "op other_multiply(");
-  alternate = replace(alternate, "alias: mul;", "alias: other_mul;");
-  alternate =
-      replace(alternate, "alias: broadcast;", "alias: other_broadcast;");
+  alternate = replace(alternate, "alias: mul", "alias: other_mul");
+  alternate = replace(alternate, "alias: broadcast", "alias: other_broadcast");
   alternate = replace(alternate, "op transpose(", "op other_transpose(");
   alternate = replace(alternate, "op reduce_sum(", "op other_sum(");
   alternate = replace(alternate, "op convolution(", "op other_convolution(");
-  alternate = replace(alternate, "alias: conv;", "alias: other_conv;");
+  alternate = replace(alternate, "alias: conv", "alias: other_conv");
   alternate = replace(alternate, "op slice(", "op other_slice(");
   for (const auto* name :
        {"negate", "subtract", "zero_like", "broadcast_in_dim", "reverse"})
     alternate = replace(alternate, std::string("op ") + name + "(",
                         std::string("op other_") + name + "(");
-  alternate = replace(alternate, "alias: dot;", "alias: other;");
+  alternate = replace(alternate, "alias: dot", "alias: other");
   alternate = replace(
       alternate,
-      "bind B { lhs: lb, rhs: rb };\n            bind K { lhs: lc, rhs: rc };",
-      "bind K { lhs: lc, rhs: rc };\n            bind B { lhs: lb, rhs: rb };");
+      "bind B { lhs: lb, rhs: rb }\n            bind K { lhs: lc, rhs: rc }",
+      "bind K { lhs: lc, rhs: rc }\n            bind B { lhs: lb, rhs: rb }");
   alternate = replace(alternate, "lhs_contracting_dimensions", "left_axes");
   proved(symbolicPlan("rule r {(d: dot A B) => (other A B)}", true,
                       dialect + alternate));
   auto declared = symbolicPlan(
-      "rule r { A: [N,M,K] (p: transpose A) => (transpose A) where { N > 0 && "
-      "M == K } }");
+      "rule r { A: [N,M,K] (p: transpose A) => (transpose A) where N > 0 && "
+      "M == K }");
   proved(declared);
   expect(
       declared.assumptions.size() >= 2 &&
@@ -585,25 +581,25 @@ void symbolicTests() {
       "tensor declarations and final where expression imported");
   auto copied = symbolicPlan(
       "rule r {(p: transpose X) => (copy: transpose X) derive {copy.attrs = { "
-      "..p.attrs };} }");
+      "..p.attrs } } }");
   proved(copied);
 
   proved(
       symbolicPlan("rule r {(outer: transpose (inner: transpose X)) => "
                    "(combined: transpose X) derive { let p = "
-                   "gather(inner.attrs.permutation, outer.attrs.permutation); "
-                   "combined.attrs = { ..outer.attrs, permutation: p }; }}"));
+                   "gather(inner.attrs.permutation, outer.attrs.permutation) "
+                   "combined.attrs = { ..outer.attrs, permutation: p } }}"));
   auto incorrect = symbolicPlan(
       "rule r {(p: transpose X) => (out: transpose X) derive { out.attrs = { "
-      "permutation: [0] }; }}");
+      "permutation: [0] } }}");
   expect(incorrect.proof.status == ProofStatus::Unknown,
          "typed constructors do not bypass semantic verification");
   const std::string restricted = R"(
     dialect Restricted {
       op sum(a:tensor, b:tensor)->tensor {
-        dtype(x,y) { assert x == y; assert is_float(x); yield x; }
-        axes {bind S {a:all_axes(a), b:all_axes(b)}; yield S;}
-        semantics {yield Add(a,b);}
+        dtype(x,y) { assert x == y assert is_float(x) yield x }
+        axes {bind S {a:all_axes(a), b:all_axes(b)} yield S }
+        semantics {yield Add(a,b) }
       }
     }
   )";
@@ -631,38 +627,38 @@ void explicitConditionTests() {
   const std::string association =
       "rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C))";
   rejected(association + "}", "cannot verify rule 'r'");
-  rejected(association + R"( where {
-    (d.attrs.lhs_batching_dimensions == inner.axes.B.positions
-     && d.attrs.lhs_contracting_dimensions == inner.axes.J.positions) || true
-  }})",
-           "cannot verify rule 'r'");
-  auto wrong = check(association + R"( where {
-    d.attrs.lhs_batching_dimensions == inner.axes.B.positions
-    && d.attrs.lhs_contracting_dimensions == inner.axes.I.positions
-  }})");
+  rejected(
+      association +
+          R"( where (d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+     && d.attrs.lhs_contracting_dimensions == inner.axes.J.positions) || true })",
+      "cannot verify rule 'r'");
+  auto wrong =
+      check(association +
+            R"( where d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+    && d.attrs.lhs_contracting_dimensions == inner.axes.I.positions })");
   expect(wrong.ok(), "whole lhs-free contraction also admits reassociation");
   rejected(association +
-               " where { d.attrs.lhs_contracting_dimensions == "
-               "inner.axes.K.positions }}",
+               " where d.attrs.lhs_contracting_dimensions == "
+               "inner.axes.K.positions }",
            "absent from the operation output");
   rejected(association +
-               " where { d.attrs.lhs_contracting_dimensions == "
-               "inner.axes.Missing.positions }}",
+               " where d.attrs.lhs_contracting_dimensions == "
+               "inner.axes.Missing.positions }",
            "unknown semantic axis group");
   rejected(
       "rule r {(p: transpose A) => (copy: transpose A) derive { copy.attrs = "
-      "p.axes.S.positions; }}",
+      "p.axes.S.positions }}",
       "where conditions");
-  expect(check("rule r {(p: transpose A) => (transpose A) where { all([true "
-               "for i in [0]]) }}")
+  expect(check("rule r {(p: transpose A) => (transpose A) where all([true "
+               "for i in [0]]) }")
              .ok(),
          "constant comprehension guard is understood by semantic checking");
   rejected(
-      "rule r {(d: dot A B) => (new: dot A B) where { "
-      "len(new.axes.B.positions) == 0 } derive { new.attrs = { ..d.attrs }; }}",
+      "rule r {(d: dot A B) => (new: dot A B) where "
+      "len(new.axes.B.positions) == 0 derive { new.attrs = { ..d.attrs } }}",
       "runtime feasibility queries are unsupported");
   expect(check("rule r {(d: dot (inner: dot[d.attrs] A B) C) => (dot[d.attrs] "
-               "(dot[d.attrs] A B) C) where { len(d.axes.B.positions) == 0 }}")
+               "(dot[d.attrs] A B) C) where len(d.axes.B.positions) == 0 }")
              .ok(),
          "group positions identify a node occurrence even when descriptors are "
          "shared");
@@ -670,17 +666,17 @@ void explicitConditionTests() {
   // Group names come from definitions, not a hard-coded B/I/J convention.
   auto renamed = replace(dialect, "bind J", "bind RightFree");
   renamed = replace(renamed, "B ++ I ++ J", "B ++ I ++ RightFree");
-  auto named = symbolicPlan(association + R"( where {
-    d.attrs.lhs_batching_dimensions == inner.axes.B.positions
-    && d.attrs.lhs_contracting_dimensions == inner.axes.RightFree.positions
-  }})",
-                            true, renamed);
+  auto named = symbolicPlan(
+      association +
+          R"( where d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+    && d.attrs.lhs_contracting_dimensions == inner.axes.RightFree.positions })",
+      true, renamed);
   proved(named);
 
   // The group follows its declared coordinate order through a permutation.
   auto permutation = symbolicPlan(
-      "rule r {(p: transpose A) => (transpose A) where { p.attrs.permutation "
-      "== p.axes.S.positions }}",
+      "rule r {(p: transpose A) => (transpose A) where p.attrs.permutation "
+      "== p.axes.S.positions }",
       false);
   proved(permutation);
   Metadata cycle{{{2, 3, 4}}, {{0, {{2, 0, 1}}}}};
@@ -695,7 +691,7 @@ void explicitConditionTests() {
 void partialAssociationTests() {
   const std::string rule = R"(rule r {
     (d: dot (inner: dot A B) C) => (dot A (dot B C))
-    where { d.attrs.lhs_batching_dimensions == inner.axes.B.positions }
+    where d.attrs.lhs_batching_dimensions == inner.axes.B.positions
   })";
   auto plan = symbolicPlan(rule);
   proved(plan);
@@ -747,7 +743,7 @@ void partialAssociationTests() {
   expect(verify(plan, wrongPairing).status == ProofStatus::Unknown,
          "independent verification rejects altered contraction pair ordering");
   auto definitions = replace(dialect, "dot_general", "contract");
-  definitions = replace(definitions, "alias: dot;", "alias: arbitrary;");
+  definitions = replace(definitions, "alias: dot", "alias: arbitrary");
   definitions = replace(definitions, "bind I", "bind LeftFree");
   definitions = replace(definitions, "B ++ I ++ J", "B ++ LeftFree ++ J");
   proved(symbolicPlan(replace(rule, "dot ", "arbitrary "), true, definitions));
@@ -882,9 +878,9 @@ void scalarTests() {
   auto restricted = dialect + R"(
     dialect Restricted {
       op only_float(x:tensor)->tensor {
-        dtype(t) { assert is_float(t); yield t; }
-        axes {bind S {x:all_axes(x)}; yield S;}
-        semantics {yield x;}
+        dtype(t) { assert is_float(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield x }
       }
     }
   )";
@@ -896,44 +892,44 @@ void scalarTests() {
   auto extra = dialect + R"(
     dialect Scalars {
       op twice(x:tensor)->tensor {
-        dtype(t) { assert is_numeric(t); yield t; }
-        axes { bind S {x:all_axes(x)}; yield S; }
-        semantics {yield Product(Const(+2),x);}
+        dtype(t) { assert is_numeric(t) yield t }
+        axes { bind S {x:all_axes(x)} yield S }
+        semantics {yield Product(Const(+2),x) }
       }
       op ones(x:tensor)->tensor {
-        dtype(t) { assert is_numeric(t); yield t; }
-        axes { bind S {x:all_axes(x)}; yield S; }
-        semantics {yield Const(1);}
+        dtype(t) { assert is_numeric(t) yield t }
+        axes { bind S {x:all_axes(x)} yield S }
+        semantics {yield Const(1) }
       }
       op sum_ones(x:tensor)->tensor {
-        dtype(t) { assert is_numeric(t); yield t; }
-        axes {bind K {x:all_axes(x)}; bind F {x:[]}; yield F;}
-        semantics {yield Reduce(K,Const(1));}
+        dtype(t) { assert is_numeric(t) yield t }
+        axes {bind K {x:all_axes(x)} bind F {x:[]} yield F }
+        semantics {yield Reduce(K,Const(1)) }
       }
       op scalar_one(x:tensor)->tensor {
-        dtype(t) { assert is_numeric(t); yield t; }
-        axes {bind K {x:all_axes(x)}; bind F {x:[]}; yield F;}
-        semantics {yield Const(1);}
+        dtype(t) { assert is_numeric(t) yield t }
+        axes {bind K {x:all_axes(x)} bind F {x:[]} yield F }
+        semantics {yield Const(1) }
       }
       op five(x:tensor)->tensor {
-        dtype(t) {assert is_numeric(t); yield t;}
-        axes {bind S {x:all_axes(x)}; yield S;}
-        semantics {yield Const(5);}
+        dtype(t) {assert is_numeric(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield Const(5) }
       }
       op sum_constants(x:tensor)->tensor {
-        dtype(t) {assert is_numeric(t); yield t;}
-        axes {bind S {x:all_axes(x)}; yield S;}
-        semantics {yield Add(Const(2),Const(3));}
+        dtype(t) {assert is_numeric(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield Add(Const(2),Const(3)) }
       }
       op min_constant(x:tensor)->tensor {
-        dtype(t) {assert is_numeric(t); yield t;}
-        axes {bind S {x:all_axes(x)}; yield S;}
-        semantics {yield Const(-9223372036854775808);}
+        dtype(t) {assert is_numeric(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield Const(-9223372036854775808) }
       }
       op huge(x:tensor)->tensor {
-        dtype(t) { assert is_numeric(t); yield t; }
-        axes {bind S {x:all_axes(x)}; yield S;}
-        semantics {yield Product(Const(9223372036854775807),x);}
+        dtype(t) { assert is_numeric(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield Product(Const(9223372036854775807),x) }
       }
     }
   )";
@@ -1069,21 +1065,21 @@ void broadcastTests() {
   // Extents are explicitly supplied. Only the axis mapping is synthesized.
   auto before = symbolicPlan(R"(
 rule r {(b:broadcast (p:transpose A)) => (out:broadcast A)
- derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents};}}
+ derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents} }}
 )",
                              false);
   proved(before);
   auto copied = symbolicPlan(R"(
 rule r {(b:broadcast A) => (out:broadcast A)
- derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents};}}
+ derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents} }}
 )");
   proved(copied);
   auto outer_product = symbolicPlan(R"(
 rule r {X:[M] Y:[N] (d:dot X Y) => (mul (l:broadcast X) (r:broadcast Y))
- where {d.attrs.lhs_contracting_dimensions==[] && d.attrs.rhs_contracting_dimensions==[]
-     && d.attrs.lhs_batching_dimensions==[] && d.attrs.rhs_batching_dimensions==[]}
- derive {l.attrs={dimensions:auto,new_extents:[N]};
-         r.attrs={dimensions:auto,new_extents:[M]};}}
+ where d.attrs.lhs_contracting_dimensions==[] && d.attrs.rhs_contracting_dimensions==[]
+     && d.attrs.lhs_batching_dimensions==[] && d.attrs.rhs_batching_dimensions==[]
+ derive {l.attrs={dimensions:auto,new_extents:[N]}
+         r.attrs={dimensions:auto,new_extents:[M]} }}
 )");
   proved(outer_product);
   for (int m : {0, 1, 2})
@@ -1122,8 +1118,8 @@ rule r {X:[M] Y:[N] (d:dot X Y) => (mul (l:broadcast X) (r:broadcast Y))
   expect(!missing.ok(),
          "missing non-axis fields are rejected before inference");
   error(
-      "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)}; bind "
-      "N=group(2); yield S++N;} semantics {yield x;}}}",
+      "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)} bind "
+      "N=group(2) yield S++N } semantics {yield x }}}",
       "incorrect axis expression type");
 }
 
@@ -1133,7 +1129,7 @@ void fixedAxisCompositionTests() {
     if (renamed) {
       definitions = replace(definitions, "op reduce_sum(", "op accumulate(");
       definitions = replace(definitions, "op transpose(", "op reorder(");
-      definitions = replace(definitions, "alias: dot;", "alias: pair;");
+      definitions = replace(definitions, "alias: dot", "alias: pair");
       definitions = replace(definitions, "dimensions", "slots");
       definitions = replace(definitions, "permutation", "order");
     }
@@ -1148,11 +1144,11 @@ void fixedAxisCompositionTests() {
       std::string prefix = "rule r { X: [N";
       for (int i = 1; i < rank; ++i) prefix += ",N";
       prefix += "] (o: " + sum + " (i: " + sum + " X)) => (t: " + sum +
-                " X) where {i.attrs." + dims + " == [" + std::to_string(inner) +
-                "] && o.attrs." + dims + " == [" + std::to_string(outer) + "]}";
+                " X) where i.attrs." + dims + " == [" + std::to_string(inner) +
+                "] && o.attrs." + dims + " == [" + std::to_string(outer) + "]";
       auto explicit_attrs = " derive {t.attrs={" + dims + ":[" +
                             std::to_string(inner) + "," +
-                            std::to_string(original_outer) + "]};}";
+                            std::to_string(original_outer) + "]} }";
       auto explicit_plan =
           symbolicPlan(prefix + explicit_attrs + "}", true, definitions);
       proved(explicit_plan);
@@ -1190,9 +1186,9 @@ void fixedAxisCompositionTests() {
     };
     auto prefix = "rule r { X:[K,M] Y:[M,K] (d: " + product + " (p: " + trans +
                   " X) (q: " + trans + " Y)) => ";
-    auto conditions = " where {p.attrs." + permutation +
+    auto conditions = " where p.attrs." + permutation +
                       " == [1,0] && q.attrs." + permutation + " == [1,0] && " +
-                      dot_fields("d") + "}}";
+                      dot_fields("d") + "}";
     auto explicit_plan =
         symbolicPlan(prefix + "(" + trans + "[p.attrs] (" + product +
                          "[d.attrs] Y X))" + conditions,
@@ -1305,7 +1301,7 @@ void axisAndMultiplyTests() {
              ProofStatus::Unknown,
          "multiplication commutativity requires algebraic policy");
   auto renamed = replace(dialect, "op multiply(", "op scalar_product(");
-  renamed = replace(renamed, "alias: mul;", "alias: times;");
+  renamed = replace(renamed, "alias: mul", "alias: times");
   proved(
       symbolicPlan("rule r {(times (add A B) C) => "
                    "(add (times A C) (times B C))}",
@@ -1457,7 +1453,7 @@ int main(int argc, char** argv) {
           transpose(input_tensor, composed.attributes.at(2)[0]));
     auto trans =
         run("rule r { (d: dot A B) => (dot (cycle: transpose A) B) derive "
-            "{cycle.attrs={permutation:[1,2,0]};} }",
+            "{cycle.attrs={permutation:[1,2,0]} } }",
             {{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}});
     found(trans);
     expect(trans.attributes.at(2) == std::vector<List>{{2}, {0}, {}, {}},
@@ -1467,7 +1463,7 @@ int main(int argc, char** argv) {
           dot(transpose(ta, trans.attributes.at(1)[0]), tb,
               trans.attributes.at(2)));
     expect(run("rule r { (d: dot A B) => (dot (cycle: transpose A) B) derive "
-               "{cycle.attrs={permutation:[1,2,0]};} }",
+               "{cycle.attrs={permutation:[1,2,0]} } }",
                {{{2, 4, 3}, {3, 5}}, {{0, {{2}, {0}, {}, {}}}}})
                    .status == Status::Unknown,
            "output-order obstruction is not a general impossibility claim");
@@ -1482,7 +1478,7 @@ int main(int argc, char** argv) {
                    .status == Status::IllegalMetadata,
            "bad source permutation");
     expect(run("rule r { (p: transpose A) => (out: transpose A) derive "
-               "{out.attrs={permutation:[0,0]};} }",
+               "{out.attrs={permutation:[0,0]} } }",
                {{{2, 3}}, {{0, {{1, 0}}}}})
                    .status == Status::Unknown,
            "illegal explicit permutation rejected");
@@ -1522,7 +1518,7 @@ int main(int argc, char** argv) {
            "strict policy does not silently apply algebraic laws");
 
     auto renamed = replace(dialect, "dot_general", "contract");
-    renamed = replace(renamed, "alias: dot;", "alias: arbitrary;");
+    renamed = replace(renamed, "alias: dot", "alias: arbitrary");
     renamed = replace(renamed, "lhs_contracting_dimensions", "left_axes");
     renamed = replace(renamed, "bind K", "bind Reduction");
     renamed = replace(renamed, "Reduce(K,", "Reduce(Reduction,");
@@ -1532,15 +1528,15 @@ int main(int argc, char** argv) {
             {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}}, {}, renamed));
     error(
         "dialect D { op f(x:tensor)->tensor { axes { bind S {missing: "
-        "all_axes(x)}; yield S; } semantics {yield x;} } }",
+        "all_axes(x)} yield S } semantics {yield x } } }",
         "unknown binding operand");
     error(
-        "dialect D { op f(x:tensor)->tensor { axes { let K=all_axes(x); bind S "
-        "{x:K}; yield S; } semantics {yield Reduce(K,x);} } }",
+        "dialect D { op f(x:tensor)->tensor { axes { let K=all_axes(x) bind S "
+        "{x:K} yield S } semantics {yield Reduce(K,x) } } }",
         "exported bind group");
     error(
-        "dialect D { op f(x:tensor)->tensor { axes {bind S {x:all_axes(x)}; "
-        "yield S;} semantics {yield Reduce(S,x);} } }",
+        "dialect D { op f(x:tensor)->tensor { axes {bind S {x:all_axes(x)} "
+        "yield S } semantics {yield Reduce(S,x) } } }",
         "exactly the free groups");
     auto checked = analyze(distribute);
     auto dump = tepl::core::formatProgram(*checked.program);

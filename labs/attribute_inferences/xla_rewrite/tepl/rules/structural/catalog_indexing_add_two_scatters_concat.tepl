@@ -1,12 +1,39 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: indexing-add-two-scatters-concat
 // Scope: Rank-one point-scatter operands with [count,1] indices and no batching.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_add_two_scatters_concat {
-    I: [N,One] J: [M,One] U: [N] V: [M]
-     (hlo.add (attr_a: hlo.scatter_add A I U) (attr_b: hlo.scatter_add B J V))
-     => (hlo.scatter_add[attr_a.attrs] (hlo.add A B) (attr_cat: hlo.concatenate I J) (hlo.concatenate[attr_cat.attrs] U V))
-     where { One==1 && attr_a.attrs.update_window_dims==[] && attr_b.attrs.update_window_dims==[] && attr_a.attrs.inserted_window_dims==[0] && attr_b.attrs.inserted_window_dims==[0] && attr_a.attrs.scatter_dims_to_operand_dims==[0] && attr_b.attrs.scatter_dims_to_operand_dims==[0] && attr_a.attrs.index_vector_dim==1 && attr_b.attrs.index_vector_dim==1 && attr_a.attrs.input_batching_dims==[] && attr_b.attrs.input_batching_dims==[] && attr_a.attrs.scatter_indices_batching_dims==[] && attr_b.attrs.scatter_indices_batching_dims==[] && !attr_a.attrs.indices_are_sorted && !attr_b.attrs.indices_are_sorted && !attr_a.attrs.unique_indices && !attr_b.attrs.unique_indices }
-     derive { attr_cat.attrs={dimension:0}; }
+  I: [N, One]
+  J: [M, One]
+  U: [N]
+  V: [M]
+
+  (hlo.add (attr_a: hlo.scatter_add A I U) (attr_b: hlo.scatter_add B J V))
+  =>
+  (hlo.scatter_add[attr_a.attrs]
+    (hlo.add A B)
+    (attr_cat: hlo.concatenate I J)
+    (hlo.concatenate[attr_cat.attrs] U V))
+
+  where
+    One == 1
+      && attr_a.attrs.update_window_dims == []
+      && attr_b.attrs.update_window_dims == []
+      && attr_a.attrs.inserted_window_dims == [0]
+      && attr_b.attrs.inserted_window_dims == [0]
+      && attr_a.attrs.scatter_dims_to_operand_dims == [0]
+      && attr_b.attrs.scatter_dims_to_operand_dims == [0]
+      && attr_a.attrs.index_vector_dim == 1
+      && attr_b.attrs.index_vector_dim == 1
+      && attr_a.attrs.input_batching_dims == []
+      && attr_b.attrs.input_batching_dims == []
+      && attr_a.attrs.scatter_indices_batching_dims == []
+      && attr_b.attrs.scatter_indices_batching_dims == []
+      && !attr_a.attrs.indices_are_sorted
+      && !attr_b.attrs.indices_are_sorted
+      && !attr_a.attrs.unique_indices
+      && !attr_b.attrs.unique_indices derive {
+    attr_cat.attrs = { dimension: 0 }
+  }
 }

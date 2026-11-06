@@ -1,10 +1,16 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-iota-trivial
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_iota_trivial {
-    (attr_i: hlo.iota) => (attr_z: hlo.fill)
-     where { attr_i.attrs.shape[attr_i.attrs.dimension]<=1 }
-     derive { attr_z.attrs={shape:attr_i.attrs.shape,value:0,element_type:attr_i.attrs.element_type}; }
+  (attr_i: hlo.iota) => (attr_z: hlo.fill)
+
+  where attr_i.attrs.shape[attr_i.attrs.dimension] <= 1 derive {
+    attr_z.attrs = {
+      shape: attr_i.attrs.shape,
+      value: 0,
+      element_type: attr_i.attrs.element_type
+    }
+  }
 }

@@ -54,7 +54,7 @@ Your application runs the optimizer and chooses the cost model.
 This rule moves negation through a transpose while keeping the permutation:
 
 ```javascript
-from "dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t
 
 rule transpose_negate {
     X: f32[Dims...]

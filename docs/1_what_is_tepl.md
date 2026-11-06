@@ -295,7 +295,7 @@ incompatible candidates early, and replacement checks reuse the same inference.
 The transpose-negate rule becomes a single TEPL declaration:
 
 ```javascript
-from "dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t
 
 rule transpose_negate {
     X: f32[Dims...]
@@ -329,13 +329,13 @@ numeric dtypes:
 dialect Elementwise {
     op add(lhs: tensor, rhs: tensor) -> tensor {
         dtype(a, b) {
-            assert a == b;
-            assert is_numeric(a);
-            yield a;
+            assert a == b
+            assert is_numeric(a)
+            yield a
         }
         shape(l, r) {
-            assert l == r;
-            yield l;
+            assert l == r
+            yield l
         }
     }
 }

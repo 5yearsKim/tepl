@@ -1,5 +1,18 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
+from "dialects/hlo_structural.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
 
-rule multiply_constants { (mul (mul X C1) C2) => (mul X (mul C1 C2)) }
+rule multiply_constants {
+  (mul (mul X C1) C2) => (mul X (mul C1 C2))
+}

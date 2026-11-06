@@ -1,11 +1,38 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: dot-empty
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_dot_empty {
-    dtype T; X: T[Left...] Y: T[Right...]
-     (attr_d: hlo.dot X Y) => (attr_z: hlo.fill)
-     where { product(Left)==0 || product(Right)==0 }
-     derive { let lf=exclude(range(len(Left)),concat(attr_d.attrs.lhs_batching_dimensions,attr_d.attrs.lhs_contracting_dimensions)); let rf=exclude(range(len(Right)),concat(attr_d.attrs.rhs_batching_dimensions,attr_d.attrs.rhs_contracting_dimensions)); attr_z.attrs={shape:concat(gather(Left,attr_d.attrs.lhs_batching_dimensions),gather(Left,lf),gather(Right,rf)),value:0,element_type:T}; }
+  dtype T
+  X: T[Left...]
+  Y: T[Right...]
+
+  (attr_d: hlo.dot X Y) => (attr_z: hlo.fill)
+
+  where product(Left) == 0 || product(Right) == 0 derive {
+    let lf = exclude(
+      range(len(Left)),
+      concat(
+        attr_d.attrs.lhs_batching_dimensions,
+        attr_d.attrs.lhs_contracting_dimensions
+      )
+    )
+    let rf = exclude(
+      range(len(Right)),
+      concat(
+        attr_d.attrs.rhs_batching_dimensions,
+        attr_d.attrs.rhs_contracting_dimensions
+      )
+    )
+    attr_z.attrs = {
+      shape: concat(
+        gather(Left, attr_d.attrs.lhs_batching_dimensions),
+        gather(Left, lf),
+        gather(Right, rf)
+      ),
+      value: 0,
+      element_type: T
+    }
+  }
 }

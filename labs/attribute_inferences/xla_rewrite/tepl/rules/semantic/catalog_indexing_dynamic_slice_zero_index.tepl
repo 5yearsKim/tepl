@@ -1,10 +1,16 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-dynamic-slice-zero-index
 // Scope: Rank-two dynamic slice; first size covers its entire operand axis.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_dynamic_slice_zero_index {
-    X: [N,M] S0: i32[] S1: i32[]
-     (attr_s: hlo.dynamic_slice X S0 S1) => (hlo.dynamic_slice[attr_s.attrs] X 0:i32 S1)
-     where { attr_s.attrs.sizes[0]==N }
+  X: [N, M]
+  S0: i32[]
+  S1: i32[]
+
+  (attr_s: hlo.dynamic_slice X S0 S1)
+  =>
+  (hlo.dynamic_slice[attr_s.attrs] X 0:i32 S1)
+
+  where attr_s.attrs.sizes[0] == N
 }

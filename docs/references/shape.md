@@ -24,9 +24,9 @@ This matrix multiplication example belongs inside a `dialect` declaration:
 ```javascript
 op matmul(lhs: tensor, rhs: tensor) -> tensor {
     shape(l, r) {
-        assert len(l) == 2 && len(r) == 2;
-        assert l[1] == r[0];
-        yield [l[0], r[1]];
+        assert len(l) == 2 && len(r) == 2
+        assert l[1] == r[0]
+        yield [l[0], r[1]]
     }
 }
 ```
@@ -47,12 +47,12 @@ A reshape operation can take its target shape from an attribute:
 ```javascript
 op reshape(input: tensor) -> tensor {
     attrs {
-        shape: extent[];
+        shape: extent[]
     }
     shape(s) {
-        let target = attrs.shape;
-        assert product(s) == product(target);
-        yield target;
+        let target = attrs.shape
+        assert product(s) == product(target)
+        yield target
     }
 }
 ```

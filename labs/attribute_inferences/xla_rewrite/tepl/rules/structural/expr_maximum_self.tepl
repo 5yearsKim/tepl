@@ -1,6 +1,6 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Expression check under the source conditions recorded in the catalog.
 rule expr_maximum_self {
-    (hlo.maximum X X) => X
+  (hlo.maximum X X) => X
 }

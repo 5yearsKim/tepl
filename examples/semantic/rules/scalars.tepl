@@ -1,34 +1,34 @@
-from "dialects/tensor.tepl" import TensorLang as t;
-use t::{add, mul, negate, subtract, zero_like, transpose, reduce_sum, dot};
+from "dialects/tensor.tepl" import TensorLang as t
+use t::{add, mul, negate, subtract, zero_like, transpose, reduce_sum, dot}
 
 rule negate_twice {
-    (negate (negate A)) => A
+  (negate (negate A)) => A
 }
 
 rule subtract_self {
-    (subtract A A) => (zero_like A)
+  (subtract A A) => (zero_like A)
 }
 
 rule subtract_negated {
-    (subtract A (negate B)) => (add A B)
+  (subtract A (negate B)) => (add A B)
 }
 
 rule zero_product {
-    (mul A (zero_like A)) => (zero_like A)
+  (mul A (zero_like A)) => (zero_like A)
 }
 
 rule combine_repeated_terms {
-    (add (mul A A) (mul A A)) => (mul (add A A) A)
+  (add (mul A A) (mul A A)) => (mul (add A A) A)
 }
 
 rule transpose_negate {
-    (p: transpose (negate A)) => (negate (transpose A))
+  (p: transpose (negate A)) => (negate (transpose A))
 }
 
 rule reduce_negate {
-    (r: reduce_sum (negate A)) => (negate (reduce_sum A))
+  (r: reduce_sum (negate A)) => (negate (reduce_sum A))
 }
 
 rule dot_negate {
-    (d: dot (negate A) B) => (negate (dot A B))
+  (d: dot (negate A) B) => (negate (dot A B))
 }

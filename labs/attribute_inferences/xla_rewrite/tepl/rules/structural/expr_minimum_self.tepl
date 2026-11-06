@@ -1,6 +1,6 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Expression check under the source conditions recorded in the catalog.
 rule expr_minimum_self {
-    (hlo.minimum X X) => X
+  (hlo.minimum X X) => X
 }

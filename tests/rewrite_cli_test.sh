@@ -18,7 +18,7 @@ grep -Fq "Successfully applied rule 'compose_transposes'." "$work/loaded.log"
 grep -Fq "Successfully applied rule 'remove_identity'." "$work/loaded.log"
 grep -Fq "Rewrite completed. Result saved to $work/loaded.tepl." "$work/loaded.log"
 grep -q 'Rewrites: 2; stop: fixed_point' "$work/loaded.log"
-grep -q 'let shared = (d0.add X X);' "$work/loaded.tepl"
+grep -q 'let shared = (d0.add X X)' "$work/loaded.tepl"
 "$tepl" check "$work/loaded.tepl" > "$work/checked.txt"
 set +e
 "$tepl" rewrite "$work/program.json" --max-steps 0 -o "$work/limited.tepl" 2> "$work/limited.log"

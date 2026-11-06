@@ -87,7 +87,7 @@ semantic-policy = "strict"
 The starter rule uses a project-root import:
 
 ```tepl
-from "dialects/your_dialect.tepl" import YourDialect as d;
+from "dialects/your_dialect.tepl" import YourDialect as d
 ```
 
 The destination can be new or an existing directory. `tepl init .` initializes
@@ -137,7 +137,7 @@ For example, `examples/semantic/tepl.toml` lets
 `examples/semantic/rules/basic.tepl` use this import from any nesting depth:
 
 ```tepl
-from "dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t
 ```
 
 An empty `tepl.toml` is a valid root marker. The optional `tepl-version` field

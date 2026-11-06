@@ -1,11 +1,17 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: reduction-reshape-reduced
 // Scope: Sum over a merged pair of reduced axes; rank-three input.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_reshape_reduced {
-    X: [A,B,C]
-     (attr_r: hlo.reduce_sum (attr_s: hlo.reshape X)) => (attr_out: hlo.reduce_sum X)
-     where { attr_s.attrs.shape==[A*B,C] && attr_r.attrs.dimensions==[0] }
-     derive { attr_out.attrs={dimensions:[0,1]}; }
+  X: [A, B, C]
+
+  (attr_r: hlo.reduce_sum (attr_s: hlo.reshape X))
+  =>
+  (attr_out: hlo.reduce_sum X)
+
+  where
+    attr_s.attrs.shape == [A * B, C] && attr_r.attrs.dimensions == [0] derive {
+    attr_out.attrs = { dimensions: [0, 1] }
+  }
 }

@@ -1,6 +1,8 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Expression check under the source conditions recorded in the catalog.
 rule expr_divide_one {
-    X: [] (hlo.divide X 1) => X
+  X: []
+
+  (hlo.divide X 1) => X
 }

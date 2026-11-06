@@ -1,36 +1,32 @@
-from "rules/abstract.tepl" import {commute, associate_right, distribute_left};
-from "dialects/tensor.tepl" import TensorLang as t;
+from "rules/abstract.tepl" import {commute, associate_right, distribute_left}
+from "dialects/tensor.tepl" import TensorLang as t
 
 // These instances assume swapping operands is valid in the target semantics.
-rule commute_add extends commute(F = t.add);
+rule commute_add extends commute(F = t.add)
 
-rule commute_mul extends commute(F = t.multiply);
+rule commute_mul extends commute(F = t.multiply)
 
 // A concrete rule can add restrictions while inheriting the graph pattern.
 // X and Y refer to the variables declared by the abstract pattern.
 rule commute_small_vectors extends commute(F = t.add) {
-    X: [N]
-    Y: [N]
-    where {
-        N <= 1024
-    }
+  X: [N]
+  Y: [N]
+  where N <= 1024
 }
 
 // These instances assume reassociation is valid in the target semantics.
-rule associate_add_right extends associate_right(F = t.add);
+rule associate_add_right extends associate_right(F = t.add)
 
-rule associate_mul_right extends associate_right(F = t.multiply);
+rule associate_mul_right extends associate_right(F = t.multiply)
 
 // A concrete instance can restrict the shapes of the inherited pattern.
 rule associate_small_vectors extends associate_right(F = t.add) {
-    X: [N]
-    Y: [N]
-    Z: [N]
-    where {
-        N <= 1024
-    }
+  X: [N]
+  Y: [N]
+  Z: [N]
+  where N <= 1024
 }
 
 // This instance assumes distribution is valid in the target semantics.
 rule distribute_mul_over_add extends distribute_left(product = t.multiply,
-sum = t.add);
+sum = t.add)

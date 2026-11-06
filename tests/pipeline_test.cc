@@ -53,15 +53,15 @@ struct MemoryLoader : SourceLoader {
 const std::string dialect = R"(
 dialect D {
  op transpose(x:tensor)->tensor {
-   attrs { permutation:axis[]; }
-   dtype(t) { yield t; }
+   attrs { permutation:axis[] }
+   dtype(t) { yield t }
    axes {
-     bind S { x:all_axes(x) };
-     assert is_valid_axis_list(attrs.permutation,rank(x));
-     assert len(attrs.permutation)==rank(x);
-     yield permute(S,attrs.permutation);
+     bind S { x:all_axes(x) }
+     assert is_valid_axis_list(attrs.permutation,rank(x))
+     assert len(attrs.permutation)==rank(x)
+     yield permute(S,attrs.permutation)
    }
-   semantics { yield x; }
+   semantics { yield x }
  }
 }
 )";
@@ -69,10 +69,10 @@ int main() {
   MemoryLoader loader;
   loader.files["/virtual/dialect.tepl"] = dialect;
   const SourceFile source{"/virtual/main.tepl", R"(
- from "dialect.tepl" import D as d;
- use d::{transpose};
+ from "dialect.tepl" import D as d
+ use d::{transpose}
  rule compose { (transpose (transpose X)) => (transpose X) }
- graph g { input X:f32[2,3,4]; yield (transpose[permutation=[2,0,1]] (transpose[permutation=[1,2,0]] X)); }
+ graph g { input X:f32[2,3,4] yield (transpose[permutation=[2,0,1]] (transpose[permutation=[1,2,0]] X)) }
  )"};
   auto parsed = parse(source);
   assert(parsed.ok() && parsed.program->dialects.empty());
@@ -125,8 +125,8 @@ int main() {
   MemoryLoader project_loader;
   project_loader.files = loader.files;
   const SourceFile second{"/virtual/second.tepl", R"(
-    from "dialect.tepl" import D as a;
-    from "dialect.tepl" import D as b;
+    from "dialect.tepl" import D as a
+    from "dialect.tepl" import D as b
     rule identity { X => X }
   )"};
   auto project =
@@ -150,13 +150,13 @@ int main() {
   // Output groups become runtime instructions during the single completion
   // pass.
   const SourceFile groups{"/virtual/groups.tepl", R"(
-    from "dialect.tepl" import D as d;
+    from "dialect.tepl" import D as d
     rule compose {
       (p: d.transpose (q: d.transpose X)) => (d.transpose X)
-      where { p.axes.S.positions == q.axes.S.positions && len(p.axes.S.positions) == len(q.axes.S.positions) }
+      where p.axes.S.positions == q.axes.S.positions && len(p.axes.S.positions) == len(q.axes.S.positions)
     }
-    graph g { input X:f32[2,3,4]; yield (d.transpose[permutation=[2,0,1]] (d.transpose[permutation=[1,2,0]] X)); }
-    graph identity { input X:f32[2,3,4]; yield (d.transpose[permutation=[0,1,2]] (d.transpose[permutation=[0,1,2]] X)); }
+    graph g { input X:f32[2,3,4] yield (d.transpose[permutation=[2,0,1]] (d.transpose[permutation=[1,2,0]] X)) }
+    graph identity { input X:f32[2,3,4] yield (d.transpose[permutation=[0,1,2]] (d.transpose[permutation=[0,1,2]] X)) }
   )"};
   auto group_program = compile(CompileRequest{groups, {}}, loader);
   assert(group_program.ok());
@@ -178,7 +178,7 @@ int main() {
 
   // Type checking succeeds independently of semantic equivalence.
   auto bad = parse(SourceFile{"/virtual/bad.tepl", R"(
- from "dialect.tepl" import D as d;
+ from "dialect.tepl" import D as d
  rule invalid { (d.transpose X) => X }
  )"});
   auto bad_loaded = loadImports(*bad.program, loader);

@@ -1,11 +1,33 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: dot-move-zero-pad
 // Scope: Rank-two dot; nonnegative padding only on its left contraction axis.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_dot_move_zero_pad {
-    X: f32[M,K] Y: f32[P,N]
-     (attr_d: hlo.dot (attr_p: hlo.nonnegative_pad X 0.0:f32) Y) => (hlo.dot[attr_d.attrs] X (attr_s: hlo.slice Y))
-     where { u64(attr_p.attrs.low[0])==0 && u64(attr_p.attrs.high[0])==0 && u64(attr_p.attrs.interior[0])==0 && P==u64(attr_p.attrs.low[1])+K+max(K-1,0)*u64(attr_p.attrs.interior[1])+u64(attr_p.attrs.high[1]) && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
-     derive { attr_s.attrs={starts:[attr_p.attrs.low[1],0],sizes:[K,N],strides:[attr_p.attrs.interior[1]+1,1]}; }
+  X: f32[M, K]
+  Y: f32[P, N]
+
+  (attr_d: hlo.dot (attr_p: hlo.nonnegative_pad X 0.0:f32) Y)
+  =>
+  (hlo.dot[attr_d.attrs] X (attr_s: hlo.slice Y))
+
+  where
+    u64(attr_p.attrs.low[0]) == 0
+      && u64(attr_p.attrs.high[0]) == 0
+      && u64(attr_p.attrs.interior[0]) == 0
+      && P
+        == u64(attr_p.attrs.low[1])
+          + K
+          + max(K - 1, 0) * u64(attr_p.attrs.interior[1])
+          + u64(attr_p.attrs.high[1])
+      && attr_d.attrs.lhs_batching_dimensions == []
+      && attr_d.attrs.rhs_batching_dimensions == []
+      && attr_d.attrs.lhs_contracting_dimensions == [1]
+      && attr_d.attrs.rhs_contracting_dimensions == [0] derive {
+    attr_s.attrs = {
+      starts: [attr_p.attrs.low[1], 0],
+      sizes: [K, N],
+      strides: [attr_p.attrs.interior[1] + 1, 1]
+    }
+  }
 }

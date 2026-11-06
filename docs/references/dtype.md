@@ -19,9 +19,9 @@ A comparison can require equal numeric inputs and produce Boolean elements:
 ```javascript
 op equal(lhs: tensor, rhs: tensor) -> tensor {
     dtype(a, b) {
-        assert a == b;
-        assert is_numeric(a);
-        yield bool;
+        assert a == b
+        assert is_numeric(a)
+        yield bool
     }
 }
 ```
@@ -48,7 +48,7 @@ A zero-operand operation can fix its result with:
 
 ```javascript
 dtype() {
-    yield f32;
+    yield f32
 }
 ```
 
@@ -62,15 +62,15 @@ A `dtype` attribute can choose an operation's output element type:
 ```javascript
 op convert(input: tensor) -> tensor {
     attrs {
-        to: dtype;
+        to: dtype
     }
     dtype(src) {
-        assert is_numeric(src);
-        assert is_numeric(attrs.to);
-        yield attrs.to;
+        assert is_numeric(src)
+        assert is_numeric(attrs.to)
+        yield attrs.to
     }
     shape(s) {
-        yield s;
+        yield s
     }
 }
 ```
@@ -91,15 +91,13 @@ above, assuming its dialect is imported as `d`:
 
 ```javascript
 rule remove_identity_convert {
-    dtype T;
+    dtype T
     X: T[...]
 
     (c: d.convert X) => X
 
-    where {
-        is_numeric(T)
+    where is_numeric(T)
         && c.attrs.to == T
-    }
 }
 ```
 

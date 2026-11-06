@@ -40,9 +40,9 @@ void rejects(const std::string& text, const std::string& reason) {
   expect(found, "expected diagnostic: " + reason);
 }
 const std::string graph = R"(
-graph g { input A:f32[2,2];
- let x=(transpose[permutation=[1,0]] A);
- yield (transpose[permutation=[1,0]] x); }
+graph g { input A:f32[2,2]
+ let x=(transpose[permutation=[1,0]] A)
+ yield (transpose[permutation=[1,0]] x) }
 )";
 void inferenceAndDerivation() {
   auto inferred = compile(R"(
@@ -64,8 +64,8 @@ rule composition {
 rule composition {
  (outer: transpose (inner: transpose A)) => (result: transpose A)
  derive {
-   let p = gather(inner.attrs.permutation, outer.attrs.permutation);
-   result.attrs = { ..outer.attrs, permutation: p };
+   let p = gather(inner.attrs.permutation, outer.attrs.permutation)
+   result.attrs = { ..outer.attrs, permutation: p }
  }
 }
 )" + graph);
@@ -91,7 +91,7 @@ void symbolicGroups() {
 rule no_attributes {
  A:[Dims...]
  (source: add A B) => (add A B)
- where {source.axes.S.positions == range(len(Dims))}
+ where source.axes.S.positions == range(len(Dims))
 }
 )");
 
@@ -99,9 +99,9 @@ rule no_attributes {
 rule keep {
  (source: dot A B) => (result: dot A B)
  where {
-   let a = A.axes.order;
-   let b = B.axes.order;
-   source.axes.B.positions == [0,1]
+   let a = A.axes.order
+   let b = B.axes.order
+   yield source.axes.B.positions == [0,1]
    && source.axes.B.order == gather(a, [1,0])
    && source.axes.B.order == gather(b, [0,1])
    && source.axes.I.order == gather(a, [2])
@@ -110,8 +110,8 @@ rule keep {
  }
 }
 graph g {
- input A:f32[2,3,4,5]; input B:f32[3,2,5,6];
- yield (dot[lhs_batching_dimensions=[1,0],rhs_batching_dimensions=[0,1],lhs_contracting_dimensions=[3],rhs_contracting_dimensions=[2]] A B);
+ input A:f32[2,3,4,5] input B:f32[3,2,5,6]
+ yield (dot[lhs_batching_dimensions=[1,0],rhs_batching_dimensions=[0,1],lhs_contracting_dimensions=[3],rhs_contracting_dimensions=[2]] A B)
 }
 )");
   auto loaded = executable::load(executable::serialize(program));
@@ -141,21 +141,21 @@ graph g {
          "distinct correct meanings");
 
   rejects(
-      "rule r {(d: dot A B)=>(dot A B) where {d.axes.B.members == "
-      "d.axes.B.order}}",
+      "rule r {(d: dot A B)=>(dot A B) where d.axes.B.members == "
+      "d.axes.B.order }",
       "type mismatch");
   rejects(
-      "rule r {(d: dot A B)=>(dot A B) where {d.axes.Missing.members == "
-      "d.axes.B.members}}",
+      "rule r {(d: dot A B)=>(dot A B) where d.axes.Missing.members == "
+      "d.axes.B.members }",
       "unknown semantic axis group");
-  rejects("rule r {(d: dot A B)=>(dot A B) where {d.axes.K.positions == []}}",
+  rejects("rule r {(d: dot A B)=>(dot A B) where d.axes.K.positions == [] }",
           "absent");
 }
 void dependenciesAndErrors() {
   compile(R"(
 rule shared {
  (outer: transpose (inner: transpose[outer.attrs] A)) => (transpose A)
- where { outer.axes.S.positions == inner.axes.S.positions }
+ where outer.axes.S.positions == inner.axes.S.positions
 }
 )");
 
@@ -164,27 +164,27 @@ rule shared {
   rejects("rule r {(A: transpose A) => A}", "conflicts");
   rejects(
       "rule r {(source: transpose A)=>(target: transpose A) derive "
-      "{source.attrs=target.attrs;}}",
+      "{source.attrs=target.attrs }}",
       "read-only");
   rejects(
       "rule r {(source: transpose A)=>(target: transpose A) derive "
-      "{missing.attrs=source.attrs;}}",
+      "{missing.attrs=source.attrs }}",
       "unknown RHS node");
   rejects(
       "rule r {(source: transpose A)=>(target: transpose[source.attrs] A) "
-      "derive {target.attrs=source.attrs;}}",
+      "derive {target.attrs=source.attrs }}",
       "competing attribute");
   rejects(
       "rule r {(source: transpose A)=>(target: transpose A) where "
-      "{target.attrs.permutation == []}}",
+      "target.attrs.permutation == [] }",
       "unavailable before construction");
   rejects(
       "rule r {(source: transpose A)=>(target: transpose A) where "
-      "{target.axes.S.order == A.axes.order}}",
+      "target.axes.S.order == A.axes.order }",
       "unavailable before construction");
   rejects(
       "rule r {(source: transpose A)=>(target: transpose A) derive "
-      "{target.attrs=target.attrs;}}",
+      "{target.attrs=target.attrs }}",
       "forward reference or cycle");
 }
 

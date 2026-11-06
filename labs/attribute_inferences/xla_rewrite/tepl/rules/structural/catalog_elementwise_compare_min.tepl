@@ -1,9 +1,10 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: elementwise-compare-min
 // Scope: Written operand/opcode variant under the catalog conditions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_compare_min {
-    (attr_c: hlo.compare A (hlo.minimum A B)) => (hlo.compare[attr_c.attrs] A B)
-     where { attr_c.attrs.direction == 3 }
+  (attr_c: hlo.compare A (hlo.minimum A B)) => (hlo.compare[attr_c.attrs] A B)
+
+  where attr_c.attrs.direction == 3
 }

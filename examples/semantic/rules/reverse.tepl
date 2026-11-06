@@ -1,28 +1,30 @@
-from "dialects/tensor.tepl" import TensorLang as t;
-use t::{reverse, add, mul, broadcast};
+from "dialects/tensor.tepl" import TensorLang as t
+use t::{reverse, add, mul, broadcast}
 
 rule reverse_twice {
-    (outer: reverse (inner: reverse A)) => A
-    where { outer.attrs.dimensions == inner.attrs.dimensions }
+  (outer: reverse (inner: reverse A)) => A
+
+  where outer.attrs.dimensions == inner.attrs.dimensions
 }
 
 rule reverse_empty_axes {
-    (r: reverse A) => A
-    where { r.attrs.dimensions == [] }
+  (r: reverse A) => A
+
+  where r.attrs.dimensions == []
 }
 
 rule reverse_add {
-    (r: reverse (add A B)) => (add (reverse[r.attrs] A) (reverse[r.attrs] B))
+  (r: reverse (add A B)) => (add (reverse[r.attrs] A) (reverse[r.attrs] B))
 }
 
 rule reverse_multiply {
-    (r: reverse (mul A B)) => (mul (reverse[r.attrs] A) (reverse[r.attrs] B))
+  (r: reverse (mul A B)) => (mul (reverse[r.attrs] A) (reverse[r.attrs] B))
 }
 
 rule reverse_scalar_broadcast {
-    (r: reverse (b: broadcast C)) => (broadcast[b.attrs] C)
-    where { b.attrs.dimensions == [] }
-}
+  (r: reverse (b: broadcast C)) => (broadcast[b.attrs] C)
 
+  where b.attrs.dimensions == []
+}
 // Applying reverse_add or reverse_multiply followed by
 // reverse_scalar_broadcast leaves a broadcast scalar unchanged.

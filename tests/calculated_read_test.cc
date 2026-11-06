@@ -16,92 +16,92 @@ using namespace tepl::test;
 const std::string dialect = R"(
 dialect D {
   op slice(input: tensor) -> tensor {
-    attrs { starts: coordinate[]; sizes: extent[]; strides: coordinate[]; }
-    dtype(t) { yield t; }
-    axes { bind O = group(attrs.sizes); yield O; }
+    attrs { starts: coordinate[] sizes: extent[] strides: coordinate[] }
+    dtype(t) { yield t }
+    axes { bind O = group(attrs.sizes) yield O }
     semantics {
       yield Read(input, IndexOffset(attrs.starts,
-        IndexScale(attrs.strides, Coords(O))));
+        IndexScale(attrs.strides, Coords(O))))
     }
   }
   op computed(input: tensor) -> tensor {
     attrs {
-      starts: coordinate[]; extra: coordinate[]; sizes: extent[];
-      strides: coordinate[]; factors: coordinate[];
+      starts: coordinate[] extra: coordinate[] sizes: extent[]
+      strides: coordinate[] factors: coordinate[]
     }
-    dtype(t) { yield t; }
+    dtype(t) { yield t }
     axes {
-      assert is_valid_extents(attrs.starts);
-      assert is_valid_extents(attrs.extra);
-      assert is_positive_extents(attrs.strides);
-      assert is_positive_extents(attrs.factors);
-      bind O = group(attrs.sizes); yield O;
+      assert is_valid_extents(attrs.starts)
+      assert is_valid_extents(attrs.extra)
+      assert is_positive_extents(attrs.strides)
+      assert is_positive_extents(attrs.factors)
+      bind O = group(attrs.sizes) yield O
     }
     semantics {
       yield Read(input, IndexOffset(extent_add(attrs.starts, attrs.extra),
-        IndexScale(extent_mul(attrs.strides, attrs.factors), Coords(O))));
+        IndexScale(extent_mul(attrs.strides, attrs.factors), Coords(O))))
     }
   }
   op expanded(input: tensor) -> tensor {
     attrs {
-      starts: coordinate[]; extra: coordinate[]; sizes: extent[];
-      strides: coordinate[]; factors: coordinate[];
+      starts: coordinate[] extra: coordinate[] sizes: extent[]
+      strides: coordinate[] factors: coordinate[]
     }
-    dtype(t) { yield t; }
-    axes { bind O = group(attrs.sizes); yield O; }
+    dtype(t) { yield t }
+    axes { bind O = group(attrs.sizes) yield O }
     semantics {
       yield Read(input, IndexOffset(attrs.starts, IndexOffset(attrs.extra,
-        IndexScale(attrs.strides, IndexScale(attrs.factors, Coords(O))))));
+        IndexScale(attrs.strides, IndexScale(attrs.factors, Coords(O))))))
     }
   }
   op selected(input: tensor) -> tensor {
     attrs {
-      starts: coordinate[]; sizes: extent[]; strides: coordinate[]; positions: axis[];
+      starts: coordinate[] sizes: extent[] strides: coordinate[] positions: axis[]
     }
-    dtype(t) { yield t; }
-    axes { bind O = group(attrs.sizes); yield O; }
+    dtype(t) { yield t }
+    axes { bind O = group(attrs.sizes) yield O }
     semantics {
       yield Read(input, IndexSelect(
         IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O))),
-        attrs.positions));
+        attrs.positions))
     }
   }
   op distributed(input: tensor) -> tensor {
     attrs {
-      starts: coordinate[]; sizes: extent[]; strides: coordinate[]; positions: axis[];
+      starts: coordinate[] sizes: extent[] strides: coordinate[] positions: axis[]
     }
-    dtype(t) { yield t; }
-    axes { bind O = group(attrs.sizes); yield O; }
+    dtype(t) { yield t }
+    axes { bind O = group(attrs.sizes) yield O }
     semantics {
       yield Read(input, IndexOffset(gather(attrs.starts, attrs.positions),
         IndexScale(gather(attrs.strides, attrs.positions),
-          IndexSelect(Coords(O), attrs.positions))));
+          IndexSelect(Coords(O), attrs.positions))))
     }
   }
   op nested(input: tensor) -> tensor {
     attrs {
-      starts: coordinate[]; sizes: extent[]; strides: coordinate[];
-      first: u64[]; second: u64[];
+      starts: coordinate[] sizes: extent[] strides: coordinate[]
+      first: u64[] second: u64[]
     }
-    dtype(t) { yield t; }
-    axes { bind O = group(attrs.sizes); yield O; }
+    dtype(t) { yield t }
+    axes { bind O = group(attrs.sizes) yield O }
     semantics {
       yield Read(input, IndexSelect(IndexSelect(
         IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O))),
-        attrs.first), attrs.second));
+        attrs.first), attrs.second))
     }
   }
   op flattened(input: tensor) -> tensor {
     attrs {
-      starts: coordinate[]; sizes: extent[]; strides: coordinate[];
-      first: u64[]; second: u64[];
+      starts: coordinate[] sizes: extent[] strides: coordinate[]
+      first: u64[] second: u64[]
     }
-    dtype(t) { yield t; }
-    axes { bind O = group(attrs.sizes); yield O; }
+    dtype(t) { yield t }
+    axes { bind O = group(attrs.sizes) yield O }
     semantics {
       yield Read(input, IndexSelect(
         IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O))),
-        gather(attrs.first, attrs.second)));
+        gather(attrs.first, attrs.second)))
     }
   }
 }
@@ -202,11 +202,11 @@ Dense reference(const Dense& input, const List& sizes, const List& starts,
 std::string withRead(const std::string& access) {
   return R"(dialect D {
     op f(input: tensor) -> tensor {
-      attrs { sizes: extent[]; positions: axis[]; }
-      dtype(t) { yield t; }
-      axes { let local = attrs.sizes; bind O = group(attrs.sizes); yield O; }
+      attrs { sizes: extent[] positions: axis[] }
+      dtype(t) { yield t }
+      axes { let local = attrs.sizes bind O = group(attrs.sizes) yield O }
       semantics { yield Read(input, )" +
-         access + "); } } }";
+         access + ") } } }";
 }
 void invalid(const std::string& access, const std::string& message) {
   auto checked = analyze(withRead(access));
@@ -222,13 +222,13 @@ int main() {
     auto computed = plan(
         "rule r { (c: computed A) => (e: expanded A) derive { e.attrs = { "
         "starts: c.attrs.starts, extra: c.attrs.extra, sizes: c.attrs.sizes, "
-        "strides: c.attrs.strides, factors: c.attrs.factors }; } }");
+        "strides: c.attrs.strides, factors: c.attrs.factors } } }");
     expect(!analyze(dialect, "rule r {(c: computed A)=>(slice A)}").ok(),
            "coordinate inference is legacy; non-axis fields must be supplied");
     auto selected = plan(
         "rule r { (s: selected A) => (d: distributed A) derive { d.attrs = { "
         "starts: s.attrs.starts, sizes: s.attrs.sizes, strides: "
-        "s.attrs.strides, positions: s.attrs.positions }; } }");
+        "s.attrs.strides, positions: s.attrs.positions } } }");
     auto selection_without_metadata =
         analyze(dialect, "rule r { (s: selected A) => (distributed A) }");
     expect(!selection_without_metadata.ok(),
@@ -237,7 +237,7 @@ int main() {
     auto nested = plan(
         "rule r { (s: nested A) => (f: flattened A) derive { f.attrs = { "
         "starts: s.attrs.starts, sizes: s.attrs.sizes, strides: "
-        "s.attrs.strides, first: s.attrs.first, second: s.attrs.second }; } }");
+        "s.attrs.strides, first: s.attrs.first, second: s.attrs.second } } }");
     auto identity = plan("rule r { (s: selected A) => (selected[s.attrs] A) }");
     auto computed_identity =
         plan("rule r { (s: computed A) => (computed[s.attrs] A) }");

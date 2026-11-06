@@ -1,16 +1,45 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: reduction-window-empty
 // Scope: Single-output reduction window with nonnegative edge padding and empty input.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_window_empty {
-    X: [Dims...] Init: []
-     (attr_w: hlo.reduce_window X Init) => (attr_b: hlo.broadcast Init)
-     where { product(Dims)==0 }
-     derive {
-         let input = [if Dims[i]==0 then 0 else 1+(Dims[i]-1)*u64(attr_w.attrs.base_dilations[i]) for i in range(len(Dims))];
-         let window = [(attr_w.attrs.window_dimensions[i]-1)*u64(attr_w.attrs.window_dilations[i])+1 for i in range(len(Dims))];
-         let padded = [u64(attr_w.attrs.padding_low[i])+input[i]+u64(attr_w.attrs.padding_high[i]) for i in range(len(Dims))];
-         attr_b.attrs={dimensions:[],new_extents:[if padded[i]<window[i] then 0 else floor_div(padded[i]-window[i],u64(attr_w.attrs.window_strides[i]))+1 for i in range(len(Dims))]};
-     }
+  X: [Dims...]
+  Init: []
+
+  (attr_w: hlo.reduce_window X Init) => (attr_b: hlo.broadcast Init)
+
+  where product(Dims) == 0 derive {
+    let input = [
+      if Dims[i] == 0
+        then 0
+        else 1 + (Dims[i] - 1) * u64(attr_w.attrs.base_dilations[i])
+      for i in range(len(Dims))
+    ]
+    let window = [
+      (attr_w.attrs.window_dimensions[i] - 1)
+        * u64(attr_w.attrs.window_dilations[i])
+        + 1
+      for i in range(len(Dims))
+    ]
+    let padded = [
+      u64(attr_w.attrs.padding_low[i])
+        + input[i]
+        + u64(attr_w.attrs.padding_high[i])
+      for i in range(len(Dims))
+    ]
+    attr_b.attrs = {
+      dimensions: [],
+      new_extents: [
+        if padded[i] < window[i]
+          then 0
+          else floor_div(
+            padded[i] - window[i],
+            u64(attr_w.attrs.window_strides[i])
+          )
+            + 1
+        for i in range(len(Dims))
+      ]
+    }
+  }
 }

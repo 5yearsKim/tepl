@@ -1,11 +1,36 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-update-compose
 // Scope: Rank-one scalar i64 starts; explicit independently clamped composition.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_update_compose {
-    X: [N] Y: [M] S: i64[] T: i64[]
-     (hlo.dynamic_update_slice X (hlo.dynamic_update_slice (attr_s: hlo.dynamic_slice X S) Y T) S)
-     => (hlo.dynamic_update_slice X Y (hlo.add (hlo.clamp 0:i64 S (attr_first: hlo.scalar)) (hlo.clamp 0:i64 T (attr_second: hlo.scalar))))
-     derive { attr_first.attrs={value:N-attr_s.attrs.sizes[0],element_type:i64,shape:[]}; attr_second.attrs={value:attr_s.attrs.sizes[0]-M,element_type:i64,shape:[]}; }
+  X: [N]
+  Y: [M]
+  S: i64[]
+  T: i64[]
+
+  (hlo.dynamic_update_slice
+    X
+    (hlo.dynamic_update_slice (attr_s: hlo.dynamic_slice X S) Y T)
+    S)
+  =>
+  (hlo.dynamic_update_slice
+    X
+    Y
+    (hlo.add
+      (hlo.clamp 0:i64 S (attr_first: hlo.scalar))
+      (hlo.clamp 0:i64 T (attr_second: hlo.scalar))))
+
+  derive {
+    attr_first.attrs = {
+      value: N - attr_s.attrs.sizes[0],
+      element_type: i64,
+      shape: []
+    }
+    attr_second.attrs = {
+      value: attr_s.attrs.sizes[0] - M,
+      element_type: i64,
+      shape: []
+    }
+  }
 }

@@ -32,7 +32,7 @@ The [attribute examples](../examples/sample/rules/attributes.tepl) combine
 patterns, builtins, and explicit attribute construction:
 
 ```tepl
-from "dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t
 
 rule compose_transposes {
     (outer: t.transpose (inner: t.transpose X))
@@ -41,7 +41,7 @@ rule compose_transposes {
         combined.attrs = {
             ..outer.attrs,
             permutation: gather(inner.attrs.permutation, outer.attrs.permutation)
-        };
+        }
     }
 }
 ```
@@ -88,11 +88,9 @@ and `W`. Descriptors contain operation attributes, not output tensor metadata.
 replacement operations.
 
 ```javascript
-where {
-    K % 128 == 0
-}
+where K % 128 == 0
 derive {
-    xa.attrs = { ..outer.attrs };
+    xa.attrs = { ..outer.attrs }
 }
 ```
 
@@ -108,10 +106,10 @@ language syntax.
 
 ```javascript
 dialect TensorLang {
-    op add(lhs: tensor, rhs: tensor) -> tensor;
-    op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul; }
+    op add(lhs: tensor, rhs: tensor) -> tensor
+    op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul }
     op concatenate(first: tensor, second: tensor, rest: tensor...) -> tensor {
-        attrs { axis: axis; }
+        attrs { axis: axis }
     }
 }
 ```
@@ -126,12 +124,12 @@ abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
 }
 
 // Requires host semantics in which swapping add operands is valid.
-rule commute_add extends commute(F = t.add);
+rule commute_add extends commute(F = t.add)
 
 rule commute_small_vectors extends commute(F = t.add) {
     X: [N]
     Y: [N]
-    where { N <= 1024 }
+    where N <= 1024
 }
 ```
 

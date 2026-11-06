@@ -1,9 +1,18 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: reduction-window-scalar
 // Scope: Rank-zero zero-initialized sum window.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_window_scalar {
-    X: f32[] (attr_w: hlo.reduce_window_sum X 0.0:f32) => X
-     where { attr_w.attrs.window_dimensions==[] && attr_w.attrs.window_strides==[] && attr_w.attrs.base_dilations==[] && attr_w.attrs.window_dilations==[] && attr_w.attrs.padding_low==[] && attr_w.attrs.padding_high==[] }
+  X: f32[]
+
+  (attr_w: hlo.reduce_window_sum X 0.0:f32) => X
+
+  where
+    attr_w.attrs.window_dimensions == []
+      && attr_w.attrs.window_strides == []
+      && attr_w.attrs.base_dilations == []
+      && attr_w.attrs.window_dilations == []
+      && attr_w.attrs.padding_low == []
+      && attr_w.attrs.padding_high == []
 }

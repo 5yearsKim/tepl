@@ -1,11 +1,14 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: transpose-reshape-transpose-unit-dims
 // Scope: Rank-two input with one unit axis.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_transpose_reshape_transpose_unit_dims {
-    X: [A,N]
-     (attr_p: hlo.transpose X) => (attr_r: hlo.reshape X)
-     where { A==1 && attr_p.attrs.permutation==[1,0] }
-     derive { attr_r.attrs={shape:[N,1]}; }
+  X: [A, N]
+
+  (attr_p: hlo.transpose X) => (attr_r: hlo.reshape X)
+
+  where A == 1 && attr_p.attrs.permutation == [1, 0] derive {
+    attr_r.attrs = { shape: [N, 1] }
+  }
 }

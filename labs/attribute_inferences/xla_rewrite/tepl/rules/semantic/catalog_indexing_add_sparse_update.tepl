@@ -1,11 +1,17 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-add-sparse-update
 // Scope: Rank-one update/slice with a scalar start.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_add_sparse_update {
-    X: [N] Y: [M]
-     (hlo.add X (hlo.dynamic_update_slice (hlo.zero_like X) Y S))
-     => (hlo.dynamic_update_slice X (hlo.add (attr_slice: hlo.dynamic_slice X S) Y) S)
-     derive { attr_slice.attrs={sizes:[M]}; }
+  X: [N]
+  Y: [M]
+
+  (hlo.add X (hlo.dynamic_update_slice (hlo.zero_like X) Y S))
+  =>
+  (hlo.dynamic_update_slice X (hlo.add (attr_slice: hlo.dynamic_slice X S) Y) S)
+
+  derive {
+    attr_slice.attrs = { sizes: [M] }
+  }
 }

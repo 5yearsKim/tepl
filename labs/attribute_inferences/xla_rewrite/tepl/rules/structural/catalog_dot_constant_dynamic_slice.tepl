@@ -1,11 +1,24 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: dot-constant-dynamic-slice
 // Scope: Rank-two dot with one selected left free-axis element. Captured C/D may be constants; the identity also holds for nonconstants.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_dot_constant_dynamic_slice {
-    C: [M,K] D: [K,N] S0: i32[] S1: i32[]
-     (attr_d: hlo.dot (attr_s: hlo.dynamic_slice C S0 S1) D) => (attr_out: hlo.dynamic_slice (hlo.dot[attr_d.attrs] C D) S0 0:i32)
-     where { attr_s.attrs.sizes==[1,K] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
-     derive { attr_out.attrs={sizes:[1,N]}; }
+  C: [M, K]
+  D: [K, N]
+  S0: i32[]
+  S1: i32[]
+
+  (attr_d: hlo.dot (attr_s: hlo.dynamic_slice C S0 S1) D)
+  =>
+  (attr_out: hlo.dynamic_slice (hlo.dot[attr_d.attrs] C D) S0 0:i32)
+
+  where
+    attr_s.attrs.sizes == [1, K]
+      && attr_d.attrs.lhs_batching_dimensions == []
+      && attr_d.attrs.rhs_batching_dimensions == []
+      && attr_d.attrs.lhs_contracting_dimensions == [1]
+      && attr_d.attrs.rhs_contracting_dimensions == [0] derive {
+    attr_out.attrs = { sizes: [1, N] }
+  }
 }

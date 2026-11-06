@@ -162,7 +162,7 @@ def validate(catalog, assessment, manifest, measured):
             "expression cases must supply attributes explicitly",
         )
         require(
-            'from "dialects/hlo_structural.tepl" import HLO as hlo;'
+            'from "dialects/hlo_structural.tepl" import HLO as hlo'
             in (HERE / case["file"]).read_text(),
             "expression cases must use the local structural HLO profile",
         )

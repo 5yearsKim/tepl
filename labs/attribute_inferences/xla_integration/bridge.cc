@@ -1,4 +1,4 @@
-#include "labs/xla_integration/bridge.h"
+#include "labs/attribute_inferences/xla_integration/bridge.h"
 
 #include <algorithm>
 #include <array>

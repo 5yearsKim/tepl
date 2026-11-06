@@ -710,7 +710,7 @@ void summations() {
          "duplicate reduction dimensions are illegal source metadata");
   auto identity = parse(
       "rule r {A: [M,N] (s: reduce_sum A) => (reduce_sum A) where "
-      "{s.attrs.dimensions == range(0)}}");
+      "s.attrs.dimensions == range(0) }");
   auto identity_recipe = tepl::core::attr_synth::synthesize(
       identity, tepl::core::attr_synth::Strategy::Ordered);
   auto identity_proof = verify(identity, identity_recipe.candidate);
@@ -729,7 +729,7 @@ void summations() {
 void guardIndependentFeasibility() {
   auto p = parse(
       "rule r {A: [M,N] (s: reduce_sum A) => (transpose A) where "
-      "{s.attrs.dimensions == range(0)}}");
+      "s.attrs.dimensions == range(0) }");
   auto generated = tepl::core::attr_synth::synthesize(
       p, tepl::core::attr_synth::Strategy::Ordered);
   expect(generated.constructed, "guard-independent feasibility compiles");
@@ -803,7 +803,8 @@ void sharedIRPairedReindexing() {
   expect(replacement.status == Status::Analyzed &&
              replacement.source.classes == native.source.classes &&
              replacement.source.output == native.source.output,
-         "paired reindexing preserves connections and ordered output on anisotropic axes");
+         "paired reindexing preserves connections and ordered output on "
+         "anisotropic axes");
 }
 
 void exhaustiveSummations() {
@@ -1064,13 +1065,11 @@ void compilerIntegration() {
 rule sum_rows {
   A: [M,K] B: [K,N]
   (d: dot (s: reduce_sum A) B) => (reduce_sum (dot A B))
-  where {
-    s.attrs.dimensions == [0]
+  where s.attrs.dimensions == [0]
     && d.attrs.lhs_contracting_dimensions == [0]
     && d.attrs.rhs_contracting_dimensions == [0]
     && d.attrs.lhs_batching_dimensions == range(0)
     && d.attrs.rhs_batching_dimensions == range(0)
-  }
 })");
   auto generated_sum = tepl::core::attr_synth::synthesize(
       sum_rule, tepl::core::attr_synth::Strategy::Ordered);
@@ -1112,13 +1111,11 @@ rule internal_order {
   A: [M,N] B: [K]
   (p: transpose (d: dot A B))
   => (dot (transpose A) B)
-  where {
-    d.attrs.lhs_contracting_dimensions == range(0)
+  where d.attrs.lhs_contracting_dimensions == range(0)
     && d.attrs.rhs_contracting_dimensions == range(0)
     && d.attrs.lhs_batching_dimensions == range(0)
     && d.attrs.rhs_batching_dimensions == range(0)
     && p.attrs.permutation == [1,0,2]
-  }
 })");
   expect(p.proof.status == ProofStatus::Proved,
          "internal transpose order verifies under original conditions: " +
@@ -1162,7 +1159,9 @@ int main(int argc, char** argv) {
     additiveComponents();
     totalEmission();
     compilerIntegration();
-    std::cout << emission_checks << " emitted programs checked against concrete construction and independent replay\n";
+    std::cout << emission_checks
+              << " emitted programs checked against concrete construction and "
+                 "independent replay\n";
   } catch (const std::exception& e) {
     std::cerr << e.what() << '\n';
     return 1;

@@ -35,8 +35,8 @@ trap 'rm -rf "$temporary_directory"' EXIT
 # valid rules in the same file must still be independently checkable.
 dialect_absolute="$(realpath "$(dirname "$rules")/../dialects/tensor.tepl")"
 cat > "$temporary_directory/unguarded.tepl" <<EOF
-from "$dialect_absolute" import TensorLang as t;
-use t::{dot, add};
+from "$dialect_absolute" import TensorLang as t
+use t::{dot, add}
 rule bad { (d: dot (inner: dot A B) C) => (dot A (dot B C)) }
 rule good { (d: dot (add A B) C) => (add (dot A C) (dot B C)) }
 EOF
@@ -52,8 +52,8 @@ failure="$(cat "$temporary_directory/error")"
 # A strict imported dialect project must not replace this project's policy.
 mkdir -p "$temporary_directory/policy/rules"
 cat > "$temporary_directory/policy/rules/distribute.tepl" <<EOF
-from "$dialect_absolute" import TensorLang as t;
-use t::{dot, add};
+from "$dialect_absolute" import TensorLang as t
+use t::{dot, add}
 rule distribute { (dot (add A B) C) => (add (dot A C) (dot B C)) }
 EOF
 cat > "$temporary_directory/policy/tepl.toml" <<'TOML'
@@ -84,12 +84,12 @@ done
 
 # Semantics must have an axis interface; auto cannot fall back to search.
 cat > "$temporary_directory/no_axes.tepl" <<'TEPL'
-dialect D { op identity(x:tensor)->tensor { semantics {yield x;} } }
+dialect D { op identity(x:tensor)->tensor { semantics {yield x } } }
 TEPL
 if "$compiler" check "$temporary_directory/no_axes.tepl" > "$temporary_directory/error" 2>&1; then exit 1; fi
 grep -Fq 'semantics requires an axes block' "$temporary_directory/error"
 cat > "$temporary_directory/no_semantics.tepl" <<'TEPL'
-dialect D { op identity(x:tensor)->tensor { attrs {p:axis[];} } }
+dialect D { op identity(x:tensor)->tensor { attrs {p:axis[] } } }
 rule unsupported { (p: identity X) => (identity X) }
 TEPL
 if "$compiler" check "$temporary_directory/no_semantics.tepl" > "$temporary_directory/error" 2>&1; then exit 1; fi

@@ -10,7 +10,7 @@ checks the function name, argument count, argument types, and expression context
 
 | Context | Inputs and purpose |
 | --- | --- |
-| Rule `where` | Check a matched candidate using captured dimensions, dtype bindings, descriptor fields, and local values. The final expression must return `bool`. |
+| Rule `where` | Check a matched candidate with `where condition`, or `where { let name = expression yield condition }` for local values. The condition must return `bool`. |
 | Rule `derive` | Calculate replacement attribute descriptors using constructors and builtins. Each assignment must produce a descriptor. |
 | Operation `shape` | Compute an output shape from operand shape lists and operation attributes. A variadic parameter receives a list of shapes. |
 | Operation `dtype` | Compute an output dtype from operand dtype values and operation attributes. A variadic parameter receives a list of dtypes. |
@@ -278,16 +278,14 @@ types through matched tensor declarations. Assuming `t.negate` is imported:
 
 ```javascript
 rule cancel_negate_small {
-    dtype T;
+    dtype T
     X: T[Dims...]
 
     (t.negate (t.negate X)) => X
 
-    where {
-        is_numeric(T)
+    where is_numeric(T)
         && len(Dims) <= 4
         && product(Dims) <= 4096
-    }
 }
 ```
 
@@ -297,7 +295,7 @@ constructs descriptors with schema-checked field expressions:
 
 ```tepl
 derive {
-    result.attrs = { ..source.attrs, permutation: gather(source.attrs.permutation, axes) };
+    result.attrs = { ..source.attrs, permutation: gather(source.attrs.permutation, axes) }
 }
 ```
 
@@ -311,9 +309,9 @@ Shape parameters are operand shape lists. Inside an operation with a required
 
 ```javascript
 shape(s) {
-    assert is_valid_axis_list(attrs.permutation, len(s));
-    assert len(attrs.permutation) == len(s);
-    yield gather(s, attrs.permutation);
+    assert is_valid_axis_list(attrs.permutation, len(s))
+    assert len(attrs.permutation) == len(s)
+    yield gather(s, attrs.permutation)
 }
 ```
 
@@ -328,10 +326,10 @@ A variadic operand's dtype parameter is a list of dtype values:
 
 ```javascript
 dtype(inputs...) {
-    assert len(inputs) > 0;
-    assert all([is_numeric(t) for t in inputs]);
-    assert all([t == inputs[0] for t in inputs]);
-    yield inputs[0];
+    assert len(inputs) > 0
+    assert all([is_numeric(t) for t in inputs])
+    assert all([t == inputs[0] for t in inputs])
+    yield inputs[0]
 }
 ```
 

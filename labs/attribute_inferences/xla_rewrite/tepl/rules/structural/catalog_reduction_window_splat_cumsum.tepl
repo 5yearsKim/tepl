@@ -1,12 +1,30 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: reduction-window-splat-cumsum
 // Scope: Rank-one cumulative sum of a scalar f32 broadcast; scalar constant can be a capture.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_window_splat_cumsum {
-    C: f32[]
-     (attr_w: hlo.reduce_window_sum (attr_b: hlo.broadcast C) 0.0:f32)
-     => (hlo.multiply (hlo.broadcast[attr_b.attrs] C) (hlo.add (attr_i: hlo.iota) (hlo.broadcast[attr_b.attrs] 1.0:f32)))
-     where { attr_b.attrs.dimensions==[] && len(attr_b.attrs.new_extents)==1 && attr_w.attrs.window_dimensions==attr_b.attrs.new_extents && attr_w.attrs.window_strides==[1] && attr_w.attrs.base_dilations==[1] && attr_w.attrs.window_dilations==[1] && attr_w.attrs.padding_low==[i64(attr_b.attrs.new_extents[0]-1)] && attr_w.attrs.padding_high==[0] }
-     derive { attr_i.attrs={shape:attr_b.attrs.new_extents,dimension:0,element_type:f32}; }
+  C: f32[]
+
+  (attr_w: hlo.reduce_window_sum (attr_b: hlo.broadcast C) 0.0:f32)
+  =>
+  (hlo.multiply
+    (hlo.broadcast[attr_b.attrs] C)
+    (hlo.add (attr_i: hlo.iota) (hlo.broadcast[attr_b.attrs] 1.0:f32)))
+
+  where
+    attr_b.attrs.dimensions == []
+      && len(attr_b.attrs.new_extents) == 1
+      && attr_w.attrs.window_dimensions == attr_b.attrs.new_extents
+      && attr_w.attrs.window_strides == [1]
+      && attr_w.attrs.base_dilations == [1]
+      && attr_w.attrs.window_dilations == [1]
+      && attr_w.attrs.padding_low == [i64(attr_b.attrs.new_extents[0] - 1)]
+      && attr_w.attrs.padding_high == [0] derive {
+    attr_i.attrs = {
+      shape: attr_b.attrs.new_extents,
+      dimension: 0,
+      element_type: f32
+    }
+  }
 }

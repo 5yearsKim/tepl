@@ -118,7 +118,7 @@ cp "$starter/rules/your_rule.tepl" "$starter/rules/nested/commute.tepl"
   cd "$init_current"
   check_exit 0 check "$starter/rules/nested/commute.tepl"
 )
-printf 'from "dialects/your_dialect.tepl" import YourDialect as d; graph g { input X; input Y; yield (d.add X Y); }\n' > "$starter/graphs/g.tepl"
+printf 'from "dialects/your_dialect.tepl" import YourDialect as d graph g { input X input Y yield (d.add X Y) }\n' > "$starter/graphs/g.tepl"
 check_exit 0 compile "$starter/graphs/g.tepl" --rules "$starter/rules/nested" -o "${TEST_TMPDIR}/root-imports.json"
 check_exit 0 validate "${TEST_TMPDIR}/root-imports.json"
 check_exit 0 generate "$starter/graphs/g.tepl" --rules "$starter/rules/nested" --no-format --out "${TEST_TMPDIR}/root-imports-generated"
@@ -138,9 +138,9 @@ exclude = ["patterns/experimental/**", "**/fixtures/**", "patterns/*.skip.tepl",
 [check]
 semantic-policy = "strict"
 TOML
-printf 'dialect D { op negate(x:tensor)->tensor; }\n' > "$configured/schema/d.tepl"
-printf 'from "schema/d.tepl" import D as d; rule negate { (d.negate X) => X }\n' > "$configured/patterns/nested/negate.tepl"
-printf 'from "schema/d.tepl" import D as d; graph g { input X; yield (d.negate X); }\n' > "$configured/programs/g.tepl"
+printf 'dialect D { op negate(x:tensor)->tensor }\n' > "$configured/schema/d.tepl"
+printf 'from "schema/d.tepl" import D as d rule negate { (d.negate X) => X }\n' > "$configured/patterns/nested/negate.tepl"
+printf 'from "schema/d.tepl" import D as d graph g { input X yield (d.negate X) }\n' > "$configured/programs/g.tepl"
 for file in patterns/experimental/bad.tepl patterns/fixtures/deep/bad.tepl \
   fixtures/bad.tepl patterns/bad.skip.tepl patterns/ignored1.tepl rules/unselected.tepl; do
   printf 'invalid source\n' > "$configured/$file"
@@ -151,15 +151,15 @@ done
   check_exit 0 compile "$configured" -o "${TEST_TMPDIR}/configured.json"
   check_exit 0 generate "$configured" --no-format --out "${TEST_TMPDIR}/configured-generated"
   check_exit 0 rewrite "$configured"
-  grep -Fq 'yield X;' "$output"
+  grep -Fq 'yield X' "$output"
   check_exit 0 compile "$configured" --rules "$configured/patterns" -o "${TEST_TMPDIR}/selected-rules.json"
   check_exit 0 rewrite "$configured/programs" --rules "$configured/patterns"
-  grep -Fq 'yield X;' "$output"
+  grep -Fq 'yield X' "$output"
 )
 # Explicit files and imported dependencies still load when excluded from discovery.
 check_exit 1 parse "$configured/patterns/experimental/bad.tepl"
-printf 'dialect Extra { op identity(x:tensor)->tensor; }\n' > "$configured/patterns/experimental/imported.tepl"
-printf 'from "patterns/experimental/imported.tepl" import Extra;\n' > "$configured/schema/import.tepl"
+printf 'dialect Extra { op identity(x:tensor)->tensor }\n' > "$configured/patterns/experimental/imported.tepl"
+printf 'from "patterns/experimental/imported.tepl" import Extra\n' > "$configured/schema/import.tepl"
 check_exit 0 check "$configured"
 # An empty array disables discovery for that category, with other defaults intact.
 cat > "$configured/tepl.toml" <<'TOML'
@@ -184,19 +184,19 @@ grep -Fq "unknown project configuration key 'sources.rulse'" "$output"
 nested="$starter/nested_project"
 check_exit 0 init "$nested"
 printf '# empty marker\n' > "$nested/tepl.toml"
-printf 'dialect Local { op negate(x: tensor) -> tensor; }\n' > "$nested/dialects/local.tepl"
-printf 'from "dialects/local.tepl" import Local as d; rule local { (d.negate X) => X }\n' > "$nested/rules/local.tepl"
+printf 'dialect Local { op negate(x: tensor) -> tensor }\n' > "$nested/dialects/local.tepl"
+printf 'from "dialects/local.tepl" import Local as d rule local { (d.negate X) => X }\n' > "$nested/rules/local.tepl"
 check_exit 0 check "$nested/rules/local.tepl"
-printf 'from "./local.tepl" import Local;\n' > "$nested/dialects/relative.tepl"
+printf 'from "./local.tepl" import Local\n' > "$nested/dialects/relative.tepl"
 check_exit 0 check "$nested/dialects/relative.tepl"
-printf 'from "../dialects/local.tepl" import Local as d; rule local { (d.negate X) => X }\n' > "$nested/rules/relative.tepl"
+printf 'from "../dialects/local.tepl" import Local as d rule local { (d.negate X) => X }\n' > "$nested/rules/relative.tepl"
 check_exit 0 check "$nested/rules/relative.tepl"
 # A bare path never falls back to the importing directory in a configured project.
-printf 'from "local.tepl" import Local;\n' > "$nested/dialects/no_fallback.tepl"
+printf 'from "local.tepl" import Local\n' > "$nested/dialects/no_fallback.tepl"
 check_exit 1 parse "$nested/dialects/no_fallback.tepl"
 grep -Fq "cannot open import 'local.tepl'" "$output"
 # Filesystem absolute paths continue to work in a configured project.
-printf 'from "%s" import Local;\n' "$nested/dialects/local.tepl" > "$nested/dialects/absolute.tepl"
+printf 'from "%s" import Local\n' "$nested/dialects/local.tepl" > "$nested/dialects/absolute.tepl"
 check_exit 0 check "$nested/dialects/absolute.tepl"
 
 # Config errors include the config location and fail even for standalone sources.
@@ -281,92 +281,92 @@ check_exit 1 parse "$invalid"
 grep -Fq "${invalid}:1:" "$output"
 
 missing_import="${TEST_TMPDIR}/missing_import.tepl"
-printf 'import "missing.tepl"; rule r { X => X }\n' >"$missing_import"
+printf 'import "missing.tepl" rule r { X => X }\n' >"$missing_import"
 check_exit 1 parse "$missing_import"
 grep -Fq "cannot open import 'missing.tepl'" "$output"
 
 bad_arity="${TEST_TMPDIR}/bad_arity.tepl"
-printf 'import "%s"; rule r { (add X) => X }\n' "$example" >"$bad_arity"
+printf 'import "%s" rule r { (add X) => X }\n' "$example" >"$bad_arity"
 # An import must contain dialect declarations only.
 check_exit 1 parse "$bad_arity"
 grep -Fq 'contains rules' "$output"
 
 dialect="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/dialects/tensor.tepl"
-printf 'from "%s" import TensorLang as t; use t; rule r { (multiply X Y) => (multiply Y X) }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t use t rule r { (multiply X Y) => (multiply Y X) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
-printf 'from "%s" import TensorLang as t; rule r { (t.add X Y) => (t.add Y X) }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t rule r { (t.add X Y) => (t.add Y X) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
-printf 'from "%s" import TensorLang as t; rule r { (d: t.dot X Y) => (t.dot[d.attrs] X Y) }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t rule r { (d: t.dot X Y) => (t.dot[d.attrs] X Y) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
 # Parsing preserves unresolved operation names; check resolves them through core.
-printf 'from "%s" import TensorLang as t; rule r { (missing.add X Y) => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t rule r { (missing.add X Y) => X }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity" --ast
 grep -Fq 'operator missing.add' "$output"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'missing.add'" "$output"
 
-printf 'from "%s" import TensorLang; use TensorLang::{add}; rule r { (add X Y) => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang use TensorLang::{add} rule r { (add X Y) => X }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
-printf 'from "%s" import TensorLang as t; use t::{add}; rule r { (multiply X Y) => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t use t::{add} rule r { (multiply X Y) => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'multiply'" "$output"
 
-printf 'from "%s" import TensorLang as t; use t::{missing}; rule r { X => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t use t::{missing} rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'missing' in dialect 't'" "$output"
 
-printf 'from "%s" import Missing as t; use t; rule r { X => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import Missing as t use t rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq "dialect 'Missing' is not defined" "$output"
 
-printf 'from "%s" import TensorLang as t; use missing; rule r { X => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t use missing rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown dialect alias 'missing'" "$output"
 
-printf 'import "%s"; rule r { (add X) => X }\n' "$dialect" >"$bad_arity"
+printf 'import "%s" rule r { (add X) => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq 'expects exactly 2 operands' "$output"
 
 other="${TEST_TMPDIR}/other.tepl"
-printf 'dialect Other { op add(lhs: tensor, rhs: tensor) -> tensor; }\n' >"$other"
-printf 'from "%s" import TensorLang as t; from "other.tepl" import Other as o; use t::{add}; use o::{add}; rule r { X => X }\n' "$dialect" >"$bad_arity"
+printf 'dialect Other { op add(lhs: tensor, rhs: tensor) -> tensor }\n' >"$other"
+printf 'from "%s" import TensorLang as t from "other.tepl" import Other as o use t::{add} use o::{add} rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "ambiguous operation 'add'" "$output"
 
 same_name="${TEST_TMPDIR}/same_name.tepl"
-printf 'dialect TensorLang { op add(lhs: tensor, rhs: tensor) -> tensor; }\n' >"$same_name"
-printf 'from "%s" import TensorLang as t; from "same_name.tepl" import TensorLang as other; rule r { (t.add X Y) => (other.add X Y) }\n' "$dialect" >"$bad_arity"
+printf 'dialect TensorLang { op add(lhs: tensor, rhs: tensor) -> tensor }\n' >"$same_name"
+printf 'from "%s" import TensorLang as t from "same_name.tepl" import TensorLang as other rule r { (t.add X Y) => (other.add X Y) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
 duplicate="${TEST_TMPDIR}/duplicate.tepl"
 printf 'dialect Duplicate {} dialect Duplicate {}\n' >"$duplicate"
-printf 'from "duplicate.tepl" import Duplicate as d; rule r { X => X }\n' >"$bad_arity"
+printf 'from "duplicate.tepl" import Duplicate as d rule r { X => X }\n' >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq "duplicate dialect 'Duplicate'" "$output"
 
-printf 'import "%s"; rule r { (dot X Y) => X }\n' "$dialect" >"$bad_arity"
+printf 'import "%s" rule r { (dot X Y) => X }\n' "$dialect" >"$bad_arity"
 check_exit 0 check "$bad_arity"
 
-printf 'import "%s"; rule r { (missing X) => X }\n' "$dialect" >"$bad_arity"
+printf 'import "%s" rule r { (missing X) => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'missing'" "$output"
 
-printf 'dialect t { op bad(x: tensor) -> tensor { attrs { axis: mystery; } } }\n' >"$bad_arity"
+printf 'dialect t { op bad(x: tensor) -> tensor { attrs { axis: mystery } } }\n' >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown attribute type 'mystery'" "$output"
 
-printf 'dialect t { op bad(x: tensor) -> tensor { attrs { kind: symbol; } } }\n' >"$bad_arity"
+printf 'dialect t { op bad(x: tensor) -> tensor { attrs { kind: symbol } } }\n' >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown attribute type 'symbol'" "$output"
 
 cycle_a="${TEST_TMPDIR}/a.tepl"
 cycle_b="${TEST_TMPDIR}/b.tepl"
-printf 'import "b.tepl"; rule r { X => X }\n' >"$cycle_a"
-printf 'import "a.tepl";\n' >"$cycle_b"
+printf 'import "b.tepl" rule r { X => X }\n' >"$cycle_a"
+printf 'import "a.tepl"\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 
@@ -380,22 +380,22 @@ check_exit 0 parse "$inherited" --ast
 grep -Fq 'parameter F: op<(tensor, tensor) -> tensor>' "$output"
 grep -Fq 'extends associate_right' "$output"
 
-printf 'from "%s" import {missing};\n' "$abstract" >"$bad_arity"
+printf 'from "%s" import {missing}\n' "$abstract" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq "rule 'missing'" "$output"
 
-printf 'from "%s" import {commute_add};\n' "$example" >"$bad_arity"
+printf 'from "%s" import {commute_add}\n' "$example" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq 'must be abstract' "$output"
 
 template="${TEST_TMPDIR}/template.tepl"
 printf 'abstract rule a() { X => X } abstract rule b() { Y => Y }\n' >"$template"
-printf 'from "template.tepl" import {a}; from "template.tepl" import {b};\n' >"$bad_arity"
+printf 'from "template.tepl" import {a} from "template.tepl" import {b}\n' >"$bad_arity"
 check_exit 0 parse "$bad_arity" --ast
 grep -Fq 'abstract rule a' "$output"
 grep -Fq 'abstract rule b' "$output"
 
-printf 'from "template.tepl" import {a};\n' >"$bad_arity"
+printf 'from "template.tepl" import {a}\n' >"$bad_arity"
 check_exit 0 parse "$bad_arity" --ast
 grep -Fq 'abstract rule a' "$output"
 if grep -Fq 'abstract rule b' "$output"; then
@@ -407,8 +407,8 @@ printf 'abstract rule a() { X => X } abstract rule a() { Y => Y }\n' >"$template
 check_exit 1 parse "$bad_arity"
 grep -Fq "duplicate rule 'a'" "$output"
 
-printf 'from "b.tepl" import {b}; abstract rule a() { X => X }\n' >"$cycle_a"
-printf 'from "a.tepl" import {a}; abstract rule b() { X => X }\n' >"$cycle_b"
+printf 'from "b.tepl" import {b} abstract rule a() { X => X }\n' >"$cycle_a"
+printf 'from "a.tepl" import {a} abstract rule b() { X => X }\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 

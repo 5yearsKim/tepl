@@ -20,13 +20,13 @@ namespace {
 using namespace tepl;
 const std::string dialect = R"(
 dialect D {
- op copy(x:tensor)->tensor {dtype(t){yield t;} shape(s){yield s;}}
- op add(x:tensor,y:tensor)->tensor {dtype(a,b){assert a==b;yield a;} shape(a,b){assert a==b;yield a;}}
- op scalar(x:tensor)->tensor {dtype(t){yield t;} shape(s){yield [];}}
+ op copy(x:tensor)->tensor {dtype(t){yield t } shape(s){yield s }}
+ op add(x:tensor,y:tensor)->tensor {dtype(a,b){assert a==b yield a } shape(a,b){assert a==b yield a }}
+ op scalar(x:tensor)->tensor {dtype(t){yield t } shape(s){yield [] }}
  op transpose(x:tensor)->tensor {
-  attrs {permutation:axis[];}
-  dtype(t){yield t;}
-  shape(s){assert is_valid_axis_list(attrs.permutation,len(s));assert len(attrs.permutation)==len(s);yield gather(s,attrs.permutation);}
+  attrs {permutation:axis[] }
+  dtype(t){yield t }
+  shape(s){assert is_valid_axis_list(attrs.permutation,len(s)) assert len(attrs.permutation)==len(s) yield gather(s,attrs.permutation) }
  }
 }
 )";
@@ -59,11 +59,11 @@ void expectInvalid(nlohmann::json j, std::string_view message = {}) {
 void constructors() {
   auto p = compile(R"(
 rule compose {(outer: transpose (inner: transpose X)) => (out: transpose X)
- derive {let permutation=gather(inner.attrs.permutation,outer.attrs.permutation); out.attrs={..outer.attrs,permutation:permutation};}}
+ derive {let permutation=gather(inner.attrs.permutation,outer.attrs.permutation) out.attrs={..outer.attrs,permutation:permutation} }}
 rule identity {X:[Dims...] (p: transpose X)=>X
- where {let axes=range(len(Dims)); p.attrs.permutation==axes}}
-graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
- let b=(transpose[permutation=[1,0]] a);yield (add b b);}
+ where {let axes=range(len(Dims)) yield p.attrs.permutation==axes}}
+graph g {input X:f32[2,3] let a=(transpose[permutation=[1,0]] X)
+ let b=(transpose[permutation=[1,0]] a) yield (add b b) }
 )");
   auto json = executable::serialize(p);
   auto loaded = executable::load(json);
@@ -119,7 +119,7 @@ graph g {input X:f32[2,3];let a=(transpose[permutation=[1,0]] X);
   assert(duplicateRejected);
   // Decimal strings preserve extents beyond JSON's interoperable integer range.
   auto wide =
-      compile("graph wide {input X:f32[18446744073709551615];yield X;}");
+      compile("graph wide {input X:f32[18446744073709551615] yield X }");
   auto wideLoaded = executable::load(executable::serialize(wide));
   assert(wideLoaded.ir().graphs[0].nodes[0].shape->at(0) == UINT64_MAX);
 }
@@ -133,7 +133,7 @@ void builtinCatalogs() {
 
   auto metadata = compile(R"(
     dialect D { op copy(input:tensor)->tensor {
-      shape(s) { assert all([true]); yield s; }
+      shape(s) { assert all([true]) yield s }
     } }
   )",
                           false);
@@ -144,8 +144,8 @@ void builtinCatalogs() {
 
   auto axes = compile(R"(
     dialect D { op copy(input:tensor)->tensor {
-      axes { bind S { input:all_axes(input) }; yield S; }
-      semantics { yield input; }
+      axes { bind S { input:all_axes(input) } yield S }
+      semantics { yield input }
     } }
   )",
                       false);
@@ -156,7 +156,10 @@ void builtinCatalogs() {
 }
 void feasibilityBeforeBuilder() {
   // Inject q into a structural-runtime fixture with an undefined builder.
-  auto p = compile("rule r {(copy X)=>(p:transpose X) derive {p.attrs={permutation:gather([], [0])};}} graph g {input X:f32[2];yield(copy X);}");
+  auto p = compile(
+      "rule r {(copy X)=>(p:transpose X) derive "
+      "{p.attrs={permutation:gather([], [0])} }} graph g {input X:f32[2] "
+      "yield(copy X) }");
   auto j = nlohmann::json::parse(executable::serialize(p));
   auto& rule = j["program"]["rules"][0];
   rule["feasibility"] = nlohmann::json::array({{{"kind","bool"},{"sort","bool"},{"name","false"},{"owner",0},{"index",0},{"args",nlohmann::json::array()}}});
@@ -170,18 +173,18 @@ void feasibilityBeforeBuilder() {
   assert(failed);
 }
 void guardsAndFailure() {
-  const std::string graph = "graph g {input X:f32[2];yield (copy X);}";
+  const std::string graph = "graph g {input X:f32[2] yield (copy X) }";
   auto p = compile(
-      "rule r {(copy X)=>X where {true || "
-      "len(range(18446744073709551615))==0}}" +
+      "rule r {(copy X)=>X where true || "
+      "len(range(18446744073709551615))==0 }" +
       graph);
   assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 1);
   p = compile(
-      "rule r {(copy X)=>X where {false && "
-      "len(range(18446744073709551615))==0}}" +
+      "rule r {(copy X)=>X where false && "
+      "len(range(18446744073709551615))==0 }" +
       graph);
   assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 0);
-  p = compile("rule r {(copy X)=>X where {1 / 0 == 0}}" + graph);
+  p = compile("rule r {(copy X)=>X where 1 / 0 == 0 }" + graph);
   {
     bool failed = false;
     try { rewrite::run(p, p.ir().graphs[0]); }
@@ -197,7 +200,7 @@ void guardsAndFailure() {
   }
   p = compile(
       "rule r {(copy X)=>(p: transpose X) derive "
-      "{p.attrs={permutation:[9]};}}" +
+      "{p.attrs={permutation:[9]} }}" +
       graph);
   {
     bool failed = false;
@@ -209,7 +212,7 @@ void guardsAndFailure() {
   assert(rewrite::run(p, p.ir().graphs[0]).stop_reason ==
          rewrite::StopReason::FixedPoint);
   auto limited = compile(
-      "rule r {(copy X)=>X where {len(range(18446744073709551615))==0}}" +
+      "rule r {(copy X)=>X where len(range(18446744073709551615))==0 }" +
       graph);
   auto out = rewrite::run(limited, limited.ir().graphs[0]);
   assert(out.rewrite_count == 0 &&
@@ -217,26 +220,26 @@ void guardsAndFailure() {
 }
 void sharingAndLimits() {
   auto p = compile(
-      "rule r {(copy X)=>X} graph g {input X:f32[2];let "
-      "a=(transpose[permutation=[0]] X);let b=(copy a);yield (add a b);}");
+      "rule r {(copy X)=>X} graph g {input X:f32[2] let "
+      "a=(transpose[permutation=[0]] X) let b=(copy a) yield (add a b) }");
   auto out = rewrite::run(p, p.ir().graphs[0]);
   assert(out.rewrite_count == 1);
   const auto& root = out.graph.nodes[out.graph.root];
   assert(root.operands[0] == root.operands[1]);
   p = compile(
-      "rule r {(add X X)=>X} graph g {input X:f32[2];let a=(copy X);let "
-      "b=(copy X);yield (add a b);}");
+      "rule r {(add X X)=>X} graph g {input X:f32[2] let a=(copy X) let "
+      "b=(copy X) yield (add a b) }");
   assert(rewrite::run(p, p.ir().graphs[0]).rewrite_count == 0);
   p = compile(
       "rule r {(add (let A = (copy X)) (copy X)) => (add A A)} "
-      "graph g {input X:f32[2];yield (add (copy X) (copy X));}");
+      "graph g {input X:f32[2] yield (add (copy X) (copy X)) }");
   out = rewrite::run(p, p.ir().graphs[0]);
   assert(out.rewrite_count == 1);
   assert(out.graph.nodes[out.graph.root].operands[0] ==
          out.graph.nodes[out.graph.root].operands[1]);
   p = compile(
-      "rule r {(add X Y)=>(add Y X)} graph g {input X:f32[2];input "
-      "Y:f32[2];yield (add X Y);}");
+      "rule r {(add X Y)=>(add Y X)} graph g {input X:f32[2] input "
+      "Y:f32[2] yield (add X Y) }");
   rewrite::Options opt;
   opt.max_steps = 3;
   out = rewrite::run(p, p.ir().graphs[0], opt);
@@ -248,7 +251,7 @@ void sharingAndLimits() {
          out.stop_reason == rewrite::StopReason::Cancelled);
 }
 void metadataAndDepth() {
-  auto p = compile("rule r {(copy X)=>X} graph g {input X;yield (copy X);}");
+  auto p = compile("rule r {(copy X)=>X} graph g {input X yield (copy X) }");
   auto input = p.ir().graphs[0];
   input.nodes[input.root].shape = std::vector<std::uint64_t>{99};
   input.nodes[input.root].dtype = core::DType::kF32;
@@ -289,7 +292,7 @@ void automatic(const std::string& path) {
   std::string definitions{std::istreambuf_iterator<char>(f), {}};
   auto implicit = compile(definitions + R"(
 rule compose {(transpose (transpose X)) => (transpose X)}
-graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (transpose[permutation=[2,0,1]] a);}
+graph g {input X:f32[2,3,4] let a=(transpose[permutation=[1,2,0]] X) yield (transpose[permutation=[2,0,1]] a) }
 )",
                           false);
   assert(implicit.ir().rules[0].descriptors.size() == 3);
@@ -306,7 +309,7 @@ graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (tran
 
   auto p = compile(definitions + R"(
 rule compose {(a: transpose (b: transpose X)) => (transpose X)}
-graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (transpose[permutation=[2,0,1]] a);}
+graph g {input X:f32[2,3,4] let a=(transpose[permutation=[1,2,0]] X) yield (transpose[permutation=[2,0,1]] a) }
 )",
                    false);
   auto loaded = executable::load(executable::serialize(p));
@@ -317,7 +320,7 @@ graph g {input X:f32[2,3,4];let a=(transpose[permutation=[1,2,0]] X);yield (tran
          std::optional<std::vector<std::uint64_t>>({2, 3, 4}));
   p = compile(definitions + R"(
 rule move_reduce {(r: reduce_sum (p: transpose A)) => (transpose (reduce_sum A))}
-graph g {input A:f32[2,3,4];yield (reduce_sum[dimensions=[1]] (transpose[permutation=[2,0,1]] A));}
+graph g {input A:f32[2,3,4] yield (reduce_sum[dimensions=[1]] (transpose[permutation=[2,0,1]] A)) }
 )",
               false, core::SemanticPolicy::kAlgebraic);
   loaded = executable::load(executable::serialize(p));

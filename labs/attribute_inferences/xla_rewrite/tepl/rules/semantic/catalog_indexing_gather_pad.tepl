@@ -1,11 +1,28 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-gather-pad
 // Scope: Rank-two gather over rows; edge padding only on the passthrough column axis.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_gather_pad {
-    X: [R,C] Indices: [I]
-     (attr_g: hlo.gather (attr_p: hlo.nonnegative_pad X Value) Indices) => (hlo.nonnegative_pad[attr_p.attrs] (attr_out: hlo.gather X Indices) Value)
-     where { u64(attr_p.attrs.low[0])==0 && u64(attr_p.attrs.high[0])==0 && attr_p.attrs.interior==[0,0] && attr_g.attrs.start_index_map==[0] && attr_g.attrs.collapsed_slice_dims==[0] && attr_g.attrs.offset_dims==[1] && attr_g.attrs.index_vector_dim==1 && attr_g.attrs.slice_sizes==[1,C+u64(attr_p.attrs.low[1])+u64(attr_p.attrs.high[1])] && attr_g.attrs.operand_batching_dims==[] && attr_g.attrs.start_indices_batching_dims==[] }
-     derive { attr_out.attrs={..attr_g.attrs,slice_sizes:[1,C],shape:[I,C]}; }
+  X: [R, C]
+  Indices: [I]
+
+  (attr_g: hlo.gather (attr_p: hlo.nonnegative_pad X Value) Indices)
+  =>
+  (hlo.nonnegative_pad[attr_p.attrs] (attr_out: hlo.gather X Indices) Value)
+
+  where
+    u64(attr_p.attrs.low[0]) == 0
+      && u64(attr_p.attrs.high[0]) == 0
+      && attr_p.attrs.interior == [0, 0]
+      && attr_g.attrs.start_index_map == [0]
+      && attr_g.attrs.collapsed_slice_dims == [0]
+      && attr_g.attrs.offset_dims == [1]
+      && attr_g.attrs.index_vector_dim == 1
+      && attr_g.attrs.slice_sizes
+        == [1, C + u64(attr_p.attrs.low[1]) + u64(attr_p.attrs.high[1])]
+      && attr_g.attrs.operand_batching_dims == []
+      && attr_g.attrs.start_indices_batching_dims == [] derive {
+    attr_out.attrs = { ..attr_g.attrs, slice_sizes: [1, C], shape: [I, C] }
+  }
 }

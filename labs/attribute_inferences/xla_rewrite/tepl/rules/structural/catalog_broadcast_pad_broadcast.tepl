@@ -1,11 +1,25 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: broadcast-pad-broadcast
 // Scope: Rank-one X broadcast to rank two; padding only affects the mapped first axis.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_pad_broadcast {
-    X: [N]
-     (attr_p: hlo.nonnegative_pad (attr_b: hlo.broadcast X) C) => (hlo.broadcast[attr_b.attrs] (attr_small: hlo.nonnegative_pad X C))
-     where { attr_b.attrs.dimensions == [0] && len(attr_p.attrs.low)==2 && attr_p.attrs.low[1]==0 && attr_p.attrs.high[1]==0 && attr_p.attrs.interior[1]==0 }
-     derive { attr_small.attrs = { low:[attr_p.attrs.low[0]], high:[attr_p.attrs.high[0]], interior:[attr_p.attrs.interior[0]] }; }
+  X: [N]
+
+  (attr_p: hlo.nonnegative_pad (attr_b: hlo.broadcast X) C)
+  =>
+  (hlo.broadcast[attr_b.attrs] (attr_small: hlo.nonnegative_pad X C))
+
+  where
+    attr_b.attrs.dimensions == [0]
+      && len(attr_p.attrs.low) == 2
+      && attr_p.attrs.low[1] == 0
+      && attr_p.attrs.high[1] == 0
+      && attr_p.attrs.interior[1] == 0 derive {
+    attr_small.attrs = {
+      low: [attr_p.attrs.low[0]],
+      high: [attr_p.attrs.high[0]],
+      interior: [attr_p.attrs.interior[0]]
+    }
+  }
 }

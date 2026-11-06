@@ -61,7 +61,7 @@ std::string printGraph(const executable::ProgramData& p,
           << quote(std::filesystem::absolute(key.first)
                        .lexically_normal()
                        .string())
-          << " import " << key.second << " as " << alias << ";\n";
+          << " import " << key.second << " as " << alias << "\n";
     }
     if (!dialects.empty()) out << '\n';
   }
@@ -98,7 +98,7 @@ std::string printGraph(const executable::ProgramData& p,
         out << ']';
       }
     }
-    out << ";\n";
+    out << "\n";
   }
   out << '\n';
   for (auto i : live) {
@@ -128,9 +128,9 @@ std::string printGraph(const executable::ProgramData& p,
       for (auto a : n.operands) out << ' ' << names.at(a);
       out << ')';
     }
-    out << ";\n";
+    out << "\n";
   }
-  out << "    yield " << names.at(graph.root) << ";\n}\n";
+  out << "    yield " << names.at(graph.root) << "\n}\n";
   return out.str();
 }
 

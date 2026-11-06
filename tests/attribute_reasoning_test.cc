@@ -39,10 +39,10 @@ void rejects(const std::string& text) {
 }
 void conditionalFeasibility() {
   auto p = compile(R"(
-rule conditional {A:[Dims...] (dot A B)=>(dot B A) where {len(Dims)==1}}
-graph skip {input A:f32[2];input B:f32[3];yield(dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B);}
-graph apply {input A:f32[2];input B:f32[2];yield(dot[lhs_contracting_dimensions=[0],rhs_contracting_dimensions=[0],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B);}
-graph guard {input A:f32[];input B:f32[];yield(dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B);}
+rule conditional {A:[Dims...] (dot A B)=>(dot B A) where len(Dims)==1 }
+graph skip {input A:f32[2] input B:f32[3] yield(dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B) }
+graph apply {input A:f32[2] input B:f32[2] yield(dot[lhs_contracting_dimensions=[0],rhs_contracting_dimensions=[0],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B) }
+graph guard {input A:f32[] input B:f32[] yield(dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] A B) }
 )");
   expect(!p.ir().rules[0].feasibility.empty(),
          "compiled q survives verification");
@@ -73,7 +73,7 @@ void identityAndPracticalDomains() {
   compile("rule repeated {(dot A A)=>(dot A A)}");
   auto strict_identity = parseRule(R"(
 rule same {(d: dot (add A B) C)=>(dot (add A B) C)
- where {d.axes.B.positions == []}}
+ where d.axes.B.positions == [] }
 )");
   expect(
       core::compile(*strict_identity.program, {core::SemanticPolicy::kStrict})
@@ -84,9 +84,9 @@ rule same {(d: dot (add A B) C)=>(dot (add A B) C)
   for (auto extent : {0, 1, 2}) {
     std::string fixture = R"(
 rule compose {(transpose (transpose A))=>(transpose A)}
-graph g { input A:f32[EXTENT,3];
- let x=(transpose[permutation=[1,0]] A);
- yield (transpose[permutation=[0,1]] x); }
+graph g { input A:f32[EXTENT,3]
+ let x=(transpose[permutation=[1,0]] A)
+ yield (transpose[permutation=[0,1]] x) }
 )";
     fixture.replace(fixture.find("EXTENT"), 6, std::to_string(extent));
     auto p = compile(fixture);
@@ -104,7 +104,7 @@ void mixedAttributes() {
   auto p = compile(R"(
 rule mixed {
  (d: dot (p: transpose A) B) => (dot (q: transpose A) B)
- derive { q.attrs=p.attrs; }
+ derive { q.attrs=p.attrs }
 }
 )");
   expect(!p.ir().rules[0].inference && p.ir().rules[0].derivations.size() == 2,
@@ -112,14 +112,14 @@ rule mixed {
   rejects(R"(
 rule invalid {
  (p: transpose A) => (q: transpose A)
- derive {q.attrs={permutation: []};}
+ derive {q.attrs={permutation: []} }
 }
 )");
   compile("rule conditionally_commuting {(dot A B)=>(dot B A)}");
   rejects("rule unequal {(add A A)=>A}");
   compile(R"(
 rule conditionally_identity {(p: transpose A)=>A
- where {subsequence(A.axes.order,concat(A.axes.order,A.axes.order))}}
+ where subsequence(A.axes.order,concat(A.axes.order,A.axes.order)) }
 )");
 }
 void independentVerification() {
@@ -176,7 +176,7 @@ void synthesisBoundary() {
   // Identical operation trees alone cannot justify explicit RHS attributes.
   auto invalid = inspect(R"(
 rule invalid {(p: transpose A)=>(q: transpose A)
- derive {q.attrs={permutation: []};}}
+ derive {q.attrs={permutation: []} }}
 )");
   auto proposal = core::attr_synth::synthesize(invalid, Strategy::Identity);
   expect(
@@ -189,7 +189,7 @@ rule invalid {(p: transpose A)=>(q: transpose A)
   // general strategy must remain available after identity verification fails.
   auto fallback = inspect(R"(
 rule compose {(p: transpose (transpose A))=>(q: transpose (transpose A))
- derive {q.attrs={permutation: range(len(p.attrs.permutation))};}}
+ derive {q.attrs={permutation: range(len(p.attrs.permutation))} }}
 )");
   proposal = core::attr_synth::synthesize(fallback, Strategy::Identity);
   expect(proposal.constructed && verify(fallback, proposal.candidate).status ==
@@ -251,10 +251,10 @@ rule compose {(p: transpose (transpose A))=>(q: transpose (transpose A))
       "exhausted synthesis preserves diagnostics without a partial candidate");
 }
 void explicitConditionIntegrity() {
-  rejects("rule r {(d: dot A B)=>(dot A B) where {axis_domain()}}");
+  rejects("rule r {(d: dot A B)=>(dot A B) where axis_domain() }");
   rejects(
       "rule r {(source: transpose (dot A B))=>(result: dot A B) "
-      "where {source.axes.order == result.axes.order}}");
+      "where source.axes.order == result.axes.order }");
 }
 
 }  // namespace

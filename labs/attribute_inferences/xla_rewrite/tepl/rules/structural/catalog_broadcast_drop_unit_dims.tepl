@@ -1,11 +1,18 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: broadcast-drop-unit-dims
 // Scope: Rank-two operand with leading unit axis; broadcast appends axes.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_drop_unit_dims {
-    X: [A,N]
-     (attr_b: hlo.broadcast X) => (attr_out: hlo.broadcast (attr_r: hlo.reshape X))
-     where { A == 1 && attr_b.attrs.dimensions == [0,1] }
-     derive { attr_r.attrs = { shape: [N] }; attr_out.attrs = { dimensions: [1], new_extents: concat([1],attr_b.attrs.new_extents) }; }
+  X: [A, N]
+
+  (attr_b: hlo.broadcast X) => (attr_out: hlo.broadcast (attr_r: hlo.reshape X))
+
+  where A == 1 && attr_b.attrs.dimensions == [0, 1] derive {
+    attr_r.attrs = { shape: [N] }
+    attr_out.attrs = {
+      dimensions: [1],
+      new_extents: concat([1], attr_b.attrs.new_extents)
+    }
+  }
 }

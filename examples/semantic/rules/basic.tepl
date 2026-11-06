@@ -1,41 +1,38 @@
-from "dialects/tensor.tepl" import TensorLang as t;
-use t::{dot, transpose};
+from "dialects/tensor.tepl" import TensorLang as t
+use t::{dot, transpose}
 
 // Restrictions below are declared by the user, never inferred applicability guards.
-
 // Symbolic construction chooses an identity transpose and preserves dot attrs.
 rule transpose_dot_lhs {
-    (d: dot A B)
-    =>
-    (dot (transpose A) B)
+  (d: dot A B) => (dot (transpose A) B)
 }
 
 // Rank three; contract axis 0 so the cycle preserves the two free axes in order.
 rule transpose_dot_cycle {
-    A: [K, M, N]
-    (d: dot A B)
-    =>
-    (dot (cycle: transpose A) B)
-    where {
-        d.attrs.lhs_batching_dimensions == range(0)
-        && d.attrs.lhs_contracting_dimensions == range(1)
-    }
-    derive { cycle.attrs = { permutation: [1, 2, 0] }; }
+  A: [K, M, N]
+
+  (d: dot A B) => (dot (cycle: transpose A) B)
+
+  where
+    d.attrs.lhs_batching_dimensions == range(0)
+      && d.attrs.lhs_contracting_dimensions == range(1) derive {
+    cycle.attrs = { permutation: [1, 2, 0] }
+  }
 }
 
 // A sufficient restriction: absorb an identity transpose. More general input
 // permutations need an explicit condition preserving surviving free-axis order.
 rule absorb_transpose {
-    (d: dot (p: transpose A) B) => (dot A B)
-    where {
-        p.attrs.permutation == range(len(p.attrs.permutation))
-    }
+  (d: dot (p: transpose A) B) => (dot A B)
+
+  where p.attrs.permutation == range(len(p.attrs.permutation))
 }
 
 // Swap the free-axis blocks while preserving the batch and within-block order.
 rule transpose_dot_swap {
-    (p: transpose (d: dot A B)) => (dot B A)
-    where {
-        p.attrs.permutation == concat(d.axes.B.positions, d.axes.J.positions, d.axes.I.positions)
-    }
+  (p: transpose (d: dot A B)) => (dot B A)
+
+  where
+    p.attrs.permutation
+      == concat(d.axes.B.positions, d.axes.J.positions, d.axes.I.positions)
 }

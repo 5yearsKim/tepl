@@ -1,12 +1,45 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: convolution-depthwise-product
 // Scope: Depthwise rank-three convolution whose kernel spans the full spatial extent.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_convolution_depthwise_product {
-    X: [N,L,C] W: [L,One,C]
-     (attr_c: hlo.general_convolution X W)
-     => (attr_out: hlo.reshape (attr_sum: hlo.reduce_sum (hlo.multiply (attr_x: hlo.transpose X) (attr_b: hlo.broadcast (attr_w: hlo.reshape (attr_p: hlo.transpose W))))))
-     where { One==1 && attr_c.attrs.feature_group_count==C && attr_c.attrs.batch_group_count==1 && attr_c.attrs.input_batch_dimension==0 && attr_c.attrs.input_feature_dimension==2 && attr_c.attrs.input_spatial_dimensions==[1] && attr_c.attrs.kernel_input_feature_dimension==1 && attr_c.attrs.kernel_output_feature_dimension==2 && attr_c.attrs.kernel_spatial_dimensions==[0] && attr_c.attrs.output_batch_dimension==0 && attr_c.attrs.output_feature_dimension==2 && attr_c.attrs.output_spatial_dimensions==[1] && attr_c.attrs.window_strides==[1] && attr_c.attrs.lhs_dilation==[1] && attr_c.attrs.rhs_dilation==[1] && attr_c.attrs.padding_low==[0] && attr_c.attrs.padding_high==[0] && attr_c.attrs.window_reversal==[false] }
-     derive { attr_x.attrs={permutation:[0,2,1]}; attr_p.attrs={permutation:[1,2,0]}; attr_w.attrs={shape:[C,L]}; attr_b.attrs={dimensions:[1,2],new_extents:[N]}; attr_sum.attrs={dimensions:[2]}; attr_out.attrs={shape:[N,1,C]}; }
+  X: [N, L, C]
+  W: [L, One, C]
+
+  (attr_c: hlo.general_convolution X W)
+  =>
+  (attr_out: hlo.reshape
+    (attr_sum: hlo.reduce_sum
+      (hlo.multiply
+        (attr_x: hlo.transpose X)
+        (attr_b: hlo.broadcast
+          (attr_w: hlo.reshape (attr_p: hlo.transpose W))))))
+
+  where
+    One == 1
+      && attr_c.attrs.feature_group_count == C
+      && attr_c.attrs.batch_group_count == 1
+      && attr_c.attrs.input_batch_dimension == 0
+      && attr_c.attrs.input_feature_dimension == 2
+      && attr_c.attrs.input_spatial_dimensions == [1]
+      && attr_c.attrs.kernel_input_feature_dimension == 1
+      && attr_c.attrs.kernel_output_feature_dimension == 2
+      && attr_c.attrs.kernel_spatial_dimensions == [0]
+      && attr_c.attrs.output_batch_dimension == 0
+      && attr_c.attrs.output_feature_dimension == 2
+      && attr_c.attrs.output_spatial_dimensions == [1]
+      && attr_c.attrs.window_strides == [1]
+      && attr_c.attrs.lhs_dilation == [1]
+      && attr_c.attrs.rhs_dilation == [1]
+      && attr_c.attrs.padding_low == [0]
+      && attr_c.attrs.padding_high == [0]
+      && attr_c.attrs.window_reversal == [false] derive {
+    attr_x.attrs = { permutation: [0, 2, 1] }
+    attr_p.attrs = { permutation: [1, 2, 0] }
+    attr_w.attrs = { shape: [C, L] }
+    attr_b.attrs = { dimensions: [1, 2], new_extents: [N] }
+    attr_sum.attrs = { dimensions: [2] }
+    attr_out.attrs = { shape: [N, 1, C] }
+  }
 }

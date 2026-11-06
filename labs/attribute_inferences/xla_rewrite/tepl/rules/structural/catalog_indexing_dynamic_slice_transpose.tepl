@@ -1,11 +1,16 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: indexing-dynamic-slice-transpose
 // Scope: Rank-two transpose with two scalar start operands.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_dynamic_slice_transpose {
-    X: [N,M]
-     (attr_s: hlo.dynamic_slice (attr_p: hlo.transpose X) S0 S1) => (hlo.transpose[attr_p.attrs] (attr_inner: hlo.dynamic_slice X S1 S0))
-     where { attr_p.attrs.permutation==[1,0] }
-     derive { attr_inner.attrs={sizes:gather(attr_s.attrs.sizes,[1,0])}; }
+  X: [N, M]
+
+  (attr_s: hlo.dynamic_slice (attr_p: hlo.transpose X) S0 S1)
+  =>
+  (hlo.transpose[attr_p.attrs] (attr_inner: hlo.dynamic_slice X S1 S0))
+
+  where attr_p.attrs.permutation == [1, 0] derive {
+    attr_inner.attrs = { sizes: gather(attr_s.attrs.sizes, [1, 0]) }
+  }
 }

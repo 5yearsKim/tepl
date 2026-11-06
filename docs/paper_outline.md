@@ -93,7 +93,7 @@ TEPL describes tensor rewrites, their conditions, and their attribute changes to
 dialect TensorLang {
   op transpose(input: tensor) -> tensor {
     attrs {
-      permutation: axis[];
+      permutation: axis[]
     }
   }
 }
@@ -111,8 +111,8 @@ dialect TensorLang {
 - Repeated captures refer to the same matched value. Distinguish this application graph from the semantic graph used for reasoning.
 
 ```tepl
-from "tensor.tepl" import TensorLang as t;
-use t::{transpose};
+from "tensor.tepl" import TensorLang as t
+use t::{transpose}
 ```
 
 - Running pattern: `(outer: transpose (inner: transpose X))`.
@@ -140,14 +140,14 @@ use t::{transpose};
 
 ### 3.5 Conditions with `where`
 
-- A `where` block ends with a condition that decides whether the rule applies. Write any local calculations before it. Only `let` bindings end with `;`.
+- Write a Boolean condition directly after `where`. For local calculations, use a braced block containing `let` bindings followed by `yield condition`. TEPL has no statement semicolons, and newlines are whitespace.
 - Conditions can use captured metadata, builtins, and local expressions. Combine predicates with `&&` and `||`.
 - Example clause for the running transpose pattern:
 
 ```tepl
 where {
-  let rank = len(inner.attrs.permutation);
-  len(outer.attrs.permutation) == rank
+  let rank = len(inner.attrs.permutation)
+  yield len(outer.attrs.permutation) == rank
 }
 ```
 
@@ -169,7 +169,7 @@ rule compose_transposes_explicit {
   derive {
     combined.attrs = {
       permutation: gather(inner.attrs.permutation, outer.attrs.permutation)
-    };
+    }
   }
 }
 ```
@@ -320,27 +320,27 @@ The following `dot_general` definition illustrates these bindings. It takes two 
 ```tepl
 op dot_general(lhs: tensor, rhs: tensor) -> tensor {
     attrs {
-        lhs_batching_dimensions: axis[];
-        rhs_batching_dimensions: axis[];
-        lhs_contracting_dimensions: axis[];
-        rhs_contracting_dimensions: axis[];
+        lhs_batching_dimensions: axis[]
+        rhs_batching_dimensions: axis[]
+        lhs_contracting_dimensions: axis[]
+        rhs_contracting_dimensions: axis[]
     }
 
     axes {
-        let lb = attrs.lhs_batching_dimensions;
-        let rb = attrs.rhs_batching_dimensions;
-        let lc = attrs.lhs_contracting_dimensions;
-        let rc = attrs.rhs_contracting_dimensions;
+        let lb = attrs.lhs_batching_dimensions
+        let rb = attrs.rhs_batching_dimensions
+        let lc = attrs.lhs_contracting_dimensions
+        let rc = attrs.rhs_contracting_dimensions
 
-        let lf = ordered_complement(all_axes(lhs), lb ++ lc);
-        let rf = ordered_complement(all_axes(rhs), rb ++ rc);
+        let lf = ordered_complement(all_axes(lhs), lb ++ lc)
+        let rf = ordered_complement(all_axes(rhs), rb ++ rc)
 
-        bind B { lhs: lb, rhs: rb };
-        bind K { lhs: lc, rhs: rc };
-        bind I { lhs: lf };
-        bind J { rhs: rf };
+        bind B { lhs: lb, rhs: rb }
+        bind K { lhs: lc, rhs: rc }
+        bind I { lhs: lf }
+        bind J { rhs: rf }
 
-        yield B ++ I ++ J;
+        yield B ++ I ++ J
     }
 }
 ```
@@ -412,12 +412,12 @@ axes {
     bind S {
         lhs: all_axes(lhs),
         rhs: all_axes(rhs)
-    };
-    yield S;
+    }
+    yield S
 }
 
 semantics {
-    yield Add(lhs, rhs);
+    yield Add(lhs, rhs)
 }
 ```
 
@@ -470,7 +470,7 @@ Read(input,
 
 ```tepl
 semantics {
-    yield Reduce(K, Product(lhs, rhs));
+    yield Reduce(K, Product(lhs, rhs))
 }
 ```
 
@@ -634,7 +634,7 @@ Symbolic axis mapping connects the axis groups defined by different operations. 
 **4. Extend the mapping table to the output**
 
 - We now know how the dot's groups map to its inputs, including `X` and `Y`. A later operation, however, consumes the dot's output, where the surviving axes are arranged in output order and \(K\) is absent. We therefore extend the mapping table with each surviving group's output positions so subsequent operations can locate them.
-- The dot yields \(B\mathbin{+\!\!+}I\mathbin{+\!\!+}J\). Register the output positions of these groups; \(K\) is reduced and does not appear in the result.
+- The dot yields \(B\mathbin{+\!\!+}I\mathbin{+\!\!+}J\). Register the output positions of these groups \(K\) is reduced and does not appear in the result.
 - The following table shows the interfaces used in the composed expression. The row \(\widehat S\) is addition's whole-axis group after the coordinate update:
 
 | Interface / group | `X` | `Y` | `T` | `Z` | `O` |
@@ -686,7 +686,7 @@ Addition exposes one axis group, making the correspondence straightforward. When
 - Dot reassociation changes the grouping of a product:
 
   \[
-  (XY)Z\;\longrightarrow\;X(YZ).
+  (XY)Z\ \longrightarrow\ X(YZ).
   \]
 
 - For generalized dots, constructing this replacement also requires determining which axes each dot contracts. Consider the following rule:
@@ -695,14 +695,12 @@ Addition exposes one axis group, making the correspondence straightforward. When
   rule associate {
     (outer: dot (inner: dot X Y) Z)
     => (dot X (dot Y Z))
-    where {
-      outer.attrs.lhs_batching_dimensions == inner.axes.B.positions
-    }
+    where outer.attrs.lhs_batching_dimensions == inner.axes.B.positions
   }
   ```
 
 - Generalized-dot reassociation can change the result if the two dots use incompatible batch axes. Here, the `where` clause requires the outer dot to use the inner dot's batch axes as its left batch axes, in the same order. `inner.axes.B.positions` gives their positions in the inner result. The rule applies only when this condition holds.
-- The batch condition restricts when the rule applies; the completed replacement is checked for correctness as described in Section 5.3.
+- The batch condition restricts when the rule applies the completed replacement is checked for correctness as described in Section 5.3.
 - Let `T = dot_general(X, Y)`. The inner dot contracts group \(K\) and produces the interface
 
   \[
@@ -717,7 +715,7 @@ Addition exposes one axis group, making the correspondence straightforward. When
 
 **2. Find the selected part of each producer group**
 
-- We solve this by separating the outer dot's contraction axes according to where they came from. For each producer group \(I\) or \(J\), identify which of its axes the outer dot selects and which remain. For each selected axis, retain both its position within the producer group and its slot in the outer contraction sequence. The first locates the axis in `X` or `Y`; the second identifies its partner in `Z`.
+- We solve this by separating the outer dot's contraction axes according to where they came from. For each producer group \(I\) or \(J\), identify which of its axes the outer dot selects and which remain. For each selected axis, retain both its position within the producer group and its slot in the outer contraction sequence. The first locates the axis in `X` or `Y` the second identifies its partner in `Z`.
 
 - Start with \(I\), the group of axes originating in `X`. The outer dot selects axes by their positions in `T`, so we compare its contraction positions with the positions occupied by \(I\).
 - Since `T` orders its axes as \(B\mathbin{+\!\!+}I\mathbin{+\!\!+}J\), \(I\) starts after \(B\). Its positions ari
@@ -734,7 +732,7 @@ Addition exposes one axis group, making the correspondence straightforward. When
   >
   > - Define \(\operatorname{matchPositions}(a,b)=(u,v)\) for two position sequences with distinct entries. It finds all values shared by \(a\) and \(b\) and returns their locations in both sequences, following the order of \(a\):
   >
-  >   - Scan \(a\) from left to right. If \(a_i\) also occurs at position \(j\) in \(b\), append \(i\) to \(u\) and \(j\) to \(v\); otherwise, skip it.
+  >   - Scan \(a\) from left to right. If \(a_i\) also occurs at position \(j\) in \(b\), append \(i\) to \(u\) and \(j\) to \(v\) otherwise, skip it.
   >   - The outputs contain positions within the two input sequences, not the shared values themselves. Thus, \(\operatorname{gather}(a,u)=\operatorname{gather}(b,v)\). If there are no matches, both outputs are empty.
   >
   > - For example:
@@ -772,7 +770,7 @@ Addition exposes one axis group, making the correspondence straightforward. When
   \]
 
 - Thus, \(I_{\mathrm{sel}}\) contains the axes originating in `X` that the outer dot contracts, and \(I_{\mathrm{rem}}\) contains those it preserves. Retaining \(u_I\) lets us locate the selected axes' partners in `Z`.
-- The selected view follows the outer contraction order; the remaining view follows the original order within \(I\). Their concatenation need not reproduce \(I\), so retain their position sequences.
+- The selected view follows the outer contraction order the remaining view follows the original order within \(I\). Their concatenation need not reproduce \(I\), so retain their position sequences.
 - Apply the same construction to \(J\), using its positions after \(B\) and \(I\):
 
   \[
@@ -805,7 +803,7 @@ Addition exposes one axis group, making the correspondence straightforward. When
   \operatorname{gather}(c_R^{\mathrm{outer}},u_J).
   \]
 
-- In the figure's unbatched example, `Z` has axes `[z₀, f, z₁]` and right contraction positions `[2, 0]`. The left contraction list selects `[j₁, i₀]`: `j₁` occupies slot `0` and pairs with `z₁` at Z position `2`; `i₀` occupies slot `1` and pairs with `z₀` at Z position `0`.
+- In the figure's unbatched example, `Z` has axes `[z₀, f, z₁]` and right contraction positions `[2, 0]`. The left contraction list selects `[j₁, i₀]`: `j₁` occupies slot `0` and pairs with `z₁` at Z position `2` `i₀` occupies slot `1` and pairs with `z₀` at Z position `0`.
 - We can now extend the subgroup mapping table with positions in `Z`:
 
 | Selected group | Positions within producer group | Slots in \(L\) | Positions in `Z` |
@@ -841,7 +839,7 @@ Addition exposes one axis group, making the correspondence straightforward. When
       \mathbin{+\!\!+}J_{\mathrm{rem}}\mathbin{+\!\!+}F.
   \]
 
-- **Result:** The table below combines the mappings for the refined groups across the original computation. \(P_A\) denotes the ordered interface of tensor `A`. Each cell gives positions in that interface; a dash indicates no mapping for that group in the example.
+- **Result:** The table below combines the mappings for the refined groups across the original computation. \(P_A\) denotes the ordered interface of tensor `A`. Each cell gives positions in that interface a dash indicates no mapping for that group in the example.
 
 | Group / interface | `X` | `Y` | `T` | `Z` | `O` |
 | --- | --- | --- | --- | --- | --- |
@@ -872,7 +870,7 @@ The same procedure applies to other producer–consumer pairs. Compare their gro
 | --- | --- |
 | \(V\) | For each tensor `t`, \(V[t]=(P_t,e_t)\) stores its ordered axis interface and value expression. |
 | \(M\) | The mapping table, represented here as a set of entries \((P,G,p)\). |
-| \(\Pi\) | Which groups together cover an interface without overlap; called `partitions` in the pseudocode. Unlike \(M\), it describes a complete grouping of the axes, rather than an individual group's positions. |
+| \(\Pi\) | Which groups together cover an interface without overlap called `partitions` in the pseudocode. Unlike \(M\), it describes a complete grouping of the axes, rather than an individual group's positions. |
 
 - A partition groups all axes of an interface \(P\). Represent it as:
 
@@ -882,7 +880,7 @@ The same procedure applies to other producer–consumer pairs. Compare their gro
 
   Each pair \((G_i,p_i)\) gives one group and its positions in \(P\). An interface may have several partitions because different operations group its axes differently.
 
-- Applying a partition changes how the axes are grouped for reasoning. It does not change the tensor's shape, rank, or axis order. The entries in \(M\) locate the resulting subgroups; \(\Pi\) identifies which subgroups together cover the interface exactly once.
+- Applying a partition changes how the axes are grouped for reasoning. It does not change the tensor's shape, rank, or axis order. The entries in \(M\) locate the resulting subgroups \(\Pi\) identifies which subgroups together cover the interface exactly once.
 
 > **Example**
 >
@@ -912,7 +910,7 @@ The same procedure applies to other producer–consumer pairs. Compare their gro
   p_1\mathbin{+\!\!+}\cdots\mathbin{+\!\!+}p_m
   \]
 
-  is a permutation of \(\rho(P)\). In other words, the partition covers every axis exactly once. Groups within one partition are disjoint; groups from different partitions may overlap.
+  is a permutation of \(\rho(P)\). In other words, the partition covers every axis exactly once. Groups within one partition are disjoint groups from different partitions may overlap.
 
 > **Example**
 >

@@ -1,10 +1,26 @@
-from "dialects/hlo.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
+from "dialects/hlo.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
 
 rule reduce_transpose {
-    X: [I, J]
-    (attr_r: reduce_sum (attr_p: transpose X)) => (attr_out: reduce_sum X)
-    where { attr_p.attrs.permutation == [1, 0] && attr_r.attrs.dimensions == [0] }
-    derive { attr_out.attrs = { dimensions: [1] }; }
+  X: [I, J]
+
+  (attr_r: reduce_sum (attr_p: transpose X)) => (attr_out: reduce_sum X)
+
+  where
+    attr_p.attrs.permutation == [1, 0]
+      && attr_r.attrs.dimensions == [0] derive {
+    attr_out.attrs = { dimensions: [1] }
+  }
 }

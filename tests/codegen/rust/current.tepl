@@ -1,143 +1,276 @@
-from "../../../examples/semantic/dialects/tensor.tepl" import TensorLang as t;
+from "../../../examples/semantic/dialects/tensor.tepl" import TensorLang as t
 
 // Non-axis fields are supplied or defaulted; only permutation is synthesized.
 dialect Configured {
-  op structural(x:tensor)->tensor {
-    attrs {value:u64;}
-    dtype(t) {yield t;}
-    shape(s) {yield s;}
-  }
-  op transpose(x:tensor)->tensor {
-    attrs { permutation:axis[]; enabled:bool; note:string?; flags:bool[]=[]; }
-    dtype(t) { yield t; }
-    axes {
-      bind S {x:all_axes(x)};
-      assert is_valid_axis_list(attrs.permutation,rank(x));
-      assert len(attrs.permutation)==rank(x);
-      yield permute(S,attrs.permutation);
+  op structural(x: tensor) -> tensor {
+    attrs {
+      value: u64
     }
-    semantics { yield x; }
+    dtype(t) {
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op transpose(x: tensor) -> tensor {
+    attrs {
+      permutation: axis[]
+      enabled: bool
+      note: string?
+      flags: bool[] = []
+    }
+    dtype(t) {
+      yield t
+    }
+    axes {
+      bind S { x: all_axes(x) }
+      assert is_valid_axis_list(attrs.permutation, rank(x))
+      assert len(attrs.permutation) == rank(x)
+      yield permute(S, attrs.permutation)
+    }
+    semantics {
+      yield x
+    }
   }
 }
 
 rule partial {
-  (outer:Configured.transpose (inner:Configured.transpose X))
-  => (result:Configured.transpose X)
+  (outer: Configured.transpose (inner: Configured.transpose X))
+  =>
+  (result: Configured.transpose X)
+
   derive {
-    result.attrs={..outer.attrs,permutation:auto,note:outer.attrs.note};
+    result.attrs = { ..outer.attrs, permutation: auto, note: outer.attrs.note }
   }
 }
+
 rule explicit {
-  (outer:Configured.transpose (inner:Configured.transpose X))
-  => (result:Configured.transpose X)
+  (outer: Configured.transpose (inner: Configured.transpose X))
+  =>
+  (result: Configured.transpose X)
+
   derive {
-    result.attrs={..outer.attrs,
-      permutation:gather(inner.attrs.permutation,outer.attrs.permutation),
-      note:outer.attrs.note};
+    result.attrs = {
+      ..outer.attrs,
+      permutation: gather(inner.attrs.permutation, outer.attrs.permutation),
+      note: outer.attrs.note
+    }
   }
 }
+
 // RHS-dependent conditions execute after derive, retaining where locals.
 rule derived_guard {
-  X:[Dims...]
-  (source:Configured.structural X) => (result:Configured.structural X)
+  X: [Dims...]
+
+  (source: Configured.structural X) => (result: Configured.structural X)
+
   where {
-    let expected=source.attrs.value+1;
-    let actual=result.attrs.value;
-    len(Dims)==2 && actual==expected
-  }
-  derive {
-    let step=1;
-    result.attrs={value:source.attrs.value+step};
+    let expected = source.attrs.value + 1
+    let actual = result.attrs.value
+    yield len(Dims) == 2 && actual == expected
+  } derive {
+    let step = 1
+    result.attrs = { value: source.attrs.value + step }
   }
 }
+
 rule rejected_derived_guard {
-  (source:Configured.structural X) => (result:Configured.structural X)
-  where {let actual=result.attrs.value; actual==source.attrs.value}
-  derive {result.attrs={value:source.attrs.value+1};}
+  (source: Configured.structural X) => (result: Configured.structural X)
+
+  where {
+    let actual = result.attrs.value
+    yield actual == source.attrs.value
+  } derive {
+    result.attrs = { value: source.attrs.value + 1 }
+  }
 }
+
 rule source_guard_first {
-  (source:Configured.structural X) => (result:Configured.structural X)
-  where {false && result.attrs.value==0}
-  derive {result.attrs={value:1/0};}
+  (source: Configured.structural X) => (result: Configured.structural X)
+
+  where false && result.attrs.value == 0 derive {
+    result.attrs = { value: 1 / 0 }
+  }
 }
+
 rule logical_axes {
-  (outer:t.transpose (inner:t.transpose X)) => (t.transpose X)
+  (outer: t.transpose (inner: t.transpose X)) => (t.transpose X)
+
   where {
-    let order=X.axes.order;
-    let members=inner.axes.S.members;
-    outer.axes.order == order &&
-    filter(order,members) == order &&
-    difference(members,outer.axes.S.members) == difference(members,members) &&
-    subsequence(order,outer.axes.order) &&
-    all([axis==axis for axis in order])
+    let order = X.axes.order
+    let members = inner.axes.S.members
+    yield
+      outer.axes.order == order
+        && filter(order, members) == order
+        && difference(members, outer.axes.S.members)
+          == difference(members, members)
+        && subsequence(order, outer.axes.order)
+        && all([axis == axis for axis in order])
   }
 }
+
 rule source_positions {
-  (outer:t.transpose (inner:t.transpose X)) => (t.transpose X)
-  where {outer.axes.S.positions == inner.axes.S.positions}
+  (outer: t.transpose (inner: t.transpose X)) => (t.transpose X)
+
+  where outer.axes.S.positions == inner.axes.S.positions
 }
+
 rule dot_groups {
-  (source:t.dot A B) => (t.dot A B)
+  (source: t.dot A B) => (t.dot A B)
+
   where {
-    let a=A.axes.order;
-    let b=B.axes.order;
-    source.axes.B.positions == [0,1] &&
-    source.axes.B.order == gather(a,[1,0]) &&
-    source.axes.B.order == gather(b,[0,1]) &&
-    source.axes.I.order == gather(a,[2]) &&
-    source.axes.K.order == gather(a,[3]) &&
-    source.axes.B.members == difference(source.axes.B.members,source.axes.K.members)
+    let a = A.axes.order
+    let b = B.axes.order
+    yield
+      source.axes.B.positions == [0, 1]
+        && source.axes.B.order == gather(a, [1, 0])
+        && source.axes.B.order == gather(b, [0, 1])
+        && source.axes.I.order == gather(a, [2])
+        && source.axes.K.order == gather(a, [3])
+        && source.axes.B.members
+          == difference(source.axes.B.members, source.axes.K.members)
   }
 }
+
 rule broadcast_partial {
-  (b:t.broadcast (p:t.transpose A)) => (out:t.broadcast A)
-  derive {out.attrs={new_extents:b.attrs.new_extents};}
+  (b: t.broadcast (p: t.transpose A)) => (out: t.broadcast A)
+
+  derive {
+    out.attrs = { new_extents: b.attrs.new_extents }
+  }
 }
 
 graph configured {
-  input X:f32[2,3];
-  let inner=(Configured.transpose[permutation=[1,0],enabled=true,note="source",flags=[true,false]] X);
-  yield (Configured.transpose[permutation=[1,0],enabled=false,note=none] inner);
+  input X: f32[2, 3]
+
+  let inner =
+    (Configured.transpose[
+      permutation = [1, 0],
+      enabled = true,
+      note = "source",
+      flags = [true, false]
+    ]
+      X)
+
+  yield
+    (Configured.transpose[permutation = [1, 0], enabled = false, note = none]
+      inner)
 }
+
 graph identity {
-  input X:f32[2,2];
-  let inner=(t.transpose[permutation=[1,0]] X);
-  yield (t.transpose[permutation=[1,0]] inner);
+  input X: f32[2, 2]
+
+  let inner = (t.transpose[permutation = [1, 0]] X)
+
+  yield (t.transpose[permutation = [1, 0]] inner)
 }
+
 // Equal extents must not make unrelated axis identities interchangeable.
 graph nonidentity {
-  input X:f32[2,2,2];
-  let inner=(t.transpose[permutation=[1,2,0]] X);
-  yield (t.transpose[permutation=[1,2,0]] inner);
+  input X: f32[2, 2, 2]
+
+  let inner = (t.transpose[permutation = [1, 2, 0]] X)
+
+  yield (t.transpose[permutation = [1, 2, 0]] inner)
 }
+
 graph empty {
-  input X:f32[];
-  let inner=(t.transpose[permutation=[]] X);
-  yield (t.transpose[permutation=[]] inner);
+  input X: f32[]
+
+  let inner = (t.transpose[permutation = []] X)
+
+  yield (t.transpose[permutation = []] inner)
 }
+
 graph zero_singleton {
-  input X:f32[0,1,1];
-  let inner=(t.transpose[permutation=[1,2,0]] X);
-  yield (t.transpose[permutation=[2,0,1]] inner);
+  input X: f32[0, 1, 1]
+
+  let inner = (t.transpose[permutation = [1, 2, 0]] X)
+
+  yield (t.transpose[permutation = [2, 0, 1]] inner)
 }
+
 graph groups {
-  input A:f32[2,3,4,5]; input B:f32[3,2,5,6];
-  yield (t.dot[lhs_batching_dimensions=[1,0],rhs_batching_dimensions=[0,1],lhs_contracting_dimensions=[3],rhs_contracting_dimensions=[2]] A B);
+  input A: f32[2, 3, 4, 5]
+  input B: f32[3, 2, 5, 6]
+
+  yield
+    (t.dot[
+      lhs_batching_dimensions = [1, 0],
+      rhs_batching_dimensions = [0, 1],
+      lhs_contracting_dimensions = [3],
+      rhs_contracting_dimensions = [2]
+    ]
+      A
+      B)
 }
+
 graph broadcast {
-  input A:f32[0,1];
-  let p=(t.transpose[permutation=[1,0]] A);
-  yield (t.broadcast[dimensions=[0,2],new_extents=[1]] p);
+  input A: f32[0, 1]
+
+  let p = (t.transpose[permutation = [1, 0]] A)
+
+  yield (t.broadcast[dimensions = [0, 2], new_extents = [1]] p)
 }
 
 graph structural {
-  input X:f32[2,3];
-  yield (Configured.structural[value=7] X);
+  input X: f32[2, 3]
+
+  yield (Configured.structural[value = 7] X)
 }
 
 // Implicit feasibility must agree with native execution for both metadata cases.
-rule conditional_dot {X:[Dims...] (t.dot X Y)=>(t.dot Y X)
- where {len(Dims)==1}}
-graph q_false {input X:f32[2];input Y:f32[3];yield(t.dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] X Y);}
-graph q_true {input X:f32[2];input Y:f32[2];yield(t.dot[lhs_contracting_dimensions=[0],rhs_contracting_dimensions=[0],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] X Y);}
-graph c_false {input X:f32[];input Y:f32[];yield(t.dot[lhs_contracting_dimensions=[],rhs_contracting_dimensions=[],lhs_batching_dimensions=[],rhs_batching_dimensions=[]] X Y);}
+rule conditional_dot {
+  X: [Dims...]
+
+  (t.dot X Y) => (t.dot Y X)
+
+  where len(Dims) == 1
+}
+
+graph q_false {
+  input X: f32[2]
+  input Y: f32[3]
+
+  yield
+    (t.dot[
+      lhs_contracting_dimensions = [],
+      rhs_contracting_dimensions = [],
+      lhs_batching_dimensions = [],
+      rhs_batching_dimensions = []
+    ]
+      X
+      Y)
+}
+
+graph q_true {
+  input X: f32[2]
+  input Y: f32[2]
+
+  yield
+    (t.dot[
+      lhs_contracting_dimensions = [0],
+      rhs_contracting_dimensions = [0],
+      lhs_batching_dimensions = [],
+      rhs_batching_dimensions = []
+    ]
+      X
+      Y)
+}
+
+graph c_false {
+  input X: f32[]
+  input Y: f32[]
+
+  yield
+    (t.dot[
+      lhs_contracting_dimensions = [],
+      rhs_contracting_dimensions = [],
+      lhs_batching_dimensions = [],
+      rhs_batching_dimensions = []
+    ]
+      X
+      Y)
+}

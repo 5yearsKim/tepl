@@ -1,10 +1,18 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: reduction-splat-or
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_reduction_splat_or {
-    X: [] Init: []
-     (attr_r: hlo.reduce_or (attr_b: hlo.broadcast X) Init) => (hlo.logical_or X Init)
-     where { attr_b.attrs.dimensions==[] && product(attr_b.attrs.new_extents)>0 && attr_r.attrs.dimensions==range(len(attr_b.attrs.new_extents)) }
+  X: []
+  Init: []
+
+  (attr_r: hlo.reduce_or (attr_b: hlo.broadcast X) Init)
+  =>
+  (hlo.logical_or X Init)
+
+  where
+    attr_b.attrs.dimensions == []
+      && product(attr_b.attrs.new_extents) > 0
+      && attr_r.attrs.dimensions == range(len(attr_b.attrs.new_extents))
 }

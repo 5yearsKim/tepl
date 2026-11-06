@@ -1,11 +1,39 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: convolution-fold-input-pad
 // Scope: One canonical spatial axis; no existing input dilation or convolution edge padding.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_convolution_fold_input_pad {
-    X: [N,L,C]
-     (attr_c: hlo.general_convolution (attr_p: hlo.nonnegative_pad X 0) W) => (attr_out: hlo.general_convolution X W)
-     where { attr_c.attrs.input_batch_dimension==0 && attr_c.attrs.input_feature_dimension==2 && attr_c.attrs.input_spatial_dimensions==[1] && attr_c.attrs.kernel_input_feature_dimension==1 && attr_c.attrs.kernel_output_feature_dimension==2 && attr_c.attrs.kernel_spatial_dimensions==[0] && attr_c.attrs.output_batch_dimension==0 && attr_c.attrs.output_feature_dimension==2 && attr_c.attrs.output_spatial_dimensions==[1] && attr_p.attrs.low[0]==0 && attr_p.attrs.low[2]==0 && attr_p.attrs.high[0]==0 && attr_p.attrs.high[2]==0 && attr_p.attrs.interior[0]==0 && attr_p.attrs.interior[2]==0 && attr_c.attrs.lhs_dilation==[1] && attr_c.attrs.padding_low==[0] && attr_c.attrs.padding_high==[0] }
-     derive { attr_out.attrs={..attr_c.attrs,padding_low:[attr_p.attrs.low[1]],padding_high:[attr_p.attrs.high[1]],lhs_dilation:[attr_p.attrs.interior[1]+1]}; }
+  X: [N, L, C]
+
+  (attr_c: hlo.general_convolution (attr_p: hlo.nonnegative_pad X 0) W)
+  =>
+  (attr_out: hlo.general_convolution X W)
+
+  where
+    attr_c.attrs.input_batch_dimension == 0
+      && attr_c.attrs.input_feature_dimension == 2
+      && attr_c.attrs.input_spatial_dimensions == [1]
+      && attr_c.attrs.kernel_input_feature_dimension == 1
+      && attr_c.attrs.kernel_output_feature_dimension == 2
+      && attr_c.attrs.kernel_spatial_dimensions == [0]
+      && attr_c.attrs.output_batch_dimension == 0
+      && attr_c.attrs.output_feature_dimension == 2
+      && attr_c.attrs.output_spatial_dimensions == [1]
+      && attr_p.attrs.low[0] == 0
+      && attr_p.attrs.low[2] == 0
+      && attr_p.attrs.high[0] == 0
+      && attr_p.attrs.high[2] == 0
+      && attr_p.attrs.interior[0] == 0
+      && attr_p.attrs.interior[2] == 0
+      && attr_c.attrs.lhs_dilation == [1]
+      && attr_c.attrs.padding_low == [0]
+      && attr_c.attrs.padding_high == [0] derive {
+    attr_out.attrs = {
+      ..attr_c.attrs,
+      padding_low: [attr_p.attrs.low[1]],
+      padding_high: [attr_p.attrs.high[1]],
+      lhs_dilation: [attr_p.attrs.interior[1] + 1]
+    }
+  }
 }

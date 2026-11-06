@@ -1,5 +1,18 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
+from "dialects/hlo_structural.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
 
-rule add_zero { (add X (zero_like X)) => X }
+rule add_zero {
+  (add X (zero_like X)) => X
+}

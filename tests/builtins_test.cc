@@ -194,30 +194,29 @@ void visibility() {
     if (resolveBuiltin(entry.name))
       continue;  // Structural concat shares a spelling.
     const auto name = std::string(entry.name);
-    rejects("rule r { X => X where { " + name + "() } }", "unknown builtin");
+    rejects("rule r { X => X where " + name + "() }", "unknown builtin");
     rejects("dialect D { op copy(x:tensor)->tensor { shape(s) { yield " + name +
-                "(); } } }",
+                "() } } }",
             "unknown shape builtin");
     if (!resolveAxisBuiltin(name))
       rejects(
           "dialect D { op copy(x:tensor)->tensor { axes { bind S { "
-          "x:all_axes(x) }; assert " +
-              name + "(); yield S; } semantics {yield x;} } }",
+          "x:all_axes(x) } assert " +
+              name + "() yield S } semantics {yield x } } }",
           "unsupported axis builtin");
   }
   rejects(
       "dialect D { op copy(x:tensor)->tensor { shape(s) { assert "
-      "is_float(f32); yield s; } } }",
+      "is_float(f32) yield s } } }",
       "not available in shape");
-  rejects("rule r { X => X where { rank(X) == 0 } }", "unknown builtin");
-  rejects("rule r { X => X where { i64(true) == 0 } }",
+  rejects("rule r { X => X where rank(X) == 0 }", "unknown builtin");
+  rejects("rule r { X => X where i64(true) == 0 }",
           "operator does not support");
-  rejects("rule r { X => X where { u64(1.0) == 0 } }",
-          "operator does not support");
+  rejects("rule r { X => X where u64(1.0) == 0 }", "operator does not support");
 
   rejects(
       "dialect D { op copy(x:tensor)->tensor { axes { bind S { x:all_axes(x) "
-      "}; assert all([1]); yield S; } semantics {yield x;} } }",
+      "} assert all([1]) yield S } semantics {yield x } } }",
       "unsupported axis builtin");
 }
 void axesAndIntrinsics() {

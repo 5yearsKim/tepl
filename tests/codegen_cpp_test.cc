@@ -34,8 +34,8 @@ tepl::codegen::GenerationResult generate(const std::string& text,
 }  // namespace
 int main() {
   auto result = generate(
-      "dialect T {op copy(x:tensor)->tensor {dtype(t){yield t;}shape(s){yield "
-      "s;}}} rule identity {(T.copy X)=>X}");
+      "dialect T {op copy(x:tensor)->tensor {dtype(t){yield t }shape(s){yield "
+      "s }}} rule identity {(T.copy X)=>X}");
   assert(result.ok());
   std::set<std::string> paths;
   for (const auto& file : result.files) {
@@ -54,10 +54,10 @@ int main() {
     assert(!bad.ok() && bad.files.empty());
   }
   for (auto source :
-       {"dialect T {attrs A {signed:u64;signed_:u64;}}",
-        "dialect T {op foo_bar(x:tensor)->tensor;op fooBar(x:tensor)->tensor;}",
-        "dialect T {attrs OpAttrs {x:u64;}}",
-        "dialect T {attrs A {to_value:u64;}}"}) {
+       {"dialect T {attrs A {signed:u64 signed_:u64 }}",
+        "dialect T {op foo_bar(x:tensor)->tensor op fooBar(x:tensor)->tensor }",
+        "dialect T {attrs OpAttrs {x:u64 }}",
+        "dialect T {attrs A {to_value:u64 }}"}) {
     auto bad = generate(source);
     assert(!bad.ok() && bad.files.empty());
     assert(!bad.diagnostics.front().origin.definition.source_name.empty());

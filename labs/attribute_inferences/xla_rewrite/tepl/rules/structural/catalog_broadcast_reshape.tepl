@@ -1,14 +1,36 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: broadcast-reshape
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_reshape {
-    X: [Dims...]
-     (attr_b: hlo.broadcast X) => (attr_r: hlo.reshape X)
-     where { all([if i == 0 then true else attr_b.attrs.dimensions[i-1] < attr_b.attrs.dimensions[i] for i in range(len(attr_b.attrs.dimensions))]) && all([e == 1 for e in attr_b.attrs.new_extents]) }
-     derive {
-      let rank = len(Dims) + len(attr_b.attrs.new_extents);
-      attr_r.attrs = { shape: [if contains(attr_b.attrs.dimensions, i) then sum([if attr_b.attrs.dimensions[j] == i then Dims[j] else 0 for j in range(len(Dims))]) else 1 for i in range(rank)] };
-     }
+  X: [Dims...]
+
+  (attr_b: hlo.broadcast X) => (attr_r: hlo.reshape X)
+
+  where
+    all(
+      [
+        if i == 0
+          then true
+          else attr_b.attrs.dimensions[i - 1] < attr_b.attrs.dimensions[i]
+        for i in range(len(attr_b.attrs.dimensions))
+      ]
+    )
+      && all([e == 1 for e in attr_b.attrs.new_extents]) derive {
+    let rank = len(Dims) + len(attr_b.attrs.new_extents)
+    attr_r.attrs = {
+      shape: [
+        if contains(attr_b.attrs.dimensions, i)
+          then sum(
+            [
+              if attr_b.attrs.dimensions[j] == i then Dims[j] else 0
+              for j in range(len(Dims))
+            ]
+          )
+          else 1
+        for i in range(rank)
+      ]
+    }
+  }
 }

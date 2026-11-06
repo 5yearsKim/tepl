@@ -101,29 +101,29 @@ For example, a contraction operation groups batch, contraction, and free axes:
 ```tepl
 op dot_general(lhs: tensor, rhs: tensor) -> tensor {
   attrs {
-    lhs_batching_dimensions: axis[];
-    rhs_batching_dimensions: axis[];
-    lhs_contracting_dimensions: axis[];
-    rhs_contracting_dimensions: axis[];
+    lhs_batching_dimensions: axis[]
+    rhs_batching_dimensions: axis[]
+    lhs_contracting_dimensions: axis[]
+    rhs_contracting_dimensions: axis[]
   }
 
   axes {
-    let lb = attrs.lhs_batching_dimensions;
-    let rb = attrs.rhs_batching_dimensions;
-    let lc = attrs.lhs_contracting_dimensions;
-    let rc = attrs.rhs_contracting_dimensions;
-    let lf = ordered_complement(all_axes(lhs), lb ++ lc);
-    let rf = ordered_complement(all_axes(rhs), rb ++ rc);
+    let lb = attrs.lhs_batching_dimensions
+    let rb = attrs.rhs_batching_dimensions
+    let lc = attrs.lhs_contracting_dimensions
+    let rc = attrs.rhs_contracting_dimensions
+    let lf = ordered_complement(all_axes(lhs), lb ++ lc)
+    let rf = ordered_complement(all_axes(rhs), rb ++ rc)
 
-    bind B { lhs: lb, rhs: rb };
-    bind K { lhs: lc, rhs: rc };
-    bind I { lhs: lf };
-    bind J { rhs: rf };
-    yield B ++ I ++ J;
+    bind B { lhs: lb, rhs: rb }
+    bind K { lhs: lc, rhs: rc }
+    bind I { lhs: lf }
+    bind J { rhs: rf }
+    yield B ++ I ++ J
   }
 
   semantics {
-    yield Reduce(K, Product(lhs, rhs));
+    yield Reduce(K, Product(lhs, rhs))
   }
 }
 ```

@@ -1,8 +1,8 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: elementwise-max-clamp-bound
 // Scope: Written operand/opcode variant under the catalog conditions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_max_clamp_bound {
-    (hlo.maximum Low (hlo.clamp Low X High)) => (hlo.clamp Low X High)
+  (hlo.maximum Low (hlo.clamp Low X High)) => (hlo.clamp Low X High)
 }

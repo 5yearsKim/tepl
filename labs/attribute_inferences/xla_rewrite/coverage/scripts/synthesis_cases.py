@@ -127,17 +127,38 @@ class Rule:
         depth = 0
         rows = []
         for i in range(start, end):
+            # Statement starts are explicit even when several share a line.
+            assignment = self.values[i : i + 4]
+            if i > start and depth == 0 and (
+                self.values[i] == "let"
+                or (len(assignment) == 4 and assignment[1:] == [".", "attrs", "="])
+            ):
+                tokens = self.values[start:i]
+                text = self.source[self.tokens[start].start() : self.tokens[i - 1].end()]
+                rows.append((tokens, text))
+                start = i
             value = self.values[i]
             if value in {"{", "[", "("}:
                 depth += 1
             if value in {"}", "]", ")"}:
                 depth -= 1
-            if value == ";" and depth == 0:
-                tokens = self.values[start:i]
-                text = self.source[self.tokens[start].start() : self.tokens[i].end()]
-                rows.append((tokens, text))
-                start = i + 1
+        if start < end:
+            rows.append((
+                self.values[start:end],
+                self.source[self.tokens[start].start() : self.tokens[end - 1].end()],
+            ))
         return rows
+
+    def condition_span(self):
+        if "where" not in self.values[self.rhs_end :]:
+            return None
+        start = self.values.index("where", self.rhs_end) + 1
+        if self.values[start] == "{":
+            end = self.closing(start, "{", "}")
+            start = self.values.index("yield", start + 1) + 1
+        else:
+            end = self.derive if self.derive is not None else len(self.values) - 1
+        return self.tokens[start].start(), self.tokens[end - 1].end()
 
     def attribute_sites(self):
         inventory, aliases = operation_inventory()

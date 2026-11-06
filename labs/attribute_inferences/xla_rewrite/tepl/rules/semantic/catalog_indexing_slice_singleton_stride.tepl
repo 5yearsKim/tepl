@@ -1,9 +1,18 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-slice-singleton-stride
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_slice_singleton_stride {
-    (attr_s: hlo.slice X) => (attr_out: hlo.slice X)
-     derive { attr_out.attrs={..attr_s.attrs,strides:[if attr_s.attrs.sizes[i]<=1 then 1 else attr_s.attrs.strides[i] for i in range(len(attr_s.attrs.sizes))]}; }
+  (attr_s: hlo.slice X) => (attr_out: hlo.slice X)
+
+  derive {
+    attr_out.attrs = {
+      ..attr_s.attrs,
+      strides: [
+        if attr_s.attrs.sizes[i] <= 1 then 1 else attr_s.attrs.strides[i]
+        for i in range(len(attr_s.attrs.sizes))
+      ]
+    }
+  }
 }

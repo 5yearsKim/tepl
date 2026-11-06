@@ -1,11 +1,17 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: indexing-dynamic-slice-unit-reshape
 // Scope: Rank-one base with one inserted leading unit axis.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_dynamic_slice_unit_reshape {
-    X: [N]
-     (attr_s: hlo.dynamic_slice (attr_r: hlo.reshape X) S0 S1) => (attr_out: hlo.reshape (attr_inner: hlo.dynamic_slice X S1))
-     where { attr_r.attrs.shape==[1,N] && attr_s.attrs.sizes[0]==1 }
-     derive { attr_inner.attrs={sizes:[attr_s.attrs.sizes[1]]}; attr_out.attrs={shape:attr_s.attrs.sizes}; }
+  X: [N]
+
+  (attr_s: hlo.dynamic_slice (attr_r: hlo.reshape X) S0 S1)
+  =>
+  (attr_out: hlo.reshape (attr_inner: hlo.dynamic_slice X S1))
+
+  where attr_r.attrs.shape == [1, N] && attr_s.attrs.sizes[0] == 1 derive {
+    attr_inner.attrs = { sizes: [attr_s.attrs.sizes[1]] }
+    attr_out.attrs = { shape: attr_s.attrs.sizes }
+  }
 }

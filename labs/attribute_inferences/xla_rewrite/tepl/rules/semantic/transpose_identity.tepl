@@ -1,8 +1,20 @@
-from "dialects/hlo.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
+from "dialects/hlo.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
 
 rule transpose_identity {
-    (attr_p: transpose X) => X
-    where { attr_p.attrs.permutation == range(len(attr_p.attrs.permutation)) }
+  (attr_p: transpose X) => X
+
+  where attr_p.attrs.permutation == range(len(attr_p.attrs.permutation))
 }

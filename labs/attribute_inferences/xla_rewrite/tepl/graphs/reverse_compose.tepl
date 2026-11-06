@@ -1,5 +1,7 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
 graph reverse_compose {
-    input X: f32[3,4];
-    yield (hlo.reverse[dimensions=[1]] (hlo.reverse[dimensions=[0]] X));
+  input X: f32[3, 4]
+
+  yield (hlo.reverse[dimensions = [1]] (hlo.reverse[dimensions = [0]] X))
 }

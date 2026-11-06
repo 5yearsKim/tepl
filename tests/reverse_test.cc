@@ -142,10 +142,10 @@ S vector(const List& values) {
 void invalid(const std::string& access, const std::string& diagnostic) {
   auto result = analyze(
       "", true,
-      "dialect D { op f(input:tensor)->tensor { attrs { dimensions:axis[]; } "
-      "dtype(t){yield t;} axes {bind S {input:all_axes(input)};yield S;} "
+      "dialect D { op f(input:tensor)->tensor { attrs { dimensions:axis[] } "
+      "dtype(t){yield t } axes {bind S {input:all_axes(input)} yield S } "
       "semantics {yield Read(input," +
-          access + ");} } }");
+          access + ")} } }");
   expect(!result.ok(), "invalid reverse definition rejected");
   for (const auto& d : result.diagnostics)
     if (d.message.find(diagnostic) != std::string::npos) return;
@@ -166,15 +166,15 @@ int main(int argc, char** argv) {
         plan("rule r {(r: reverse A)=>(reverse[r.attrs] A)}", false);
     auto twice = plan(
         "rule r {(outer: reverse (inner: reverse A))=>A where "
-        "{outer.attrs.dimensions == inner.attrs.dimensions}}",
+        "outer.attrs.dimensions == inner.attrs.dimensions }",
         false);
     auto composed =
         plan("rule r {(outer: reverse (inner: reverse A)) => (reverse A)}");
     auto composed_cancel = plan(
         "rule r {(outer: reverse (inner: reverse A)) => (reverse A) where "
-        "{outer.attrs.dimensions == inner.attrs.dimensions}}");
+        "outer.attrs.dimensions == inner.attrs.dimensions }");
     auto empty = plan(
-        "rule r {(r: reverse A)=>A where {r.attrs.dimensions == []}}", false);
+        "rule r {(r: reverse A)=>A where r.attrs.dimensions == [] }", false);
     auto addition = plan(
         "rule r {(r: reverse (add A B)) => (add (reverse[r.attrs] A) "
         "(reverse[r.attrs] B))}");
@@ -183,19 +183,19 @@ int main(int argc, char** argv) {
         "(reverse[r.attrs] B))}");
     auto broadcast = plan(
         "rule r {(r: reverse (b: broadcast C)) => (broadcast[b.attrs] C) where "
-        "{len(b.attrs.dimensions)==0}}",
+        "len(b.attrs.dimensions)==0 }",
         false);
     auto scalar_addition = plan(
         "rule r {(r:reverse (add A (b:broadcast C))) => "
         "(add (reverse A) (broadcast[b.attrs] C)) where "
-        "{b.attrs.dimensions==[]}}");
+        "b.attrs.dimensions==[] }");
     auto transfer = plan(
         "rule r {X:[K] Y:[K] (d:dot (r:reverse X) Y) => "
-        "(dot X (reverse Y)) where {r.attrs.dimensions==[0] && "
+        "(dot X (reverse Y)) where r.attrs.dimensions==[0] && "
         "d.attrs.lhs_contracting_dimensions==[0] && "
         "d.attrs.rhs_contracting_dimensions==[0] && "
         "d.attrs.lhs_batching_dimensions==[] && "
-        "d.attrs.rhs_batching_dimensions==[]}}");
+        "d.attrs.rhs_batching_dimensions==[] }");
     for (int extent : {0, 1, 2, 5}) {
       auto x = data({extent}, 2), y = data({extent}, 4);
       auto values = multiply(reverse(x, {0}), y).values;
@@ -206,11 +206,11 @@ int main(int argc, char** argv) {
     }
     auto free_reflection = analyze(
         "rule r {X:[M,K] Y:[K,N] (d:dot (r:reverse X) Y) => "
-        "(dot[d.attrs] X Y) where {r.attrs.dimensions==[0] && "
+        "(dot[d.attrs] X Y) where r.attrs.dimensions==[0] && "
         "d.attrs.lhs_contracting_dimensions==[1] && "
         "d.attrs.rhs_contracting_dimensions==[0] && "
         "d.attrs.lhs_batching_dimensions==[] && "
-        "d.attrs.rhs_batching_dimensions==[]}}");
+        "d.attrs.rhs_batching_dimensions==[] }");
     expect(free_reflection.ok() &&
                free_reflection.program->rules[0].semantic_plan->proof.status ==
                    ProofStatus::Unknown,
@@ -283,14 +283,14 @@ int main(int argc, char** argv) {
 
     auto singleton_dialect = dialect;
     const std::string assertion =
-        "assert is_valid_axis_list(attrs.dimensions, rank(input));";
+        "assert is_valid_axis_list(attrs.dimensions, rank(input))";
     auto insertion = singleton_dialect.find(assertion);
     expect(insertion != std::string::npos, "reverse assertion exists");
     singleton_dialect.insert(
         insertion + assertion.size(),
-        "let selected_sizes = gather(shape(input), attrs.dimensions);"
+        "let selected_sizes = gather(shape(input), attrs.dimensions) "
         "assert selected_sizes == offset_extents("
-        "extent_sub(selected_sizes, selected_sizes), 1);");
+        "extent_sub(selected_sizes, selected_sizes), 1)");
     auto singleton =
         plan("rule r {(r: reverse A)=>A}", false, singleton_dialect);
     auto singleton_input = data({1, 4, 1}, 2);

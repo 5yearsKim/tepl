@@ -130,43 +130,43 @@ int main(int argc, char** argv) {
         "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
         "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
         "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1] for "
-        "axis_meta_1 in range(len(inner.attrs.strides))]};} }");
+        "axis_meta_1 in range(len(inner.attrs.strides))]} } }");
     auto zero_start_composition = plan(
         "rule r {(outer: slice (inner: slice A)) => (out: slice A) where "
-        "{inner.attrs.starts == [0] && outer.attrs.starts == [0] && "
-        "inner.attrs.strides == [1] && outer.attrs.strides == [1]} derive "
+        "inner.attrs.starts == [0] && outer.attrs.starts == [0] && "
+        "inner.attrs.strides == [1] && outer.attrs.strides == [1] derive "
         "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
         "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for axis_meta_0 "
         "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
         "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
         "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1] for "
-        "axis_meta_1 in range(len(inner.attrs.strides))]};} }",
+        "axis_meta_1 in range(len(inner.attrs.strides))]} } }",
         {}, tepl::core::SemanticPolicy::kStrict);
     auto unit_composition = plan(
         "rule r {(outer: slice (inner: slice A)) => (out: slice A) where "
-        "{inner.attrs.strides == [1 for d in inner.attrs.sizes] && "
+        "inner.attrs.strides == [1 for d in inner.attrs.sizes] && "
         "outer.attrs.strides == inner.attrs.strides && "
         "all([v<=9223372036854775807 for v in "
         "[inner.attrs.starts[i]+outer.attrs.starts[i] "
-        "for i in range(len(inner.attrs.starts))]])} derive "
+        "for i in range(len(inner.attrs.starts))]]) derive "
         "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
         "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for axis_meta_0 "
         "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
         "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
         "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1] for "
-        "axis_meta_1 in range(len(inner.attrs.strides))]};} }");
+        "axis_meta_1 in range(len(inner.attrs.strides))]} } }");
     auto rank_one_unit = plan(
         "rule r {A:[N] (outer: slice (inner: slice A)) => (out: slice A) where "
-        "{inner.attrs.strides == [1] && outer.attrs.strides == [1] && "
+        "inner.attrs.strides == [1] && outer.attrs.strides == [1] && "
         "all([v<=9223372036854775807 for v in "
         "[inner.attrs.starts[i]+outer.attrs.starts[i] "
-        "for i in range(len(inner.attrs.starts))]])} derive "
+        "for i in range(len(inner.attrs.starts))]]) derive "
         "{out.attrs={starts:[inner.attrs.starts[axis_meta_0]+[inner.attrs."
         "strides[axis_meta_0]*outer.attrs.starts[axis_meta_0] for axis_meta_0 "
         "in range(len(inner.attrs.strides))][axis_meta_0] for axis_meta_0 in "
         "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
         "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1] for "
-        "axis_meta_1 in range(len(inner.attrs.strides))]};} }");
+        "axis_meta_1 in range(len(inner.attrs.strides))]} } }");
     auto permuted = plan(
         "rule r {(s: slice (p: transpose (add A B))) => (add (slice[s.attrs] "
         "(transpose[p.attrs] A)) (slice[s.attrs] (transpose[p.attrs] B)))}");
@@ -183,15 +183,15 @@ int main(int argc, char** argv) {
         "inner.attrs.strides[axis_meta_1]*[middle.attrs.strides[axis_meta_0]*"
         "outer.attrs.strides[axis_meta_0] for axis_meta_0 in "
         "range(len(middle.attrs.strides))][axis_meta_1] for axis_meta_1 in "
-        "range(len(inner.attrs.strides))]};} }");
+        "range(len(inner.attrs.strides))]} } }");
     auto identity = plan(
-        "rule r {(s: slice A) => (out: slice A) derive {out.attrs=s.attrs;}}");
+        "rule r {(s: slice A) => (out: slice A) derive {out.attrs=s.attrs }}");
     auto sliced_broadcast = plan(
         "rule r {A:[N] (s:slice (b:broadcast A)) => (out:broadcast A) where "
-        "{b.attrs.dimensions==[0] && s.attrs.starts[0]==0 && "
-        "s.attrs.sizes[0]==N && s.attrs.strides[0]==1} derive "
+        "b.attrs.dimensions==[0] && s.attrs.starts[0]==0 && "
+        "s.attrs.sizes[0]==N && s.attrs.strides[0]==1 derive "
         "{out.attrs={dimensions:auto,new_extents:gather(s.attrs.sizes,exclude("
-        "range(len(s.attrs.sizes)),[0]))};} }");
+        "range(len(s.attrs.sizes)),[0]))} } }");
     proved(sliced_broadcast);
     for (int n : {1, 2, 4}) {
       auto input = data({n}, 3);
@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
              "range(len(inner.attrs.starts))],sizes:outer.attrs.sizes,strides:["
              "inner.attrs.strides[axis_meta_1]*outer.attrs.strides[axis_meta_1]"
              " for "
-             "axis_meta_1 in range(len(inner.attrs.strides))]};} }",
+             "axis_meta_1 in range(len(inner.attrs.strides))]} } }",
              {}, tepl::core::SemanticPolicy::kStrict)
                 .proof.status == ProofStatus::Unknown,
         "strict policy also requires explicit arithmetic bounds");
@@ -298,12 +298,12 @@ int main(int argc, char** argv) {
     proved(inferred_distribution);
     auto wrong = plan(
         "rule r {(s: slice A) => (out: slice A) derive "
-        "{out.attrs={..s.attrs,starts:s.attrs.strides};}}");
+        "{out.attrs={..s.attrs,starts:s.attrs.strides} }}");
     expect(wrong.proof.status == ProofStatus::Unknown,
            "wrong start is not proved");
     auto wrong_sizes = plan(
         "rule r {(s: slice A) => (out: slice A) derive "
-        "{out.attrs={..s.attrs,sizes:[1]};}}");
+        "{out.attrs={..s.attrs,sizes:[1]} }}");
     expect(wrong_sizes.proof.status == ProofStatus::Unknown,
            "wrong output size is not proved");
     for (auto field : {0, 1, 2}) {
@@ -323,9 +323,9 @@ int main(int argc, char** argv) {
     auto renamed = dialect;
     auto at = renamed.find("op slice(");
     renamed.replace(at, 9, "op crop(");
-    at = renamed.find("starts: coordinate[];");
-    renamed.replace(at, std::string("starts: coordinate[];").size(),
-                    "begins: coordinate[];");
+    at = renamed.find("starts: coordinate[]");
+    renamed.replace(at, std::string("starts: coordinate[]").size(),
+                    "begins: coordinate[]");
     for (std::size_t position = 0;
          (position = renamed.find("attrs.starts", position)) !=
          std::string::npos;) {

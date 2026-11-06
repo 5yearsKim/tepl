@@ -95,8 +95,8 @@ void testLora(const std::string& source, const std::string& path) {
             as<tepl::syntax::NamedDimension>(x.shape[2].value, "Expected K")
                     .name == "K",
         "Dimensions must preserve source order");
-  check(x.shape[0].span.begin.line == 7 && x.shape[0].span.begin.column == 9 &&
-            x.shape[0].span.end.column == 17,
+  check(x.shape[0].span.begin.line == 7 && x.shape[0].span.begin.column == 7 &&
+            x.shape[0].span.end.column == 15,
         "Named sequence source span is wrong");
 
   const auto& lhs =
@@ -134,8 +134,8 @@ void testExtendedAttributesAndParsedShapes() {
   auto parsed = tepl::parse(R"(
 dialect D {
   op custom(x: tensor) -> tensor {
-    attrs { padding: coordinate[][]; algorithm: dot_algorithm?; flags: bool[]; body: region; }
-    shape(s) { assert not_implemented(s); yield s; }
+    attrs { padding: coordinate[][] algorithm: dot_algorithm? flags: bool[] body: region }
+    shape(s) { assert not_implemented(s) yield s }
   }
 }
 )");
@@ -168,14 +168,20 @@ dialect D {
 void testRuleConstructors() {
   auto parsed = tepl::parse(
       "rule r { (source: transpose X) => (result: transpose X) where { let "
-      "rank = len([1, 2]); rank "
-      "> 0 } derive { result.attrs = { ..source.attrs, permutation: [i for i "
-      "in range(2)] }; } }");
+      "rank = len([1, 2]) yield -rank "
+      "< 0 } derive { result.attrs = { ..source.attrs, permutation: [i for i "
+      "in range(2)] } } }");
   check(parsed.ok(), "Constructor fixture parses");
   const auto& rule = parsed.program->rules[0];
+  check(rule.conditions.size() == 2,
+        "Yield separates the local binding from the final condition");
   check(std::holds_alternative<tepl::syntax::LocalBinding>(
             rule.conditions[0]->value),
         "Where preserves let statements");
+  const auto& condition = as<tepl::syntax::BinaryExpr>(
+      rule.conditions[1]->value, "Expected yielded comparison");
+  check(std::holds_alternative<tepl::syntax::UnaryExpr>(condition.lhs->value),
+        "A yielded unary expression must not become part of the binding");
   const auto& ctor = as<tepl::syntax::DescriptorConstructor>(
       rule.derivations[0].value->value, "Expected constructor");
   check(ctor.fields.size() == 1 && ctor.spread && *ctor.spread == "source" &&
@@ -192,9 +198,9 @@ void testRuleConstructors() {
 void testExpressionsAndSpans() {
   auto parsed = tepl::parse(
       "rule r {\n  X: [M, Tail..., _]\n  S: []\n  (get[000] (tuple (let Y = "
-      "(d: dot X S)) Y)) => Y\n  where { (K + 2 * N >= 128 && !false || "
+      "(d: dot X S)) Y)) => Y\n  where (K + 2 * N >= 128 && !false || "
       "true)\n          && -(M + N) < 0 && f(X, d.attrs, Y, "
-      "999999999999999999999999) }\n}\n",
+      "999999999999999999999999)\n}\n",
       "math.tepl");
   check(parsed.ok() && parsed.program.has_value(), "Expression fixture failed");
   const auto& rule = parsed.program->rules.front();
@@ -291,7 +297,7 @@ void testInvalidSource() {
 void testNumericLiterals() {
   auto parsed = tepl::parse(
       "rule literals {\n  (add 001 -1.2500) => (add +2 "
-      "999999999999999999999999)\n  where { check(1.00, -2.5) }\n}");
+      "999999999999999999999999)\n  where check(1.00, -2.5)\n}");
   check(parsed.ok() && parsed.program, "Numeric literals must parse");
   const auto& rule = parsed.program->rules.front();
   const auto& lhs = as<tepl::syntax::Operator>(rule.lhs->value, "Expected add");
@@ -336,7 +342,7 @@ void testNumericLiterals() {
             printed.find("float 1.00") != std::string::npos,
         "AST printing must include numeric literals");
   auto dialect = tepl::parse(
-      "dialect t { op add(lhs: tensor, rhs: tensor) -> tensor; } "
+      "dialect t { op add(lhs: tensor, rhs: tensor) -> tensor } "
       "rule r { (add X 1.0) => (add 1.0 X) }");
   check(dialect.ok() && dialect.program,
         "Numeric operands must parse with dialect declarations");
@@ -345,7 +351,7 @@ void testNumericLiterals() {
 void testAttributeTypeAndDefault() {
   auto parsed = tepl::parse(
       "dialect t { op test(input: tensor) -> tensor { "
-      "attrs { axis: u64 = []; shape: extent[] = []; } } }",
+      "attrs { axis: u64 = [] shape: extent[] = [] } } }",
       "attributes.tepl");
   check(parsed.ok() && parsed.program.has_value(),
         "Attribute fixture must build an AST");

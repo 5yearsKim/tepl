@@ -9,7 +9,7 @@ int main() {
   for (const auto* name : {"bool", "i8", "i16", "i32", "i64", "u8", "u16",
                            "u32", "u64", "f16", "bf16", "f32", "f64"}) {
     const auto source = "rule r { X: " + std::string(name) +
-                        "[Batch..., M, _] X => X where { true } }";
+                        "[Batch..., M, _] X => X where true }";
     const auto parsed = tepl::parse(source);
     assert(parsed.ok());
     const auto& rule = parsed.program->rules.front();

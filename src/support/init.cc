@@ -63,11 +63,11 @@ semantic-policy = "strict"
 )"},
       StarterFile{directory / "dialects" / "your_dialect.tepl",
                   R"(dialect YourDialect {
-    op add(lhs: tensor, rhs: tensor) -> tensor;
+    op add(lhs: tensor, rhs: tensor) -> tensor
 }
 )"},
       StarterFile{directory / "rules" / "your_rule.tepl",
-                  R"(from "dialects/your_dialect.tepl" import YourDialect as d;
+                  R"(from "dialects/your_dialect.tepl" import YourDialect as d
 
 rule commute_add {
     (d.add X Y) => (d.add Y X)

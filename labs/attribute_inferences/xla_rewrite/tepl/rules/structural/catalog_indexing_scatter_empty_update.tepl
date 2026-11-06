@@ -1,9 +1,12 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: indexing-scatter-empty-update
 // Scope: Single-operand/result scatter; arbitrary combiner forwarded by source descriptor.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_scatter_empty_update {
-    U: [Dims...]
-     (attr_s: hlo.scatter X Indices U) => X where { product(Dims)==0 }
+  U: [Dims...]
+
+  (attr_s: hlo.scatter X Indices U) => X
+
+  where product(Dims) == 0
 }

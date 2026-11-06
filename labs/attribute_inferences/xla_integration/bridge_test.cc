@@ -1,4 +1,4 @@
-#include "labs/xla_integration/bridge.h"
+#include "labs/attribute_inferences/xla_integration/bridge.h"
 
 #include <algorithm>
 #include <fstream>
@@ -82,10 +82,10 @@ int main(int argc, char** argv) {
     std::ifstream f(argv[2]);
     std::string original{std::istreambuf_iterator<char>(f), {}};
     const std::string guards[] = {
-        "&& len(XDims) == len(d.attrs.lhs_batching_dimensions)+2",
-        "&& len(YDims) == len(d.attrs.rhs_batching_dimensions)+2",
-        "&& len(d.attrs.lhs_contracting_dimensions)==1",
-        "&& len(d.attrs.rhs_contracting_dimensions)==1"};
+        "&& len(XDims) == len(d.attrs.lhs_batching_dimensions) + 2",
+        "&& len(YDims) == len(d.attrs.rhs_batching_dimensions) + 2",
+        "&& len(d.attrs.lhs_contracting_dimensions) == 1",
+        "&& len(d.attrs.rhs_contracting_dimensions) == 1"};
     for (const auto& guard : guards) {
       auto text = original;
       auto pos = text.find(guard);

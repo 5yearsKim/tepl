@@ -15,13 +15,13 @@ std::string operation(std::string name, std::string inputs, std::string types,
                       std::string bindings, std::string value,
                       std::string attrs = "") {
   return "op " + name + "(" + inputs + ")->tensor {" + attrs + types +
-         " axes {bind S {" + bindings + "}; yield S;} semantics {yield " +
-         value + ";}}";
+         " axes {bind S {" + bindings + "} yield S } semantics {yield " +
+         value + " }}";
 }
 std::string dialect() {
   const std::string binary = "lhs:tensor,rhs:tensor";
   const std::string numeric =
-      "dtype(a,b){assert a==b; assert is_numeric(a); yield a;}";
+      "dtype(a,b){assert a==b assert is_numeric(a) yield a }";
   const std::string bindings = "lhs:all_axes(lhs),rhs:all_axes(rhs)";
   std::string d = "dialect D {";
   for (auto name : {"min", "max"})
@@ -30,32 +30,32 @@ std::string dialect() {
   d += operation("add", binary, numeric, bindings, "add(lhs,rhs)");
   d += operation("mul", binary, numeric, bindings, "mul(lhs,rhs)");
   for (auto name : {"exp", "log", "sqrt"})
-    d += operation(name, "x:tensor", "dtype(a){assert is_float(a);yield a;}",
+    d += operation(name, "x:tensor", "dtype(a){assert is_float(a) yield a }",
                    "x:all_axes(x)", std::string(name) + "(x)");
-  d += operation("abs", "x:tensor", "dtype(a){assert is_numeric(a);yield a;}",
+  d += operation("abs", "x:tensor", "dtype(a){assert is_numeric(a) yield a }",
                  "x:all_axes(x)", "abs(x)");
-  d += operation("zero", "x:tensor", "dtype(a){assert is_numeric(a);yield a;}",
+  d += operation("zero", "x:tensor", "dtype(a){assert is_numeric(a) yield a }",
                  "x:all_axes(x)", "Const(0)");
   d += operation("div", binary, numeric, bindings, "div(lhs,rhs)");
   d += operation("pow", binary, numeric, bindings, "pow(lhs,rhs)");
   d += operation("compare", binary,
-                 "dtype(a,b){assert a==b;assert is_numeric(a);yield bool;}",
+                 "dtype(a,b){assert a==b assert is_numeric(a) yield bool }",
                  bindings, "compare(lhs,rhs,attrs.direction)",
-                 "attrs {direction: u64;}");
-  d += operation("not", "x:tensor", "dtype(a){assert a==bool;yield bool;}",
+                 "attrs {direction: u64 }");
+  d += operation("not", "x:tensor", "dtype(a){assert a==bool yield bool }",
                  "x:all_axes(x)", "not(x)");
-  d += "op transpose(x:tensor)->tensor {attrs {p:axis[];} dtype(a){yield a;} "
-       "axes {bind S {x:all_axes(x)}; assert "
-       "is_valid_axis_list(attrs.p,rank(x)); assert "
-       "len(attrs.p)==rank(x);yield permute(S,attrs.p);} semantics {yield x;}}";
-  d += "op reverse(x:tensor)->tensor {attrs {p:axis[];} dtype(a){yield a;} "
-       "axes {bind S {x:all_axes(x)}; assert "
-       "is_valid_axis_list(attrs.p,rank(x)); yield S;} "
-       "semantics {yield Read(x,IndexReverse(Coords(S),attrs.p));}}";
-  d += "op sum(x:tensor)->tensor {attrs {p:axis[];} dtype(a){assert "
-       "is_numeric(a);yield a;} axes {bind K {x:attrs.p};bind F "
-       "{x:ordered_complement(all_axes(x),attrs.p)};yield F;} semantics {yield "
-       "Reduce(K,x);}}";
+  d += "op transpose(x:tensor)->tensor {attrs {p:axis[] } dtype(a){yield a } "
+       "axes {bind S {x:all_axes(x)} assert "
+       "is_valid_axis_list(attrs.p,rank(x)) assert "
+       "len(attrs.p)==rank(x) yield permute(S,attrs.p) } semantics {yield x }}";
+  d += "op reverse(x:tensor)->tensor {attrs {p:axis[] } dtype(a){yield a } "
+       "axes {bind S {x:all_axes(x)} assert "
+       "is_valid_axis_list(attrs.p,rank(x)) yield S } "
+       "semantics {yield Read(x,IndexReverse(Coords(S),attrs.p)) }}";
+  d += "op sum(x:tensor)->tensor {attrs {p:axis[] } dtype(a){assert "
+       "is_numeric(a) yield a } axes {bind K {x:attrs.p} bind F "
+       "{x:ordered_complement(all_axes(x),attrs.p)} yield F } semantics {yield "
+       "Reduce(K,x) }}";
   return d + "}";
 }
 void check(std::string rule, bool expected, bool algebraic = true,
@@ -137,16 +137,16 @@ void run() {
   auto typed_attributes = dialect() + R"(
     dialect Typed {
       op enabled(x:tensor)->tensor {
-        attrs {flag:bool;}
-        dtype(t){yield t;}
-        axes {assert attrs.flag; bind S{x:all_axes(x)}; yield S;}
-        semantics {yield x;}
+        attrs {flag:bool }
+        dtype(t){yield t }
+        axes {assert attrs.flag bind S{x:all_axes(x)} yield S }
+        semantics {yield x }
       }
       op annotated(x:tensor)->tensor {
-        attrs {tag:dtype;}
-        dtype(t){yield t;}
-        axes {bind S{x:all_axes(x)}; yield S;}
-        semantics {yield x;}
+        attrs {tag:dtype }
+        dtype(t){yield t }
+        axes {bind S{x:all_axes(x)} yield S }
+        semantics {yield x }
       }
     })";
   check("rule r {(a:Typed.enabled X)=>(Typed.enabled[a.attrs] X)}", true, false,
@@ -156,19 +156,19 @@ void run() {
 
   check(
       "rule r {(c: D.compare (D.max X Y) X)=>(D.compare[c.attrs] Y X) "
-      "where {c.attrs.direction==3}}",
+      "where c.attrs.direction==3 }",
       true);
   check(
       "rule r {(c: D.compare X (D.min X Y))=>(D.compare[c.attrs] X Y) "
-      "where {c.attrs.direction==3}}",
+      "where c.attrs.direction==3 }",
       true);
   check(
       "rule r {(c: D.compare (D.max X Y) X)=>(D.compare[c.attrs] X Y) "
-      "where {c.attrs.direction==3}}",
+      "where c.attrs.direction==3 }",
       false);
   check(
       "rule r {(c: D.compare (D.max X Y) X)=>(D.compare[c.attrs] Y X) "
-      "where {c.attrs.direction==0}}",
+      "where c.attrs.direction==0 }",
       false);
   auto renamed = dialect();
   for (auto [from, to] : {std::pair{"op compare(", "op relation("},
@@ -179,11 +179,11 @@ void run() {
       renamed.replace(pos, std::string(from).size(), to);
   check(
       "rule r {(c: D.relation X (D.min X Y))=>(D.relation[c.attrs] X Y) "
-      "where {c.attrs.mode==3}}",
+      "where c.attrs.mode==3 }",
       true, true, renamed);
   check(
       "rule r {(c: D.compare X Y)=>(d: D.compare X Y) derive "
-      "{d.attrs={direction:c.attrs.direction};}}",
+      "{d.attrs={direction:c.attrs.direction} }}",
       true);
   check("rule r {(c: D.compare X Y)=>(D.compare[d.attrs] X Y)}", false);
   check("rule r {(D.min (D.exp X) (D.exp Y))=>(D.exp (D.min X Y))}", true);
@@ -200,7 +200,7 @@ void run() {
         true, false);
   check(
       "rule r {X:[M,N] (t: D.transpose (D.exp X))=>(D.exp X) where "
-      "{t.attrs.p==[1,0]}}",
+      "t.attrs.p==[1,0] }",
       false);
   check("rule r {(r: D.reverse (D.exp X))=>(D.exp (D.reverse[r.attrs] X))}",
         true);
@@ -208,7 +208,7 @@ void run() {
   check("rule r {(D.exp X)=>(D.log X)}", false);
   check(
       "rule r {(c: D.compare X Y)=>(out: D.compare X Y) where "
-      "{c.attrs.direction==0} derive {out.attrs={direction:1};}}",
+      "c.attrs.direction==0 derive {out.attrs={direction:1} }}",
       false);
   check("rule r {(s: D.sum (D.exp X))=>(D.exp (D.sum[s.attrs] X))}", false);
   check("rule r {(D.min X X)=>X}", false, false);
@@ -245,17 +245,17 @@ void run() {
         false);
   check("rule r {(D.exp X)=>(D.exp X)}", false, true,
         "dialect D {op exp(x:tensor)->tensor {dtype(a){assert "
-        "is_float(a);yield a;} axes {bind S{x:all_axes(x)};yield S;} "
-        "semantics {yield exp(x,x);}}}");
+        "is_float(a) yield a } axes {bind S{x:all_axes(x)} yield S } "
+        "semantics {yield exp(x,x) }}}");
   check("rule r {(D.exp X)=>(D.exp X)}", false, true,
         "dialect D {op exp(x:tensor)->tensor {dtype(a){assert "
-        "is_integer(a);yield a;} axes {bind S{x:all_axes(x)};yield S;} "
-        "semantics {yield exp(x);}}}");
+        "is_integer(a) yield a } axes {bind S{x:all_axes(x)} yield S } "
+        "semantics {yield exp(x) }}}");
   check("rule r {(D.exp X)=>(D.exp X)}", false, true,
-        "dialect D {op exp(x:tensor)->tensor {dtype(a){assert a==bool;yield "
-        "bool;} "
-        "axes {bind S{x:all_axes(x)};yield S;} "
-        "semantics {yield compare(x,Const(2),0);}}}");
+        "dialect D {op exp(x:tensor)->tensor {dtype(a){assert a==bool yield "
+        "bool } "
+        "axes {bind S{x:all_axes(x)} yield S } "
+        "semantics {yield compare(x,Const(2),0) }}}");
 }
 }  // namespace
 int main() {

@@ -1,11 +1,18 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 // Catalog: broadcast-gather-scalar
 // Scope: Effective-scalar operand; result shape is adapter metadata on gather.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_broadcast_gather_scalar {
-    dtype T; X: T[Dims...]
-     (let R = (attr_g: hlo.gather X Indices)) => (attr_b: hlo.broadcast (attr_r: hlo.reshape X))
-     where { product(Dims)==1 }
-     derive { attr_r.attrs={shape:[]}; attr_b.attrs={dimensions:[],new_extents:attr_g.attrs.shape}; }
+  dtype T
+  X: T[Dims...]
+
+  (let R = (attr_g: hlo.gather X Indices))
+  =>
+  (attr_b: hlo.broadcast (attr_r: hlo.reshape X))
+
+  where product(Dims) == 1 derive {
+    attr_r.attrs = { shape: [] }
+    attr_b.attrs = { dimensions: [], new_extents: attr_g.attrs.shape }
+  }
 }

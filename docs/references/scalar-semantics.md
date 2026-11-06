@@ -7,9 +7,9 @@ functions can be nested inside this value expression:
 ```tepl
 dialect Example {
   op exponential(x: tensor) -> tensor {
-    dtype(a) { assert is_float(a); yield a; }
-    axes { bind S { x: all_axes(x) }; yield S; }
-    semantics { yield exp(x); }
+    dtype(a) { assert is_float(a) yield a }
+    axes { bind S { x: all_axes(x) } yield S }
+    semantics { yield exp(x) }
   }
 }
 ```

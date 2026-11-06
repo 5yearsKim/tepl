@@ -5,6 +5,41 @@ optional on both sides of a rule. They identify nodes, without capturing extra
 tensors or changing the operation's semantics. A name must be unique within the
 rule and must not conflict with a tensor, dimension, dtype, or local binding.
 
+## Conditions and local bindings
+
+Write a Boolean expression directly after `where`. A compound condition can
+span multiple lines:
+
+```tepl
+rule cancel_negate_nonempty {
+    X: [Dims...]
+    (t.negate (t.negate X)) => X
+    where len(Dims) > 0
+          && product(Dims) > 0
+}
+```
+
+When a condition needs local calculations, use braces with one or more `let`
+bindings followed by `yield` and the final Boolean expression:
+
+```tepl
+rule cancel_negate_small {
+    X: [Dims...]
+    (t.negate (t.negate X)) => X
+    where {
+        let n = len(Dims)
+        let limit = n * 2
+        yield n > 0 && limit <= 8
+    }
+}
+```
+
+TEPL has no statement semicolons. Keywords and delimiters separate statements;
+newlines are whitespace, so expressions can wrap freely. `yield` separates the
+last binding's value from the block's result, including a result that starts
+with a unary operator. A condition without local bindings uses the direct form,
+not braces. Both forms can be followed by a `derive` block.
+
 ## Match and reuse attributes
 
 Every LHS operation captures its attributes implicitly. Use a node's `attrs`
@@ -42,8 +77,8 @@ rule compose_transposes_explicit {
     (outer: t.transpose (inner: t.transpose X))
     => (result: t.transpose X)
     derive {
-        let permutation = gather(inner.attrs.permutation, outer.attrs.permutation);
-        result.attrs = { ..outer.attrs, permutation: permutation };
+        let permutation = gather(inner.attrs.permutation, outer.attrs.permutation)
+        result.attrs = { ..outer.attrs, permutation: permutation }
     }
 }
 ```
@@ -55,7 +90,7 @@ derive {
     result.attrs = {
         dimensions: auto,
         new_extents: source.attrs.new_extents
-    };
+    }
 }
 ```
 
@@ -63,7 +98,7 @@ Required axis fields can also be omitted from a constructor:
 
 ```tepl
 derive {
-    result.attrs = {new_extents: source.attrs.new_extents};
+    result.attrs = {new_extents: source.attrs.new_extents}
 }
 ```
 
@@ -91,12 +126,12 @@ Runtime range, positivity, uniqueness, and semantic legality checks still apply.
 
 ```tepl
 attrs {
-    dimensions: axis[];
-    sizes: extent[];
-    starts: coordinate[];
-    strides: coordinate[];
-    feature_group_count: u64;
-    numeric_code: i64;
+    dimensions: axis[]
+    sizes: extent[]
+    starts: coordinate[]
+    strides: coordinate[]
+    feature_group_count: u64
+    numeric_code: i64
 }
 ```
 
@@ -108,7 +143,7 @@ unsigned rule values. Use checked `i64(value)` or `u64(value)` conversions
 when a formula crosses these domains.
 
 `gather(p, q)` computes `[p[q[i]] for i in range(len(q))]`. A complete copy can
-also be written `result.attrs = outer.attrs;`. An explicit definition selects
+also be written `result.attrs = outer.attrs`. An explicit definition selects
 the supplied fields and any `auto` fields for that node; competing definitions are errors. LHS
 attributes are read-only. Derivations can read source attributes and earlier
 derived descriptors, but cannot read themselves, later derivations, or pending

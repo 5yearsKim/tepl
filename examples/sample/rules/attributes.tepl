@@ -1,46 +1,48 @@
-from "dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t
 
 // Explicitly compose two permutations. The spread preserves other fields if
 // the schema later grows; the explicit field replaces the copied permutation.
 rule compose_transposes {
-    X: [Dims...]
-    (outer: t.transpose (inner: t.transpose X))
-    =>
-    (combined: t.transpose X)
+  X: [Dims...]
 
-    where {
-        let rank = len(Dims);
-        is_valid_axis_list(outer.attrs.permutation, rank)
+  (outer: t.transpose (inner: t.transpose X)) => (combined: t.transpose X)
+
+  where {
+    let rank = len(Dims)
+    yield
+      is_valid_axis_list(outer.attrs.permutation, rank)
         && is_valid_axis_list(inner.attrs.permutation, rank)
         && len(outer.attrs.permutation) == rank
         && len(inner.attrs.permutation) == rank
-    }
-    derive {
-        let permutation = gather(inner.attrs.permutation, outer.attrs.permutation);
-        combined.attrs = { ..outer.attrs, permutation: permutation };
-    }
+  } derive {
+    let permutation = gather(inner.attrs.permutation, outer.attrs.permutation)
+    combined.attrs = { ..outer.attrs, permutation: permutation }
+  }
 }
 
 // Lists, indexing, conditionals, and comprehensions are available in rules.
 rule remove_identity_transpose {
-    X: [Dims...]
-    (p: t.transpose X) => X
-    where {
-        let axes = range(len(Dims));
-        len(p.attrs.permutation) == len(Dims)
+  X: [Dims...]
+
+  (p: t.transpose X) => X
+
+  where {
+    let axes = range(len(Dims))
+    yield
+      len(p.attrs.permutation) == len(Dims)
         && all([p.attrs.permutation[i] == i for i in axes])
-    }
+  }
 }
 
 // A constructor without a spread gets its schema from the RHS operation.
 rule compose_transposes_explicit {
-    (outer: t.transpose (inner: t.transpose X))
-    => (combined: t.transpose X)
-    derive {
-        combined.attrs = {
-            permutation: if len(outer.attrs.permutation) == 0
-                then []
-                else gather(inner.attrs.permutation, outer.attrs.permutation)
-        };
+  (outer: t.transpose (inner: t.transpose X)) => (combined: t.transpose X)
+
+  derive {
+    combined.attrs = {
+      permutation: if len(outer.attrs.permutation) == 0
+        then []
+        else gather(inner.attrs.permutation, outer.attrs.permutation)
     }
+  }
 }

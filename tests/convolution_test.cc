@@ -249,24 +249,24 @@ int main(int argc, char** argv) {
         plan("rule r {(read_identity A) => A}",
              dialect +
                  "dialect Reads {op read_identity(x:tensor)->tensor "
-                 "{dtype(t){yield t;} "
-                 "axes {bind S=group(shape(x));yield S;} semantics {yield "
-                 "Read(x,Coords(S));}}}");
+                 "{dtype(t){yield t } "
+                 "axes {bind S=group(shape(x)) yield S } semantics {yield "
+                 "Read(x,Coords(S)) }}}");
     proved(explicit_identity);
     auto sampling_definitions = dialect + R"(
       dialect Sampling {
         op sample(input:tensor)->tensor {
-          attrs {steps: u64[];}
-          dtype(t){yield t;}
+          attrs {steps: u64[] }
+          dtype(t){yield t }
           axes {
-            assert len(attrs.steps) == rank(input);
-            assert is_positive_extents(attrs.steps);
-            assert is_positive_extents(shape(input));
+            assert len(attrs.steps) == rank(input)
+            assert is_positive_extents(attrs.steps)
+            assert is_positive_extents(shape(input))
             bind Points = group(offset_extents(
-                extent_floor_div(offset_extents(shape(input), -1), attrs.steps), 1));
-            yield Points;
+                extent_floor_div(offset_extents(shape(input), -1), attrs.steps), 1))
+            yield Points
           }
-          semantics {yield Read(input,IndexScale(attrs.steps,Coords(Points)));}
+          semantics {yield Read(input,IndexScale(attrs.steps,Coords(Points))) }
         }
       })";
     auto sampling = plan(
@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
     compare(sampling, {sa, sb}, sampled, {}, {{{2, 3}, {}}});
     auto identity = plan(
         "rule r {(c: conv A W) => (out: conv A W) derive "
-        "{out.attrs=c.attrs;}}");
+        "{out.attrs=c.attrs }}");
     proved(identity);
     expect(verify(identity, identity.proof).status == ProofStatus::Proved,
            "independent verifier accepts a correct inferred convolution");
@@ -337,8 +337,8 @@ int main(int argc, char** argv) {
     auto renamed = dialect;
     auto at = renamed.find("op convolution");
     renamed.replace(at, 14, "op correlation");
-    at = renamed.find("alias: conv;");
-    renamed.replace(at, 12, "alias: corr;");
+    at = renamed.find("alias: conv");
+    renamed.replace(at, 12, "alias: corr");
     proved(
         plan("rule r {(c: corr (add A B) W) => (add (corr[c.attrs] A W) "
              "(corr[c.attrs] B W))}",
@@ -367,12 +367,12 @@ int main(int argc, char** argv) {
     auto operation = bad.substr(begin, end - begin);
     at = operation.find("op convolution");
     operation.replace(at, 14, "op shifted");
-    at = operation.find("alias: conv;");
+    at = operation.find("alias: conv");
     operation.erase(at, 12);
     auto definitions = dialect + "dialect Wrong {" + operation + "}";
     auto different = plan(
         "rule r {(c: conv A W) => (out: shifted A W) derive "
-        "{out.attrs={strides:c.attrs.strides,dilations:c.attrs.dilations};}}",
+        "{out.attrs={strides:c.attrs.strides,dilations:c.attrs.dilations} }}",
         definitions);
     expect(different.proof.status == ProofStatus::Unknown,
            "different calculated access rejected");
@@ -397,15 +397,15 @@ int main(int argc, char** argv) {
     proved(inferred_distribution);
     auto changed = plan(
         "rule r {(c: conv A W) => (out: conv A W) derive "
-        "{out.attrs={strides:c.attrs.dilations,dilations:c.attrs.strides};}}");
+        "{out.attrs={strides:c.attrs.dilations,dilations:c.attrs.strides} }}");
     expect(changed.proof.status == ProofStatus::Unknown,
            "swapped scales rejected");
     expect(verify(changed, identity.proof).status == ProofStatus::Unknown,
            "independent verifier rejects changed scales");
     auto malformed = tepl::parse(
-        "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)};yield "
-        "S;} "
-        "semantics {yield Read(x,Coords(Missing));}}}");
+        "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)} yield "
+        "S } "
+        "semantics {yield Read(x,Coords(Missing)) }}}");
     expect(malformed.ok() && !tepl::core::inspect(*malformed.program).ok(),
            "unknown coordinate rejected");
     Context c{input, 100000};

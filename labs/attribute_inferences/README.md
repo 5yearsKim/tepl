@@ -7,6 +7,7 @@ tests, and recorded evidence.
 | Experiment | Purpose |
 | --- | --- |
 | [reasoning_scalability](reasoning_scalability/README.md) | Compilation scaling and runtime metadata feasibility/construction costs |
+| [xla_integration](xla_integration/) | XLA transpose-folding bridge and pinned upstream pass fixtures |
 | [xla_rewrite](xla_rewrite/README.md) | XLA rewrite catalog, axis-inference coverage, and compilation validation |
 | [xla_workflow](xla_workflow/README.md) | Integration of compiled TEPL rules into the XLA CPU pipeline |
 | [xla_workload_count](xla_workload_count/README.md) | Workload rewrite counts and reviewed semantic applicability; does not measure inference or delegation |

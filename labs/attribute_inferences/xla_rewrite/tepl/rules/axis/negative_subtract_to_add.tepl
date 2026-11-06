@@ -1,6 +1,19 @@
 // Canonical axis-only evaluation task; no descriptor or non-axis inference.
-from "dialects/hlo.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
+from "dialects/hlo.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
 
-rule negative_subtract_to_add { (subtract X Y) => (add X Y) }
+rule negative_subtract_to_add {
+  (subtract X Y) => (add X Y)
+}

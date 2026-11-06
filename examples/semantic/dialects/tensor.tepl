@@ -5,9 +5,9 @@
 //
 // Axis groups and mappings
 // ------------------------
-// bind G { operand: positions, ... }; creates a fresh ordered logical axis
+// bind G { operand: positions, ... } creates a fresh ordered logical axis
 // group and registers its operand mappings for use in semantics.
-// Example: bind G { lhs: [2, 0], rhs: [1, 3] };
+// Example: bind G { lhs: [2, 0], rhs: [1, 3] }
 //     G[0] <-> lhs axis 2 <-> rhs axis 1
 //     G[1] <-> lhs axis 0 <-> rhs axis 3
 // Corresponding positions must have equal extents. Equal extents alone never
@@ -72,252 +72,308 @@
 // from permission to use associativity, distributivity, or reduction reordering;
 // a numerical policy must justify those transformations for the target execution.
 dialect TensorLang {
-    // Elementwise addition with identical shapes; no broadcasting.
-    op add(lhs: tensor, rhs: tensor) -> tensor {
-        dtype(a, b) {
-            assert a == b;
-            assert is_numeric(a);
-            yield a;
-        }
-        axes {
-            bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) };
-            yield S;
-        }
-        semantics {
-            yield Add(lhs, rhs);
-        }
+  // Elementwise addition with identical shapes; no broadcasting.
+  op add(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
     }
-
-    // Elementwise multiplication with identical shapes; no broadcasting.
-    op multiply(lhs: tensor, rhs: tensor) -> tensor {
-        alias: mul;
-        dtype(a, b) {
-            assert a == b;
-            assert is_numeric(a);
-            yield a;
-        }
-        axes {
-            bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) };
-            yield S;
-        }
-        semantics {
-            yield Product(lhs, rhs);
-        }
+    axes {
+      bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) }
+      yield S
     }
-
-    op negate(input: tensor) -> tensor {
-        dtype(t) { assert is_numeric(t); yield t; }
-        axes { bind S { input: all_axes(input) }; yield S; }
-        semantics { yield Product(Const(-1), input); }
+    semantics {
+      yield Add(lhs, rhs)
     }
+  }
 
-    op subtract(lhs: tensor, rhs: tensor) -> tensor {
-        dtype(a, b) { assert a == b; assert is_numeric(a); yield a; }
-        axes { bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) }; yield S; }
-        semantics { yield Add(lhs, Product(Const(-1), rhs)); }
+  // Elementwise multiplication with identical shapes; no broadcasting.
+  op multiply(lhs: tensor, rhs: tensor) -> tensor {
+    alias: mul
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
     }
-
-    // The input supplies axes and dtype; its element values are unused.
-    op zero_like(input: tensor) -> tensor {
-        dtype(t) { assert is_numeric(t); yield t; }
-        axes { bind S { input: all_axes(input) }; yield S; }
-        semantics { yield Const(0); }
+    axes {
+      bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) }
+      yield S
     }
-
-    op dot_general(lhs: tensor, rhs: tensor) -> tensor {
-        // TEPL shorthand, not a separate StableHLO dot operation.
-        alias: dot;
-        dtype(a, b) {
-            assert a == b;
-            assert is_numeric(a);
-            yield a;
-        }
-        attrs {
-            // Flattened fields of StableHLO dot_dimension_numbers.
-            lhs_contracting_dimensions: axis[];
-            rhs_contracting_dimensions: axis[];
-            lhs_batching_dimensions: axis[];
-            rhs_batching_dimensions: axis[];
-        }
-        axes {
-            let lb = attrs.lhs_batching_dimensions;
-            let rb = attrs.rhs_batching_dimensions;
-            let lc = attrs.lhs_contracting_dimensions;
-            let rc = attrs.rhs_contracting_dimensions;
-
-            let lf = ordered_complement(all_axes(lhs), lb ++ lc);
-            let rf = ordered_complement(all_axes(rhs), rb ++ rc);
-
-            bind B { lhs: lb, rhs: rb };
-            bind K { lhs: lc, rhs: rc };
-            bind I { lhs: lf };
-            bind J { rhs: rf };
-
-            // Generic partition checks reject batch/contraction overlap.
-            // Shared-group checks enforce paired lengths and extents.
-            yield B ++ I ++ J;
-        }
-        semantics {
-            yield Reduce(K, Product(lhs, rhs));
-        }
-
-        // Example: lhs [i, k0, b, k1], rhs [k1, j, k0, b].
-        // Group       lhs positions    rhs positions    output positions
-        // B = [b]         [2]              [3]                 [0]
-        // K = [k0,k1]     [1,3]            [2,0]                --
-        // I = [i]         [0]              --                  [1]
-        // J = [j]         --               [1]                 [2]
-        // out[b,i,j] = sum(k0,k1) lhs[i,k0,b,k1] * rhs[k1,j,k0,b].
+    semantics {
+      yield Product(lhs, rhs)
     }
+  }
 
-    // Valid convolution (cross-correlation), positive strides/dilations, no padding.
-    // input [N, spatial..., C], kernel [kernel_spatial..., C, F].
-    // Spatial groups have arbitrary equal lengths, not a fixed 2D rank.
-    op convolution(input: tensor, kernel: tensor) -> tensor {
-        alias: conv;
-        attrs {
-            strides: coordinate[];
-            dilations: coordinate[];
-        }
-        dtype(a, b) {
-            assert a == b;
-            assert is_numeric(a);
-            yield a;
-        }
-        axes {
-            assert rank(input) >= 3;
-            assert rank(kernel) == rank(input);
-            let spatial = ordered_complement(all_axes(input), [0, rank(input) - 1]);
-            let window = range(rank(kernel) - 2);
-            let input_sizes = gather(shape(input), spatial);
-            let window_sizes = gather(shape(kernel), window);
-            assert is_positive_extents(window_sizes);
-            assert len(attrs.strides) == len(spatial);
-            assert len(attrs.dilations) == len(spatial);
-            assert is_positive_extents(attrs.strides);
-            assert is_positive_extents(attrs.dilations);
-            let effective_window = offset_extents(
-                extent_mul(attrs.dilations, offset_extents(window_sizes, -1)), 1);
-            assert extent_le(effective_window, input_sizes);
+  op negate(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+    axes {
+      bind S { input: all_axes(input) }
+      yield S
+    }
+    semantics {
+      yield Product(Const(-1), input)
+    }
+  }
 
-            bind N { input: [0] };
-            bind C { input: [rank(input) - 1], kernel: [rank(kernel) - 2] };
-            bind F { kernel: [rank(kernel) - 1] };
-            bind Window { kernel: window };
-            bind O = group(offset_extents(
-                extent_floor_div(extent_sub(input_sizes, effective_window), attrs.strides), 1));
-            yield N ++ O ++ F;
-        }
-        semantics {
-            yield Reduce(Window, Reduce(C,
-                Product(
-                    Read(input, Concat(Coords(N), IndexAdd(IndexScale(attrs.strides, Coords(O)), IndexScale(attrs.dilations, Coords(Window))), Coords(C))),
-                    kernel
+  op subtract(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    axes {
+      bind S { lhs: all_axes(lhs), rhs: all_axes(rhs) }
+      yield S
+    }
+    semantics {
+      yield Add(lhs, Product(Const(-1), rhs))
+    }
+  }
+
+  // The input supplies axes and dtype; its element values are unused.
+  op zero_like(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+    axes {
+      bind S { input: all_axes(input) }
+      yield S
+    }
+    semantics {
+      yield Const(0)
+    }
+  }
+
+  op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+    // TEPL shorthand, not a separate StableHLO dot operation.
+    alias: dot
+    attrs {
+      // Flattened fields of StableHLO dot_dimension_numbers.
+      lhs_contracting_dimensions: axis[]
+      rhs_contracting_dimensions: axis[]
+      lhs_batching_dimensions: axis[]
+      rhs_batching_dimensions: axis[]
+    }
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    axes {
+      let lb = attrs.lhs_batching_dimensions
+      let rb = attrs.rhs_batching_dimensions
+      let lc = attrs.lhs_contracting_dimensions
+      let rc = attrs.rhs_contracting_dimensions
+      let lf = ordered_complement(all_axes(lhs), lb ++ lc)
+      let rf = ordered_complement(all_axes(rhs), rb ++ rc)
+      bind B { lhs: lb, rhs: rb }
+      bind K { lhs: lc, rhs: rc }
+      bind I { lhs: lf }
+      bind J { rhs: rf }
+      // Generic partition checks reject batch/contraction overlap.
+      // Shared-group checks enforce paired lengths and extents.
+      yield B ++ I ++ J
+    }
+    semantics {
+      yield Reduce(K, Product(lhs, rhs))
+    }
+    // Example: lhs [i, k0, b, k1], rhs [k1, j, k0, b].
+    // Group       lhs positions    rhs positions    output positions
+    // B = [b]         [2]              [3]                 [0]
+    // K = [k0,k1]     [1,3]            [2,0]                --
+    // I = [i]         [0]              --                  [1]
+    // J = [j]         --               [1]                 [2]
+    // out[b,i,j] = sum(k0,k1) lhs[i,k0,b,k1] * rhs[k1,j,k0,b].
+  }
+
+  // Valid convolution (cross-correlation), positive strides/dilations, no padding.
+  // input [N, spatial..., C], kernel [kernel_spatial..., C, F].
+  // Spatial groups have arbitrary equal lengths, not a fixed 2D rank.
+  op convolution(input: tensor, kernel: tensor) -> tensor {
+    alias: conv
+    attrs {
+      strides: coordinate[]
+      dilations: coordinate[]
+    }
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    axes {
+      assert rank(input) >= 3
+      assert rank(kernel) == rank(input)
+      let spatial = ordered_complement(all_axes(input), [0, rank(input) - 1])
+      let window = range(rank(kernel) - 2)
+      let input_sizes = gather(shape(input), spatial)
+      let window_sizes = gather(shape(kernel), window)
+      assert is_positive_extents(window_sizes)
+      assert len(attrs.strides) == len(spatial)
+      assert len(attrs.dilations) == len(spatial)
+      assert is_positive_extents(attrs.strides)
+      assert is_positive_extents(attrs.dilations)
+      let effective_window = offset_extents(
+        extent_mul(attrs.dilations, offset_extents(window_sizes, -1)),
+        1
+      )
+      assert extent_le(effective_window, input_sizes)
+      bind N { input: [0] }
+      bind C { input: [rank(input) - 1], kernel: [rank(kernel) - 2] }
+      bind F { kernel: [rank(kernel) - 1] }
+      bind Window { kernel: window }
+      bind O = group(
+        offset_extents(
+          extent_floor_div(
+            extent_sub(input_sizes, effective_window),
+            attrs.strides
+          ),
+          1
+        )
+      )
+      yield N ++ O ++ F
+    }
+    semantics {
+      yield
+        Reduce(
+          Window,
+          Reduce(
+            C,
+            Product(
+              Read(
+                input,
+                Concat(
+                  Coords(N),
+                  IndexAdd(
+                    IndexScale(attrs.strides, Coords(O)),
+                    IndexScale(attrs.dilations, Coords(Window))
+                  ),
+                  Coords(C)
                 )
-            ));
-        }
+              ),
+              kernel
+            )
+          )
+        )
     }
+  }
 
-    // Select positive-size windows. sizes counts output elements, not limits.
-    op slice(input: tensor) -> tensor {
-        attrs {
-            starts: coordinate[];
-            sizes: extent[];
-            strides: coordinate[];
-        }
-        dtype(t) { yield t; }
-        axes {
-            assert len(attrs.starts) == rank(input);
-            assert len(attrs.sizes) == rank(input);
-            assert len(attrs.strides) == rank(input);
-            assert is_valid_extents(attrs.starts);
-            assert is_positive_extents(attrs.sizes);
-            assert is_positive_extents(attrs.strides);
-            let last = extent_add(attrs.starts,
-                extent_mul(attrs.strides, offset_extents(attrs.sizes, -1)));
-            assert extent_le(last, offset_extents(shape(input), -1));
-            bind O = group(attrs.sizes);
-            yield O;
-        }
-        semantics {
-            yield Read(input,
-                IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O))));
-        }
+  // Select positive-size windows. sizes counts output elements, not limits.
+  op slice(input: tensor) -> tensor {
+    attrs {
+      starts: coordinate[]
+      sizes: extent[]
+      strides: coordinate[]
     }
-
-    // Insert axes only. Existing dimensions retain their extents. The mapping
-    // is an ordered injection and may also reorder existing axes.
-    // new_extents follows the increasing order of unoccupied output positions.
-    op broadcast_in_dim(input: tensor) -> tensor {
-        alias: broadcast;
-        attrs {
-            dimensions: axis[];
-            new_extents: extent[];
-        }
-        dtype(t) { yield t; }
-        axes {
-            bind S { input: all_axes(input) };
-            bind N = group(attrs.new_extents);
-            yield place(S, attrs.dimensions, N);
-        }
-        semantics { yield input; }
+    dtype(t) {
+      yield t
     }
-
-    op transpose(input: tensor) -> tensor {
-        attrs {
-            permutation: axis[];
-        }
-        dtype(t) {
-            yield t;
-        }
-        axes {
-            bind S { input: all_axes(input) };
-
-            assert is_valid_axis_list(attrs.permutation, rank(input));
-            assert len(attrs.permutation) == rank(input);
-            // Output axis i carries input axis permutation[i].
-            yield permute(S, attrs.permutation);
-        }
-        semantics {
-            yield input;
-        }
+    axes {
+      assert len(attrs.starts) == rank(input)
+      assert len(attrs.sizes) == rank(input)
+      assert len(attrs.strides) == rank(input)
+      assert is_valid_extents(attrs.starts)
+      assert is_positive_extents(attrs.sizes)
+      assert is_positive_extents(attrs.strides)
+      let last = extent_add(
+        attrs.starts,
+        extent_mul(attrs.strides, offset_extents(attrs.sizes, -1))
+      )
+      assert extent_le(last, offset_extents(shape(input), -1))
+      bind O = group(attrs.sizes)
+      yield O
     }
-
-    // Reverse selected axes without changing their order or extents.
-    op reverse(input: tensor) -> tensor {
-        attrs { dimensions: axis[]; }
-        dtype(t) { yield t; }
-        axes {
-            bind S { input: all_axes(input) };
-            assert is_valid_axis_list(attrs.dimensions, rank(input));
-            yield S;
-        }
-        semantics {
-            yield Read(input, IndexReverse(Coords(S), attrs.dimensions));
-        }
+    semantics {
+      yield
+        Read(
+          input,
+          IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))
+        )
     }
+  }
 
-    // Reduced axes are removed (keepdims = false). An empty dimensions list
-    // gives identity; selecting all dimensions gives a scalar, with output [].
-    op reduce_sum(input: tensor) -> tensor {
-        attrs {
-            dimensions: axis[];
-        }
-        dtype(t) {
-            assert is_numeric(t);
-            yield t;
-        }
-        axes {
-            let reduced = attrs.dimensions;
-            let retained = ordered_complement(all_axes(input), reduced);
-
-            bind K { input: reduced };
-            bind F { input: retained };
-
-            yield F;
-        }
-        semantics {
-            yield Reduce(K, input);
-        }
+  // Insert axes only. Existing dimensions retain their extents. The mapping
+  // is an ordered injection and may also reorder existing axes.
+  // new_extents follows the increasing order of unoccupied output positions.
+  op broadcast_in_dim(input: tensor) -> tensor {
+    alias: broadcast
+    attrs {
+      dimensions: axis[]
+      new_extents: extent[]
     }
+    dtype(t) {
+      yield t
+    }
+    axes {
+      bind S { input: all_axes(input) }
+      bind N = group(attrs.new_extents)
+      yield place(S, attrs.dimensions, N)
+    }
+    semantics {
+      yield input
+    }
+  }
+
+  op transpose(input: tensor) -> tensor {
+    attrs {
+      permutation: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+    axes {
+      bind S { input: all_axes(input) }
+      assert is_valid_axis_list(attrs.permutation, rank(input))
+      assert len(attrs.permutation) == rank(input)
+      // Output axis i carries input axis permutation[i].
+      yield permute(S, attrs.permutation)
+    }
+    semantics {
+      yield input
+    }
+  }
+
+  // Reverse selected axes without changing their order or extents.
+  op reverse(input: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+    axes {
+      bind S { input: all_axes(input) }
+      assert is_valid_axis_list(attrs.dimensions, rank(input))
+      yield S
+    }
+    semantics {
+      yield Read(input, IndexReverse(Coords(S), attrs.dimensions))
+    }
+  }
+
+  // Reduced axes are removed (keepdims = false). An empty dimensions list
+  // gives identity; selecting all dimensions gives a scalar, with output [].
+  op reduce_sum(input: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+    }
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+    axes {
+      let reduced = attrs.dimensions
+      let retained = ordered_complement(all_axes(input), reduced)
+      bind K { input: reduced }
+      bind F { input: retained }
+      yield F
+    }
+    semantics {
+      yield Reduce(K, input)
+    }
+  }
 }

@@ -1,45 +1,35 @@
-from "dialects/tensor.tepl" import TensorLang as t;
-use t::{dot, add};
+from "dialects/tensor.tepl" import TensorLang as t
+use t::{dot, add}
 
 // Applicability restrictions are explicit. Removing the where conditions from
 // reassociation rules must cause verification to fail. Groups may have any rank.
-
 // Requires --semantic-policy=algebraic; exact real arithmetic, no FP error claim.
 rule distribute {
-  (d: dot (add A B) C)
-  =>
-  (add (dot A C) (dot B C))
+  (d: dot (add A B) C) => (add (dot A C) (dot B C))
 }
 
 // Preserve the producer batch group. Contraction may select any subset of
 // either free group, in any paired order; axis maps preserve the output order.
 rule associate {
-  (d: dot (inner: dot A B) C)
-  =>
-  (dot A (dot B C))
-  where {
-    d.attrs.lhs_batching_dimensions == inner.axes.B.positions
-  }
+  (d: dot (inner: dot A B) C) => (dot A (dot B C))
+
+  where d.attrs.lhs_batching_dimensions == inner.axes.B.positions
 }
 
 // Distribution plus reassociation, restricted to whole-group routing.
 rule lora {
-  (outer: dot X (add W (inner: dot A B)))
-  =>
-  (add (dot X W) (dot (dot X A) B))
-  where {
+  (outer: dot X (add W (inner: dot A B))) => (add (dot X W) (dot (dot X A) B))
+
+  where
     outer.attrs.rhs_batching_dimensions == inner.axes.B.positions
-    && outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions
-  }
+      && outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions
 }
 
 // Reverse routing consumes the producer LHS-free group.
 rule associate_reverse {
-  (outer: dot A (inner: dot B C))
-  =>
-  (dot (dot A B) C)
-  where {
+  (outer: dot A (inner: dot B C)) => (dot (dot A B) C)
+
+  where
     outer.attrs.rhs_batching_dimensions == inner.axes.B.positions
-    && outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions
-  }
+      && outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions
 }

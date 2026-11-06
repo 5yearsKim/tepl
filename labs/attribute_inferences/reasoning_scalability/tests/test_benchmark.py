@@ -154,7 +154,7 @@ class BenchmarkTest(unittest.TestCase):
         fifo = p.DIRECTORY / 'blocked_import.tepl'
         os.mkfifo(fifo)
         blocked = p.DIRECTORY / 'blocked_rule.tepl'
-        blocked.write_text(f'from "{fifo.resolve()}" import TensorLang as t;\nrule blocked {{(t.dot A B)=>(t.dot A B)}}')
+        blocked.write_text(f'from "{fifo.resolve()}" import TensorLang as t\nrule blocked {{(t.dot A B)=>(t.dot A B)}}')
         manifest['cases'][0]['file'] = blocked.relative_to(b.ROOT).as_posix()
         custom = p.DIRECTORY / 'timeout_manifest.json'
         custom.write_text(json.dumps(manifest))

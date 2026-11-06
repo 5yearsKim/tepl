@@ -13,25 +13,23 @@ else:
 def declarations(path):
     source = re.sub(r"//[^\n]*", "", path.read_text())
     result = {}
-    for match in re.finditer(r"\bop\s+(\w+)\s*\(", source):
-        cursor, depth, opened = match.end(), 0, False
-        while cursor < len(source):
-            char = source[cursor]
-            if char == "{":
-                depth, opened = depth + 1, True
-            elif char == "}":
-                depth -= 1
-                if opened and depth == 0:
-                    cursor += 1
-                    break
-            elif char == ";" and not opened:
-                cursor += 1
-                break
+    for match in re.finditer(r"\bop\s+(\w+)\s*\([^)]*\)\s*->\s*\w+", source):
+        cursor, depth = match.end(), 0
+        while cursor < len(source) and source[cursor].isspace():
             cursor += 1
+        if cursor < len(source) and source[cursor] == "{":
+            for token in re.finditer(r'"(?:\\.|[^"\\])*"|[{}]', source[cursor:]):
+                depth += token[0] == "{"
+                depth -= token[0] == "}"
+                if depth == 0:
+                    cursor += token.end()
+                    break
+        else:
+            cursor = match.end()
         text = source[match.start():cursor]
         result[match[1]] = dict(
             text=text,
-            aliases=re.findall(r"\balias:\s*(\w+)\s*;", text),
+            aliases=re.findall(r"\balias:\s*(\w+)\b", text),
             semantic=bool(re.search(r"\bsemantics\s*{", text)),
         )
     return result

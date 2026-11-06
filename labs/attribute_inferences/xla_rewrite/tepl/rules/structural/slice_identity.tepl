@@ -1,9 +1,25 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
+from "dialects/hlo_structural.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
 
 rule slice_identity {
-    X: [Dims...]
-    (attr_s: slice X) => X
-    where { attr_s.attrs.starts == [0] && attr_s.attrs.sizes == Dims && attr_s.attrs.strides == [1] }
+  X: [Dims...]
+
+  (attr_s: slice X) => X
+
+  where
+    attr_s.attrs.starts == [0]
+      && attr_s.attrs.sizes == Dims
+      && attr_s.attrs.strides == [1]
 }

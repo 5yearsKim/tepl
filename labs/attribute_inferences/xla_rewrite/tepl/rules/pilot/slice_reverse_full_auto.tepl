@@ -1,9 +1,10 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Same equation and conditions as slice_reverse_explicit.tepl.
 rule slice_reverse_full_auto {
-    X: [N]
-    (source: hlo.slice (rev: hlo.reverse X))
-    => (hlo.reverse (hlo.slice X))
-    where { rev.attrs.dimensions == [0] && source.attrs.strides == [1] }
+  X: [N]
+
+  (source: hlo.slice (rev: hlo.reverse X)) => (hlo.reverse (hlo.slice X))
+
+  where rev.attrs.dimensions == [0] && source.attrs.strides == [1]
 }

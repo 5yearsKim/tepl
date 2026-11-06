@@ -1,6 +1,7 @@
-from "dialects/hlo_structural.tepl" import HLO as hlo;
+from "dialects/hlo_structural.tepl" import HLO as hlo
 
 graph abs_unsigned {
-    input X: u32[2,3];
-    yield (hlo.abs X);
+  input X: u32[2, 3]
+
+  yield (hlo.abs X)
 }

@@ -1,8 +1,8 @@
-from "dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t
 
 graph transpose_example {
-    input X: f32[2, 3];
+  input X: f32[2, 3]
 
-    // Nested expressions can be yielded directly. Output: f32[3, 2].
-    yield (t.transpose[permutation = [1, 0]] (t.negate X));
+  // Nested expressions can be yielded directly. Output: f32[3, 2].
+  yield (t.transpose[permutation = [1, 0]] (t.negate X))
 }

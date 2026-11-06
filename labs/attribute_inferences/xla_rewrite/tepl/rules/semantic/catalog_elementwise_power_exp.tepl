@@ -1,8 +1,8 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: elementwise-power-exp
 // Scope: Written operand/opcode variant under the catalog conditions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_power_exp {
-    (hlo.power (hlo.exp X) Y) => (hlo.exp (hlo.multiply X Y))
+  (hlo.power (hlo.exp X) Y) => (hlo.exp (hlo.multiply X Y))
 }

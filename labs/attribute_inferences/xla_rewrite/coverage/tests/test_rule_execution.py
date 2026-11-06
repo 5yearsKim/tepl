@@ -49,7 +49,7 @@ def scalar_attribute(value):
 
 
 def meaning(program):
-    """Physical array semantics; does not use TEPL's semantic graph or normalizer."""
+    "Physical array semantics does not use TEPL's semantic graph or normalizer."
     program = program["program"]
     graph = program["graphs"][0]
     operations = {op["id"]: op for op in program["operations"]}
@@ -239,10 +239,10 @@ class CompiledRuleExecutionTest(unittest.TestCase):
                 directory = Path(directory)
                 graph = directory / "input.tepl"
                 graph.write_text(
-                    'from "dialects/hlo.tepl" import HLO as hlo;\n'
-                    + f'graph test {{input X:f32{shape}; yield '
+                    'from "dialects/hlo.tepl" import HLO as hlo\n'
+                    + f'graph test {{input X:f32{shape} yield '
                     + f'(hlo.transpose[permutation={permutation}] '
-                    + f'(hlo.broadcast[dimensions={dims},new_extents={extents}] X));}}'
+                    + f'(hlo.broadcast[dimensions={dims},new_extents={extents}] X))}}'
                 )
 
                 def cli(*args):
@@ -310,17 +310,17 @@ class CompiledRuleExecutionTest(unittest.TestCase):
 
     def test_verified_scalar_rules_preserve_dense_results(self):
         fixtures = (
-            ("expr_minimum_nested", "input X:f32[2,3]; input Y:f32[2,3];",
+            ("expr_minimum_nested", 'input X:f32[2,3] input Y:f32[2,3]',
              "(hlo.minimum (hlo.minimum X Y) X)"),
-            ("expr_log_exp", "input X:f32[2,3];", "(hlo.log (hlo.exp X))"),
-            ("expr_double_not", "input X:bool[2,3];", "(hlo.logical_not (hlo.logical_not X))"),
+            ("expr_log_exp", 'input X:f32[2,3]', "(hlo.log (hlo.exp X))"),
+            ("expr_double_not", 'input X:bool[2,3]', "(hlo.logical_not (hlo.logical_not X))"),
         )
         for rule, inputs, expression in fixtures:
             with self.subTest(rule=rule), tempfile.TemporaryDirectory(dir=TEPL) as directory:
                 directory = Path(directory)
                 graph = directory / "input.tepl"
-                graph.write_text('from "dialects/hlo.tepl" import HLO as hlo;\n'
-                                 + "graph scalar_case {" + inputs + "yield " + expression + ";}")
+                graph.write_text('from "dialects/hlo.tepl" import HLO as hlo\n'
+                                 + "graph scalar_case {" + inputs + "yield " + expression + "}")
 
                 def cli(*args):
                     result = subprocess.run([str(COMPILER), *map(str, args)],
@@ -355,8 +355,8 @@ class CompiledRuleExecutionTest(unittest.TestCase):
                     inner = "(hlo.broadcast[dimensions=[1],new_extents=[1]] X)" if inserting else "X"
                     expression = f"(hlo.broadcast[dimensions=[0,1],new_extents={extra}] {inner})"
                     graph = directory / "input.tepl"
-                    graph.write_text('from "dialects/hlo.tepl" import HLO as hlo;\n'
-                                     + f"graph unit_view {{input X:{dtype}{shape}; yield {expression};}}")
+                    graph.write_text('from "dialects/hlo.tepl" import HLO as hlo\n'
+                                     + f"graph unit_view {{input X:{dtype}{shape} yield {expression}}}")
 
                     def cli(*args):
                         result = subprocess.run([str(COMPILER), *map(str, args)],

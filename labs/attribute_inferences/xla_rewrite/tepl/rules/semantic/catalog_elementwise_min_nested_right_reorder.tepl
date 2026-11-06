@@ -1,8 +1,8 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: elementwise-min-nested-right-reorder
 // Scope: Written operand/opcode variant under the catalog conditions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_elementwise_min_nested_right_reorder {
-    (hlo.minimum Y (hlo.minimum X Y)) => (hlo.minimum Y X)
+  (hlo.minimum Y (hlo.minimum X Y)) => (hlo.minimum Y X)
 }

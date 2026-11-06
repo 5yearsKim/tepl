@@ -64,12 +64,12 @@ void testBuiltinCallSyntax() {
   };
   for (auto [name, expression] : cases) {
     const auto definition =
-        shape("shape(s) { yield " + std::string(expression) + "; }");
+        shape("shape(s) { yield " + std::string(expression) + " }");
     check(as<syntax::MetadataCall>(definition.result.value).callee == name,
           "Builtin call name must survive AST construction");
   }
   const auto unresolved =
-      shape("shape(s) { assert future_builtin(); yield unknown(s, true); }");
+      shape("shape(s) { assert future_builtin() yield unknown(s, true) }");
   check(as<syntax::MetadataCall>(unresolved.result.value).callee == "unknown",
         "Parser must leave builtin name checking to core");
   const auto& assertion =
@@ -81,11 +81,11 @@ void testBuiltinCallSyntax() {
 void testStatementsParametersAndSpans() {
   const auto parsed = tepl::parse(R"(dialect D {
   op transpose(input: tensor) -> tensor {
-    attrs { permutation: axis[]; }
+    attrs { permutation: axis[] }
     shape(s) {
-      let axes = attrs.permutation;
-      assert len(axes) == len(s);
-      yield gather(s, axes);
+      let axes = attrs.permutation
+      assert len(axes) == len(s)
+      yield gather(s, axes)
     }
   }
 })",
@@ -130,15 +130,15 @@ void testStatementsParametersAndSpans() {
           "AST output must expose shape syntax");
 
   const auto variadic =
-      shape("shape(a, b, rest...) { yield concat([a, b], rest); }");
+      shape("shape(a, b, rest...) { yield concat([a, b], rest) }");
   check(variadic.parameters.size() == 3 && !variadic.parameters[0].variadic &&
             !variadic.parameters[1].variadic &&
             variadic.parameters[2].variadic &&
             variadic.parameters[2].name == "rest",
         "Fixed and trailing variadic shape parameters must remain distinct");
-  check(shape("shape(inputs...) { yield inputs[0]; }").parameters[0].variadic,
+  check(shape("shape(inputs...) { yield inputs[0] }").parameters[0].variadic,
         "A variadic-only parameter must parse");
-  const auto scalar = shape("shape() { yield []; }");
+  const auto scalar = shape("shape() { yield [] }");
   check(scalar.parameters.empty() && scalar.statements.empty() &&
             as<syntax::MetadataList>(scalar.result.value).elements.empty(),
         "A zero-operand scalar shape must parse");
@@ -146,7 +146,7 @@ void testStatementsParametersAndSpans() {
 
 void testPrecedenceAndPostfix() {
   const auto definition =
-      shape("shape(s) { yield -s[0] + 2 * s[1] >= 3 && !false || true; }");
+      shape("shape(s) { yield -s[0] + 2 * s[1] >= 3 && !false || true }");
   const auto& disjunction = as<syntax::MetadataBinary>(definition.result.value);
   check(disjunction.op == syntax::BinaryOp::kLogicalOr, "OR must be outermost");
   const auto& conjunction = as<syntax::MetadataBinary>(disjunction.lhs);
@@ -168,7 +168,7 @@ void testPrecedenceAndPostfix() {
                 .value != nullptr,
         "Indexing must bind more tightly than unary minus");
   const auto arithmetic =
-      shape("shape(s) { yield 10 - 4 - 1 + +s[0] / 2 % 3; }");
+      shape("shape(s) { yield 10 - 4 - 1 + +s[0] / 2 % 3 }");
   const auto& outer = as<syntax::MetadataBinary>(arithmetic.result.value);
   check(
       as<syntax::MetadataBinary>(outer.lhs).op == syntax::BinaryOp::kSubtract &&
@@ -179,7 +179,7 @@ void testPrecedenceAndPostfix() {
           as<syntax::MetadataBinary>(as<syntax::MetadataBinary>(outer.rhs).lhs)
                   .op == syntax::BinaryOp::kDivide,
       "Arithmetic must associate left and retain division/remainder");
-  const auto indexed = shape("shape(s) { yield (gather(s, attrs.axes))[0]; }");
+  const auto indexed = shape("shape(s) { yield (gather(s, attrs.axes))[0] }");
   check(as<syntax::MetadataCall>(
             as<syntax::MetadataIndex>(indexed.result.value).value)
                 .callee == "gather",
@@ -188,10 +188,10 @@ void testPrecedenceAndPostfix() {
 
 void testListsConditionalsAndComprehensions() {
   const auto definition = shape(R"(shape(s) {
-    let pairs = [[0, 1], [2, 3]];
-    assert all([len(row) > 0 for row in pairs]);
+    let pairs = [[0, 1], [2, 3]]
+    assert all([len(row) > 0 for row in pairs])
     yield [if contains(attrs.axes, i) then -s[i] else s[i] * 2 + 1
-           for i in range(len(s))];
+           for i in range(len(s))]
   })");
   const auto& binding =
       std::get<syntax::MetadataLet>(definition.statements[0].value);
@@ -214,15 +214,15 @@ void testListsConditionalsAndComprehensions() {
         "Conditional branches must preserve expression structure");
   const auto nested = shape(
       "shape(s) { yield [[s[i][j] for j in range(len(s[i]))] for i in "
-      "range(len(s))]; }");
+      "range(len(s))] }");
   const auto& inner = as<syntax::MetadataComprehension>(
       as<syntax::MetadataComprehension>(nested.result.value).element);
   check(inner.variable == "j" &&
             std::holds_alternative<syntax::MetadataIndex>(
                 as<syntax::MetadataIndex>(inner.element).value->value),
         "Nested comprehensions and repeated indexing must parse");
-  const auto branches = shape(
-      "shape(s) { yield if true then [] else if false then [1] else s; }");
+  const auto branches =
+      shape("shape(s) { yield if true then [] else if false then [1] else s }");
   check(std::holds_alternative<syntax::MetadataConditional>(
             as<syntax::MetadataConditional>(branches.result.value)
                 .else_value->value),
@@ -232,33 +232,30 @@ void testListsConditionalsAndComprehensions() {
 void testInvalidShapeSyntax() {
   const std::string_view cases[] = {
       "shape(s) {}",
-      "shape(s) { assert true; }",
-      "shape(s) { yield s; yield s; }",
-      "shape(s) { yield s; let x = s; }",
-      "shape(s) { let x = s yield x; }",
-      "shape(s) { assert true yield s; }",
-      "shape(s) { yield s }",
-      "shape(s,) { yield s; }",
-      "shape(a..., b) { yield a; }",
-      "shape(a..., b...) { yield a; }",
-      "shape(...) { yield []; }",
-      "shape(s) { yield $f(s); }",
-      "shape(s) { yield gather(s, $axes()); }",
-      "shape(s) { yield d.attrs; }",
-      "shape(s) { yield 1.5; }",
-      "shape(s) { yield [s,]; }",
-      "shape(s) { yield [s s]; }",
-      "shape(s) { yield s[]; }",
-      "shape(s) { yield gather(s,); }",
-      "shape(s) { yield attrs.; }",
-      "shape(s) { yield if true then s; }",
-      "shape(s) { yield [s for i range(3)]; }",
-      "shape(s) { assert 0 < 1 < 2; yield s; }",
-      "shape(s) { assert s == [] == s; yield s; }",
-      "shape(s) { s = []; yield s; }",
-      "shape(s) { { yield s; } }",
-      "shape(s) { yield s...; }",
-      "shape(s) { yield s; } shape(s) { yield s; }",
+      "shape(s) { assert true }",
+      "shape(s) { yield s yield s }",
+      "shape(s) { yield s let x = s }",
+      "shape(s,) { yield s }",
+      "shape(a..., b) { yield a }",
+      "shape(a..., b...) { yield a }",
+      "shape(...) { yield [] }",
+      "shape(s) { yield $f(s) }",
+      "shape(s) { yield gather(s, $axes()) }",
+      "shape(s) { yield d.attrs }",
+      "shape(s) { yield 1.5 }",
+      "shape(s) { yield [s,] }",
+      "shape(s) { yield [s s] }",
+      "shape(s) { yield s[] }",
+      "shape(s) { yield gather(s,) }",
+      "shape(s) { yield attrs. }",
+      "shape(s) { yield if true then s }",
+      "shape(s) { yield [s for i range(3)] }",
+      "shape(s) { assert 0 < 1 < 2 yield s }",
+      "shape(s) { assert s == [] == s yield s }",
+      "shape(s) { s = [] yield s }",
+      "shape(s) { { yield s } }",
+      "shape(s) { yield s... }",
+      "shape(s) { yield s } shape(s) { yield s }",
   };
   for (const auto body : cases) {
     const auto parsed =
@@ -268,7 +265,7 @@ void testInvalidShapeSyntax() {
           "Malformed shape syntax must fail without returning a recovered AST");
   }
   const auto diagnostic = tepl::parse(
-      "dialect D {\n op x() -> tensor {\n  shape() {\n   yield $f();\n  }\n "
+      "dialect D {\n op x() -> tensor {\n  shape() {\n   yield $f()\n  }\n "
       "}\n}");
   check(!diagnostic.ok() &&
             diagnostic.diagnostics[0].origin.definition.span.begin.line == 4 &&
@@ -278,8 +275,8 @@ void testInvalidShapeSyntax() {
 
 void testBuiltinNamesRemainIdentifiers() {
   check(tepl::parse("dialect D { op len(shape: tensor) -> tensor { attrs { "
-                    "shape: extent[]; } shape(s) { yield attrs.shape; } } } "
-                    "rule r { len => len where { gather(len) && len(len) } }")
+                    "shape: extent[] } shape(s) { yield attrs.shape } } } "
+                    "rule r { len => len where gather(len) && len(len) }")
             .ok(),
         "Builtin names and shape must remain usable as ordinary identifiers");
 }

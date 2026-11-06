@@ -734,10 +734,10 @@ void reflections() {
 }
 void pipeline() {
   const std::string dialect =
-      "dialect Q {op reorder(x:tensor)->tensor {attrs {p: u64[];} "
-      "dtype(t){yield t;} axes {bind S{x:all_axes(x)};assert "
-      "is_valid_axis_list(attrs.p,rank(x));assert len(attrs.p)==rank(x);yield "
-      "permute(S,attrs.p);} semantics {yield x;}}}";
+      "dialect Q {op reorder(x:tensor)->tensor {attrs {p: u64[] } "
+      "dtype(t){yield t } axes {bind S{x:all_axes(x)} assert "
+      "is_valid_axis_list(attrs.p,rank(x)) assert len(attrs.p)==rank(x) yield "
+      "permute(S,attrs.p) } semantics {yield x }}}";
   auto check = [&](const std::string& rule, bool expected) {
     auto parsed = tepl::parse(dialect + rule);
     expect(parsed.ok(), "metadata regression fixture parses");
@@ -763,23 +763,23 @@ void pipeline() {
   };
   check(
       "rule unrelated_name {(a: Q.reorder X)=>(b: Q.reorder X) derive "
-      "{b.attrs={p:[x for x in a.attrs.p]};}}",
+      "{b.attrs={p:[x for x in a.attrs.p]} }}",
       true);
   check(
       "rule indexing {X:[N] (a: Q.reorder X)=>(b: Q.reorder X) derive "
-      "{b.attrs={p:[a.attrs.p[0]]};}}",
+      "{b.attrs={p:[a.attrs.p[0]]} }}",
       true);
   check(
       "rule bad {X:[N] (a: Q.reorder X)=>(b: Q.reorder X) derive "
-      "{b.attrs={p:[a.attrs.p[1]]};}}",
+      "{b.attrs={p:[a.attrs.p[1]]} }}",
       false);
   check(
       "rule wide_intermediate {X:[N] (a: Q.reorder X)=>(b: Q.reorder X) derive "
-      "{let t=18446744073709551615+1; b.attrs={p:[a.attrs.p[0]+(t-t)]};}}",
+      "{let t=18446744073709551615+1 b.attrs={p:[a.attrs.p[0]+(t-t)]} }}",
       true);
   check(
       "rule bad_overflow {X:[N] (a: Q.reorder X)=>(b: Q.reorder X) derive {let "
-      "t=18446744073709551615*18446744073709551615; b.attrs={p:[t-t]};}}",
+      "t=18446744073709551615*18446744073709551615 b.attrs={p:[t-t]} }}",
       false);
 }
 

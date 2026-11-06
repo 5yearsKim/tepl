@@ -1,10 +1,20 @@
-from "dialects/hlo.tepl" import HLO as hlo;
+from "dialects/hlo.tepl" import HLO as hlo
 
 // Catalog: indexing-pad-interior-unit
 // Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
 // Source arithmetic/applicability conditions are recorded in the manifest.
 rule catalog_indexing_pad_interior_unit {
-    X: [Dims...]
-     (attr_p: hlo.nonnegative_pad X C) => (attr_out: hlo.nonnegative_pad X C)
-     derive { attr_out.attrs={..attr_p.attrs,interior:[if Dims[i]==1 then 0 else attr_p.attrs.interior[i] for i in range(len(Dims))]}; }
+  X: [Dims...]
+
+  (attr_p: hlo.nonnegative_pad X C) => (attr_out: hlo.nonnegative_pad X C)
+
+  derive {
+    attr_out.attrs = {
+      ..attr_p.attrs,
+      interior: [
+        if Dims[i] == 1 then 0 else attr_p.attrs.interior[i]
+        for i in range(len(Dims))
+      ]
+    }
+  }
 }

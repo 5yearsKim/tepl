@@ -74,7 +74,7 @@ derive {
     out.attrs = {
         dimensions: auto,
         new_extents: source.attrs.new_extents
-    };
+    }
 }
 ```
 
