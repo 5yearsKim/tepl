@@ -8,11 +8,20 @@
 #include "src/shared/source/source.h"
 
 namespace tepl::support {
-inline constexpr char kTeplVersion[] = "0.1.0";
+inline constexpr char kTeplVersion[] = "0.2.0";
+
+struct ProjectSources {
+  std::vector<std::string> dialects = {"dialects"};
+  std::vector<std::string> rules = {"rules"};
+  std::vector<std::string> graphs = {"graphs"};
+  std::vector<std::string> exclude;
+};
 
 struct ProjectConfig {
   std::string root;
   std::optional<std::string> tepl_version;
+  ProjectSources sources;
+  std::string semantic_policy = "strict";
 };
 struct ProjectConfigResult {
   std::optional<ProjectConfig> config;

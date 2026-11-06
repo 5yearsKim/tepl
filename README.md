@@ -88,3 +88,6 @@ without changing it. Generated modules contain program-specific code only.
 
 The TEPL VS Code extension provides syntax highlighting and formatting. Project
 roots are marked by `tepl.toml`; start a new project with `tepl init <directory>`.
+Configure source directories and exclusions under `[sources]`, and the default
+semantic policy under `[check]`. Omitted fields keep the conventional directories
+and strict policy. See the [configuration reference](docs/references/cli.md#project-configuration-and-import-paths).

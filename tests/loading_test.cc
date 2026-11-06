@@ -36,13 +36,46 @@ void configParsing() {
   const auto empty = parseProjectConfig({"/virtual/tepl.toml", ""});
   assert(empty.config && empty.config->root == "/virtual");
   assert(!empty.config->tepl_version && empty.diagnostics.empty());
-  const auto supported = parseProjectConfig(
-      {"/virtual/tepl.toml", "# project\ntepl-version = '0.1.0' # compiler\n"});
-  assert(supported.config && supported.config->tepl_version == "0.1.0");
+  assert(empty.config->sources.dialects ==
+         std::vector<std::string>{"dialects"});
+  assert(empty.config->sources.rules == std::vector<std::string>{"rules"});
+  assert(empty.config->sources.graphs == std::vector<std::string>{"graphs"});
+  assert(empty.config->sources.exclude.empty());
+  assert(empty.config->semantic_policy == "strict");
+  const auto configured = parseProjectConfig({"/virtual/tepl.toml", R"(
+    [sources]
+    dialects = ["schema", "shared/schema"]
+    rules = []
+    exclude = ["**/fixtures/**"]
+    [check]
+    semantic-policy = "algebraic"
+  )"});
+  assert(configured.config);
+  assert((configured.config->sources.dialects ==
+          std::vector<std::string>{"schema", "shared/schema"}));
+  assert(configured.config->sources.rules.empty());
+  assert(configured.config->sources.graphs ==
+         std::vector<std::string>{"graphs"});
+  assert(configured.config->semantic_policy == "algebraic");
   for (const auto& text :
-       {"tepl-version = false", "tepl-version = 1", "tepl-version = ['0.1.0']",
-        "tepl-version = '99.0.0'", "tepl-version = '>=0.1.0'",
-        "tepl-version = '0.1.0'\ntepl-version = '0.1.0'", "invalid toml"}) {
+       {"sources = []", "check = true", "[sources]\nrules = 'rules'",
+        "[sources]\ndialects = [1]", "[sources]\ngraphs = ['']",
+        "[sources]\nexclude = [false]", "[sources]\nrule = []",
+        "[check]\nsemantic-policy = 'fast'", "[check]\nsemantic-policy = 1",
+        "[check]\nsemantic-polciy = 'strict'", "unknown = true",
+        "tepl-version = '0.1.0'"}) {
+    const auto bad = parseProjectConfig({"/virtual/tepl.toml", text});
+    assert(!bad.config && bad.diagnostics.size() == 1);
+    assert(bad.diagnostics[0].origin.definition.source_name ==
+           "/virtual/tepl.toml");
+  }
+  const auto supported = parseProjectConfig(
+      {"/virtual/tepl.toml", "# project\ntepl-version = '0.2.0' # compiler\n"});
+  assert(supported.config && supported.config->tepl_version == "0.2.0");
+  for (const auto& text :
+       {"tepl-version = false", "tepl-version = 1", "tepl-version = ['0.2.0']",
+        "tepl-version = '99.0.0'", "tepl-version = '>=0.2.0'",
+        "tepl-version = '0.2.0'\ntepl-version = '0.2.0'", "invalid toml"}) {
     const auto bad = parseProjectConfig({"/virtual/tepl.toml", text});
     assert(!bad.config && bad.diagnostics.size() == 1);
     assert(bad.diagnostics[0].origin.definition.source_name ==
@@ -52,7 +85,8 @@ void configParsing() {
 void importResolution() {
   MemoryLoader loader;
   loader.files = {
-      {"/virtual/tepl.toml", "tepl-version = '0.1.0'"},
+      {"/virtual/tepl.toml",
+       "tepl-version = '0.2.0'\n[check]\nsemantic-policy = 'algebraic'"},
       {"/virtual/dialects/base.tepl",
        "dialect D { op negate(x: tensor) -> tensor; }"},
       {"/virtual/dialects/export.tepl", "import \"dialects/base.tepl\";"},
@@ -71,6 +105,7 @@ void importResolution() {
   assert(parsed.ok());
   auto loaded = tepl::loadImports(*parsed.program, loader);
   assert(loaded.ok() && loaded.program->modules.size() == 4);
+  assert(loaded.config && loaded.config->semantic_policy == "algebraic");
   assert(loader.reads["/virtual/dialects/base.tepl"] == 1);
   assert(loader.reads["/virtual/tepl.toml"] == 1);
   assert(loaded.program->import_targets.at(

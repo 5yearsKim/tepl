@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <regex>
 #include <set>
 
 #include "src/core/syntax/parse.h"
@@ -24,7 +25,36 @@ class LoadingSession {
   void seed(const syntax::ParsedModule& module) {
     modules_.try_emplace(identity(module.source_name), module);
   }
+  bool failed() const { return !diagnostics_.empty(); }
+  // Cache configuration alongside modules so discovery and imports share it.
+  std::optional<support::ProjectConfig> projectConfig(
+      const std::string& source) {
+    const auto directory = fs::path(source).parent_path().string();
+    auto [root, unseen] = roots_.try_emplace(directory);
+    if (unseen) {
+      if (const auto path = loader_.findProjectConfig(source))
+        root->second = identity(*path);
+    }
+    if (!root->second) return {};
+    const auto& config_name = *root->second;
+    auto [entry, added] = configs_.try_emplace(config_name);
+    if (added) {
+      if (const auto text = loader_.read(config_name)) {
+        auto parsed = support::parseProjectConfig({config_name, *text});
+        entry->second = std::move(parsed.config);
+        diagnostics_.insert(diagnostics_.end(), parsed.diagnostics.begin(),
+                            parsed.diagnostics.end());
+      } else {
+        diagnostics_.emplace_back(
+            1, 1, "cannot read project config '" + config_name + "'",
+            config_name);
+      }
+    }
+    return entry->second;
+  }
   LoadResult run(const std::vector<std::string>& roots, std::string name) {
+    const auto config =
+        name == "<project>" ? std::nullopt : projectConfig(identity(name));
     Project project;
     project.identity = std::move(name);
     project_ = &project;
@@ -47,6 +77,7 @@ class LoadingSession {
     std::erase_if(project.imported_rules,
                   [&](const auto& r) { return local.contains(key(r)); });
     LoadResult result;
+    result.config = config;
     result.rule_count = project.declarations.rules.size();
     result.diagnostics = std::move(diagnostics_);
     if (result.diagnostics.empty()) result.program = std::move(project);
@@ -90,29 +121,8 @@ class LoadingSession {
       project_->declarations.dialects.push_back(d);
   }
   std::optional<std::string> projectRoot(const std::string& source) {
-    const auto directory = fs::path(source).parent_path().string();
-    if (const auto found = roots_.find(directory); found != roots_.end())
-      return found->second;
-    std::optional<std::string> root;
-    if (const auto path = loader_.findProjectConfig(source)) {
-      const auto config_name = identity(*path);
-      auto [entry, added] = configs_.try_emplace(config_name);
-      if (added) {
-        if (const auto text = loader_.read(config_name)) {
-          auto parsed = support::parseProjectConfig({config_name, *text});
-          entry->second = std::move(parsed.config);
-          diagnostics_.insert(diagnostics_.end(), parsed.diagnostics.begin(),
-                              parsed.diagnostics.end());
-        } else {
-          diagnostics_.emplace_back(
-              1, 1, "cannot read project config '" + config_name + "'",
-              config_name);
-        }
-      }
-      if (entry->second) root = entry->second->root;
-    }
-    roots_.emplace(directory, root);
-    return root;
+    if (const auto config = projectConfig(source)) return config->root;
+    return {};
   }
   void visit(const syntax::ParsedModule& module) {
     const auto name = identity(module.source_name);
@@ -191,13 +201,68 @@ class LoadingSession {
   std::set<std::string> active_, complete_, included_, dialects_, rules_;
   std::vector<Diagnostic> diagnostics_;
 };
-void collectFiles(const fs::path& path, std::vector<std::string>& files) {
+// Match project-relative paths: * and ? stay within a component, ** crosses
+// directories, and **/ also matches zero directory components.
+std::regex exclusionPattern(const std::string& glob) {
+  std::string pattern = "^";
+  for (std::size_t i = 0; i < glob.size(); ++i) {
+    const char ch = glob[i];
+    if (ch == '*') {
+      if (i + 1 < glob.size() && glob[i + 1] == '*') {
+        ++i;
+        if (i + 1 < glob.size() && glob[i + 1] == '/') {
+          ++i;
+          pattern += "(.*/)?";
+        } else {
+          pattern += ".*";
+        }
+      } else {
+        pattern += "[^/]*";
+      }
+    } else if (ch == '?') {
+      pattern += "[^/]";
+    } else {
+      if (std::string_view(".\\+()[]{}^$|").find(ch) != std::string_view::npos)
+        pattern += '\\';
+      pattern += ch;
+    }
+  }
+  return std::regex(pattern + "$", std::regex::ECMAScript);
+}
+void collectFiles(const fs::path& path, std::vector<std::string>& files,
+                  const std::optional<support::ProjectConfig>& config = {}) {
   if (fs::is_directory(path)) {
-    for (const auto& entry : fs::recursive_directory_iterator(path))
-      if (entry.is_regular_file() && entry.path().extension() == ".tepl")
-        files.push_back(identity(entry.path().string()));
-  } else
+    std::vector<std::regex> excludes;
+    if (config)
+      for (const auto& pattern : config->sources.exclude)
+        excludes.push_back(exclusionPattern(pattern));
+    for (const auto& entry : fs::recursive_directory_iterator(path)) {
+      if (!entry.is_regular_file() || entry.path().extension() != ".tepl")
+        continue;
+      const auto name = identity(entry.path().string());
+      const auto relative =
+          config
+              ? fs::path(name).lexically_relative(config->root).generic_string()
+              : name;
+      if (std::none_of(excludes.begin(), excludes.end(),
+                       [&](const auto& pattern) {
+                         return std::regex_match(relative, pattern);
+                       }))
+        files.push_back(name);
+    }
+  } else {
+    // Explicit file inputs are intentional, even when excluded from discovery.
     files.push_back(identity(path.string()));
+  }
+}
+void collectDirectories(const fs::path& root,
+                        const std::vector<std::string>& directories,
+                        const std::optional<support::ProjectConfig>& config,
+                        std::vector<std::string>& files) {
+  for (const auto& directory : directories) {
+    const auto path = root / directory;
+    if (fs::is_directory(path)) collectFiles(path, files, config);
+  }
 }
 void sortFiles(std::vector<std::string>& files) {
   std::sort(files.begin(), files.end());
@@ -263,15 +328,25 @@ LoadResult loadProject(const std::vector<SourceFile>& roots,
 }
 LoadResult loadProject(const std::string& directory, SourceLoader& loader) {
   const auto root = fs::path(identity(directory));
-  std::vector<std::string> files;
-  for (const auto* part : {"dialects", "rules", "graphs"})
-    if (fs::is_directory(root / part)) collectFiles(root / part, files);
-  sortFiles(files);
   LoadingSession session(loader);
-  auto result = session.run(files, (root / "<project>").string());
-  if (files.empty()) {
+  const auto name = (root / "<project>").string();
+  const auto config = session.projectConfig(name);
+  if (session.failed()) return session.run({}, name);
+  const auto sources = config ? config->sources : support::ProjectSources{};
+  // Configured paths are relative to the config, even for a nested input
+  // directory.
+  const auto base = config ? fs::path(config->root) : root;
+  std::vector<std::string> files;
+  for (const auto& directories :
+       {sources.dialects, sources.rules, sources.graphs})
+    collectDirectories(base, directories, config, files);
+  sortFiles(files);
+  auto result = session.run(files, name);
+  if (files.empty() && result.diagnostics.empty()) {
     result.diagnostics.push_back(
-        {1, 1, "no .tepl files found under dialects/, rules/, or graphs/",
+        {1, 1,
+         "no .tepl files found in configured source directories (defaults: "
+         "dialects/, rules/, graphs/)",
          directory});
     result.program.reset();
   }
@@ -284,20 +359,32 @@ LoadResult loadProject(const std::string& directory) {
 LoadResult loadRewriteSources(const std::string& graph,
                               const std::string& rules, SourceLoader& loader) {
   const auto input = fs::path(identity(graph));
+  LoadingSession session(loader);
+  const bool directory = fs::is_directory(input);
+  const auto name = directory ? (input / "<project>").string() : input.string();
+  const auto config = session.projectConfig(name);
+  if (session.failed()) return session.run({}, name);
   std::vector<std::string> files, rule_files;
-  if (fs::is_directory(input) && (fs::is_directory(input / "graphs") ||
-                                  fs::is_directory(input / "dialects") ||
-                                  fs::is_directory(input / "rules"))) {
-    for (const auto* part : {"dialects", "graphs"})
-      if (fs::is_directory(input / part)) collectFiles(input / part, files);
-  } else
-    collectFiles(input, files);
-  collectFiles(fs::path(identity(rules)), rule_files);
+  if (directory && ((config && fs::path(config->root) == input) ||
+                    fs::is_directory(input / "graphs") ||
+                    fs::is_directory(input / "dialects") ||
+                    fs::is_directory(input / "rules"))) {
+    const auto sources = config ? config->sources : support::ProjectSources{};
+    collectDirectories(input, sources.dialects, config, files);
+    collectDirectories(input, sources.graphs, config, files);
+  } else {
+    collectFiles(input, files, config);
+  }
+  const auto rule_path = fs::path(identity(rules));
+  const auto rule_config = session.projectConfig(
+      fs::is_directory(rule_path) ? (rule_path / "<project>").string()
+                                  : rule_path.string());
+  if (session.failed()) return session.run({}, name);
+  collectFiles(rule_path, rule_files, rule_config);
   const bool graph_empty = files.empty();
   files.insert(files.end(), rule_files.begin(), rule_files.end());
   sortFiles(files);
-  LoadingSession session(loader);
-  auto result = session.run(files, input.string());
+  auto result = session.run(files, name);
   for (const auto& [path, empty] :
        {std::pair{graph, graph_empty}, std::pair{rules, rule_files.empty()}})
     if (empty) {

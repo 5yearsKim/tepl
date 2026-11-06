@@ -39,6 +39,7 @@ Use `-h` or `--help` for top-level or command-specific help:
 
 ```sh
 tepl --help
+tepl --version
 tepl init --help
 tepl parse --help
 tepl check --help
@@ -67,10 +68,20 @@ my_project/
 defines `commute_add`. The starter can be checked and compiled immediately.
 Add a `graphs/` directory when you want concrete starting graphs.
 
-`tepl.toml` identifies the project root and records the supported TEPL version:
+`tepl.toml` identifies the project root, records the supported TEPL version,
+and configures source discovery and checking. `init` writes these defaults:
 
 ```toml
-tepl-version = "0.1.0"
+tepl-version = "0.2.0"
+
+[sources]
+dialects = ["dialects"]
+rules = ["rules"]
+graphs = ["graphs"]
+exclude = []
+
+[check]
+semantic-policy = "strict"
 ```
 
 The starter rule uses a project-root import:
@@ -99,10 +110,11 @@ my_project/
 └── graphs/       # Concrete computation graphs
 ```
 
-TEPL recursively discovers `.tepl` files beneath these three directories.
-Nested directories are supported. A directory can omit any of the three parts,
-but it must contain at least one `.tepl` file under them. Files elsewhere in
-the project root are not automatically discovered.
+By default, TEPL recursively discovers `.tepl` files beneath these three
+directories. `[sources]` can replace each category with a list of directories.
+Nested directories are supported; discovered paths are sorted and deduplicated.
+Missing directories are skipped, but at least one source file must remain after
+exclusions. Files outside the selected directories are not automatically discovered.
 
 Imported dialects and selected abstract rules are loaded as needed. `parse`
 accepts only a file and does not scan the project directories for source files.
@@ -129,9 +141,41 @@ from "dialects/tensor.tepl" import TensorLang as t;
 ```
 
 An empty `tepl.toml` is a valid root marker. The optional `tepl-version` field
-must be a string equal to the supported version, currently `"0.1.0"`; version
+must be a string equal to the supported version, currently `"0.2.0"`; version
 ranges are not supported. Invalid TOML, invalid version types, unsupported
-versions, and unreadable configs report diagnostics.
+versions, unreadable configs, unknown keys, and invalid configuration values
+report diagnostics. `tepl --version` prints the compiler version.
+
+All sections and individual fields are optional and use the defaults shown
+above. Each `[sources]` field is an array of nonempty strings. An empty source
+directory list disables discovery for that category; `exclude = []` excludes
+nothing. Relative source directories are resolved
+against the directory containing `tepl.toml`; absolute directories are also
+accepted. Changing source directories does not change import path resolution.
+
+For example, use custom rule directories and skip experiments and fixtures:
+
+```toml
+[sources]
+rules = ["rules", "shared/rules"]
+exclude = ["rules/experimental/**", "**/fixtures/**"]
+```
+
+Exclusions match complete project-relative file paths with `/` separators.
+`*` matches within one path component, `?` matches one non-separator character,
+and `**` matches across directories. `**/` also matches zero directories, so
+`**/fixtures/**` covers both root and nested fixtures. Other characters are
+literal. Exclusions apply to directory discovery, including directories selected
+with `--rules`; explicitly selected files and imported dependencies still load.
+With `--rules`, a project input uses its configured dialect and graph directories
+and the explicitly selected rule sources replace its configured rule directories.
+
+`[check].semantic-policy` accepts `"strict"` (default) or `"algebraic"`. For CLI
+source commands, the primary input's nearest config provides the default policy
+for `check`, `compile`, `rewrite`, `generate`, and `core-emit`. Imported projects
+retain their own import roots but do not override this policy. An explicit
+`--semantic-policy` flag overrides the configuration, including an explicit
+`--semantic-policy strict`. Compiled JSON retains its compiled policy.
 
 Without a config, bare paths retain their previous file-relative behavior.
 When adding a config to an existing project, change local imports such as
@@ -185,7 +229,7 @@ tepl check examples/semantic/rules/algebraic.tepl \
 
 | Option | Meaning |
 | --- | --- |
-| `--semantic-policy strict` | Default arithmetic policy; algebraic transformations require permission. |
+| `--semantic-policy strict` | Require the strict arithmetic policy, overriding project configuration. |
 | `--semantic-policy algebraic` | Permit the supported exact-arithmetic algebraic laws. |
 | `--rule <name>` | Check and report one semantic rule in the input. |
 
@@ -230,7 +274,7 @@ tepl rewrite examples/rewrite/auto.tepl --max-steps 100
 | `--max-steps <n>` | 1000 | Maximum committed rewrites. |
 | `--max-nodes <n>` | 1000000 | Maximum graph nodes, including temporary replacements. |
 | `--trace` | Off | Report each applied rule on stderr. |
-| `--semantic-policy strict\|algebraic` | strict | Proof policy when compiling source; JSON carries its compiled policy. |
+| `--semantic-policy strict\|algebraic` | Config or strict | Proof policy when compiling source; defaults to project configuration, then strict. JSON carries its compiled policy. |
 
 Graph files import dialects independently of rules. For separate `dialects/`,
 `rules/`, and `graphs/` directories, pass the graph file (or graph directory) as

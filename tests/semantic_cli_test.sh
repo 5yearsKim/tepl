@@ -48,6 +48,33 @@ failure="$(cat "$temporary_directory/error")"
 [[ "$failure" == *"explicit where condition"* ]]
 "$compiler" check "$temporary_directory/unguarded.tepl" --semantic-policy=algebraic --rule good > /dev/null
 
+# The primary input's config supplies the default policy, including file inputs.
+# A strict imported dialect project must not replace this project's policy.
+mkdir -p "$temporary_directory/policy/rules"
+cat > "$temporary_directory/policy/rules/distribute.tepl" <<EOF
+from "$dialect_absolute" import TensorLang as t;
+use t::{dot, add};
+rule distribute { (dot (add A B) C) => (add (dot A C) (dot B C)) }
+EOF
+cat > "$temporary_directory/policy/tepl.toml" <<'TOML'
+[check]
+semantic-policy = "algebraic"
+TOML
+"$compiler" check "$temporary_directory/policy" > /dev/null
+"$compiler" check "$temporary_directory/policy/rules/distribute.tepl" > /dev/null
+"$compiler" compile "$temporary_directory/policy" -o "$temporary_directory/policy.json"
+"$compiler" generate "$temporary_directory/policy" --no-format --out "$temporary_directory/generated"
+if "$compiler" check "$temporary_directory/policy" --semantic-policy=strict > /dev/null 2>&1; then
+  exit 1
+fi
+if "$compiler" compile "$temporary_directory/policy" --semantic-policy=strict > /dev/null 2>&1; then
+  exit 1
+fi
+printf '[check]\nsemantic-policy = "strict"\n' > "$temporary_directory/policy/tepl.toml"
+if "$compiler" check "$temporary_directory/policy" > /dev/null 2>&1; then exit 1; fi
+"$compiler" check "$temporary_directory/policy" --semantic-policy=algebraic > /dev/null
+"$compiler" compile "$temporary_directory/policy" --semantic-policy=algebraic > /dev/null
+
 # Retired flags must not silently configure a nonexistent solver path.
 for option in --solver-timeout-ms=1000 --verify-small --index-rule=distribute; do
     if "$compiler" check "$rules" "$option" > /dev/null 2>&1; then

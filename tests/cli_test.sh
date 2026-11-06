@@ -17,6 +17,9 @@ check_exit() {
   fi
 }
 
+check_exit 0 --version
+grep -Fxq '0.2.0' "$output"
+
 check_exit 0 --help
 grep -Fq 'parse' "$output"
 grep -Fq 'init' "$output"
@@ -39,7 +42,7 @@ grep -Fq 'Initialized TEPL project in' "$output"
 grep -Fq 'tepl check' "$output"
 test -f "$starter/dialects/your_dialect.tepl"
 test -f "$starter/rules/your_rule.tepl"
-grep -Fxq 'tepl-version = "0.1.0"' "$starter/tepl.toml"
+grep -Fxq 'tepl-version = "0.2.0"' "$starter/tepl.toml"
 grep -Fq 'from "dialects/your_dialect.tepl"' "$starter/rules/your_rule.tepl"
 check_exit 0 check "$starter"
 grep -Fq 'MatchOp(YourDialect.add' "$output"
@@ -119,6 +122,63 @@ printf 'from "dialects/your_dialect.tepl" import YourDialect as d; graph g { inp
 check_exit 0 compile "$starter/graphs/g.tepl" --rules "$starter/rules/nested" -o "${TEST_TMPDIR}/root-imports.json"
 check_exit 0 validate "${TEST_TMPDIR}/root-imports.json"
 check_exit 0 generate "$starter/graphs/g.tepl" --rules "$starter/rules/nested" --no-format --out "${TEST_TMPDIR}/root-imports-generated"
+
+# Configured source directories and exclusions work for all source commands.
+configured="${TEST_TMPDIR}/configured project"
+mkdir -p "$configured/schema" "$configured/patterns/nested" \
+  "$configured/patterns/experimental" "$configured/patterns/fixtures/deep" \
+  "$configured/programs" "$configured/fixtures" "$configured/rules"
+cat > "$configured/tepl.toml" <<'TOML'
+tepl-version = "0.2.0"
+[sources]
+dialects = ["schema"]
+rules = ["patterns", "patterns/nested"]
+graphs = ["programs", "fixtures"]
+exclude = ["patterns/experimental/**", "**/fixtures/**", "patterns/*.skip.tepl", "patterns/ignored?.tepl"]
+[check]
+semantic-policy = "strict"
+TOML
+printf 'dialect D { op negate(x:tensor)->tensor; }\n' > "$configured/schema/d.tepl"
+printf 'from "schema/d.tepl" import D as d; rule negate { (d.negate X) => X }\n' > "$configured/patterns/nested/negate.tepl"
+printf 'from "schema/d.tepl" import D as d; graph g { input X; yield (d.negate X); }\n' > "$configured/programs/g.tepl"
+for file in patterns/experimental/bad.tepl patterns/fixtures/deep/bad.tepl \
+  fixtures/bad.tepl patterns/bad.skip.tepl patterns/ignored1.tepl rules/unselected.tepl; do
+  printf 'invalid source\n' > "$configured/$file"
+done
+(
+  cd "$init_current"
+  check_exit 0 check "$configured"
+  check_exit 0 compile "$configured" -o "${TEST_TMPDIR}/configured.json"
+  check_exit 0 generate "$configured" --no-format --out "${TEST_TMPDIR}/configured-generated"
+  check_exit 0 rewrite "$configured"
+  grep -Fq 'yield X;' "$output"
+  check_exit 0 compile "$configured" --rules "$configured/patterns" -o "${TEST_TMPDIR}/selected-rules.json"
+  check_exit 0 rewrite "$configured/programs" --rules "$configured/patterns"
+  grep -Fq 'yield X;' "$output"
+)
+# Explicit files and imported dependencies still load when excluded from discovery.
+check_exit 1 parse "$configured/patterns/experimental/bad.tepl"
+printf 'dialect Extra { op identity(x:tensor)->tensor; }\n' > "$configured/patterns/experimental/imported.tepl"
+printf 'from "patterns/experimental/imported.tepl" import Extra;\n' > "$configured/schema/import.tepl"
+check_exit 0 check "$configured"
+# An empty array disables discovery for that category, with other defaults intact.
+cat > "$configured/tepl.toml" <<'TOML'
+[sources]
+dialects = []
+rules = []
+graphs = ["programs"]
+TOML
+check_exit 0 check "$configured"
+# Empty projects must still validate their config instead of hiding config errors.
+printf '[sources]\nrules = "patterns"\n' > "$configured/tepl.toml"
+check_exit 1 check "$configured"
+grep -Fq 'sources.rules must be an array' "$output"
+printf '[check]\nsemantic-policy = "fast"\n' > "$configured/tepl.toml"
+check_exit 1 check "$configured/programs/g.tepl"
+grep -Fq "check.semantic-policy must be 'strict' or 'algebraic'" "$output"
+printf '[sources]\nrulse = []\n' > "$configured/tepl.toml"
+check_exit 1 check "$configured"
+grep -Fq "unknown project configuration key 'sources.rulse'" "$output"
 
 # Nearest configs win, including an empty marker, and relative imports stay local.
 nested="$starter/nested_project"

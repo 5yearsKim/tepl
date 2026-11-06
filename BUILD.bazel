@@ -20,6 +20,7 @@ cc_binary(
         "//src/core/resolution",
         "//src/core/semantics:report",
         "//src/support:init",
+        "//src/support:project_config",
         "//src/executable",
         "//src/rewrite:cli",
         "@cli11//:cli11",

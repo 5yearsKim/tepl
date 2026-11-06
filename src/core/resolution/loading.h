@@ -4,6 +4,7 @@
 
 #include "src/core/resolution/project.h"
 #include "src/shared/diagnostics/diagnostic.h"
+#include "src/support/project_config.h"
 namespace tepl {
 std::string formatAst(const core::resolution::SourceProject&);
 class SourceLoader {
@@ -24,6 +25,8 @@ class FileSourceLoader final : public SourceLoader {
 };
 struct LoadResult {
   std::optional<core::resolution::SourceProject> program;
+  // Configuration of the primary input, not of its imported dependencies.
+  std::optional<support::ProjectConfig> config;
   std::vector<Diagnostic> diagnostics;
   std::size_t rule_count = 0;
   std::string tree;

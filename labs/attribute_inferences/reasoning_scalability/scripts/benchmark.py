@@ -69,7 +69,7 @@ def validate_workloads():
 
 def prepare():
     DIRECTORY.mkdir(parents=True, exist_ok=True)
-    (DIRECTORY / 'tepl.toml').write_text('tepl-version = "0.1.0"\n')
+    (DIRECTORY / 'tepl.toml').write_text('tepl-version = "0.2.0"\n')
     relative = Path(os.path.relpath(b.DIALECT, DIRECTORY)).as_posix()
     header = f'from "{relative}" import TensorLang as t;\nuse t::{{dot,add}};\n'
     cases = []

@@ -18,9 +18,11 @@
 #include "src/executable/program.h"
 #include "src/rewrite/cli.h"
 #include "src/support/init.h"
+#include "src/support/project_config.h"
 
 int main(int argc, char** argv) {
   CLI::App app{"Compile, rewrite, and generate code for TEPL projects"};
+  app.set_version_flag("--version", tepl::support::kTeplVersion);
   app.require_subcommand(1);
   std::string project_directory;
   auto* init = app.add_subcommand("init", "Create a minimal TEPL project");
@@ -112,7 +114,7 @@ int main(int argc, char** argv) {
   for(auto* command:{check,compile,rewrite,generate}) {
     command->add_flag("--core",core_backend,"Use the metadata DAG constructor and supported schemas");
   }
-  std::string semantic_policy = "strict";
+  std::string semantic_policy;
   std::string semantic_rule;
   core_emit->add_option("--rule", semantic_rule, "Select a core rule");
   check->add_option("--rule", semantic_rule,
@@ -121,7 +123,8 @@ int main(int argc, char** argv) {
     command
         ->add_option("--semantic-policy", semantic_policy,
                      "Arithmetic proof policy (strict or algebraic)")
-        ->check(CLI::IsMember({"strict", "algebraic"}));
+        ->check(CLI::IsMember({"strict", "algebraic"}))
+        ->default_str("strict (or project configuration)");
   }
   try {
     app.parse(argc, argv);
@@ -260,6 +263,8 @@ int main(int argc, char** argv) {
     return 1;
   }
   if (*check || *generate || *compile || *rewrite || *core_emit) {
+    if (semantic_policy.empty())
+      semantic_policy = result.config ? result.config->semantic_policy : "strict";
     const auto policy = semantic_policy == "algebraic"
                             ? tepl::core::SemanticPolicy::kAlgebraic
                             : tepl::core::SemanticPolicy::kStrict;

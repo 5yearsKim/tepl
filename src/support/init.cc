@@ -50,7 +50,17 @@ void initializeProject(const std::filesystem::path& directory) {
                                directory / "rules"};
   const std::array files{
       StarterFile{directory / "tepl.toml",
-                  std::string("tepl-version = \"") + kTeplVersion + "\"\n"},
+                  std::string("tepl-version = \"") + kTeplVersion + R"("
+
+[sources]
+dialects = ["dialects"]
+rules = ["rules"]
+graphs = ["graphs"]
+exclude = []
+
+[check]
+semantic-policy = "strict"
+)"},
       StarterFile{directory / "dialects" / "your_dialect.tepl",
                   R"(dialect YourDialect {
     op add(lhs: tensor, rhs: tensor) -> tensor;
