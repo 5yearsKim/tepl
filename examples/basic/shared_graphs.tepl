@@ -1,0 +1,38 @@
+// Reusing a let binding shares one computation across its consumers.
+dialect Basic {
+  op negate(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_float(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op add(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_float(a)
+      yield a
+    }
+    shape(a, b) {
+      assert a == b
+      yield a
+    }
+  }
+}
+
+rule cancel_double_negate {
+  (Basic.negate (Basic.negate X)) => X
+}
+
+graph example {
+  input X: f32[2, 3]
+  input Y: f32[2, 3]
+
+  let restored = (Basic.negate (Basic.negate X))
+  let shared = (Basic.add restored Y)
+
+  yield (Basic.add shared shared)
+}

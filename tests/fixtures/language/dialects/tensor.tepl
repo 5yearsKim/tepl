@@ -1,0 +1,483 @@
+// StableHLO subset: https://openxla.org/stablehlo/spec
+// See ../../../../docs/references/shape.md for shape programs and variadic operands.
+// Operations without shape blocks need host metadata for shape inference.
+dialect TensorLang {
+  // Single-operand specialization of StableHLO all_reduce.
+  // computation preserves the reducer region, not merely a reduction name.
+  attrs CollectiveReduce {
+    replica_groups: replica_groups
+    channel_id: i64
+    use_global_device_ids: bool
+    computation: region
+  }
+
+  op add(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    shape(l, r) {
+      assert l == r
+      yield l
+    }
+  }
+
+  op subtract(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    shape(l, r) {
+      assert l == r
+      yield l
+    }
+  }
+
+  op multiply(lhs: tensor, rhs: tensor) -> tensor {
+    alias: mul
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    shape(l, r) {
+      assert l == r
+      yield l
+    }
+  }
+
+  op divide(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    shape(l, r) {
+      assert l == r
+      yield l
+    }
+  }
+
+  op maximum(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    shape(l, r) {
+      assert l == r
+      yield l
+    }
+  }
+
+  op minimum(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    shape(l, r) {
+      assert l == r
+      yield l
+    }
+  }
+
+  op negate(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op exponential(input: tensor) -> tensor {
+    alias: exp
+    dtype(t) {
+      assert is_float(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op log(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_float(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op abs(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op sqrt(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_float(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op rsqrt(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_float(t)
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op reshape(input: tensor) -> tensor {
+    attrs {
+      // TEPL adapter metadata from the StableHLO result type.
+      shape: extent[]
+    }
+    dtype(t) {
+      yield t
+    }
+    shape(s) {
+      assert product(s) == product(attrs.shape)
+      yield attrs.shape
+    }
+  }
+
+  op transpose(input: tensor) -> tensor {
+    attrs {
+      permutation: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+    shape(s) {
+      assert is_valid_axis_list(attrs.permutation, len(s))
+      assert len(attrs.permutation) == len(s)
+      yield gather(s, attrs.permutation)
+    }
+  }
+
+  op broadcast_in_dim(input: tensor) -> tensor {
+    attrs {
+      broadcast_dimensions: u64[]
+      // TEPL adapter metadata from the StableHLO result type.
+      shape: extent[]
+    }
+    dtype(t) {
+      yield t
+    }
+    shape(s) {
+      assert len(attrs.broadcast_dimensions) == len(s)
+      assert is_valid_axis_list(attrs.broadcast_dimensions, len(attrs.shape))
+      assert all(
+        [
+          s[i] == 1 || s[i] == attrs.shape[attrs.broadcast_dimensions[i]]
+          for i in range(len(s))
+        ]
+      )
+      yield attrs.shape
+    }
+  }
+
+  op slice(input: tensor) -> tensor {
+    attrs {
+      start_indices: u64[]
+      limit_indices: u64[]
+      strides: coordinate[]
+    }
+    dtype(t) {
+      yield t
+    }
+    shape(s) {
+      assert len(attrs.start_indices) == len(s)
+      assert len(attrs.limit_indices) == len(s)
+      assert len(attrs.strides) == len(s)
+      assert all(
+        [
+          attrs.start_indices[i] <= attrs.limit_indices[i]
+            && attrs.limit_indices[i] <= s[i]
+            && attrs.strides[i] > 0
+          for i in range(len(s))
+        ]
+      )
+      yield [
+        ceil_div(
+          attrs.limit_indices[i] - attrs.start_indices[i],
+          attrs.strides[i]
+        )
+        for i in range(len(s))
+      ]
+    }
+  }
+
+  // StableHLO permits one or more inputs. The assertion enforces nonemptiness.
+  op concatenate(inputs: tensor...) -> tensor {
+    attrs {
+      dimension: axis
+    }
+    dtype(inputs...) {
+      assert len(inputs) > 0
+      assert all([t == inputs[0] for t in inputs])
+      yield inputs[0]
+    }
+    shape(inputs...) {
+      assert len(inputs) > 0
+      let first = inputs[0]
+      let axis = attrs.dimension
+      assert is_valid_axis_list([axis], len(first))
+      assert all([len(s) == len(first) for s in inputs])
+      let other_axes = exclude(range(len(first)), [axis])
+      assert all(
+        [gather(s, other_axes) == gather(first, other_axes) for s in inputs]
+      )
+      yield replace(first, axis, sum([s[axis] for s in inputs]))
+    }
+  }
+
+  // Single-input/result specialization; init_value is a real scalar operand.
+  op reduce(input: tensor, init_value: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+      // TEPL adapter handle for the StableHLO body region.
+      body: region
+    }
+    dtype(a, b) {
+      assert a == b
+      yield a
+    }
+    shape(s, init) {
+      assert init == []
+      assert is_valid_axis_list(attrs.dimensions, len(s))
+      yield gather(s, exclude(range(len(s)), attrs.dimensions))
+    }
+  }
+
+  op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+    // TEPL shorthand, not a separate StableHLO dot operation.
+    alias: dot
+    attrs {
+      // Flattened fields of StableHLO dot_dimension_numbers.
+      lhs_contracting_dimensions: axis[]
+      rhs_contracting_dimensions: axis[]
+      lhs_batching_dimensions: axis[]
+      rhs_batching_dimensions: axis[]
+      precision_config: precision[]
+      algorithm: dot_algorithm?
+    }
+    shape(l, r) {
+      let lc = attrs.lhs_contracting_dimensions
+      let rc = attrs.rhs_contracting_dimensions
+      let lb = attrs.lhs_batching_dimensions
+      let rb = attrs.rhs_batching_dimensions
+      assert is_valid_axis_list(lc, len(l))
+      assert is_valid_axis_list(rc, len(r))
+      assert is_valid_axis_list(lb, len(l))
+      assert is_valid_axis_list(rb, len(r))
+      assert is_disjoint(lb, lc)
+      assert is_disjoint(rb, rc)
+      assert len(lb) == len(rb)
+      assert len(lc) == len(rc)
+      assert gather(l, lb) == gather(r, rb)
+      assert gather(l, lc) == gather(r, rc)
+      let lf = exclude(range(len(l)), concat(lb, lc))
+      let rf = exclude(range(len(r)), concat(rb, rc))
+      yield concat(gather(l, lb), gather(l, lf), gather(r, rf))
+    }
+  }
+
+  op convolution(lhs: tensor, rhs: tensor) -> tensor {
+    attrs {
+      window_strides: coordinate[]
+      padding: coordinate[][]
+      lhs_dilation: coordinate[]
+      rhs_dilation: coordinate[]
+      window_reversal: bool[]
+      // Flattened fields of StableHLO dimension_numbers.
+      input_batch_dimension: axis
+      input_feature_dimension: axis
+      input_spatial_dimensions: axis[]
+      kernel_input_feature_dimension: axis
+      kernel_output_feature_dimension: axis
+      kernel_spatial_dimensions: axis[]
+      output_batch_dimension: axis
+      output_feature_dimension: axis
+      output_spatial_dimensions: axis[]
+      feature_group_count: u64
+      batch_group_count: u64
+      precision_config: precision[]
+    }
+    shape(l, r) {
+      let n = len(l)
+      assert n >= 2 && len(r) == n
+      let spatial_rank = n - 2
+      let axes = range(spatial_rank)
+      let is = attrs.input_spatial_dimensions
+      let ks = attrs.kernel_spatial_dimensions
+      let os = attrs.output_spatial_dimensions
+      assert len(is) == spatial_rank
+      assert len(ks) == spatial_rank
+      assert len(os) == spatial_rank
+      assert is_valid_axis_list(
+        concat(
+          [attrs.input_batch_dimension],
+          is,
+          [attrs.input_feature_dimension]
+        ),
+        n
+      )
+      assert is_valid_axis_list(
+        concat(
+          [attrs.kernel_input_feature_dimension],
+          ks,
+          [attrs.kernel_output_feature_dimension]
+        ),
+        n
+      )
+      assert is_valid_axis_list(
+        concat(
+          [attrs.output_batch_dimension],
+          os,
+          [attrs.output_feature_dimension]
+        ),
+        n
+      )
+      assert len(attrs.window_strides) == spatial_rank
+      assert len(attrs.padding) == spatial_rank
+      assert all([len(p) == 2 for p in attrs.padding])
+      assert len(attrs.lhs_dilation) == spatial_rank
+      assert len(attrs.rhs_dilation) == spatial_rank
+      assert len(attrs.window_reversal) == spatial_rank
+      assert all(
+        [
+          attrs.window_strides[i] > 0
+            && attrs.lhs_dilation[i] > 0
+            && attrs.rhs_dilation[i] > 0
+          for i in axes
+        ]
+      )
+      let fg = attrs.feature_group_count
+      let bg = attrs.batch_group_count
+      assert fg > 0 && bg > 0
+      assert fg == 1 || bg == 1
+      assert l[attrs.input_batch_dimension] % bg == 0
+      assert l[attrs.input_feature_dimension] % fg == 0
+      assert r[attrs.kernel_input_feature_dimension]
+        == l[attrs.input_feature_dimension] / fg
+      assert r[attrs.kernel_output_feature_dimension] % bg == 0
+      assert r[attrs.kernel_output_feature_dimension] % fg == 0
+      let dilated_input = [
+        if l[is[i]] == 0 then 0 else (l[is[i]] - 1) * attrs.lhs_dilation[i] + 1
+        for i in axes
+      ]
+      let padded_input = [
+        attrs.padding[i][0] + dilated_input[i] + attrs.padding[i][1]
+        for i in axes
+      ]
+      let window = [
+        if r[ks[i]] == 0 then 0 else (r[ks[i]] - 1) * attrs.rhs_dilation[i] + 1
+        for i in axes
+      ]
+      let windows = [
+        if padded_input[i] == 0 || window[i] > padded_input[i]
+          then 0
+          else floor_div(padded_input[i] - window[i], attrs.window_strides[i])
+            + 1
+        for i in axes
+      ]
+      yield [
+        if axis == attrs.output_batch_dimension
+          then l[attrs.input_batch_dimension] / bg
+          else if axis == attrs.output_feature_dimension
+            then r[attrs.kernel_output_feature_dimension]
+            else sum([if os[i] == axis then windows[i] else 0 for i in axes])
+        for axis in range(n)
+      ]
+    }
+  }
+
+  // Collective signatures below specialize to one tensor input/result.
+  op all_gather(input: tensor) -> tensor {
+    attrs {
+      all_gather_dim: u64
+      replica_groups: replica_groups
+      channel_id: i64
+      use_global_device_ids: bool
+    }
+    dtype(t) {
+      yield t
+    }
+    // Shape depends on host process-grid and mesh metadata.
+  }
+
+  op all_reduce(input: tensor) -> tensor {
+    attrs: CollectiveReduce
+    dtype(t) {
+      yield t
+    }
+    shape(s) {
+      yield s
+    }
+  }
+
+  op reduce_scatter(input: tensor) -> tensor {
+    attrs {
+      scatter_dimension: u64
+      replica_groups: replica_groups
+      channel_id: i64
+      use_global_device_ids: bool
+      computation: region
+    }
+    dtype(t) {
+      yield t
+    }
+    // Shape depends on the host process-group size.
+  }
+
+  op all_to_all(input: tensor) -> tensor {
+    attrs {
+      split_dimension: u64
+      concat_dimension: u64
+      split_count: u64
+      replica_groups: replica_groups
+      channel_id: i64
+    }
+    dtype(t) {
+      yield t
+    }
+    shape(s) {
+      let split = attrs.split_dimension
+      let join = attrs.concat_dimension
+      let count = attrs.split_count
+      assert is_valid_axis_list([split], len(s))
+      assert is_valid_axis_list([join], len(s))
+      assert count > 0
+      assert s[split] % count == 0
+      // Equal split and concatenate axes leave the shape unchanged.
+      let divided = replace(s, split, s[split] / count)
+      yield replace(divided, join, divided[join] * count)
+    }
+  }
+
+  op constant() -> tensor {
+    attrs {
+      value: elements
+    }
+    // No tensor inputs. The host supplies shape from the typed payload.
+  }
+}

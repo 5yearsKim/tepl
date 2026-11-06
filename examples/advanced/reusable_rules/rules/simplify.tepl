@@ -1,0 +1,9 @@
+from "rules/abstract.tepl" import {cancel_twice}
+from "dialects/tensor.tepl" import TensorLang as t
+
+rule cancel_double_negate extends cancel_twice(F = t.negate)
+
+rule cancel_small_vectors extends cancel_twice(F = t.negate) {
+  X: f32[N]
+  where N <= 1024
+}

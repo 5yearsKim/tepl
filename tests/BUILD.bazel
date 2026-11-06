@@ -6,8 +6,8 @@ cc_test(
     name = "named_nodes_test",
     size = "small",
     srcs = ["named_nodes_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = ["//src/core:pipeline", "//src/rewrite", "@rules_cc//cc/runfiles"],
 )
 
@@ -17,8 +17,8 @@ cc_test(
     copts = ["-UNDEBUG"],
     size = "medium",
     srcs = ["attribute_reasoning_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = ["//src/core:pipeline", "//src/core/attr_synth", "//src/core/semantics:proof", "//src/core/semantics:rule_proof", "//src/rewrite", "@rules_cc//cc/runfiles"],
 )
 
@@ -27,8 +27,8 @@ cc_test(
     copts = ["-UNDEBUG"],
     size = "medium",
     srcs = ["ordered_synthesis_test.cc", "index_constructor_eval.h", "index_reference.h"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = ["//src/core/attr_synth", "//src/core/attr_synth:ordered", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:reasoning", "//src/core/semantics:proof", "//src/executable", "//src/shared/catalog", "@rules_cc//cc/runfiles"],
 )
 
@@ -50,8 +50,8 @@ cc_test(
     name = "reverse_test",
     size = "small",
     srcs = ["reverse_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = ["//src/core/attr_synth", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
 )
 
@@ -66,8 +66,8 @@ cc_test(
     name = "slice_test",
     size = "small",
     srcs = ["slice_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = ["//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
 )
 
@@ -75,8 +75,8 @@ cc_test(
     name = "convolution_test",
     size = "medium",
     srcs = ["convolution_test.cc", "index_graph_eval.h", "index_constructor_eval.h", "index_reference.h"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = ["//src/core/attr_synth", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "@rules_cc//cc/runfiles"],
 )
 
@@ -91,8 +91,8 @@ cc_test(
     name = "semantic_test",
     size = "medium",
     srcs = ["semantic_test.cc", "index_reference_engine.cc", "index_reference.h", "index_constructor_eval.h"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = ["//src/core/semantics:rule_proof", "//src/core/syntax:syntax", "//src/core:pipeline", "//src/core/semantics:proof", "//src/core/semantics:report", "@rules_cc//cc/runfiles"],
 )
 
@@ -100,8 +100,8 @@ sh_test(
     name = "semantic_cli_test",
     size = "small",
     srcs = ["semantic_cli_test.sh"],
-    args = ["$(rootpath //:tepl)", "$(rootpath //:examples/semantic/rules/algebraic.tepl)"],
-    data = ["//:tepl", "//:examples/semantic/tepl.toml", "//:examples/semantic/rules/algebraic.tepl", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rootpath //:tepl)", "$(rootpath //tests/fixtures:semantic/rules/algebraic.tepl)"],
+    data = ["//:tepl", "//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/rules/algebraic.tepl", "//tests/fixtures:semantic/dialects/tensor.tepl"],
 )
 
 cc_test(
@@ -109,15 +109,15 @@ cc_test(
     size = "small",
     srcs = ["core_test.cc"],
     args = [
-        "$(rlocationpath //:examples/sample/rules/lora.tepl)",
-        "$(rlocationpath //:examples/sample/rules/inherited.tepl)",
+        "$(rlocationpath //tests/fixtures:language/rules/lora.tepl)",
+        "$(rlocationpath //tests/fixtures:language/rules/inherited.tepl)",
     ],
     data = [
-        "//:examples/sample/tepl.toml",
-        "//:examples/sample/rules/lora.tepl",
-        "//:examples/sample/rules/inherited.tepl",
-        "//:examples/sample/rules/abstract.tepl",
-        "//:examples/sample/dialects/tensor.tepl",
+        "//tests/fixtures:language/tepl.toml",
+        "//tests/fixtures:language/rules/lora.tepl",
+        "//tests/fixtures:language/rules/inherited.tepl",
+        "//tests/fixtures:language/rules/abstract.tepl",
+        "//tests/fixtures:language/dialects/tensor.tepl",
     ],
     deps = [
         "//src/core/syntax:syntax",
@@ -135,16 +135,16 @@ sh_test(
     srcs = ["cli_test.sh"],
     args = [
         "$(rootpath //:tepl)",
-        "$(rootpath //:examples/sample/rules/simple.tepl)",
+        "$(rootpath //tests/fixtures:language/rules/simple.tepl)",
     ],
     data = [
         "//:tepl",
-        "//:examples/sample/tepl.toml",
-        "//:examples/sample/rules/simple.tepl",
-        "//:examples/sample/dialects/tensor.tepl",
-        "//:examples/sample/rules/abstract.tepl",
-        "//:examples/sample/rules/inherited.tepl",
-        "//:examples/sample/rules/basic.tepl",
+        "//tests/fixtures:language/tepl.toml",
+        "//tests/fixtures:language/rules/simple.tepl",
+        "//tests/fixtures:language/dialects/tensor.tepl",
+        "//tests/fixtures:language/rules/abstract.tepl",
+        "//tests/fixtures:language/rules/inherited.tepl",
+        "//tests/fixtures:language/rules/basic.tepl",
     ],
     env_inherit = ["PATH", "HOME", "RUSTUP_HOME"],
 )
@@ -154,17 +154,17 @@ cc_test(
     size = "small",
     srcs = ["ast_test.cc"],
     args = [
-        "$(rlocationpath //:examples/sample/rules/lora.tepl)",
-        "$(rlocationpath //:examples/sample/dialects/tensor.tepl)",
-        "$(rlocationpath //:examples/sample/rules/abstract.tepl)",
-        "$(rlocationpath //:examples/sample/rules/inherited.tepl)",
+        "$(rlocationpath //tests/fixtures:language/rules/lora.tepl)",
+        "$(rlocationpath //tests/fixtures:language/dialects/tensor.tepl)",
+        "$(rlocationpath //tests/fixtures:language/rules/abstract.tepl)",
+        "$(rlocationpath //tests/fixtures:language/rules/inherited.tepl)",
     ],
     data = [
-        "//:examples/sample/tepl.toml",
-        "//:examples/sample/rules/lora.tepl",
-        "//:examples/sample/dialects/tensor.tepl",
-        "//:examples/sample/rules/abstract.tepl",
-        "//:examples/sample/rules/inherited.tepl",
+        "//tests/fixtures:language/tepl.toml",
+        "//tests/fixtures:language/rules/lora.tepl",
+        "//tests/fixtures:language/dialects/tensor.tepl",
+        "//tests/fixtures:language/rules/abstract.tepl",
+        "//tests/fixtures:language/rules/inherited.tepl",
     ],
     deps = [
         "//src/core/syntax:model",
@@ -199,13 +199,13 @@ cc_test(
     size = "small",
     srcs = ["shape_core_test.cc"],
     args = [
-        "$(rlocationpath //:examples/sample/dialects/tensor.tepl)",
-        "$(rlocationpath //:examples/sample/dialects/scalar.tepl)",
+        "$(rlocationpath //tests/fixtures:language/dialects/tensor.tepl)",
+        "$(rlocationpath //tests/fixtures:language/dialects/scalar.tepl)",
     ],
     data = [
-        "//:examples/sample/tepl.toml",
-        "//:examples/sample/dialects/tensor.tepl",
-        "//:examples/sample/dialects/scalar.tepl",
+        "//tests/fixtures:language/tepl.toml",
+        "//tests/fixtures:language/dialects/tensor.tepl",
+        "//tests/fixtures:language/dialects/scalar.tepl",
     ],
     deps = [
         "//src/core/syntax:syntax",
@@ -268,8 +268,8 @@ cc_test(
     copts = ["-UNDEBUG"],
     size = "small",
     srcs = ["rewrite_test.cc"],
-    args = ["$(rlocationpath //:examples/semantic/dialects/tensor.tepl)"],
-    data = ["//:examples/semantic/tepl.toml", "//:examples/semantic/dialects/tensor.tepl"],
+    args = ["$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)"],
+    data = ["//tests/fixtures:semantic/tepl.toml", "//tests/fixtures:semantic/dialects/tensor.tepl"],
     deps = [
         "//src/core/syntax:syntax",
         "//src/core:pipeline",
@@ -286,15 +286,15 @@ sh_test(
     srcs = ["rewrite_cli_test.sh"],
     args = [
         "$(rootpath //:tepl)",
-        "$(rootpath //:examples/rewrite/graphs/transpose.tepl)",
+        "$(rootpath //tests/fixtures:rewrite/graphs/transpose.tepl)",
         "$(rootpath //schema:rewrite-program.schema.json)",
     ],
     data = [
         "//:tepl",
-        "//:examples/rewrite/tepl.toml",
-        "//:examples/rewrite/graphs/transpose.tepl",
-        "//:examples/rewrite/dialects/tensor.tepl",
-        "//:examples/rewrite/rules/transpose.tepl",
+        "//tests/fixtures:rewrite/tepl.toml",
+        "//tests/fixtures:rewrite/graphs/transpose.tepl",
+        "//tests/fixtures:rewrite/dialects/tensor.tepl",
+        "//tests/fixtures:rewrite/rules/transpose.tepl",
         "//schema:rewrite-program.schema.json",
     ],
 )

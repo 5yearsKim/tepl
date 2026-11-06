@@ -4,30 +4,34 @@ The documentation site is built with [MkDocs](https://www.mkdocs.org/) and the
 [Material theme](https://squidfunk.github.io/mkdocs-material/). Its Markdown
 sources live in `docs/`; `mkdocs.yml` defines the navigation and site settings.
 
-Run these commands from the repository root. Building the documentation only
-needs Python 3.10 or newer; it does not require Bazel, Rust, or a C++ compiler.
+Run these commands from the repository root with
+[uv installed](https://docs.astral.sh/uv/getting-started/installation/).
+The documentation uses Python 3.10 or newer; uv can download a compatible Python
+if needed. It does not require Bazel, Rust, or a C++ compiler.
 
 ## Preview locally
 
-Create an environment and install the pinned documentation dependencies:
+Start the preview server:
 
 ```sh
-python3 -m venv .venv-docs
-.venv-docs/bin/python -m pip install -r requirements-docs.txt
-.venv-docs/bin/python -m mkdocs serve
+uv run --locked mkdocs serve
 ```
 
-Open the local URL printed by MkDocs. The server reloads when you edit Markdown,
+uv creates `.venv/` and installs the dependencies from `uv.lock` automatically.
+No environment activation is needed, and the same commands work on Windows.
+The dependencies are defined in `pyproject.toml`; commit changes to that file
+and `uv.lock` together. The `--locked` flag rejects an outdated lockfile instead
+of changing it. If you previously used `.venv-docs/`, you can remove that directory.
+
+Open the local URL printed by MkDocs (normally `http://127.0.0.1:8000`).
+The server reloads when you edit Markdown,
 assets, or the configuration. Stop it with `Ctrl+C`.
 Restart the server after editing `tools/docs_hooks.py`.
-
-On Windows, use `.venv-docs\Scripts\python.exe` in place of
-`.venv-docs/bin/python`.
 
 ## Build and check
 
 ```sh
-.venv-docs/bin/python -m mkdocs build --strict
+uv run --locked mkdocs build --strict
 ```
 
 The generated HTML, styles, scripts, and search index are written to `site/`.
@@ -38,6 +42,10 @@ links inside raw HTML; check those when editing them.
 
 The **Documentation** GitHub Actions workflow runs this build for documentation
 changes on branches and in pull requests.
+
+After editing dependency versions in `pyproject.toml`, update the lockfile with
+`uv lock`, then run the strict build. To upgrade a transitive dependency within
+the declared constraints, use `uv lock --upgrade-package <package>`.
 
 ## Add or edit a page
 
@@ -77,7 +85,7 @@ The **Documentation** workflow publishes automatically when documentation change
 are pushed or merged into the default branch (`main`):
 
 1. In the repository's **Settings → Pages**, set **Source** to **GitHub Actions**.
-2. Push changes to `docs/`, `mkdocs.yml`, `requirements-docs.txt`,
+2. Push changes to `docs/`, `mkdocs.yml`, `pyproject.toml`, `uv.lock`,
    `tools/docs_hooks.py`, or `.github/workflows/docs.yml` to the default branch.
 3. The workflow builds the site and deploys it to GitHub Pages. Its deployment
    job links to the published site.
@@ -100,7 +108,7 @@ and variables → Actions → Variables**, or as an environment variable locally
 
 ```sh
 DOCS_SITE_URL=https://docs.example.org/ \
-  .venv-docs/bin/python -m mkdocs build --strict
+  uv run --locked mkdocs build --strict
 ```
 
 You can also host the contents of `site/` with any static web server.

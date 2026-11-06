@@ -33,8 +33,8 @@ diff -ru "$work_directory/src/expressions" "$work_directory/src/loaded"
 "$compiler" compile tests/codegen/rust/current.tepl --semantic-policy algebraic --out "$work_directory/current.json"
 "$compiler" generate "$work_directory/current.json" --out "$work_directory/src/current"
 "$compiler" generate tests/codegen/rust/current.tepl --semantic-policy algebraic --out "$work_directory/src/current" --check
-"$compiler" generate examples/semantic --semantic-policy algebraic --out "$work_directory/src/semantic"
-"$compiler" generate examples/sample --out "$work_directory/src/sample"
+"$compiler" generate tests/fixtures/semantic --semantic-policy algebraic --out "$work_directory/src/semantic"
+"$compiler" generate tests/fixtures/language --out "$work_directory/src/sample"
 # Nested Rust keyword modules also work after relocating the generated module.
 mkdir -p "$work_directory/names/rules/type" "$work_directory/src/components"
 cp tests/codegen/rust/names.tepl "$work_directory/names/rules/type/match.tepl"

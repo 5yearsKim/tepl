@@ -291,7 +291,7 @@ printf 'import "%s" rule r { (add X) => X }\n' "$example" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq 'contains rules' "$output"
 
-dialect="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/dialects/tensor.tepl"
+dialect="${TEST_SRCDIR}/${TEST_WORKSPACE}/tests/fixtures/language/dialects/tensor.tepl"
 printf 'from "%s" import TensorLang as t use t rule r { (multiply X Y) => (multiply Y X) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
@@ -370,8 +370,8 @@ printf 'import "a.tepl"\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 
-abstract="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/rules/abstract.tepl"
-inherited="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/rules/inherited.tepl"
+abstract="${TEST_SRCDIR}/${TEST_WORKSPACE}/tests/fixtures/language/rules/abstract.tepl"
+inherited="${TEST_SRCDIR}/${TEST_WORKSPACE}/tests/fixtures/language/rules/inherited.tepl"
 check_exit 0 parse "$abstract"
 grep -Fxq 'Parsed 3 rule(s).' "$output"
 check_exit 0 parse "$inherited"
@@ -413,7 +413,7 @@ check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 
 # Parse preserves dtype annotations; core validates them through check.
-basic="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/rules/basic.tepl"
+basic="${TEST_SRCDIR}/${TEST_WORKSPACE}/tests/fixtures/language/rules/basic.tepl"
 check_exit 0 parse "$basic" --ast
 grep -Fq 'tensor X f32[N]' "$output"
 grep -Fq 'float 1.0:f32' "$output"

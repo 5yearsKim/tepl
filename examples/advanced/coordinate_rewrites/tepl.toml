@@ -1,0 +1,4 @@
+tepl-version = "0.2.0"
+
+[check]
+semantic-policy = "strict"

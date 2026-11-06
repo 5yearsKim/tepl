@@ -6,7 +6,17 @@
 
 namespace tepl::core::axis {
 struct OrderedContract {
-  enum class Kind { Contraction, Permutation, Summation, Addition, Reverse, Broadcast, Multiplication, Negation, UnitRemoval } kind;
+  enum class Kind {
+    Contraction,
+    Permutation,
+    Summation,
+    Addition,
+    Reverse,
+    Broadcast,
+    Multiplication,
+    Negation,
+    UnitRemoval
+  } kind;
   std::size_t batch_group = 0, contract_group = 0;
   std::size_t left_free_group = 0, right_free_group = 0;
   std::size_t left_batch = 0, right_batch = 0;

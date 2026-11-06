@@ -1,0 +1,28 @@
+from "dialects/tensor.tepl" import TensorLang as t
+
+graph example {
+  input X: f32[2, 4]
+  input W: f32[4, 3]
+  input A: f32[4, 1]
+  input B: f32[1, 3]
+
+  let adapter =
+    (t.dot[
+      lhs_contracting_dimensions = [1],
+      rhs_contracting_dimensions = [0],
+      lhs_batching_dimensions = [],
+      rhs_batching_dimensions = []
+    ]
+      A
+      B)
+
+  yield
+    (t.dot[
+      lhs_contracting_dimensions = [1],
+      rhs_contracting_dimensions = [0],
+      lhs_batching_dimensions = [],
+      rhs_batching_dimensions = []
+    ]
+      X
+      (t.add W adapter))
+}

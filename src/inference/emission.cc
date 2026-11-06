@@ -1,10 +1,11 @@
 #include "src/inference/emission.h"
-#include "src/inference/extensions.h"
 
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
+
+#include "src/inference/extensions.h"
 
 namespace tepl::inference {
 namespace {
@@ -317,8 +318,8 @@ Result predicate(const Emission& e, const Metadata& m, const Limits& limits) {
 Result execute(const Emission& e, const Metadata& m, const Limits& limits) {
   return runEmission(e, m, limits, true);
 }
-Result executeSound(const Emission& e, const Metadata& m,
-                    const Limits& limits, ExecutionTiming* timing) {
+Result executeSound(const Emission& e, const Metadata& m, const Limits& limits,
+                    ExecutionTiming* timing) {
   return runEmission(e, m, limits, true, true, timing);
 }
 Portable portable(const Emission& e) {

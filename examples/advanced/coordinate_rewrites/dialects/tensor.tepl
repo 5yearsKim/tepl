@@ -1,0 +1,34 @@
+dialect TensorLang {
+  op slice(input: tensor) -> tensor {
+    attrs {
+      starts: coordinate[]
+      sizes: extent[]
+      strides: coordinate[]
+    }
+    dtype(t) {
+      yield t
+    }
+    axes {
+      assert len(attrs.starts) == rank(input)
+      assert len(attrs.sizes) == rank(input)
+      assert len(attrs.strides) == rank(input)
+      assert is_valid_extents(attrs.starts)
+      assert is_positive_extents(attrs.sizes)
+      assert is_positive_extents(attrs.strides)
+      let last = extent_add(
+        attrs.starts,
+        extent_mul(attrs.strides, offset_extents(attrs.sizes, -1))
+      )
+      assert extent_le(last, offset_extents(shape(input), -1))
+      bind O = group(attrs.sizes)
+      yield O
+    }
+    semantics {
+      yield
+        Read(
+          input,
+          IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))
+        )
+    }
+  }
+}

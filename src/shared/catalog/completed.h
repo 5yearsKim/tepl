@@ -1,7 +1,7 @@
 #pragma once
+#include "src/inference/emission.h"
 #include "src/shared/catalog/rules.h"
 #include "src/shared/metadata/inference.h"
-#include "src/inference/emission.h"
 #include "src/shared/metadata/instruction.h"
 namespace tepl::core::completed {
 struct Descriptor {

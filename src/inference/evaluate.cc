@@ -1,9 +1,10 @@
 #include "src/inference/evaluate.h"
-#include "src/inference/extensions.h"
 
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
+
+#include "src/inference/extensions.h"
 
 namespace tepl::inference {
 namespace {
@@ -438,7 +439,12 @@ Attributes explicitAttributes(const Program& p, const Metadata& m) {
 
 Result run(const Program& p, const Metadata& m, const Limits& limits,
            bool construct, bool analyze_only = false) {
-  if (hasExtensions(p)) { Result r; r.status=Status::Unsupported; r.reason="schema extensions require schema emission"; return r; }
+  if (hasExtensions(p)) {
+    Result r;
+    r.status = Status::Unsupported;
+    r.reason = "schema extensions require schema emission";
+    return r;
+  }
   Work work(limits);
   Result out;
   try {
@@ -530,7 +536,12 @@ Result run(const Program& p, const Metadata& m, const Limits& limits,
 
 Result replaySource(const Program& p, const Metadata& m, const Limits& limits,
                     bool allow_degenerate) {
-  if (hasExtensions(p)) { Result r; r.status=Status::Unsupported; r.reason="schema extensions require schema emission"; return r; }
+  if (hasExtensions(p)) {
+    Result r;
+    r.status = Status::Unsupported;
+    r.reason = "schema extensions require schema emission";
+    return r;
+  }
   Work work(limits);
   Result out;
   try {
@@ -559,7 +570,12 @@ Result analyze(const Program& p, const Metadata& m, const Limits& limits) {
 }
 Result construct(const Program& p, const Result& analysis,
                  const Limits& limits) {
-  if (hasExtensions(p)) { Result r; r.status=Status::Unsupported; r.reason="schema extensions require schema emission"; return r; }
+  if (hasExtensions(p)) {
+    Result r;
+    r.status = Status::Unsupported;
+    r.reason = "schema extensions require schema emission";
+    return r;
+  }
   Work work(limits);
   Result out;
   try {
@@ -619,7 +635,12 @@ Result construct(const Program& p, const Result& analysis,
 }
 Result replayReplacement(const Program& p, const Metadata& m,
                          const Limits& limits) {
-  if (hasExtensions(p)) { Result r; r.status=Status::Unsupported; r.reason="schema extensions require schema emission"; return r; }
+  if (hasExtensions(p)) {
+    Result r;
+    r.status = Status::Unsupported;
+    r.reason = "schema extensions require schema emission";
+    return r;
+  }
   Work work(limits);
   Result out;
   try {

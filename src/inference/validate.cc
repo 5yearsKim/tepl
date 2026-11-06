@@ -29,7 +29,8 @@ void schedule(const std::vector<Instruction>& code) {
               "invalid inference input instruction");
       support.insert(*n.capture);
     } else if (n.kind == Kind::Negation) {
-      require(!n.capture && !n.descriptor && n.inputs.size() == 1 && n.fields.empty(),
+      require(!n.capture && !n.descriptor && n.inputs.size() == 1 &&
+                  n.fields.empty(),
               "negation must be attribute-free and unary");
     } else if (n.kind == Kind::Addition || n.kind == Kind::Multiplication) {
       require(!n.capture && !n.descriptor && n.inputs.size() == 2 &&
@@ -37,10 +38,13 @@ void schedule(const std::vector<Instruction>& code) {
               "addition must be attribute-free and binary");
     } else {
       require(n.kind == Kind::Permutation || n.kind == Kind::Contraction ||
-                  n.kind == Kind::Summation || n.kind == Kind::Reverse || n.kind == Kind::Broadcast || n.kind == Kind::UnitRemoval,
+                  n.kind == Kind::Summation || n.kind == Kind::Reverse ||
+                  n.kind == Kind::Broadcast || n.kind == Kind::UnitRemoval,
               "unknown inference instruction");
       auto arity = n.kind == Kind::Contraction ? 2u : 1u;
-      auto count = n.kind == Kind::Contraction ? 4u : n.kind == Kind::Broadcast ? 2u : 1u;
+      auto count = n.kind == Kind::Contraction ? 4u
+                   : n.kind == Kind::Broadcast ? 2u
+                                               : 1u;
       require(!n.capture && n.descriptor && n.inputs.size() == arity &&
                   n.fields.size() == count,
               "invalid inference operation instruction");
@@ -118,11 +122,14 @@ std::vector<Component> decompose(const Program& p) {
   schedule(p.source);
   schedule(p.replacement);
   if (hasExtensions(p)) {
-    require(p.source.back().captures == p.replacement.back().captures, "schema captures must match");
+    require(p.source.back().captures == p.replacement.back().captures,
+            "schema captures must match");
     for (const auto* code : {&p.source, &p.replacement}) {
       std::set<std::size_t> captures;
-      for (const auto& n : *code) if (n.capture)
-        require(captures.insert(*n.capture).second, "schemas require read-once captures");
+      for (const auto& n : *code)
+        if (n.capture)
+          require(captures.insert(*n.capture).second,
+                  "schemas require read-once captures");
     }
     return {};
   }

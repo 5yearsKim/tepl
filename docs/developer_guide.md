@@ -2,19 +2,19 @@
 
 This guide covers contributing to TEPL's compiler and generated runtimes.
 For language concepts and application setup, use the
-[core concepts](2_core_concept_tepl.md), [Rust tutorial](tutorial/rust/02_run.md),
+[core concepts](language/core-concepts.md), [Rust tutorial](runtime/egraphs/rust/run.md),
 and [CLI reference](references/cli.md).
 
 Run the commands below from the repository root.
 
 ## Build and inspect
 
-Follow the [build guide](tutorial/rust/01_build.md) for prerequisites.
+Follow the [build guide](getting-started/install.md) for prerequisites.
 
 ```sh
 bazel build //:tepl
-bazel-bin/tepl check examples/sample
-bazel-bin/tepl parse examples/sample/rules/lora.tepl --ast
+bazel-bin/tepl check examples/projects/transpose
+bazel-bin/tepl parse examples/projects/lora/rules/lora.tepl --ast
 ```
 
 Use `parse --tree` to inspect the ANTLR tree, `parse --ast` for the source AST,
@@ -138,7 +138,7 @@ helpers by default.
 
 ## Develop Rust runtime logic
 
-The [Rust lab](../labs/rust-egg/README.md) exercises `examples/rewrite/`.
+The [Rust lab](../labs/rust-egg/README.md) exercises `examples/projects/transpose/`.
 Its `src/ir/` is generated and ignored by Git.
 
 1. Edit TEPL declarations, `runtime/rust/src/`, or `src/codegen/rust/`.
@@ -155,9 +155,9 @@ UBSan programs with native semantic-reference comparisons.
 
 - [Shape](references/shape.md), [dtype](references/dtype.md), and
   [builtins](references/built-ins.md): metadata programs and expression support.
-- [Attributes and conditions](advanced/attributes_and_conditions.md):
+- [Attributes and conditions](language/attributes-and-conditions.md):
   descriptor capture and derivation.
-- [Binding and early pruning](advanced/binding_and_early_pruning.md):
+- [Binding and rule evaluation](runtime/egraphs/binding.md):
   matching and condition evaluation.
-- [Tensor analysis](advanced/custom_analysis.md): input facts and metadata consistency.
-- [Graph examples](../examples/sample/graphs/README.md): construction and insertion.
+- [Tensor analysis](runtime/egraphs/analysis.md): input facts and metadata consistency.
+- [Graph examples](../examples/basic/README.md): construction and insertion.

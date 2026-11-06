@@ -1,0 +1,44 @@
+// Compute replacement attributes explicitly; remove only identity transposes.
+dialect Basic {
+  op transpose(input: tensor) -> tensor {
+    attrs {
+      permutation: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+    shape(s) {
+      assert is_valid_axis_list(attrs.permutation, len(s))
+      assert len(attrs.permutation) == len(s)
+      yield gather(s, attrs.permutation)
+    }
+  }
+}
+
+rule compose_transposes {
+  (outer: Basic.transpose (inner: Basic.transpose X))
+  =>
+  (result: Basic.transpose X)
+
+  derive {
+    result.attrs = {
+      permutation: gather(inner.attrs.permutation, outer.attrs.permutation)
+    }
+  }
+}
+
+rule remove_identity {
+  X: [Dims...]
+
+  (node: Basic.transpose X) => X
+
+  where node.attrs.permutation == range(len(Dims))
+}
+
+graph example {
+  input X: f32[2, 3]
+
+  let swapped = (Basic.transpose[permutation = [1, 0]] X)
+
+  yield (Basic.transpose[permutation = [1, 0]] swapped)
+}

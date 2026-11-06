@@ -1,0 +1,3 @@
+abstract rule cancel_twice(F: op<(tensor) -> tensor>) {
+  (F (F X)) => X
+}

@@ -1,5 +1,5 @@
 site_name: TEPL
-site_description: Write tensor rewrites that read like math, then generate Rust or C++ for e-graph optimizers.
+site_description: Write, check, and run tensor graph rewrites with semantic verification and automatic axis attributes.
 site_url: !ENV [DOCS_SITE_URL, ""]
 repo_url: https://github.com/5yearsKim/tepl
 edit_uri: edit/main/docs/
@@ -12,6 +12,8 @@ hooks:
 
 exclude_docs: |
   documentation.md
+  paper_outline.md
+  soundness_proof.md
 
 theme:
   name: material
@@ -45,32 +47,45 @@ theme:
 
 nav:
   - Home: index.md
-  - Background:
-      - What is an e-graph?: 0_what_is_e_graph.md
-      - What is TEPL?: 1_what_is_tepl.md
-      - Core concepts: 2_core_concept_tepl.md
-      - Design philosophy: design_philosophy.md
-  - Tutorials:
-      - Rust:
-          - Build TEPL: tutorial/rust/01_build.md
-          - Run your first rewrite: tutorial/rust/02_run.md
-          - Add tensor analysis: tutorial/rust/03_analyse.md
-      - C++:
-          - Build TEPL: tutorial/cpp/01_build.md
-          - Run your first rewrite: tutorial/cpp/02_run.md
-          - Add tensor analysis: tutorial/cpp/03_analyse.md
-  - Advanced:
-      - Greedy rewriting: advanced/greedy_rewriting.md
-      - Attributes and conditions: advanced/attributes_and_conditions.md
-      - Binding and early pruning: advanced/binding_and_early_pruning.md
-      - Tensor analysis: advanced/custom_analysis.md
+  - Getting started:
+      - What is TEPL?: getting-started/what-is-tepl.md
+      - Install TEPL: getting-started/install.md
+      - Your first rewrite: getting-started/first-rewrite.md
+  - Writing rewrites:
+      - Basic:
+          - Dialects, rules, and graphs: language/core-concepts.md
+          - Shapes and dtypes: language/tensors.md
+          - Attributes and conditions: language/attributes-and-conditions.md
+      - Advanced:
+          - Semantic verification: language/semantics.md
+          - Automatic axis attributes: language/axis-inference.md
+          - Reusable rules: language/reusable-rules.md
+          - Design philosophy: design_philosophy.md
+  - Runtime integration:
+      - Choosing a runtime: runtime/index.md
+      - TEPL engine:
+          - Run rewrites: runtime/engine/run.md
+          - Embed the engine: runtime/engine/embed.md
+      - E-graphs:
+          - How e-graphs work: runtime/egraphs/overview.md
+          - Tensor analysis and rewrite safety: runtime/egraphs/analysis.md
+          - Binding and rule evaluation: runtime/egraphs/binding.md
+          - egg (Rust):
+              - Run generated rules: runtime/egraphs/rust/run.md
+              - Supply tensor metadata: runtime/egraphs/rust/analysis.md
+          - egg-c (C++):
+              - Set up the application: runtime/egraphs/cpp/setup.md
+              - Run generated rules: runtime/egraphs/cpp/run.md
+              - Supply tensor metadata: runtime/egraphs/cpp/analysis.md
   - Reference:
       - CLI: references/cli.md
       - Shapes: references/shape.md
       - Dtypes: references/dtype.md
+      - Rule expressions and descriptors: references/rule-expressions.md
       - Scalar semantics: references/scalar-semantics.md
       - Metadata reasoning: references/metadata-reasoning.md
       - Built-in functions: references/built-ins.md
+      - Compiled program format: references/program-format.md
   - Contributing:
       - Developer guide: developer_guide.md
 

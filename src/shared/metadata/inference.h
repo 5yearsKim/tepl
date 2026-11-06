@@ -14,7 +14,18 @@ struct DomainRequirements {
   // Rank-zero inputs and empty axis selections are included in the domain.
 };
 enum class Mode { Synthesize, Validate };
-enum class Kind { Input, Permutation, Contraction, Summation, Addition, Reverse, Broadcast, Multiplication, Negation, UnitRemoval };
+enum class Kind {
+  Input,
+  Permutation,
+  Contraction,
+  Summation,
+  Addition,
+  Reverse,
+  Broadcast,
+  Multiplication,
+  Negation,
+  UnitRemoval
+};
 struct Instruction {
   Kind kind = Kind::Input;
   std::size_t node = 0;

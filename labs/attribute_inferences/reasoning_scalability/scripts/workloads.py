@@ -7,7 +7,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parents[1]
 ROOT = HERE.parents[2]
-DIALECT = ROOT / "examples/semantic/dialects/tensor.tepl"
+DIALECT = ROOT / "tests/fixtures/semantic/dialects/tensor.tepl"
 FIELDS = ("lhs_contracting_dimensions", "rhs_contracting_dimensions",
           "lhs_batching_dimensions", "rhs_batching_dimensions")
 

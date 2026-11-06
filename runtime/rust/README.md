@@ -15,7 +15,7 @@ tepl-runtime = { path = "/path/to/tepl/runtime/rust" }
 
 ```sh
 bazel build //:tepl
-bazel-bin/tepl generate examples/rewrite --out /path/to/app/src/generated
+bazel-bin/tepl generate examples/projects/transpose --out /path/to/app/src/generated
 ```
 
 Run a generated graph and its rules:
