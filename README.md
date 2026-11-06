@@ -7,7 +7,7 @@
 <p align="center">
   <a href="docs/runtime/egraphs/rust/run.md"><img src="https://img.shields.io/badge/target-Rust-CE422B?style=flat&amp;logo=rust" alt="Target: Rust"></a>
   <a href="docs/runtime/egraphs/cpp/setup.md"><img src="https://img.shields.io/badge/target-C%2B%2B-00599C?style=flat&amp;logo=cplusplus" alt="Target: C++"></a>
-  <a href="#-quick-start"><img src="https://img.shields.io/badge/build-Bazel-43A047?style=flat&amp;logo=bazel" alt="Build: Bazel"></a>
+  <a href="docs/getting-started/install.md"><img src="https://img.shields.io/badge/build-Bazel-43A047?style=flat&amp;logo=bazel" alt="Build: Bazel"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
 </p>
 
@@ -191,50 +191,6 @@ bazel-bin/tepl rewrite examples/projects/lora --trace -o /tmp/lora.tepl
 ```
 
 The example selects the `algebraic` policy for distribution and reassociation. This permits ideal-arithmetic laws; it does not promise bit-identical floating-point results.
-
-## 🚀 Quick start
-
-Run from the repository root; see the
-[installation guide](docs/getting-started/install.md) for prerequisites and
-system-wide installation of the `tepl` command.
-
-```sh
-bazel build //:tepl
-bazel-bin/tepl check examples/projects/transpose
-bazel-bin/tepl init /tmp/my-tepl-project
-```
-
-Compile and execute a concrete rewrite:
-
-```sh
-bazel-bin/tepl compile examples/projects/transpose -o /tmp/program.json
-bazel-bin/tepl validate /tmp/program.json
-bazel-bin/tepl rewrite /tmp/program.json --trace -o /tmp/result.tepl
-```
-
-Project roots are marked by `tepl.toml`; start a new project with
-`tepl init <directory>`. Configure source directories and exclusions under
-`[sources]`, and the default semantic policy under `[check]`. See the
-[configuration reference](docs/references/cli.md#project-configuration-and-import-paths).
-
-## Generate an optimizer
-
-Generate Rust for egg or C++20 for egg-c from the same TEPL program:
-
-```sh
-bazel-bin/tepl generate examples/projects/transpose --out /tmp/rust-app/src/generated
-bazel-bin/tepl generate examples/projects/transpose --target cpp \
-  --cpp-namespace my_ir --out /tmp/cpp-app/generated
-```
-
-Add the shared runtime to the application. Rust output uses `rustfmt`; C++ uses
-`clang-format`. `--no-format` skips formatting; `--check` compares owned output
-without changing it. Generated modules contain program-specific code only.
-
-| Target | Integration | Runnable application |
-| --- | --- | --- |
-| Rust / egg | [Runtime guide](runtime/rust/README.md) | [Transpose example](labs/rust-egg/README.md) |
-| C++20 / egg-c | [Runtime guide](runtime/cpp/README.md) | [CMake tutorial](labs/tutorial_cpp/README.md) |
 
 ## 💡 Tips
 
