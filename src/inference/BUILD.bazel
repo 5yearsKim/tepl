@@ -1,0 +1,9 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "inference",
+    srcs = ["evaluate.cc", "validate.cc", "emission.cc", "extensions.cc"],
+    hdrs = ["evaluate.h", "timing.h", "emission.h", "metadata_facts.h", "extensions.h"],
+    deps = ["//src/shared/metadata"],
+    visibility = ["//visibility:public"],
+)

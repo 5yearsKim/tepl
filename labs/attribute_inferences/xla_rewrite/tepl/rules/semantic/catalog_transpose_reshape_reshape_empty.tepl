@@ -1,0 +1,15 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Catalog: transpose-reshape-reshape-empty
+// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_transpose_reshape_reshape_empty {
+  dtype T
+  X: T[Dims...]
+
+  (attr_r: hlo.reshape X) => (attr_out: hlo.fill)
+
+  where product(attr_r.attrs.shape) == 0 derive {
+    attr_out.attrs = { shape: attr_r.attrs.shape, value: 0, element_type: T }
+  }
+}

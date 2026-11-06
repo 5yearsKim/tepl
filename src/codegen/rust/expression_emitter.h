@@ -1,10 +1,20 @@
 #pragma once
 #include <string>
 
-#include "src/codegen/rust/names.h"
-#include "src/core/ir.h"
+#include "src/executable/ir.h"
 namespace tepl::codegen::rust {
-std::string emitExpression(const core::Program& program, const Names& names,
-                           const core::TypedExpr& expression,
-                           const std::string& builtins_path);
-}
+class Expressions {
+ public:
+  explicit Expressions(const executable::ProgramData& program)
+      : program_(program) {}
+  std::string rule(const core::completed::TypedExpr&) const;
+  std::string symbolic(const core::completed::Symbol&) const;
+  std::string metadata(const core::metadata::Expr&) const;
+  std::string axis(const core::axis::Meta&) const;
+
+ private:
+  const executable::ProgramData& program_;
+};
+std::string value(const core::AttributeValue&);
+std::string scalarType(const core::Type&);
+}  // namespace tepl::codegen::rust

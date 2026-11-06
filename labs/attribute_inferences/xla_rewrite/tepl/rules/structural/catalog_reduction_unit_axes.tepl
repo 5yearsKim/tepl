@@ -1,0 +1,16 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: reduction-unit-axes
+// Scope: Zero-initialized sum specialization of the generic-combiner schema.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_reduction_unit_axes {
+  X: [Dims...]
+
+  (attr_r: hlo.reduce_sum X) => (attr_out: hlo.reshape X)
+
+  where all([Dims[d] == 1 for d in attr_r.attrs.dimensions]) derive {
+    attr_out.attrs = {
+      shape: gather(Dims, exclude(range(len(Dims)), attr_r.attrs.dimensions))
+    }
+  }
+}

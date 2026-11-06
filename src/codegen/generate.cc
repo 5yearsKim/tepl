@@ -2,9 +2,7 @@
 
 #include "src/codegen/cpp/backend.h"
 #include "src/codegen/rust/backend.h"
-
 namespace tepl::codegen {
-
 std::string_view targetName(Target target) {
   switch (target) {
     case Target::kRust:
@@ -16,30 +14,18 @@ std::string_view targetName(Target target) {
   }
   return "unknown";
 }
-
-std::unique_ptr<Generator> createGenerator(Target target) {
-  switch (target) {
-    case Target::kRust:
-      return std::make_unique<rust::Backend>();
-    case Target::kCpp:
-      return std::make_unique<cpp::Backend>();
-    case Target::kPython:
-      return nullptr;
-  }
-  return nullptr;
-}
-
-GenerationResult generate(const core::Program& program,
+GenerationResult generate(const executable::ExecutableProgram& program,
                           const Options& options) {
-  auto backend = createGenerator(options.target);
-  if (!backend) {
-    GenerationResult result;
-    result.diagnostics.push_back({{},
-                                  std::string(targetName(options.target)) +
-                                      " code generation is not implemented"});
-    return result;
-  }
-  return backend->generate(program, options);
+  for (const auto& rule : program.ir().rules)
+    if (rule.core)
+      return {{},
+              {{{}, "core DAG requires the native portable-program runtime"}}};
+  if (options.target == Target::kCpp) return cpp::generate(program, options);
+  if (options.target != Target::kRust)
+    return {{},
+            {{{},
+              std::string(targetName(options.target)) +
+                  " code generation is not implemented"}}};
+  return rust::generate(program, options);
 }
-
 }  // namespace tepl::codegen

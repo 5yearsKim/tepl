@@ -1,0 +1,29 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Catalog: dot-move-contracting-permutation
+// Scope: Swap two contraction subdimensions before flattening; rank-three left operand.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_dot_move_contracting_permutation {
+  X: [M, A, B]
+  C: [AB, N]
+
+  (attr_d: hlo.dot (attr_r: hlo.reshape (attr_p: hlo.transpose X)) C)
+  =>
+  (hlo.dot[attr_d.attrs]
+    (hlo.reshape[attr_r.attrs] X)
+    (attr_flat: hlo.reshape
+      (attr_q: hlo.transpose (attr_split: hlo.reshape C))))
+
+  where
+    AB == A * B
+      && attr_p.attrs.permutation == [0, 2, 1]
+      && attr_r.attrs.shape == [M, A * B]
+      && attr_d.attrs.lhs_batching_dimensions == []
+      && attr_d.attrs.rhs_batching_dimensions == []
+      && attr_d.attrs.lhs_contracting_dimensions == [1]
+      && attr_d.attrs.rhs_contracting_dimensions == [0] derive {
+    attr_split.attrs = { shape: [B, A, N] }
+    attr_q.attrs = { permutation: [1, 0, 2] }
+    attr_flat.attrs = { shape: [A * B, N] }
+  }
+}

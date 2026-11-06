@@ -1,0 +1,18 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: broadcast-inserted-unit-dims
+// Scope: Rank-one X; reshape inserts a leading unit axis; the outer broadcast appends axes.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_inserted_unit_dims {
+  X: [N]
+
+  (attr_b: hlo.broadcast (attr_r: hlo.reshape X)) => (attr_out: hlo.broadcast X)
+
+  where
+    attr_r.attrs.shape == [1, N] && attr_b.attrs.dimensions == [0, 1] derive {
+    attr_out.attrs = {
+      dimensions: [1],
+      new_extents: concat([1], attr_b.attrs.new_extents)
+    }
+  }
+}

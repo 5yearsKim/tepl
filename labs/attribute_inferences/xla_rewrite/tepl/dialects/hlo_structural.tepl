@@ -1,0 +1,533 @@
+// Local HLO evaluation dialect. Structural profile: matching dtype/attribute interfaces, without value semantics.
+// Algebraic proofs use the declared ideal arithmetic model, not IEEE equivalence.
+dialect HLO {
+  op add(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op multiply(lhs: tensor, rhs: tensor) -> tensor {
+    alias: mul
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op negate(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+  }
+
+  op subtract(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op zero_like(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+  }
+
+  op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+    alias: dot
+    attrs {
+      lhs_contracting_dimensions: axis[]
+      rhs_contracting_dimensions: axis[]
+      lhs_batching_dimensions: axis[]
+      rhs_batching_dimensions: axis[]
+    }
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op convolution(input: tensor, kernel: tensor) -> tensor {
+    alias: conv
+    attrs {
+      strides: coordinate[]
+      dilations: coordinate[]
+    }
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op slice(input: tensor) -> tensor {
+    attrs {
+      starts: coordinate[]
+      sizes: extent[]
+      strides: coordinate[]
+    }
+    dtype(t) {
+      yield t
+    }
+  }
+
+  op broadcast_in_dim(input: tensor) -> tensor {
+    alias: broadcast
+    attrs {
+      dimensions: axis[]
+      new_extents: extent[]
+    }
+    dtype(t) {
+      yield t
+    }
+  }
+
+  op transpose(input: tensor) -> tensor {
+    attrs {
+      permutation: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+  }
+
+  op reverse(input: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+  }
+
+  op reduce_sum(input: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+    }
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
+    }
+  }
+
+  op divide(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op exp(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_float(a)
+      yield a
+    }
+  }
+
+  op log(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_float(a)
+      yield a
+    }
+  }
+
+  op sqrt(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_float(a)
+      yield a
+    }
+  }
+
+  op rsqrt(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_float(a)
+      yield a
+    }
+  }
+
+  op abs(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op power(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op maximum(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op minimum(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op logical_not(input: tensor) -> tensor {
+    dtype(a) {
+      assert a == bool
+      yield bool
+    }
+  }
+
+  op logical_and(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == bool
+      assert b == bool
+      yield bool
+    }
+  }
+
+  op logical_or(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == bool
+      assert b == bool
+      yield bool
+    }
+  }
+
+  op logical_xor(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == bool
+      assert b == bool
+      yield bool
+    }
+  }
+
+  op real(input: tensor) -> tensor
+
+  op imag(input: tensor) -> tensor
+
+  op complex(lhs: tensor, rhs: tensor) -> tensor
+
+  op select(pred: tensor, lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b, c) {
+      assert a == bool
+      assert b == c
+      yield b
+    }
+  }
+
+  op remainder(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op reshape(input: tensor) -> tensor {
+    attrs {
+      shape: extent[]
+    }
+    shape(s) {
+      assert product(s) == product(attrs.shape)
+      yield attrs.shape
+    }
+  }
+
+  op concatenate(inputs: tensor...) -> tensor {
+    attrs {
+      dimension: axis
+    }
+  }
+
+  op pad(input: tensor, value: tensor) -> tensor {
+    attrs {
+      low: coordinate[]
+      high: coordinate[]
+      interior: coordinate[]
+    }
+  }
+
+  op nonnegative_pad(input: tensor, value: tensor) -> tensor {
+    attrs {
+      low: coordinate[]
+      high: coordinate[]
+      interior: coordinate[]
+    }
+  }
+
+  op dynamic_slice(input: tensor, starts: tensor...) -> tensor {
+    attrs {
+      sizes: extent[]
+    }
+  }
+
+  op dynamic_update_slice(
+    input: tensor,
+    update: tensor,
+    starts: tensor...
+  ) -> tensor
+
+  op reduce(input: tensor, init: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+      body: region
+    }
+  }
+
+  op convert(input: tensor) -> tensor {
+    attrs {
+      to: dtype
+    }
+  }
+
+  op compare(lhs: tensor, rhs: tensor) -> tensor {
+    attrs {
+      direction: u64
+    }
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a) || a == bool
+      yield bool
+    }
+  }
+
+  op clamp(low: tensor, input: tensor, high: tensor) -> tensor {
+    dtype(a, b, c) {
+      assert a == b
+      assert b == c
+      assert is_numeric(a)
+      yield a
+    }
+  }
+
+  op cbrt(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_float(a)
+      yield a
+    }
+  }
+
+  op erf(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_float(a)
+      yield a
+    }
+  }
+
+  op logistic(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_float(a)
+      yield a
+    }
+  }
+
+  op tanh(input: tensor) -> tensor {
+    dtype(a) {
+      assert is_float(a)
+      yield a
+    }
+  }
+
+  op fill() -> tensor {
+    attrs {
+      shape: extent[]
+      value: i64
+      element_type: dtype
+    }
+    dtype() {
+      yield attrs.element_type
+    }
+    shape() {
+      yield attrs.shape
+    }
+  }
+
+  op scalar() -> tensor {
+    attrs {
+      value: u64
+      element_type: dtype
+      shape: extent[]
+    }
+    dtype() {
+      yield attrs.element_type
+    }
+    shape() {
+      yield attrs.shape
+    }
+  }
+
+  op iota() -> tensor {
+    attrs {
+      shape: extent[]
+      dimension: axis
+      element_type: dtype
+    }
+    dtype() {
+      yield attrs.element_type
+    }
+    shape() {
+      yield attrs.shape
+    }
+  }
+
+  op rotate(input: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+      shifts: coordinate[]
+    }
+  }
+
+  op scatter(input: tensor, indices: tensor, updates: tensor) -> tensor {
+    attrs {
+      update_window_dims: axis[]
+      inserted_window_dims: axis[]
+      scatter_dims_to_operand_dims: axis[]
+      index_vector_dim: axis
+      input_batching_dims: axis[]
+      scatter_indices_batching_dims: axis[]
+      indices_are_sorted: bool
+      unique_indices: bool
+      body: region
+    }
+  }
+
+  op scatter_add(input: tensor, indices: tensor, updates: tensor) -> tensor {
+    attrs {
+      update_window_dims: axis[]
+      inserted_window_dims: axis[]
+      scatter_dims_to_operand_dims: axis[]
+      index_vector_dim: axis
+      input_batching_dims: axis[]
+      scatter_indices_batching_dims: axis[]
+      indices_are_sorted: bool
+      unique_indices: bool
+    }
+  }
+
+  op gather(input: tensor, indices: tensor) -> tensor {
+    attrs {
+      offset_dims: axis[]
+      collapsed_slice_dims: axis[]
+      start_index_map: axis[]
+      index_vector_dim: axis
+      slice_sizes: extent[]
+      operand_batching_dims: axis[]
+      start_indices_batching_dims: axis[]
+      shape: extent[]
+    }
+  }
+
+  op map(lhs: tensor, rhs: tensor) -> tensor {
+    attrs {
+      body: region
+    }
+  }
+
+  op reduce_min(input: tensor, init: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+    }
+  }
+
+  op reduce_max(input: tensor, init: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+    }
+  }
+
+  op reduce_and(input: tensor, init: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+    }
+  }
+
+  op reduce_or(input: tensor, init: tensor) -> tensor {
+    attrs {
+      dimensions: axis[]
+    }
+  }
+
+  op reduce_window(input: tensor, init: tensor) -> tensor {
+    attrs {
+      window_dimensions: extent[]
+      window_strides: coordinate[]
+      base_dilations: coordinate[]
+      window_dilations: coordinate[]
+      padding_low: coordinate[]
+      padding_high: coordinate[]
+      body: region
+    }
+  }
+
+  op reduce_window_sum(input: tensor, init: tensor) -> tensor {
+    attrs {
+      window_dimensions: extent[]
+      window_strides: coordinate[]
+      base_dilations: coordinate[]
+      window_dilations: coordinate[]
+      padding_low: coordinate[]
+      padding_high: coordinate[]
+    }
+  }
+
+  op reduce_window_min(input: tensor, init: tensor) -> tensor {
+    attrs {
+      window_dimensions: extent[]
+      window_strides: coordinate[]
+      base_dilations: coordinate[]
+      window_dilations: coordinate[]
+      padding_low: coordinate[]
+      padding_high: coordinate[]
+    }
+  }
+
+  op reduce_window_max(input: tensor, init: tensor) -> tensor {
+    attrs {
+      window_dimensions: extent[]
+      window_strides: coordinate[]
+      base_dilations: coordinate[]
+      window_dilations: coordinate[]
+      padding_low: coordinate[]
+      padding_high: coordinate[]
+    }
+  }
+
+  op general_convolution(lhs: tensor, rhs: tensor) -> tensor {
+    attrs {
+      window_strides: coordinate[]
+      padding_low: coordinate[]
+      padding_high: coordinate[]
+      lhs_dilation: coordinate[]
+      rhs_dilation: coordinate[]
+      window_reversal: bool[]
+      input_batch_dimension: axis
+      input_feature_dimension: axis
+      input_spatial_dimensions: axis[]
+      kernel_input_feature_dimension: axis
+      kernel_output_feature_dimension: axis
+      kernel_spatial_dimensions: axis[]
+      output_batch_dimension: axis
+      output_feature_dimension: axis
+      output_spatial_dimensions: axis[]
+      feature_group_count: u64
+      batch_group_count: u64
+      precision_config: precision[]
+      shape: extent[]
+    }
+  }
+}

@@ -1,26 +1,26 @@
 // A second dialect deliberately reuses the operation name "add".
 // These examples restrict the StableHLO operations to rank-zero tensors.
 dialect Scalar {
-    op add(lhs: tensor, rhs: tensor) -> tensor {
-        dtype(a, b) {
-            assert a == b;
-            assert is_numeric(a);
-            yield a;
-        }
-        shape(l, r) {
-            assert l == [] && r == [];
-            yield [];
-        }
+  op add(lhs: tensor, rhs: tensor) -> tensor {
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
     }
+    shape(l, r) {
+      assert l == [] && r == []
+      yield []
+    }
+  }
 
-    op negate(input: tensor) -> tensor {
-        dtype(t) {
-            assert is_numeric(t);
-            yield t;
-        }
-        shape(s) {
-            assert s == [];
-            yield [];
-        }
+  op negate(input: tensor) -> tensor {
+    dtype(t) {
+      assert is_numeric(t)
+      yield t
     }
+    shape(s) {
+      assert s == []
+      yield []
+    }
+  }
 }

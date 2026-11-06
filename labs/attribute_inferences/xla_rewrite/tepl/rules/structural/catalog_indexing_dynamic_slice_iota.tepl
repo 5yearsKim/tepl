@@ -1,0 +1,30 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: indexing-dynamic-slice-iota
+// Scope: Rank-one, scalar-sized slice, i32 starts, optional scalar factor captured as Scale.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_dynamic_slice_iota {
+  Start: i32[]
+  Scale: []
+
+  (attr_s: hlo.dynamic_slice (hlo.multiply (attr_i: hlo.iota) Scale) Start)
+  =>
+  (attr_r: hlo.reshape
+    (hlo.multiply
+      (attr_c: hlo.convert (hlo.clamp 0:i32 Start (attr_limit: hlo.scalar)))
+      Scale))
+
+  where
+    len(attr_i.attrs.shape) == 1
+      && attr_i.attrs.shape[0] > 0
+      && attr_i.attrs.dimension == 0
+      && attr_s.attrs.sizes == [1] derive {
+    attr_limit.attrs = {
+      value: attr_i.attrs.shape[0] - 1,
+      element_type: i32,
+      shape: []
+    }
+    attr_c.attrs = { to: attr_i.attrs.element_type }
+    attr_r.attrs = { shape: [1] }
+  }
+}

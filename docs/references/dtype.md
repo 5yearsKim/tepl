@@ -19,9 +19,9 @@ A comparison can require equal numeric inputs and produce Boolean elements:
 ```javascript
 op equal(lhs: tensor, rhs: tensor) -> tensor {
     dtype(a, b) {
-        assert a == b;
-        assert is_numeric(a);
-        yield bool;
+        assert a == b
+        assert is_numeric(a)
+        yield bool
     }
 }
 ```
@@ -48,7 +48,7 @@ A zero-operand operation can fix its result with:
 
 ```javascript
 dtype() {
-    yield f32;
+    yield f32
 }
 ```
 
@@ -62,15 +62,15 @@ A `dtype` attribute can choose an operation's output element type:
 ```javascript
 op convert(input: tensor) -> tensor {
     attrs {
-        to: dtype;
+        to: dtype
     }
     dtype(src) {
-        assert is_numeric(src);
-        assert is_numeric(attrs.to);
-        yield attrs.to;
+        assert is_numeric(src)
+        assert is_numeric(attrs.to)
+        yield attrs.to
     }
     shape(s) {
-        yield s;
+        yield s
     }
 }
 ```
@@ -91,19 +91,17 @@ above, assuming its dialect is imported as `d`:
 
 ```javascript
 rule remove_identity_convert {
-    dtype T;
+    dtype T
     X: T[...]
 
-    (d.convert[@c] X) => X
+    (c: d.convert X) => X
 
-    where {
-        is_numeric(T);
-        @c.to == T;
-    }
+    where is_numeric(T)
+        && c.attrs.to == T
 }
 ```
 
-`T` binds the matched tensor's dtype, and `@c.to` reads the captured conversion's
+`T` binds the matched tensor's dtype, and `c.attrs.to` reads the captured conversion's
 target type. This dialect defines same-type numeric conversion as identity.
 Repeated `T` in other tensor declarations requires equal dtypes. A dtype variable
 is local to its rule and must be bound by a matched tensor before use.
@@ -111,12 +109,13 @@ is local to its rule and must be bound by a matched tensor before use.
 ## Inference and rewrite checks
 
 Dtype programs use the same [inference outcomes](shape.md#expressions-and-inference)
-as shape programs. Omitting a dtype block provides no generated dtype inference;
-the host may supply it. Unknown metadata is not a dtype value.
+as shape programs. Omitting a dtype block leaves the inferred dtype unknown.
+Applications supply input dtypes. Unknown metadata is not a dtype value.
 
-With tensor analysis enabled, replacement validation requires the root's dtype
-and shape to match the original. Internal nodes may change dtype through explicit
-conversions. Equal output metadata alone does not prove a rewrite correct:
+Replacement validation rejects known dtype or shape disagreements between the
+original and replacement roots. Unknown facts can be refined by known facts.
+Internal nodes may change dtype through explicit conversions. Equal output
+metadata alone does not prove a rewrite correct:
 intermediate conversions can lose information.
 
 For complete operation definitions, see the

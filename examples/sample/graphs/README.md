@@ -1,122 +1,55 @@
-# 🧩 Concrete graphs
+# Concrete graph examples
 
-These declarations build initial computation graphs. TEPL discovers `graphs/`
-alongside `dialects/` and `rules/`, and generates Rust and C++ constructors.
+Graphs declare input metadata, operation attributes, shared values, and one
+result. Both backends generate a constructor for each graph.
 
-| Example | Syntax shown | Output type |
-| --- | --- | --- |
-| [direct_yield.tepl](direct_yield.tepl) | Typed input, nested expressions, direct `yield` | `f32[3, 2]` |
-| [bindings.tepl](bindings.tepl) | Multiple inputs, sequential `let` bindings, shared values, named output | `f32[3, 2]` |
-| [attributes.tepl](attributes.tepl) | Multiple attribute fields, lists, variadic operands | `f32[8, 18]` |
-| [literals.tepl](literals.tepl) | Rank-zero inputs, typed literals, operation imports, literal output | `f32[]` and `i32[]` |
-| [untyped_inputs.tepl](untyped_inputs.tepl) | Inputs with host-supplied metadata | Depends on inputs |
+| File | Demonstrates |
+| --- | --- |
+| [direct_yield.tepl](direct_yield.tepl) | Typed input and nested result |
+| [bindings.tepl](bindings.tepl) | Sequential `let` bindings and sharing |
+| [attributes.tepl](attributes.tepl) | Lists, multiple fields, variadic operands |
+| [literals.tepl](literals.tepl) | Rank-zero inputs and typed literal results |
+| [untyped_inputs.tepl](untyped_inputs.tepl) | Inputs with unknown metadata |
 
-## Grammar conventions
+`input X: f32[2,3]` declares facts; shape and dtype may also be omitted
+independently. References name inputs or earlier bindings. Operation attributes
+use `field=value`; required fields need values unless defaults apply. Exactly
+one final `yield` selects a name, literal, or nested operation.
 
-- `graph name { ... }` declares an initial computation graph.
-- `input X: f32[2, 3];` declares an external input with concrete metadata.
-  `input X;` leaves its shape and dtype to the host.
-- `let name = expression;` constructs and names a value. References must name
-  an input or an earlier binding; repeated references share the same value.
-- `(t.op[field = value, ...] operands...)` constructs an operation with explicit
-  attributes. Field order is irrelevant. Unknown or duplicate fields are errors;
-  required fields must be supplied unless the dialect declares a default.
-- Exactly one final `yield expression;` selects the output. It accepts a name,
-  literal, or nested operation expression.
+## Generated construction
 
-Operations use the existing dialect definitions. Each operation expression maps
-to an `OpNode`; input shape/dtype annotations become separate analysis metadata.
-The host supplies tensor values, selects rewrite rules, and runs the optimizer.
-
-## 🚀 Build and insert
-
-Generate the sample project from the repository root:
-
-```sh
-bazel-bin/tepl generate examples/sample --target rust --out my_app/src/generated
-```
-
-Each graph exposes `graphs::FILE::graph_NAME::build()`. In Rust, typed inputs
-configure the generated tensor analysis before any nodes are inserted:
+Generate the sample project as described in its [README](../README.md).
+`graphs::FILE::graph_NAME::build()` returns a built graph, root, and binding map.
+Input facts are registered before insertion. For Rust:
 
 ```rust
-use egg::EGraph;
-use generated::TensorAnalysis;
-
-let definition = generated::graphs::bindings::graph_shared_result::build()?;
-let bindings = definition.input_bindings()?;
-let analysis = TensorAnalysis::new(bindings);
-let mut egraph = EGraph::new(analysis);
-let built = definition.insert_nodes(&mut egraph)?;
+let built = generated::graphs::bindings::graph_shared_result::build()?;
 let root = built.root;
-let x = built.get("X").unwrap();
+let x = built.bindings["X"];
+let graph = built.graph;
 ```
 
-For inputs without annotations, insert into an existing e-graph of any analysis
-type:
-
-```rust
-let definition = generated::graphs::untyped_inputs::graph_host_typed_add::build()?;
-let built = definition.insert_nodes(&mut egraph)?;
-```
-
-Supply host metadata before creating a tensor-analysis graph:
-
-```rust
-use egg::EGraph;
-use generated::{DType, TensorAnalysis, TensorInfo};
-
-let definition = generated::graphs::untyped_inputs::graph_host_typed_add::build()?
-    .with_input_info("X", TensorInfo { shape: vec![2, 3], dtype: DType::F32 })?
-    .with_input_info("Y", TensorInfo { shape: vec![2, 3], dtype: DType::F32 })?;
-let bindings = definition.input_bindings()?;
-let analysis = TensorAnalysis::new(bindings);
-let mut egraph = EGraph::new(analysis);
-let built = definition.insert_nodes(&mut egraph)?;
-```
-
-The application chooses its analysis when creating the e-graph. Pass
-`input_bindings()` to the generated `TensorAnalysis` or to your custom analysis
-before inserting nodes. The host also chooses and applies rewrite rules.
-
-C++ exposes the same builders and insertion methods:
+For C++:
 
 ```cpp
-auto definition = tepl_generated::graphs::bindings::graph_shared_result::build();
-auto bindings = definition.input_bindings();
-tepl_generated::TensorAnalysis analysis(std::move(bindings));
-eggc::EGraph<tepl_generated::OpNode, tepl_generated::TensorAnalysis> egraph(
-    std::move(analysis));
-auto built = definition.insert_nodes(egraph);
+auto built = sample_ir::graphs::bindings::graph_shared_result::build().value();
 auto root = built.root;
-auto x = built.get("X").value();
+auto x = built.bindings.at("X");
 ```
 
-## 🔎 Validation and metadata
+After unions, canonicalize handles with the e-graph's `find`. Declared bindings
+preserve sharing, including nodes unused by the final result.
 
-`tepl check` validates names, references, arity, literal types, and attribute
-schemas. `build()` also evaluates available shape and dtype programs. Invalid
-known metadata fails before insertion; absent inference remains unknown.
-Rust reports `NodeError` through `Result`; C++ throws `NodeError`.
+## Metadata and errors
 
-`nodes()`, `inputs()`, `get(name)`, and `root()` expose the prepared definition.
+Shape and dtype are independent unknown/known/conflicting facts. Missing contracts
+or metadata produce unknown facts; invalid inference or conflicts are errors.
+Register external facts before inserting inputs. For dynamically supplied facts,
+construct through the runtime node/analysis API rather than updating already
+inserted unknown inputs. The retired prepared-definition and `with_input_info`
+interfaces are not part of the current generated API.
 
-Input dtype and shape are optional independently: `input X: f32;` or
-`input X: [2, 3];`. The tensor analysis registers complete shape/dtype pairs.
-Supply missing facts with `with_input_info`; conflicting declared facts are
-errors. `insert_nodes` validates and inserts both typed and untyped graphs.
-It does not register metadata or change the analysis; the application supplies
-input bindings before insertion when tensor analysis is needed.
-
-Bindings preserve sharing. All declared nodes, including unused bindings, are
-inserted. Prepared child IDs are local indices; insertion remaps them to the
-host e-graph. After later unions, use `egraph.find(id)` to canonicalize handles.
-
-Attributes support `index`, `i64`, `bool`, `string`, `dtype`, `precision`, nested
-lists, and optional values (`none`). Missing optional fields become `None`;
-empty-list defaults become empty lists. Precision values are `default`, `high`,
-and `highest`. Attribute order does not affect the generated node.
-
-Opaque payloads such as regions and elements need host construction. Graph
-syntax currently accepts identifier input names and one output; it does not
-serialize arbitrary `OpNode` values or cyclic graphs.
+The [Rust](../../../runtime/rust/README.md) and
+[C++](../../../runtime/cpp/README.md) guides cover manual construction, checked
+runners, typed attributes, and error handling. Opaque region/element payloads
+require application-provided typed values.

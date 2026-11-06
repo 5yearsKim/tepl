@@ -45,25 +45,62 @@ Pass `--no-format` when generating code with the image; it omits formatters.
 
 ## Where to make changes
 
-The compiler parses source, loads imports, builds checked core IR, and generates
-code. Reusable runtime templates are embedded into the compiler during the build.
+The compiler parses source, resolves imports, checks types, verifies semantics,
+and lowers rules into executable programs. See the
+[compilation pipeline](../design/compiler-pipeline.md) for stage contracts.
+Rust and C++ backends consume the same executable program.
+Stage representations live in `program.h`; the `resolve.h`, `check.h`, `verify.h`,
+and `inspect.h` headers expose transformations. Depend on the representation
+target when a module only reads the output of a stage.
 
 | Area | Location |
 | --- | --- |
 | Language grammar | [grammar/Tepl.g4](../grammar/Tepl.g4) |
-| AST and parsing | `src/ast/`, `src/parse.cc` |
-| Imports and project discovery | `src/imports.cc` |
-| Semantic analysis and builtin catalog | `src/core/` |
+| AST and parsing | `src/core/syntax/` |
+| Imports and project discovery | `src/core/resolution/` |
+| Type checking | `src/core/checking/` |
+| Synthesis and verification | `src/core/attr_synth/`, `src/core/semantics/` |
+| Executable lowering | `src/core/lowering/` |
+| Runtime program and serialization | `src/executable/` |
+| Shared definitions and builtin catalogs | `src/shared/` |
 | Shared generation plans and language emitters | [src/codegen/](../src/codegen/README.md) |
-| Reusable runtime algorithms | [templates/rust/](../templates/rust/README.md), [templates/cpp/](../templates/cpp/README.md) |
+| Reusable runtime algorithms | [runtime/rust/](../runtime/rust/README.md) and [runtime/cpp/](../runtime/cpp/README.md) |
 | Compiler and generated-code fixtures | `tests/`, `tests/codegen/` |
 
 Edit the grammar and AST builder when changing syntax. Bazel regenerates the
 ANTLR parser; generated parser files belong in the build output.
 
 Keep language checks in core, declaration-dependent output in emitters, and
-shared runtime behavior in templates. Generated application files are replaced
-on regeneration; maintain their source templates instead.
+shared runtime behavior in `runtime/rust/` or `runtime/cpp/`. Generated application
+files are replaced on regeneration; edit the runtimes or emitters instead.
+
+## Built-in specifications
+
+Use the [public built-in reference](references/built-ins.md) to check signatures,
+section availability, examples, and failures. The [built-in architecture guide](../design/builtins.md)
+maps each responsibility to its implementation and explains how to add a function.
+[Internal operations](../src/shared/builtins/intrinsics/README.md) have separate identities
+and never grant source access by themselves.
+
+Function inventory tables come from the compiled catalogs. After changing a
+catalog, regenerate them from the repository root:
+
+```sh
+python3 tools/build_program_schema.py
+bazel build //:builtin_reference
+bazel-bin/builtin_reference --write docs/references/built-ins.md
+bazel-bin/builtin_reference --internal --write src/shared/builtins/intrinsics/README.md
+```
+
+Run generated-code checks without regenerating lab IR:
+
+```sh
+./tools/test_codegen.sh
+./tools/test_codegen_cpp.sh
+```
+
+`bazel test //tests:builtin_reference_test` detects stale inventory tables.
+Behavioral prose and examples remain maintained alongside conformance tests.
 
 ## Format code
 
@@ -74,39 +111,45 @@ bazel run //:format
 bazel run //:format -- --check
 ```
 
-This covers `src/`, `tests/`, and `tools/` using the repository's
+This covers `src/`, `tests/`, `tools/`, and `runtime/cpp/` using the repository's
 `.clang-format`. Set `CLANG_FORMAT` to choose another executable.
-Format edited Rust templates with `rustfmt --edition 2024`.
+Format Rust runtime changes with `cargo fmt --manifest-path runtime/rust/Cargo.toml`.
 
 ## Validate changes
+
+See [native test coverage](../tests/README.md) for focused inference checks and
+the active native suite. Operator semantics are checked in C++; CLI tests
+cover command behavior and diagnostics.
 
 | Command | Coverage |
 | --- | --- |
 | `bazel test //...` | Parser, imports, semantic analysis, CLI, and code generation. |
-| `./tools/test_codegen.sh` | Generate Rust, regenerate the lab IR, and run lab and compiler-fixture tests. |
-| `./tools/test_codegen_cpp.sh` | Generate C++ and compile/run fixtures with egg-c, including optimized and sanitizer checks. |
+| `./tools/test_codegen.sh` | Generate temporary Rust applications and run execution and evaluator-reference tests. |
+| `./tools/test_codegen_cpp.sh` | Generate temporary C++ applications and run execution and evaluator-reference tests. |
+| `cargo clippy --manifest-path runtime/rust/Cargo.toml --all-targets -- -D warnings` | Check the shared Rust runtime. |
 
 Rust integration needs Cargo, Rust with edition 2024 support, and `rustfmt`.
-C++ integration needs Git, `clang-format`, and a C++20 GCC or Clang compiler with
-`__int128` support. The C++ script fetches a pinned egg-c checkout unless
-`EGGC_SOURCE_DIR` selects a local one; `CXX` selects the compiler.
-
-Run the compiler suite for frontend changes and the relevant integration suite
-for emitter or runtime changes. Both integration scripts build TEPL by default;
-pass a compiler binary as the first argument to use an existing build.
+The Rust integration script uses Cargo's local dependency cache. C++ integration
+needs a C++20 compiler with signed 128-bit integer support and `clang-format`.
+Its script fetches the pinned egg-c revision; set `EGGC_SOURCE_DIR` to use a local
+checkout. Run the compiler suite for frontend changes and the matching integration
+suite for emitter or runtime changes. Both scripts build TEPL and reference
+helpers by default.
 
 ## Develop Rust runtime logic
 
-The [Rust lab](../labs/rust-egg/README.md) exercises generated code from
-`examples/sample/`. Its `src/ir/` is generated and ignored by Git.
+The [Rust lab](../labs/rust-egg/README.md) exercises `examples/rewrite/`.
+Its `src/ir/` is generated and ignored by Git.
 
-1. Edit sample declarations, `templates/rust/src/`, or `src/codegen/rust/`.
-2. Keep application policies in `labs/rust-egg/src/host/` and runtime tests in
-   `labs/rust-egg/tests/`.
-3. Use `./tools/test_codegen.sh` to regenerate and validate the lab output.
+1. Edit TEPL declarations, `runtime/rust/src/`, or `src/codegen/rust/`.
+2. Keep runtime tests in `runtime/rust/tests/` and generation fixtures in
+   `tests/codegen/rust/`.
+3. Run `bazel test //tests:codegen_test //tests:rust_codegen_test`.
 
-For C++ runtime work, edit `templates/cpp/src/` or `src/codegen/cpp/` and use
-`./tools/test_codegen_cpp.sh`. Its fixtures live in `tests/codegen/cpp/`.
+`tools/test_codegen.sh` generates temporary applications, compares source and
+JSON output, checks builtin behavior against the executable evaluator, and runs
+Rust tests in debug and release modes. C++ validation also runs debug and optimized
+UBSan programs with native semantic-reference comparisons.
 
 ## Language and runtime documentation
 
@@ -116,5 +159,5 @@ For C++ runtime work, edit `templates/cpp/src/` or `src/codegen/cpp/` and use
   descriptor capture and derivation.
 - [Binding and early pruning](advanced/binding_and_early_pruning.md):
   matching and condition evaluation.
-- [Custom analysis](advanced/custom_analysis.md): host analysis integration.
+- [Tensor analysis](advanced/custom_analysis.md): input facts and metadata consistency.
 - [Graph examples](../examples/sample/graphs/README.md): construction and insertion.

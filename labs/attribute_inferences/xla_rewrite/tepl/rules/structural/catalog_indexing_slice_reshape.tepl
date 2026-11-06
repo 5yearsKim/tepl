@@ -1,0 +1,26 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: indexing-slice-reshape
+// Scope: Rank-two input flattened to rank one; slice selects complete rows.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_slice_reshape {
+  X: [Rows, Cols]
+
+  (attr_s: hlo.slice (attr_r: hlo.reshape X))
+  =>
+  (attr_out: hlo.reshape (attr_inner: hlo.slice X))
+
+  where
+    Cols > 0
+      && attr_r.attrs.shape == [Rows * Cols]
+      && attr_s.attrs.strides == [1]
+      && u64(attr_s.attrs.starts[0]) % Cols == 0
+      && attr_s.attrs.sizes[0] % Cols == 0 derive {
+    attr_inner.attrs = {
+      starts: [i64(floor_div(u64(attr_s.attrs.starts[0]), Cols)), 0],
+      sizes: [floor_div(attr_s.attrs.sizes[0], Cols), Cols],
+      strides: [1, 1]
+    }
+    attr_out.attrs = { shape: attr_s.attrs.sizes }
+  }
+}

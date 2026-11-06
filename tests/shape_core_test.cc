@@ -8,10 +8,10 @@
 #include <type_traits>
 
 #include "rules_cc/cc/runfiles/runfiles.h"
-#include "src/ast/print.h"
-#include "src/core/analyze.h"
-#include "src/core/print.h"
-#include "src/parse.h"
+#include "src/core/pipeline.h"
+#include "src/core/semantics/report.h"
+#include "src/core/syntax/parse.h"
+#include "src/core/syntax/print.h"
 
 namespace {
 namespace metadata = tepl::core::metadata;
@@ -21,27 +21,25 @@ void check(bool condition, std::string_view message) {
   if (!condition) throw std::runtime_error(std::string(message));
 }
 
-tepl::core::AnalysisResult analyze(std::string_view body,
-                                   std::string_view signature = "x: tensor",
-                                   std::string_view attrs = "") {
+tepl::core::InspectionResult analyze(std::string_view body,
+                                     std::string_view signature = "x: tensor",
+                                     std::string_view attrs = "") {
   auto parsed = tepl::parse("dialect D { op test(" + std::string(signature) +
                                 ") -> tensor { " + std::string(attrs) + " " +
                                 std::string(body) + " } }",
                             "shape.tepl");
   check(parsed.ok(), "Core fixture must have valid syntax");
-  return tepl::core::analyze(*parsed.program);
+  return tepl::core::inspect(*parsed.program);
 }
 
 const metadata::Program& checkedShape(
-    const tepl::core::AnalysisResult& result) {
+    const tepl::core::InspectionResult& result) {
   if (!result.ok()) {
     for (const auto& diagnostic : result.diagnostics)
       std::cerr << diagnostic.message << '\n';
     throw std::runtime_error("Expected successful shape checking");
   }
   const auto& program = *result.program;
-  check(program.host_functions.empty(),
-        "Shape builtins must not register host functions");
   check(program.operations[0].shape.has_value(),
         "Checked shape must be attached to the operation");
   return *program.operations[0].shape;
@@ -95,9 +93,9 @@ void builtinSignatures() {
   for (const auto& test : cases) {
     const std::string body =
         test.boolean
-            ? "shape(s) { assert " + std::string(test.valid) + "; yield s; }"
+            ? "shape(s) { assert " + std::string(test.valid) + " yield s }"
             : "shape(s) { let result = " + std::string(test.valid) +
-                  "; yield s; }";
+                  " yield s }";
     const auto result = analyze(body);
     const auto& program = checkedShape(result);
     const auto expression =
@@ -108,41 +106,41 @@ void builtinSignatures() {
               std::get<metadata::Call>(expression->value).builtin) == test.name,
           "Calls must resolve to builtin IDs");
     expectError(
-        "shape(s) { let result = " + std::string(test.invalid) + "; yield s; }",
+        "shape(s) { let result = " + std::string(test.invalid) + " yield s }",
         "type mismatch");
     expectError(
-        "shape(s) { let result = " + std::string(test.name) + "(); yield s; }",
+        "shape(s) { let result = " + std::string(test.name) + "() yield s }",
         "expects");
     if (test.name != "concat")
       expectError("shape(s) { let result = " + std::string(test.name) +
-                      "(s, s, s, s); yield s; }",
+                      "(s, s, s, s) yield s }",
                   "expects");
     else
-      expectError("shape(s) { yield concat(s); }", "at least 2");
+      expectError("shape(s) { yield concat(s) }", "at least 2");
   }
 }
 
 void signaturesAndScopes() {
-  expectError("shape() { yield []; }", "parameter count");
-  expectError("shape(a, b) { yield a; }", "parameter count");
-  expectError("shape(a...) { yield a[0]; }", "variadic parameter");
-  expectError("shape(a) { yield a; }", "variadic parameter", "xs: tensor...");
-  expectError("shape(a, a) { yield a; }", "duplicate shape binding",
+  expectError("shape() { yield [] }", "parameter count");
+  expectError("shape(a, b) { yield a }", "parameter count");
+  expectError("shape(a...) { yield a[0] }", "variadic parameter");
+  expectError("shape(a) { yield a }", "variadic parameter", "xs: tensor...");
+  expectError("shape(a, a) { yield a }", "duplicate shape binding",
               "x: tensor, y: tensor");
-  expectError("shape(s) { let s = [1]; yield s; }", "duplicate shape binding");
-  expectError("shape(s) { let x = [1]; let x = [2]; yield x; }",
+  expectError("shape(s) { let s = [1] yield s }", "duplicate shape binding");
+  expectError("shape(s) { let x = [1] let x = [2] yield x }",
               "duplicate shape binding");
-  expectError("shape(s) { let x = x; yield s; }", "unknown shape name 'x'");
-  expectError("shape(s) { assert x == 1; let x = 1; yield s; }",
+  expectError("shape(s) { let x = x yield s }", "unknown shape name 'x'");
+  expectError("shape(s) { assert x == 1 let x = 1 yield s }",
               "unknown shape name 'x'");
-  expectError("shape(s) { let xs = [i for i in range(3)]; yield [i]; }",
+  expectError("shape(s) { let xs = [i for i in range(3)] yield [i] }",
               "unknown shape name 'i'");
-  expectError("shape(s) { yield [i for i in i]; }", "unknown shape name 'i'");
-  expectError("shape(s) { yield unknown(s); }", "unknown shape builtin");
-  expectError("shape(s) { yield x; }", "unknown shape name 'x'");
+  expectError("shape(s) { yield [i for i in i] }", "unknown shape name 'i'");
+  expectError("shape(s) { yield unknown(s) }", "unknown shape builtin");
+  expectError("shape(s) { yield x }", "unknown shape name 'x'");
   const auto result = analyze(
-      "shape(s) { let i = 1; let xs = [i + 1 for i in range(3)]; assert i == "
-      "1; yield xs; }");
+      "shape(s) { let i = 1 let xs = [i + 1 for i in range(3)] assert i == "
+      "1 yield xs }");
   const auto& program = checkedShape(result);
   const auto outer =
       std::get<metadata::Let>(program.statements[0].value).symbol;
@@ -155,12 +153,12 @@ void signaturesAndScopes() {
   check(std::get<metadata::SymbolRef>(assertion.lhs->value).symbol == outer,
         "Outer binding must be restored after comprehension");
   const auto variadic = analyze(
-      "shape(a, rest...) { yield concat(a, sum([len(s) for s in rest]) * [1]); "
+      "shape(a, rest...) { yield concat(a, sum([len(s) for s in rest]) * [1]) "
       "}",
       "x: tensor, xs: tensor...");
   check(!variadic.ok(),
         "List arithmetic must not become implicit elementwise arithmetic");
-  const auto scalar = analyze("shape() { yield []; }", "");
+  const auto scalar = analyze("shape() { yield [] }", "");
   check(checkedShape(scalar).parameters.empty(),
         "Zero-operand shape signatures must work");
 }
@@ -169,31 +167,32 @@ void listsAndAttributes() {
   // Generic list helpers retain their element type, even for Boolean/nested
   // lists.
   const auto generic = analyze(R"(shape(s) {
-    let rows = concat([s], [s], []);
-    let selected = gather(rows, [0]);
-    let tail = slice(selected, 0, 1);
-    let replaced = replace(tail, 0, s);
-    let remaining = exclude(replaced, [s]);
-    assert contains(replaced, s);
-    assert is_disjoint(remaining, [s]);
-    let flags = concat([true], [false]);
-    assert all(gather(flags, [0]));
-    assert contains(flags, false);
-    assert is_disjoint([true], [false]);
-    yield replaced[0];
+    let rows = concat([s], [s], [])
+    let selected = gather(rows, [0])
+    let tail = slice(selected, 0, 1)
+    let replaced = replace(tail, 0, s)
+    let remaining = exclude(replaced, [s])
+    assert contains(replaced, s)
+    assert is_disjoint(remaining, [s])
+    let flags = concat([true], [false])
+    assert all(gather(flags, [0]))
+    assert contains(flags, false)
+    assert is_disjoint([true], [false])
+    yield replaced[0]
   })");
   checkedShape(generic);
-  const auto result = analyze(R"(shape(a, rest...) {
-    let empty = [];
-    let shapes = concat([a], rest, empty);
-    let flags = [];
-    assert all(flags);
-    let padding = attrs.padding;
-    let ys = [[s[i] + padding[i][0] for i in range(len(s))] for s in shapes];
-    yield if attrs.enabled then ys[0] else [];
+  const auto result =
+      analyze(R"(shape(a, rest...) {
+    let empty = []
+    let shapes = concat([a], rest, empty)
+    let flags = []
+    assert all(flags)
+    let padding = attrs.padding
+    let ys = [[s[i] + padding[i][0] for i in range(len(s))] for s in shapes]
+    yield if attrs.enabled then ys[0] else []
   })",
-                              "x: tensor, xs: tensor...",
-                              "attrs { padding: i64[][]; enabled: bool; }");
+              "x: tensor, xs: tensor...",
+              "attrs { padding: coordinate[][] enabled: bool }");
   const auto& program = checkedShape(result);
   check(program.types.at(program.symbols[0].type.value) ==
             metadata::Type{metadata::Type::Kind::kInteger, 1},
@@ -210,32 +209,33 @@ void listsAndAttributes() {
   check(program.types.at(program.result.value->type.value) ==
             metadata::Type{metadata::Type::Kind::kInteger, 1},
         "Yield type must be a shape");
-  expectError("shape(s) { let xs = []; yield s; }", "cannot infer");
-  expectError("shape(s) { let n = len([]); yield s; }", "cannot infer");
-  expectError("shape(s) { yield [true]; }", "type mismatch");
-  expectError("shape(s) { assert s; yield s; }", "type mismatch");
-  expectError("shape(s) { yield [1, true]; }", "type mismatch");
-  expectError("shape(s) { yield if true then s else false; }", "type mismatch");
-  expectError("shape(s) { yield if 1 then s else []; }", "type mismatch");
-  expectError("shape(s) { yield [1[0]]; }", "type mismatch");
-  expectError("shape(s) { yield [s[true]]; }", "type mismatch");
-  expectError("shape(s) { yield [i for i in 3]; }", "type mismatch");
-  expectError("shape(s) { let xs = []; assert xs == [xs]; yield s; }",
+  expectError("shape(s) { let xs = [] yield s }", "cannot infer");
+  expectError("shape(s) { let n = len([]) yield s }", "cannot infer");
+  expectError("shape(s) { yield [true] }", "type mismatch");
+  expectError("shape(s) { assert s yield s }", "type mismatch");
+  expectError("shape(s) { yield [1, true] }", "type mismatch");
+  expectError("shape(s) { yield if true then s else false }", "type mismatch");
+  expectError("shape(s) { yield if 1 then s else [] }", "type mismatch");
+  expectError("shape(s) { yield [1[0]] }", "type mismatch");
+  expectError("shape(s) { yield [s[true]] }", "type mismatch");
+  expectError("shape(s) { yield [i for i in 3] }", "type mismatch");
+  expectError("shape(s) { let xs = [] assert xs == [xs] yield s }",
               "contain itself");
-  expectError("shape(s) { yield attrs.shape; }", "no attribute schema");
-  expectError("shape(s) { yield attrs.missing; }", "unknown shape attribute",
-              "x: tensor", "attrs { shape: index[]; }");
-  expectError("shape(s) { yield attrs; }", "requires a field access");
-  expectError("shape(s) { yield s.field; }", "requires attrs.field");
+  expectError("shape(s) { yield attrs.shape }", "no attribute schema");
+  expectError("shape(s) { yield attrs.missing }", "unknown shape attribute",
+              "x: tensor", "attrs { shape: extent[] }");
+  expectError("shape(s) { yield attrs }", "requires a field access");
+  expectError("shape(s) { yield s.field }", "requires attrs.field");
   for (const auto type : {"string", "precision", "elements", "region",
                           "dot_algorithm", "replica_groups", "index?"})
-    expectError("shape(s) { let x = attrs.value; yield s; }",
+    expectError("shape(s) { let x = attrs.value yield s }",
                 "optional or opaque", "x: tensor",
-                "attrs { value: " + std::string(type) + "; }");
+                "attrs { value: " + std::string(type) + " }");
   const auto shared = tepl::parse(
-      "dialect D { attrs A { shape: index[]; } op x(input: tensor) -> tensor { "
-      "attrs: A; shape(s) { yield attrs.shape; } } }");
-  check(shared.ok() && tepl::core::analyze(*shared.program).ok(),
+      "dialect D { attrs A { shape: extent[] } op x(input: tensor) -> tensor "
+      "{ "
+      "attrs: A shape(s) { yield attrs.shape } } }");
+  check(shared.ok() && tepl::core::inspect(*shared.program).ok(),
         "Shared attribute schemas must work");
 }
 
@@ -244,18 +244,18 @@ void integerPolicyAndRuntimeChecks() {
        {"18446744073709551615", "170141183460469231731687303715884105727",
         "-170141183460469231731687303715884105728", "+0001"}) {
     const auto result =
-        analyze("shape(s) { yield [" + std::string(literal) + "]; }");
+        analyze("shape(s) { yield [" + std::string(literal) + "] }");
     checkedShape(result);
   }
   for (const auto literal : {"170141183460469231731687303715884105728",
                              "-170141183460469231731687303715884105729"})
-    expectError("shape(s) { yield [" + std::string(literal) + "]; }",
+    expectError("shape(s) { yield [" + std::string(literal) + "] }",
                 "128-bit range");
   // Value validity remains an execution-time responsibility; assertions and
   // short-circuit branches must survive core checking without being executed.
   const auto deferred = analyze(
-      "shape(s) { assert false && s[999] > 0; yield if true then [] else [1 / "
-      "0, -1]; }");
+      "shape(s) { assert false && s[999] > 0 yield if true then [] else [1 / "
+      "0, -1] }");
   const auto& program = checkedShape(deferred);
   check(std::holds_alternative<metadata::Binary>(
             std::get<metadata::Assert>(program.statements[0].value)
@@ -268,11 +268,11 @@ void integerPolicyAndRuntimeChecks() {
 void diagnosticsAndPrinting() {
   auto parsed = tepl::parse(
       "dialect D {\n op x(input: tensor) -> tensor {\n  shape(s) {\n   yield "
-      "missing;\n  }\n }\n}",
+      "missing\n  }\n }\n}",
       "locations.tepl");
   check(parsed.ok(), "Diagnostic fixture must parse");
   const auto before = tepl::formatAst(*parsed.program);
-  const auto invalid = tepl::core::analyze(*parsed.program);
+  const auto invalid = tepl::core::inspect(*parsed.program);
   check(!invalid.ok() && invalid.diagnostics.size() == 1,
         "Unknown shape name should have one diagnostic");
   const auto& origin = invalid.diagnostics[0].origin.definition;
@@ -282,8 +282,8 @@ void diagnosticsAndPrinting() {
   check(tepl::formatAst(*parsed.program) == before,
         "Shape checking must not mutate the AST");
   const auto result = analyze(
-      "shape(s) { let axes = range(len(s)); assert all([i >= 0 for i in "
-      "axes]); yield gather(s, axes); }");
+      "shape(s) { let axes = range(len(s)) assert all([i >= 0 for i in "
+      "axes]) yield gather(s, axes) }");
   checkedShape(result);
   const auto text = tepl::core::formatProgram(*result.program);
   for (const auto fragment : {"parameter #", "List<Integer>", "Builtin(gather",
@@ -297,7 +297,7 @@ void diagnosticsAndPrinting() {
 
 void checkExpression(const metadata::ExprPtr& expression,
                      const metadata::Program& shape,
-                     const tepl::core::Program& program) {
+                     const tepl::core::semantics::InspectionData& program) {
   check(expression != nullptr && expression->type.value < shape.types.size(),
         "Every checked expression must have a resolved type");
   std::visit(
@@ -358,7 +358,7 @@ void examples(const char* executable, const char* tensor, const char* scalar) {
     const std::string source{std::istreambuf_iterator<char>(input), {}};
     const auto parsed = tepl::parse(source, path);
     check(parsed.ok(), "Example dialect must parse");
-    const auto result = tepl::core::analyze(*parsed.program);
+    const auto result = tepl::core::inspect(*parsed.program);
     if (!result.ok())
       for (const auto& diagnostic : result.diagnostics)
         std::cerr << diagnostic.message << '\n';

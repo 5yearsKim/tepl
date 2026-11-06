@@ -1,0 +1,9 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+graph slice_compose {
+  input X: f32[10, 12]
+
+  yield
+    (hlo.slice[starts = [2, 1], sizes = [3, 4], strides = [1, 1]]
+      (hlo.slice[starts = [1, 2], sizes = [6, 7], strides = [1, 1]] X))
+}

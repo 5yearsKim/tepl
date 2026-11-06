@@ -1,0 +1,24 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Catalog: indexing-concat-splat-to-pad
+// Scope: Rank-one low-edge scalar padding; high-edge form is symmetric.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_concat_splat_to_pad {
+  X: [N]
+  C: []
+
+  (attr_c: hlo.concatenate (attr_b: hlo.broadcast C) X)
+  =>
+  (attr_p: hlo.nonnegative_pad X C)
+
+  where
+    attr_c.attrs.dimension == 0
+      && attr_b.attrs.dimensions == []
+      && len(attr_b.attrs.new_extents) == 1 derive {
+    attr_p.attrs = {
+      low: [i64(n) for n in attr_b.attrs.new_extents],
+      high: [0],
+      interior: [0]
+    }
+  }
+}

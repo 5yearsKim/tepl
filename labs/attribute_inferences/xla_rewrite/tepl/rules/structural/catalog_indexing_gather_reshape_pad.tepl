@@ -1,0 +1,44 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: indexing-gather-reshape-pad
+// Scope: Rank-two input, inserted leading unit axis, padded passthrough column axis.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_gather_reshape_pad {
+  X: [R, C]
+  Indices: [I]
+
+  (attr_g: hlo.gather
+    (attr_r: hlo.reshape (attr_p: hlo.nonnegative_pad X Value))
+    Indices)
+  =>
+  (attr_outpad: hlo.nonnegative_pad
+    (attr_out: hlo.gather (attr_unpad: hlo.reshape X) Indices)
+    Value)
+
+  where
+    u64(attr_p.attrs.low[0]) == 0
+      && u64(attr_p.attrs.high[0]) == 0
+      && attr_p.attrs.interior == [0, 0]
+      && attr_r.attrs.shape
+        == [1, R, C + u64(attr_p.attrs.low[1]) + u64(attr_p.attrs.high[1])]
+      && attr_g.attrs.start_index_map == [1]
+      && attr_g.attrs.collapsed_slice_dims == [1]
+      && attr_g.attrs.offset_dims == [1, 2]
+      && attr_g.attrs.index_vector_dim == 1
+      && attr_g.attrs.slice_sizes
+        == [1, 1, C + u64(attr_p.attrs.low[1]) + u64(attr_p.attrs.high[1])]
+      && attr_g.attrs.operand_batching_dims == []
+      && attr_g.attrs.start_indices_batching_dims == [] derive {
+    attr_unpad.attrs = { shape: [1, R, C] }
+    attr_out.attrs = {
+      ..attr_g.attrs,
+      slice_sizes: [1, 1, C],
+      shape: [I, 1, C]
+    }
+    attr_outpad.attrs = {
+      low: [0, 0, attr_p.attrs.low[1]],
+      high: [0, 0, attr_p.attrs.high[1]],
+      interior: [0, 0, 0]
+    }
+  }
+}

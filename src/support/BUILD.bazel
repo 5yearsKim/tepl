@@ -4,6 +4,15 @@ cc_library(
     name = "init",
     srcs = ["init.cc"],
     hdrs = ["init.h"],
+    deps = [":project_config"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "project_config",
+    srcs = ["project_config.cc"],
+    hdrs = ["project_config.h"],
+    deps = ["//src/shared/diagnostics", "//src/shared/source", "@tomlplusplus//:tomlplusplus"],
     visibility = ["//visibility:public"],
 )
 

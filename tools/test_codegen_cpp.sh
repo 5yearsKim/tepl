@@ -3,104 +3,92 @@ set -euo pipefail
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$project_root"
 if [[ $# == 0 ]]; then
-    bazel build //:tepl
-    compiler="$project_root/bazel-bin/tepl"
+  bazel build //:tepl //tests:codegen_semantic_reference
+  compiler="$project_root/bazel-bin/tepl"
+  reference="$project_root/bazel-bin/tests/codegen_semantic_reference"
 else
-    compiler="$1"
+  compiler="$1"
+  reference="${2:-$project_root/bazel-bin/tests/codegen_semantic_reference}"
 fi
-work_directory="$(mktemp -d "${TMPDIR:-/tmp}/tepl-codegen-cpp.XXXXXX")"
+if [[ ! -x "$reference" ]]; then bazel build //tests:codegen_semantic_reference; fi
+work_directory="$(mktemp -d "${TEST_TMPDIR:-${TMPDIR:-/tmp}}/tepl-cpp-codegen.XXXXXX")"
 trap 'rm -rf "$work_directory"' EXIT
-revision=0c28bd5050b85ed10e915b5348c27f760ed31ae5
-eggc_source="${EGGC_SOURCE_DIR:-}"
-if [[ -z "$eggc_source" ]]; then
-    eggc_source="$work_directory/egg-c"
-    git clone --quiet --no-checkout https://github.com/5yearsKim/egg-c.git "$eggc_source"
-    git -C "$eggc_source" checkout --quiet "$revision"
+if [[ $# -ge 3 ]]; then
+  eggc_include="$(dirname -- "$(dirname -- "$3")")"
+elif [[ -n "${EGGC_SOURCE_DIR:-}" ]]; then
+  eggc_include="$EGGC_SOURCE_DIR/include"
+else
+  curl -fsSL --retry 2 https://codeload.github.com/5yearsKim/egg-c/tar.gz/0c28bd5050b85ed10e915b5348c27f760ed31ae5 -o "$work_directory/eggc.tar.gz"
+  printf '%s  %s\n' '89d2ffbd7999edb65ae3c180d1c9caf72117fb1e8f1f39bf90107e4bb8d8b4f9' "$work_directory/eggc.tar.gz" | sha256sum -c -
+  tar -xzf "$work_directory/eggc.tar.gz" -C "$work_directory"
+  eggc_include="$work_directory/egg-c-0c28bd5050b85ed10e915b5348c27f760ed31ae5/include"
 fi
-eggc_source="$(cd "$eggc_source" && pwd)"
-test -f "$eggc_source/include/eggc/all.hpp"
-cxx="${CXX:-c++}"
-fixtures=(dtype analysis builtins early_where runtime literal_root custom names hygiene dialect_only examples empty structural concrete_graphs)
-# Optional fixture arguments allow focused reruns after a failing integration.
-if [[ $# -gt 1 ]]; then fixtures=("${@:2}"); fi
-for fixture in "${fixtures[@]}"; do
-    fixture_flags=()
-    if [[ "$fixture" == concrete_graphs ]]; then fixture_flags=(-DTEPL_TEST_NESTED_GRAPHS); fi
-    application="$work_directory/$fixture"
-    mkdir -p "$application"
-    input="$project_root/tests/codegen/$fixture.tepl"
-    case "$fixture" in
-        runtime|hygiene|dialect_only) input="$project_root/tests/codegen/cpp/$fixture.tepl" ;;
-        concrete_graphs)
-            mkdir -p "$application/graphs/type"
-            cp "$input" "$application/graphs/concrete_graphs.tepl"
-            printf 'graph nested { yield 1:i32; }\n' > "$application/graphs/type/match.tepl"
-            input="$application"
-            ;;
-        examples) input="$project_root/examples/sample" ;;
-        custom)
-            # A Rust host named `signed` is a C++ keyword. Diagnose the original
-            # and use the same fixture with an explicitly renamed host.
-            if "$compiler" generate "$input" --target cpp --no-format --out "$application/invalid" > "$application/name_error" 2>&1; then
-                echo 'C++ keyword host unexpectedly generated' >&2
-                exit 1
-            fi
-            grep -Fq "reserved C++ identifier 'signed'" "$application/name_error"
-            sed 's/\$signed(/\$signed_value(/g' "$input" > "$application/custom.tepl"
-            cp "$project_root/tests/codegen/other.tepl" "$project_root/tests/codegen/mirror.tepl" "$application/"
-            input="$application/custom.tepl"
-            ;;
-        names)
-            mkdir -p "$application/rules/type"
-            cp "$input" "$application/rules/type/match.tepl"
-            input="$application"
-            ;;
-    esac
-    "$compiler" generate "$input" --target cpp --no-format --out "$application/ir"
-    "$compiler" generate "$input" --target cpp --no-format --out "$application/ir" --check
-    if [[ "$fixture" == empty ]]; then
-        printf '#include "ir/generated.h"\nint main() {}\n' > "$application/test.cc"
-        "$cxx" -std=c++20 -I"$application" -I"$eggc_source/include" "$application/test.cc" -o "$application/test"
-        "$application/test"
-        continue
-    fi
-    sources=("$project_root/tests/codegen/cpp/$fixture.cc")
-    if [[ "$fixture" == hygiene ]]; then
-        "$compiler" generate "$input" --target cpp --cpp-namespace app::eggc --no-format --out "$application/nested_eggc"
-        "$compiler" generate "$input" --target cpp --cpp-namespace app::std --no-format --out "$application/nested_std"
-        # GCC's pragma-once identity heuristic also considers timestamps. Force
-        # equal timestamps so missing namespace identity is caught reliably.
-        while IFS= read -r header; do
-            touch -r "$application/ir/generated.h" "$header"
-        done < <(rg --files "$application/ir" "$application/nested_eggc" "$application/nested_std" -g '*.h')
-        # Every public header must compile without an umbrella or egg-c header
-        # being included first. Separate translation units expose include-order
-        # dependencies that ordinary integration programs can mask.
-        while IFS= read -r header; do
-            printf '#include "%s"\n' "${header#"$application/"}" > "$application/header.cc"
-            "$cxx" -std=c++20 -I"$application" -I"$eggc_source/include" -fsyntax-only "$application/header.cc"
-        done < <(rg --files "$application/ir" -g '*.h' | sort)
-    fi
-    if [[ "$fixture" == names ]]; then
-        "$compiler" generate "$input" --target cpp --cpp-namespace other::generated --out "$application/second"
-        "$compiler" generate "$input" --target cpp --cpp-namespace other::generated --out "$application/second" --check
-        sources+=("$project_root/tests/codegen/cpp/names_odr.cc")
-        if "$cxx" -std=c++20 -I"$application" -I"$eggc_source/include" "$project_root/tests/codegen/cpp/wrong_attrs.cc" -o "$application/wrong" > "$application/type_error" 2>&1; then
-            echo 'Cross-dialect attributes unexpectedly compiled' >&2
-            exit 1
-        fi
-    fi
-    for mode in debug release; do
-        flags=(-O0 -g)
-        if [[ "$mode" == release ]]; then flags=(-O2); fi
-        "$cxx" -std=c++20 "${flags[@]}" "${fixture_flags[@]}" -I"$application" -I"$eggc_source/include" "${sources[@]}" -o "$application/test-$mode"
-        "$application/test-$mode"
+"$compiler" generate tests/codegen/rust/expressions.tepl --target cpp --cpp-namespace expressions --out "$work_directory/expressions"
+"$compiler" compile tests/codegen/rust/expressions.tepl --out "$work_directory/expressions.json"
+"$compiler" generate "$work_directory/expressions.json" --target cpp --cpp-namespace expressions --out "$work_directory/loaded"
+diff -ru "$work_directory/expressions" "$work_directory/loaded"
+"$compiler" generate "$work_directory/expressions.json" --target cpp --cpp-namespace expressions --out "$work_directory/expressions" --check
+"$compiler" generate tests/codegen/rust/empty.tepl --target cpp --cpp-namespace empty --out "$work_directory/empty"
+"$compiler" compile tests/codegen/rust/current.tepl --semantic-policy algebraic --out "$work_directory/current.json"
+"$compiler" generate "$work_directory/current.json" --target cpp --out "$work_directory/current"
+"$compiler" generate tests/codegen/rust/current.tepl --semantic-policy algebraic --target cpp --out "$work_directory/current" --check
+"$reference" "$work_directory/current.json" --cpp > "$work_directory/reference.cc"
+# Preserve arbitrary string bytes in both graph attributes and rule expressions.
+printf 'dialect N {attrs A {note:string } op copy(x:tensor)->tensor {attrs:A dtype(t){yield t }shape(s){yield s }}}\nrule identity {(node:N.copy X)=>X where node.attrs.note=="a\000b" }\ngraph g {input X:f32[2] yield (N.copy[note="a\000b"] X) }\n' > "$work_directory/strings.tepl"
+"$compiler" generate "$work_directory/strings.tepl" --target cpp --cpp-namespace strings --out "$work_directory/strings"
+"$compiler" generate tests/codegen/cpp/witnesses.tepl --target cpp --cpp-namespace witnesses --out "$work_directory/witnesses"
+"$compiler" generate examples/semantic --semantic-policy algebraic --target cpp --cpp-namespace semantic --out "$work_directory/semantic" --no-format
+"$compiler" generate examples/sample --target cpp --cpp-namespace sample --out "$work_directory/sample" --no-format
+# Relocation, nested keyword modules, and separate generated namespaces.
+mkdir -p "$work_directory/names/rules/class" "$work_directory/components"
+cp tests/codegen/rust/names.tepl "$work_directory/names/rules/class/while.tepl"
+"$compiler" generate "$work_directory/names" --target cpp --cpp-namespace app::optimizer --out "$work_directory/components/generated"
+cp tests/codegen/cpp/integration.cc "$work_directory/integration.cc"
+cp tests/codegen/cpp/odr.cc "$work_directory/odr.cc"
+cp tests/codegen/cpp/strings.cc "$work_directory/strings.cc"
+cp tests/codegen/cpp/witnesses.cc "$work_directory/witnesses.cc"
+if [[ -n "${CXX:-}" ]]; then
+  compilers=("$CXX")
+else
+  compilers=(g++)
+  if command -v clang++ >/dev/null; then compilers+=(clang++); fi
+fi
+for cxx in "${compilers[@]}"; do
+  flags=(-std=c++20 -Wall -Wextra -Werror -I "$project_root/runtime/cpp/include" -I "$eggc_include" -I "$work_directory")
+  for optimization in -O0 -O2; do
+    printf 'Checking C++ generation with %s %s\n' "$cxx" "$optimization"
+    extra=()
+    if [[ "$optimization" == -O2 ]]; then extra=(-fsanitize=undefined -fno-sanitize-recover=undefined); fi
+    "$cxx" "${flags[@]}" "$optimization" "${extra[@]}" "$work_directory/integration.cc" "$work_directory/odr.cc" -o "$work_directory/integration"
+    "$work_directory/integration"
+    "$cxx" "${flags[@]}" "$optimization" "${extra[@]}" "$work_directory/reference.cc" -o "$work_directory/reference"
+    "$work_directory/reference"
+    "$cxx" "${flags[@]}" "$optimization" "${extra[@]}" runtime/cpp/tests/values.cc -o "$work_directory/values"
+    "$work_directory/values"
+    for fixture in strings witnesses; do
+      "$cxx" "${flags[@]}" "$optimization" "${extra[@]}" "$work_directory/$fixture.cc" -o "$work_directory/$fixture-test"
+      "$work_directory/$fixture-test"
     done
-    case "$fixture" in
-        dtype|runtime|analysis|builtins)
-            "$cxx" -std=c++20 -O1 -g -fsanitize=undefined -fno-sanitize-recover=all -I"$application" -I"$eggc_source/include" "${sources[@]}" -o "$application/test-ubsan"
-            "$application/test-ubsan"
-            ;;
-    esac
+  done
+  # Each public runtime header must supply its own dependencies.
+  for header in runtime/cpp/include/tepl/runtime/*.h; do
+    printf '#include <%s>\n' "${header#runtime/cpp/include/}" > "$work_directory/header.cc"
+    "$cxx" "${flags[@]}" -fsyntax-only "$work_directory/header.cc"
+  done
+  for header in "$work_directory/current"/*.h "$work_directory/current"/dialects/*.h "$work_directory/current"/rules/*.h "$work_directory/current"/graphs/*.h; do
+    printf '#include "%s"\n' "$header" > "$work_directory/header.cc"
+    "$cxx" "${flags[@]}" -fsyntax-only "$work_directory/header.cc"
+  done
+  printf 'C++ code generation passed with %s\n' "$cxx"
 done
-echo 'Generated C++ integration tests passed.'
+# Check mode must leave edited output alone; regeneration owns only its manifest.
+printf '\n// edited\n' >> "$work_directory/expressions/program.h"
+cp "$work_directory/expressions/program.h" "$work_directory/edited.h"
+if "$compiler" generate "$work_directory/expressions.json" --target cpp --cpp-namespace expressions --out "$work_directory/expressions" --check; then
+  echo 'Expected drift check to fail' >&2; exit 1
+fi
+cmp "$work_directory/edited.h" "$work_directory/expressions/program.h"
+printf 'keep me\n' > "$work_directory/expressions/unrelated.txt"
+"$compiler" generate tests/codegen/rust/empty.tepl --target cpp --out "$work_directory/expressions"
+test ! -e "$work_directory/expressions/dialects/d.h"
+grep -Fxq 'keep me' "$work_directory/expressions/unrelated.txt"

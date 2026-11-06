@@ -1,0 +1,25 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// One spatial dimension; kernel and output feature axes are last.
+rule expr_convolution_scale_filter_bias {
+  X: [N, H, C]
+  W: [KW, C, F]
+  Bias: [N, O, F]
+  Scale: [F]
+
+  (hlo.multiply
+    (hlo.add (attr_conv: hlo.convolution X W) Bias)
+    (attr_output: hlo.broadcast Scale))
+  =>
+  (hlo.add
+    (hlo.convolution[attr_conv.attrs]
+      X
+      (hlo.multiply W (attr_kernel: hlo.broadcast Scale)))
+    (hlo.multiply Bias (hlo.broadcast[attr_output.attrs] Scale)))
+
+  where
+    attr_output.attrs.dimensions == [2]
+      && attr_output.attrs.new_extents == [N, O] derive {
+    attr_kernel.attrs = { dimensions: [2], new_extents: [KW, C] }
+  }
+}

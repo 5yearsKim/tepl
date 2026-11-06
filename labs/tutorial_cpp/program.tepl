@@ -1,0 +1,39 @@
+dialect Tensor {
+  op transpose(x: tensor) -> tensor {
+    attrs {
+      permutation: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+    axes {
+      bind S { x: all_axes(x) }
+      assert is_valid_axis_list(attrs.permutation, rank(x))
+      assert len(attrs.permutation) == rank(x)
+      yield permute(S, attrs.permutation)
+    }
+    semantics {
+      yield x
+    }
+  }
+}
+
+rule compose {
+  (outer: Tensor.transpose (inner: Tensor.transpose X)) => (Tensor.transpose X)
+}
+
+rule identity {
+  X: [Dims...]
+
+  (node: Tensor.transpose X) => X
+
+  where node.attrs.permutation == range(len(Dims))
+}
+
+graph sample {
+  input X: f32[2, 3]
+
+  let inner = (Tensor.transpose[permutation = [1, 0]] X)
+
+  yield (Tensor.transpose[permutation = [1, 0]] inner)
+}

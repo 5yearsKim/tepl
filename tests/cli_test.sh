@@ -17,10 +17,15 @@ check_exit() {
   fi
 }
 
+check_exit 0 --version
+grep -Fxq '0.2.0' "$output"
+
 check_exit 0 --help
 grep -Fq 'parse' "$output"
 grep -Fq 'init' "$output"
 check_exit 0 -h
+check_exit 2 check "$example" --suggest-where
+check_exit 2 check "$example" --certified
 
 # Initialization creates a usable project without relying on external templates.
 check_exit 0 init --help
@@ -37,15 +42,12 @@ grep -Fq 'Initialized TEPL project in' "$output"
 grep -Fq 'tepl check' "$output"
 test -f "$starter/dialects/your_dialect.tepl"
 test -f "$starter/rules/your_rule.tepl"
+grep -Fxq 'tepl-version = "0.2.0"' "$starter/tepl.toml"
+grep -Fq 'from "dialects/your_dialect.tepl"' "$starter/rules/your_rule.tepl"
 check_exit 0 check "$starter"
 grep -Fq 'MatchOp(YourDialect.add' "$output"
-check_exit 0 generate "$starter" --no-format --out "${TEST_TMPDIR}/starter_rust"
-test -f "${TEST_TMPDIR}/starter_rust/dialects/your_dialect.rs"
-test -f "${TEST_TMPDIR}/starter_rust/rules/your_rule.rs"
-check_exit 0 generate "$starter" --target cpp --no-format --out "${TEST_TMPDIR}/starter_cpp"
-test -f "${TEST_TMPDIR}/starter_cpp/dialects/your_dialect.h"
-test -f "${TEST_TMPDIR}/starter_cpp/rules/your_rule.h"
-
+check_exit 0 check "$starter/rules/your_rule.tepl"
+check_exit 0 parse "$starter/rules/your_rule.tepl"
 # Existing directories and unrelated files are preserved; '.' and relative paths work.
 init_current="${TEST_TMPDIR}/init_current"
 mkdir -p "$init_current/dialects" "$init_current/rules"
@@ -59,9 +61,10 @@ printf 'keep me\n' > "$init_current/notes.txt"
 grep -Fxq 'keep me' "$init_current/notes.txt"
 cmp "$starter/dialects/your_dialect.tepl" "$init_current/dialects/your_dialect.tepl"
 cmp "$starter/rules/your_rule.tepl" "$init_current/rules/your_rule.tepl"
+cmp "$starter/tepl.toml" "$init_current/tepl.toml"
 check_exit 0 check "$init_current/relative project"
 
-# Both starter destinations are checked before either is written.
+# All starter destinations are checked before any are written.
 for part in dialect rule; do
   conflict="${TEST_TMPDIR}/init_conflict_${part}"
   mkdir -p "$conflict/${part}s"
@@ -69,12 +72,21 @@ for part in dialect rule; do
   check_exit 2 init "$conflict"
   grep -Fq 'refusing to overwrite' "$output"
   grep -Fxq 'user content' "$conflict/${part}s/your_${part}.tepl"
+  test ! -e "$conflict/tepl.toml"
   if [[ "$part" == dialect ]]; then
     test ! -e "$conflict/rules"
   else
     test ! -e "$conflict/dialects"
   fi
 done
+conflict="${TEST_TMPDIR}/init_conflict_config"
+mkdir -p "$conflict"
+printf '# user config\n' > "$conflict/tepl.toml"
+check_exit 2 init "$conflict"
+grep -Fq 'refusing to overwrite' "$output"
+grep -Fxq '# user config' "$conflict/tepl.toml"
+test ! -e "$conflict/dialects"
+test ! -e "$conflict/rules"
 check_exit 2 init "$starter"
 cmp "$starter/dialects/your_dialect.tepl" "$init_current/dialects/your_dialect.tepl"
 cmp "$starter/rules/your_rule.tepl" "$init_current/rules/your_rule.tepl"
@@ -84,6 +96,129 @@ conflict="${TEST_TMPDIR}/init_file_directory"
 mkdir -p "$conflict/rules/your_rule.tepl"
 check_exit 2 init "$conflict"
 test ! -e "$conflict/dialects"
+
+# Config destinations receive the same directory and symlink protection.
+for kind in directory symlink; do
+  conflict="${TEST_TMPDIR}/init_config_${kind}"
+  mkdir -p "$conflict"
+  if [[ "$kind" == directory ]]; then
+    mkdir "$conflict/tepl.toml"
+  else
+    ln -s "${TEST_TMPDIR}/missing_config_target" "$conflict/tepl.toml"
+  fi
+  check_exit 2 init "$conflict"
+  test ! -e "$conflict/dialects"
+  test ! -e "$conflict/rules"
+done
+
+# Root imports work from nested sources, independently of the invocation cwd.
+mkdir -p "$starter/rules/nested" "$starter/graphs"
+cp "$starter/rules/your_rule.tepl" "$starter/rules/nested/commute.tepl"
+(
+  cd "$init_current"
+  check_exit 0 check "$starter/rules/nested/commute.tepl"
+)
+printf 'from "dialects/your_dialect.tepl" import YourDialect as d graph g { input X input Y yield (d.add X Y) }\n' > "$starter/graphs/g.tepl"
+check_exit 0 compile "$starter/graphs/g.tepl" --rules "$starter/rules/nested" -o "${TEST_TMPDIR}/root-imports.json"
+check_exit 0 validate "${TEST_TMPDIR}/root-imports.json"
+check_exit 0 generate "$starter/graphs/g.tepl" --rules "$starter/rules/nested" --no-format --out "${TEST_TMPDIR}/root-imports-generated"
+
+# Configured source directories and exclusions work for all source commands.
+configured="${TEST_TMPDIR}/configured project"
+mkdir -p "$configured/schema" "$configured/patterns/nested" \
+  "$configured/patterns/experimental" "$configured/patterns/fixtures/deep" \
+  "$configured/programs" "$configured/fixtures" "$configured/rules"
+cat > "$configured/tepl.toml" <<'TOML'
+tepl-version = "0.2.0"
+[sources]
+dialects = ["schema"]
+rules = ["patterns", "patterns/nested"]
+graphs = ["programs", "fixtures"]
+exclude = ["patterns/experimental/**", "**/fixtures/**", "patterns/*.skip.tepl", "patterns/ignored?.tepl"]
+[check]
+semantic-policy = "strict"
+TOML
+printf 'dialect D { op negate(x:tensor)->tensor }\n' > "$configured/schema/d.tepl"
+printf 'from "schema/d.tepl" import D as d rule negate { (d.negate X) => X }\n' > "$configured/patterns/nested/negate.tepl"
+printf 'from "schema/d.tepl" import D as d graph g { input X yield (d.negate X) }\n' > "$configured/programs/g.tepl"
+for file in patterns/experimental/bad.tepl patterns/fixtures/deep/bad.tepl \
+  fixtures/bad.tepl patterns/bad.skip.tepl patterns/ignored1.tepl rules/unselected.tepl; do
+  printf 'invalid source\n' > "$configured/$file"
+done
+(
+  cd "$init_current"
+  check_exit 0 check "$configured"
+  check_exit 0 compile "$configured" -o "${TEST_TMPDIR}/configured.json"
+  check_exit 0 generate "$configured" --no-format --out "${TEST_TMPDIR}/configured-generated"
+  check_exit 0 rewrite "$configured"
+  grep -Fq 'yield X' "$output"
+  check_exit 0 compile "$configured" --rules "$configured/patterns" -o "${TEST_TMPDIR}/selected-rules.json"
+  check_exit 0 rewrite "$configured/programs" --rules "$configured/patterns"
+  grep -Fq 'yield X' "$output"
+)
+# Explicit files and imported dependencies still load when excluded from discovery.
+check_exit 1 parse "$configured/patterns/experimental/bad.tepl"
+printf 'dialect Extra { op identity(x:tensor)->tensor }\n' > "$configured/patterns/experimental/imported.tepl"
+printf 'from "patterns/experimental/imported.tepl" import Extra\n' > "$configured/schema/import.tepl"
+check_exit 0 check "$configured"
+# An empty array disables discovery for that category, with other defaults intact.
+cat > "$configured/tepl.toml" <<'TOML'
+[sources]
+dialects = []
+rules = []
+graphs = ["programs"]
+TOML
+check_exit 0 check "$configured"
+# Empty projects must still validate their config instead of hiding config errors.
+printf '[sources]\nrules = "patterns"\n' > "$configured/tepl.toml"
+check_exit 1 check "$configured"
+grep -Fq 'sources.rules must be an array' "$output"
+printf '[check]\nsemantic-policy = "fast"\n' > "$configured/tepl.toml"
+check_exit 1 check "$configured/programs/g.tepl"
+grep -Fq "check.semantic-policy must be 'strict' or 'algebraic'" "$output"
+printf '[sources]\nrulse = []\n' > "$configured/tepl.toml"
+check_exit 1 check "$configured"
+grep -Fq "unknown project configuration key 'sources.rulse'" "$output"
+
+# Nearest configs win, including an empty marker, and relative imports stay local.
+nested="$starter/nested_project"
+check_exit 0 init "$nested"
+printf '# empty marker\n' > "$nested/tepl.toml"
+printf 'dialect Local { op negate(x: tensor) -> tensor }\n' > "$nested/dialects/local.tepl"
+printf 'from "dialects/local.tepl" import Local as d rule local { (d.negate X) => X }\n' > "$nested/rules/local.tepl"
+check_exit 0 check "$nested/rules/local.tepl"
+printf 'from "./local.tepl" import Local\n' > "$nested/dialects/relative.tepl"
+check_exit 0 check "$nested/dialects/relative.tepl"
+printf 'from "../dialects/local.tepl" import Local as d rule local { (d.negate X) => X }\n' > "$nested/rules/relative.tepl"
+check_exit 0 check "$nested/rules/relative.tepl"
+# A bare path never falls back to the importing directory in a configured project.
+printf 'from "local.tepl" import Local\n' > "$nested/dialects/no_fallback.tepl"
+check_exit 1 parse "$nested/dialects/no_fallback.tepl"
+grep -Fq "cannot open import 'local.tepl'" "$output"
+# Filesystem absolute paths continue to work in a configured project.
+printf 'from "%s" import Local\n' "$nested/dialects/local.tepl" > "$nested/dialects/absolute.tepl"
+check_exit 0 check "$nested/dialects/absolute.tepl"
+
+# Config errors include the config location and fail even for standalone sources.
+printf 'rule identity { X => X }\n' > "$nested/rules/standalone.tepl"
+printf 'tepl-version = "99.0.0"\n' > "$nested/tepl.toml"
+check_exit 1 check "$nested/rules/standalone.tepl"
+grep -Fq "$nested/tepl.toml:1:" "$output"
+grep -Fq "unsupported tepl-version '99.0.0'" "$output"
+printf 'tepl-version = 123\n' > "$nested/tepl.toml"
+check_exit 1 parse "$nested/rules/standalone.tepl"
+grep -Fq 'tepl-version must be a string' "$output"
+printf 'tepl-version = [\n' > "$nested/tepl.toml"
+check_exit 1 parse "$nested/rules/standalone.tepl"
+grep -Fq 'invalid tepl.toml' "$output"
+rm "$nested/tepl.toml"
+ln -s "${TEST_TMPDIR}/missing_config_target" "$nested/tepl.toml"
+check_exit 1 parse "$nested/rules/standalone.tepl"
+grep -Fq 'cannot read project config' "$output"
+rm "$nested/tepl.toml"
+mkdir "$nested/tepl.toml"
+check_exit 1 parse "$nested/rules/standalone.tepl"
+grep -Fq 'cannot read project config' "$output"
 conflict="${TEST_TMPDIR}/init_file_symlink"
 mkdir -p "$conflict/rules"
 ln -s "${TEST_TMPDIR}/missing_link_target" "$conflict/rules/your_rule.tepl"
@@ -122,7 +257,7 @@ cmp "$output" "${TEST_TMPDIR}/tree"
 check_exit 0 parse "$example" --ast
 grep -Fq '  rule commute_add' "$output"
 grep -Fq '      operator add' "$output"
-grep -Fq '  from "../dialects/tensor.tepl" import TensorLang as t' "$output"
+grep -Fq '  from "dialects/tensor.tepl" import TensorLang as t' "$output"
 grep -Fq '  use t::{add}' "$output"
 grep -Fq '  dialect TensorLang' "$output"
 cp "$output" "${TEST_TMPDIR}/ast"
@@ -146,93 +281,92 @@ check_exit 1 parse "$invalid"
 grep -Fq "${invalid}:1:" "$output"
 
 missing_import="${TEST_TMPDIR}/missing_import.tepl"
-printf 'import "missing.tepl"; rule r { X => X }\n' >"$missing_import"
+printf 'import "missing.tepl" rule r { X => X }\n' >"$missing_import"
 check_exit 1 parse "$missing_import"
 grep -Fq "cannot open import 'missing.tepl'" "$output"
 
 bad_arity="${TEST_TMPDIR}/bad_arity.tepl"
-printf 'import "%s"; rule r { (add X) => X }\n' "$example" >"$bad_arity"
+printf 'import "%s" rule r { (add X) => X }\n' "$example" >"$bad_arity"
 # An import must contain dialect declarations only.
 check_exit 1 parse "$bad_arity"
 grep -Fq 'contains rules' "$output"
 
 dialect="${TEST_SRCDIR}/${TEST_WORKSPACE}/examples/sample/dialects/tensor.tepl"
-printf 'from "%s" import TensorLang as t; use t; rule r { (multiply X Y) => (multiply Y X) }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t use t rule r { (multiply X Y) => (multiply Y X) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
-printf 'from "%s" import TensorLang as t; rule r { (t.add X Y) => (t.add Y X) }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t rule r { (t.add X Y) => (t.add Y X) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
-printf 'from "%s" import TensorLang as t; rule r { (t.dot[@d] X Y) => (t.dot[@d] X Y) }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t rule r { (d: t.dot X Y) => (t.dot[d.attrs] X Y) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
 # Parsing preserves unresolved operation names; check resolves them through core.
-printf 'from "%s" import TensorLang as t; rule r { (missing.add X Y) => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t rule r { (missing.add X Y) => X }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity" --ast
 grep -Fq 'operator missing.add' "$output"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'missing.add'" "$output"
 
-printf 'from "%s" import TensorLang; use TensorLang::{add}; rule r { (add X Y) => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang use TensorLang::{add} rule r { (add X Y) => X }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
-printf 'from "%s" import TensorLang as t; use t::{add}; rule r { (multiply X Y) => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t use t::{add} rule r { (multiply X Y) => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'multiply'" "$output"
 
-printf 'from "%s" import TensorLang as t; use t::{missing}; rule r { X => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t use t::{missing} rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'missing' in dialect 't'" "$output"
 
-printf 'from "%s" import Missing as t; use t; rule r { X => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import Missing as t use t rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq "dialect 'Missing' is not defined" "$output"
 
-printf 'from "%s" import TensorLang as t; use missing; rule r { X => X }\n' "$dialect" >"$bad_arity"
+printf 'from "%s" import TensorLang as t use missing rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown dialect alias 'missing'" "$output"
 
-printf 'import "%s"; rule r { (add X) => X }\n' "$dialect" >"$bad_arity"
+printf 'import "%s" rule r { (add X) => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq 'expects exactly 2 operands' "$output"
 
 other="${TEST_TMPDIR}/other.tepl"
-printf 'dialect Other { op add(lhs: tensor, rhs: tensor) -> tensor; }\n' >"$other"
-printf 'from "%s" import TensorLang as t; from "other.tepl" import Other as o; use t::{add}; use o::{add}; rule r { X => X }\n' "$dialect" >"$bad_arity"
+printf 'dialect Other { op add(lhs: tensor, rhs: tensor) -> tensor }\n' >"$other"
+printf 'from "%s" import TensorLang as t from "other.tepl" import Other as o use t::{add} use o::{add} rule r { X => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "ambiguous operation 'add'" "$output"
 
 same_name="${TEST_TMPDIR}/same_name.tepl"
-printf 'dialect TensorLang { op add(lhs: tensor, rhs: tensor) -> tensor; }\n' >"$same_name"
-printf 'from "%s" import TensorLang as t; from "same_name.tepl" import TensorLang as other; rule r { (t.add X Y) => (other.add X Y) }\n' "$dialect" >"$bad_arity"
+printf 'dialect TensorLang { op add(lhs: tensor, rhs: tensor) -> tensor }\n' >"$same_name"
+printf 'from "%s" import TensorLang as t from "same_name.tepl" import TensorLang as other rule r { (t.add X Y) => (other.add X Y) }\n' "$dialect" >"$bad_arity"
 check_exit 0 parse "$bad_arity"
 
 duplicate="${TEST_TMPDIR}/duplicate.tepl"
 printf 'dialect Duplicate {} dialect Duplicate {}\n' >"$duplicate"
-printf 'from "duplicate.tepl" import Duplicate as d; rule r { X => X }\n' >"$bad_arity"
+printf 'from "duplicate.tepl" import Duplicate as d rule r { X => X }\n' >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq "duplicate dialect 'Duplicate'" "$output"
 
-printf 'import "%s"; rule r { (dot X Y) => X }\n' "$dialect" >"$bad_arity"
-check_exit 1 check "$bad_arity"
-grep -Fq 'requires an attribute descriptor' "$output"
+printf 'import "%s" rule r { (dot X Y) => X }\n' "$dialect" >"$bad_arity"
+check_exit 0 check "$bad_arity"
 
-printf 'import "%s"; rule r { (missing X) => X }\n' "$dialect" >"$bad_arity"
+printf 'import "%s" rule r { (missing X) => X }\n' "$dialect" >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown operation 'missing'" "$output"
 
-printf 'dialect t { op bad(x: tensor) -> tensor { attrs { axis: mystery; } } }\n' >"$bad_arity"
+printf 'dialect t { op bad(x: tensor) -> tensor { attrs { axis: mystery } } }\n' >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown attribute type 'mystery'" "$output"
 
-printf 'dialect t { op bad(x: tensor) -> tensor { attrs { kind: symbol; } } }\n' >"$bad_arity"
+printf 'dialect t { op bad(x: tensor) -> tensor { attrs { kind: symbol } } }\n' >"$bad_arity"
 check_exit 1 check "$bad_arity"
 grep -Fq "unknown attribute type 'symbol'" "$output"
 
 cycle_a="${TEST_TMPDIR}/a.tepl"
 cycle_b="${TEST_TMPDIR}/b.tepl"
-printf 'import "b.tepl"; rule r { X => X }\n' >"$cycle_a"
-printf 'import "a.tepl";\n' >"$cycle_b"
+printf 'import "b.tepl" rule r { X => X }\n' >"$cycle_a"
+printf 'import "a.tepl"\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 
@@ -246,22 +380,22 @@ check_exit 0 parse "$inherited" --ast
 grep -Fq 'parameter F: op<(tensor, tensor) -> tensor>' "$output"
 grep -Fq 'extends associate_right' "$output"
 
-printf 'from "%s" import {missing};\n' "$abstract" >"$bad_arity"
+printf 'from "%s" import {missing}\n' "$abstract" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq "rule 'missing'" "$output"
 
-printf 'from "%s" import {commute_add};\n' "$example" >"$bad_arity"
+printf 'from "%s" import {commute_add}\n' "$example" >"$bad_arity"
 check_exit 1 parse "$bad_arity"
 grep -Fq 'must be abstract' "$output"
 
 template="${TEST_TMPDIR}/template.tepl"
 printf 'abstract rule a() { X => X } abstract rule b() { Y => Y }\n' >"$template"
-printf 'from "template.tepl" import {a}; from "template.tepl" import {b};\n' >"$bad_arity"
+printf 'from "template.tepl" import {a} from "template.tepl" import {b}\n' >"$bad_arity"
 check_exit 0 parse "$bad_arity" --ast
 grep -Fq 'abstract rule a' "$output"
 grep -Fq 'abstract rule b' "$output"
 
-printf 'from "template.tepl" import {a};\n' >"$bad_arity"
+printf 'from "template.tepl" import {a}\n' >"$bad_arity"
 check_exit 0 parse "$bad_arity" --ast
 grep -Fq 'abstract rule a' "$output"
 if grep -Fq 'abstract rule b' "$output"; then
@@ -273,8 +407,8 @@ printf 'abstract rule a() { X => X } abstract rule a() { Y => Y }\n' >"$template
 check_exit 1 parse "$bad_arity"
 grep -Fq "duplicate rule 'a'" "$output"
 
-printf 'from "b.tepl" import {b}; abstract rule a() { X => X }\n' >"$cycle_a"
-printf 'from "a.tepl" import {a}; abstract rule b() { X => X }\n' >"$cycle_b"
+printf 'from "b.tepl" import {b} abstract rule a() { X => X }\n' >"$cycle_a"
+printf 'from "a.tepl" import {a} abstract rule b() { X => X }\n' >"$cycle_b"
 check_exit 1 parse "$cycle_a"
 grep -Fq 'cyclic import' "$output"
 
@@ -316,163 +450,16 @@ check_exit 1 check "$invalid"
 grep -Fq "unknown RHS capture 'missing'" "$output"
 grep -Fq "${invalid}:1:" "$output"
 
-# Generation checks semantics before creating output and diagnoses unsupported targets.
-check_exit 0 generate --help
-grep -Fq -- '--target' "$output"
-check_exit 2 generate "$example"
-check_exit 2 generate "$example" --target unknown --out "${TEST_TMPDIR}/invalid_target"
-check_exit 0 generate "$example" --target cpp --no-format --out "${TEST_TMPDIR}/cpp"
-test -f "${TEST_TMPDIR}/cpp/generated.h"
-test -f "${TEST_TMPDIR}/cpp/rules/simple.h"
-check_exit 0 generate "$example" --target cpp --no-format --out "${TEST_TMPDIR}/cpp" --check
-# Migrate owned C++ headers to the same structure as Rust.
-cpp_migration_out="${TEST_TMPDIR}/cpp"
-test -f "$cpp_migration_out/rewriting/rewrite.h"
-test -f "$cpp_migration_out/analysis/tensor_info.h"
-mkdir -p "$cpp_migration_out/pattern"
-printf '// Old matching runtime.\n' > "$cpp_migration_out/pattern/context.h"
-printf '// Old tensor metadata.\n' > "$cpp_migration_out/analysis/tensor.h"
-printf '// Old rewrite adapter.\n' > "$cpp_migration_out/analysis/rewrite_analysis.h"
-printf 'pattern/context.h\nanalysis/tensor.h\nanalysis/rewrite_analysis.h\n' >> "$cpp_migration_out/.tepl-generated-files"
-printf 'Application notes.\n' > "$cpp_migration_out/pattern/notes.md"
-check_exit 1 generate "$example" --target cpp --no-format --out "$cpp_migration_out" --check
-test -f "$cpp_migration_out/pattern/context.h"
-check_exit 0 generate "$example" --target cpp --no-format --out "$cpp_migration_out"
-test ! -e "$cpp_migration_out/pattern/context.h"
-test ! -e "$cpp_migration_out/analysis/tensor.h"
-test ! -e "$cpp_migration_out/analysis/rewrite_analysis.h"
-grep -Fq 'Application notes.' "$cpp_migration_out/pattern/notes.md"
-check_exit 0 generate "$example" --target cpp --no-format --out "$cpp_migration_out" --check
-check_exit 1 generate "$example" --target cpp --no-format --cpp-namespace class --out "${TEST_TMPDIR}/cpp_invalid"
-test ! -e "${TEST_TMPDIR}/cpp_invalid"
-check_exit 1 generate "$example" --target python --out "${TEST_TMPDIR}/unimplemented"
-grep -Fq 'python code generation is not implemented' "$output"
-check_exit 1 generate "$invalid" --out "${TEST_TMPDIR}/invalid_program"
-test ! -e "${TEST_TMPDIR}/invalid_program"
-# Removed crate-generation options are usage errors.
-check_exit 2 generate "$example" --out "${TEST_TMPDIR}/bad_package" --package-name example_rules
-check_exit 2 generate "$example" --out "${TEST_TMPDIR}/old_layout" --layout standalone
-check_exit 0 generate "$example" --target rust --out "${TEST_TMPDIR}/generated"
+# Rust generation is active; unimplemented targets do not write output.
+check_exit 0 generate "$example" --no-format --out "${TEST_TMPDIR}/generated"
 test -f "${TEST_TMPDIR}/generated/mod.rs"
-test -f "${TEST_TMPDIR}/generated/dialects/tensor_lang.rs"
-test -f "${TEST_TMPDIR}/generated/rules/simple.rs"
-test -f "${TEST_TMPDIR}/generated/rewriting/mod.rs"
-test -f "${TEST_TMPDIR}/generated/analysis/tensor_info.rs"
-test ! -e "${TEST_TMPDIR}/generated/pattern"
-# Migration removes old owned runtime files and preserves unrelated files.
-migration_out="${TEST_TMPDIR}/generated"
-mkdir -p "$migration_out/pattern"
-printf '// Previously generated runtime.\n' > "$migration_out/pattern/mod.rs"
-printf '// Previously generated tensor metadata.\n' > "$migration_out/pattern/context.rs"
-printf 'pattern/mod.rs\npattern/context.rs\n' >> "$migration_out/.tepl-generated-files"
-printf 'Application notes.\n' > "$migration_out/pattern/notes.md"
-check_exit 1 generate "$example" --out "$migration_out" --check
-test -f "$migration_out/pattern/mod.rs"
-check_exit 0 generate "$example" --out "$migration_out"
-test ! -e "$migration_out/pattern/mod.rs"
-test ! -e "$migration_out/pattern/context.rs"
-grep -Fq 'Application notes.' "$migration_out/pattern/notes.md"
-check_exit 0 generate "$example" --out "$migration_out" --check
-test ! -e "${TEST_TMPDIR}/generated/Cargo.toml"
-test ! -e "${TEST_TMPDIR}/generated/src"
-grep -Fq 'pub mod rule_commute_add' "${TEST_TMPDIR}/generated/rules/simple.rs"
-# Formatting defaults to on, can be disabled, and uses the same policy in check mode.
-raw_out="${TEST_TMPDIR}/raw_output"
-check_exit 0 generate "$example" --no-format --out "$raw_out"
-if cmp -s "${TEST_TMPDIR}/generated/mod.rs" "$raw_out/mod.rs"; then
-  echo 'Default output unexpectedly matches unformatted output' >&2
-  exit 1
-fi
-check_exit 0 generate "$example" --no-format --out "$raw_out" --check
-check_exit 1 generate "$example" --out "$raw_out" --check
-check_exit 0 generate "$example" --format --out "$raw_out"
-cmp "${TEST_TMPDIR}/generated/mod.rs" "$raw_out/mod.rs"
-# Missing rustfmt fails before output writes; opting out needs no formatter.
-PATH="${TEST_TMPDIR}/no_tools" check_exit 2 generate "$example" --out "${TEST_TMPDIR}/missing_formatter"
-grep -Fq 'rustfmt failed' "$output"
-test ! -e "${TEST_TMPDIR}/missing_formatter"
-PATH="${TEST_TMPDIR}/no_tools" check_exit 0 generate "$example" --no-format --out "${TEST_TMPDIR}/without_formatter"
-PATH="${TEST_TMPDIR}/no_tools" check_exit 2 generate "$example" --target cpp --out "${TEST_TMPDIR}/missing_cpp_formatter"
-grep -Fq 'clang-format failed' "$output"
-test ! -e "${TEST_TMPDIR}/missing_cpp_formatter"
-PATH="${TEST_TMPDIR}/no_tools" check_exit 0 generate "$example" --target cpp --no-format --out "${TEST_TMPDIR}/without_cpp_formatter"
-printf 'not a directory\n' > "${TEST_TMPDIR}/blocked_output"
-check_exit 2 generate "$example" --out "${TEST_TMPDIR}/blocked_output"
-
-# Directory loading preserves file scope, relative paths, and instance ownership.
-project="${TEST_TMPDIR}/project"
-mkdir -p "$project/rules/nested" "$project/dialects"
-printf 'dialect Test { op add(x: tensor, y: tensor) -> tensor; }\n' > "$project/dialects/test.tepl"
-printf 'from "../dialects/test.tepl" import Test as t; rule same { (t.add X Y) => (t.add Y X) where { $allowed(X); } }\n' > "$project/rules/one.tepl"
-printf 'from "../../dialects/test.tepl" import Test as t; rule same { X: [N] (t.add X Y) => (t.add Y X) where { $allowed(N, N); } }\n' > "$project/rules/nested/two.tepl"
-check_exit 0 generate "$project" --out "${TEST_TMPDIR}/project_out"
-test -f "${TEST_TMPDIR}/project_out/dialects/test.rs"
-test -f "${TEST_TMPDIR}/project_out/rules/nested/two.rs"
-grep -Fq '"one::same"' "${TEST_TMPDIR}/project_out/rules/one.rs"
-grep -Fq '"nested::two::same"' "${TEST_TMPDIR}/project_out/rules/nested/two.rs"
-check_exit 0 generate "$inherited" --out "${TEST_TMPDIR}/inherited_out"
-grep -Fq 'pub mod rule_commute_small_vectors' "${TEST_TMPDIR}/inherited_out/rules/inherited.rs"
-test ! -f "${TEST_TMPDIR}/inherited_out/rules/abstract.rs"
-# Rust normalization collisions produce a diagnostic, never numeric suffixes.
-printf 'dialect Test { op subtract(x: tensor, y: tensor) -> tensor; }\n' > "$project/dialects/duplicate.tepl"
-check_exit 1 generate "$project" --out "${TEST_TMPDIR}/collision_out"
-grep -Fq 'dialect module name collision' "$output"
-test ! -e "${TEST_TMPDIR}/collision_out"
-
-# Invalid target names report the TEPL location before invoking the formatter.
-invalid_name="${TEST_TMPDIR}/invalid_name.tepl"
-printf 'dialect self_ { op copy(x: tensor) -> tensor; }\n' > "$invalid_name"
-check_exit 1 generate "$invalid_name" --out "${TEST_TMPDIR}/invalid_name_out"
-grep -Fq "${invalid_name}:1:" "$output"
-grep -Fq "cannot generate Rust identifier 'Self'" "$output"
-test ! -e "${TEST_TMPDIR}/invalid_name_out"
-PATH="${TEST_TMPDIR}/no_tools" check_exit 1 generate "$invalid_name" --out "${TEST_TMPDIR}/invalid_name_out"
-grep -Fq "does not allow r#Self" "$output"
-test ! -e "${TEST_TMPDIR}/invalid_name_out"
-
-# Module output is suitable for an existing crate; check mode never repairs drift.
-module_out="${TEST_TMPDIR}/any_name"
-check_exit 0 generate "$example" --out "$module_out"
-test -f "$module_out/op_node.rs"
-test -f "$module_out/.tepl-generated-files"
-test ! -e "$module_out/Cargo.toml"
-check_exit 0 generate "$example" --out "$module_out" --check
-printf '// handwritten host\n' > "$module_out/host.rs"
-printf '// edited generated file\n' > "$module_out/op_node.rs"
-cp "$module_out/op_node.rs" "${TEST_TMPDIR}/edited_node"
-check_exit 1 generate "$example" --out "$module_out" --check
-cmp "$module_out/op_node.rs" "${TEST_TMPDIR}/edited_node"
-check_exit 0 generate "$example" --out "$module_out"
-# Switching the source removes stale generated rule files but keeps the host file.
-check_exit 0 generate "$inherited" --out "$module_out"
-test ! -f "$module_out/rules/simple.rs"
-test -f "$module_out/rules/inherited.rs"
-test -f "$module_out/host.rs"
-check_exit 0 generate "$inherited" --out "$module_out" --check
-
-# Graph-only projects are discovered, including nested modules and single files.
-graph_project="${TEST_TMPDIR}/graph_project"
-mkdir -p "$graph_project/graphs/nested"
-printf 'graph scalar { yield 5:i32; }\n' > "$graph_project/graphs/nested/example.tepl"
-check_exit 0 check "$graph_project"
-grep -Fq 'graph #0 scalar' "$output"
-check_exit 0 parse "$graph_project/graphs/nested/example.tepl"
-grep -Fxq 'Parsed 0 rule(s) and 1 graph(s).' "$output"
-check_exit 0 parse "$graph_project/graphs/nested/example.tepl" --ast
-grep -Fq 'yield 5:i32' "$output"
-check_exit 0 generate "$graph_project" --out "${TEST_TMPDIR}/graph_rust"
-test -f "${TEST_TMPDIR}/graph_rust/graphs/nested/example.rs"
-check_exit 0 generate "$graph_project" --out "${TEST_TMPDIR}/graph_rust" --check
-check_exit 0 generate "$graph_project" --target cpp --out "${TEST_TMPDIR}/graph_cpp"
-test -f "${TEST_TMPDIR}/graph_cpp/graphs/nested/example.h"
-check_exit 0 generate "$graph_project" --target cpp --out "${TEST_TMPDIR}/graph_cpp" --check
-# Invalid graph module names fail before writing output.
-printf 'graph scalar { yield 1; }\n' > "$graph_project/graphs/definition.tepl"
-check_exit 1 generate "$graph_project" --out "${TEST_TMPDIR}/graph_reserved"
-grep -Fq 'reserved graph output module' "$output"
-test ! -e "${TEST_TMPDIR}/graph_reserved"
-rm "$graph_project/graphs/definition.tepl"
-printf 'graph scalar { yield 1; }\n' > "$graph_project/graphs/nested.tepl"
-check_exit 1 generate "$graph_project" --out "${TEST_TMPDIR}/graph_file_directory"
-grep -Fq 'graph file/directory module collision' "$output"
-test ! -e "${TEST_TMPDIR}/graph_file_directory"
+check_exit 0 generate "$example" --no-format --check --out "${TEST_TMPDIR}/generated"
+check_exit 0 generate "$example" --target cpp --cpp-namespace app::ir --no-format --out "${TEST_TMPDIR}/generated-cpp"
+test -f "${TEST_TMPDIR}/generated-cpp/generated.h"
+grep -Fq 'namespace app::ir' "${TEST_TMPDIR}/generated-cpp/program.h"
+check_exit 0 generate "$example" --target cpp --cpp-namespace app::ir --no-format --check --out "${TEST_TMPDIR}/generated-cpp"
+check_exit 1 generate "$example" --target cpp --cpp-namespace std --no-format --out "${TEST_TMPDIR}/invalid-cpp"
+test ! -e "${TEST_TMPDIR}/invalid-cpp"
+check_exit 1 generate "$example" --target python --no-format --out "${TEST_TMPDIR}/deferred"
+grep -Fq 'python code generation is not implemented' "$output"
+test ! -e "${TEST_TMPDIR}/deferred"

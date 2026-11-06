@@ -1,0 +1,1571 @@
+{
+  "schema_version": 1,
+  "tepl_revision": "992048d9d368d953ce6aaadfacd2470f63eccff9",
+  "xla_revision": "e02127ba9c9c48912b0e6776fe5bfe3843d81042",
+  "scope": "Algebraic rewrite expressibility through operation/dialect declarations, patterns, guards and explicit RHS constructors. Ignore XLA visitor/mutation plumbing, backend profitability and exact target numerical policy. Automatic value-equivalence checking is measured separately. These are code-based assessments, not 239 complete compiled ports.",
+  "statuses": {
+    "expressible": "The algebraic structure and metadata construction fit the current rule/dialect language; missing value-semantics declarations are not a language limitation.",
+    "needs_extension": "The general source case requires analysis facts or tensor-literal inspection/materialization not provided by the current rule language. Host calls and host fn parameters are unsupported. Concrete scalar/fixed-payload specializations may be expressible; these requirements do not count as supported general schemas.",
+    "partial": "Concrete arities, ranks, extents or single-result cases fit; the entire schema needs operand-list/graph-list or result adaptation.",
+    "nonlocal": "The rewrite needs a separately existing graph value outside the matched subtree; graph lookup or nonlocal matching support is not currently provided."
+  },
+  "evidence": [
+    "docs/references/built-ins.md",
+    "src/shared/catalog/rules.h",
+    "tests/syntax_test.cc",
+    "docs/advanced/attributes_and_conditions.md",
+    "labs/xla_rewrite/tepl/tepl.toml",
+    "labs/xla_rewrite/tepl/dialects/hlo.tepl",
+    "labs/xla_rewrite/tepl/dialects/hlo_structural.tepl"
+  ],
+  "rules": [
+    {
+      "id": "elementwise-abs-nonnegative",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: The IsNonNegative source analysis supplies an applicability fact.",
+      "integration": [
+        "The IsNonNegative source analysis supplies an applicability fact."
+      ]
+    },
+    {
+      "id": "elementwise-add-zero",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-add-constant-order",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-add-constants",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-subtract-add-constants",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-add-subtract-cancel",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "indexing-add-sparse-update",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-factor-common-product",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "indexing-add-scatter",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-add-two-scatters-concat",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-add-two-scatters-nested",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-and-true",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-and-zero",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-and-upper-bounds",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract effective-scalar integer bounds from source constant payloads.",
+      "integration": [
+        "Extract effective-scalar integer bounds from source constant payloads."
+      ]
+    },
+    {
+      "id": "elementwise-subtract-self",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-subtract-zero",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-subtract-constant",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-subtract-subtract-cancel",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-subtract-add-cancel",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-add-subtract-cancel-right",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-one",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-power-two-unsigned",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Recognize/extract the constant power-of-two divisor; construct the shift literal.",
+      "integration": [
+        "Recognize/extract the constant power-of-two divisor; construct the shift literal."
+      ]
+    },
+    {
+      "id": "elementwise-divide-power-two-signed",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Recognize/extract the constant power-of-two divisor; construct typed shift and comparison literals.",
+      "integration": [
+        "Recognize/extract the constant power-of-two divisor; construct typed shift and comparison literals."
+      ]
+    },
+    {
+      "id": "elementwise-divide-exponentials",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-exponential",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-power",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-sqrt",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-rsqrt",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-constant",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Evaluate reciprocal constants in the source type and materialize their payloads.",
+      "integration": [
+        "Evaluate reciprocal constants in the source type and materialize their payloads."
+      ]
+    },
+    {
+      "id": "broadcast-divide-broadcast",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-two-quotients",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-left-quotient",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-right-quotient",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-multiply-one",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-multiply-zero",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-multiply-negatives",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-square-abs",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-multiply-predicate",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-multiply-constant-pairs",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-multiply-constants",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-multiply-constant-into-broadcast",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-multiply-exponentials",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-square-sqrt",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Preserve the source nonnegative-input applicability fact.",
+      "integration": [
+        "Preserve the source nonnegative-input applicability fact."
+      ]
+    },
+    {
+      "id": "elementwise-square-rsqrt",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Preserve the source nonnegative-input applicability fact.",
+      "integration": [
+        "Preserve the source nonnegative-input applicability fact."
+      ]
+    },
+    {
+      "id": "elementwise-double-negate",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-double-not",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-or-true",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-or-zero",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-xor-self",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-xor-zero",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-log-exp",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-log-power",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-log-sqrt",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-log-rsqrt",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-max-self",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-max-identity",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-max-nested-left",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-max-nested-right",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-max-nested-right-reorder",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-min-self",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-min-identity",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-min-nested-left",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-min-nested-right",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-min-nested-right-reorder",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-max-min-clamp",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract constant bounds and preserve the source lo < hi fact.",
+      "integration": [
+        "Extract constant bounds and preserve the source lo < hi fact."
+      ]
+    },
+    {
+      "id": "elementwise-min-max-clamp",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract constant bounds and preserve the source lo < hi fact.",
+      "integration": [
+        "Extract constant bounds and preserve the source lo < hi fact."
+      ]
+    },
+    {
+      "id": "elementwise-max-clamp-bound",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-max-monotone",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-clamp-clamp",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-exp-zero",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Match scalar/splat zero payloads; scalar literal instances are directly expressible.",
+      "integration": [
+        "Match scalar/splat zero payloads; scalar literal instances are directly expressible."
+      ]
+    },
+    {
+      "id": "elementwise-complex-components",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-real-complex",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-real-noncomplex",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-imag-complex",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-imag-noncomplex",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-power-zero",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Match scalar/splat exponent payloads; scalar literal instances are directly expressible.",
+      "integration": [
+        "Match scalar/splat exponent payloads; scalar literal instances are directly expressible."
+      ]
+    },
+    {
+      "id": "elementwise-power-one",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Match scalar/splat exponent payloads; scalar literal instances are directly expressible.",
+      "integration": [
+        "Match scalar/splat exponent payloads; scalar literal instances are directly expressible."
+      ]
+    },
+    {
+      "id": "elementwise-power-exp",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-power-two",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Match scalar/splat exponent payloads; scalar literal instances are directly expressible.",
+      "integration": [
+        "Match scalar/splat exponent payloads; scalar literal instances are directly expressible."
+      ]
+    },
+    {
+      "id": "elementwise-power-three",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Match scalar/splat exponent payloads; scalar literal instances are directly expressible.",
+      "integration": [
+        "Match scalar/splat exponent payloads; scalar literal instances are directly expressible."
+      ]
+    },
+    {
+      "id": "elementwise-power-reciprocal",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Match scalar/splat exponent payloads; scalar literal instances are directly expressible.",
+      "integration": [
+        "Match scalar/splat exponent payloads; scalar literal instances are directly expressible."
+      ]
+    },
+    {
+      "id": "elementwise-power-half",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Recognize the exponent and preserve the source nonnegative-input fact.",
+      "integration": [
+        "Recognize the exponent and preserve the source nonnegative-input fact."
+      ]
+    },
+    {
+      "id": "elementwise-rsqrt-negative-power",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Recognize the exponent and preserve the source nonnegative-input fact.",
+      "integration": [
+        "Recognize the exponent and preserve the source nonnegative-input fact."
+      ]
+    },
+    {
+      "id": "elementwise-rsqrt-reciprocal",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Preserve the source nonnegative-input fact.",
+      "integration": [
+        "Preserve the source nonnegative-input fact."
+      ]
+    },
+    {
+      "id": "elementwise-sqrt-square",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-compare-nonnegative-zero",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Preserve a source nonnegative-value fact when unsigned dtype alone is insufficient.",
+      "integration": [
+        "Preserve a source nonnegative-value fact when unsigned dtype alone is insufficient."
+      ]
+    },
+    {
+      "id": "elementwise-compare-self",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-compare-predicate-false",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-compare-predicate-true",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-compare-selected-mask",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-compare-max",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-compare-min",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-select-identical",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-select-constant",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Match predicate literal/splat payloads; scalar literal instances are directly expressible.",
+      "integration": [
+        "Match predicate literal/splat payloads; scalar literal instances are directly expressible."
+      ]
+    },
+    {
+      "id": "elementwise-select-not",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-select-predicate-identity",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-select-predicate-not",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-select-compare-gt",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-select-compare-lt",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-select-compare-eq",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-select-compare-ne",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "indexing-select-update",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-literal-splat",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Inspect a source elements payload, recognize a splat and materialize its scalar.",
+      "integration": [
+        "Inspect a source elements payload, recognize a splat and materialize its scalar."
+      ]
+    },
+    {
+      "id": "indexing-literal-iota",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Inspect literal elements and supply recognition/shape metadata.",
+      "integration": [
+        "Inspect literal elements and supply recognition/shape metadata."
+      ]
+    },
+    {
+      "id": "indexing-literal-strided-iota",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Inspect literal elements and extract the stride.",
+      "integration": [
+        "Inspect literal elements and extract the stride."
+      ]
+    },
+    {
+      "id": "broadcast-reshape",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-transpose",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-inserted-unit-dims",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-elementwise",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-scalar-through-indexing",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-iota",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-compose",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-drop-unit-dims",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-reshape-empty",
+      "status": "expressible",
+      "reason": "Declare reshape/transpose with shape/permutation metadata. Element-count checks and explicit constructors describe the algebraic replacement; semantic split/merge normalization is a separate capability.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-reshape-identity",
+      "status": "expressible",
+      "reason": "Declare reshape/transpose with shape/permutation metadata. Element-count checks and explicit constructors describe the algebraic replacement; semantic split/merge normalization is a separate capability.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-reshape-compose",
+      "status": "expressible",
+      "reason": "Declare reshape/transpose with shape/permutation metadata. Element-count checks and explicit constructors describe the algebraic replacement; semantic split/merge normalization is a separate capability.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-reshape-transpose-cancel-chain",
+      "status": "expressible",
+      "reason": "Declare reshape/transpose with shape/permutation metadata. Element-count checks and explicit constructors describe the algebraic replacement; semantic split/merge normalization is a separate capability.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-reshape-hoist-transpose",
+      "status": "expressible",
+      "reason": "Declare reshape/transpose with shape/permutation metadata. Element-count checks and explicit constructors describe the algebraic replacement; semantic split/merge normalization is a separate capability.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-reshape-broadcast",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "indexing-reshape-iota",
+      "status": "partial",
+      "reason": "For a fixed output rank the iota digit sum is expressible; a variable number of newly emitted arithmetic nodes needs graph-list construction.",
+      "integration": []
+    },
+    {
+      "id": "indexing-reshape-update",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-transpose-identity",
+      "status": "expressible",
+      "reason": "Declare reshape/transpose with shape/permutation metadata. Element-count checks and explicit constructors describe the algebraic replacement; semantic split/merge normalization is a separate capability.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-transpose-compose",
+      "status": "expressible",
+      "reason": "Declare reshape/transpose with shape/permutation metadata. Element-count checks and explicit constructors describe the algebraic replacement; semantic split/merge normalization is a separate capability.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-transpose-unit-dims",
+      "status": "expressible",
+      "reason": "Declare reshape/transpose with shape/permutation metadata. Element-count checks and explicit constructors describe the algebraic replacement; semantic split/merge normalization is a separate capability.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-transpose-broadcast",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "transpose-reshape-space-depth-to-slices",
+      "status": "partial",
+      "reason": "A fixed number of chunks is expressible; emitting a data-dependent number of slice nodes needs graph-list construction.",
+      "integration": []
+    },
+    {
+      "id": "indexing-concat-unary",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-concat-empty",
+      "status": "partial",
+      "reason": "An arbitrary operand list must be filtered; fixed-arity cases can be written.",
+      "integration": []
+    },
+    {
+      "id": "indexing-concat-flatten",
+      "status": "partial",
+      "reason": "Concrete arities can be flattened; the rule language does not capture/splice arbitrary operand lists.",
+      "integration": []
+    },
+    {
+      "id": "indexing-concat-adjacent-slices",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-concat-splat-to-pad",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-concat-repeat-unit-axis",
+      "status": "partial",
+      "reason": "A concrete number of repeated operands is expressible; an arbitrary repeated operand list is not a single current pattern.",
+      "integration": []
+    },
+    {
+      "id": "indexing-iota-trivial",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-pad-empty",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-pad-interior-unit",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-pad-identity",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-pad-broadcast",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "indexing-pad-negative",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-reverse-trivial",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-reverse-compose",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-reverse-elementwise",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-reverse-inserted-unit-dims",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-rotate-compose",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-rotate-canonicalize",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: The metadata-only cases are expressible; constant-splat recognition needs source payload information.",
+      "integration": [
+        "The metadata-only cases are expressible; constant-splat recognition needs source payload information."
+      ]
+    },
+    {
+      "id": "indexing-slice-identity",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-pad-only",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-pad-cancel",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-inside-pad",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-update-cancel",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract constant starts and preserve the source clamping/correspondence conditions.",
+      "integration": [
+        "Extract constant starts and preserve the source clamping/correspondence conditions."
+      ]
+    },
+    {
+      "id": "indexing-slice-inside-update",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract constant starts and preserve the source clamping/correspondence conditions.",
+      "integration": [
+        "Extract constant starts and preserve the source clamping/correspondence conditions."
+      ]
+    },
+    {
+      "id": "indexing-slice-compose",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-slice-broadcast-only",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-slice-broadcast",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-concat-scalar",
+      "status": "partial",
+      "reason": "Selecting among an unbounded concat operand list requires an arity family or list-pattern support.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-concat",
+      "status": "partial",
+      "reason": "The variable overlapping operand subsequence requires an arity family or list-pattern support.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-reshape",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-reverse",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-slice-singleton-stride",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-dynamic-slice-broadcast",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "indexing-dynamic-slice-identity",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-dynamic-slice-zero-index",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-dynamic-slice-unit-reshape",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-dynamic-slice-transpose",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-dynamic-slice-static",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract constant index operands into metadata; the clamp and slice attributes are expressible.",
+      "integration": [
+        "Extract constant index operands into metadata; the clamp and slice attributes are expressible."
+      ]
+    },
+    {
+      "id": "indexing-dynamic-slice-iota",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-dynamic-slice-compose",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-update-broadcast-to-pad",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract constant index operands; padding attributes then use ordinary metadata arithmetic.",
+      "integration": [
+        "Extract constant index operands; padding attributes then use ordinary metadata arithmetic."
+      ]
+    },
+    {
+      "id": "indexing-update-full",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-update-pad-to-concat",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract constant starts and preserve the source region-membership fact.",
+      "integration": [
+        "Extract constant starts and preserve the source region-membership fact."
+      ]
+    },
+    {
+      "id": "indexing-update-zero-index",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-update-empty",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-update-compose",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-gather-empty",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "broadcast-gather-scalar",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "indexing-gather-small",
+      "status": "partial",
+      "reason": "A fixed operand extent can be expanded into a select chain; an arbitrary-length new select chain needs graph-list construction.",
+      "integration": []
+    },
+    {
+      "id": "indexing-gather-pad",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-gather-reshape-pad",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-scatter-empty-update",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-scatter-scalar-map",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "indexing-sort-trivial",
+      "status": "partial",
+      "reason": "The single-output identity case is expressible; a key/value tuple result requires component or result adaptation.",
+      "integration": []
+    },
+    {
+      "id": "indexing-transpose-scatter",
+      "status": "expressible",
+      "reason": "Declare the indexing/update opcodes and their attributes; captures and explicit metadata expressions describe the replacement graph. Value indexing inside the declared operation does not require the rule language to execute tensor values.",
+      "integration": []
+    },
+    {
+      "id": "dot-empty",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-no-contraction",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-reduce-product",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-drop-unit-dims",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-transpose-both-operands",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-swap-parameter-operand",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-concat-contraction",
+      "status": "partial",
+      "reason": "Each fixed number of concat chunks can be expanded into dots; constructing an unbounded sum of new graph nodes needs an arity family.",
+      "integration": []
+    },
+    {
+      "id": "dot-constant-dynamic-slice",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-move-contracting-permutation",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-move-reverse",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-move-zero-pad",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-move-broadcast",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-associate",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-slice-output",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-reduce-output-free",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-reduce-output-batch",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-transpose-output",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "dot-scalar-multipliers",
+      "status": "expressible",
+      "reason": "Use declared dot/transpose/reduction opcodes, captured dimension lists, and explicit attribute constructors. Precision/backend choices remain source policy.",
+      "integration": []
+    },
+    {
+      "id": "reduction-empty",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-unit-axes",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-negate",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-argextreme-splat",
+      "status": "partial",
+      "reason": "Single-result/component rules are expressible; the catalog tuple-valued argextreme replacement needs a tuple/result adapter.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-transpose",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-compose",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-reshape-reduced",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-reshape-free",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-concat",
+      "status": "partial",
+      "reason": "A fixed concat arity can be expanded and folded; arbitrary operand-list capture and graph folds are not provided.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-reuse-argmax",
+      "status": "nonlocal",
+      "reason": "The replacement reuses a separately existing ArgMax node outside the matched reduction subtree; this requires graph lookup or nonlocal matching support that is not currently available.",
+      "integration": []
+    },
+    {
+      "id": "reduction-reuse-argmin",
+      "status": "nonlocal",
+      "reason": "The replacement reuses a separately existing ArgMin node outside the matched reduction subtree; this requires graph lookup or nonlocal matching support that is not currently available.",
+      "integration": []
+    },
+    {
+      "id": "reduction-splat-min",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-splat-max",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-splat-and",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-splat-or",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-broadcast-original-axes",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-broadcast-replication-axes",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-window-empty",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-window-scalar",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-window-splat-cumsum",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-window-singleton-add",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-window-singleton-min",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-window-singleton-max",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-window-to-reduce",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-slice-window-to-reduce",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "reduction-window-pad",
+      "status": "expressible",
+      "reason": "Declare the reduction opcode and forward its region handle; use list operations to construct reduction dimensions. The rule language need not implement a generic reducer.",
+      "integration": [
+        "Reducer/comparator bodies can be forwarded as opaque region handles; general body construction or recognition is not provided by the rule language."
+      ]
+    },
+    {
+      "id": "broadcast-window-padded-unit-broadcast",
+      "status": "expressible",
+      "reason": "Use declared broadcast/indexing opcodes and explicit shape/axis lists. Shape arithmetic, gather, exclude and comprehensions construct RHS metadata.",
+      "integration": []
+    },
+    {
+      "id": "convolution-empty",
+      "status": "expressible",
+      "reason": "Declare the convolution attribute schema, preserve applicable source conditions, and construct the new attributes explicitly. A built-in semantic model for every layout/window is unnecessary for expression.",
+      "integration": []
+    },
+    {
+      "id": "convolution-fold-input-pad",
+      "status": "expressible",
+      "reason": "Declare the convolution attribute schema, preserve applicable source conditions, and construct the new attributes explicitly. A built-in semantic model for every layout/window is unnecessary for expression.",
+      "integration": []
+    },
+    {
+      "id": "convolution-fold-filter-pad",
+      "status": "expressible",
+      "reason": "Declare the convolution attribute schema, preserve applicable source conditions, and construct the new attributes explicitly. A built-in semantic model for every layout/window is unnecessary for expression.",
+      "integration": []
+    },
+    {
+      "id": "convolution-pointwise-dot",
+      "status": "expressible",
+      "reason": "Declare the convolution attribute schema, preserve applicable source conditions, and construct the new attributes explicitly. A built-in semantic model for every layout/window is unnecessary for expression.",
+      "integration": []
+    },
+    {
+      "id": "convolution-depthwise-product",
+      "status": "expressible",
+      "reason": "Declare the convolution attribute schema, preserve applicable source conditions, and construct the new attributes explicitly. A built-in semantic model for every layout/window is unnecessary for expression.",
+      "integration": []
+    },
+    {
+      "id": "convolution-scale-filter-bias",
+      "status": "expressible",
+      "reason": "Declare the convolution attribute schema, preserve applicable source conditions, and construct the new attributes explicitly. A built-in semantic model for every layout/window is unnecessary for expression.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-divide-converted-predicate",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-remainder-compose",
+      "status": "expressible",
+      "reason": "Declare the scalar opcodes in the dialect, match the expression tree, and construct the algebraic replacement. Finite opcode alternatives can use concrete rules or abstract-rule instances.",
+      "integration": []
+    },
+    {
+      "id": "elementwise-remainder-power-two-unsigned",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Recognize/extract the power-of-two divisor and materialize a typed mask.",
+      "integration": [
+        "Recognize/extract the power-of-two divisor and materialize a typed mask."
+      ]
+    },
+    {
+      "id": "elementwise-remainder-power-two-signed",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Recognize/extract the power-of-two divisor and materialize a typed mask.",
+      "integration": [
+        "Recognize/extract the power-of-two divisor and materialize a typed mask."
+      ]
+    },
+    {
+      "id": "indexing-remainder-iota",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract the scalar modulus and check its representable range.",
+      "integration": [
+        "Extract the scalar modulus and check its representable range."
+      ]
+    },
+    {
+      "id": "indexing-remainder-offset-iota",
+      "status": "needs_extension",
+      "reason": "The general source case needs capabilities not currently exposed to rules: Extract the scalar modulus and preserve checked range conditions.",
+      "integration": [
+        "Extract the scalar modulus and preserve checked range conditions."
+      ]
+    },
+    {
+      "id": "convolution-swap-operands",
+      "status": "expressible",
+      "reason": "Declare the convolution attribute schema, preserve applicable source conditions, and construct the new attributes explicitly. A built-in semantic model for every layout/window is unnecessary for expression.",
+      "integration": []
+    }
+  ]
+}

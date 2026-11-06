@@ -13,6 +13,11 @@ these declarations. The host application loads the graph into an e-graph engine,
 applies the rules through **equality saturation**, and extracts a result using
 its cost model.
 
+TEPL does not use semicolons. Newlines are whitespace; keywords, parentheses,
+brackets, and braces delimit declarations and statements. Write a condition as
+`where expression`, or use `where { let name = expression yield condition }`
+when it needs local bindings. See [conditions and local bindings](advanced/attributes_and_conditions.md#conditions-and-local-bindings).
+
 <figure markdown="1">
 ![Overview of TEPL's core concepts: dialects, rules, and graphs](assets/images/tepl_concept_basic.png){ width="720" }
 </figure>
@@ -37,23 +42,23 @@ In `dialects/math.tepl`, define elementwise addition and sign reversal:
 dialect Math {
     op add(lhs: tensor, rhs: tensor) -> tensor {
         dtype(a, b) {
-            assert a == b;
-            assert is_float(a);
-            yield a;
+            assert a == b
+            assert is_float(a)
+            yield a
         }
         shape(a, b) {
-            assert a == b;
-            yield a;
+            assert a == b
+            yield a
         }
     }
 
     op negate(input: tensor) -> tensor {
         dtype(t) {
-            assert is_float(t);
-            yield t;
+            assert is_float(t)
+            yield t
         }
         shape(s) {
-            yield s;
+            yield s
         }
     }
 }
@@ -69,7 +74,7 @@ computational meaning.
 In `rules/simplify.tepl`, import the dialect and write two rewrites:
 
 ```javascript
-from "../dialects/math.tepl" import Math as m;
+from "../dialects/math.tepl" import Math as m
 
 rule cancel_double_negate {
     X: f32[N, M]
@@ -101,16 +106,16 @@ any compatible tensors in the host e-graph.
 In `graphs/example.tepl`, construct a graph using the same dialect:
 
 ```javascript
-from "../dialects/math.tepl" import Math as m;
+from "../dialects/math.tepl" import Math as m
 
 graph example {
-    input X: f32[2, 3];
-    input Y: f32[2, 3];
+    input X: f32[2, 3]
+    input Y: f32[2, 3]
 
-    let restored = (m.negate (m.negate X));
-    let sum = (m.add restored Y);
+    let restored = (m.negate (m.negate X))
+    let sum = (m.add restored Y)
 
-    yield (m.add sum sum);
+    yield (m.add sum sum)
 }
 ```
 

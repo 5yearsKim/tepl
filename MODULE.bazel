@@ -1,10 +1,12 @@
-module(name = "tepl", version = "0.1.0")
+module(name = "tepl", version = "0.2.0")
 
 bazel_dep(name = "rules_cc", version = "0.2.19")
 bazel_dep(name = "rules_java", version = "9.3.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "cli11", version = "2.6.2")
+bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.2")
+bazel_dep(name = "tomlplusplus", version = "3.4.0")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
@@ -32,4 +34,14 @@ http_archive(
     build_file = "//third_party:antlr_runtime.BUILD.bazel",
     sha256 = "0ed13668906e86dbc0dcddf30fdee68c10203dea4e83852b4edb810821bee3c4",
     url = "https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip",
+)
+
+# Used by the optional C++ runtime and integration tests, not the compiler.
+http_archive(
+    name = "eggc",
+    type = "tar.gz",
+    build_file = "//third_party:eggc.BUILD.bazel",
+    sha256 = "89d2ffbd7999edb65ae3c180d1c9caf72117fb1e8f1f39bf90107e4bb8d8b4f9",
+    strip_prefix = "egg-c-0c28bd5050b85ed10e915b5348c27f760ed31ae5",
+    url = "https://codeload.github.com/5yearsKim/egg-c/tar.gz/0c28bd5050b85ed10e915b5348c27f760ed31ae5",
 )

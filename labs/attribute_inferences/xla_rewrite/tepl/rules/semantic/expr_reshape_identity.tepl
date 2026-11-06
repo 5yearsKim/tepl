@@ -1,0 +1,10 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_reshape_identity {
+  X: [Dims...]
+
+  (attr_r: hlo.reshape X) => X
+
+  where attr_r.attrs.shape == Dims
+}

@@ -1,0 +1,28 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: reduction-broadcast-replication-axes
+// Scope: Reduce all appended replication axes; zero-initialized sum, symbolic replication count.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_reduction_broadcast_replication_axes {
+  dtype T
+  X: T[Dims...]
+
+  (attr_r: hlo.reduce_sum (attr_b: hlo.broadcast X))
+  =>
+  (hlo.multiply X (attr_scale: hlo.broadcast (attr_count: hlo.scalar)))
+
+  where
+    attr_b.attrs.dimensions == range(len(Dims))
+      && attr_r.attrs.dimensions
+        == [
+          len(Dims) + i
+          for i in range(len(attr_b.attrs.new_extents))
+        ] derive {
+    attr_count.attrs = {
+      value: product(attr_b.attrs.new_extents),
+      element_type: T,
+      shape: []
+    }
+    attr_scale.attrs = { dimensions: [], new_extents: Dims }
+  }
+}

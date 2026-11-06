@@ -24,9 +24,9 @@ This matrix multiplication example belongs inside a `dialect` declaration:
 ```javascript
 op matmul(lhs: tensor, rhs: tensor) -> tensor {
     shape(l, r) {
-        assert len(l) == 2 && len(r) == 2;
-        assert l[1] == r[0];
-        yield [l[0], r[1]];
+        assert len(l) == 2 && len(r) == 2
+        assert l[1] == r[0]
+        yield [l[0], r[1]]
     }
 }
 ```
@@ -47,12 +47,12 @@ A reshape operation can take its target shape from an attribute:
 ```javascript
 op reshape(input: tensor) -> tensor {
     attrs {
-        shape: index[];
+        shape: extent[]
     }
     shape(s) {
-        let target = attrs.shape;
-        assert product(s) == product(target);
-        yield target;
+        let target = attrs.shape
+        assert product(s) == product(target)
+        yield target
     }
 }
 ```
@@ -106,15 +106,15 @@ Shape programs support arithmetic, comparisons, list literals and indexing,
 Intermediate integers use checked signed 128-bit arithmetic. Yielded dimensions
 must be nonnegative and fit `u64`. Only required branches of `&&`, `||`, and
 conditional expressions are evaluated. Function calls must resolve to supported
-builtins; `$` host calls are unavailable inside shape and dtype programs.
+builtins. Application callbacks are unsupported throughout TEPL.
 See [built-in functions](built-ins.md) for signatures and failure behavior.
 
 Generated Rust and C++ evaluators reuse these programs for e-class analysis and
 replacement validation. A result can be **known**, **unknown** when required
 metadata or inference is unavailable, or **invalid** when a check fails.
-Omitting a shape block supplies no generated shape inference; the host can
-provide it. Checking source validates types and names, while concrete dimensions
-are checked during evaluation.
+An axes contract provides shape inference when there is no shape block. Without
+either, the inferred shape remains unknown. Checking source validates types and
+names, while concrete dimensions are checked during evaluation.
 
 Shape inference does not evaluate tensor contents or prove a rewrite's
 mathematical equivalence. See the [tensor dialect](../../examples/sample/dialects/tensor.tepl)

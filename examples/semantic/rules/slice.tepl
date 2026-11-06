@@ -1,0 +1,42 @@
+from "dialects/tensor.tepl" import TensorLang as t
+use t::{slice, add, transpose}
+
+rule slice_add {
+  (s: slice (add A B)) => (add (slice[s.attrs] A) (slice[s.attrs] B))
+}
+
+// Coordinate metadata is explicit. Unit strides keep the arithmetic proof
+// within the current verifier's supported bounds.
+rule compose_slice {
+  (outer: slice (inner: slice A)) => (out: slice A)
+
+  where
+    inner.attrs.strides == [1 for d in inner.attrs.sizes]
+      && outer.attrs.strides == inner.attrs.strides
+      && all(
+        [
+          v <= 9223372036854775807
+          for v in [
+            inner.attrs.starts[i] + outer.attrs.starts[i]
+            for i in range(len(inner.attrs.starts))
+          ]
+        ]
+      ) derive {
+    out.attrs = {
+      starts: [
+        inner.attrs.starts[i] + outer.attrs.starts[i]
+        for i in range(len(inner.attrs.starts))
+      ],
+      sizes: outer.attrs.sizes,
+      strides: inner.attrs.strides
+    }
+  }
+}
+
+rule slice_transposed_input {
+  (s: slice (p: transpose (add A B)))
+  =>
+  (add
+    (slice[s.attrs] (transpose[p.attrs] A))
+    (slice[s.attrs] (transpose[p.attrs] B)))
+}

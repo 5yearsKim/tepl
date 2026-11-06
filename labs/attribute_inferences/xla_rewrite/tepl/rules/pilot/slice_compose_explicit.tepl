@@ -1,0 +1,17 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Syntax migration of rules/semantic/slice_compose.tepl.
+// Preserve its rank-one and unit-stride restrictions.
+rule slice_compose_explicit {
+  X: [N]
+
+  (outer: hlo.slice (inner: hlo.slice X)) => (result: hlo.slice X)
+
+  where inner.attrs.strides == [1] && outer.attrs.strides == [1] derive {
+    result.attrs = {
+      starts: [inner.attrs.starts[0] + outer.attrs.starts[0]],
+      sizes: outer.attrs.sizes,
+      strides: [1]
+    }
+  }
+}

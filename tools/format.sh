@@ -32,7 +32,7 @@ cd -- "$project_root"
 
 # Only first-party C++ sources: exclude downloaded and generated ANTLR code.
 shopt -s globstar nullglob
-files=(src/**/*.{cc,cpp,cxx,h,hpp,hxx} tests/**/*.{cc,cpp,cxx,h,hpp,hxx} tools/**/*.{cc,cpp,cxx,h,hpp,hxx})
+files=(runtime/cpp/**/*.{cc,cpp,cxx,h,hpp,hxx} src/**/*.{cc,cpp,cxx,h,hpp,hxx} tests/**/*.{cc,cpp,cxx,h,hpp,hxx} tools/**/*.{cc,cpp,cxx,h,hpp,hxx})
 if (( ${#files[@]} == 0 )); then
     printf 'No C++ sources found.\n'
     exit 0

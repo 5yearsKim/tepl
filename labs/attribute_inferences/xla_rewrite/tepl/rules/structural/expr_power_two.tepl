@@ -1,0 +1,8 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_power_two {
+  X: []
+
+  (hlo.power X 2) => (hlo.multiply X X)
+}

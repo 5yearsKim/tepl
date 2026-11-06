@@ -1,0 +1,695 @@
+{
+  "protocol": "expanded_semantic_candidates_v1",
+  "run_at_utc": "2026-10-29T21:30:00.196738+00:00",
+  "revision": "a65c09e2a1bbf5fed73809c3dc0ee946ddc17b0c",
+  "compiler_sha256": "96258055f9087add6e7857b0767c69e6c5191a303feddd54d7c011ddbbc57912",
+  "timeout_seconds_per_command": 30,
+  "jobs": 4,
+  "input_sha256": {
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/slice_identity.tepl": "dfa692bf2a96a68f88e15a0b8ef7c0145b4ec87d254f520a517a43a3209f77bf",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/slice_compose.tepl": "612a9b95647f67dec1bc3058ffec8fb672dfbb638b22192c1a4a4f301279fe64",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/slice_reverse.tepl": "893f8134bb7da4b05fe29615ac0aee7de92ae949a00121d36e43bb4aca79b2bf",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/slice_compose_zero_starts.tepl": "a5be412793837707d7366bc1fc57d09559526e7d210eb60f05a0140fd3fc8456",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/expr_slice_compose_general.tepl": "99fbe2a9a4fa5ca74d7b9406452700a09589f0ece6e1b01374d6c1c547ea3f1d",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/expr_slice_reverse_general.tepl": "b46b92309d3bb9363a398e4dd5d9755f65a9e4ca25d2bc800d2816f5610d8ce8",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/expr_convolution_scale_filter_bias.tepl": "3b6b5b7914d74a20e1b1b724b14237b6c77a0a6294c4d162c76a9771717b1bc7",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/catalog_broadcast_slice_broadcast_only.tepl": "42bc194fb93f94390bb567a4da7a3cfe79aaeb8409266604e6ed23593fe96784",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/catalog_broadcast_slice_broadcast.tepl": "6115a41385fe954d7ed37a442c4c40d5552b9b9d2897a6ec7b83324722429583",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/catalog_indexing_slice_singleton_stride.tepl": "bddfeb87a93df02ac52d6b754fb9a4457adb89d2761aa98ffa77ddfdd8a44777",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/../tepl/rules/semantic/catalog_dot_slice_output.tepl": "23ced225842319c398d0c7d56d9fbc6e5a18a2ce9e741c70076c0aa972973622",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/data/synthesis_classification.json": "ef0a3a61b63d6cd4e1d556f580f9171635088d28e74b13f7f8143619a4feb2df",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/data/hlo_support.json": "a64db1b6ab3e107aeaa7287e33768579f2d6683302b4522b9718f41be1744010",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/scripts/axis_fields.py": "17e6b2c98c18f004a965f5be9c9ddf744031c0db48ef6ae650799300f4578cba",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/scripts/synthesis_cases.py": "486dff0055522dbe4d91594144ff4fe9259a2292896b2ca681cca73449bcb0b9",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/scripts/run_synthesis.py": "67024786e884dd63e57d01623328e2196df45eba5e954a464029acf170c3f23f",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/coverage/scripts/run_expanded_semantics.py": "f87ce70d6e070146cbc93cfa5ff395ac3da239ddd92e212a717ced150cf6f317",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/tepl/dialects/hlo.tepl": "dbb9cd54ab5657656cfad70722241a816e5b324a61833fe90f882e677e000aa9",
+    "/home/onion/Projects/tepl/labs/xla_rewrite/tepl/tepl.toml": "f61bb4fb3cc4a7d8ce1c2dd834ac1d7ca3018d3ce85d8523d0982dcc46aa2d4e",
+    "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl": "96258055f9087add6e7857b0767c69e6c5191a303feddd54d7c011ddbbc57912"
+  },
+  "note": "Eleven newly included cases only; uses the axis-only runner acceptance criteria. Temporary paths in commands are historical; generated_source and hashes record each task.",
+  "results": [
+    {
+      "case": "slice_identity",
+      "catalog_id": "indexing-slice-identity",
+      "rule_name": "slice_identity",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/slice_identity.tepl",
+      "source_sha256": "dfa692bf2a96a68f88e15a0b8ef7c0145b4ec87d254f520a517a43a3209f77bf",
+      "required_operations": [
+        "slice"
+      ],
+      "scope": "Rank-one positive-size slice; empty outputs are excluded by the supplied dialect.",
+      "in_scope": true,
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_identity.tepl",
+      "file_sha256": "1480f248a1e8fe6e32c84a8305f95cca11151fb39c3e13665577b4cbe3f94729",
+      "outcome": "verified",
+      "requested_axis_fields": 0,
+      "validated_json": true,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_identity.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "slice_identity"
+        ],
+        "returncode": 0,
+        "stdout": "SemanticRule slice_identity\n    semantic-inference: policy=algebraic status=proved\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      rhs-graph: Input(#0)\n      law: index-scale-normalization\n      law: index-offset-normalization\n      law: index-add-normalization\n      law: index-substitution\n      verified: capture access + reduction domains + ordered axes + shape + dtype + legality\n      lhs-normalized: Read(#0, access@0, coords(n1.O))\n      rhs-normalized: Read(#0, access@2)\n      declared-conditions:\n        >=(len(shape(Input(#0))), 0)\n        m0\n      additional-guard: true\n      reason: valid for all legal LHS metadata satisfying the declared conditions under the selected arithmetic policy\n      let m0 = &&(&&(==(attr_s.attrs.starts, [0]), ==(attr_s.attrs.sizes, shape(Input(#0)))), ==(attr_s.attrs.strides, [1]))\n      coordinate frame (fresh identities; domain lengths remain symbolic):\n        input0 = group(extents=shape(Input(#0)))\n        n1.O = group(extents=shape(Input(#0)))\n        access@0 = input0\n        access@2 = n1.O\n        lhs-output = n1.O\n        rhs-output = n1.O\n",
+        "stderr": "",
+        "seconds": 0.045946
+      },
+      "search_path": [
+        "law: index-scale-normalization",
+        "law: index-offset-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution"
+      ],
+      "inferred_descriptors": 0,
+      "compile": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "compile",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_identity.tepl",
+          "--semantic-policy=algebraic",
+          "-o",
+          "/tmp/tepl-expanded-artifacts-d7i14o0n/slice_identity.json"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": "",
+        "seconds": 0.169183
+      },
+      "validation": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "validate",
+          "/tmp/tepl-expanded-artifacts-d7i14o0n/slice_identity.json"
+        ],
+        "returncode": 0,
+        "stdout": "Compiled program is valid.\n",
+        "stderr": "",
+        "seconds": 0.189617
+      },
+      "artifact_sha256": "d4800b01079f55202f447a1ee9cf4684fe21e8264d5b63288b973ebd92c37aaf",
+      "seconds": 0.412978,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule slice_identity {\n    X: [Dims...]\n    (attr_s: slice X) => X\n    where { attr_s.attrs.starts == [0] && attr_s.attrs.sizes == Dims && attr_s.attrs.strides == [1] }\n}\n"
+    },
+    {
+      "case": "slice_compose",
+      "catalog_id": "indexing-slice-compose",
+      "rule_name": "slice_compose",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/slice_compose.tepl",
+      "source_sha256": "612a9b95647f67dec1bc3058ffec8fb672dfbb638b22192c1a4a4f301279fe64",
+      "required_operations": [
+        "slice"
+      ],
+      "scope": "Rank-one, positive-size, unit-stride slices with an explicit computed start.",
+      "in_scope": true,
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_compose.tepl",
+      "file_sha256": "1e2a30a3a0927191de845d04752c702dce111c644322d14a2341a5be6c9d778c",
+      "outcome": "not_proved",
+      "requested_axis_fields": 0,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_compose.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "slice_compose"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule slice_compose\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      rhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      law: index-scale-normalization\n      law: index-offset-normalization\n      law: index-add-normalization\n      law: index-substitution\n      declared-conditions:\n        ==(len(shape(Input(#0))), 1)\n        &&(==(attr_inner.attrs.strides, [1]), ==(attr_outer.attrs.strides, [1]))\n      additional-guard: unresolved\n        m1\n      guard-origins (unresolved obligations):\n        [legality obligation] m1\n      reason: metadata definedness: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_add(@#0.starts, @#1.starts), offset_extents(extent_sub(extent_add(@#0.starts, @#1.starts), extent_add(@#0.starts, @#1.starts)), 9223372036854775807))\n      let m0 = extent_sub(extent_add(attr_outer.attrs.starts, attr_inner.attrs.starts), extent_add(attr_outer.attrs.starts, attr_inner.attrs.starts))\n      let m1 = extent_le(extent_add(attr_outer.attrs.starts, attr_inner.attrs.starts), offset_extents(m0, 9223372036854775807))\nerror: cannot verify rule 'slice_compose': metadata definedness: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_add(@#0.starts, @#1.starts), offset_extents(extent_sub(extent_add(@#0.starts, @#1.starts), extent_add(@#0.starts, @#1.starts)), 9223372036854775807))\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.058253
+      },
+      "search_path": [
+        "law: index-scale-normalization",
+        "law: index-offset-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.058289,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule slice_compose {\n    X: [N]\n    (attr_outer: slice (attr_inner: slice X)) => (attr_out: slice X)\n    where { attr_inner.attrs.strides == [1] && attr_outer.attrs.strides == [1] }\n    \nderive {\n attr_out.attrs = {starts: [attr_inner.attrs.starts[0] + attr_outer.attrs.starts[0]], sizes: attr_outer.attrs.sizes, strides: [1]};\n}\n}\n"
+    },
+    {
+      "case": "slice_reverse",
+      "catalog_id": "indexing-slice-reverse",
+      "rule_name": "slice_reverse",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/slice_reverse.tepl",
+      "source_sha256": "893f8134bb7da4b05fe29615ac0aee7de92ae949a00121d36e43bb4aca79b2bf",
+      "required_operations": [
+        "reverse",
+        "slice"
+      ],
+      "scope": "Rank-one, positive-size, unit-stride slice of a reversed axis; explicit reflected start.",
+      "in_scope": true,
+      "axis_fields": [
+        {
+          "node": "rhs@233",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_reverse.tepl",
+      "file_sha256": "76cc3668c5347150b21527f650bfaa7f6aafcaec1dd1ed614fec3db0ca4047ab",
+      "outcome": "not_proved",
+      "requested_axis_fields": 1,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_reverse.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "slice_reverse"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule slice_reverse\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Read(input, IndexReverse(Coords(S), attrs.dimensions)) over Input(#0)\n      rhs-graph: Read(input, IndexReverse(Coords(S), attrs.dimensions)) over Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      law: index-reverse-normalization\n      law: index-add-normalization\n      law: index-substitution\n      law: index-scale-normalization\n      law: index-offset-normalization\n      declared-conditions:\n        ==(len(shape(Input(#0))), 1)\n        &&(==(attr_r.attrs.dimensions, [0]), ==(attr_s.attrs.strides, [1]))\n      additional-guard: unresolved\n      reason: metadata definedness: derived metadata is not established within its attribute type\nerror: cannot verify rule 'slice_reverse': metadata definedness: derived metadata is not established within its attribute type\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.055122
+      },
+      "search_path": [
+        "law: index-reverse-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution",
+        "law: index-scale-normalization",
+        "law: index-offset-normalization"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.05515,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,\n        reduce_sum, reverse, slice, dot};\n\nrule slice_reverse {\n    X: [N]\n    (attr_s: slice (attr_r: reverse X)) => (axis_eval_0: reverse (attr_out: slice X))\n    where { attr_r.attrs.dimensions == [0] && attr_s.attrs.strides == [1] }\n    \nderive {\n attr_out.attrs = {starts: [i64(N - u64(attr_s.attrs.starts[0]) - attr_s.attrs.sizes[0])], sizes: attr_s.attrs.sizes, strides: attr_s.attrs.strides};\n axis_eval_0.attrs = {dimensions: auto};\n}\n}\n"
+    },
+    {
+      "case": "slice_compose_zero_starts",
+      "catalog_id": "indexing-slice-compose",
+      "rule_name": "slice_compose_zero_starts",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/slice_compose_zero_starts.tepl",
+      "source_sha256": "a5be412793837707d7366bc1fc57d09559526e7d210eb60f05a0140fd3fc8456",
+      "required_operations": [
+        "slice"
+      ],
+      "scope": "Rank-one, positive-size, unit-stride slices with both starts zero. Copies outer attributes; avoids computed constructors.",
+      "in_scope": true,
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_compose_zero_starts.tepl",
+      "file_sha256": "87d2b353db8f13a7e21b888c9dcd83e71497aa3685adafe2b20ffdb5696c00de",
+      "outcome": "verified",
+      "requested_axis_fields": 0,
+      "validated_json": true,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_compose_zero_starts.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "slice_compose_zero_starts"
+        ],
+        "returncode": 0,
+        "stdout": "SemanticRule slice_compose_zero_starts\n    semantic-inference: policy=algebraic status=proved\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      rhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      law: index-scale-normalization\n      law: index-offset-normalization\n      law: index-add-normalization\n      law: index-substitution\n      law: extent-monotonicity\n      verified: capture access + reduction domains + ordered axes + shape + dtype + legality\n      lhs-normalized: Read(#0, access@0, coords(n2.O))\n      rhs-normalized: Read(#0, access@3, coords(n2.O))\n      declared-conditions:\n        &&(m0, ==(attr_outer.attrs.strides, [1]))\n      additional-guard: true\n      reason: valid for all legal LHS metadata satisfying the declared conditions under the selected arithmetic policy\n      let m0 = &&(&&(==(attr_inner.attrs.starts, [0]), ==(attr_outer.attrs.starts, [0])), ==(attr_inner.attrs.strides, [1]))\n      coordinate frame (fresh identities; domain lengths remain symbolic):\n        input0 = group(extents=shape(Input(#0)))\n        n1.O = group(extents=attr_inner.attrs.sizes)\n        n2.O = group(extents=attr_outer.attrs.sizes)\n        access@0 = input0\n        access@3 = n2.O\n        lhs-output = n2.O\n        rhs-output = n2.O\n",
+        "stderr": "",
+        "seconds": 0.067502
+      },
+      "search_path": [
+        "law: index-scale-normalization",
+        "law: index-offset-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution",
+        "law: extent-monotonicity"
+      ],
+      "inferred_descriptors": 0,
+      "compile": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "compile",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/slice_compose_zero_starts.tepl",
+          "--semantic-policy=algebraic",
+          "-o",
+          "/tmp/tepl-expanded-artifacts-d7i14o0n/slice_compose_zero_starts.json"
+        ],
+        "returncode": 0,
+        "stdout": "",
+        "stderr": "",
+        "seconds": 0.192856
+      },
+      "validation": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "validate",
+          "/tmp/tepl-expanded-artifacts-d7i14o0n/slice_compose_zero_starts.json"
+        ],
+        "returncode": 0,
+        "stdout": "Compiled program is valid.\n",
+        "stderr": "",
+        "seconds": 0.193614
+      },
+      "artifact_sha256": "f970d44e992f825da35683489088b8584146c6962aa6e2a9ef79a67ecf08a4f2",
+      "seconds": 0.460318,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\nuse hlo::{slice};\n\nrule slice_compose_zero_starts {\n    (attr_outer: slice (attr_inner: slice X)) => (axis_eval_0: slice X)\n    where { attr_inner.attrs.starts == [0] && attr_outer.attrs.starts == [0]\n         && attr_inner.attrs.strides == [1] && attr_outer.attrs.strides == [1] }\nderive {\n axis_eval_0.attrs = {starts: attr_outer.attrs.starts, sizes: attr_outer.attrs.sizes, strides: attr_outer.attrs.strides};\n}\n}\n"
+    },
+    {
+      "case": "expr_slice_compose_general",
+      "catalog_id": "indexing-slice-compose",
+      "rule_name": "expr_slice_compose_general",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/expr_slice_compose_general.tepl",
+      "source_sha256": "99fbe2a9a4fa5ca74d7b9406452700a09589f0ece6e1b01374d6c1c547ea3f1d",
+      "required_operations": [
+        "slice"
+      ],
+      "scope": "Arbitrary-rank unit-stride composition; explicit metadata arithmetic and comprehensions.",
+      "in_scope": true,
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/expr_slice_compose_general.tepl",
+      "file_sha256": "8dbcb41a3a288d33f3fbfcf2dd6abbb8ba884a22ea6d5682590aef6322b7d487",
+      "outcome": "not_proved",
+      "requested_axis_fields": 0,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/expr_slice_compose_general.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "expr_slice_compose_general"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule expr_slice_compose_general\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      rhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      law: index-scale-normalization\n      law: index-offset-normalization\n      law: index-add-normalization\n      law: index-substitution\n      declared-conditions:\n        &&(m0, m1)\n      additional-guard: unresolved\n        m3\n      guard-origins (unresolved obligations):\n        [legality obligation] m3\n      reason: metadata definedness: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_add(@#0.starts, @#1.starts), offset_extents(extent_sub(extent_add(@#0.starts, @#1.starts), extent_add(@#0.starts, @#1.starts)), 9223372036854775807))\n      let m0 = ==(attr_inner.attrs.strides, sequence_map(attr_inner.attrs.strides, sequence_variable(0), 1))\n      let m1 = ==(attr_outer.attrs.strides, sequence_map(attr_outer.attrs.strides, sequence_variable(1), 1))\n      let m2 = extent_sub(extent_add(attr_outer.attrs.starts, attr_inner.attrs.starts), extent_add(attr_outer.attrs.starts, attr_inner.attrs.starts))\n      let m3 = extent_le(extent_add(attr_outer.attrs.starts, attr_inner.attrs.starts), offset_extents(m2, 9223372036854775807))\nerror: cannot verify rule 'expr_slice_compose_general': metadata definedness: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_add(@#0.starts, @#1.starts), offset_extents(extent_sub(extent_add(@#0.starts, @#1.starts), extent_add(@#0.starts, @#1.starts)), 9223372036854775807))\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.05298
+      },
+      "search_path": [
+        "law: index-scale-normalization",
+        "law: index-offset-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.053015,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Expression check under the source conditions recorded in the catalog.\nrule expr_slice_compose_general {\n    (attr_outer: hlo.slice (attr_inner: hlo.slice X)) => (attr_out: hlo.slice X) where { attr_inner.attrs.strides == [1 for s in attr_inner.attrs.strides] && attr_outer.attrs.strides == [1 for s in attr_outer.attrs.strides] } \nderive {\n attr_out.attrs = {starts: [attr_inner.attrs.starts[i] + attr_outer.attrs.starts[i] for i in range(len(attr_outer.attrs.starts))], sizes: attr_outer.attrs.sizes, strides: attr_outer.attrs.strides};\n}\n}\n"
+    },
+    {
+      "case": "expr_slice_reverse_general",
+      "catalog_id": "indexing-slice-reverse",
+      "rule_name": "expr_slice_reverse_general",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/expr_slice_reverse_general.tepl",
+      "source_sha256": "b46b92309d3bb9363a398e4dd5d9755f65a9e4ca25d2bc800d2816f5610d8ce8",
+      "required_operations": [
+        "reverse",
+        "slice"
+      ],
+      "scope": "Arbitrary-rank positive-size strided slice; explicit reflected starts. Empty output cases can be handled separately.",
+      "in_scope": true,
+      "axis_fields": [
+        {
+          "node": "rhs@216",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/expr_slice_reverse_general.tepl",
+      "file_sha256": "d91f5f4dfa8be6b0287aa6536cb11ffd1a2dbe5631ff9022a6689d17e1abb6c3",
+      "outcome": "not_proved",
+      "requested_axis_fields": 1,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/expr_slice_reverse_general.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "expr_slice_reverse_general"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule expr_slice_reverse_general\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Read(input, IndexReverse(Coords(S), attrs.dimensions)) over Input(#0)\n      rhs-graph: Read(input, IndexReverse(Coords(S), attrs.dimensions)) over Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      law: index-reverse-normalization\n      law: index-add-normalization\n      law: index-substitution\n      law: index-scale-normalization\n      law: index-offset-normalization\n      declared-conditions:\n        >=(len(shape(Input(#0))), 0)\n        all(sequence_map(attr_s.attrs.sizes, sequence_variable(0), >(sequence_variable(0), 0)))\n      additional-guard: unresolved\n      reason: metadata definedness: comprehension is outside the pointwise metadata fragment\nerror: cannot verify rule 'expr_slice_reverse_general': metadata definedness: comprehension is outside the pointwise metadata fragment\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.055196
+      },
+      "search_path": [
+        "law: index-reverse-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution",
+        "law: index-scale-normalization",
+        "law: index-offset-normalization"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.055217,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Expression check under the source conditions recorded in the catalog.\nrule expr_slice_reverse_general {\n    X: [Dims...] (attr_s: hlo.slice (attr_r: hlo.reverse X)) => (axis_eval_0: hlo.reverse (attr_out: hlo.slice X)) where { all([n > 0 for n in attr_s.attrs.sizes]) } \nderive {\n attr_out.attrs = {starts: [if contains(attr_r.attrs.dimensions, i) then i64(Dims[i] - 1 - (u64(attr_s.attrs.starts[i]) + (attr_s.attrs.sizes[i] - 1) * u64(attr_s.attrs.strides[i]))) else attr_s.attrs.starts[i] for i in range(len(Dims))], sizes: attr_s.attrs.sizes, strides: attr_s.attrs.strides};\n axis_eval_0.attrs = {dimensions: auto};\n}\n}\n"
+    },
+    {
+      "case": "expr_convolution_scale_filter_bias",
+      "catalog_id": "convolution-scale-filter-bias",
+      "rule_name": "expr_convolution_scale_filter_bias",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/expr_convolution_scale_filter_bias.tepl",
+      "source_sha256": "3b6b5b7914d74a20e1b1b724b14237b6c77a0a6294c4d162c76a9771717b1bc7",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim",
+        "convolution",
+        "multiply"
+      ],
+      "scope": "One spatial dimension with fixed kernel/output feature positions. Proves expression of explicit scale broadcasts and convolution attribute reuse; source constant and numerical-policy conditions remain in the catalog.",
+      "in_scope": true,
+      "axis_fields": [
+        {
+          "node": "attr_kernel",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@474",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/expr_convolution_scale_filter_bias.tepl",
+      "file_sha256": "a699c2b53132bbccc50d82c4e7b30e3ab5ccad1abffe2ab91909c96f962e2ff5",
+      "outcome": "not_proved",
+      "requested_axis_fields": 2,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/expr_convolution_scale_filter_bias.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "expr_convolution_scale_filter_bias"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule expr_convolution_scale_filter_bias\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Product(align[n7:lhs](Add(align[n4:lhs](Reduce(n2.Window, Reduce(n2.C, Product(Read(input, Concat(Coords(N), IndexAdd(IndexScale(attrs.strides, Coords(O)), IndexScale(attrs.dilations, Coords(Window))), Coords(C))) over Input(#0), align[n2:kernel](Input(#1)))))), align[n4:rhs](Input(#2)))), align[n7:rhs](align[n6:input](Input(#3))))\n      rhs-graph: Add(align[n18:lhs](Reduce(n13.Window, Reduce(n13.C, Product(Read(input, Concat(Coords(N), IndexAdd(IndexScale(attrs.strides, Coords(O)), IndexScale(attrs.dilations, Coords(Window))), Coords(C))) over Input(#0), align[n13:kernel](Product(align[n12:lhs](Input(#1)), align[n12:rhs](align[n11:input](Input(#3))))))))), align[n18:rhs](Product(align[n17:lhs](Input(#2)), align[n17:rhs](align[n16:input](Input(#3))))))\n      law: index-scale-normalization\n      law: index-add-normalization\n      law: index-substitution\n      law: ordered-axis-split\n      law: paired-axis-selection\n      law: ordered-partition-traversal\n      law: reduction-composition\n      law: product-distributivity\n      law: reduction-extraction\n      law: product-associativity\n      law: axis-map-restriction\n      law: axis-insertion\n      declared-conditions:\n        ==(len(shape(Input(#0))), 3)\n        ==(len(shape(Input(#1))), 3)\n        ==(index(shape(Input(#0)), 2), index(shape(Input(#1)), 1))\n        ==(len(shape(Input(#2))), 3)\n        ==(index(shape(Input(#0)), 0), index(shape(Input(#2)), 0))\n        ==(index(shape(Input(#1)), 2), index(shape(Input(#2)), 2))\n        ==(len(shape(Input(#3))), 1)\n        ==(index(shape(Input(#1)), 2), index(shape(Input(#3)), 0))\n        &&(==(attr_output.attrs.dimensions, [2]), m0)\n      additional-guard: unresolved\n        ==(concat(gather(shape(Input(#0)), [0]), m2, shape(Input(#3))), shape(Input(#2)))\n      guard-origins (unresolved obligations):\n        [legality obligation] ==(concat(gather(shape(Input(#0)), [0]), m2, shape(Input(#3))), shape(Input(#2)))\n      reason: attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(concat(gather(shape(Input(#0)), [0]), offset_extents(extent_floor_div(extent_sub(gather(shape(Input(#0)), [1]), offset_extents(extent_mul(@#0.dilations, offset_extents(gather(shape(Input(#1)), [0]), -1)), 1)), @#0.strides), 1), shape(Input(#3))), shape(Input(#2)))\n      let m0 = ==(attr_output.attrs.new_extents, [index(shape(Input(#0)), 0), index(shape(Input(#2)), 1)])\n      let m1 = offset_extents(extent_mul(attr_conv.attrs.dilations, offset_extents(gather(shape(Input(#1)), [0]), -1)), 1)\n      let m2 = offset_extents(extent_floor_div(extent_sub(gather(shape(Input(#0)), [1]), m1), attr_conv.attrs.strides), 1)\nerror: cannot verify rule 'expr_convolution_scale_filter_bias': attribute construction: declared conditions and LHS legality do not establish legality obligation: ==(concat(gather(shape(Input(#0)), [0]), offset_extents(extent_floor_div(extent_sub(gather(shape(Input(#0)), [1]), offset_extents(extent_mul(@#0.dilations, offset_extents(gather(shape(Input(#1)), [0]), -1)), 1)), @#0.strides), 1), shape(Input(#3))), shape(Input(#2)))\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.331107
+      },
+      "search_path": [
+        "law: index-scale-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution",
+        "law: ordered-axis-split",
+        "law: paired-axis-selection",
+        "law: ordered-partition-traversal",
+        "law: reduction-composition",
+        "law: product-distributivity",
+        "law: reduction-extraction",
+        "law: product-associativity",
+        "law: axis-map-restriction",
+        "law: axis-insertion"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.331144,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// One spatial dimension; kernel and output feature axes are last.\nrule expr_convolution_scale_filter_bias {\n    X: [N, H, C]\n    W: [KW, C, F]\n    Bias: [N, O, F]\n    Scale: [F]\n    (hlo.multiply (hlo.add (attr_conv: hlo.convolution X W) Bias) (attr_output: hlo.broadcast Scale)) => (hlo.add (axis_eval_0: hlo.convolution X (hlo.multiply W (attr_kernel: hlo.broadcast Scale))) (hlo.multiply Bias (axis_eval_1: hlo.broadcast Scale)))\n    where { attr_output.attrs.dimensions == [2] && attr_output.attrs.new_extents == [N, O] }\n    \nderive {\n attr_kernel.attrs = {dimensions: auto, new_extents: [KW, C]};\n axis_eval_0.attrs = {strides: attr_conv.attrs.strides, dilations: attr_conv.attrs.dilations};\n axis_eval_1.attrs = {dimensions: auto, new_extents: attr_output.attrs.new_extents};\n}\n}\n"
+    },
+    {
+      "case": "catalog_broadcast_slice_broadcast_only",
+      "catalog_id": "broadcast-slice-broadcast-only",
+      "rule_name": "catalog_broadcast_slice_broadcast_only",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/catalog_broadcast_slice_broadcast_only.tepl",
+      "source_sha256": "42bc194fb93f94390bb567a4da7a3cfe79aaeb8409266604e6ed23593fe96784",
+      "required_operations": [
+        "broadcast_in_dim",
+        "slice"
+      ],
+      "scope": "Rank-one X maps to axis zero; only newly created axes are sliced.",
+      "in_scope": true,
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/catalog_broadcast_slice_broadcast_only.tepl",
+      "file_sha256": "3b965321d8bcab4b59899248ff70d37069141cd8cad272886406641431a99a31",
+      "outcome": "not_proved",
+      "requested_axis_fields": 1,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/catalog_broadcast_slice_broadcast_only.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "catalog_broadcast_slice_broadcast_only"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule catalog_broadcast_slice_broadcast_only\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over align[n1:input](Input(#0))\n      rhs-graph: align[n4:input](Input(#0))\n      law: ordered-axis-split\n      law: paired-axis-selection\n      law: ordered-partition-traversal\n      law: index-scale-normalization\n      law: index-offset-normalization\n      law: index-add-normalization\n      law: index-substitution\n      law: axis-map-restriction\n      declared-conditions:\n        ==(len(shape(Input(#0))), 1)\n        &&(m0, ==(index(attr_s.attrs.strides, 0), 1))\n      additional-guard: unresolved\n        extent_le(m1, slice(attr_s.attrs.sizes, 1, +(1, len(attr_b.attrs.new_extents))))\n      guard-origins (unresolved obligations):\n        [legality obligation] extent_le(m1, slice(attr_s.attrs.sizes, 1, +(1, len(attr_b.attrs.new_extents))))\n      reason: metadata definedness: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_sub(slice(@#0.sizes, 1, +(1, len(@#1.new_extents))), slice(@#0.sizes, 1, +(1, len(@#1.new_extents)))), slice(@#0.sizes, 1, +(1, len(@#1.new_extents))))\n      let m0 = &&(&&(==(attr_b.attrs.dimensions, [0]), ==(index(attr_s.attrs.starts, 0), 0)), ==(index(attr_s.attrs.sizes, 0), index(shape(Input(#0)), 0)))\n      let m1 = extent_sub(slice(attr_s.attrs.sizes, 1, +(1, len(attr_b.attrs.new_extents))), slice(attr_s.attrs.sizes, 1, +(1, len(attr_b.attrs.new_extents))))\nerror: cannot verify rule 'catalog_broadcast_slice_broadcast_only': metadata definedness: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_sub(slice(@#0.sizes, 1, +(1, len(@#1.new_extents))), slice(@#0.sizes, 1, +(1, len(@#1.new_extents)))), slice(@#0.sizes, 1, +(1, len(@#1.new_extents))))\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.058869
+      },
+      "search_path": [
+        "law: ordered-axis-split",
+        "law: paired-axis-selection",
+        "law: ordered-partition-traversal",
+        "law: index-scale-normalization",
+        "law: index-offset-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution",
+        "law: axis-map-restriction"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.058906,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-slice-broadcast-only\n// Scope: Rank-one X maps to axis zero; only newly created axes are sliced.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_slice_broadcast_only {\n    X: [N]\n     (attr_s: hlo.slice (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast X)\n     where { attr_b.attrs.dimensions == [0] && attr_s.attrs.starts[0]==0 && attr_s.attrs.sizes[0]==N && attr_s.attrs.strides[0]==1 }\n     \nderive {\n attr_out.attrs = {dimensions: auto, new_extents: slice(attr_s.attrs.sizes,1,len(attr_s.attrs.sizes))};\n}\n}\n"
+    },
+    {
+      "case": "catalog_broadcast_slice_broadcast",
+      "catalog_id": "broadcast-slice-broadcast",
+      "rule_name": "catalog_broadcast_slice_broadcast",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/catalog_broadcast_slice_broadcast.tepl",
+      "source_sha256": "6115a41385fe954d7ed37a442c4c40d5552b9b9d2897a6ec7b83324722429583",
+      "required_operations": [
+        "broadcast_in_dim",
+        "slice"
+      ],
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "in_scope": true,
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/catalog_broadcast_slice_broadcast.tepl",
+      "file_sha256": "cd833ac1e1632e655fca6b1c2be444dd67b674c66cbf9fb4c7f5e835d8d04bc6",
+      "outcome": "not_proved",
+      "requested_axis_fields": 1,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/catalog_broadcast_slice_broadcast.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "catalog_broadcast_slice_broadcast"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule catalog_broadcast_slice_broadcast\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over align[n1:input](Input(#0))\n      rhs-graph: align[n5:input](Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0))\n      law: ordered-axis-split\n      law: paired-axis-selection\n      law: index-scale-normalization\n      law: index-offset-normalization\n      law: index-add-normalization\n      law: index-substitution\n      law: axis-map-restriction\n      declared-conditions:\n        >=(len(shape(Input(#0))), 0)\n      additional-guard: unresolved\n        m1\n      guard-origins (unresolved obligations):\n        [legality obligation] m1\n      reason: attribute construction: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_add(gather(@#0.starts, @#1.dimensions), extent_mul(gather(@#0.strides, @#1.dimensions), offset_extents(gather(@#0.sizes, @#1.dimensions), -1))), offset_extents(shape(Input(#0)), -1))\n      let m0 = extent_mul(gather(attr_s.attrs.strides, attr_b.attrs.dimensions), offset_extents(gather(attr_s.attrs.sizes, attr_b.attrs.dimensions), -1))\n      let m1 = extent_le(extent_add(gather(attr_s.attrs.starts, attr_b.attrs.dimensions), m0), offset_extents(shape(Input(#0)), -1))\nerror: cannot verify rule 'catalog_broadcast_slice_broadcast': attribute construction: declared conditions and LHS legality do not establish legality obligation: extent_le(extent_add(gather(@#0.starts, @#1.dimensions), extent_mul(gather(@#0.strides, @#1.dimensions), offset_extents(gather(@#0.sizes, @#1.dimensions), -1))), offset_extents(shape(Input(#0)), -1))\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.071597
+      },
+      "search_path": [
+        "law: ordered-axis-split",
+        "law: paired-axis-selection",
+        "law: index-scale-normalization",
+        "law: index-offset-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution",
+        "law: axis-map-restriction"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.071627,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: broadcast-slice-broadcast\n// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_broadcast_slice_broadcast {\n    X: [Dims...]\n     (attr_s: hlo.slice (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast (attr_inner: hlo.slice X))\n     \nderive {\n attr_inner.attrs = {starts: gather(attr_s.attrs.starts,attr_b.attrs.dimensions), sizes: gather(attr_s.attrs.sizes,attr_b.attrs.dimensions), strides: gather(attr_s.attrs.strides,attr_b.attrs.dimensions)};\n attr_out.attrs = {dimensions: auto, new_extents: gather(attr_s.attrs.sizes,exclude(range(len(attr_s.attrs.sizes)),attr_b.attrs.dimensions))};\n}\n}\n"
+    },
+    {
+      "case": "catalog_indexing_slice_singleton_stride",
+      "catalog_id": "indexing-slice-singleton-stride",
+      "rule_name": "catalog_indexing_slice_singleton_stride",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/catalog_indexing_slice_singleton_stride.tepl",
+      "source_sha256": "bddfeb87a93df02ac52d6b754fb9a4457adb89d2761aa98ffa77ddfdd8a44777",
+      "required_operations": [
+        "slice"
+      ],
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "in_scope": true,
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/catalog_indexing_slice_singleton_stride.tepl",
+      "file_sha256": "dea02af707790625789cc92359651ddc27ebb346a2257d62307bf9da3a8e497c",
+      "outcome": "not_proved",
+      "requested_axis_fields": 0,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/catalog_indexing_slice_singleton_stride.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "catalog_indexing_slice_singleton_stride"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule catalog_indexing_slice_singleton_stride\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      rhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)\n      law: index-scale-normalization\n      law: index-offset-normalization\n      law: index-add-normalization\n      law: index-substitution\n      declared-conditions: true\n      additional-guard: unresolved\n      reason: metadata definedness: comprehension is outside the pointwise metadata fragment\nerror: cannot verify rule 'catalog_indexing_slice_singleton_stride': metadata definedness: comprehension is outside the pointwise metadata fragment\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.048398
+      },
+      "search_path": [
+        "law: index-scale-normalization",
+        "law: index-offset-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.048434,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: indexing-slice-singleton-stride\n// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_indexing_slice_singleton_stride {\n    (attr_s: hlo.slice X) => (attr_out: hlo.slice X)\n     \nderive {\n attr_out.attrs = {starts: attr_s.attrs.starts, sizes: attr_s.attrs.sizes, strides: [if attr_s.attrs.sizes[i]<=1 then 1 else attr_s.attrs.strides[i] for i in range(len(attr_s.attrs.sizes))]};\n}\n}\n"
+    },
+    {
+      "case": "catalog_dot_slice_output",
+      "catalog_id": "dot-slice-output",
+      "rule_name": "catalog_dot_slice_output",
+      "control": false,
+      "source_file": "../tepl/rules/semantic/catalog_dot_slice_output.tepl",
+      "source_sha256": "23ced225842319c398d0c7d56d9fbc6e5a18a2ce9e741c70076c0aa972973622",
+      "required_operations": [
+        "dot_general",
+        "slice"
+      ],
+      "scope": "Rank-two dot with arbitrary output starts, sizes and positive strides.",
+      "in_scope": true,
+      "axis_fields": [
+        {
+          "node": "rhs@335",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@335",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@335",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@335",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "theorem_status": "not_audited",
+      "file": "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/catalog_dot_slice_output.tepl",
+      "file_sha256": "56904bdc86f36698e5e2f8005ed7c8b7dadc4b698ba05f2bb49c3dfabaeef902",
+      "outcome": "not_proved",
+      "requested_axis_fields": 4,
+      "validated_json": false,
+      "check": {
+        "command": [
+          "/home/onion/.cache/bazel/_bazel_onion/e2444f730ca8a1157a06f99ee2c3da5f/execroot/_main/bazel-out/k8-fastbuild/bin/tepl",
+          "check",
+          "labs/xla_rewrite/tepl/rules/expanded-e80am_kh/catalog_dot_slice_output.tepl",
+          "--semantic-policy=algebraic",
+          "--rule",
+          "catalog_dot_slice_output"
+        ],
+        "returncode": 1,
+        "stdout": "SemanticRule catalog_dot_slice_output\n    semantic-inference: policy=algebraic status=unknown\n      lhs-graph: Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Reduce(n2.K, Product(align[n2:lhs](Input(#0)), align[n2:rhs](Input(#1))))\n      rhs-graph: Reduce(n8.K, Product(align[n8:lhs](Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#0)), align[n8:rhs](Read(input, IndexOffset(attrs.starts, IndexScale(attrs.strides, Coords(O)))) over Input(#1))))\n      law: ordered-axis-split\n      law: paired-axis-selection\n      law: index-scale-normalization\n      law: index-offset-normalization\n      law: index-add-normalization\n      law: index-substitution\n      law: axis-map-restriction\n      declared-conditions:\n        ==(len(shape(Input(#0))), 2)\n        ==(len(shape(Input(#1))), 2)\n        ==(index(shape(Input(#0)), 1), index(shape(Input(#1)), 0))\n        m1\n      additional-guard: unresolved\n        is_positive_extents([index(attr_s.attrs.sizes, 0), index(shape(Input(#0)), 1)])\n      guard-origins (unresolved obligations):\n        [legality obligation] is_positive_extents([index(attr_s.attrs.sizes, 0), index(shape(Input(#0)), 1)])\n      reason: attribute construction: declared conditions and LHS legality do not establish legality obligation: is_positive_extents([index(@#0.sizes, 0), index(shape(Input(#0)), 1)])\n      let m0 = &&(==(attr_d.attrs.lhs_batching_dimensions, []), ==(attr_d.attrs.rhs_batching_dimensions, []))\n      let m1 = &&(&&(m0, ==(attr_d.attrs.lhs_contracting_dimensions, [1])), ==(attr_d.attrs.rhs_contracting_dimensions, [0]))\nerror: cannot verify rule 'catalog_dot_slice_output': attribute construction: declared conditions and LHS legality do not establish legality obligation: is_positive_extents([index(@#0.sizes, 0), index(shape(Input(#0)), 1)])\nAdd an explicit where condition that establishes the unresolved requirement, or change the rewrite.\nUse --suggest-where to search for a verified sufficient restriction.\n",
+        "stderr": "",
+        "seconds": 0.084889
+      },
+      "search_path": [
+        "law: ordered-axis-split",
+        "law: paired-axis-selection",
+        "law: index-scale-normalization",
+        "law: index-offset-normalization",
+        "law: index-add-normalization",
+        "law: index-substitution",
+        "law: axis-map-restriction"
+      ],
+      "inferred_descriptors": 0,
+      "seconds": 0.084927,
+      "generated_source": "// Canonical axis-only evaluation task; no descriptor or non-axis inference.\nfrom \"dialects/hlo.tepl\" import HLO as hlo;\n\n// Catalog: dot-slice-output\n// Scope: Rank-two dot with arbitrary output starts, sizes and positive strides.\n// Source arithmetic/applicability conditions are recorded in the manifest.\nrule catalog_dot_slice_output {\n    X: [M,K] Y: [K,N]\n     (attr_s: hlo.slice (attr_d: hlo.dot X Y)) => (axis_eval_0: hlo.dot (attr_left: hlo.slice X) (attr_right: hlo.slice Y))\n     where { attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }\n     \nderive {\n attr_left.attrs = {starts: [attr_s.attrs.starts[0],0], sizes: [attr_s.attrs.sizes[0],K], strides: [attr_s.attrs.strides[0],1]};\n attr_right.attrs = {starts: [0,attr_s.attrs.starts[1]], sizes: [K,attr_s.attrs.sizes[1]], strides: [1,attr_s.attrs.strides[1]]};\n axis_eval_0.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto};\n}\n}\n"
+    }
+  ]
+}

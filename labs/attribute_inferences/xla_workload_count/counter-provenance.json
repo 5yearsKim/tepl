@@ -1,0 +1,9 @@
+{
+  "xla_revision": "39c348196c834a7ee45a57f5b44688d53ae99a64",
+  "driver_binary": "/home/onion/Projects/xla/bazel-bin/research/rewrite_count/rewrite_count",
+  "driver_sha256": "81c8be861cc128d04580e1e37e8e7bfc4d7c4084e2acacb4c9ecd2d9f93d0a19",
+  "original_source": "/home/onion/Projects/xla/research/rewrite_count/algebraic_simplifier.original.cc",
+  "original_algebraic_simplifier_sha256": "30bbbaf5c9f260f43b368a564d6c05f342baafde4ce6ea31f3289fd779a0eb06",
+  "instrumented_algebraic_simplifier_sha256": "20055410a2b3119d6cacfdaa15f1feeb3ddd8ecf52fbb225d7bcd13a303ffd24",
+  "controls_passed": true
+}

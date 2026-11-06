@@ -2,207 +2,128 @@
 
 #include <map>
 #include <set>
-#include <sstream>
 
-#include "src/codegen/cpp/dialect_emitter.h"
-
+#include "src/codegen/cpp/code_writer.h"
+#include "src/codegen/cpp/expression_emitter.h"
+#include "src/codegen/cpp/paths.h"
 namespace tepl::codegen::cpp {
 namespace {
-std::string attribute(const core::AttributeValue& value,
-                      const core::AttributeField& field, std::size_t depth,
-                      bool optional, std::set<std::string>& imports) {
-  using K = core::AttributeValue::Kind;
-  if (value.kind == K::kNone) return "::std::nullopt";
-  if (optional) {
-    static const std::map<std::string, std::string> types = {
-        {"index", "::std::uint64_t"},
-        {"i64", "::std::int64_t"},
-        {"bool", "bool"},
-        {"string", "::std::string"},
-        {"dtype", "DType"},
-        {"precision", "Precision"},
-        {"region", "Region"},
-        {"elements", "Elements"},
-        {"replica_groups", "ReplicaGroups"},
-        {"dot_algorithm", "DotAlgorithm"}};
-    auto type = types.at(field.type);
-    if (type != "bool" && !type.starts_with("::std::")) imports.insert(type);
-    for (std::size_t i = 0; i < depth; ++i)
-      type = "::std::vector<" + type + ">";
-    auto contents = attribute(value, field, depth, false, imports);
-    return "::std::optional<" + type + ">(" + type +
-           (depth ? contents : "{" + contents + "}") + ")";
+std::string num(std::size_t n) { return std::to_string(n); }
+std::string dtypeOption(std::optional<core::DType> d) {
+  return d ? "::std::optional<rt::DType>(rt::" + dtype(*d) + ")"
+           : "::std::nullopt";
+}
+std::string facts(const core::ConcreteNode& node) {
+  std::string shape = "{}";
+  if (node.shape) {
+    shape = "rt::Fact<::std::vector<::std::uint64_t>>::known({";
+    for (auto d : *node.shape) shape += num(d) + "ULL,";
+    shape += "})";
   }
-  if (depth) {
-    std::string result = "{";
-    for (std::size_t i = 0; i < value.elements.size(); ++i) {
-      if (i) result += ", ";
-      result += attribute(value.elements[i], field, depth - 1, false, imports);
-    }
-    return result + "}";
-  }
-  if (value.kind == K::kBool) return value.text;
-  if (value.kind == K::kString)
-    return std::string("::std::string(") + quote(value.text) + ")";
-  if (value.kind == K::kEnum) {
-    if (field.type == "dtype") {
-      imports.insert("DType");
-      return dtype(*core::resolveDType(value.text));
-    }
-    auto variant = value.text == "default" ? "Default"
-                   : value.text == "high"  ? "High"
-                                           : "Highest";
-    imports.insert("Precision");
-    return std::string("Precision::") + variant;
-  }
-  if (field.type == "i64" && value.text == "-9223372036854775808")
-    return "(-9223372036854775807LL - 1LL)";
-  return value.text + (field.type == "index" ? "ULL" : "LL");
+  return "rt::TensorFacts{" + shape + "," +
+         (node.dtype
+              ? "rt::Fact<rt::DType>::known(rt::" + dtype(*node.dtype) + ")"
+              : "{}") +
+         "}";
 }
 }  // namespace
-void emitGraphs(const core::Program& program, const Names& names,
-                const ProjectPlan& project, GenerationResult& output) {
-  std::map<std::string, std::map<std::string, std::string>> indexes;
+void emitGraphs(const executable::ProgramData& p, const Names& n,
+                const ProjectPlan& project, GenerationResult& result) {
+  std::map<std::string, std::set<std::string>> indexes;
   std::map<std::string, std::string> identities;
-  std::set<std::string> files, directories;
+  std::set<std::string> files, dirs;
   std::map<std::string, SourceOrigin> origins;
   indexes[""];
   for (const auto& source : project.graph_modules) {
-    const auto& origin = program.graphs.at(source.graphs.front().value).origin;
-    std::string path, raw_path;
-    std::size_t depth = 0;
-    for (const auto& part : source.path) {
-      auto id = Identifier::make(part, NameKind::kModule, origin);
-      if (id.key == "graphs" || (path.empty() && id.key == "definition"))
-        throw NameError(origin, "reserved graph output module '" + part + "'");
-      auto target = path.empty() ? id.key : path + "/" + id.key;
-      raw_path += "/" + part;
-      auto [found, inserted] = identities.emplace(target, raw_path);
-      if (!inserted && found->second != raw_path)
-        throw NameError(origin, "graph module name collision: " + part);
-      indexes[path][id.key] = id.token;
-      if (++depth < source.path.size()) directories.insert(target);
-      path = target;
+    const auto& origin = p.graphs.at(source.graphs.front().value).origin;
+    std::string path, raw, qualified;
+    for (std::size_t i = 0; i < source.path.size(); ++i) {
+      auto id = Identifier::make(source.path[i], NameKind::kModule, origin);
+      if (id.key == "graphs")
+        throw NameError(origin, "reserved graph module graphs");
+      auto next = path.empty() ? id.key : path + "/" + id.key;
+      raw += "/" + source.path[i];
+      auto [it, inserted] = identities.emplace(next, raw);
+      if (!inserted && it->second != raw)
+        throw NameError(origin, "graph module collision");
+      indexes[path].insert(id.key);
+      if (i + 1 < source.path.size()) dirs.insert(next);
+      path = next;
+      qualified += (qualified.empty() ? "" : "::") + id.key;
     }
     if (!files.insert(path).second)
-      throw NameError(origin, "duplicate graph module: " + path);
-    origins.emplace(path, origin);
-    auto root = names.root;
-    std::string namespace_path;
-    for (const auto& part : source.path)
-      namespace_path +=
-          "::" + Identifier::make(part, NameKind::kModule, origin).token;
-    std::ostringstream out;
-    std::string include;
-    for (std::size_t i = 0; i < source.path.size(); ++i) include += "../";
-    out << "#pragma once\n#include " << quote(include + "graphs/definition.h")
-        << "\n";
-    std::set<std::string> graph_names;
+      throw NameError(origin, "duplicate graph module");
+    origins[path] = origin;
+    CodeWriter out;
+    out.line("#pragma once\n#include \"" + parentInclude(path) + "program.h\"");
+    std::set<std::string> names;
     for (auto id : source.graphs) {
-      const auto& graph = program.graphs.at(id.value);
-      auto graph_name = Identifier::make("graph_" + graph.name,
-                                         NameKind::kModule, graph.origin);
-      if (!graph_names.insert(graph_name.key).second)
-        throw NameError(graph.origin, "graph name collision: " + graph.name);
-      std::set<std::string> imports = {"GraphDefinition", "InputSpec",
-                                       "OpNode"};
-      bool uses_dialects = false;
-      std::ostringstream body;
-      body << "inline GraphDefinition build() {\n"
-           << "::std::vector<OpNode> nodes;\n";
+      const auto& graph = p.graphs.at(id.value);
+      auto name = Identifier::make("graph_" + graph.name, NameKind::kModule,
+                                   graph.origin);
+      if (!names.insert(name.key).second)
+        throw NameError(graph.origin, "graph name collision");
+      out.open("namespace " + n.root.substr(2) + "::graphs::" + qualified +
+               "::" + name.token);
+      out.line("namespace rt = ::tepl_runtime;");
+      out.open("inline rt::EvalResult<rt::graphs::BuiltGraph<" + n.root +
+               "::Program>> build()");
+      out.open("return rt::evaluate([&]() -> rt::graphs::BuiltGraph<" + n.root +
+               "::Program>");
+      out.line(n.root + "::EGraph graph;");
       for (std::size_t i = 0; i < graph.nodes.size(); ++i) {
         const auto& node = graph.nodes[i];
-        std::string expression;
+        std::string expr;
         if (node.kind == core::ConcreteNode::Kind::kInput) {
-          expression = "OpNode::input(" + quote(node.text) + ")";
-        } else if (node.kind == core::ConcreteNode::Kind::kLiteral) {
-          imports.insert("Op");
-          imports.insert("LiteralAttrs");
-          if (node.dtype) imports.insert("DType");
-          expression =
-              "OpNode::from_parts(Op::Literal, {}, LiteralAttrs { " +
-              quote(node.text) + ", " +
-              (node.dtype ? "::std::optional(" + dtype(*node.dtype) + ")"
-                          : "::std::nullopt") +
-              " })";
-        } else {
-          const auto& op = program.operations.at(node.operation->value);
-          uses_dialects = true;
-          auto operation = names.operation(op.id, root);
-          operation.erase(0, root.size() + 2);  // Use the local dialects alias.
-          auto prefix = operation.substr(0, operation.rfind("::Op::"));
-          std::string attrs = prefix + "::OpAttrs{}";
+          out.line("graph.analysis.register_input(" + quote(node.text) + "," +
+                   facts(node) + ").value();");
+          expr = n.root + "::OpNode::input(" + quote(node.text) + ")";
+        } else if (node.kind == core::ConcreteNode::Kind::kLiteral)
+          expr = n.root + "::OpNode::literal(" + quote(node.text) + "," +
+                 dtypeOption(node.dtype) + ").value()";
+        else {
+          std::string attrs = "::std::nullopt";
+          const auto& op = p.operations.at(node.operation->value);
           if (op.attributes) {
-            const auto& schema =
-                program.attribute_schemas.at(op.attributes->value);
-            attrs = schemaType(names, *op.attributes);
-            attrs.erase(0, root.size() + 2);
-            attrs += " { ";
-            for (std::size_t j = 0; j < schema.fields.size(); ++j) {
-              if (j) attrs += ", ";
-              attrs += attribute(node.attributes.at(j), schema.fields[j],
-                                 schema.fields[j].list_depth,
-                                 schema.fields[j].optional, imports);
-            }
-            attrs += " }";
+            std::string v =
+                "rt::Value(rt::Descriptor{" + num(op.attributes->value) + ",{";
+            for (const auto& a : node.attributes) v += value(a) + ",";
+            v += "}})";
+            attrs = n.root + "::OpAttrs::from_value(" + v + ").value()";
           }
-          std::string children = "{";
-          for (auto child : node.operands)
-            children += std::to_string(child) + ",";
-          children += "}";
-          expression = "OpNode::make(" + operation + ", " + attrs + ", " +
-                       children + ")";
+          expr = n.root + "::OpNode::operation(" + n.root +
+                 "::Program::operation(" + num(node.operation->value) + ")," +
+                 attrs + ",{";
+          for (auto child : node.operands) expr += "n" + num(child) + ",";
+          expr += "}).value()";
         }
-        body << "nodes.push_back(" << expression << ");\n";
+        out.line("[[maybe_unused]] auto n" + num(i) + " = graph.add(" + expr +
+                 ");");
       }
-      body << "::std::vector<InputSpec> inputs{\n";
-      for (const auto& input : graph.nodes) {
-        if (input.kind != core::ConcreteNode::Kind::kInput) continue;
-        auto index = &input - graph.nodes.data();
-        std::string shape = "::std::nullopt";
-        if (input.shape) {
-          shape = "::std::vector<::std::uint64_t>{";
-          for (auto dim : *input.shape) shape += std::to_string(dim) + "ULL,";
-          shape += "}";
-        }
-        if (input.dtype) imports.insert("DType");
-        auto input_dtype = input.dtype
-                               ? "::std::optional(" + dtype(*input.dtype) + ")"
-                               : "::std::nullopt";
-        body << "{ " << index << ", " << quote(input.text) << ", " << shape
-             << ", " << input_dtype << " },\n";
-      }
-      body << "};\n::std::map<::std::string, ::std::size_t, ::std::less<>> "
-              "bindings{\n";
-      for (const auto& [name, node] : graph.bindings) {
-        body << "{" << quote(name) << ", " << node << "},\n";
-      }
-      body << "};\nreturn GraphDefinition(::std::move(nodes), "
-              "::std::move(inputs), ::std::move(bindings), "
-           << graph.root << ");\n}\n";
-      out << "namespace " << root.substr(2) << "::graphs" << namespace_path
-          << "::" << graph_name.token << " {\n";
-      for (const auto& name : imports)
-        out << "using " << root << "::" << name << ";\n";
-      if (uses_dialects)
-        out << "namespace dialects = " << root << "::dialects;\n";
-      out << body.str() << "}\n";
+      out.line("graph.rebuild(); graph.analysis.check().value();");
+      std::string bindings = "{";
+      for (const auto& [name, id] : graph.bindings)
+        bindings += "{" + quote(name) + ",n" + num(id) + "},";
+      out.line("return {::std::move(graph),n" + num(graph.root) + "," +
+               bindings + "}};");
+      out.close(");");
+      out.close();
+      out.close();
     }
-    output.files.push_back({"graphs/" + path + ".h", out.str()});
+    result.files.push_back({"graphs/" + path + ".h", out.str()});
   }
-  for (const auto& file : files)
-    if (directories.contains(file))
-      throw NameError(origins.at(file),
-                      "graph file/directory module collision: " + file);
+  for (const auto& path : files)
+    if (dirs.contains(path))
+      throw NameError(origins.at(path),
+                      "graph file/directory module collision");
   for (const auto& [path, children] : indexes) {
-    std::string contents = std::string("#pragma once\n");
-    if (path.empty()) contents += "#include \"definition.h\"\n";
-    for (const auto& [key, token] : children) {
-      auto target = path.empty() ? key : path + "/" + key;
-      contents += "#include \"" + key +
-                  (indexes.contains(target) ? "/graphs.h" : ".h") + "\"\n";
+    std::string contents = "#pragma once\n";
+    for (const auto& child : children) {
+      auto next = path.empty() ? child : path + "/" + child;
+      contents += "#include \"" + child +
+                  (dirs.contains(next) ? "/graphs.h" : ".h") + "\"\n";
     }
-    output.files.push_back(
+    result.files.push_back(
         {"graphs/" + (path.empty() ? "" : path + "/") + "graphs.h", contents});
   }
 }

@@ -5,9 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="labs/rust-egg/README.md"><img src="https://img.shields.io/badge/target-Rust-CE422B?style=flat&amp;logo=rust" alt="Target: Rust"></a>
-  <a href="docs/tutorial/cpp/01_build.md"><img src="https://img.shields.io/badge/target-C%2B%2B-00599C?style=flat&amp;logo=cplusplus" alt="Target: C++"></a>
-  <a href="https://egraphs-good.github.io/"><img src="https://img.shields.io/badge/runtime-egg-F2C94C?style=flat" alt="Runtime: egg"></a>
+  <a href="docs/runtime/egraphs/rust/run.md"><img src="https://img.shields.io/badge/target-Rust-CE422B?style=flat&amp;logo=rust" alt="Target: Rust"></a>
+  <a href="docs/runtime/egraphs/cpp/setup.md"><img src="https://img.shields.io/badge/target-C%2B%2B-00599C?style=flat&amp;logo=cplusplus" alt="Target: C++"></a>
   <a href="#-quick-start"><img src="https://img.shields.io/badge/build-Bazel-43A047?style=flat&amp;logo=bazel" alt="Build: Bazel"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
 </p>
@@ -18,177 +17,224 @@
 
 The same tensor computation can be expressed in different ways—with very different costs. In machine learning, choosing the right form can make a big difference: depending on tensor dimensions, `(XA)B` can require far less computation than `X(AB)`.
 
-[E-graphs](https://en.wikipedia.org/wiki/E-graph) help optimizers explore those alternatives. They compactly represent many equivalent expressions, letting rewrite rules uncover more ways to perform a computation.
+But turning a mathematical identity into a correct tensor rewrite is hard. The rule needs to capture more than the operations alone: attributes, shapes, dtypes, and numerical semantics all affect whether a transformation is valid.
 
-[egg](https://egraphs-good.github.io/) brings this approach to Rust with a fast, flexible e-graph library for building optimizers. But applying it to tensor computations introduces a challenge: the rules need to capture more than the operations alone.
+TEPL is a language dedicated to tensor rewrite rules. It lets you express these details alongside the transformation, rewrite concrete graphs directly, or generate Rust or C++ code for integration into an optimizer.
 
 ## 😢 Tensor rewrites need more than symbols
 
-Symbolic expressions make egg easy to use and powerful: operation names and nested operands can describe everything from simple arithmetic to complex computation graphs. Its Rust macros let you define your own operators and express rewrites in just a few lines. For example, moving negation through a transpose:
+Operation names and nested operands make a rewrite easy to read. For example, composing two transposes looks simple:
 
-```rust
-use egg::{define_language, rewrite, Rewrite};
-
-// Define symbolic operators and their arity without writing the language implementation.
-define_language! {
-    enum Math {
-        "transpose" = Transpose(egg::Id),
-        "negate" = Negate(egg::Id),
-        Symbol(egg::Symbol),
-    }
-}
-
-// Express both sides as compact symbolic expressions; ?x captures any subexpression.
-let rule: Rewrite<Math, ()> = rewrite!(
-    "transpose-negate";
-    "(transpose (negate ?x))" => "(negate (transpose ?x))"
-);
+```text
+(transpose (transpose X))
+=>
+(transpose X)
 ```
 
-But which axes does `transpose` permute? Swapping axes `(1, 0)` is different from swapping axes `(2, 1)`. For a rank-three tensor, these swaps correspond to permutations `[1, 0, 2]` and `[0, 2, 1]`, respectively. The symbol `transpose` alone does not tell us which one we mean.
+But which axes does `transpose` permute? Swapping axes `(1, 0)` is different from swapping axes `(2, 1)`. For a rank-three tensor, these swaps correspond to permutations `[1, 0, 2]` and `[0, 2, 1]`, respectively. The symbol `transpose` alone does not tell us which one we mean. The replacement also needs a permutation that combines the two original transposes.
 
 Now consider reassociating matrix multiplication:
 
 ```text
-(matmul (matmul ?x ?a) ?b)
+(matmul (matmul X A) B)
 =>
-(matmul ?x (matmul ?a ?b))
+(matmul X (matmul A B))
 ```
 
 As humans, we recognize the familiar identity `(XA)B = X(AB)` for compatible matrices under exact arithmetic. But consider what the rewrite engine sees: two `matmul` operations in the pattern and two in the replacement. When represented as general tensor contractions, each operation carries its own attributes, including the contracting dimensions of its left and right operands. Those attributes may need to change after reassociation. Which original operation supplies the attributes for each new one, and which values must be recomputed? This expression does not say.
 
-There is another missing detail: what is `?x`? We intend it to be a tensor, but what is its shape or dtype? Many tensor operations need that information to determine whether their inputs are compatible and what shape and dtype their outputs will have. A rewrite also needs to respect numerical semantics, such as whether floating-point reassociation is allowed.
+There is another missing detail: what is `X`? We intend it to be a tensor, but what is its shape or dtype? Many tensor operations need that information to determine whether their inputs are compatible and what shape and dtype their outputs will have. A rewrite also needs to respect numerical semantics, such as whether floating-point reassociation is allowed.
 
-That is why tensor IRs carry more than operation names: [StableHLO](https://openxla.org/stablehlo/spec) and [ONNX](https://onnx.ai/onnx/operators/onnx__Transpose.html) represent operation attributes alongside tensor type information. A tensor rewrite must account for those details too.
+That is why tensor IRs carry more than operation names: attributes and tensor metadata are part of the computation. A tensor rewrite must account for those details too.
 
 > **Operation symbols alone are too abstract to fully describe tensor rewrites. Attributes and shape/dtype transformations must also be explicit.**
 
-egg can represent these details, but the compact expressions above leave their representation and handling to us.
+## 😭 Writing tensor rewrites by hand is painful
 
-## 😭 Pattern rewriting in Rust is painful
+You can write custom matchers and replacement builders to handle attributes, tensor metadata, and legality checks in detail. But the complete pattern and rewrite logic quickly becomes verbose and complex.
 
-You might ask, "Why not define the pattern directly in Rust instead of using symbolic expressions?"
+For example, here is the same `f32` transpose-composition rule written by hand in Rust using TEPL's shared runtime. This assumes the tutorial dialect's operation types and metadata contracts are already available in a `generated` module.
 
-Yes, you can. Custom matchers and appliers can handle the attributes, tensor metadata, and legality checks in detail. But the complete pattern and rewrite logic quickly becomes verbose and complex. Here is the earlier transpose-negate rule using this repository's Rust tensor runtime:
-
-<details>
-<summary><strong>👉 See the equivalent Rust rewrite</strong></summary>
+<details markdown="1">
+<summary><strong>👉 See the Rust rewrite</strong></summary>
 
 ```rust
-// 👀 No need to follow every line! This example shows how verbose
-// 👀 a simple tensor rewrite becomes when defining patterns by hand in Rust.
-
-use egg::Var;
-use rust_egg::ir::{DType, OpAttrs, dialects::tensor_lang::Op};
-use rust_egg::ir::analysis::{infer_tensor_output, tensor_info};
-use rust_egg::ir::rewriting::{
-    AttrExpr, AttrPattern, AttrVar, TensorExpr, TensorPattern, tensor_rewrite_checked,
+use crate::generated::{
+    Program, Rewrite,
+    dialects::tensor::{Op, TransposeAttrs},
 };
+use rt::matching::{Constraint, DTypeConstraint, Pattern, ShapeElement};
+use rt::values::AttributeValue;
+use tepl_runtime::{self as rt, DType, EvalResult, PreparedReplacement, RuleContext};
 
-let x: Var = "?x".parse().unwrap();
-let perm = AttrVar::from("perm");
+const X: usize = 0;
+const OUTER: usize = 0;
+const INNER: usize = 1;
 
-// Match transpose(negate(x)), capturing the transpose's permutation.
-// Each operator needs explicit attributes and a nested vector of child patterns.
-let lhs = TensorPattern::op(
-    Op::Transpose,
-    AttrPattern::Bind(perm),
-    vec![TensorPattern::op(
-        Op::Negate,
-        AttrPattern::Exact(OpAttrs::None),
-        vec![TensorPattern::Var(x)],
-    )],
-);
+fn transpose_id() -> usize {
+    <Program as rt::Program>::operation_id(Op::Transpose.into())
+}
 
-// Build negate(transpose(x)), reusing x and the captured permutation.
-// The replacement requires a separate expression tree with the nesting reversed.
-let rhs = TensorExpr::op(
-    Op::Negate,
-    AttrExpr::Exact(OpAttrs::None),
-    vec![TensorExpr::op(
-        Op::Transpose,
-        AttrExpr::Captured(perm),
-        vec![TensorExpr::Var(x)],
-    )],
-);
+fn prepare(ctx: &mut RuleContext<'_, Program>) -> EvalResult<Option<PreparedReplacement<Program>>> {
+    // Read both permutations and compute inner[outer[i]].
+    let outer = TransposeAttrs::from_value(&ctx.descriptor(OUTER)?)?;
+    let inner = TransposeAttrs::from_value(&ctx.descriptor(INNER)?)?;
+    let permutation = rt::builtins::call(
+        "gather",
+        vec![
+            rt::values::shape(&inner.permutation),
+            rt::values::shape(&outer.permutation),
+        ],
+        &mut ctx.budget,
+    )?;
+    let attrs = TransposeAttrs {
+        permutation: permutation.dimensions()?,
+    };
 
-// Connect the two trees and check that the replacement preserves shape and dtype.
-let rule = tensor_rewrite_checked(
-    "transpose-negate",
-    lhs,
-    rhs,
-    tensor_info,
-    infer_tensor_output,
-    move |graph, matched| {
-        // Apply only to f32 inputs, matching the TEPL declaration below.
-        let input = tensor_info(graph, matched.tensors[x])?;
-        (input.dtype == DType::F32).then_some(Default::default())
-    },
-).unwrap();
+    // Build the replacement; the runtime checks its metadata before insertion.
+    let input = ctx.captured_rhs(X)?;
+    Ok(Some(ctx.operation_rhs(
+        transpose_id(),
+        attrs.to_value(),
+        vec![input],
+    )?))
+}
+
+fn compose_transposes() -> EvalResult<Rewrite> {
+    rt::RuleDefinition {
+        name: "compose_transposes_explicit",
+        source: "manual Rust rule",
+        // Match transpose(transpose(X)), binding each descriptor separately.
+        lhs: Pattern::Operation {
+            operation: transpose_id(),
+            descriptor: Some(OUTER),
+            operands: vec![Pattern::Operation {
+                operation: transpose_id(),
+                descriptor: Some(INNER),
+                operands: vec![Pattern::Capture(X)],
+            }],
+        },
+        // X must have dtype f32; bind its complete shape as a dimension sequence.
+        constraints: vec![Constraint {
+            capture: X,
+            shape: vec![ShapeElement::Sequence(Some(0))],
+            dtype: Some(DTypeConstraint::Exact(DType::F32)),
+        }],
+        prepare,
+    }
+    .build()
+}
 ```
 
 </details>
 
-Even this simple rewrite needs separate nested trees for the pattern and replacement, explicit attribute bindings, and metadata checks. As patterns grow, the repeated constructors and bookkeeping make the mathematical rule harder to see, review, and maintain.
+Even a simple rewrite can need separate nested trees for the pattern and replacement, explicit attribute bindings, and metadata checks. As patterns grow, the repeated constructors and bookkeeping make the mathematical rule harder to see, review, and maintain.
 
 ## ✨ Write a rule in TEPL, a language dedicated to tensor rewrites
 
-TEPL lets you express the rule, its attributes, and its tensor constraints together, then generates Rust code for egg or C++ code for [egg-c](https://github.com/5yearsKim/egg-c). Both backends support attribute capture, shape/dtype analysis, and multiple dialects.
+TEPL lets you express the rule, its attributes, and its tensor constraints together. Here is transpose composition with explicit attribute construction, using the [example tensor dialect](examples/projects/transpose/dialects/tensor.tepl):
 
-Here is the complete TEPL rule, using the example tensor dialect. Save it as `examples/sample/rules/transpose_negate.tepl`:
+```tepl
+from "dialects/tensor.tepl" import Tensor as t
 
-```javascript
-from "../dialects/tensor.tepl" import TensorLang as t;
-
-rule transpose_negate {
+rule compose_transposes_explicit {
     X: f32[Dims...]
 
-    (t.transpose[@perm] (t.negate X))
-    =>
-    (t.negate (t.transpose[@perm] X))
+    (outer: t.transpose (inner: t.transpose X))
+    => (result: t.transpose X)
+
+    derive {
+        result.attrs = {
+            permutation: gather(inner.attrs.permutation, outer.attrs.permutation)
+        }
+    }
 }
 ```
 
+`outer` and `inner` name the matched operations; `.attrs.permutation` reads their attributes. `gather(p, q)` constructs the composed permutation by selecting `p[q[i]]`. The tensor declaration restricts `X` to an `f32` tensor of any rank. Save this rule under `rules/` in a project with that dialect at `dialects/tensor.tepl`.
+
+With the dialect's axis and value contracts, TEPL can also construct the replacement permutation automatically:
+
+```tepl
+rule compose_transposes {
+    (t.transpose (t.transpose X)) => (t.transpose X)
+}
+```
+
+The compiler constructs the eligible axis attributes and checks the transformation under the selected arithmetic policy. You can still supply attributes and conditions explicitly.
+
 TEPL keeps tensor rewrites concise while supporting the features needed for real tensor optimizations:
 
-- **Readable rules:** Write the match and replacement directly, without manually building nested Rust trees.
-- **Attribute capture and reuse:** `@perm` carries the transpose attributes from the match into the replacement.
-- **Shape and dtype analysis:** `f32[Dims...]` matches an `f32` tensor of any rank; generated checks require the replacement to preserve the output shape and dtype.
-- **Custom rewrite conditions:** Use `where` to express legality checks and `derive` to compute new attributes.
+- **Readable rules:** Write the match and replacement directly, without manually building nested trees.
+- **Attribute capture and construction:** Name operations to read their attributes, reuse descriptors with `[source.attrs]`, and compute replacement fields in `derive`.
+- **Shape and dtype analysis:** Express tensor constraints such as `f32[Dims...]` and define operation contracts that check inputs and infer outputs.
+- **Custom rewrite conditions:** Use `where` to restrict when a rule applies.
+- **Semantic verification and axis inference:** Declare operation meaning to verify supported transformations and construct eligible replacement axis attributes.
 - **Multiple dialects:** Define and import your own operation dialects, and write rules that rewrite between them.
-- **Host function bindings:** Implement complex logic in Rust or C++ and call it from TEPL with `$function(...)` in `where` and `derive` blocks.
-- **E-graph integration:** Generate rewrites for egg or egg-c, with generated tensor analysis or hooks for your own analysis and inference.
+- **Flexible execution:** Run concrete graph rewrites with TEPL's engine or generate Rust or C++ code for an optimizer.
 
 ## 📉 A smaller computation with LoRA
 
-The [LoRA example](labs/rust-egg/README.md#lora-saturation-example) uses TEPL-generated rules with egg to explore equivalent expressions and select one with a lower estimated arithmetic cost. Here, `@` denotes matrix multiplication.
+The [LoRA example](examples/projects/lora/README.md) rewrites a computation with a low-rank adapter. Here, `@` denotes matrix multiplication:
 
-| | Expression | Estimated arithmetic operations |
-| --- | --- | ---: |
-| Before | `X @ (W + A @ B)` | 69,632 |
-| After | `X @ W + (X @ A) @ B` | 39,168 |
+| | Expression |
+| --- | --- |
+| Before | `X @ (W + A @ B)` |
+| After | `X @ W + (X @ A) @ B` |
 
-That's **about 44% fewer estimated arithmetic operations** for input shapes `X=[2,4,64]`, `W=[2,64,32]`, `A=[2,64,4]`, and `B=[2,4,32]`. The demo checks equal results using deterministic integer inputs; floating-point reassociation is controlled by the host's legality policy.
+When the adapter rank is small, reassociation can reduce the arithmetic needed for the adapter branch. The cost of the whole rewrite depends on tensor dimensions and the target.
 
-Read the [TEPL rule](examples/sample/rules/lora.tepl) or reproduce the result from the repository root:
+Read the [TEPL rule](examples/projects/lora/rules/lora.tepl) or run it from the repository root:
 
 ```sh
-cargo run --manifest-path labs/rust-egg/Cargo.toml --example lora_saturation
+bazel-bin/tepl rewrite examples/projects/lora --trace -o /tmp/lora.tepl
 ```
+
+The example selects the `algebraic` policy for distribution and reassociation. This permits ideal-arithmetic laws; it does not promise bit-identical floating-point results.
 
 ## 🚀 Quick start
 
-Try it from the repository root:
+Run from the repository root; see the
+[installation guide](docs/getting-started/install.md) for prerequisites and
+system-wide installation of the `tepl` command.
 
 ```sh
 bazel build //:tepl
-bazel-bin/tepl check examples/sample
-bazel-bin/tepl generate examples/sample --out my_app/src/generated
+bazel-bin/tepl check examples/projects/transpose
+bazel-bin/tepl init /tmp/my-tepl-project
 ```
 
-Start a new TEPL project with `tepl init <directory>` (use `.` for the current
-directory):
+Compile and execute a concrete rewrite:
 
+```sh
+bazel-bin/tepl compile examples/projects/transpose -o /tmp/program.json
+bazel-bin/tepl validate /tmp/program.json
+bazel-bin/tepl rewrite /tmp/program.json --trace -o /tmp/result.tepl
+```
+
+Project roots are marked by `tepl.toml`; start a new project with
+`tepl init <directory>`. Configure source directories and exclusions under
+`[sources]`, and the default semantic policy under `[check]`. See the
+[configuration reference](docs/references/cli.md#project-configuration-and-import-paths).
+
+## Generate an optimizer
+
+Generate Rust for egg or C++20 for egg-c from the same TEPL program:
+
+```sh
+bazel-bin/tepl generate examples/projects/transpose --out /tmp/rust-app/src/generated
+bazel-bin/tepl generate examples/projects/transpose --target cpp \
+  --cpp-namespace my_ir --out /tmp/cpp-app/generated
+```
+
+Add the shared runtime to the application. Rust output uses `rustfmt`; C++ uses
+`clang-format`. `--no-format` skips formatting; `--check` compares owned output
+without changing it. Generated modules contain program-specific code only.
+
+| Target | Integration | Runnable application |
+| --- | --- | --- |
+| Rust / egg | [Runtime guide](runtime/rust/README.md) | [Transpose example](labs/rust-egg/README.md) |
+| C++20 / egg-c | [Runtime guide](runtime/cpp/README.md) | [CMake tutorial](labs/tutorial_cpp/README.md) |
 
 ## 💡 Tips
 
@@ -201,7 +247,9 @@ highlighting and code formatting to your editor.
 
 ## 📚 More on…
 
-- [🧭 Design philosophy](https://5yearskim.github.io/tepl/design_philosophy/) — The principles behind TEPL's language design.
-- [🧠 Core concepts](https://5yearskim.github.io/tepl/2_core_concept_tepl/) — Understand TEPL's tensor patterns and rewrite rules.
-- [🦀 Rust tutorial](https://5yearskim.github.io/tepl/tutorial/rust/01_build/) — Build TEPL and get started with tensor rewrites in Rust.
-- [🛠️ Developer guide](https://5yearskim.github.io/tepl/developer_guide/) — Build, test, and contribute to TEPL.
+- [What is TEPL?](docs/getting-started/what-is-tepl.md)
+- [Install TEPL](docs/getting-started/install.md)
+- [Your first rewrite](docs/getting-started/first-rewrite.md)
+- [Design philosophy](docs/design_philosophy.md)
+- [Core concepts](docs/language/core-concepts.md)
+- [Docs](https://5yearskim.github.io/tepl/)

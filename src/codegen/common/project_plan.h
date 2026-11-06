@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "src/core/ir.h"
+#include "src/executable/ir.h"
 
 namespace tepl::codegen {
 
@@ -31,10 +31,10 @@ struct ProjectPlan {
   std::vector<GraphModulePlan> graph_modules;
 };
 
-// Requires checked core. Rejects rule/graph sources outside their roots and
-// ambiguous source module paths. Target-specific naming validation belongs to
-// backends.
-ProjectPlan planProject(const core::Program& program,
+// Requires validated executable data. Rejects rule/graph sources outside their
+// roots and ambiguous source module paths. Target-specific naming validation
+// belongs to backends.
+ProjectPlan planProject(const executable::ProgramData& program,
                         const std::string& rules_root = {},
                         const std::string& graphs_root = {});
 

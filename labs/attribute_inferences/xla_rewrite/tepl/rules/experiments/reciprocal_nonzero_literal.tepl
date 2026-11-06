@@ -1,0 +1,15 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Companion case: literal 2 proves a nonzero floating divisor.
+// This is not the original arbitrary-divisor XLA case.
+rule reciprocal_nonzero_literal {
+  X: f32[Dims...]
+
+  (hlo.divide X (b: hlo.broadcast 2:f32))
+  =>
+  (hlo.multiply X (o: hlo.broadcast (hlo.divide 1:f32 2:f32)))
+
+  where b.attrs.dimensions == [] derive {
+    o.attrs = { dimensions: auto, new_extents: b.attrs.new_extents }
+  }
+}

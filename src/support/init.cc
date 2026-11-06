@@ -8,11 +8,13 @@
 #include <string>
 #include <system_error>
 
+#include "src/support/project_config.h"
+
 namespace tepl::support {
 namespace {
 struct StarterFile {
   std::filesystem::path path;
-  const char* source;
+  std::string source;
 };
 
 bool existsWithoutFollowingSymlinks(const std::filesystem::path& path) {
@@ -30,7 +32,7 @@ void writeNewFile(const StarterFile& file) {
   if (!output)
     throw std::runtime_error(file.path.string() +
                              ": cannot create file: " + std::strerror(errno));
-  const bool written = std::fputs(file.source, output) >= 0;
+  const bool written = std::fputs(file.source.c_str(), output) >= 0;
   const bool closed = std::fclose(output) == 0;
   if (!written || !closed) {
     std::error_code ignored;
@@ -47,14 +49,25 @@ void initializeProject(const std::filesystem::path& directory) {
   const std::array directories{directory, directory / "dialects",
                                directory / "rules"};
   const std::array files{
+      StarterFile{directory / "tepl.toml",
+                  std::string("tepl-version = \"") + kTeplVersion + R"("
+
+[sources]
+dialects = ["dialects"]
+rules = ["rules"]
+graphs = ["graphs"]
+exclude = []
+
+[check]
+semantic-policy = "strict"
+)"},
       StarterFile{directory / "dialects" / "your_dialect.tepl",
                   R"(dialect YourDialect {
-    op add(lhs: tensor, rhs: tensor) -> tensor;
+    op add(lhs: tensor, rhs: tensor) -> tensor
 }
 )"},
-      StarterFile{
-          directory / "rules" / "your_rule.tepl",
-          R"(from "../dialects/your_dialect.tepl" import YourDialect as d;
+      StarterFile{directory / "rules" / "your_rule.tepl",
+                  R"(from "dialects/your_dialect.tepl" import YourDialect as d
 
 rule commute_add {
     (d.add X Y) => (d.add Y X)

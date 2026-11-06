@@ -1,0 +1,1895 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "add_zero",
+      "catalog_id": "elementwise-add-zero",
+      "file": "../tepl/rules/semantic/add_zero.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One operand order. zero_like models a shaped literal zero; no HLO literal matcher is evaluated.",
+      "expression_case": "add_zero"
+    },
+    {
+      "name": "add_constant_order",
+      "catalog_id": "elementwise-add-constant-order",
+      "file": "../tepl/rules/semantic/add_constant_order.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Proves commutation for arbitrary operands, including the catalog constant case. Constant/nonconstant matching is not implemented here.",
+      "expression_case": "add_constant_order"
+    },
+    {
+      "name": "add_constants",
+      "catalog_id": "elementwise-add-constants",
+      "file": "../tepl/rules/semantic/add_constants.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "C1/C2 remain tensor captures; proves the equation for all values, including constants. RHS constant folding is outside this check.",
+      "expression_case": "add_constants"
+    },
+    {
+      "name": "subtract_add_constants",
+      "catalog_id": "elementwise-subtract-add-constants",
+      "file": "../tepl/rules/semantic/subtract_add_constants.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "C1/C2 are tensor captures; the algebraic equation holds for all values. No literal folding.",
+      "expression_case": "subtract_add_constants"
+    },
+    {
+      "name": "add_subtract_cancel",
+      "catalog_id": "elementwise-add-subtract-cancel",
+      "file": "../tepl/rules/semantic/add_subtract_cancel.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "add_subtract_cancel"
+    },
+    {
+      "name": "factor_common_product",
+      "catalog_id": "elementwise-factor-common-product",
+      "file": "../tepl/rules/semantic/factor_common_product.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One matched factor order under algebraic policy; source numerical gates remain an integration obligation.",
+      "expression_case": "factor_common_product"
+    },
+    {
+      "name": "subtract_self",
+      "catalog_id": "elementwise-subtract-self",
+      "file": "../tepl/rules/semantic/subtract_self.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "subtract_self"
+    },
+    {
+      "name": "subtract_zero",
+      "catalog_id": "elementwise-subtract-zero",
+      "file": "../tepl/rules/semantic/subtract_zero.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "subtract_zero"
+    },
+    {
+      "name": "subtract_constant",
+      "catalog_id": "elementwise-subtract-constant",
+      "file": "../tepl/rules/semantic/subtract_constant.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "C is a tensor capture; proves a general identity containing the constant case. No literal evaluator.",
+      "expression_case": "subtract_constant"
+    },
+    {
+      "name": "subtract_subtract_cancel",
+      "catalog_id": "elementwise-subtract-subtract-cancel",
+      "file": "../tepl/rules/semantic/subtract_subtract_cancel.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "subtract_subtract_cancel"
+    },
+    {
+      "name": "subtract_add_cancel",
+      "catalog_id": "elementwise-subtract-add-cancel",
+      "file": "../tepl/rules/semantic/subtract_add_cancel.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "subtract_add_cancel"
+    },
+    {
+      "name": "add_subtract_cancel_right",
+      "catalog_id": "elementwise-add-subtract-cancel-right",
+      "file": "../tepl/rules/semantic/add_subtract_cancel_right.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "add_subtract_cancel_right"
+    },
+    {
+      "name": "multiply_zero",
+      "catalog_id": "elementwise-multiply-zero",
+      "file": "../tepl/rules/semantic/multiply_zero.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "zero_like models literal zero. Requires algebraic arithmetic policy.",
+      "expression_case": "multiply_zero"
+    },
+    {
+      "name": "multiply_negatives",
+      "catalog_id": "elementwise-multiply-negatives",
+      "file": "../tepl/rules/semantic/multiply_negatives.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "multiply_negatives"
+    },
+    {
+      "name": "multiply_constant_pairs",
+      "catalog_id": "elementwise-multiply-constant-pairs",
+      "file": "../tepl/rules/semantic/multiply_constant_pairs.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "C1/C2 are tensor captures; no literal folding.",
+      "expression_case": "multiply_constant_pairs"
+    },
+    {
+      "name": "multiply_constants",
+      "catalog_id": "elementwise-multiply-constants",
+      "file": "../tepl/rules/semantic/multiply_constants.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "C1/C2 are tensor captures; no literal folding.",
+      "expression_case": "multiply_constants"
+    },
+    {
+      "name": "double_negate",
+      "catalog_id": "elementwise-double-negate",
+      "file": "../tepl/rules/semantic/double_negate.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "double_negate"
+    },
+    {
+      "name": "transpose_identity",
+      "catalog_id": "transpose-reshape-transpose-identity",
+      "file": "../tepl/rules/semantic/transpose_identity.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "transpose_identity"
+    },
+    {
+      "name": "transpose_compose",
+      "catalog_id": "transpose-reshape-transpose-compose",
+      "file": "../tepl/rules/semantic/transpose_compose.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "expression_case": "transpose_compose"
+    },
+    {
+      "name": "broadcast_add",
+      "catalog_id": "broadcast-elementwise",
+      "file": "../tepl/rules/semantic/broadcast_add.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Only binary addition, equal base shapes, identical broadcast maps and added extents; excludes other elementwise functions and scalar expansion.",
+      "expression_case": "broadcast_add"
+    },
+    {
+      "name": "broadcast_multiply",
+      "catalog_id": "broadcast-elementwise",
+      "file": "../tepl/rules/semantic/broadcast_multiply.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Only binary multiplication, equal base shapes, identical maps and added extents.",
+      "expression_case": "broadcast_multiply"
+    },
+    {
+      "name": "scalar_broadcast_reverse",
+      "catalog_id": "broadcast-scalar-through-indexing",
+      "file": "../tepl/rules/semantic/scalar_broadcast_reverse.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Only the reverse member of the parameterized indexing schema; input broadcast map is empty.",
+      "expression_case": "scalar_broadcast_reverse"
+    },
+    {
+      "name": "scalar_broadcast_transpose",
+      "catalog_id": "broadcast-scalar-through-indexing",
+      "file": "../tepl/rules/semantic/scalar_broadcast_transpose.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Only a rank-two transpose with permutation [1,0] and scalar broadcast.",
+      "expression_case": "scalar_broadcast_transpose"
+    },
+    {
+      "name": "reduce_negate",
+      "catalog_id": "reduction-negate",
+      "file": "../tepl/rules/semantic/reduce_negate.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Only sum with implicit zero initializer, matching the catalog arithmetic case.",
+      "expression_case": "reduce_negate"
+    },
+    {
+      "name": "reduce_compose",
+      "catalog_id": "reduction-compose",
+      "file": "../tepl/rules/semantic/reduce_compose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-three sum, inner axis 1 then outer axis 1; symbolic extents. Does not cover arbitrary combiners/initializers.",
+      "expression_case": "reduce_compose"
+    },
+    {
+      "name": "reduce_transpose",
+      "catalog_id": "reduction-transpose",
+      "file": "../tepl/rules/semantic/reduce_transpose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two transpose [1,0], sum over output axis 0, implicit zero initializer.",
+      "expression_case": "reduce_transpose"
+    },
+    {
+      "name": "reverse_cancel",
+      "catalog_id": "indexing-reverse-compose",
+      "file": "../tepl/rules/semantic/reverse_cancel.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Identical ordered dimension lists; a subset of general symmetric-difference composition.",
+      "expression_case": "reverse_cancel"
+    },
+    {
+      "name": "reverse_compose_disjoint",
+      "catalog_id": "indexing-reverse-compose",
+      "file": "../tepl/rules/semantic/reverse_compose_disjoint.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Rank-two disjoint lists [0] and [1]; probes a case beyond identical-list cancellation.",
+      "expression_case": "reverse_compose_disjoint"
+    },
+    {
+      "name": "reverse_add_scalar",
+      "catalog_id": "indexing-reverse-elementwise",
+      "file": "../tepl/rules/semantic/reverse_add_scalar.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Only addition and a scalar broadcast; tests the compound rule directly, not a two-rule sequence.",
+      "expression_case": "reverse_add_scalar"
+    },
+    {
+      "name": "slice_identity",
+      "catalog_id": "indexing-slice-identity",
+      "file": "../tepl/rules/semantic/slice_identity.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Rank-one positive-size slice; empty outputs are excluded by the supplied dialect.",
+      "expression_case": "slice_identity"
+    },
+    {
+      "name": "slice_compose",
+      "catalog_id": "indexing-slice-compose",
+      "file": "../tepl/rules/semantic/slice_compose.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Rank-one, positive-size, unit-stride slices with an explicit computed start.",
+      "expression_case": "slice_compose"
+    },
+    {
+      "name": "slice_reverse",
+      "catalog_id": "indexing-slice-reverse",
+      "file": "../tepl/rules/semantic/slice_reverse.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Rank-one, positive-size, unit-stride slice of a reversed axis; explicit reflected start.",
+      "expression_case": "slice_reverse"
+    },
+    {
+      "name": "dot_associate",
+      "catalog_id": "dot-associate",
+      "file": "../tepl/rules/semantic/dot_associate.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Ordinary rank-two matrix products without batch axes; every attribute is reused explicitly.",
+      "expression_case": "dot_associate"
+    },
+    {
+      "name": "dot_transpose_output",
+      "catalog_id": "dot-transpose-output",
+      "file": "../tepl/rules/semantic/dot_transpose_output.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two matrix product, output transpose [1,0]; explicit swapped contraction attributes.",
+      "expression_case": "dot_transpose_output"
+    },
+    {
+      "name": "dot_move_reverse",
+      "catalog_id": "dot-move-reverse",
+      "file": "../tepl/rules/semantic/dot_move_reverse.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one inner product; reversal of its sole contracting axis; no free/batch axes.",
+      "expression_case": "dot_move_reverse"
+    },
+    {
+      "name": "negative_subtract_to_add",
+      "catalog_id": null,
+      "file": "../tepl/rules/semantic/negative_subtract_to_add.tepl",
+      "policy": "algebraic",
+      "control": true,
+      "scope": "Deliberately incorrect subtraction-to-addition rewrite; excluded from coverage counts."
+    },
+    {
+      "name": "reduce_compose_leading",
+      "catalog_id": "reduction-compose",
+      "file": "../tepl/rules/semantic/reduce_compose_leading.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-three sum with inner axis 0 then outer axis 0; implicit zero initializer. Compared with the nonleading-axis case.",
+      "expression_case": "reduce_compose_leading"
+    },
+    {
+      "name": "slice_compose_zero_starts",
+      "catalog_id": "indexing-slice-compose",
+      "file": "../tepl/rules/semantic/slice_compose_zero_starts.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Rank-one, positive-size, unit-stride slices with both starts zero. Copies outer attributes; avoids computed constructors.",
+      "expression_case": "slice_compose_zero_starts"
+    },
+    {
+      "name": "broadcast_compose_append",
+      "catalog_id": "broadcast-compose",
+      "file": "../tepl/rules/semantic/broadcast_compose_append.tepl",
+      "policy": "strict",
+      "control": false,
+      "scope": "Arbitrary input rank, broadcasts only append new dimensions; concatenates new extents explicitly.",
+      "expression_case": "broadcast_compose_append"
+    },
+    {
+      "name": "dot_swap_operands",
+      "catalog_id": "dot-swap-parameter-operand",
+      "file": "../tepl/rules/semantic/dot_swap_operands.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two matrix product. Proves the identity for any captured X/Y; does not implement parameter-like policy screening.",
+      "expression_case": "dot_swap_operands"
+    },
+    {
+      "name": "dot_no_contraction",
+      "catalog_id": "dot-no-contraction",
+      "file": "../tepl/rules/semantic/dot_no_contraction.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one operands, no batches or contractions; same-type ideal arithmetic, no conversions.",
+      "expression_case": "dot_no_contraction"
+    },
+    {
+      "name": "dot_reduce_product",
+      "catalog_id": "dot-reduce-product",
+      "file": "../tepl/rules/semantic/dot_reduce_product.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one inner product to multiply then sum; same-type ideal arithmetic, no widened accumulation.",
+      "expression_case": "dot_reduce_product"
+    },
+    {
+      "name": "dot_reduce_batch",
+      "catalog_id": "dot-reduce-output-batch",
+      "file": "../tepl/rules/semantic/dot_reduce_batch.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one batched product reduced over its sole batch axis; no remaining output axes.",
+      "expression_case": "dot_reduce_batch"
+    },
+    {
+      "name": "expr_divide_one",
+      "catalog_id": "elementwise-divide-one",
+      "file": "../tepl/rules/semantic/expr_divide_one.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal member; source numeric assumptions apply.",
+      "expression_case": "expr_divide_one"
+    },
+    {
+      "name": "expr_divide_two_quotients",
+      "catalog_id": "elementwise-divide-two-quotients",
+      "file": "../tepl/rules/semantic/expr_divide_two_quotients.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Algebraic equation; denominator and numeric assumptions remain source conditions.",
+      "expression_case": "expr_divide_two_quotients"
+    },
+    {
+      "name": "expr_divide_left_quotient",
+      "catalog_id": "elementwise-divide-left-quotient",
+      "file": "../tepl/rules/semantic/expr_divide_left_quotient.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Algebraic equation under source conditions.",
+      "expression_case": "expr_divide_left_quotient"
+    },
+    {
+      "name": "expr_divide_right_quotient",
+      "catalog_id": "elementwise-divide-right-quotient",
+      "file": "../tepl/rules/semantic/expr_divide_right_quotient.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Algebraic equation under source conditions.",
+      "expression_case": "expr_divide_right_quotient"
+    },
+    {
+      "name": "expr_multiply_one",
+      "catalog_id": "elementwise-multiply-one",
+      "file": "../tepl/rules/semantic/expr_multiply_one.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal member; tensor splat matching is an adapter detail.",
+      "expression_case": "expr_multiply_one"
+    },
+    {
+      "name": "expr_square_abs",
+      "catalog_id": "elementwise-square-abs",
+      "file": "../tepl/rules/semantic/expr_square_abs.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Noncomplex mathematical values; source numeric conditions apply.",
+      "expression_case": "expr_square_abs"
+    },
+    {
+      "name": "expr_multiply_exponentials",
+      "catalog_id": "elementwise-multiply-exponentials",
+      "file": "../tepl/rules/semantic/expr_multiply_exponentials.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Mathematical equation; source fast-math gate is recorded in the catalog.",
+      "expression_case": "expr_multiply_exponentials"
+    },
+    {
+      "name": "expr_double_not",
+      "catalog_id": "elementwise-double-not",
+      "file": "../tepl/rules/semantic/expr_double_not.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Logical/bitwise operation supplied by a dialect declaration. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "expr_double_not"
+    },
+    {
+      "name": "expr_xor_self",
+      "catalog_id": "elementwise-xor-self",
+      "file": "../tepl/rules/semantic/expr_xor_self.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar integer member; literal dtype follows the matched rule context. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "expr_xor_self"
+    },
+    {
+      "name": "expr_xor_zero",
+      "catalog_id": "elementwise-xor-zero",
+      "file": "../tepl/rules/semantic/expr_xor_zero.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar integer member. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "expr_xor_zero"
+    },
+    {
+      "name": "expr_and_zero",
+      "catalog_id": "elementwise-and-zero",
+      "file": "../tepl/rules/semantic/expr_and_zero.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar integer member. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "expr_and_zero"
+    },
+    {
+      "name": "expr_or_zero",
+      "catalog_id": "elementwise-or-zero",
+      "file": "../tepl/rules/semantic/expr_or_zero.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar integer member. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "expr_or_zero"
+    },
+    {
+      "name": "expr_log_exp",
+      "catalog_id": "elementwise-log-exp",
+      "file": "../tepl/rules/semantic/expr_log_exp.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Real mathematical values; source fast-math gate remains a source condition.",
+      "expression_case": "expr_log_exp"
+    },
+    {
+      "name": "expr_log_sqrt",
+      "catalog_id": "elementwise-log-sqrt",
+      "file": "../tepl/rules/semantic/expr_log_sqrt.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar X; real domain and source numeric assumptions apply.",
+      "expression_case": "expr_log_sqrt"
+    },
+    {
+      "name": "expr_maximum_self",
+      "catalog_id": "elementwise-max-self",
+      "file": "../tepl/rules/semantic/expr_maximum_self.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Operation semantics and source numeric policy supplied by target dialect.",
+      "expression_case": "expr_maximum_self"
+    },
+    {
+      "name": "expr_maximum_nested",
+      "catalog_id": "elementwise-max-nested-left",
+      "file": "../tepl/rules/semantic/expr_maximum_nested.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One matched operand form; source ordering retained.",
+      "expression_case": "expr_maximum_nested"
+    },
+    {
+      "name": "expr_maximum_nested_right",
+      "catalog_id": "elementwise-max-nested-right",
+      "file": "../tepl/rules/semantic/expr_maximum_nested_right.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand order matches the catalog.",
+      "expression_case": "expr_maximum_nested_right"
+    },
+    {
+      "name": "expr_minimum_self",
+      "catalog_id": "elementwise-min-self",
+      "file": "../tepl/rules/semantic/expr_minimum_self.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Operation semantics supplied by target dialect.",
+      "expression_case": "expr_minimum_self"
+    },
+    {
+      "name": "expr_minimum_nested",
+      "catalog_id": "elementwise-min-nested-left",
+      "file": "../tepl/rules/semantic/expr_minimum_nested.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One matched operand form.",
+      "expression_case": "expr_minimum_nested"
+    },
+    {
+      "name": "expr_minimum_nested_right",
+      "catalog_id": "elementwise-min-nested-right",
+      "file": "../tepl/rules/semantic/expr_minimum_nested_right.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand order matches the catalog.",
+      "expression_case": "expr_minimum_nested_right"
+    },
+    {
+      "name": "expr_real_complex",
+      "catalog_id": "elementwise-real-complex",
+      "file": "../tepl/rules/semantic/expr_real_complex.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Typed complex construction/projection supplied by target dialect.",
+      "expression_case": "expr_real_complex"
+    },
+    {
+      "name": "expr_imag_complex",
+      "catalog_id": "elementwise-imag-complex",
+      "file": "../tepl/rules/semantic/expr_imag_complex.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Typed complex construction/projection supplied by target dialect.",
+      "expression_case": "expr_imag_complex"
+    },
+    {
+      "name": "expr_complex_components",
+      "catalog_id": "elementwise-complex-components",
+      "file": "../tepl/rules/semantic/expr_complex_components.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Same captured complex tensor X.",
+      "expression_case": "expr_complex_components"
+    },
+    {
+      "name": "expr_select_identical",
+      "catalog_id": "elementwise-select-identical",
+      "file": "../tepl/rules/semantic/expr_select_identical.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Shared selected operand; target supplies compatible shape/dtype metadata. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "expr_select_identical"
+    },
+    {
+      "name": "expr_select_not",
+      "catalog_id": "elementwise-select-not",
+      "file": "../tepl/rules/semantic/expr_select_not.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Predicate operation supplied by target dialect. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "expr_select_not"
+    },
+    {
+      "name": "expr_power_zero",
+      "catalog_id": "elementwise-power-zero",
+      "file": "../tepl/rules/semantic/expr_power_zero.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal exponent member.",
+      "expression_case": "expr_power_zero"
+    },
+    {
+      "name": "expr_power_one",
+      "catalog_id": "elementwise-power-one",
+      "file": "../tepl/rules/semantic/expr_power_one.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal exponent member.",
+      "expression_case": "expr_power_one"
+    },
+    {
+      "name": "expr_power_two",
+      "catalog_id": "elementwise-power-two",
+      "file": "../tepl/rules/semantic/expr_power_two.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal exponent member.",
+      "expression_case": "expr_power_two"
+    },
+    {
+      "name": "expr_power_three",
+      "catalog_id": "elementwise-power-three",
+      "file": "../tepl/rules/semantic/expr_power_three.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal exponent member.",
+      "expression_case": "expr_power_three"
+    },
+    {
+      "name": "expr_power_reciprocal",
+      "catalog_id": "elementwise-power-reciprocal",
+      "file": "../tepl/rules/semantic/expr_power_reciprocal.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar nonintegral member under the source conditions.",
+      "expression_case": "expr_power_reciprocal"
+    },
+    {
+      "name": "expr_remainder_compose",
+      "catalog_id": "elementwise-remainder-compose",
+      "file": "../tepl/rules/semantic/expr_remainder_compose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Same divisor capture; target remainder semantics retained.",
+      "expression_case": "expr_remainder_compose"
+    },
+    {
+      "name": "expr_reshape_identity",
+      "catalog_id": "transpose-reshape-reshape-identity",
+      "file": "../tepl/rules/semantic/expr_reshape_identity.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank shape guard; no semantic reshape primitive is required for expression.",
+      "expression_case": "expr_reshape_identity"
+    },
+    {
+      "name": "expr_reshape_compose",
+      "catalog_id": "transpose-reshape-reshape-compose",
+      "file": "../tepl/rules/semantic/expr_reshape_compose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Explicitly reuses the outer shape descriptor.",
+      "expression_case": "expr_reshape_compose"
+    },
+    {
+      "name": "expr_concat_unary",
+      "catalog_id": "indexing-concat-unary",
+      "file": "../tepl/rules/semantic/expr_concat_unary.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Single operand case is expressible despite missing semantic concat reads.",
+      "expression_case": "expr_concat_unary"
+    },
+    {
+      "name": "expr_concat_flatten",
+      "catalog_id": "indexing-concat-flatten",
+      "file": "../tepl/rules/semantic/expr_concat_flatten.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Binary inner/outer instance; arbitrary operand-list capture is assessed separately.",
+      "expression_case": "expr_concat_flatten"
+    },
+    {
+      "name": "expr_update_full",
+      "catalog_id": "indexing-update-full",
+      "file": "../tepl/rules/semantic/expr_update_full.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Equal base/update shapes are expressed by shared shape variables.",
+      "expression_case": "expr_update_full"
+    },
+    {
+      "name": "expr_update_empty",
+      "catalog_id": "indexing-update-empty",
+      "file": "../tepl/rules/semantic/expr_update_empty.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one empty update instance.",
+      "expression_case": "expr_update_empty"
+    },
+    {
+      "name": "expr_reverse_compose_general",
+      "catalog_id": "indexing-reverse-compose",
+      "file": "../tepl/rules/semantic/expr_reverse_compose_general.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "General symmetric difference computed with existing list builtins; no auto.",
+      "expression_case": "expr_reverse_compose_general"
+    },
+    {
+      "name": "expr_pad_identity",
+      "catalog_id": "indexing-pad-identity",
+      "file": "../tepl/rules/semantic/expr_pad_identity.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank zero-padding guard using existing comprehensions.",
+      "expression_case": "expr_pad_identity"
+    },
+    {
+      "name": "expr_reduce_compose_general",
+      "catalog_id": "reduction-compose",
+      "file": "../tepl/rules/semantic/expr_reduce_compose_general.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Single-result same-combiner/same-initializer case; region handle forwarded, explicit sorted union of lifted axes.",
+      "expression_case": "expr_reduce_compose_general"
+    },
+    {
+      "name": "expr_slice_compose_general",
+      "catalog_id": "indexing-slice-compose",
+      "file": "../tepl/rules/semantic/expr_slice_compose_general.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank unit-stride composition; explicit metadata arithmetic and comprehensions.",
+      "expression_case": "expr_slice_compose_general"
+    },
+    {
+      "name": "expr_slice_reverse_general",
+      "catalog_id": "indexing-slice-reverse",
+      "file": "../tepl/rules/semantic/expr_slice_reverse_general.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank positive-size strided slice; explicit reflected starts. Empty output cases can be handled separately.",
+      "expression_case": "expr_slice_reverse_general"
+    },
+    {
+      "name": "expr_convolution_scale_filter_bias",
+      "catalog_id": "convolution-scale-filter-bias",
+      "file": "../tepl/rules/semantic/expr_convolution_scale_filter_bias.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One spatial dimension with fixed kernel/output feature positions. Proves expression of explicit scale broadcasts and convolution attribute reuse; source constant and numerical-policy conditions remain in the catalog.",
+      "expression_case": "expr_convolution_scale_filter_bias"
+    },
+    {
+      "name": "catalog_elementwise_and_true",
+      "catalog_id": "elementwise-and-true",
+      "file": "../tepl/rules/semantic/catalog_elementwise_and_true.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "catalog_elementwise_and_true"
+    },
+    {
+      "name": "catalog_elementwise_or_true",
+      "catalog_id": "elementwise-or-true",
+      "file": "../tepl/rules/semantic/catalog_elementwise_or_true.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "catalog_elementwise_or_true"
+    },
+    {
+      "name": "catalog_elementwise_divide_exponentials",
+      "catalog_id": "elementwise-divide-exponentials",
+      "file": "../tepl/rules/semantic/catalog_elementwise_divide_exponentials.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_divide_exponentials"
+    },
+    {
+      "name": "catalog_elementwise_divide_exponential",
+      "catalog_id": "elementwise-divide-exponential",
+      "file": "../tepl/rules/semantic/catalog_elementwise_divide_exponential.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_divide_exponential"
+    },
+    {
+      "name": "catalog_elementwise_divide_power",
+      "catalog_id": "elementwise-divide-power",
+      "file": "../tepl/rules/semantic/catalog_elementwise_divide_power.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_divide_power"
+    },
+    {
+      "name": "catalog_elementwise_divide_sqrt",
+      "catalog_id": "elementwise-divide-sqrt",
+      "file": "../tepl/rules/semantic/catalog_elementwise_divide_sqrt.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_divide_sqrt"
+    },
+    {
+      "name": "catalog_elementwise_divide_rsqrt",
+      "catalog_id": "elementwise-divide-rsqrt",
+      "file": "../tepl/rules/semantic/catalog_elementwise_divide_rsqrt.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_divide_rsqrt"
+    },
+    {
+      "name": "catalog_elementwise_multiply_predicate",
+      "catalog_id": "elementwise-multiply-predicate",
+      "file": "../tepl/rules/semantic/catalog_elementwise_multiply_predicate.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_multiply_predicate"
+    },
+    {
+      "name": "catalog_elementwise_log_power",
+      "catalog_id": "elementwise-log-power",
+      "file": "../tepl/rules/semantic/catalog_elementwise_log_power.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_log_power"
+    },
+    {
+      "name": "catalog_elementwise_log_rsqrt",
+      "catalog_id": "elementwise-log-rsqrt",
+      "file": "../tepl/rules/semantic/catalog_elementwise_log_rsqrt.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "expression_case": "catalog_elementwise_log_rsqrt"
+    },
+    {
+      "name": "catalog_elementwise_max_identity",
+      "catalog_id": "elementwise-max-identity",
+      "file": "../tepl/rules/semantic/catalog_elementwise_max_identity.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "expression_case": "catalog_elementwise_max_identity"
+    },
+    {
+      "name": "catalog_elementwise_min_identity",
+      "catalog_id": "elementwise-min-identity",
+      "file": "../tepl/rules/semantic/catalog_elementwise_min_identity.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "expression_case": "catalog_elementwise_min_identity"
+    },
+    {
+      "name": "catalog_elementwise_max_nested_right_reorder",
+      "catalog_id": "elementwise-max-nested-right-reorder",
+      "file": "../tepl/rules/semantic/catalog_elementwise_max_nested_right_reorder.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_max_nested_right_reorder"
+    },
+    {
+      "name": "catalog_elementwise_min_nested_right_reorder",
+      "catalog_id": "elementwise-min-nested-right-reorder",
+      "file": "../tepl/rules/semantic/catalog_elementwise_min_nested_right_reorder.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_min_nested_right_reorder"
+    },
+    {
+      "name": "catalog_elementwise_max_clamp_bound",
+      "catalog_id": "elementwise-max-clamp-bound",
+      "file": "../tepl/rules/semantic/catalog_elementwise_max_clamp_bound.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_max_clamp_bound"
+    },
+    {
+      "name": "catalog_elementwise_max_monotone",
+      "catalog_id": "elementwise-max-monotone",
+      "file": "../tepl/rules/semantic/catalog_elementwise_max_monotone.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "tanh member of the finite monotone-opcode family.",
+      "expression_case": "catalog_elementwise_max_monotone"
+    },
+    {
+      "name": "catalog_elementwise_clamp_clamp",
+      "catalog_id": "elementwise-clamp-clamp",
+      "file": "../tepl/rules/semantic/catalog_elementwise_clamp_clamp.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_clamp_clamp"
+    },
+    {
+      "name": "catalog_elementwise_real_noncomplex",
+      "catalog_id": "elementwise-real-noncomplex",
+      "file": "../tepl/rules/semantic/catalog_elementwise_real_noncomplex.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Noncomplex f32 inputs of arbitrary rank.",
+      "expression_case": "catalog_elementwise_real_noncomplex"
+    },
+    {
+      "name": "catalog_elementwise_imag_noncomplex",
+      "catalog_id": "elementwise-imag-noncomplex",
+      "file": "../tepl/rules/semantic/catalog_elementwise_imag_noncomplex.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Noncomplex f32 inputs of arbitrary rank.",
+      "expression_case": "catalog_elementwise_imag_noncomplex"
+    },
+    {
+      "name": "catalog_elementwise_power_exp",
+      "catalog_id": "elementwise-power-exp",
+      "file": "../tepl/rules/semantic/catalog_elementwise_power_exp.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_power_exp"
+    },
+    {
+      "name": "catalog_elementwise_sqrt_square",
+      "catalog_id": "elementwise-sqrt-square",
+      "file": "../tepl/rules/semantic/catalog_elementwise_sqrt_square.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_sqrt_square"
+    },
+    {
+      "name": "catalog_elementwise_compare_self",
+      "catalog_id": "elementwise-compare-self",
+      "file": "../tepl/rules/semantic/catalog_elementwise_compare_self.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Integral scalar EQ/GE/LE cases; false-result directions can use a separate rule.",
+      "expression_case": "catalog_elementwise_compare_self"
+    },
+    {
+      "name": "catalog_elementwise_compare_predicate_false",
+      "catalog_id": "elementwise-compare-predicate-false",
+      "file": "../tepl/rules/semantic/catalog_elementwise_compare_predicate_false.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "expression_case": "catalog_elementwise_compare_predicate_false"
+    },
+    {
+      "name": "catalog_elementwise_compare_predicate_true",
+      "catalog_id": "elementwise-compare-predicate-true",
+      "file": "../tepl/rules/semantic/catalog_elementwise_compare_predicate_true.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "expression_case": "catalog_elementwise_compare_predicate_true"
+    },
+    {
+      "name": "catalog_elementwise_compare_selected_mask",
+      "catalog_id": "elementwise-compare-selected-mask",
+      "file": "../tepl/rules/semantic/catalog_elementwise_compare_selected_mask.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_compare_selected_mask"
+    },
+    {
+      "name": "catalog_elementwise_compare_max",
+      "catalog_id": "elementwise-compare-max",
+      "file": "../tepl/rules/semantic/catalog_elementwise_compare_max.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_compare_max"
+    },
+    {
+      "name": "catalog_elementwise_compare_min",
+      "catalog_id": "elementwise-compare-min",
+      "file": "../tepl/rules/semantic/catalog_elementwise_compare_min.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_compare_min"
+    },
+    {
+      "name": "catalog_elementwise_select_predicate_identity",
+      "catalog_id": "elementwise-select-predicate-identity",
+      "file": "../tepl/rules/semantic/catalog_elementwise_select_predicate_identity.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_select_predicate_identity"
+    },
+    {
+      "name": "catalog_elementwise_select_predicate_not",
+      "catalog_id": "elementwise-select-predicate-not",
+      "file": "../tepl/rules/semantic/catalog_elementwise_select_predicate_not.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_select_predicate_not"
+    },
+    {
+      "name": "catalog_elementwise_select_compare_gt",
+      "catalog_id": "elementwise-select-compare-gt",
+      "file": "../tepl/rules/semantic/catalog_elementwise_select_compare_gt.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_select_compare_gt"
+    },
+    {
+      "name": "catalog_elementwise_select_compare_lt",
+      "catalog_id": "elementwise-select-compare-lt",
+      "file": "../tepl/rules/semantic/catalog_elementwise_select_compare_lt.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_select_compare_lt"
+    },
+    {
+      "name": "catalog_elementwise_select_compare_eq",
+      "catalog_id": "elementwise-select-compare-eq",
+      "file": "../tepl/rules/semantic/catalog_elementwise_select_compare_eq.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_select_compare_eq"
+    },
+    {
+      "name": "catalog_elementwise_select_compare_ne",
+      "catalog_id": "elementwise-select-compare-ne",
+      "file": "../tepl/rules/semantic/catalog_elementwise_select_compare_ne.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_elementwise_select_compare_ne"
+    },
+    {
+      "name": "catalog_elementwise_divide_converted_predicate",
+      "catalog_id": "elementwise-divide-converted-predicate",
+      "file": "../tepl/rules/semantic/catalog_elementwise_divide_converted_predicate.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "expression_case": "catalog_elementwise_divide_converted_predicate"
+    },
+    {
+      "name": "catalog_broadcast_divide_broadcast",
+      "catalog_id": "broadcast-divide-broadcast",
+      "file": "../tepl/rules/semantic/catalog_broadcast_divide_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar Y broadcast to an arbitrary output shape.",
+      "expression_case": "catalog_broadcast_divide_broadcast"
+    },
+    {
+      "name": "catalog_broadcast_multiply_constant_into_broadcast",
+      "catalog_id": "broadcast-multiply-constant-into-broadcast",
+      "file": "../tepl/rules/semantic/catalog_broadcast_multiply_constant_into_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar factor C is a captured scalar; literal-only profitability does not affect the identity.",
+      "expression_case": "catalog_broadcast_multiply_constant_into_broadcast"
+    },
+    {
+      "name": "catalog_broadcast_reshape",
+      "catalog_id": "broadcast-reshape",
+      "file": "../tepl/rules/semantic/catalog_broadcast_reshape.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_broadcast_reshape"
+    },
+    {
+      "name": "catalog_broadcast_transpose",
+      "catalog_id": "broadcast-transpose",
+      "file": "../tepl/rules/semantic/catalog_broadcast_transpose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_broadcast_transpose"
+    },
+    {
+      "name": "catalog_broadcast_inserted_unit_dims",
+      "catalog_id": "broadcast-inserted-unit-dims",
+      "file": "../tepl/rules/semantic/catalog_broadcast_inserted_unit_dims.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one X; reshape inserts a leading unit axis; the outer broadcast appends axes.",
+      "expression_case": "catalog_broadcast_inserted_unit_dims"
+    },
+    {
+      "name": "catalog_broadcast_iota",
+      "catalog_id": "broadcast-iota",
+      "file": "../tepl/rules/semantic/catalog_broadcast_iota.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank iota; broadcast appends axes.",
+      "expression_case": "catalog_broadcast_iota"
+    },
+    {
+      "name": "catalog_broadcast_drop_unit_dims",
+      "catalog_id": "broadcast-drop-unit-dims",
+      "file": "../tepl/rules/semantic/catalog_broadcast_drop_unit_dims.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two operand with leading unit axis; broadcast appends axes.",
+      "expression_case": "catalog_broadcast_drop_unit_dims"
+    },
+    {
+      "name": "catalog_broadcast_reshape_broadcast",
+      "catalog_id": "broadcast-reshape-broadcast",
+      "file": "../tepl/rules/semantic/catalog_broadcast_reshape_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one base; reshape merges only two broadcast-created trailing axes.",
+      "expression_case": "catalog_broadcast_reshape_broadcast"
+    },
+    {
+      "name": "catalog_broadcast_transpose_broadcast",
+      "catalog_id": "broadcast-transpose-broadcast",
+      "file": "../tepl/rules/semantic/catalog_broadcast_transpose_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "General insertion-only broadcast/permutation equation; source sorted-map/layout policy remains in the catalog.",
+      "expression_case": "catalog_broadcast_transpose_broadcast"
+    },
+    {
+      "name": "catalog_broadcast_pad_broadcast",
+      "catalog_id": "broadcast-pad-broadcast",
+      "file": "../tepl/rules/semantic/catalog_broadcast_pad_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one X broadcast to rank two; padding only affects the mapped first axis. Edge padding is nonnegative.",
+      "expression_case": "catalog_broadcast_pad_broadcast"
+    },
+    {
+      "name": "catalog_broadcast_slice_broadcast_only",
+      "catalog_id": "broadcast-slice-broadcast-only",
+      "file": "../tepl/rules/semantic/catalog_broadcast_slice_broadcast_only.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one X maps to axis zero; only newly created axes are sliced.",
+      "expression_case": "catalog_broadcast_slice_broadcast_only"
+    },
+    {
+      "name": "catalog_broadcast_slice_broadcast",
+      "catalog_id": "broadcast-slice-broadcast",
+      "file": "../tepl/rules/semantic/catalog_broadcast_slice_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_broadcast_slice_broadcast"
+    },
+    {
+      "name": "catalog_broadcast_dynamic_slice_broadcast",
+      "catalog_id": "broadcast-dynamic-slice-broadcast",
+      "file": "../tepl/rules/semantic/catalog_broadcast_dynamic_slice_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one base broadcast to rank two; two scalar dynamic start operands.",
+      "expression_case": "catalog_broadcast_dynamic_slice_broadcast"
+    },
+    {
+      "name": "catalog_broadcast_gather_scalar",
+      "catalog_id": "broadcast-gather-scalar",
+      "file": "../tepl/rules/semantic/catalog_broadcast_gather_scalar.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Effective-scalar operand; result shape is adapter metadata on gather.",
+      "expression_case": "catalog_broadcast_gather_scalar"
+    },
+    {
+      "name": "catalog_transpose_reshape_reshape_empty",
+      "catalog_id": "transpose-reshape-reshape-empty",
+      "file": "../tepl/rules/semantic/catalog_transpose_reshape_reshape_empty.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_transpose_reshape_reshape_empty"
+    },
+    {
+      "name": "catalog_transpose_reshape_reshape_transpose_cancel_chain",
+      "catalog_id": "transpose-reshape-reshape-transpose-cancel-chain",
+      "file": "../tepl/rules/semantic/catalog_transpose_reshape_reshape_transpose_cancel_chain.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "A reshape/transpose/reshape chain moving a single unit axis.",
+      "expression_case": "catalog_transpose_reshape_reshape_transpose_cancel_chain"
+    },
+    {
+      "name": "catalog_transpose_reshape_reshape_hoist_transpose",
+      "catalog_id": "transpose-reshape-reshape-hoist-transpose",
+      "file": "../tepl/rules/semantic/catalog_transpose_reshape_reshape_hoist_transpose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Two contiguous rank-two chunks of a rank-four tensor; symbolic extents.",
+      "expression_case": "catalog_transpose_reshape_reshape_hoist_transpose"
+    },
+    {
+      "name": "catalog_transpose_reshape_transpose_unit_dims",
+      "catalog_id": "transpose-reshape-transpose-unit-dims",
+      "file": "../tepl/rules/semantic/catalog_transpose_reshape_transpose_unit_dims.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two input with one unit axis.",
+      "expression_case": "catalog_transpose_reshape_transpose_unit_dims"
+    },
+    {
+      "name": "catalog_indexing_add_sparse_update",
+      "catalog_id": "indexing-add-sparse-update",
+      "file": "../tepl/rules/semantic/catalog_indexing_add_sparse_update.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one update/slice with a scalar start.",
+      "expression_case": "catalog_indexing_add_sparse_update"
+    },
+    {
+      "name": "catalog_indexing_add_scatter",
+      "catalog_id": "indexing-add-scatter",
+      "file": "../tepl/rules/semantic/catalog_indexing_add_scatter.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_indexing_add_scatter"
+    },
+    {
+      "name": "catalog_indexing_add_two_scatters_concat",
+      "catalog_id": "indexing-add-two-scatters-concat",
+      "file": "../tepl/rules/semantic/catalog_indexing_add_two_scatters_concat.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one point-scatter operands with [count,1] indices and no batching.",
+      "expression_case": "catalog_indexing_add_two_scatters_concat"
+    },
+    {
+      "name": "catalog_indexing_add_two_scatters_nested",
+      "catalog_id": "indexing-add-two-scatters-nested",
+      "file": "../tepl/rules/semantic/catalog_indexing_add_two_scatters_nested.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Single-operand unbatched scatter-add composition; source shape screening remains applicable.",
+      "expression_case": "catalog_indexing_add_two_scatters_nested"
+    },
+    {
+      "name": "catalog_indexing_select_update",
+      "catalog_id": "indexing-select-update",
+      "file": "../tepl/rules/semantic/catalog_indexing_select_update.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one base, predicate and update; one scalar start. Local HLO select requires the predicate and both branches to have the same shape.",
+      "expression_case": "catalog_indexing_select_update"
+    },
+    {
+      "name": "catalog_indexing_reshape_update",
+      "catalog_id": "indexing-reshape-update",
+      "file": "../tepl/rules/semantic/catalog_indexing_reshape_update.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Insert a leading unit dimension into a rank-one dynamic update.",
+      "expression_case": "catalog_indexing_reshape_update"
+    },
+    {
+      "name": "catalog_indexing_concat_adjacent_slices",
+      "catalog_id": "indexing-concat-adjacent-slices",
+      "file": "../tepl/rules/semantic/catalog_indexing_concat_adjacent_slices.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Adjacent rank-one unit-stride slices.",
+      "expression_case": "catalog_indexing_concat_adjacent_slices"
+    },
+    {
+      "name": "catalog_indexing_concat_splat_to_pad",
+      "catalog_id": "indexing-concat-splat-to-pad",
+      "file": "../tepl/rules/semantic/catalog_indexing_concat_splat_to_pad.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one low-edge scalar padding; high-edge form is symmetric. Edge padding is nonnegative.",
+      "expression_case": "catalog_indexing_concat_splat_to_pad"
+    },
+    {
+      "name": "catalog_indexing_iota_trivial",
+      "catalog_id": "indexing-iota-trivial",
+      "file": "../tepl/rules/semantic/catalog_indexing_iota_trivial.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_indexing_iota_trivial"
+    },
+    {
+      "name": "catalog_indexing_pad_empty",
+      "catalog_id": "indexing-pad-empty",
+      "file": "../tepl/rules/semantic/catalog_indexing_pad_empty.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions. Edge padding is nonnegative.",
+      "expression_case": "catalog_indexing_pad_empty"
+    },
+    {
+      "name": "catalog_indexing_pad_interior_unit",
+      "catalog_id": "indexing-pad-interior-unit",
+      "file": "../tepl/rules/semantic/catalog_indexing_pad_interior_unit.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions. Edge padding is nonnegative.",
+      "expression_case": "catalog_indexing_pad_interior_unit"
+    },
+    {
+      "name": "catalog_indexing_reverse_trivial",
+      "catalog_id": "indexing-reverse-trivial",
+      "file": "../tepl/rules/semantic/catalog_indexing_reverse_trivial.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_indexing_reverse_trivial"
+    },
+    {
+      "name": "catalog_indexing_reverse_inserted_unit_dims",
+      "catalog_id": "indexing-reverse-inserted-unit-dims",
+      "file": "../tepl/rules/semantic/catalog_indexing_reverse_inserted_unit_dims.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Insert one leading unit axis into rank-one input.",
+      "expression_case": "catalog_indexing_reverse_inserted_unit_dims"
+    },
+    {
+      "name": "catalog_indexing_rotate_compose",
+      "catalog_id": "indexing-rotate-compose",
+      "file": "../tepl/rules/semantic/catalog_indexing_rotate_compose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank rotation over positive-extent selected axes; shifts combined modulo extent. Shift metadata is nonnegative.",
+      "expression_case": "catalog_indexing_rotate_compose"
+    },
+    {
+      "name": "catalog_indexing_slice_pad_only",
+      "catalog_id": "indexing-slice-pad-only",
+      "file": "../tepl/rules/semantic/catalog_indexing_slice_pad_only.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one edge-padding-only slice, with arbitrary positive stride. Edge padding is nonnegative.",
+      "expression_case": "catalog_indexing_slice_pad_only"
+    },
+    {
+      "name": "catalog_indexing_slice_pad_cancel",
+      "catalog_id": "indexing-slice-pad-cancel",
+      "file": "../tepl/rules/semantic/catalog_indexing_slice_pad_cancel.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions. Edge padding is nonnegative.",
+      "expression_case": "catalog_indexing_slice_pad_cancel"
+    },
+    {
+      "name": "catalog_indexing_slice_inside_pad",
+      "catalog_id": "indexing-slice-inside-pad",
+      "file": "../tepl/rules/semantic/catalog_indexing_slice_inside_pad.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions. Edge padding is nonnegative.",
+      "expression_case": "catalog_indexing_slice_inside_pad"
+    },
+    {
+      "name": "catalog_indexing_slice_reshape",
+      "catalog_id": "indexing-slice-reshape",
+      "file": "../tepl/rules/semantic/catalog_indexing_slice_reshape.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two input flattened to rank one; slice selects complete rows.",
+      "expression_case": "catalog_indexing_slice_reshape"
+    },
+    {
+      "name": "catalog_indexing_slice_singleton_stride",
+      "catalog_id": "indexing-slice-singleton-stride",
+      "file": "../tepl/rules/semantic/catalog_indexing_slice_singleton_stride.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_indexing_slice_singleton_stride"
+    },
+    {
+      "name": "catalog_indexing_dynamic_slice_identity",
+      "catalog_id": "indexing-dynamic-slice-identity",
+      "file": "../tepl/rules/semantic/catalog_indexing_dynamic_slice_identity.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one full-shape dynamic slice.",
+      "expression_case": "catalog_indexing_dynamic_slice_identity"
+    },
+    {
+      "name": "catalog_indexing_dynamic_slice_zero_index",
+      "catalog_id": "indexing-dynamic-slice-zero-index",
+      "file": "../tepl/rules/semantic/catalog_indexing_dynamic_slice_zero_index.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two dynamic slice; first size covers its entire operand axis.",
+      "expression_case": "catalog_indexing_dynamic_slice_zero_index"
+    },
+    {
+      "name": "catalog_indexing_dynamic_slice_unit_reshape",
+      "catalog_id": "indexing-dynamic-slice-unit-reshape",
+      "file": "../tepl/rules/semantic/catalog_indexing_dynamic_slice_unit_reshape.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one base with one inserted leading unit axis.",
+      "expression_case": "catalog_indexing_dynamic_slice_unit_reshape"
+    },
+    {
+      "name": "catalog_indexing_dynamic_slice_transpose",
+      "catalog_id": "indexing-dynamic-slice-transpose",
+      "file": "../tepl/rules/semantic/catalog_indexing_dynamic_slice_transpose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two transpose with two scalar start operands.",
+      "expression_case": "catalog_indexing_dynamic_slice_transpose"
+    },
+    {
+      "name": "catalog_indexing_dynamic_slice_iota",
+      "catalog_id": "indexing-dynamic-slice-iota",
+      "file": "../tepl/rules/semantic/catalog_indexing_dynamic_slice_iota.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one, scalar-sized slice, i32 starts, optional scalar factor captured as Scale.",
+      "expression_case": "catalog_indexing_dynamic_slice_iota"
+    },
+    {
+      "name": "catalog_indexing_dynamic_slice_compose",
+      "catalog_id": "indexing-dynamic-slice-compose",
+      "file": "../tepl/rules/semantic/catalog_indexing_dynamic_slice_compose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one scalar i64 starts; explicit independent clamping before addition.",
+      "expression_case": "catalog_indexing_dynamic_slice_compose"
+    },
+    {
+      "name": "catalog_indexing_update_zero_index",
+      "catalog_id": "indexing-update-zero-index",
+      "file": "../tepl/rules/semantic/catalog_indexing_update_zero_index.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one, full-shape update; start becomes zero.",
+      "expression_case": "catalog_indexing_update_zero_index"
+    },
+    {
+      "name": "catalog_indexing_update_compose",
+      "catalog_id": "indexing-update-compose",
+      "file": "../tepl/rules/semantic/catalog_indexing_update_compose.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one scalar i64 starts; explicit independently clamped composition.",
+      "expression_case": "catalog_indexing_update_compose"
+    },
+    {
+      "name": "catalog_indexing_gather_empty",
+      "catalog_id": "indexing-gather-empty",
+      "file": "../tepl/rules/semantic/catalog_indexing_gather_empty.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Empty input; gather result shape is adapter metadata.",
+      "expression_case": "catalog_indexing_gather_empty"
+    },
+    {
+      "name": "catalog_indexing_gather_pad",
+      "catalog_id": "indexing-gather-pad",
+      "file": "../tepl/rules/semantic/catalog_indexing_gather_pad.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two gather over rows; edge padding only on the passthrough column axis. Edge padding is nonnegative.",
+      "expression_case": "catalog_indexing_gather_pad"
+    },
+    {
+      "name": "catalog_indexing_gather_reshape_pad",
+      "catalog_id": "indexing-gather-reshape-pad",
+      "file": "../tepl/rules/semantic/catalog_indexing_gather_reshape_pad.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two input, inserted leading unit axis, padded passthrough column axis. Edge padding is nonnegative.",
+      "expression_case": "catalog_indexing_gather_reshape_pad"
+    },
+    {
+      "name": "catalog_indexing_scatter_empty_update",
+      "catalog_id": "indexing-scatter-empty-update",
+      "file": "../tepl/rules/semantic/catalog_indexing_scatter_empty_update.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Single-operand/result scatter; arbitrary combiner forwarded by source descriptor.",
+      "expression_case": "catalog_indexing_scatter_empty_update"
+    },
+    {
+      "name": "catalog_indexing_scatter_scalar_map",
+      "catalog_id": "indexing-scatter-scalar-map",
+      "file": "../tepl/rules/semantic/catalog_indexing_scatter_scalar_map.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Single operand/result, empty scalar index vector, whole-tensor combining region.",
+      "expression_case": "catalog_indexing_scatter_scalar_map"
+    },
+    {
+      "name": "catalog_indexing_transpose_scatter",
+      "catalog_id": "indexing-transpose-scatter",
+      "file": "../tepl/rules/semantic/catalog_indexing_transpose_scatter.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two operand, rank-three updates with leading scatter axis, no batching.",
+      "expression_case": "catalog_indexing_transpose_scatter"
+    },
+    {
+      "name": "catalog_dot_empty",
+      "catalog_id": "dot-empty",
+      "file": "../tepl/rules/semantic/catalog_dot_empty.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_dot_empty"
+    },
+    {
+      "name": "catalog_dot_drop_unit_dims",
+      "catalog_id": "dot-drop-unit-dims",
+      "file": "../tepl/rules/semantic/catalog_dot_drop_unit_dims.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Remove a leading free unit axis from a rank-three left operand.",
+      "expression_case": "catalog_dot_drop_unit_dims"
+    },
+    {
+      "name": "catalog_dot_transpose_both_operands",
+      "catalog_id": "dot-transpose-both-operands",
+      "file": "../tepl/rules/semantic/catalog_dot_transpose_both_operands.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two matrix transposes, no batches.",
+      "expression_case": "catalog_dot_transpose_both_operands"
+    },
+    {
+      "name": "catalog_dot_constant_dynamic_slice",
+      "catalog_id": "dot-constant-dynamic-slice",
+      "file": "../tepl/rules/semantic/catalog_dot_constant_dynamic_slice.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two dot with one selected left free-axis element. Captured C/D may be constants; the identity also holds for nonconstants.",
+      "expression_case": "catalog_dot_constant_dynamic_slice"
+    },
+    {
+      "name": "catalog_dot_move_contracting_permutation",
+      "catalog_id": "dot-move-contracting-permutation",
+      "file": "../tepl/rules/semantic/catalog_dot_move_contracting_permutation.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Swap two contraction subdimensions before flattening; rank-three left operand.",
+      "expression_case": "catalog_dot_move_contracting_permutation"
+    },
+    {
+      "name": "catalog_dot_move_zero_pad",
+      "catalog_id": "dot-move-zero-pad",
+      "file": "../tepl/rules/semantic/catalog_dot_move_zero_pad.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two dot; nonnegative padding only on its left contraction axis.",
+      "expression_case": "catalog_dot_move_zero_pad"
+    },
+    {
+      "name": "catalog_dot_move_broadcast",
+      "catalog_id": "dot-move-broadcast",
+      "file": "../tepl/rules/semantic/catalog_dot_move_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One broadcast-created contraction axis; replacement dot is an outer product.",
+      "expression_case": "catalog_dot_move_broadcast"
+    },
+    {
+      "name": "catalog_dot_slice_output",
+      "catalog_id": "dot-slice-output",
+      "file": "../tepl/rules/semantic/catalog_dot_slice_output.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-two dot with arbitrary output starts, sizes and positive strides.",
+      "expression_case": "catalog_dot_slice_output"
+    },
+    {
+      "name": "catalog_dot_reduce_output_free",
+      "catalog_id": "dot-reduce-output-free",
+      "file": "../tepl/rules/semantic/catalog_dot_reduce_output_free.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Reduce the left free axis of a rank-two dot; implicit sum initializer zero.",
+      "expression_case": "catalog_dot_reduce_output_free"
+    },
+    {
+      "name": "catalog_dot_scalar_multipliers",
+      "catalog_id": "dot-scalar-multipliers",
+      "file": "../tepl/rules/semantic/catalog_dot_scalar_multipliers.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity.",
+      "expression_case": "catalog_dot_scalar_multipliers"
+    },
+    {
+      "name": "catalog_reduction_empty",
+      "catalog_id": "reduction-empty",
+      "file": "../tepl/rules/semantic/catalog_reduction_empty.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Single-output reduction with arbitrary initial value and empty input.",
+      "expression_case": "catalog_reduction_empty"
+    },
+    {
+      "name": "catalog_reduction_unit_axes",
+      "catalog_id": "reduction-unit-axes",
+      "file": "../tepl/rules/semantic/catalog_reduction_unit_axes.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Zero-initialized sum specialization of the generic-combiner schema.",
+      "expression_case": "catalog_reduction_unit_axes"
+    },
+    {
+      "name": "catalog_reduction_reshape_reduced",
+      "catalog_id": "reduction-reshape-reduced",
+      "file": "../tepl/rules/semantic/catalog_reduction_reshape_reduced.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Sum over a merged pair of reduced axes; rank-three input.",
+      "expression_case": "catalog_reduction_reshape_reduced"
+    },
+    {
+      "name": "catalog_reduction_reshape_free",
+      "catalog_id": "reduction-reshape-free",
+      "file": "../tepl/rules/semantic/catalog_reduction_reshape_free.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-three input; sum over first axis while reshape merges free axes.",
+      "expression_case": "catalog_reduction_reshape_free"
+    },
+    {
+      "name": "catalog_reduction_splat_min",
+      "catalog_id": "reduction-splat-min",
+      "file": "../tepl/rules/semantic/catalog_reduction_splat_min.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_reduction_splat_min"
+    },
+    {
+      "name": "catalog_reduction_splat_max",
+      "catalog_id": "reduction-splat-max",
+      "file": "../tepl/rules/semantic/catalog_reduction_splat_max.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "expression_case": "catalog_reduction_splat_max"
+    },
+    {
+      "name": "catalog_reduction_splat_and",
+      "catalog_id": "reduction-splat-and",
+      "file": "../tepl/rules/semantic/catalog_reduction_splat_and.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "catalog_reduction_splat_and"
+    },
+    {
+      "name": "catalog_reduction_splat_or",
+      "catalog_id": "reduction-splat-or",
+      "file": "../tepl/rules/semantic/catalog_reduction_splat_or.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "expression_case": "catalog_reduction_splat_or"
+    },
+    {
+      "name": "catalog_reduction_broadcast_original_axes",
+      "catalog_id": "reduction-broadcast-original-axes",
+      "file": "../tepl/rules/semantic/catalog_reduction_broadcast_original_axes.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Sum specialization; rank-one base and one broadcast-created axis.",
+      "expression_case": "catalog_reduction_broadcast_original_axes"
+    },
+    {
+      "name": "catalog_reduction_broadcast_replication_axes",
+      "catalog_id": "reduction-broadcast-replication-axes",
+      "file": "../tepl/rules/semantic/catalog_reduction_broadcast_replication_axes.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Reduce all appended replication axes; zero-initialized sum, symbolic replication count.",
+      "expression_case": "catalog_reduction_broadcast_replication_axes"
+    },
+    {
+      "name": "catalog_reduction_window_empty",
+      "catalog_id": "reduction-window-empty",
+      "file": "../tepl/rules/semantic/catalog_reduction_window_empty.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Single-output reduction window with nonnegative edge padding and empty input.",
+      "expression_case": "catalog_reduction_window_empty"
+    },
+    {
+      "name": "catalog_reduction_window_scalar",
+      "catalog_id": "reduction-window-scalar",
+      "file": "../tepl/rules/semantic/catalog_reduction_window_scalar.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-zero zero-initialized sum window.",
+      "expression_case": "catalog_reduction_window_scalar"
+    },
+    {
+      "name": "catalog_reduction_window_splat_cumsum",
+      "catalog_id": "reduction-window-splat-cumsum",
+      "file": "../tepl/rules/semantic/catalog_reduction_window_splat_cumsum.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one cumulative sum of a scalar f32 broadcast; scalar constant can be a capture.",
+      "expression_case": "catalog_reduction_window_splat_cumsum"
+    },
+    {
+      "name": "catalog_reduction_window_singleton_add",
+      "catalog_id": "reduction-window-singleton-add",
+      "file": "../tepl/rules/semantic/catalog_reduction_window_singleton_add.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Unit windows and nonnegative edge padding; scalar initializer preserved.",
+      "expression_case": "catalog_reduction_window_singleton_add"
+    },
+    {
+      "name": "catalog_reduction_window_singleton_min",
+      "catalog_id": "reduction-window-singleton-min",
+      "file": "../tepl/rules/semantic/catalog_reduction_window_singleton_min.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Unit windows and nonnegative edge padding; scalar initializer preserved.",
+      "expression_case": "catalog_reduction_window_singleton_min"
+    },
+    {
+      "name": "catalog_reduction_window_singleton_max",
+      "catalog_id": "reduction-window-singleton-max",
+      "file": "../tepl/rules/semantic/catalog_reduction_window_singleton_max.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Unit windows and nonnegative edge padding; scalar initializer preserved.",
+      "expression_case": "catalog_reduction_window_singleton_max"
+    },
+    {
+      "name": "catalog_reduction_window_to_reduce",
+      "catalog_id": "reduction-window-to-reduce",
+      "file": "../tepl/rules/semantic/catalog_reduction_window_to_reduce.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank f32 zero-initialized sum windows, each axis unit or full.",
+      "expression_case": "catalog_reduction_window_to_reduce"
+    },
+    {
+      "name": "catalog_reduction_slice_window_to_reduce",
+      "catalog_id": "reduction-slice-window-to-reduce",
+      "file": "../tepl/rules/semantic/catalog_reduction_slice_window_to_reduce.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Last element of a rank-one full cumulative window; f32 sum.",
+      "expression_case": "catalog_reduction_slice_window_to_reduce"
+    },
+    {
+      "name": "catalog_reduction_window_pad",
+      "catalog_id": "reduction-window-pad",
+      "file": "../tepl/rules/semantic/catalog_reduction_window_pad.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Single-result window; nonnegative padding equals the initializer; reducer region forwarded.",
+      "expression_case": "catalog_reduction_window_pad"
+    },
+    {
+      "name": "catalog_broadcast_window_padded_unit_broadcast",
+      "catalog_id": "broadcast-window-padded-unit-broadcast",
+      "file": "../tepl/rules/semantic/catalog_broadcast_window_padded_unit_broadcast.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one f32 unit input, symmetric padding, every window includes the sole unpadded value.",
+      "expression_case": "catalog_broadcast_window_padded_unit_broadcast"
+    },
+    {
+      "name": "catalog_convolution_empty",
+      "catalog_id": "convolution-empty",
+      "file": "../tepl/rules/semantic/catalog_convolution_empty.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "General convolution; result shape is ordinary source/adapter metadata.",
+      "expression_case": "catalog_convolution_empty"
+    },
+    {
+      "name": "catalog_convolution_fold_input_pad",
+      "catalog_id": "convolution-fold-input-pad",
+      "file": "../tepl/rules/semantic/catalog_convolution_fold_input_pad.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One canonical spatial axis; no existing input dilation or convolution edge padding.",
+      "expression_case": "catalog_convolution_fold_input_pad"
+    },
+    {
+      "name": "catalog_convolution_fold_filter_pad",
+      "catalog_id": "convolution-fold-filter-pad",
+      "file": "../tepl/rules/semantic/catalog_convolution_fold_filter_pad.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One canonical spatial axis; filter interior padding becomes kernel dilation.",
+      "expression_case": "catalog_convolution_fold_filter_pad"
+    },
+    {
+      "name": "catalog_convolution_pointwise_dot",
+      "catalog_id": "convolution-pointwise-dot",
+      "file": "../tepl/rules/semantic/catalog_convolution_pointwise_dot.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One-spatial-axis pointwise convolution in canonical layouts, no grouping or padding.",
+      "expression_case": "catalog_convolution_pointwise_dot"
+    },
+    {
+      "name": "catalog_convolution_depthwise_product",
+      "catalog_id": "convolution-depthwise-product",
+      "file": "../tepl/rules/semantic/catalog_convolution_depthwise_product.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Depthwise rank-three convolution whose kernel spans the full spatial extent.",
+      "expression_case": "catalog_convolution_depthwise_product"
+    },
+    {
+      "name": "catalog_convolution_swap_operands",
+      "catalog_id": "convolution-swap-operands",
+      "file": "../tepl/rules/semantic/catalog_convolution_swap_operands.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "One spatial axis, unit strides/dilations, nonnegative transformed padding; kernel reversal, role swap and precision swap are explicit.",
+      "expression_case": "catalog_convolution_swap_operands"
+    },
+    {
+      "name": "catalog_indexing_pad_negative",
+      "catalog_id": "indexing-pad-negative",
+      "file": "../tepl/rules/semantic/catalog_indexing_pad_negative.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Rank-one low crop -1 and high padding +2; signed pad metadata retained and crop bounds use nonnegative shape arithmetic.",
+      "expression_case": "catalog_indexing_pad_negative"
+    },
+    {
+      "name": "native_power_two_splat",
+      "catalog_id": "elementwise-power-two",
+      "file": "../tepl/rules/semantic/native_power_two_splat.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank numeric tensor and same-shape/type exponent splat represented by fill; where checks the value attribute equals 2. Does not inspect opaque dense literals.",
+      "expression_case": "native_power_two_splat"
+    },
+    {
+      "name": "native_abs_unsigned",
+      "catalog_id": "elementwise-abs-nonnegative",
+      "file": "../tepl/rules/semantic/native_abs_unsigned.tepl",
+      "policy": "algebraic",
+      "control": false,
+      "scope": "Arbitrary-rank unsigned integer tensor; is_unsigned_integer establishes nonnegativity. Signed/floating range analysis is not implemented.",
+      "expression_case": "native_abs_unsigned"
+    }
+  ],
+  "scope": "All explicit compilation cases have a semantic counterpart using the local HLO dialect. One incorrect rule is a separate negative control."
+}

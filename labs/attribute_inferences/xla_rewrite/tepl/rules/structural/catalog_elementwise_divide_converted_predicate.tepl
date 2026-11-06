@@ -1,0 +1,17 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: elementwise-divide-converted-predicate
+// Scope: Written operand/opcode variant under the catalog conditions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_divide_converted_predicate {
+  P: [Dims...]
+  Y: []
+
+  (hlo.divide (attr_c: hlo.convert P) (attr_b: hlo.broadcast Y))
+  =>
+  (hlo.multiply
+    (hlo.broadcast[attr_b.attrs] (hlo.divide 1 Y))
+    (hlo.convert[attr_c.attrs] P))
+
+  where attr_b.attrs.dimensions == []
+}

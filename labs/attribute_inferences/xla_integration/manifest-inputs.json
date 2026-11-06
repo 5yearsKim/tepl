@@ -1,0 +1,202 @@
+[
+  {
+    "name": "FoldDotTranspose",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "eb65a05f7742d8afce8b72c8db1d9c35444c3ddec273f7107dc3794eb8a890e9"
+  },
+  {
+    "name": "DontFoldTransposeOfBatchDimByDefault",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "8e43a3247fe25162f483066749d116163ca35406c80686ab5f9e3c919f603f59"
+  },
+  {
+    "name": "FoldTransposeOfBatchWhenPermitted",
+    "config": "custom",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "6b8529d9dfa3cc8c6edcaf0d015e638f7d64dca2bb144eaf6ca7da030107a444"
+  },
+  {
+    "name": "DontFoldTransposeOfRank1Dot",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "d5334c500824660aa6c4ed46d8eef78cfb1b60c66ffa891d69d7643f289b3616"
+  },
+  {
+    "name": "DontFoldTransposeOfDotWithoutContractingDims",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "2adda290433942f94447cdba6379cf3d227bdb2c367515be7d942591bdfd2423"
+  },
+  {
+    "name": "FoldDotTransposeConstant",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "2a435af481cd388d5fa041e9e7569a235524c2690ce5a62a90444cfb54d3a716"
+  },
+  {
+    "name": "FuseDotWithConstantOperands",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "upstream_builder_prefix",
+    "builder_sha256": "d6a418267488cc80222dd9700394e3e441535e7a7198a51843c32db0687087ee"
+  },
+  {
+    "name": "FoldDotTransposeInCall",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "400cac640ea0703b0a95083d5a7ce1f41141beb6102e7d8d381d522d0068b548"
+  },
+  {
+    "name": "DontFoldTransposeWrappedInCall",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "9c40842f4cc7182ffb20fc4a0a7cbf2fa0a4f6e20502f13bd062d589ffd26545"
+  },
+  {
+    "name": "FoldDotTransposeInFooCalledOnce",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "9afc0ad0dd76098fdd0574a542f00e31717d48edf73eff9c586f41bacf2430b1"
+  },
+  {
+    "name": "FoldDotTransposeInFooCalledTwice",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "43e3d2bb96a1a8f766eddc2e124c5de95e3360fdf7231ae835f6d11ea0e7776d"
+  },
+  {
+    "name": "FoldConvDimSwapTransposeRhs",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "upstream_builder_prefix",
+    "builder_sha256": "f9c7ec6a01190722cb37c2b5fe7b1267bdcdf93d4a6bd106dee95f9ed3b6cee5"
+  },
+  {
+    "name": "FoldConvComplexTransposeRhs",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "upstream_builder_prefix",
+    "builder_sha256": "dcb2b98bb58dbbb4b23d9c0a7f759d89fdc0e04145fb9220e7c7522b85d78e10"
+  },
+  {
+    "name": "FoldConvTransposeLhs",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "upstream_builder_prefix",
+    "builder_sha256": "d6d678854d664ac410c0a064204095564affe80880cf05ba4139e37354785a57"
+  },
+  {
+    "name": "FoldConvComplexTransposeLhs",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "upstream_builder_prefix",
+    "builder_sha256": "19ceb35fceceb46920adfe15ba49717dd905074cc4bc5184e8213bbbc5ee53c4"
+  },
+  {
+    "name": "FoldBatchDotTranspose",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "10cf74590c40b4e5174044ed6aeec4a47f930e1de57a33a97017cd8b5e3c38ce"
+  },
+  {
+    "name": "NoFoldBatchDotTransposeBatch",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "19ac3ad75a880e820d8da63ab5988a7ac82c725de823d6ef2fce037f1c2cf921"
+  },
+  {
+    "name": "FoldBatchDotTransposeNonContiguousBatch",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "66326d5165df58d5332b6bea8e196dd67a751bc465c7b6841636b8eef26d5b8b"
+  },
+  {
+    "name": "NoFoldBatchDotTransposeIdentity",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "b70e30ae7d701b62f60ca6f28817bbd2eb4cf764e6f2d77c84607e3e4c885a22"
+  },
+  {
+    "name": "FoldTransposeWithBackendConfig",
+    "config": "default",
+    "family": "dot_or_control",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "3e36aadf86a87f7875e02ff817988514f31e39f39db3fcc1916b05ed94fa3f00"
+  },
+  {
+    "name": "FoldConvTransposePreservesConvAttributes",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "9558eed093a7fa34c323a7f05742710a239be97d218a67bb224f218ab516b715"
+  },
+  {
+    "name": "DoNotFoldTransposeIntoSparseConvOperand",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "5af516d822ae9f6f703a1f37b7a8daf7d867ab0b639bdac96ea6b1cc99d461ad"
+  },
+  {
+    "name": "DoNotFoldTransposeIntoConvMetadataOperand",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "e66c786a1a65536883a9c214bde2915588678d6dce8240a3cc10281ed1c122df"
+  },
+  {
+    "name": "DoNotFoldConvWithNonSparsityAdditionalOperand",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "6e6dcf7b48fed2138aefd77a1a56fbb5f35de147d23514e047089a690fe5cfba"
+  },
+  {
+    "name": "FoldConvActivationsTransposeKeepsSparsity",
+    "config": "default",
+    "family": "convolution",
+    "source_test_sha256": "f2e220b25aa3485c5f15edc44b3957d43f0892e770aeab47511bafc1184c1178",
+    "input": "literal",
+    "sha256": "fbe0f913b1603cbf2d73f1d03863b370bfd95e548cfbe7335c9d8209dd70a4b0"
+  }
+]

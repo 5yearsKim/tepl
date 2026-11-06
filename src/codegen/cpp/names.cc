@@ -4,7 +4,6 @@
 #include <set>
 #include <stdexcept>
 
-#include "src/codegen/common/rule_plan.h"
 #include "src/codegen/cpp/paths.h"
 
 namespace tepl::codegen::cpp {
@@ -127,8 +126,8 @@ Identifier Identifier::make(std::string_view source, NameKind kind,
   } catch (const std::invalid_argument& error) {
     throw NameError(origin, error.what());
   }
-  if (cppKeywords().contains(key) || key == "_" || key.starts_with('_') ||
-      key.find("__") != std::string::npos)
+  if (cppKeywords().contains(key)) key += "_";
+  if (key == "_" || key.starts_with('_') || key.find("__") != std::string::npos)
     throw NameError(origin, "cannot generate reserved C++ identifier '" + key +
                                 "' from TEPL name '" + std::string(source) +
                                 "'; rename it");
@@ -143,31 +142,6 @@ Identifier Identifier::make(std::string_view source, NameKind kind,
 std::string dtype(core::DType value) {
   if (value == core::DType::kBF16) return "DType::BF16";
   return "DType::" + pascal(core::dtypeName(value));
-}
-std::string type(const core::Type& value, bool argument) {
-  switch (value.kind) {
-    case core::TypeKind::kDType:
-      return "DType";
-    case core::TypeKind::kTensor:
-      return argument ? "const TensorInfo&" : "TensorInfo";
-    case core::TypeKind::kIndex:
-      return "::std::uint64_t";
-    case core::TypeKind::kIndexList:
-      return argument ? "::std::span<const ::std::uint64_t>"
-                      : "::std::vector<::std::uint64_t>";
-    case core::TypeKind::kBool:
-      return "bool";
-    case core::TypeKind::kI64:
-      return "::std::int64_t";
-    case core::TypeKind::kF64:
-      return "double";
-    case core::TypeKind::kDescriptor:
-      return argument ? "const OpAttrs&" : "OpAttrs";
-  }
-  throw std::invalid_argument("invalid host type");
-}
-std::string descriptor(std::size_t id) {
-  return "descriptor_" + std::to_string(id);
 }
 
 namespace {
@@ -213,7 +187,7 @@ class Scope {
 };
 }  // namespace
 
-Names::Names(const core::Program& program, const ProjectPlan& project,
+Names::Names(const executable::ProgramData& program, const ProjectPlan& project,
              std::string namespace_name)
     : root("::" + namespace_name) {
   validateNamespace(namespace_name);
@@ -221,26 +195,20 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
   operation_variants_.resize(program.operations.size());
   schemas_.resize(program.attribute_schemas.size());
   fields_.resize(program.attribute_schemas.size());
-  hosts_.resize(program.host_functions.size());
   rules_.resize(program.rules.size());
-  Scope module_scope, variant_scope;
+  Scope module_scope;
   module_scope.reserve("dialects");
-  for (const auto* reserved : {"None", "Literal", "Input"})
-    variant_scope.reserve(reserved);
   for (std::size_t i = 0; i < project.dialects.size(); ++i) {
     const auto& declaration = project.dialects[i];
     const auto& origin = program.dialects.at(i).origin;
     const auto module =
         Identifier::make(declaration.name, NameKind::kModule, origin);
-    const auto variant =
-        Identifier::make(declaration.name, NameKind::kVariant, origin);
     module_scope.insert(module, declaration.name, origin, "dialect module");
-    variant_scope.insert(variant, declaration.name, origin, "dialect variant");
-    DialectNames dialect{declaration.name, module.token, module.key,
-                         variant.token,    {},           {}};
+    DialectNames dialect{declaration.name, module.token, module.key, {}, {}};
     Scope ops, schemas;
-    for (auto name : {"None", "Op", "OpAttrs", "name", "from_name", "arity",
-                      "accepts_attrs", "schema_id", "op_id", "hash_value"})
+    for (auto name :
+         {"None", "Op", "OpAttrs", "Storage", "name", "from_name", "arity",
+          "accepts_attrs", "schema_id", "op_id", "hash_value"})
       schemas.reserve(name);
     for (auto id : declaration.operations) {
       const auto& op = program.operations.at(id.value);
@@ -262,7 +230,8 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
       schemas_[schema.id.value] = name.token;
       Scope fields;
       fields.reserve(name.key);
-      fields.reserve("hash_value");
+      for (auto name : {"hash_value", "to_value", "from_value"})
+        fields.reserve(name);
       for (const auto& field : schema.fields) {
         const auto field_name =
             Identifier::make(field.name, NameKind::kField, field.origin);
@@ -272,10 +241,6 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
     }
     dialects.push_back(std::move(dialect));
   }
-  for (const auto& host : program.host_functions)
-    hosts_[host.id.value] =
-        Identifier::make(host.name, NameKind::kMethod, host.origin).token;
-
   // Validate both source module scopes and filesystem scopes, including parent
   // directories. Different source spellings must never silently merge.
   std::map<std::string, Scope> child_scopes;
@@ -284,8 +249,7 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
   std::map<std::string, std::set<std::string>> index_children;
   for (const auto& source : project.modules) {
     const auto& origin = program.rules.at(source.rules.front().value).origin;
-    RuleModuleNames module{{}, {}, root, source.rules};
-    module.root = root;
+    RuleModuleNames module{{}, {}, source.rules};
     std::string raw_parent;
     for (std::size_t i = 0; i < source.path.size(); ++i) {
       const auto& part = source.path[i];
@@ -305,7 +269,6 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
       if (!module.path.empty()) {
         module.path += '/';
         module.qualified += "::";
-        module.root = root;
       }
       module.path += name.key;
       module.qualified += name.key;
@@ -321,14 +284,6 @@ Names::Names(const core::Program& program, const ProjectPlan& project,
           Identifier::make(rule.name, NameKind::kRule, rule.origin);
       rule_scope.insert(name, rule.name, rule.origin, "rule");
       rules_[id.value] = name.token;
-      Scope methods;
-      for (const auto host_id : planRule(rule).host_functions) {
-        const auto& host = program.host_functions.at(host_id.value);
-        const auto name =
-            Identifier::make(host.name, NameKind::kMethod, host.origin);
-        methods.insert(name, host.name, host.origin,
-                       "host function within rule '" + rule.name + "'");
-      }
     }
     modules.push_back(std::move(module));
   }
@@ -351,9 +306,6 @@ std::string Names::schema(core::AttributeSchemaId id) const {
 const std::string& Names::field(core::AttributeSchemaId id,
                                 std::size_t index) const {
   return fields_.at(id.value).at(index);
-}
-const std::string& Names::host(core::HostFunctionId id) const {
-  return hosts_.at(id.value);
 }
 const std::string& Names::rule(core::RuleId id) const {
   return rules_.at(id.value);

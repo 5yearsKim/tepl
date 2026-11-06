@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "scope": "Local HLO semantics and supported compiler fragments, including typed registered scalar applications. Semantic representation is separate from completeness of scalar normalization.",
+  "operations": {
+    "add": {
+      "semantic": true,
+      "category": "polynomial",
+      "reason": "Exact integer constants, Add and Product express this ideal-arithmetic value function; zero_like is an evaluation helper for shaped zero."
+    },
+    "multiply": {
+      "semantic": true,
+      "category": "polynomial",
+      "reason": "Exact integer constants, Add and Product express this ideal-arithmetic value function; zero_like is an evaluation helper for shaped zero."
+    },
+    "negate": {
+      "semantic": true,
+      "category": "polynomial",
+      "reason": "Exact integer constants, Add and Product express this ideal-arithmetic value function; zero_like is an evaluation helper for shaped zero."
+    },
+    "subtract": {
+      "semantic": true,
+      "category": "polynomial",
+      "reason": "Exact integer constants, Add and Product express this ideal-arithmetic value function; zero_like is an evaluation helper for shaped zero."
+    },
+    "zero_like": {
+      "semantic": true,
+      "category": "polynomial",
+      "reason": "Exact integer constants, Add and Product express this ideal-arithmetic value function; zero_like is an evaluation helper for shaped zero."
+    },
+    "dot_general": {
+      "semantic": true,
+      "category": "summation",
+      "reason": "Reduce expresses summation over declared logical axes. reduce_sum uses an implicit zero initializer; generic reducers are separate declarations."
+    },
+    "convolution": {
+      "semantic": true,
+      "category": "convolution",
+      "reason": "Valid ungrouped cross-correlation in fixed input/kernel layouts, positive strides/dilations and no padding, expressed with calculated reads and sums."
+    },
+    "slice": {
+      "semantic": true,
+      "category": "coordinates",
+      "reason": "Axis bindings and supported coordinate reads express this operation. Broadcast only inserts axes; slice has positive sizes; reverse uses IndexReverse."
+    },
+    "broadcast_in_dim": {
+      "semantic": true,
+      "category": "coordinates",
+      "reason": "Axis bindings and supported coordinate reads express this operation. Broadcast only inserts axes; slice has positive sizes; reverse uses IndexReverse."
+    },
+    "transpose": {
+      "semantic": true,
+      "category": "coordinates",
+      "reason": "Axis bindings and supported coordinate reads express this operation. Broadcast only inserts axes; slice has positive sizes; reverse uses IndexReverse."
+    },
+    "reverse": {
+      "semantic": true,
+      "category": "coordinates",
+      "reason": "Axis bindings and supported coordinate reads express this operation. Broadcast only inserts axes; slice has positive sizes; reverse uses IndexReverse."
+    },
+    "reduce_sum": {
+      "semantic": true,
+      "category": "summation",
+      "reason": "Reduce expresses summation over declared logical axes. reduce_sum uses an implicit zero initializer; generic reducers are separate declarations."
+    },
+    "divide": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "exp": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "log": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "sqrt": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "rsqrt": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "abs": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "power": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "maximum": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "minimum": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "logical_not": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "logical_and": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "logical_or": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "logical_xor": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "real": {
+      "semantic": false,
+      "category": "complex",
+      "reason": "The current value language and dtype model do not represent complex components and projections."
+    },
+    "imag": {
+      "semantic": false,
+      "category": "complex",
+      "reason": "The current value language and dtype model do not represent complex components and projections."
+    },
+    "complex": {
+      "semantic": false,
+      "category": "complex",
+      "reason": "The current value language and dtype model do not represent complex components and projections."
+    },
+    "select": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "remainder": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "reshape": {
+      "semantic": false,
+      "category": "reshape_coordinates",
+      "reason": "General rank-changing reshape requires coordinate linearization/delinearization, including division/modulo of coordinates. Current calculated reads support addition, scaling, offsets, selection and reversal only."
+    },
+    "concatenate": {
+      "semantic": false,
+      "category": "piecewise_variadic",
+      "reason": "Concatenation needs coordinate-dependent branch selection and reads with shifted coordinates. Scalar select operates on values, and cannot test logical coordinates. Semantic operation operands cannot be variadic."
+    },
+    "pad": {
+      "semantic": false,
+      "category": "piecewise_coordinates",
+      "reason": "Padding requires coordinate bounds predicates and selecting a valid input read or padding value. Scalar select cannot test logical coordinates, and calculated reads do not support coordinate-dependent branches."
+    },
+    "nonnegative_pad": {
+      "semantic": false,
+      "category": "piecewise_coordinates",
+      "reason": "Padding requires coordinate bounds predicates and selecting a valid input read or padding value. Scalar select cannot test logical coordinates, and calculated reads do not support coordinate-dependent branches."
+    },
+    "dynamic_slice": {
+      "semantic": false,
+      "category": "tensor_indices",
+      "reason": "Tensor index values cannot be used as calculated-read coordinates. Updates/scatter also need piecewise writes or gather-style inverse indexing; variadic starts cannot be semantic operands."
+    },
+    "dynamic_update_slice": {
+      "semantic": false,
+      "category": "tensor_indices",
+      "reason": "Tensor index values cannot be used as calculated-read coordinates. Updates/scatter also need piecewise writes or gather-style inverse indexing; variadic starts cannot be semantic operands."
+    },
+    "reduce": {
+      "semantic": false,
+      "category": "region_body",
+      "reason": "Opaque region handles cannot be interpreted as scalar value functions. Arbitrary combiners and their initializers cannot be replaced with sum semantics."
+    },
+    "convert": {
+      "semantic": false,
+      "category": "conversion",
+      "reason": "Numeric conversions require rounding/truncation/fixed-width value semantics. A dtype contract alone does not describe conversion values."
+    },
+    "compare": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "clamp": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "cbrt": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "erf": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "logistic": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "tanh": {
+      "semantic": true,
+      "category": "pointwise_scalar",
+      "reason": "Registered typed scalar application with recursive coordinate tracking. Generic congruence and the implemented laws are available under their arithmetic policy and conditions; unsupported scalar identities remain unproved."
+    },
+    "fill": {
+      "semantic": false,
+      "category": "attribute_constant",
+      "reason": "Const accepts a fixed signed integer literal, not attrs.value. Graph numeric literals are supported, but a constant operation with a captured payload still needs value-attribute lowering."
+    },
+    "scalar": {
+      "semantic": false,
+      "category": "attribute_constant",
+      "reason": "Const accepts a fixed signed integer literal, not attrs.value. Graph numeric literals are supported, but a constant operation with a captured payload still needs value-attribute lowering."
+    },
+    "iota": {
+      "semantic": false,
+      "category": "coordinate_value",
+      "reason": "The value language cannot turn a logical coordinate into a scalar value; output coordinate identities are distinct from tensor arithmetic values."
+    },
+    "rotate": {
+      "semantic": false,
+      "category": "modulo_coordinates",
+      "reason": "Rotation requires coordinate modulo or piecewise wraparound, absent from calculated-read primitives."
+    },
+    "scatter": {
+      "semantic": false,
+      "category": "tensor_indices",
+      "reason": "Tensor index values cannot be used as calculated-read coordinates. Updates/scatter also need piecewise writes or gather-style inverse indexing; variadic starts cannot be semantic operands."
+    },
+    "scatter_add": {
+      "semantic": false,
+      "category": "tensor_indices",
+      "reason": "Tensor index values cannot be used as calculated-read coordinates. Updates/scatter also need piecewise writes or gather-style inverse indexing; variadic starts cannot be semantic operands."
+    },
+    "gather": {
+      "semantic": false,
+      "category": "tensor_indices",
+      "reason": "Tensor index values cannot be used as calculated-read coordinates. Updates/scatter also need piecewise writes or gather-style inverse indexing; variadic starts cannot be semantic operands."
+    },
+    "map": {
+      "semantic": false,
+      "category": "region_body",
+      "reason": "Opaque region handles cannot be interpreted as scalar value functions. Arbitrary combiners and their initializers cannot be replaced with sum semantics."
+    },
+    "reduce_min": {
+      "semantic": false,
+      "category": "non_sum_reducer",
+      "reason": "Reduce represents summation only. Registered scalar min/max/Boolean functions do not supply reduction binders or their initializer behavior."
+    },
+    "reduce_max": {
+      "semantic": false,
+      "category": "non_sum_reducer",
+      "reason": "Reduce represents summation only. Registered scalar min/max/Boolean functions do not supply reduction binders or their initializer behavior."
+    },
+    "reduce_and": {
+      "semantic": false,
+      "category": "non_sum_reducer",
+      "reason": "Reduce represents summation only. Registered scalar min/max/Boolean functions do not supply reduction binders or their initializer behavior."
+    },
+    "reduce_or": {
+      "semantic": false,
+      "category": "non_sum_reducer",
+      "reason": "Reduce represents summation only. Registered scalar min/max/Boolean functions do not supply reduction binders or their initializer behavior."
+    },
+    "reduce_window": {
+      "semantic": false,
+      "category": "window_initializer",
+      "reason": "General windows need padding predicates and declared initializer behavior; generic/min/max reducers need additional primitives. Modeling reduce_window_sum by ignoring its initializer would be incorrect."
+    },
+    "reduce_window_sum": {
+      "semantic": false,
+      "category": "window_initializer",
+      "reason": "General windows need padding predicates and declared initializer behavior; generic/min/max reducers need additional primitives. Modeling reduce_window_sum by ignoring its initializer would be incorrect."
+    },
+    "reduce_window_min": {
+      "semantic": false,
+      "category": "window_initializer",
+      "reason": "General windows need padding predicates and declared initializer behavior; generic/min/max reducers need additional primitives. Modeling reduce_window_sum by ignoring its initializer would be incorrect."
+    },
+    "reduce_window_max": {
+      "semantic": false,
+      "category": "window_initializer",
+      "reason": "General windows need padding predicates and declared initializer behavior; generic/min/max reducers need additional primitives. Modeling reduce_window_sum by ignoring its initializer would be incorrect."
+    },
+    "general_convolution": {
+      "semantic": false,
+      "category": "general_convolution",
+      "reason": "General dimension numbers, grouping, signed padding and reversal exceed the current coordinate and semantic-attribute fragments. The simpler convolution declaration covers valid ungrouped fixed-layout convolution."
+    }
+  }
+}

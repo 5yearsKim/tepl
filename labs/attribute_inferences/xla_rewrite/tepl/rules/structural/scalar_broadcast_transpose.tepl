@@ -1,0 +1,28 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
+
+rule scalar_broadcast_transpose {
+  (attr_p: transpose (attr_b: broadcast C)) => (attr_out: broadcast C)
+
+  where
+    attr_b.attrs.dimensions == []
+      && len(attr_b.attrs.new_extents) == 2
+      && attr_p.attrs.permutation == [1, 0] derive {
+    attr_out.attrs = {
+      ..attr_b.attrs,
+      new_extents: gather(attr_b.attrs.new_extents, [1, 0])
+    }
+  }
+}

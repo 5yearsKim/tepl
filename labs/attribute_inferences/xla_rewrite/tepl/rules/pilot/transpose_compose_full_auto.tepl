@@ -1,0 +1,7 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Same equation and conditions as transpose_compose_explicit.tepl.
+// Every RHS descriptor is inferred by omission.
+rule transpose_compose_full_auto {
+  (outer: hlo.transpose (inner: hlo.transpose X)) => (hlo.transpose X)
+}

@@ -1,274 +1,209 @@
 #include "src/codegen/rust/rule_emitter.h"
 
-#include <type_traits>
+#include <set>
 
-#include "src/codegen/common/rule_plan.h"
 #include "src/codegen/rust/code_writer.h"
 #include "src/codegen/rust/expression_emitter.h"
-#include "src/codegen/rust/paths.h"
-
+#include "src/shared/catalog/axis_conditions.h"
 namespace tepl::codegen::rust {
 namespace {
-std::string var(std::size_t id) {
-  return quote("?c" + std::to_string(id)) +
-         ".parse::<Var>().expect(\"generated capture ID\")";
+std::string num(std::size_t n) { return std::to_string(n); }
+std::string descriptor(std::optional<core::DescriptorId> id) {
+  return id ? "Some(" + num(id->value) + ")" : "None";
 }
-std::string attrVar(std::size_t id) {
-  return "AttrVar::from(" + quote("d" + std::to_string(id)) + ")";
-}
-std::string literalDtype(const core::GraphLiteral& value) {
-  return value.dtype ? "Some(" + dtype(*value.dtype) + ")" : "None";
-}
-
-std::string pattern(const core::Pattern& node, const Names& names,
-                    const std::string& root) {
+std::string pattern(const core::Pattern& p) {
   return std::visit(
-      [&](const auto& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
+      [&](const auto& v) -> std::string {
+        using T = std::decay_t<decltype(v)>;
         if constexpr (std::is_same_v<T, core::CapturePattern>)
-          return "TensorPattern::Var(" + var(value.capture.value) + ")";
-        else if constexpr (std::is_same_v<T, core::GraphLiteral>)
-          return "TensorPattern::literal(" + quote(value.spelling) + ", " +
-                 literalDtype(value) + ")";
+          return "Pattern::Capture(" + num(v.capture.value) + ")";
         else if constexpr (std::is_same_v<T, core::BindPattern>)
-          return "TensorPattern::bind(" + var(value.capture.value) + ", " +
-                 pattern(*value.expression, names, root) + ")";
+          return "Pattern::Bind(" + num(v.capture.value) + ", Box::new(" +
+                 pattern(*v.expression) + "))";
+        else if constexpr (std::is_same_v<T, core::GraphLiteral>)
+          return "Pattern::Literal { value: " + quote(v.spelling) +
+                 ".into(), dtype: " +
+                 (v.dtype ? "Some(rt::" + dtype(*v.dtype) + ")" : "None") +
+                 " }";
         else {
           std::string result =
-              "TensorPattern::op(" + names.operation(value.operation, root) +
-              ", " +
-              (value.descriptor ? "AttrPattern::Bind(" +
-                                      attrVar(value.descriptor->value) + ")"
-                                : "AttrPattern::Exact(OpAttrs::None)") +
-              ", vec![";
-          for (const auto& operand : value.operands)
-            result += pattern(*operand, names, root) + ", ";
-          return result + "])";
+              "Pattern::Operation { operation: " + num(v.operation.value) +
+              ", descriptor: " + descriptor(v.descriptor) + ", operands: vec![";
+          for (const auto& a : v.operands) result += pattern(*a) + ",";
+          return result + "] }";
         }
       },
-      node.value);
+      p.value);
 }
-std::string build(const core::BuildExpr& node, const core::Rule& rule,
-                  const Names& names, const std::string& root) {
-  return std::visit(
-      [&](const auto& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, core::CaptureRef>)
-          return "TensorExpr::Var(" + var(value.capture.value) + ")";
-        else if constexpr (std::is_same_v<T, core::GraphLiteral>)
-          return "TensorExpr::literal(" + quote(value.spelling) + ", " +
-                 literalDtype(value) + ")";
-        else {
-          std::string attrs = "AttrExpr::Exact(OpAttrs::None)";
-          if (value.descriptor) {
-            const auto& desc = rule.descriptors.at(value.descriptor->value);
-            attrs = std::string(desc.kind == core::Descriptor::Kind::kCaptured
-                                    ? "AttrExpr::Captured("
-                                    : "AttrExpr::Derived(") +
-                    attrVar(desc.id.value) + ")";
-          }
-          std::string result = "TensorExpr::op(" +
-                               names.operation(value.operation, root) + ", " +
-                               attrs + ", vec![";
-          for (const auto& operand : value.operands)
-            result += build(*operand, rule, names, root) + ", ";
-          return result + "])";
-        }
-      },
-      node.value);
+std::string rhs(const executable::ProgramData& p, const core::BuildExpr& e) {
+  return "{ ctx.budget.tick()?; " +
+         std::visit(
+             [&](const auto& v) -> std::string {
+               using T = std::decay_t<decltype(v)>;
+               if constexpr (std::is_same_v<T, core::CaptureRef>)
+                 return "ctx.captured_rhs(" + num(v.capture.value) + ")?";
+               else if constexpr (std::is_same_v<T, core::GraphLiteral>)
+                 return "ctx.literal_rhs(" + quote(v.spelling) + ", " +
+                        (v.dtype ? "Some(rt::" + dtype(*v.dtype) + ")"
+                                 : "None") +
+                        ")?";
+               else {
+                 std::string attrs = "Value::None";
+                 const auto& op = p.operations.at(v.operation.value);
+                 if (v.descriptor)
+                   attrs = "ctx.descriptor(" + num(v.descriptor->value) + ")?";
+                 else if (op.attributes) {
+                   attrs = "Value::Descriptor { schema: " +
+                           num(op.attributes->value) + ", fields: vec![";
+                   for (const auto& f :
+                        p.attribute_schemas.at(op.attributes->value).fields)
+                     attrs += f.empty_default ? "Value::List(vec![]),"
+                                              : "Value::None,";
+                   attrs += "] }";
+                 }
+                 std::string result = "{ let children = vec![";
+                 for (const auto& child : v.operands)
+                   result += rhs(p, *child) + ",";
+                 return result + "]; let attrs = " + attrs +
+                        "; ctx.operation_rhs(" + num(v.operation.value) +
+                        ", attrs, children)? }";
+               }
+             },
+             e.value) +
+         " }";
 }
-
-void emitRule(CodeWriter& out, const core::Program& program,
-              const core::Rule& rule, const Names& names,
-              const std::string& module, const std::string& root) {
-  const auto plan = planRule(rule);
-  out.open("pub mod " + names.rule(rule.id));
-  out.line("use " + paths::external("std", "collections::HashMap") + ";");
-  out.line("use " + paths::external("egg", "{EGraph, Rewrite, Var}") + ";");
-  out.line("use " +
-           paths::within(
-               root, "{DType, OpNode, OpAttrs, TensorInfo, RewriteAnalysis}") +
-           ";");
-  out.line("use " + paths::within(root, "rewriting::AnalysisMetadata") + ";");
-  out.line(
-      "use " +
-      paths::within(root,
-                    "rewriting::{AttrExpr, AttrPattern, AttrVar, TensorExpr, "
-                    "TensorPattern, TensorConstraints, TensorConstraint, "
-                    "DTypeConstraint, "
-                    "ShapePart, MetadataBindings, MatchBinding, MatchChecks, "
-                    "MatchContext, tensor_rewrite_with_checks}") +
-      ";");
-  const auto builtins_path = paths::within(root, "builtins");
-  out.open("pub trait HostFunctions: Send + Sync");
-  for (const auto id : plan.host_functions) {
-    const auto& fn = program.host_functions.at(id.value);
-    out.line("/// Host implementation of TEPL `$" + fn.name + "(...)`.");
-    std::string signature = "fn " + names.host(fn.id) + "(&self";
-    for (std::size_t i = 0; i < fn.signature.arguments.size(); ++i)
-      signature +=
-          ", arg" + std::to_string(i) + ": " +
-          type(program.types.at(fn.signature.arguments[i].value), true);
-    auto result = type(program.types.at(fn.signature.result.value));
-    if (fn.fallible) result = "Option<" + result + ">";
-    out.line(signature + ") -> " + result + ";");
+std::string constraints(const core::completed::RuleData& rule) {
+  std::string out = "vec![";
+  for (const auto& c : rule.constraints) {
+    out += "Constraint { capture: " + num(c.capture.value) + ", shape: vec![";
+    for (const auto& e : c.shape)
+      out += "ShapeElement::" +
+             std::string(e.kind == core::ShapeElement::Kind::kSequence
+                             ? "Sequence"
+                             : "Dimension") +
+             "(" + (e.symbol ? "Some(" + num(e.symbol->value) + ")" : "None") +
+             "),";
+    out += "], dtype: ";
+    if (c.dtype)
+      out += "Some(" +
+             std::visit(
+                 [](auto d) -> std::string {
+                   using T = decltype(d);
+                   if constexpr (std::is_same_v<T, core::DType>)
+                     return "DTypeConstraint::Exact(rt::" + dtype(d) + ")";
+                   else
+                     return "DTypeConstraint::Variable(" + num(d.value) + ")";
+                 },
+                 *c.dtype) +
+             ")";
+    else
+      out += "None";
+    out += " },";
   }
-  out.close();
-  if (plan.host_functions.empty()) out.line("impl HostFunctions for () {}");
-  out.open("pub fn pattern() -> TensorPattern");
-  out.line(pattern(*rule.lhs, names, root));
-  out.close();
-  out.open("pub fn expression() -> TensorExpr");
-  out.line(build(*rule.rhs, rule, names, root));
-  out.close();
-  out.open("pub fn constraints() -> TensorConstraints");
-  out.line("TensorConstraints::new(vec![");
-  for (const auto& constraint : rule.constraints) {
-    out.line("(" + var(constraint.capture.value) + ", TensorConstraint {");
-    out.line(
-        "dtype: " +
-        (constraint.dtype
-             ? "Some(" +
-                   (std::holds_alternative<core::DType>(*constraint.dtype)
-                        ? "DTypeConstraint::Exact(" +
-                              dtype(std::get<core::DType>(*constraint.dtype)) +
-                              ")"
-                        : "DTypeConstraint::Bind(" +
-                              std::to_string(std::get<core::DTypeVariableId>(
-                                                 *constraint.dtype)
-                                                 .value) +
-                              ")") +
-                   ")"
-             : "None") +
-        ",");
-    std::string shape = "shape: vec![";
-    for (const auto& element : constraint.shape) {
-      switch (element.kind) {
-        case core::ShapeElement::Kind::kDimension:
-          shape += "ShapePart::Dimension(" +
-                   std::to_string(element.symbol->value) + ")";
-          break;
-        case core::ShapeElement::Kind::kWildcard:
-          shape += "ShapePart::Wildcard";
-          break;
-        case core::ShapeElement::Kind::kSequence:
-          shape += "ShapePart::Sequence(" +
-                   (element.symbol
-                        ? "Some(" + std::to_string(element.symbol->value) + ")"
-                        : "None") +
-                   ")";
-          break;
-      }
-      shape += ", ";
-    }
-    out.line(shape + "], }),");
-  }
-  out.line("])");
-  out.close();
-  for (std::size_t i = 0; i < plan.early_conditions.size(); ++i) {
-    out.open(
-        "fn condition_" + std::to_string(i) +
-        "<N: RewriteAnalysis>(ctx: &MatchContext<'_, N, "
-        "AnalysisMetadata<N>>, dimensions: &MetadataBindings) -> Option<bool>");
-    out.line(
-        "Some(" +
-        emitExpression(program, names, *rule.conditions[i], builtins_path) +
-        ")");
-    out.close();
-  }
-  out.line("/// Shape declarations and the ordered builtin-only where prefix.");
-  out.open("pub fn match_checks<N: RewriteAnalysis>() -> MatchChecks<N>");
-  if (plan.early_conditions.empty()) {
-    out.line("MatchChecks::tensors(constraints())");
-  } else {
-    out.line("let metadata = AnalysisMetadata::<N>::new();");
-    out.line("MatchChecks::new(constraints(), vec![");
-    for (const auto& condition : plan.early_conditions) {
-      std::string deps = "vec![";
-      for (auto id : condition.captures)
-        deps += "MatchBinding::Tensor(" + var(id.value) + "), ";
-      for (auto id : condition.dimensions) {
-        deps += std::string(rule.dimensions.at(id.value).sequence
-                                ? "MatchBinding::Sequence("
-                                : "MatchBinding::Dimension(") +
-                std::to_string(id.value) + "), ";
-      }
-      for (auto id : condition.descriptors)
-        deps += "MatchBinding::Attribute(" + attrVar(id.value) + "), ";
-      for (auto id : condition.dtypes)
-        deps += "MatchBinding::DType(" + std::to_string(id.value) + "), ";
-      out.line(deps + "],");
-    }
-    out.line("], move |index, graph, matched, dimensions| {");
-    out.line("let ctx = MatchContext::new(graph, matched, &metadata);");
-    out.open("match index");
-    for (std::size_t i = 0; i < plan.early_conditions.size(); ++i)
-      out.line(std::to_string(i) + " => condition_" + std::to_string(i) +
-               "(&ctx, dimensions),");
-    out.line("_ => None,");
-    out.close();
-    out.line("})");
-  }
-  out.close();
-  out.line("/// Uses the graph's analysis; () supports structural rules.");
-  out.line(
-      "pub fn build<N, F>(functions: F) -> Result<Rewrite<OpNode, N>, "
-      "String>");
-  out.line("where N: RewriteAnalysis, F: HostFunctions + 'static");
-  out.open("");
-  out.line("let checks = match_checks::<N>();");
-  out.line("let metadata = AnalysisMetadata::<N>::new();");
-  out.line("tensor_rewrite_with_checks(");
-  out.line(quote(module + "::" + rule.name) +
-           ", pattern(), expression(), checks, " +
-           (plan.requires_tensor_info ? "true," : "false,"));
-  out.open("move |graph, matched, dimensions|");
-  out.line("let ctx = MatchContext::new(graph, matched, &metadata);");
-  for (const auto& desc : rule.descriptors) {
-    if (desc.kind != core::Descriptor::Kind::kCaptured) continue;
-    out.line("let " + descriptor(desc.id.value) + " = ctx.attrs(" +
-             attrVar(desc.id.value) + ")?.clone();");
-    const auto& descriptor_type = program.types.at(desc.type.value);
-    if (descriptor_type.schema)
-      out.line("let " + descriptor(desc.id.value) + " = " +
-               descriptor(desc.id.value) + ".checked_schema(" +
-               std::to_string(descriptor_type.schema->value) + ")?;");
-  }
-  for (std::size_t i = plan.early_conditions.size(); i < rule.conditions.size();
-       ++i)
-    out.line(
-        "if !(" +
-        emitExpression(program, names, *rule.conditions[i], builtins_path) +
-        ") { return None; }");
-  for (const auto& derivation : rule.derivations)
-    out.line("let " + descriptor(derivation.target.value) + " = " +
-             emitExpression(program, names, *derivation.value, builtins_path) +
-             ";");
-  if (rule.derivations.empty())
-    out.line("Some(Default::default())");
-  else {
-    out.line("Some(HashMap::from([");
-    for (const auto& derivation : rule.derivations)
-      out.line("(" + attrVar(derivation.target.value) + ", " +
-               descriptor(derivation.target.value) + "),");
-    out.line("]))");
-  }
-  out.close(",");
-  out.line(")");
-  out.close();
-  out.close();
+  return out + "]";
 }
 }  // namespace
-std::string emitRules(const core::Program& program, const Names& names,
-                      const std::vector<const core::Rule*>& rules,
-                      const std::string& module, const std::string& root_path) {
+std::string emitRules(const executable::ExecutableProgram& executable,
+                      const Names& names, const RuleModuleNames& module) {
+  const auto& p = executable.ir();
+  Expressions e(p);
   CodeWriter out;
-  out.line("// Generated by TEPL from checked concrete rules.");
-  out.line(
-      "#![allow(unused_imports, unused_variables, unused_mut, unused_parens)]");
-  for (const auto* rule : rules) {
-    out.line();
-    emitRule(out, program, *rule, names, module, paths::parent(root_path));
+  for (auto id : module.rules) {
+    const auto& rule = p.rules.at(id.value);
+    out.open("pub mod " + names.rule(id));
+    out.line("use ::tepl_runtime::{self as rt, Value, EvalResult};");
+    out.line(
+        "use rt::matching::{Pattern, Constraint, ShapeElement, "
+        "DTypeConstraint};");
+    out.line("use rt::values::AttributeValue;");
+    const auto root = "super::" + module.root;
+    out.line("type Context<'a> = rt::RuleContext<'a, " + root + "::Program>;");
+    out.line("type Replacement = rt::PreparedReplacement<" + root +
+             "::Program>;");
+    std::set<std::pair<std::size_t, std::size_t>> emitted_axes;
+    for (const auto& axis : executable.axes(id.value)) {
+      if (!emitted_axes.emplace(axis->owner, axis->index).second) continue;
+      out.open("fn axis_" + num(axis->owner) + "_" + num(axis->index) +
+               "(ctx: &mut Context<'_>) -> EvalResult<Value>");
+      out.line("if let Some(value) = ctx.cached_axis(" + num(axis->owner) +
+               ", " + num(axis->index) + ") { return Ok(value); }");
+      out.line("ctx.enter_axis(" + num(axis->owner) + ", " + num(axis->index) +
+               ")?;");
+      out.line("let extents = " + e.symbolic(*axis->args.at(0)) + ";");
+      out.line("ctx.finish_axis(" + num(axis->owner) + ", " + num(axis->index) +
+               ", extents)");
+      out.close();
+    }
+    const auto schedule = core::completed::scheduleWhere(rule);
+    auto conditions = [&](const auto& statements) {
+      for (const auto& condition : statements) {
+        if (std::holds_alternative<core::completed::LocalLet>(condition->value))
+          out.line("let _ = " + e.rule(*condition) + ";");
+        else
+          out.line("if !(" + e.rule(*condition) +
+                   ").boolean()? { return Ok(false); }");
+      }
+    };
+    out.open("pub fn check_where(ctx: &mut Context<'_>) -> EvalResult<bool>");
+    conditions(schedule.source);
+    for (const auto& q : rule.feasibility)
+      out.line("if !(" + e.symbolic(*q) + ").boolean()? { return Ok(false); }");
+    out.line("let where_locals = ::std::mem::take(&mut ctx.bindings.locals);");
+    out.line("let result = derive(ctx);");
+    out.line("ctx.bindings.locals = where_locals;");
+    out.line("result?;");
+    conditions(schedule.replacement);
+    out.line("Ok(true)");
+    out.close();
+    // Each derived descriptor has a concrete schema at this boundary.
+    for (const auto& derivation : rule.derivations) {
+      if (!derivation.target) continue;
+      const auto& type = p.types.at(derivation.value->type.value);
+      const auto schema = *type.schema;
+      std::string rust_type;
+      for (const auto& d : names.dialects)
+        for (auto sid : d.schemas)
+          if (sid == schema)
+            rust_type =
+                root + "::dialects::" + d.module + "::" + names.schema(sid);
+      out.open("pub fn derive_d" + num(derivation.target->value) +
+               "(ctx: &mut Context<'_>) -> EvalResult<" + rust_type + ">");
+      out.line("let value = " + e.rule(*derivation.value) + ";");
+      out.line("AttributeValue::from_value(&value)");
+      out.close();
+    }
+    out.open("pub fn derive(ctx: &mut Context<'_>) -> EvalResult<()>");
+    for (const auto& derivation : rule.derivations) {
+      if (derivation.target) {
+        out.line("let attrs = derive_d" + num(derivation.target->value) +
+                 "(ctx)?;");
+        out.line("ctx.bindings.descriptors.insert(" +
+                 num(derivation.target->value) + ", attrs.to_value());");
+      } else
+        out.line("let _ = " + e.rule(*derivation.value) + ";");
+    }
+    out.line("Ok(())");
+    out.close();
+    out.open(
+        "pub fn prepare(ctx: &mut Context<'_>) -> "
+        "EvalResult<Option<Replacement>>");
+    out.line("if !check_where(ctx)? { return Ok(None); }");
+    out.line("Ok(Some(" + rhs(p, *rule.rhs) + "))");
+    out.close();
+    out.open("pub fn definition() -> rt::RuleDefinition<" + root +
+             "::Program>");
+    out.open("rt::RuleDefinition");
+    out.line("name: " + quote(module.qualified + "::" + rule.name) + ",");
+    out.line("source: " +
+             quote(rule.origin.definition.source_name + ":" +
+                   num(rule.origin.definition.span.begin.line)) +
+             ",");
+    out.line("lhs: " + pattern(*rule.lhs) + ",");
+    out.line("constraints: " + constraints(rule) + ",");
+    out.line("prepare,");
+    out.close();
+    out.close();
+    out.close();
   }
   return out.str();
 }

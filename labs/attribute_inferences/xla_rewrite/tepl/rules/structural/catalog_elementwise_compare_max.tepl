@@ -1,0 +1,10 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: elementwise-compare-max
+// Scope: Written operand/opcode variant under the catalog conditions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_compare_max {
+  (attr_c: hlo.compare (hlo.maximum A B) A) => (hlo.compare[attr_c.attrs] B A)
+
+  where attr_c.attrs.direction == 3
+}

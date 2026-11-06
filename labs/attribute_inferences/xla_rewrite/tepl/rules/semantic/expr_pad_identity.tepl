@@ -1,0 +1,13 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_pad_identity {
+  X: [Dims...]
+
+  (attr_p: hlo.pad X C) => X
+
+  where
+    attr_p.attrs.low == [0 for d in Dims]
+      && attr_p.attrs.high == [0 for d in Dims]
+      && attr_p.attrs.interior == [0 for d in Dims]
+}

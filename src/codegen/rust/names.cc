@@ -4,7 +4,6 @@
 #include <set>
 #include <stdexcept>
 
-#include "src/codegen/common/rule_plan.h"
 #include "src/codegen/rust/paths.h"
 
 namespace tepl::codegen::rust {
@@ -124,30 +123,6 @@ std::string dtype(core::DType value) {
   if (value == core::DType::kBF16) return "DType::BF16";
   return "DType::" + pascal(core::dtypeName(value));
 }
-std::string type(const core::Type& value, bool argument) {
-  switch (value.kind) {
-    case core::TypeKind::kDType:
-      return "DType";
-    case core::TypeKind::kTensor:
-      return argument ? "&TensorInfo" : "TensorInfo";
-    case core::TypeKind::kIndex:
-      return "u64";
-    case core::TypeKind::kIndexList:
-      return argument ? "&[u64]" : "Vec<u64>";
-    case core::TypeKind::kBool:
-      return "bool";
-    case core::TypeKind::kI64:
-      return "i64";
-    case core::TypeKind::kF64:
-      return "f64";
-    case core::TypeKind::kDescriptor:
-      return argument ? "&OpAttrs" : "OpAttrs";
-  }
-  return "()";
-}
-std::string descriptor(std::size_t id) {
-  return "descriptor_" + std::to_string(id);
-}
 
 namespace {
 // Each instance represents one Rust declaration scope. Raw spelling never
@@ -192,12 +167,12 @@ class Scope {
 };
 }  // namespace
 
-Names::Names(const core::Program& program, const ProjectPlan& project) {
+Names::Names(const executable::ProgramData& program,
+             const ProjectPlan& project) {
   operations_.resize(program.operations.size());
   operation_variants_.resize(program.operations.size());
   schemas_.resize(program.attribute_schemas.size());
   fields_.resize(program.attribute_schemas.size());
-  hosts_.resize(program.host_functions.size());
   rules_.resize(program.rules.size());
   Scope module_scope, variant_scope;
   module_scope.reserve("mod");
@@ -215,7 +190,9 @@ Names::Names(const core::Program& program, const ProjectPlan& project) {
     DialectNames dialect{declaration.name, module.token, module.key,
                          variant.token,    {},           {}};
     Scope ops, schemas;
-    schemas.reserve("None");
+    for (const auto* name :
+         {"Op", "OpAttrs", "Value", "EvalResult", "AttributeValue"})
+      schemas.reserve(name);
     for (auto id : declaration.operations) {
       const auto& op = program.operations.at(id.value);
       const auto name =
@@ -244,10 +221,6 @@ Names::Names(const core::Program& program, const ProjectPlan& project) {
     }
     dialects.push_back(std::move(dialect));
   }
-  for (const auto& host : program.host_functions)
-    hosts_[host.id.value] =
-        Identifier::make(host.name, NameKind::kMethod, host.origin).token;
-
   // Validate both source module scopes and filesystem scopes, including parent
   // directories. Different source spellings must never silently merge.
   std::map<std::string, Scope> child_scopes;
@@ -292,14 +265,6 @@ Names::Names(const core::Program& program, const ProjectPlan& project) {
           Identifier::make(rule.name, NameKind::kRule, rule.origin);
       rule_scope.insert(name, rule.name, rule.origin, "rule");
       rules_[id.value] = name.token;
-      Scope methods;
-      for (const auto host_id : planRule(rule).host_functions) {
-        const auto& host = program.host_functions.at(host_id.value);
-        const auto name =
-            Identifier::make(host.name, NameKind::kMethod, host.origin);
-        methods.insert(name, host.name, host.origin,
-                       "host function within rule '" + rule.name + "'");
-      }
     }
     modules.push_back(std::move(module));
   }
@@ -322,9 +287,6 @@ std::string Names::schema(core::AttributeSchemaId id) const {
 const std::string& Names::field(core::AttributeSchemaId id,
                                 std::size_t index) const {
   return fields_.at(id.value).at(index);
-}
-const std::string& Names::host(core::HostFunctionId id) const {
-  return hosts_.at(id.value);
 }
 const std::string& Names::rule(core::RuleId id) const {
   return rules_.at(id.value);

@@ -1,0 +1,22 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
+
+rule reverse_add_scalar {
+  (attr_r: reverse (add X (attr_b: broadcast C)))
+  =>
+  (add (reverse[attr_r.attrs] X) (broadcast[attr_b.attrs] C))
+
+  where attr_b.attrs.dimensions == []
+}

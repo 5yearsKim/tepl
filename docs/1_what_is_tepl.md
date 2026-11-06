@@ -295,18 +295,18 @@ incompatible candidates early, and replacement checks reuse the same inference.
 The transpose-negate rule becomes a single TEPL declaration:
 
 ```javascript
-from "../dialects/tensor.tepl" import TensorLang as t;
+from "dialects/tensor.tepl" import TensorLang as t
 
 rule transpose_negate {
     X: f32[Dims...]
 
-    (t.transpose[@perm] (t.negate X))
+    (source: t.transpose (t.negate X))
     =>
-    (t.negate (t.transpose[@perm] X))
+    (t.negate (t.transpose[source.attrs] X))
 }
 ```
 
-Save this rule under `examples/sample/rules/`. Its relative import loads operations and
+Save this rule under `examples/sample/rules/`. Its project-root import loads operations and
 metadata definitions from the [tensor dialect](../examples/sample/dialects/tensor.tepl).
 
 - **Graph structure:** `LHS => RHS` describes the pattern and replacement.
@@ -315,7 +315,7 @@ metadata definitions from the [tensor dialect](../examples/sample/dialects/tenso
 - **Tensor constraints:** `X: f32[Dims...]` matches an `f32` tensor of any rank.
   Named dimensions enforce equality; dimension sequences support varying ranks.
   Dtype constraints do not insert casts.
-- **Operation attributes:** `@perm` captures and reuses the transpose's
+- **Operation attributes:** `source.attrs` captures and reuses the transpose's
   attributes as a descriptor. These are separate from tensor shape and dtype.
 - **Checked replacements:** Generated checks validate replacement operations
   and preserve the root's shape and dtype. The author remains responsible for
@@ -329,13 +329,13 @@ numeric dtypes:
 dialect Elementwise {
     op add(lhs: tensor, rhs: tensor) -> tensor {
         dtype(a, b) {
-            assert a == b;
-            assert is_numeric(a);
-            yield a;
+            assert a == b
+            assert is_numeric(a)
+            yield a
         }
         shape(l, r) {
-            assert l == r;
-            yield l;
+            assert l == r
+            yield l
         }
     }
 }
@@ -343,17 +343,17 @@ dialect Elementwise {
 
 TEPL generates inference code for both e-class analysis and replacement
 validation. Its runtime handles unknown, invalid, and conflicting metadata.
-The host supplies input types and any required inference missing from the dialect.
+The host supplies input metadata. Operation contracts determine the inferred facts.
 
 🔒 **Conditions and derivations:** `where` states legality conditions; `derive`
-computes replacement attributes. Calls like `$is_reassociable(...)` run
-application-specific Rust or C++ functions. The [LoRA rule](../examples/sample/rules/lora.tepl)
-uses these blocks to check reassociation and derive contraction attributes.
-Floating-point reassociation requires explicit host permission.
+computes replacement attributes using builtins and descriptor constructors.
+The [LoRA rule](../examples/sample/rules/lora.tepl) uses explicit axis guards
+and descriptor copies. Floating-point reassociation requires an explicit
+numerical policy. Rust and C++ generation support these expressions.
 
 🔌 **Host integration:** Define or import dialects, write rules, generate code,
-and run it with an e-graph optimizer. TEPL supports multiple dialects and custom
-analysis hooks. The host chooses rules, numerical policy, search limits, and
+and run it with an e-graph optimizer. TEPL supports multiple dialects and generated
+tensor analysis. The host chooses rules, numerical policy, search limits, and
 extraction cost model.
 
 ## 📚 Learn more
@@ -361,4 +361,4 @@ extraction cost model.
 - [Design philosophy](design_philosophy.md): principles and core concepts.
 - [Example rules](../examples/sample/rules): tensor rewrites in TEPL.
 - [Rust runtime guide](../labs/rust-egg/README.md): analysis and rewrites with egg.
-- [C++ runtime guide](../templates/cpp/README.md): generated code for egg-c.
+- [C++ runtime guide](../runtime/cpp/README.md): generated code for egg-c.

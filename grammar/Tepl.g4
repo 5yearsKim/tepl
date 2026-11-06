@@ -10,9 +10,9 @@ program
     ;
 
 importDecl
-    : IMPORT STRING ';'
-    | FROM STRING IMPORT ID (AS ID)? ';'
-    | FROM STRING IMPORT '{' ruleImportNames '}' ';'
+    : IMPORT STRING
+    | FROM STRING IMPORT ID (AS ID)?
+    | FROM STRING IMPORT '{' ruleImportNames '}'
     ;
 
 ruleImportNames
@@ -20,7 +20,7 @@ ruleImportNames
     ;
 
 useDecl
-    : USE ID ('::' '{' opName (',' opName)* '}')? ';'
+    : USE ID ('::' '{' opName (',' opName)* '}')?
     ;
 
 // Shared operation names: used by imports, dialects, and rewrite rules
@@ -45,7 +45,7 @@ attrsDecl
     ;
 
 opDecl
-    : OP opName '(' operandDecls? ')' '->' ID (';' | '{' opProperties? '}')
+    : OP opName '(' operandDecls? ')' '->' ID ('{' opProperties? '}')?
     ;
 
 operandDecls
@@ -62,8 +62,25 @@ variadicOperand
     ;
 
 opProperties
-    : (aliasProperty | attrsProperty | dtypeProperty)+ shapeProperty?
-    | shapeProperty
+    : (aliasProperty | attrsProperty | dtypeProperty)+ (shapeProperty | axesProperty)? semanticsProperty?
+    | shapeProperty semanticsProperty?
+    | axesProperty semanticsProperty?
+    | semanticsProperty
+    ;
+
+axesProperty
+    : {getCurrentToken()->getText() == "axes"}? ID
+      '{' axisStatement* shapeYield '}'
+    ;
+
+axisStatement
+    : shapeStatement
+    | {getCurrentToken()->getText() == "bind"}? ID ID
+      ('{' axisBinding (',' axisBinding)* '}' | '=' shapeExpr)
+    ;
+
+axisBinding
+    : ID ':' shapeExpr
     ;
 
 // Dtype is contextual; legacy colon policies are no longer accepted.
@@ -93,12 +110,12 @@ shapeVariadicInput
     ;
 
 shapeStatement
-    : LET ID '=' shapeExpr ';'     # ShapeLetStatement
-    | ASSERT shapeExpr ';'         # ShapeAssertStatement
+    : LET ID '=' shapeExpr     # ShapeLetStatement
+    | ASSERT shapeExpr        # ShapeAssertStatement
     ;
 
 shapeYield
-    : YIELD shapeExpr ';'
+    : YIELD shapeExpr
     ;
 
 // Shape expressions contain metadata only; host calls and graph captures are
@@ -125,7 +142,7 @@ shapeComparison
     ;
 
 shapeAdditive
-    : shapeMultiplicative (('+' | '-') shapeMultiplicative)*
+    : shapeMultiplicative (('+' | '-' | '++') shapeMultiplicative)*
     ;
 
 shapeMultiplicative
@@ -163,17 +180,33 @@ shapeArguments
     : shapeExpr (',' shapeExpr)*
     ;
 
+semanticsProperty
+    : {getCurrentToken()->getText() == "semantics"}? ID
+      '{' YIELD semanticExpr '}'
+    ;
+
+semanticExpr
+    : ID '(' semanticArguments? ')' # SemanticCallExpr
+    | ATTRS '.' ID                  # SemanticAttributeExpr
+    | ID                            # SemanticNameExpr
+    | ('+' | '-')? INT              # SemanticIntegerExpr
+    ;
+
+semanticArguments
+    : semanticExpr (',' semanticExpr)*
+    ;
+
 aliasProperty
-    : ALIAS ':' ID ';'
+    : ALIAS ':' ID
     ;
 
 attrsProperty
-    : ATTRS ':' ID ';'                 # SharedAttrsProperty
+    : ATTRS ':' ID                    # SharedAttrsProperty
     | ATTRS '{' attrField* '}'         # InlineAttrsProperty
     ;
 
 attrField
-    : ID ':' attrType attrDefault? ';'
+    : ID ':' attrType attrDefault?
     ;
 
 attrType
@@ -188,17 +221,17 @@ attrDefault
 // graph/input remain contextual so existing operation identifiers still work.
 concreteGraphDecl
     : {getCurrentToken()->getText() == "graph"}? ID ID '{'
-      concreteInput* concreteLet* YIELD concreteExpr ';' '}'
+      concreteInput* concreteLet* YIELD concreteExpr '}'
     ;
 concreteInput
     : {getCurrentToken()->getText() == "input"}? ID ID
-      (':' (dtypeName concreteShape? | concreteShape))? ';'
+      (':' (dtypeName concreteShape? | concreteShape))?
     ;
 concreteShape
     : '[' (INT (',' INT)*)? ']'
     ;
 concreteLet
-    : LET ID '=' concreteExpr ';'
+    : LET ID '=' concreteExpr
     ;
 concreteExpr
     : ID
@@ -222,7 +255,7 @@ concreteValue
 ruleDecl
     : RULE ID rewriteBody
     | ABSTRACT RULE ID '(' ruleParameters? ')' rewriteBody
-    | RULE ID inheritanceClause (';' | inheritedBody)
+    | RULE ID inheritanceClause inheritedBody?
     ;
 
 rewriteBody
@@ -238,7 +271,7 @@ ruleParameters
     ;
 
 ruleParameter
-    : ID ':' (OP | FN) '<' '(' signatureTypes? ')' '->' signatureType '>'
+    : ID ':' OP '<' '(' signatureTypes? ')' '->' signatureType '>'
     ;
 
 signatureTypes
@@ -255,12 +288,9 @@ ruleBindings
     ;
 
 ruleBinding
-    : ID '=' (opRef | hostFunctionRef)
+    : ID '=' opRef
     ;
 
-hostFunctionRef
-    : '$' ID
-    ;
 
 // Instances add restrictions to the inherited pattern.
 inheritedBody
@@ -270,7 +300,7 @@ inheritedBody
 // Rule declarations: tensor shapes (including rank-zero tensors)
 
 dtypeDecl
-    : {getCurrentToken()->getText() == "dtype"}? ID ID ';'
+    : {getCurrentToken()->getText() == "dtype"}? ID ID
     ;
 
 shapeDecl
@@ -305,7 +335,7 @@ graphExpr
     | ('+' | '-')? (INT | FLOAT) (':' dtypeName)? # NumberGraph
     | '(' binding ')'                        # ParenthesizedBindingGraph
     | '(' GET '[' INT ']' graphExpr ')'       # GetGraph
-    | '(' opRef attribute? graphExpr* ')'     # OperatorGraph
+    | '(' nodeLabel? opRef attribute? graphExpr* ')'     # OperatorGraph
     ;
 
 // RHS expressions construct operations from LHS captures; they introduce no bindings.
@@ -313,37 +343,55 @@ rhsGraphExpr
     : ID                                     # RhsVariableGraph
     | ('+' | '-')? (INT | FLOAT) (':' dtypeName)? # RhsNumberGraph
     | '(' GET '[' INT ']' rhsGraphExpr ')'    # RhsGetGraph
-    | '(' opRef attribute? rhsGraphExpr* ')'  # RhsOperatorGraph
+    | '(' nodeLabel? opRef attribute? rhsGraphExpr* ')'  # RhsOperatorGraph
     ;
 
 binding
     : LET ID '=' graphExpr
     ;
 
-attribute
-    : '[' attrRef ']'
+nodeLabel
+    : ID ':'
     ;
 
-attrRef
-    : '@' ID
+nodeAttrs
+    : ID '.' ATTRS
     ;
+
+attribute
+    : '[' nodeAttrs ']'
+    ;
+
 
 // Rule semantics: legality conditions and derived metadata
+// A simple guard follows where directly. Blocks use local bindings and an
+// explicit yield, so expression boundaries do not depend on line breaks.
+// Statements throughout TEPL are keyword- or structure-delimited; no semicolons.
 
 whereBlock
-    : WHERE '{' (constraintExpr ';')* '}'
+    : WHERE ({getCurrentToken()->getText() != "{"}? constraintExpr
+            | '{' whereStatement+ YIELD constraintExpr '}')
     ;
 
 deriveBlock
-    : DERIVE '{' (attrRef '=' constraintExpr ';')* '}'
+    : DERIVE '{' deriveStatement* '}'
     ;
 
-// Constraint expressions: shared by where and derive
+whereStatement
+    : LET ID '=' constraintExpr
+    ;
+deriveStatement
+    : LET ID '=' constraintExpr
+    | nodeAttrs '=' constraintExpr
+    ;
 
-// Host calls and constraints use conventional infix syntax. Each level has its
+// Pure expressions shared by where and derive
+
+// Rule expressions use conventional infix syntax. Each level has its
 // own rule so precedence remains explicit and independent of graph expressions.
 constraintExpr
-    : logicalOr
+    : IF constraintExpr THEN constraintExpr ELSE constraintExpr
+    | logicalOr
     ;
 
 logicalOr
@@ -363,7 +411,7 @@ comparison
     ;
 
 additive
-    : multiplicative (('+' | '-') multiplicative)*
+    : multiplicative (('+' | '-' | '++') multiplicative)*
     ;
 
 multiplicative
@@ -372,18 +420,32 @@ multiplicative
 
 unary
     : ('!' | '+' | '-') unary
-    | primary
+    | postfix
+    ;
+
+postfix
+    : primary ('[' constraintExpr ']')*
     ;
 
 primary
-    : (ID | hostFunctionRef) '(' arguments? ')' # CallPrimary
+    : ID '(' arguments? ')' # CallPrimary
+    | ID '.' (ATTRS | ID) ('.' ID)*            # NodePropertyPrimary
+    | AUTO                                   # AutoPrimary
     | ID                                     # NamePrimary
-    | attrRef ('.' ID)?                      # AttributePrimary
     | INT                                    # IntegerPrimary
     | FLOAT                                  # FloatPrimary
     | TRUE                                   # TruePrimary
     | FALSE                                  # FalsePrimary
     | '(' constraintExpr ')'                 # GroupPrimary
+    | STRING                                 # StringPrimary
+    | '[' (constraintExpr (',' constraintExpr)*)? ']' # ListPrimary
+    | '[' constraintExpr FOR ID IN constraintExpr ']' # ComprehensionPrimary
+    | '{' ('..' nodeAttrs (',' descriptorField)*)? '}' # DescriptorPrimary
+    | '{' descriptorField (',' descriptorField)* '}' # DescriptorFieldsPrimary
+    ;
+
+descriptorField
+    : ID ':' constraintExpr
     ;
 
 arguments
@@ -395,7 +457,6 @@ arguments
 RULE: 'rule';
 ABSTRACT: 'abstract';
 EXTENDS: 'extends';
-FN: 'fn';
 LET: 'let';
 ASSERT: 'assert';
 YIELD: 'yield';
@@ -414,6 +475,7 @@ ATTRS: 'attrs';
 ALIAS: 'alias';
 WHERE: 'where';
 DERIVE: 'derive';
+AUTO: 'auto';
 GET: 'get';
 TRUE: 'true';
 FALSE: 'false';

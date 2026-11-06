@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "src/source.h"
+#include "src/shared/source/source.h"
 
 namespace tepl::codegen {
 

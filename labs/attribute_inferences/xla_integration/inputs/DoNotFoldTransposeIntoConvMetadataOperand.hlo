@@ -1,0 +1,11 @@
+
+HloModule DoNotFoldTransposeIntoConvMetadataOperand
+
+ENTRY entry_computation {
+  input = f32[1,8] parameter(0)
+  filter = f32[2,3] parameter(1)
+  meta_input = s32[3,2] parameter(2)
+  meta = s32[2,3] transpose(meta_input), dimensions={1,0}
+  ROOT conv = f32[1,3] convolution(input, filter, meta), dim_labels=bf_io->bf,
+      sparsity_config={rhs={sparsity=1x4 dimension=0 stride=1 idx=2}}
+}

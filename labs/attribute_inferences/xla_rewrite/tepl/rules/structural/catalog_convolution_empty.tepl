@@ -1,0 +1,16 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: convolution-empty
+// Scope: General convolution; result shape is ordinary source/adapter metadata.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_convolution_empty {
+  dtype T
+  X: T[Left...]
+  W: T[Right...]
+
+  (attr_c: hlo.general_convolution X W) => (attr_zero: hlo.fill)
+
+  where product(Left) == 0 || product(Right) == 0 derive {
+    attr_zero.attrs = { shape: attr_c.attrs.shape, value: 0, element_type: T }
+  }
+}

@@ -1,0 +1,94 @@
+dialect TensorLang {
+  op dot_general(lhs: tensor, rhs: tensor) -> tensor {
+    // TEPL shorthand, not a separate StableHLO dot operation.
+    alias: dot
+    attrs {
+      // Flattened fields of StableHLO dot_dimension_numbers.
+      lhs_contracting_dimensions: axis[]
+      rhs_contracting_dimensions: axis[]
+      lhs_batching_dimensions: axis[]
+      rhs_batching_dimensions: axis[]
+    }
+    dtype(a, b) {
+      assert a == b
+      assert is_numeric(a)
+      yield a
+    }
+    axes {
+      let lb = attrs.lhs_batching_dimensions
+      let rb = attrs.rhs_batching_dimensions
+      let lc = attrs.lhs_contracting_dimensions
+      let rc = attrs.rhs_contracting_dimensions
+      let lf = ordered_complement(all_axes(lhs), lb ++ lc)
+      let rf = ordered_complement(all_axes(rhs), rb ++ rc)
+      bind B { lhs: lb, rhs: rb }
+      bind K { lhs: lc, rhs: rc }
+      bind I { lhs: lf }
+      bind J { rhs: rf }
+      // Generic partition checks reject batch/contraction overlap.
+      // Shared-group checks enforce paired lengths and extents.
+      yield B ++ I ++ J
+    }
+    semantics {
+      yield Reduce(K, Product(lhs, rhs))
+    }
+    // Example: lhs [i, k0, b, k1], rhs [k1, j, k0, b].
+    // Group       lhs positions    rhs positions    output positions
+    // B = [b]         [2]              [3]                 [0]
+    // K = [k0,k1]     [1,3]            [2,0]                --
+    // I = [i]         [0]              --                  [1]
+    // J = [j]         --               [1]                 [2]
+    // out[b,i,j] = sum(k0,k1) lhs[i,k0,b,k1] * rhs[k1,j,k0,b].
+  }
+
+  op transpose(input: tensor) -> tensor {
+    attrs {
+      permutation: axis[]
+    }
+    dtype(t) {
+      yield t
+    }
+    axes {
+      bind S { input: all_axes(input) }
+      assert is_valid_axis_list(attrs.permutation, rank(input))
+      assert len(attrs.permutation) == rank(input)
+      // Output axis i carries input axis permutation[i].
+      yield permute(S, attrs.permutation)
+    }
+    semantics {
+      yield input
+    }
+  }
+}
+
+rule fold_lhs {
+  X: [XDims...]
+  Y: [YDims...]
+
+  (d: dot (p: transpose X) Y) => (out: dot X Y)
+
+  where
+    len(XDims) >= 2
+      && len(YDims) >= 2
+      && p.attrs.permutation != range(len(XDims))
+      && len(XDims) == len(d.attrs.lhs_batching_dimensions) + 2
+      && len(d.attrs.lhs_contracting_dimensions) == 1
+      && gather(p.attrs.permutation, d.attrs.lhs_batching_dimensions)
+        == d.attrs.lhs_batching_dimensions
+}
+
+rule fold_rhs {
+  X: [XDims...]
+  Y: [YDims...]
+
+  (d: dot X (p: transpose Y)) => (out: dot X Y)
+
+  where
+    len(XDims) >= 2
+      && len(YDims) >= 2
+      && p.attrs.permutation != range(len(YDims))
+      && len(YDims) == len(d.attrs.rhs_batching_dimensions) + 2
+      && len(d.attrs.rhs_contracting_dimensions) == 1
+      && gather(p.attrs.permutation, d.attrs.rhs_batching_dimensions)
+        == d.attrs.rhs_batching_dimensions
+}

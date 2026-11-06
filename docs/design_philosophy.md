@@ -6,20 +6,20 @@ TEPL is a declarative language for tensor graph rewrites, guided by four princip
   Express graph structure, transformation intent, and tensor metadata clearly,
   with explicit shape, dtype, and legality constraints.
 
-- **Design for host integration.**
-  Fit into the host's architecture and semantic model. Delegate complex logic,
-  including tensor semantics, numerical legality, and metadata inference, to
-  host functions while keeping rewrite expressions simple.
+- **Keep rules self-contained.**
+  Express guards and attribute transformations with pure expressions, reusable
+  builtins, descriptor constructors, and semantic synthesis. Applications select
+  the numerical policy and supply input metadata.
 
 - **Extensible architecture.**
   Use shape-generic rules to express rewrites across tensor sizes and ranks, and
-  rule polymorphism to reuse transformations across operations and host functions.
+  rule polymorphism to reuse transformations across operations.
   Extend the operation vocabulary through dialects while keeping the core language small.
 
 - **Validate early, search efficiently.**
   Validate rewrite definitions before search wherever possible. Use explicit
   constraints to reject candidates as soon as the necessary information is
-  available, retaining runtime checks for match-dependent and host-defined semantics.
+  available, retaining runtime checks for match-dependent metadata.
 
 ## Core concepts
 
@@ -28,39 +28,28 @@ TEPL is a declarative language for tensor graph rewrites, guided by four princip
 A rule describes a matched graph and its replacement with `LHS => RHS`.
 Operations use S-expressions; repeated names refer to the same captured value.
 
-The [LoRA example](../examples/sample/rules/lora.tepl) combines graph structure,
-shape constraints, and host functions:
+The [attribute examples](../examples/sample/rules/attributes.tepl) combine
+patterns, builtins, and explicit attribute construction:
 
-```javascript
-from "../dialects/tensor.tepl" import TensorLang as t;
-use t::{add, dot};
+```tepl
+from "dialects/tensor.tepl" import TensorLang as t
 
-rule lora {
-    X: [Batch..., M, K]
-    W: [WeightBatch..., K, N]
-    A: [WeightBatch..., K, R]
-    B: [WeightBatch..., R, N]
-
-    (dot[@outer] X (add W (dot[@inner] A B)))
-    =>
-    (add (dot[@xw] X W)
-         (dot[@out] (dot[@xa] X A) B))
-
-    where {
-        $is_broadcastable(Batch, WeightBatch);
-        $is_reassociable(X, A, B, @outer, @inner);
-    }
-
+rule compose_transposes {
+    (outer: t.transpose (inner: t.transpose X))
+    => (combined: t.transpose X)
     derive {
-        @xw = $infer_dot(X, W, @outer);
-        @xa = $infer_dot(X, A, @outer);
-        @out = $infer_lora_out(X, A, B, @outer, @inner);
+        combined.attrs = {
+            ..outer.attrs,
+            permutation: gather(inner.attrs.permutation, outer.attrs.permutation)
+        }
     }
 }
 ```
 
-Import paths are relative to the rule file. This example uses the layout under
-`examples/sample/rules/`.
+With `tepl.toml`, bare import paths are relative to the project root. Otherwise,
+paths are relative to the rule file, as `./` and `../` paths always are.
+Constructors are checked by the frontend and emitted as ordinary Rust or C++
+computations.
 
 ### Tensor constraints and shape-generic rules
 
@@ -79,19 +68,18 @@ S: f32[]             // A rank-zero tensor
 Each shape permits at most one sequence. Dtype annotations never insert casts
 or imply promotion; an omitted dtype is unrestricted.
 
-### Host functions and operator descriptors
+### Builtins and operator descriptors
 
-`$name(...)` calls a host function. The host supplies tensor semantics,
-numerical legality, and specialized inference.
+Calls resolve to reusable builtins. Rules do not call application functions.
 
-Descriptors hold operation attributes. A pattern captures them with `@name`;
+Descriptors hold operation attributes. A pattern captures them with `name.attrs`;
 the replacement can reuse them or use derived descriptors.
 
 ```javascript
-(dot[@outer] X W)
+(outer: dot X W)
 ```
 
-Here, `@outer` captures the dot operation's attributes, separately from `X`
+Here, `outer.attrs` captures the dot operation's attributes, separately from `X`
 and `W`. Descriptors contain operation attributes, not output tensor metadata.
 
 ### Explicit conditions and derivations
@@ -100,19 +88,16 @@ and `W`. Descriptors contain operation attributes, not output tensor metadata.
 replacement operations.
 
 ```javascript
-where {
-    K % 128 == 0;
-    $is_reassociable(X, A, B, @outer, @inner);
-}
+where K % 128 == 0
 derive {
-    @xa = $infer_dot(X, A, @outer);
+    xa.attrs = { ..outer.attrs }
 }
 ```
 
 Both blocks use matched inputs, captured descriptors, and shape variables.
 Derivations run in source order and cannot inspect newly constructed RHS values.
 Numerical transformations such as floating-point reassociation require explicit
-host permission.
+numerical policy.
 
 ### Extensible dialects and polymorphic rules
 
@@ -121,16 +106,17 @@ language syntax.
 
 ```javascript
 dialect TensorLang {
-    op add(lhs: tensor, rhs: tensor) -> tensor;
-    op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul; }
+    op add(lhs: tensor, rhs: tensor) -> tensor
+    op multiply(lhs: tensor, rhs: tensor) -> tensor { alias: mul }
     op concatenate(first: tensor, second: tensor, rest: tensor...) -> tensor {
-        attrs { axis: index; }
+        attrs { axis: axis }
     }
 }
 ```
 
-Abstract rules parameterize operations (`op`) and host functions (`fn`).
-Concrete rules bind those parameters and may add constraints.
+Abstract rules parameterize operations (`op`). Concrete rules bind those
+parameters and may add constraints. Conditions and derivations use builtins;
+host-function parameters and callbacks are unsupported.
 
 ```javascript
 abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
@@ -138,12 +124,12 @@ abstract rule commute(F: op<(tensor, tensor) -> tensor>) {
 }
 
 // Requires host semantics in which swapping add operands is valid.
-rule commute_add extends commute(F = t.add);
+rule commute_add extends commute(F = t.add)
 
 rule commute_small_vectors extends commute(F = t.add) {
     X: [N]
     Y: [N]
-    where { N <= 1024; }
+    where N <= 1024
 }
 ```
 

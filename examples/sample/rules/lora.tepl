@@ -1,24 +1,25 @@
-from "../dialects/tensor.tepl" import TensorLang as t;
-use t::{add, dot};
+from "dialects/tensor.tepl" import TensorLang as t
+use t::{add, dot}
 
+// Algebraic identity: select only when the numerical policy permits distribution
+// and reassociation. These guards specify equal-batch matrix contractions.
 rule lora {
-    X: [Batch..., M, K]
-    W: [WeightBatch..., K, N]
-    A: [WeightBatch..., K, R]
-    B: [WeightBatch..., R, N]
+  X: [Batch..., M, K]
+  W: [Batch..., K, N]
+  A: [Batch..., K, R]
+  B: [Batch..., R, N]
 
-    (dot[@outer] X (add W (dot[@inner] A B)))
-    =>
-    (add (dot[@xw] X W) (dot[@out] (dot[@xa] X A) B))
+  (outer: dot X (add W (inner: dot A B)))
+  =>
+  (add (dot[outer.attrs] X W) (dot[inner.attrs] (dot[outer.attrs] X A) B))
 
-    where {
-        $is_broadcastable(Batch, WeightBatch);
-        $is_reassociable(X, A, B, @outer, @inner);
-    }
-
-    derive {
-        @xw = $infer_dot(X, W, @outer);
-        @xa = $infer_dot(X, A, @outer);
-        @out = $infer_lora_out(X, A, B, @outer, @inner);
-    }
+  where
+    outer.attrs.lhs_batching_dimensions == range(len(Batch))
+      && outer.attrs.rhs_batching_dimensions == range(len(Batch))
+      && inner.attrs.lhs_batching_dimensions == range(len(Batch))
+      && inner.attrs.rhs_batching_dimensions == range(len(Batch))
+      && outer.attrs.lhs_contracting_dimensions == [len(Batch) + 1]
+      && outer.attrs.rhs_contracting_dimensions == [len(Batch)]
+      && inner.attrs.lhs_contracting_dimensions == [len(Batch) + 1]
+      && inner.attrs.rhs_contracting_dimensions == [len(Batch)]
 }

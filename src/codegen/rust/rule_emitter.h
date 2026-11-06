@@ -1,10 +1,7 @@
 #pragma once
-#include <string>
-
 #include "src/codegen/rust/names.h"
-#include "src/core/ir.h"
+#include "src/executable/program.h"
 namespace tepl::codegen::rust {
-std::string emitRules(const core::Program& program, const Names& names,
-                      const std::vector<const core::Rule*>& rules,
-                      const std::string& module, const std::string& root_path);
+std::string emitRules(const executable::ExecutableProgram&, const Names&,
+                      const RuleModuleNames&);
 }

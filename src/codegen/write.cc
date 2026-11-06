@@ -46,40 +46,41 @@ void validate(const std::string& name, const fs::path& root) {
       throw std::runtime_error("generated path crosses a symlink: " + name);
   }
 }
-void format(std::map<std::string, std::string>& files, Target target) {
-  if (target != Target::kRust && target != Target::kCpp)
-    throw std::runtime_error("formatting is not implemented for this target");
+void format(std::map<std::string, std::string>& files) {
   support::TemporaryDirectory stage("tepl-format-");
-  const bool cpp = target == Target::kCpp;
-  const std::string formatter = cpp ? "clang-format" : "rustfmt";
-  std::vector<std::string> arguments =
-      cpp ? std::vector<std::string>{formatter, "--style=Google", "-i"}
-          : std::vector<std::string>{formatter, "--edition", "2024", "--config",
-                                     "skip_children=true"};
-  const auto argument_count = arguments.size();
-  const auto extension = cpp ? ".h" : ".rs";
-  for (const auto& [name, contents] : files) {
-    if (fs::path(name).extension() != extension) continue;
-    auto path = stage.path() / name;
-    write(path, contents);
-    const auto utf8 = path.u8string();
-    arguments.emplace_back(utf8.begin(), utf8.end());
+  for (const auto& [name, contents] : files)
+    write(stage.path() / name, contents);
+  for (const bool rust : {true, false}) {
+    const std::string formatter = rust ? "rustfmt" : "clang-format";
+    std::vector<std::string> arguments =
+        rust ? std::vector<std::string>{formatter, "--edition", "2024",
+                                        "--config", "skip_children=true"}
+             : std::vector<std::string>{formatter, "--style=Google", "-i"};
+    const auto selected = [&](const std::string& name) {
+      const auto extension = fs::path(name).extension();
+      return rust ? extension == ".rs"
+                  : extension == ".h" || extension == ".cc";
+    };
+    const auto argument_count = arguments.size();
+    for (const auto& [name, contents] : files) {
+      if (!selected(name)) continue;
+      const auto utf8 = (stage.path() / name).u8string();
+      arguments.emplace_back(utf8.begin(), utf8.end());
+    }
+    if (arguments.size() == argument_count) continue;
+    try {
+      const auto result = support::runProcess(arguments);
+      std::cerr << result.output;
+      if (result.exit_code != 0)
+        throw std::runtime_error("formatter exited with code " +
+                                 std::to_string(result.exit_code));
+    } catch (const std::exception& error) {
+      throw std::runtime_error(formatter + " failed; install " + formatter +
+                               " or use --no-format: " + error.what());
+    }
+    for (auto& [name, contents] : files)
+      if (selected(name)) contents = read(stage.path() / name);
   }
-  if (arguments.size() == argument_count) return;
-  try {
-    const auto result = support::runProcess(arguments);
-    std::cerr << result.output;
-    if (result.exit_code != 0)
-      throw std::runtime_error("formatter exited with code " +
-                               std::to_string(result.exit_code));
-  } catch (const std::exception& error) {
-    throw std::runtime_error(
-        formatter + " failed; install " + formatter +
-        " or use --no-format: " + std::string(error.what()));
-  }
-  for (auto& [name, contents] : files)
-    if (fs::path(name).extension() == extension)
-      contents = read(stage.path() / name);
 }
 }  // namespace
 
@@ -109,7 +110,7 @@ WriteResult synchronize(const std::vector<GeneratedFile>& input,
     if (manifest.bad())
       throw std::runtime_error("cannot read generated manifest");
   }
-  if (options.format) format(files, options.target);
+  if (options.format) format(files);
   std::string manifest = std::string(kHeader) + '\n';
   WriteResult result;
   for (const auto& [name, contents] : files) {

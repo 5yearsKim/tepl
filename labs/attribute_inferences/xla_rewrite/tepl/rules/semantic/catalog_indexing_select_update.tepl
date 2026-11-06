@@ -1,0 +1,24 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Catalog: indexing-select-update
+// Scope: Rank-one base, predicate and update; one scalar start.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_select_update {
+  P: [N]
+  X: [N]
+  Y: [M]
+
+  (hlo.select P X (hlo.dynamic_update_slice X Y S))
+  =>
+  (hlo.dynamic_update_slice
+    X
+    (hlo.select
+      (attr_slice: hlo.dynamic_slice P S)
+      (hlo.dynamic_slice[attr_slice.attrs] X S)
+      Y)
+    S)
+
+  derive {
+    attr_slice.attrs = { sizes: [M] }
+  }
+}

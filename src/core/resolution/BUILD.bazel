@@ -1,0 +1,34 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "model",
+    hdrs = ["program.h", "project.h", "rules/expanded_rule.h"],
+    deps = ["//src/core/syntax:model", "//src/shared/catalog:ids", "//src/shared/diagnostics"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "resolution",
+    srcs = (
+        glob(["**/*.cc"]) +
+        glob(
+            ["**/*.h"],
+            exclude = [
+                "program.h",
+                "project.h",
+                "loading.h",
+                "resolve.h",
+                "rules/expanded_rule.h",
+            ],
+        )
+    ),
+    hdrs = ["loading.h", "resolve.h"],
+    deps = [
+        ":model",
+        "//src/core/syntax:syntax",
+        "//src/shared/catalog",
+        "//src/shared/diagnostics",
+        "//src/support:project_config",
+    ],
+    visibility = ["//visibility:public"],
+)

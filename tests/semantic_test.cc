@@ -1,0 +1,1553 @@
+#include <algorithm>
+#include <fstream>
+#include <functional>
+#include <iostream>
+#include <iterator>
+#include <memory>
+#include <numeric>
+#include <stdexcept>
+#include <string>
+
+#include "rules_cc/cc/runfiles/runfiles.h"
+#include "src/core/pipeline.h"
+#include "src/core/semantics/ir.h"
+#include "src/core/semantics/proof/verify.h"
+#include "src/core/semantics/prove_rule.h"
+#include "src/core/semantics/report.h"
+#include "src/core/semantics/symbolic/normalize.h"
+#include "src/core/syntax/parse.h"
+#include "tests/index_constructor_eval.h"
+#include "tests/index_reference.h"
+
+namespace {
+using namespace tepl::core::semantics;
+using tepl::core::semantics::equal;
+std::string dialect;
+void expect(bool b, const std::string& s) {
+  if (!b) throw std::runtime_error(s);
+}
+tepl::core::InspectionResult analyze(const std::string& rule,
+                                     bool algebraic = true,
+                                     std::string definitions = {}) {
+  auto parsed = tepl::parse(
+      (definitions.empty() ? dialect : definitions) + rule, "index.tepl");
+  for (const auto& d : parsed.diagnostics) std::cerr << d.message << '\n';
+  expect(parsed.ok(), "fixture parses");
+  return tepl::core::inspect(*parsed.program,
+                             {algebraic ? tepl::core::SemanticPolicy::kAlgebraic
+                                        : tepl::core::SemanticPolicy::kStrict,
+                              true});
+}
+Result run(const std::string& rule, Metadata m, Limits limits = {},
+           std::string definitions = {}) {
+  auto checked = analyze(rule, true, definitions);
+  for (const auto& d : checked.diagnostics) std::cerr << d.message << '\n';
+  expect(checked.ok(), "fixture checks");
+  expect(bool(checked.program->rules[0].semantic_plan), "new inference plan");
+  return infer(*checked.program->rules[0].semantic_plan, m, limits);
+}
+void found(const Result& r) {
+  if (r.status != Status::Found) {
+    for (const auto& t : r.trace) std::cerr << t << '\n';
+    std::cerr << r.reason << '\n';
+  }
+  expect(r.status == Status::Found, "expected a checked witness");
+}
+void error(const std::string& definitions, const std::string& message) {
+  auto result = analyze("", true, definitions);
+  expect(!result.ok(), "invalid definition rejected");
+  for (const auto& d : result.diagnostics)
+    if (d.message.find(message) != std::string::npos) return;
+  throw std::runtime_error("missing diagnostic: " + message);
+}
+std::string replace(std::string s, const std::string& a, const std::string& b) {
+  for (std::size_t p = 0; (p = s.find(a, p)) != std::string::npos;
+       p += b.size())
+    s.replace(p, a.size(), b);
+  return s;
+}
+
+// An independent dense reference evaluator uses physical dimension lists, not
+// logical-axis identities or the inference engine's normalization routines.
+struct Dense {
+  List shape, values;
+  std::int64_t at(const List& index) const {
+    std::size_t offset = 0;
+    for (std::size_t i = 0; i < shape.size(); ++i)
+      offset = offset * shape[i] + index[i];
+    return values.at(offset);
+  }
+};
+void indices(const List& shape, const std::function<void(const List&)>& f) {
+  List index(shape.size());
+  std::function<void(std::size_t)> loop = [&](std::size_t axis) {
+    if (axis == shape.size()) {
+      f(index);
+      return;
+    }
+    for (index[axis] = 0; index[axis] < shape[axis]; ++index[axis])
+      loop(axis + 1);
+  };
+  loop(0);
+}
+Dense data(List shape, int seed) {
+  Dense d{shape, {}};
+  indices(shape, [&](const auto&) {
+    d.values.push_back((std::int64_t(d.values.size()) * 3 + seed) % 7 - 3);
+  });
+  return d;
+}
+List remaining(std::size_t rank, const List& a, const List& b = {}) {
+  List result;
+  for (std::size_t i = 0; i < rank; ++i)
+    if (std::find(a.begin(), a.end(), i) == a.end() &&
+        std::find(b.begin(), b.end(), i) == b.end())
+      result.push_back(i);
+  return result;
+}
+Dense add(const Dense& a, const Dense& b) {
+  expect(a.shape == b.shape, "reference add shapes");
+  auto out = a;
+  for (std::size_t i = 0; i < out.values.size(); ++i)
+    out.values[i] += b.values[i];
+  return out;
+}
+Dense multiply(const Dense& a, const Dense& b) {
+  expect(a.shape == b.shape, "reference multiply shapes");
+  auto out = a;
+  for (std::size_t i = 0; i < out.values.size(); ++i)
+    out.values[i] *= b.values[i];
+  return out;
+}
+Dense reduceSum(const Dense& input, const List& reduced) {
+  auto retained = remaining(input.shape.size(), reduced);
+  Dense output;
+  List domains;
+  for (auto axis : retained) output.shape.push_back(input.shape[axis]);
+  for (auto axis : reduced) domains.push_back(input.shape[axis]);
+  indices(output.shape, [&](const List& out) {
+    List in(input.shape.size());
+    for (std::size_t i = 0; i < retained.size(); ++i) in[retained[i]] = out[i];
+    std::int64_t value = 0;
+    indices(domains, [&](const List& k) {
+      for (std::size_t i = 0; i < reduced.size(); ++i) in[reduced[i]] = k[i];
+      value += input.at(in);
+    });
+    output.values.push_back(value);
+  });
+  return output;
+}
+Dense dot(const Dense& a, const Dense& b, const std::vector<List>& fields) {
+  const auto& lc = fields[0];
+  const auto& rc = fields[1];
+  const auto& lb = fields[2];
+  const auto& rb = fields[3];
+  auto lf = remaining(a.shape.size(), lb, lc),
+       rf = remaining(b.shape.size(), rb, rc);
+  Dense out;
+  for (auto axis : lb) out.shape.push_back(a.shape[axis]);
+  for (auto axis : lf) out.shape.push_back(a.shape[axis]);
+  for (auto axis : rf) out.shape.push_back(b.shape[axis]);
+  List domains;
+  for (auto axis : lc) domains.push_back(a.shape[axis]);
+  indices(out.shape, [&](const List& o) {
+    List ai(a.shape.size()), bi(b.shape.size());
+    std::size_t cursor = 0;
+    for (std::size_t t = 0; t < lb.size(); ++t)
+      ai[lb[t]] = bi[rb[t]] = o[cursor++];
+    for (auto axis : lf) ai[axis] = o[cursor++];
+    for (auto axis : rf) bi[axis] = o[cursor++];
+    std::int64_t sum = 0;
+    indices(domains, [&](const List& k) {
+      for (std::size_t t = 0; t < lc.size(); ++t) ai[lc[t]] = bi[rc[t]] = k[t];
+      sum += a.at(ai) * b.at(bi);
+    });
+    out.values.push_back(sum);
+  });
+  return out;
+}
+Dense transpose(const Dense& in, const List& p) {
+  Dense out;
+  for (auto axis : p) out.shape.push_back(in.shape[axis]);
+  indices(out.shape, [&](const List& o) {
+    List index(in.shape.size());
+    for (std::size_t i = 0; i < p.size(); ++i) index[p[i]] = o[i];
+    out.values.push_back(in.at(index));
+  });
+  return out;
+}
+void equal(const Dense& a, const Dense& b) {
+  expect(a.shape == b.shape && a.values == b.values,
+         "independent dense equivalence");
+}
+Plan symbolicPlan(const std::string& rule, bool algebraic = true,
+                  const std::string& definitions = {}) {
+  auto checked = analyze(rule, algebraic, definitions);
+  if (!checked.ok())
+    for (const auto& d : checked.diagnostics) std::cerr << d.message << '\n';
+  expect(checked.ok(), "symbolic fixture checks without metadata");
+  return *checked.program->rules.at(0).semantic_plan;
+}
+void proved(const Plan& p) {
+  if (p.proof.status != ProofStatus::Proved) {
+    std::cerr << format(p) << '\n';
+    for (const auto& g : p.proof.guard) std::cerr << format(*g) << '\n';
+  }
+  expect(p.proof.status == ProofStatus::Proved,
+         "expected proof under declared conditions");
+  expect(p.proof.guard.empty(), "no extra metadata restrictions");
+}
+// Test-only specialization of the constructor expressions, independent of the
+// concrete inference engine. The compiler proof itself never calls this.
+List evaluate(const Symbol& s, const Metadata& m) {
+  if (s.kind == Symbol::Kind::Field)
+    return m.descriptors.at(s.owner).at(s.index);
+  if (s.kind == Symbol::Kind::Shape) return m.shapes.at(s.owner);
+  if (s.kind == Symbol::Kind::List) {
+    List out;
+    for (const auto& a : s.args) out.push_back(std::stoll(a->name));
+    return out;
+  }
+  if (s.kind == Symbol::Kind::Call && s.name == "gather") {
+    auto source = evaluate(*s.args[0], m), positions = evaluate(*s.args[1], m);
+    List out;
+    for (auto p : positions) out.push_back(source.at(p));
+    return out;
+  }
+  throw std::runtime_error("unsupported test constructor expression");
+}
+void selectedShapeAssociationTests() {
+  const std::string prefix = R"(
+rule selected_shape_association {
+  A: f32[Batch,M,K] B: f32[Batch,K,L] C: f32[Batch,L,N]
+  (outer: dot (inner: dot A B) C)
+  =>
+)";
+  const std::string conditions = R"(
+  where Batch > 0 && M > 0 && K > 0 && L > 0 && N > 0
+    && inner.attrs.lhs_contracting_dimensions == [2]
+    && inner.attrs.rhs_contracting_dimensions == [1]
+    && inner.attrs.lhs_batching_dimensions == [0]
+    && inner.attrs.rhs_batching_dimensions == [0]
+    && outer.attrs.lhs_contracting_dimensions == [2]
+    && outer.attrs.rhs_contracting_dimensions == [1]
+    && outer.attrs.lhs_batching_dimensions == [0]
+    && outer.attrs.rhs_batching_dimensions == [0]
+)";
+  const std::string constructor = R"({
+    lhs_contracting_dimensions: [2], rhs_contracting_dimensions: [1],
+    lhs_batching_dimensions: [0], rhs_batching_dimensions: [0]
+  })";
+  const auto explicit_rule = prefix + "(r1: dot A (r2: dot B C))" + conditions +
+                             "derive { r1.attrs = " + constructor +
+                             " r2.attrs = " + constructor + " }}";
+  auto explicit_plan = symbolicPlan(explicit_rule);
+  proved(explicit_plan);
+  expect(
+      verify(explicit_plan, explicit_plan.proof).status == ProofStatus::Proved,
+      "explicit fixed-layout reassociation independently verifies");
+  auto inferred = symbolicPlan(prefix + "(dot A (dot B C))" + conditions + "}");
+  proved(inferred);
+  expect(inferred.proof.constructors.size() == 2,
+         "both reassociated dot descriptors are synthesized");
+  expect(verify(inferred, inferred.proof).status == ProofStatus::Proved,
+         "inferred fixed-layout reassociation independently verifies");
+  auto wrong = replace(explicit_rule,
+                       "A: f32[Batch,M,K] B: f32[Batch,K,L] C: f32[Batch,L,N]",
+                       "A: f32[Batch,K,K] B: f32[Batch,K,K] C: f32[Batch,K,K]");
+  wrong = replace(wrong, "Batch > 0 && M > 0 && K > 0 && L > 0 && N > 0",
+                  "Batch > 0 && K > 0");
+  wrong = replace(wrong, "r2.attrs = " + constructor,
+                  "r2.attrs = {lhs_contracting_dimensions:[1], "
+                  "rhs_contracting_dimensions:[2], "
+                  "lhs_batching_dimensions:[0], rhs_batching_dimensions:[0]}");
+  expect(symbolicPlan(wrong).proof.status == ProofStatus::Unknown,
+         "equal extents cannot justify contracting different logical axes");
+}
+void dotChainAssociationTests() {
+  const std::string constructor =
+      "{lhs_contracting_dimensions:[2], rhs_contracting_dimensions:[1], "
+      "lhs_batching_dimensions:[0], rhs_batching_dimensions:[0]}";
+  // One longer chain covers recursive mapping; keep both descriptor policies.
+  constexpr int count = 4;
+  for (bool automatic : {false, true}) {
+    std::string rule = "rule dot_chain { ";
+    for (int i = 1; i <= count; ++i)
+      rule += "A" + std::to_string(i) + ": f32[Batch,D" +
+              std::to_string(i - 1) + ",D" + std::to_string(i) + "] ";
+    std::string lhs = "A1", rhs = "A" + std::to_string(count);
+    for (int i = 2; i <= count; ++i)
+      lhs = "(l" + std::to_string(i) + ": dot " + lhs + " A" +
+            std::to_string(i) + ")";
+    for (int i = count - 1; i >= 1; --i)
+      rhs = "(" + (automatic ? std::string{} : "r" + std::to_string(i) + ": ") +
+            "dot A" + std::to_string(i) + " " + rhs + ")";
+    rule += lhs + " => " + rhs + " where Batch > 0";
+    for (int i = 0; i <= count; ++i)
+      rule += " && D" + std::to_string(i) + " > 0";
+    for (int i = 2; i <= count; ++i) {
+      auto d = "l" + std::to_string(i) + ".attrs";
+      rule += " && " + d + ".lhs_contracting_dimensions == [2] && " + d +
+              ".rhs_contracting_dimensions == [1] && " + d +
+              ".lhs_batching_dimensions == [0] && " + d +
+              ".rhs_batching_dimensions == [0]";
+    }
+    if (!automatic) {
+      rule += " derive {";
+      for (int i = 1; i < count; ++i)
+        rule += " r" + std::to_string(i) + ".attrs = " + constructor + " ";
+      rule += " }";
+    }
+    auto plan = symbolicPlan(rule + " }");
+    proved(plan);
+    expect(plan.proof.guard.empty(),
+           "whole dot chains prove without additional conditions");
+  }
+}
+void symbolicTests() {
+  const std::string distribute =
+      "rule r { (d: dot (add A B) C) => (add (dot A C) (dot B C)) }";
+  auto p = symbolicPlan(distribute);
+  proved(p);
+  expect(p.proof.constructors.size() == 2, "two symbolic descriptors");
+  for (const auto& [id, fields] : p.proof.constructors) {
+    expect(fields.size() == 4, "all symbolic dot fields");
+    for (std::size_t f = 0; f < fields.size(); ++f)
+      expect(fields[f]->kind == Symbol::Kind::Field && fields[f]->owner == 0 &&
+                 fields[f]->index == f,
+             "distribution derives source field references");
+  }
+  expect(p.proof.lhs_normalized.find("Reduce(") != std::string::npos &&
+             p.proof.lhs_normalized.find(" + ") != std::string::npos,
+         "visible symbolic algebraic expansion");
+  for (const std::vector<List>& fields :
+       {std::vector<List>{{1}, {0}, {}, {}},
+        std::vector<List>{{1, 3}, {2, 0}, {2}, {3}},
+        std::vector<List>{{}, {}, {}, {}}}) {
+    Metadata m{{}, {{0, fields}}};
+    for (const auto& [id, constructors] : p.proof.constructors)
+      for (std::size_t f = 0; f < constructors.size(); ++f)
+        expect(evaluate(*constructors[f], m) == fields[f],
+               "symbolic specialization");
+  }
+  auto corrupted = p.proof;
+  corrupted.constructors.begin()->second[0] =
+      std::make_shared<Symbol>(Symbol{Symbol::Kind::List, {}, 0, 0, {}});
+  expect(verify(p, corrupted).status == ProofStatus::Unknown,
+         "independent verifier rejects corrupted constructor");
+  auto dangling = p.proof;
+  dangling.constructors.begin()->second[0] = std::make_shared<Symbol>(
+      Symbol{Symbol::Kind::Field, "missing", 999, 0, {}});
+  expect(verify(p, dangling).status == ProofStatus::Unknown,
+         "constructor must depend only on existing source metadata");
+  expect(proveRule(p, 1).status == ProofStatus::Unknown,
+         "symbolic work exhaustion is unknown");
+  auto redundant = p.proof;
+  auto numeric = call("is_numeric", {make(Symbol::Kind::DType, {}, 0)});
+  redundant.guard.push_back(numeric);
+  redundant.guard_origins.push_back({numeric, GuardKind::Legality});
+  auto simplified = verify(p, redundant);
+  expect(simplified.status == ProofStatus::Proved && simplified.guard.empty(),
+         "source legality discharges an injected redundant guard");
+  expect(symbolicPlan(distribute, false).proof.status == ProofStatus::Unknown,
+         "strict policy prevents arithmetic expansion");
+
+  proved(symbolicPlan("rule r {(add A (add B C)) => (add (add A B) C)}"));
+  auto commutative = symbolicPlan("rule r {(add A B) => (add B A)}");
+  proved(commutative);
+  expect(
+      std::find(commutative.proof.steps.begin(), commutative.proof.steps.end(),
+                "law: commutative-matching") != commutative.proof.steps.end(),
+      "commutative correspondence records its algebraic law");
+  expect(symbolicPlan("rule r {(add A B) => A}").proof.status ==
+             ProofStatus::Unknown,
+         "false algebraic rewrite is not proved");
+  auto sum = symbolicPlan(
+      "rule r {(d: reduce_sum (add A B)) => (add (reduce_sum A) (reduce_sum "
+      "B))}");
+  proved(sum);
+  for (const auto& [id, fields] : sum.proof.constructors)
+    expect(fields[0]->kind == Symbol::Kind::Field && fields[0]->owner == 0,
+           "symbolic reduction dimensions copied");
+  auto nonlinear = replace(dialect, "yield Reduce(K, input)",
+                           "yield Reduce(K, Product(input, input))");
+  expect(symbolicPlan("rule r {(d: reduce_sum (add A B)) => (add (reduce_sum "
+                      "A) (reduce_sum B))}",
+                      true, nonlinear)
+                 .proof.status == ProofStatus::Unknown,
+         "linearity follows semantics, not operation name");
+
+  auto composition = symbolicPlan(
+      "rule r {(outer: transpose (inner: transpose A)) => (transpose A)}",
+      false);
+  proved(composition);
+  auto constructor = composition.proof.constructors.at(2)[0];
+  expect(format(*constructor) == "gather(@#1.permutation, @#0.permutation)",
+         "permutation composition orientation");
+  for (auto rank : {0, 1, 3, 10}) {
+    List inner(rank), outer(rank);
+    std::iota(inner.begin(), inner.end(), 0);
+    std::iota(outer.begin(), outer.end(), 0);
+    std::reverse(inner.begin(), inner.end());
+    if (rank > 1) std::rotate(outer.begin(), outer.begin() + 1, outer.end());
+    auto result = evaluate(*constructor, {{{}}, {{0, {outer}}, {1, {inner}}}});
+    for (std::size_t a = 0; a < result.size(); ++a)
+      expect(result[a] == inner[outer[a]],
+             "arbitrary rank permutation constructor");
+  }
+  auto wrongPermutation = composition.proof;
+  wrongPermutation.constructors.at(2)[0] = constructor->args[0];
+  expect(verify(composition, wrongPermutation).status == ProofStatus::Unknown,
+         "wrong permutation order fails independent verification");
+  auto editedCopy = composition.proof;
+  auto edited = std::make_shared<Symbol>(*constructor);
+  edited->name = "inverse";
+  editedCopy.constructors.at(2)[0] = edited;
+  expect(verify(composition, editedCopy).status == ProofStatus::Unknown,
+         "copied-and-edited IR cannot spoof structural cache");
+  auto unguardedExplicit = symbolicPlan(
+      "rule r {(d: reduce_sum A) => (out: reduce_sum A) derive "
+      "{out.attrs={dimensions:[]} }}");
+  expect(unguardedExplicit.proof.status == ProofStatus::Unknown,
+         "unguarded explicit reduction rejected");
+  auto explicit_reduction = symbolicPlan(
+      "rule r {(d: reduce_sum A) => (out: reduce_sum A) where "
+      "d.attrs.dimensions == range(0) derive {out.attrs={dimensions:[]} }}");
+  proved(explicit_reduction);
+  auto withoutCondition = explicit_reduction;
+  withoutCondition.assumptions.clear();
+  auto forged = explicit_reduction.proof;
+  forged.guard = explicit_reduction.assumptions;
+  expect(verify(withoutCondition, forged).status == ProofStatus::Unknown,
+         "candidate guards cannot supply a missing user condition");
+  expect(
+      symbolicPlan("rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C))}")
+              .proof.status == ProofStatus::Unknown,
+      "unguarded reassociation rejected");
+  auto association = symbolicPlan(
+      "rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C)) where "
+      "d.attrs.lhs_batching_dimensions == inner.axes.B.positions && "
+      "d.attrs.lhs_contracting_dimensions == inner.axes.J.positions }");
+  expect(association.proof.status == ProofStatus::Proved,
+         "reassociation has a checked routing guard");
+  Metadata matrix{{{2, 3}, {3, 4}, {4, 5}},
+                  {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}};
+  tepl::test::ConstructorEvaluator associationEval(matrix, association);
+  expect(associationEval.applicable(),
+         "ordinary matrices satisfy declared reassociation conditions");
+  auto attrs = associationEval.construct();
+  auto aa = data({2, 3}, 1), ab = data({3, 4}, 2), ac = data({4, 5}, 3);
+  equal(
+      dot(dot(aa, ab, matrix.descriptors.at(1)), ac, matrix.descriptors.at(0)),
+      dot(aa, dot(ab, ac, attrs.at(3)), attrs.at(2)));
+  expect(verify(association, association.proof).status == ProofStatus::Proved,
+         "reassociation certificate independently verifies");
+  for (bool zero : {false, true}) {
+    Metadata multi{
+        {{2, 2, 3, 2}, {2, zero ? 0 : 4, 2, 2}, {2, 3, zero ? 0 : 4}},
+        {{0, {{2, 3}, {2, 0}, {}, {}}}, {1, {{1, 3}, {2, 0}, {}, {}}}}};
+    tepl::test::ConstructorEvaluator eval(multi, association);
+    expect(eval.applicable(),
+           "multiple-axis and zero-extent reassociation guard");
+    auto constructed = eval.construct();
+    auto ma = data(multi.shapes[0], 1), mb = data(multi.shapes[1], 2),
+         mc = data(multi.shapes[2], 3);
+    equal(
+        dot(dot(ma, mb, multi.descriptors.at(1)), mc, multi.descriptors.at(0)),
+        dot(ma, dot(mb, mc, constructed.at(3)), constructed.at(2)));
+  }
+  auto reverse = symbolicPlan(
+      "rule r {(outer: dot A (inner: dot B C)) => (dot (dot A B) C) where "
+      "outer.attrs.rhs_batching_dimensions == inner.axes.B.positions && "
+      "outer.attrs.rhs_contracting_dimensions == inner.axes.I.positions }");
+  expect(reverse.proof.status == ProofStatus::Proved,
+         "reverse association supported with guard");
+  tepl::test::ConstructorEvaluator reverseEval(matrix, reverse);
+  expect(reverseEval.applicable(), "matrix reverse association guard");
+  auto reverseAttrs = reverseEval.construct();
+  equal(
+      dot(aa, dot(ab, ac, matrix.descriptors.at(1)), matrix.descriptors.at(0)),
+      dot(dot(aa, ab, reverseAttrs.at(3)), ac, reverseAttrs.at(2)));
+  auto lora = symbolicPlan(
+      "rule r {(outer: dot X (add W (inner: dot A B))) => (add (dot X W) (dot "
+      "(dot X A) B)) where outer.attrs.rhs_batching_dimensions == "
+      "inner.axes.B.positions && outer.attrs.rhs_contracting_dimensions == "
+      "inner.axes.I.positions }");
+  proved(lora);
+  Metadata lm{{{2, 3}, {3, 4}, {3, 2}, {2, 4}},
+              {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}};
+  tepl::test::ConstructorEvaluator loraEval(lm, lora);
+  expect(loraEval.applicable(), "ordinary LoRA matrices satisfy guard");
+  auto la = loraEval.construct();
+  auto lx = data(lm.shapes[0], 1), lw = data(lm.shapes[1], 2),
+       lla = data(lm.shapes[2], 3), lb = data(lm.shapes[3], 4);
+  equal(dot(lx, add(lw, dot(lla, lb, lm.descriptors.at(1))),
+            lm.descriptors.at(0)),
+        add(dot(lx, lw, la.at(2)), dot(dot(lx, lla, la.at(4)), lb, la.at(3))));
+  auto trans = symbolicPlan("rule r {(d: dot A B) => (dot (transpose A) B)}");
+  proved(trans);
+  auto cycle = symbolicPlan(
+      "rule r { A: [K, M, N] (d: dot A B) => (dot (cycle: transpose A) B) "
+      "where d.attrs.lhs_batching_dimensions == range(0) && "
+      "d.attrs.lhs_contracting_dimensions == range(1) derive "
+      "{cycle.attrs={permutation:[1,2,0]} }}");
+  proved(cycle);
+  Metadata good{{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}};
+  tepl::test::ConstructorEvaluator goodEval(good, cycle);
+  expect(goodEval.applicable(),
+         "fixed transpose preserving free order is applicable");
+  auto ca = goodEval.construct();
+  auto ga = data(good.shapes[0], 1), gb = data(good.shapes[1], 2);
+  equal(dot(ga, gb, good.descriptors.at(0)),
+        dot(transpose(ga, {1, 2, 0}), gb, ca.at(2)));
+  Metadata bad{{{2, 4, 3}, {3, 5}}, {{0, {{2}, {0}, {}, {}}}}};
+  tepl::test::ConstructorEvaluator badEval(bad, cycle);
+  expect(!badEval.applicable(),
+         "fixed transpose changing free order is rejected by guard");
+  Metadata batched{{{2, 2, 3}, {2, 3, 4}, {2, 4, 5}},
+                   {{0, {{2}, {1}, {0}, {0}}}, {1, {{2}, {1}, {0}, {0}}}}};
+  tepl::test::ConstructorEvaluator batchedEval(batched, association);
+  expect(batchedEval.applicable(),
+         "compatible shared batch groups remain live");
+  auto ba = batchedEval.construct();
+  auto batchedA = data(batched.shapes[0], 1),
+       batchedB = data(batched.shapes[1], 2),
+       batchedC = data(batched.shapes[2], 3);
+  equal(dot(dot(batchedA, batchedB, batched.descriptors.at(1)), batchedC,
+            batched.descriptors.at(0)),
+        dot(batchedA, dot(batchedB, batchedC, ba.at(3)), ba.at(2)));
+  for (bool zero : {false, true}) {
+    auto k = zero ? 0 : 3;
+    Metadata grouped{{{2, 2, 2, k, 2}, {2, 2, 2, 3, 2, k}, {3, 2, 2, 2, 2}},
+                     {{0, {{3, 4}, {3, 0}, {0, 1}, {4, 2}}},
+                      {1, {{3, 0}, {5, 1}, {4, 1}, {4, 2}}}}};
+    tepl::test::ConstructorEvaluator eval(grouped, association);
+    expect(eval.applicable(),
+           "multiple batch groups and unsorted contracting axes");
+    auto attributes = eval.construct();
+    auto a = data(grouped.shapes[0], 1), b = data(grouped.shapes[1], 2),
+         c = data(grouped.shapes[2], 3);
+    equal(
+        dot(dot(a, b, grouped.descriptors.at(1)), c, grouped.descriptors.at(0)),
+        dot(a, dot(b, c, attributes.at(3)), attributes.at(2)));
+    expect(attributes.at(2)[1] == List({3, 2}),
+           "ordering permutation reconstructs paired contraction order");
+  }
+  Metadata incompatible{
+      {{2, 3, 2, 3}, {2, 3, 3, 4}, {3, 3, 4, 5}},
+      {{0, {{3}, {2}, {1}, {0}}}, {1, {{3}, {2}, {0, 1}, {0, 1}}}}};
+  tepl::test::ConstructorEvaluator incompatibleEval(incompatible, association);
+  expect(!incompatibleEval.applicable(),
+         "partial-group batch routing remains an explicit restriction");
+
+  auto renamed = replace(dialect, "dot_general", "contract");
+  renamed = replace(renamed, "alias: dot", "alias: arbitrary");
+  renamed = replace(renamed, "lhs_contracting_dimensions", "left_axes");
+  renamed = replace(renamed, "bind K", "bind Reduction");
+  renamed = replace(renamed, "Reduce(K,", "Reduce(Reduction,");
+  proved(
+      symbolicPlan(replace(distribute, "dot ", "arbitrary "), true, renamed));
+  auto alternate = replace(dialect, "dialect TensorLang", "dialect Alternate");
+  alternate = replace(alternate, "op dot_general(", "op dot_variant(");
+  alternate = replace(alternate, "op add(", "op other_add(");
+  alternate = replace(alternate, "op multiply(", "op other_multiply(");
+  alternate = replace(alternate, "alias: mul", "alias: other_mul");
+  alternate = replace(alternate, "alias: broadcast", "alias: other_broadcast");
+  alternate = replace(alternate, "op transpose(", "op other_transpose(");
+  alternate = replace(alternate, "op reduce_sum(", "op other_sum(");
+  alternate = replace(alternate, "op convolution(", "op other_convolution(");
+  alternate = replace(alternate, "alias: conv", "alias: other_conv");
+  alternate = replace(alternate, "op slice(", "op other_slice(");
+  for (const auto* name :
+       {"negate", "subtract", "zero_like", "broadcast_in_dim", "reverse"})
+    alternate = replace(alternate, std::string("op ") + name + "(",
+                        std::string("op other_") + name + "(");
+  alternate = replace(alternate, "alias: dot", "alias: other");
+  alternate = replace(
+      alternate,
+      "bind B { lhs: lb, rhs: rb }\n            bind K { lhs: lc, rhs: rc }",
+      "bind K { lhs: lc, rhs: rc }\n            bind B { lhs: lb, rhs: rb }");
+  alternate = replace(alternate, "lhs_contracting_dimensions", "left_axes");
+  proved(symbolicPlan("rule r {(d: dot A B) => (other A B)}", true,
+                      dialect + alternate));
+  auto declared = symbolicPlan(
+      "rule r { A: [N,M,K] (p: transpose A) => (transpose A) where N > 0 && "
+      "M == K }");
+  proved(declared);
+  expect(
+      declared.assumptions.size() >= 2 &&
+          std::any_of(declared.assumptions.begin(), declared.assumptions.end(),
+                      [](const S& s) { return callIs(s, "&&"); }),
+      "tensor declarations and final where expression imported");
+  auto copied = symbolicPlan(
+      "rule r {(p: transpose X) => (copy: transpose X) derive {copy.attrs = { "
+      "..p.attrs } } }");
+  proved(copied);
+
+  proved(
+      symbolicPlan("rule r {(outer: transpose (inner: transpose X)) => "
+                   "(combined: transpose X) derive { let p = "
+                   "gather(inner.attrs.permutation, outer.attrs.permutation) "
+                   "combined.attrs = { ..outer.attrs, permutation: p } }}"));
+  auto incorrect = symbolicPlan(
+      "rule r {(p: transpose X) => (out: transpose X) derive { out.attrs = { "
+      "permutation: [0] } }}");
+  expect(incorrect.proof.status == ProofStatus::Unknown,
+         "typed constructors do not bypass semantic verification");
+  const std::string restricted = R"(
+    dialect Restricted {
+      op sum(a:tensor, b:tensor)->tensor {
+        dtype(x,y) { assert x == y assert is_float(x) yield x }
+        axes {bind S {a:all_axes(a), b:all_axes(b)} yield S }
+        semantics {yield Add(a,b) }
+      }
+    }
+  )";
+  auto guarded = symbolicPlan("rule r {(add A B) => (Restricted.sum A B)}",
+                              true, dialect + restricted);
+  expect(guarded.proof.status == ProofStatus::Unknown,
+         "undeclared RHS dtype requirement is rejected");
+}
+void explicitConditionTests() {
+  auto check = [&](const std::string& source) {
+    auto parsed = tepl::parse(dialect + source, "conditions.tepl");
+    for (const auto& d : parsed.diagnostics)
+      std::cerr << d.message << " in " << source << '\n';
+    expect(parsed.ok(), "condition fixture parses");
+    return tepl::core::inspect(*parsed.program,
+                               {tepl::core::SemanticPolicy::kAlgebraic});
+  };
+  auto rejected = [&](const std::string& source, const std::string& message) {
+    auto result = check(source);
+    expect(!result.ok(), "normal analysis rejects unverified rules: " + source);
+    for (const auto& d : result.diagnostics)
+      if (d.message.find(message) != std::string::npos) return;
+    throw std::runtime_error("missing rule diagnostic: " + message);
+  };
+  const std::string association =
+      "rule r {(d: dot (inner: dot A B) C) => (dot A (dot B C))";
+  rejected(association + "}", "cannot verify rule 'r'");
+  rejected(
+      association +
+          R"( where (d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+     && d.attrs.lhs_contracting_dimensions == inner.axes.J.positions) || true })",
+      "cannot verify rule 'r'");
+  auto wrong =
+      check(association +
+            R"( where d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+    && d.attrs.lhs_contracting_dimensions == inner.axes.I.positions })");
+  expect(wrong.ok(), "whole lhs-free contraction also admits reassociation");
+  rejected(association +
+               " where d.attrs.lhs_contracting_dimensions == "
+               "inner.axes.K.positions }",
+           "absent from the operation output");
+  rejected(association +
+               " where d.attrs.lhs_contracting_dimensions == "
+               "inner.axes.Missing.positions }",
+           "unknown semantic axis group");
+  rejected(
+      "rule r {(p: transpose A) => (copy: transpose A) derive { copy.attrs = "
+      "p.axes.S.positions }}",
+      "where conditions");
+  expect(check("rule r {(p: transpose A) => (transpose A) where all([true "
+               "for i in [0]]) }")
+             .ok(),
+         "constant comprehension guard is understood by semantic checking");
+  rejected(
+      "rule r {(d: dot A B) => (new: dot A B) where "
+      "len(new.axes.B.positions) == 0 derive { new.attrs = { ..d.attrs } }}",
+      "runtime feasibility queries are unsupported");
+  expect(check("rule r {(d: dot (inner: dot[d.attrs] A B) C) => (dot[d.attrs] "
+               "(dot[d.attrs] A B) C) where len(d.axes.B.positions) == 0 }")
+             .ok(),
+         "group positions identify a node occurrence even when descriptors are "
+         "shared");
+
+  // Group names come from definitions, not a hard-coded B/I/J convention.
+  auto renamed = replace(dialect, "bind J", "bind RightFree");
+  renamed = replace(renamed, "B ++ I ++ J", "B ++ I ++ RightFree");
+  auto named = symbolicPlan(
+      association +
+          R"( where d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+    && d.attrs.lhs_contracting_dimensions == inner.axes.RightFree.positions })",
+      true, renamed);
+  proved(named);
+
+  // The group follows its declared coordinate order through a permutation.
+  auto permutation = symbolicPlan(
+      "rule r {(p: transpose A) => (transpose A) where p.attrs.permutation "
+      "== p.axes.S.positions }",
+      false);
+  proved(permutation);
+  Metadata cycle{{{2, 3, 4}}, {{0, {{2, 0, 1}}}}};
+  tepl::test::ConstructorEvaluator notInvolution(cycle, permutation);
+  expect(!notInvolution.applicable(),
+         "arrow denotes inverse positions, not output traversal order");
+  Metadata swap{{{2, 3}}, {{0, {{1, 0}}}}};
+  tepl::test::ConstructorEvaluator involution(swap, permutation);
+  expect(involution.applicable(),
+         "declared permutation condition evaluated independently");
+}
+void partialAssociationTests() {
+  const std::string rule = R"(rule r {
+    (d: dot (inner: dot A B) C) => (dot A (dot B C))
+    where d.attrs.lhs_batching_dimensions == inner.axes.B.positions
+  })";
+  auto plan = symbolicPlan(rule);
+  proved(plan);
+  expect(verify(plan, plan.proof, 750000).status == ProofStatus::Proved,
+         "partial reassociation independently verifies within budget");
+  std::vector<Metadata> cases{
+      // Whole J, whole I, I-only partial, and no outer contraction.
+      {{{2, 3}, {3, 4}, {4, 2}},
+       {{0, {{1}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}},
+      {{{2, 3}, {3, 4}, {2, 5}},
+       {{0, {{0}, {0}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}},
+      {{{2, 3, 2}, {2, 4}, {3, 2}},
+       {{0, {{1}, {0}, {}, {}}}, {1, {{2}, {0}, {}, {}}}}},
+      {{{2, 3}, {3, 4}, {5}}, {{0, {{}, {}, {}, {}}}, {1, {{1}, {0}, {}, {}}}}},
+      // Mixed I/J contraction, interleaved paired selectors, shared batch.
+      {{{2, 2, 3, 2}, {2, 2, 3, 2}, {2, 3, 3, 2}},
+       {{0, {{3, 2}, {2, 1}, {0}, {0}}}, {1, {{3}, {1}, {0}, {0}}}}},
+      // Same routing with two batch dimensions.
+      {{{2, 2, 2, 3, 2}, {2, 2, 2, 3, 2}, {2, 2, 3, 3, 2}},
+       {{0, {{4, 3}, {3, 2}, {0, 1}, {0, 1}}},
+        {1, {{4}, {2}, {0, 1}, {0, 1}}}}},
+      // Multiple original contractions in an unsorted paired order.
+      {{{2, 3, 2, 2}, {2, 2, 3, 2}, {3, 2, 2}},
+       {{0, {{1, 0}, {0, 2}, {}, {}}}, {1, {{3, 2}, {0, 1}, {}, {}}}}},
+      // Empty reduction domains and rank-zero inputs.
+      {{{2, 0, 2}, {2, 3}, {0, 2}},
+       {{0, {{1}, {0}, {}, {}}}, {1, {{2}, {0}, {}, {}}}}},
+      {{{}, {}, {}}, {{0, {{}, {}, {}, {}}}, {1, {{}, {}, {}, {}}}}},
+  };
+  for (const auto& metadata : cases) {
+    tepl::test::ConstructorEvaluator evaluator(metadata, plan);
+    expect(evaluator.applicable(),
+           "legal partial routing satisfies batch guard");
+    auto attrs = evaluator.construct();
+    auto a = data(metadata.shapes[0], 1), b = data(metadata.shapes[1], 2),
+         c = data(metadata.shapes[2], 3);
+    equal(dot(dot(a, b, metadata.descriptors.at(1)), c,
+              metadata.descriptors.at(0)),
+          dot(a, dot(b, c, attrs.at(3)), attrs.at(2)));
+  }
+  auto corrupt = plan.proof;
+  corrupt.constructors.at(2)[0] = make(Symbol::Kind::List);
+  expect(verify(plan, corrupt).status == ProofStatus::Unknown,
+         "a corrupted outer contraction is rejected independently");
+  auto wrongPairing = plan.proof;
+  auto paired = wrongPairing.constructors.at(2)[1];
+  wrongPairing.constructors.at(2)[1] =
+      call("gather", {paired, call("order_positions", {paired})});
+  expect(verify(plan, wrongPairing).status == ProofStatus::Unknown,
+         "independent verification rejects altered contraction pair ordering");
+  auto definitions = replace(dialect, "dot_general", "contract");
+  definitions = replace(definitions, "alias: dot", "alias: arbitrary");
+  definitions = replace(definitions, "bind I", "bind LeftFree");
+  definitions = replace(definitions, "B ++ I ++ J", "B ++ LeftFree ++ J");
+  proved(symbolicPlan(replace(rule, "dot ", "arbitrary "), true, definitions));
+}
+void contextStateTests() {
+  Plan plan;
+  Context c{plan, 100000};
+  auto domain = [](std::initializer_list<std::size_t> extents) {
+    std::vector<S> xs;
+    for (auto n : extents) xs.push_back(integer(n));
+    return make(Symbol::Kind::List, {}, 0, 0, std::move(xs));
+  };
+  auto frame = make(Symbol::Kind::AxisGroup, "frame", 0, 0, {domain({2, 3})});
+  auto i = make(Symbol::Kind::AxisGroup, "i", 1, 0, {domain({2})});
+  auto j = make(Symbol::Kind::AxisGroup, "j", 2, 0, {domain({3})});
+  expect(equal(c.support(frame), frame), "cache initial frame support");
+  c.cover(frame, call("concat", {i, j}));
+  expect(equal(c.support(frame), c.support(call("concat", {i, j}))),
+         "coverage registration invalidates cached support");
+  expect(callIs(c.positions(frame, j), "positions"),
+         "cache unresolved positions before binding registration");
+  auto selector = make(Symbol::Kind::List, {}, 0, 0, {integer(1)});
+  c.bind(frame, j, selector);
+  expect(equal(c.positions(frame, j), selector) &&
+             equal(c.select(frame, selector), j),
+         "binding registration updates both lookup directions and caches");
+
+  auto first = make(Symbol::Kind::Hole, {}, 0, 0);
+  auto second = make(Symbol::Kind::Hole, {}, 0, 1);
+  auto fields = call("concat", {first, second});
+  expect(containsHole(c.resolve(fields)),
+         "cache unresolved attribute expression");
+  c.assignAttribute(0, 0, selector);
+  expect(containsHole(c.resolve(fields)), "one attribute remains unresolved");
+  auto zero = make(Symbol::Kind::List, {}, 0, 0, {integer(0)});
+  c.assignAttribute(0, 1, zero);
+  expect(equal(c.resolve(fields), call("concat", {selector, zero})),
+         "attribute registration invalidates cached compound resolutions");
+  bool conflict = false;
+  try {
+    c.assignAttribute(0, 0, zero);
+  } catch (const ProofFailure& e) {
+    conflict = e.kind() == FailureKind::InvalidCandidate;
+  }
+  expect(conflict && equal(c.resolve(first), selector),
+         "conflicting assignments preserve the established constructor");
+
+  // Equal coordinate sets imply equal lengths, but deriving that implication
+  // belongs to entailment rather than evidence-only normalization.
+  Context queries{plan, 100000};
+  auto a = call("replace_axes", {frame, i, j});
+  auto b = call("replace_axes", {frame, j, i});
+  queries.learn(call("distinct_axes", {a}));
+  queries.learn(call("distinct_axes", {b}));
+  queries.learn(call("same_set", {a, b}));
+  auto lengths = call("==", {call("len", {a}), call("len", {b})});
+  expect(!queries.evidence(lengths),
+         "evidence lookup does not launch proof search");
+  auto selected = call("gather", {a, call("range", {call("len", {b})})});
+  expect(callIs(queries.canonical(selected), "gather"),
+         "normalization does not search for a missing length premise");
+  expect(queries.entails(lengths) && queries.evidence(lengths),
+         "successful entailment is visible after an earlier evidence miss");
+  expect(queries.guards().empty(), "proof queries do not assume missing facts");
+
+  auto exhausted = proveRule(plan, 0);
+  expect(exhausted.status == ProofStatus::Unknown &&
+             exhausted.reason.find("budget exhausted") != std::string::npos,
+         "budget exhaustion has a specific diagnostic");
+  bool internal_error = false;
+  try {
+    proveRule(plan,
+              1000);  // No source node: deliberately malformed internal IR.
+  } catch (const std::out_of_range&) {
+    internal_error = true;
+  }
+  expect(internal_error,
+         "internal errors are not reported as unsupported inference");
+}
+Dense scale(Dense input, std::int64_t coefficient) {
+  for (auto& value : input.values) value *= coefficient;
+  return input;
+}
+void scalarTests() {
+  for (const auto* rule :
+       {"rule r {(negate (negate A)) => A}",
+        "rule r {(subtract A A) => (zero_like A)}",
+        "rule r {(subtract A (negate B)) => (add A B)}",
+        "rule r {(mul A (zero_like A)) => (zero_like A)}",
+        "rule r {(add A A) => (negate (negate (add A A)))}",
+        "rule r {(add (mul A A) (mul A A)) => (mul (add A A) A)}",
+        "rule r {(zero_like A) => (zero_like A)}",
+        "rule r {(p: transpose (zero_like A)) => (zero_like (transpose A))}"})
+    proved(symbolicPlan(rule));
+  auto canceled = symbolicPlan("rule r {(subtract A A) => (zero_like A)}");
+  expect(canceled.proof.lhs_normalized == "Const(0)" &&
+             canceled.proof.rhs_normalized == "Const(0)",
+         "cancellation prints zero");
+  expect(canceled.proof.lhs_axes && canceled.proof.rhs_axes,
+         "zero retains an explicit tensor interface");
+  expect(std::any_of(canceled.proof.rewrites.begin(),
+                     canceled.proof.rewrites.end(),
+                     [](const RuleProof::RewriteStep& step) {
+                       return step.law == "additive-cancellation" &&
+                              step.after == "Const(0)";
+                     }),
+         "cancellation records an explicit graph transformation");
+  auto forged = canceled;
+  auto definition =
+      std::make_shared<Definition>(*forged.nodes[forged.rhs].definition);
+  definition->value =
+      std::make_shared<Value>(Value{Value::Kind::Const, 0, {}, {}, 1});
+  forged.nodes[forged.rhs].definition = definition;
+  expect(verify(forged, canceled.proof).status == ProofStatus::Unknown,
+         "independent verifier rejects a changed constant even with valid "
+         "interfaces");
+  for (const auto* rule :
+       {"rule r {(add A A) => A}", "rule r {(negate A) => A}",
+        "rule r {(subtract A B) => (zero_like A)}",
+        "rule r {(subtract (p: transpose A) A) => (zero_like A)}",
+        "rule r {(zero_like (r: reduce_sum A)) => (zero_like A)}",
+        "rule r {(mul A A) => A}"})
+    expect(symbolicPlan(rule).proof.status == ProofStatus::Unknown,
+           "incorrect coefficients, accesses, or interfaces rejected");
+  expect(symbolicPlan("rule r {(subtract A A) => (zero_like A)}", false)
+                 .proof.status == ProofStatus::Unknown,
+         "strict policy prohibits cancellation");
+
+  // Dialect definitions, rather than operation names, supply scalar algebra.
+  auto renamed = replace(dialect, "op negate(", "op flip(");
+  proved(symbolicPlan("rule r {(flip (flip A)) => A}", true, renamed));
+  auto restricted = dialect + R"(
+    dialect Restricted {
+      op only_float(x:tensor)->tensor {
+        dtype(t) { assert is_float(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield x }
+      }
+    }
+  )";
+  expect(symbolicPlan(
+             "rule r {(subtract A A) => (zero_like (Restricted.only_float A))}",
+             true, restricted)
+                 .proof.status == ProofStatus::Unknown,
+         "unused RHS values do not erase operation legality checks");
+  auto extra = dialect + R"(
+    dialect Scalars {
+      op twice(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t) yield t }
+        axes { bind S {x:all_axes(x)} yield S }
+        semantics {yield Product(Const(+2),x) }
+      }
+      op ones(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t) yield t }
+        axes { bind S {x:all_axes(x)} yield S }
+        semantics {yield Const(1) }
+      }
+      op sum_ones(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t) yield t }
+        axes {bind K {x:all_axes(x)} bind F {x:[]} yield F }
+        semantics {yield Reduce(K,Const(1)) }
+      }
+      op scalar_one(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t) yield t }
+        axes {bind K {x:all_axes(x)} bind F {x:[]} yield F }
+        semantics {yield Const(1) }
+      }
+      op five(x:tensor)->tensor {
+        dtype(t) {assert is_numeric(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield Const(5) }
+      }
+      op sum_constants(x:tensor)->tensor {
+        dtype(t) {assert is_numeric(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield Add(Const(2),Const(3)) }
+      }
+      op min_constant(x:tensor)->tensor {
+        dtype(t) {assert is_numeric(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield Const(-9223372036854775808) }
+      }
+      op huge(x:tensor)->tensor {
+        dtype(t) { assert is_numeric(t) yield t }
+        axes {bind S {x:all_axes(x)} yield S }
+        semantics {yield Product(Const(9223372036854775807),x) }
+      }
+    }
+  )";
+  proved(symbolicPlan("rule r {(add A A) => (Scalars.twice A)}", true, extra));
+  proved(symbolicPlan("rule r {(Scalars.sum_constants A) => (Scalars.five A)}",
+                      true, extra));
+  proved(symbolicPlan(
+      "rule r {(Scalars.min_constant A) => (Scalars.min_constant A)}", true,
+      extra));
+  auto constantReduction = symbolicPlan(
+      "rule r {(Scalars.sum_ones A) => (Scalars.sum_ones A)}", true, extra);
+  proved(constantReduction);
+  expect(constantReduction.proof.lhs_normalized.find("Reduce(") !=
+             std::string::npos,
+         "constant reduction retains its domain");
+  expect(symbolicPlan("rule r {(Scalars.sum_ones A) => (Scalars.scalar_one A)}",
+                      true, extra)
+                 .proof.status == ProofStatus::Unknown,
+         "sum of one is not universally one");
+  auto overflow = symbolicPlan(
+      "rule r {(add (Scalars.huge A) (Scalars.huge A)) => (Scalars.huge A)}",
+      true, extra);
+  expect(overflow.proof.status == ProofStatus::Unknown &&
+             overflow.proof.reason.find("overflow") != std::string::npos,
+         "coefficient overflow is unsupported, never silently wrapped");
+  auto hugeProduct = symbolicPlan(
+      "rule r {(Scalars.huge (Scalars.huge A)) => A}", true, extra);
+  expect(hugeProduct.proof.status == ProofStatus::Unknown &&
+             hugeProduct.proof.reason.find("overflow") != std::string::npos,
+         "coefficient product overflow is checked");
+  error(replace(extra, "Const(+2)", "Const(9223372036854775808)"),
+        "outside the signed 64-bit range");
+  error(replace(extra, "Const(+2)", "Const(x)"), "signed integer literal");
+
+  found(run("rule r {(negate (negate A)) => A}", {{{2, 3}}, {}}));
+  expect(
+      run("rule r {(negate A) => A}", {{{2, 3}}, {}}).status == Status::Unknown,
+      "independent concrete verifier compares coefficients");
+  found(run("rule r {(d: dot (negate A) B) => (negate (dot A B))}",
+            {{{2, 3}, {3, 4}}, {{0, {{1}, {0}, {}, {}}}}}));
+  auto trans = symbolicPlan(
+      "rule r {(p: transpose (negate A)) => (negate (transpose A))}");
+  auto reduce = symbolicPlan(
+      "rule r {(r: reduce_sum (negate A)) => (negate (reduce_sum A))}");
+  auto contract =
+      symbolicPlan("rule r {(d: dot (negate A) B) => (negate (dot A B))}");
+  proved(trans);
+  proved(reduce);
+  proved(contract);
+  for (const List& shape :
+       {List{}, List{2}, List{2, 3}, List{2, 1, 3, 2}, List{2, 0, 3}}) {
+    auto a = data(shape, 1), b = data(shape, 2);
+    auto zero = scale(a, 0);
+    auto ones = a;
+    for (auto& value : ones.values) value = 1;
+    List all(shape.size());
+    std::iota(all.begin(), all.end(), 0);
+    auto count = reduceSum(ones, all);
+    std::int64_t size = 1;
+    for (auto extent : shape) size *= extent;
+    expect(count.shape.empty() && count.values == List{size},
+           "constant reductions count domains, including zero extents");
+    equal(add(a, scale(a, -1)), zero);
+    equal(scale(scale(a, -1), -1), a);
+    equal(add(a, scale(b, -1)), scale(add(scale(a, -1), b), -1));
+    equal(add(multiply(a, a), multiply(a, a)), multiply(add(a, a), a));
+    Metadata metadata{{shape}, {{0, {{}}}}};
+    tepl::test::ConstructorEvaluator interfaceEval(metadata, canceled);
+    auto lhsAxes = std::get<tepl::test::Coordinates>(
+        interfaceEval.eval(canceled.proof.lhs_axes));
+    auto rhsAxes = std::get<tepl::test::Coordinates>(
+        interfaceEval.eval(canceled.proof.rhs_axes));
+    expect(lhsAxes == rhsAxes && lhsAxes.size() == shape.size(),
+           "zero interface specializes at arbitrary ranks");
+    List permutation(shape.size());
+    std::iota(permutation.begin(), permutation.end(), 0);
+    std::reverse(permutation.begin(), permutation.end());
+    metadata.descriptors[0] = {permutation};
+    tepl::test::ConstructorEvaluator transEval(metadata, trans);
+    auto p = std::get<List>(
+        transEval.eval(trans.proof.constructors.begin()->second[0]));
+    equal(transpose(scale(a, -1), permutation), scale(transpose(a, p), -1));
+    for (std::size_t mask = 0; mask < (std::size_t{1} << shape.size());
+         ++mask) {
+      List selected;
+      for (std::size_t axis = 0; axis < shape.size(); ++axis)
+        if (mask & (std::size_t{1} << axis)) selected.push_back(axis);
+      std::reverse(selected.begin(), selected.end());
+      metadata.descriptors[0] = {selected};
+      tepl::test::ConstructorEvaluator reduceEval(metadata, reduce);
+      auto r = std::get<List>(
+          reduceEval.eval(reduce.proof.constructors.begin()->second[0]));
+      equal(reduceSum(scale(a, -1), selected), scale(reduceSum(a, r), -1));
+    }
+  }
+  for (const auto& metadata : std::vector<Metadata>{
+           {{{2, 3}, {3, 4}}, {{0, {{1}, {0}, {}, {}}}}},
+           {{{2, 3, 2, 4}, {4, 5, 3, 2}}, {{0, {{1, 3}, {2, 0}, {2}, {3}}}}},
+           {{{2, 0}, {0, 4}}, {{0, {{1}, {0}, {}, {}}}}}}) {
+    tepl::test::ConstructorEvaluator eval(metadata, contract);
+    std::vector<List> fields;
+    for (const auto& f : contract.proof.constructors.begin()->second)
+      fields.push_back(std::get<List>(eval.eval(f)));
+    auto a = data(metadata.shapes[0], 1), b = data(metadata.shapes[1], 2);
+    equal(dot(scale(a, -1), b, metadata.descriptors.at(0)),
+          scale(dot(a, b, fields), -1));
+  }
+}
+
+Dense broadcast(const Dense& input, const List& positions,
+                const List& extents) {
+  expect(positions.size() == input.shape.size(), "reference broadcast arity");
+  auto rank = input.shape.size() + extents.size();
+  expect(tepl::test::ConstructorEvaluator::valid(positions, rank),
+         "reference broadcast injection");
+  Dense out;
+  out.shape.resize(rank);
+  for (std::size_t i = 0; i < input.shape.size(); ++i)
+    out.shape[positions[i]] = input.shape[i];
+  auto added = remaining(rank, positions);
+  for (std::size_t i = 0; i < added.size(); ++i) {
+    expect(extents[i] >= 0, "reference broadcast extents");
+    out.shape[added[i]] = extents[i];
+  }
+  indices(out.shape, [&](const List& output) {
+    List index;
+    for (auto p : positions) index.push_back(output[p]);
+    out.values.push_back(input.at(index));
+  });
+  return out;
+}
+void broadcastTests() {
+  // Extents are explicitly supplied. Only the axis mapping is synthesized.
+  auto before = symbolicPlan(R"(
+rule r {(b:broadcast (p:transpose A)) => (out:broadcast A)
+ derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents} }}
+)",
+                             false);
+  proved(before);
+  auto copied = symbolicPlan(R"(
+rule r {(b:broadcast A) => (out:broadcast A)
+ derive {out.attrs={dimensions:auto,new_extents:b.attrs.new_extents} }}
+)");
+  proved(copied);
+  auto outer_product = symbolicPlan(R"(
+rule r {X:[M] Y:[N] (d:dot X Y) => (mul (l:broadcast X) (r:broadcast Y))
+ where d.attrs.lhs_contracting_dimensions==[] && d.attrs.rhs_contracting_dimensions==[]
+     && d.attrs.lhs_batching_dimensions==[] && d.attrs.rhs_batching_dimensions==[]
+ derive {l.attrs={dimensions:auto,new_extents:[N]}
+         r.attrs={dimensions:auto,new_extents:[M]} }}
+)");
+  proved(outer_product);
+  for (int m : {0, 1, 2})
+    for (int n : {0, 1, 3}) {
+      Metadata metadata{{{m}, {n}}, {{0, {{}, {}, {}, {}}}}};
+      tepl::test::ConstructorEvaluator eval(metadata, outer_product);
+      auto fields = eval.construct();
+      auto left = fields.begin()->second, right = fields.rbegin()->second;
+      auto x = data({m}, 1), y = data({n}, 3);
+      equal(dot(x, y, {{}, {}, {}, {}}),
+            multiply(broadcast(x, left[0], left[1]),
+                     broadcast(y, right[0], right[1])));
+    }
+  for (const List& shape :
+       {List{}, List{2}, List{2, 3}, List{2, 2}, List{2, 0, 3}}) {
+    auto input = data(shape, 1);
+    List permutation(shape.size());
+    std::iota(permutation.rbegin(), permutation.rend(), 0);
+    auto transposed = transpose(input, permutation);
+    for (const List& added : {List{}, List{1}, List{4, 2}, List{0}}) {
+      List positions(shape.size());
+      std::iota(positions.begin(), positions.end(), 0);
+      std::reverse(positions.begin(), positions.end());
+      Metadata metadata{{shape}, {{0, {positions, added}}, {1, {permutation}}}};
+      tepl::test::ConstructorEvaluator eval(metadata, before);
+      auto constructor = eval.construct().begin()->second;
+      equal(broadcast(transposed, positions, added),
+            broadcast(input, constructor[0], constructor[1]));
+    }
+  }
+  auto corrupt = copied.proof;
+  corrupt.constructors.begin()->second[1] = make(Symbol::Kind::List);
+  expect(verify(copied, corrupt).status == ProofStatus::Unknown,
+         "supplied broadcast extents cannot be changed by a candidate");
+  auto missing = analyze("rule r {(b:broadcast A)=>(broadcast A)}", true);
+  expect(!missing.ok(),
+         "missing non-axis fields are rejected before inference");
+  error(
+      "dialect D {op f(x:tensor)->tensor {axes {bind S {x:all_axes(x)} bind "
+      "N=group(2) yield S++N } semantics {yield x }}}",
+      "incorrect axis expression type");
+}
+
+void fixedAxisCompositionTests() {
+  for (bool renamed : {false, true}) {
+    auto definitions = dialect;
+    if (renamed) {
+      definitions = replace(definitions, "op reduce_sum(", "op accumulate(");
+      definitions = replace(definitions, "op transpose(", "op reorder(");
+      definitions = replace(definitions, "alias: dot", "alias: pair");
+      definitions = replace(definitions, "dimensions", "slots");
+      definitions = replace(definitions, "permutation", "order");
+    }
+    const std::string sum = renamed ? "accumulate" : "reduce_sum";
+    const std::string trans = renamed ? "reorder" : "transpose";
+    const std::string product = renamed ? "pair" : "dot";
+    const std::string dims = renamed ? "slots" : "dimensions";
+    const std::string permutation = renamed ? "order" : "permutation";
+    for (auto [rank, inner, outer] :
+         {std::tuple{3, 1, 1}, std::tuple{3, 0, 0}, std::tuple{4, 2, 0}}) {
+      auto original_outer = outer + (outer >= inner);
+      std::string prefix = "rule r { X: [N";
+      for (int i = 1; i < rank; ++i) prefix += ",N";
+      prefix += "] (o: " + sum + " (i: " + sum + " X)) => (t: " + sum +
+                " X) where i.attrs." + dims + " == [" + std::to_string(inner) +
+                "] && o.attrs." + dims + " == [" + std::to_string(outer) + "]";
+      auto explicit_attrs = " derive {t.attrs={" + dims + ":[" +
+                            std::to_string(inner) + "," +
+                            std::to_string(original_outer) + "]} }";
+      auto explicit_plan =
+          symbolicPlan(prefix + explicit_attrs + "}", true, definitions);
+      proved(explicit_plan);
+      expect(verify(explicit_plan, explicit_plan.proof).status ==
+                 ProofStatus::Proved,
+             "explicit composed reductions pass independent verification");
+      auto automatic = symbolicPlan(prefix + "}", true, definitions);
+      proved(automatic);
+      expect(verify(automatic, automatic.proof).status == ProofStatus::Proved,
+             "inferred composed reductions pass independent verification");
+      for (auto extent : {0, 1, 2}) {
+        List shape(rank, extent);
+        Metadata metadata{{shape}, {{0, {{outer}}}, {1, {{inner}}}}};
+        tepl::test::ConstructorEvaluator eval(metadata, automatic);
+        auto fields = eval.construct().at(
+            automatic.nodes[automatic.rhs].descriptor->value);
+        auto input = data(shape, 3);
+        equal(reduceSum(reduceSum(input, {inner}), {outer}),
+              reduceSum(input, fields[0]));
+      }
+      int other = 0;
+      while (other == inner || other == original_outer) ++other;
+      auto corrupted = automatic.proof;
+      corrupted.constructors.begin()->second[0] =
+          make(Symbol::Kind::List, {}, 0, 0, {integer(inner), integer(other)});
+      expect(verify(automatic, corrupted).status == ProofStatus::Unknown,
+             "equal extents cannot justify reducing different logical axes");
+    }
+
+    const auto dot_fields = [&](const std::string& node) {
+      return node + ".attrs.lhs_batching_" + dims + " == [] && " + node +
+             ".attrs.rhs_batching_" + dims + " == [] && " + node +
+             ".attrs.lhs_contracting_" + dims + " == [1] && " + node +
+             ".attrs.rhs_contracting_" + dims + " == [0]";
+    };
+    auto prefix = "rule r { X:[K,M] Y:[M,K] (d: " + product + " (p: " + trans +
+                  " X) (q: " + trans + " Y)) => ";
+    auto conditions = " where p.attrs." + permutation +
+                      " == [1,0] && q.attrs." + permutation + " == [1,0] && " +
+                      dot_fields("d") + "}";
+    auto explicit_plan =
+        symbolicPlan(prefix + "(" + trans + "[p.attrs] (" + product +
+                         "[d.attrs] Y X))" + conditions,
+                     true, definitions);
+    proved(explicit_plan);
+    auto automatic = symbolicPlan(
+        prefix + "(" + trans + " (" + product + " Y X))" + conditions, true,
+        definitions);
+    proved(automatic);
+    expect(verify(automatic, automatic.proof).status == ProofStatus::Proved,
+           "transposed operand composition passes a fresh verifier");
+    Metadata metadata{{{2, 3}, {3, 2}},
+                      {{0, {{1}, {0}, {}, {}}}, {1, {{1, 0}}}, {2, {{1, 0}}}}};
+    tepl::test::ConstructorEvaluator eval(metadata, automatic);
+    auto fields = eval.construct();
+    auto rhs_dot = automatic.nodes[automatic.rhs].inputs[0];
+    auto x = data({2, 3}, 1), y = data({3, 2}, 4);
+    equal(dot(transpose(x, {1, 0}), transpose(y, {1, 0}),
+              metadata.descriptors.at(0)),
+          transpose(
+              dot(y, x, fields.at(automatic.nodes[rhs_dot].descriptor->value)),
+              fields.at(automatic.nodes[automatic.rhs].descriptor->value)[0]));
+    auto corrupted = automatic.proof;
+    corrupted.constructors.at(
+        automatic.nodes[automatic.rhs].descriptor->value)[0] =
+        make(Symbol::Kind::List, {}, 0, 0, {integer(0), integer(1)});
+    expect(verify(automatic, corrupted).status == ProofStatus::Unknown,
+           "a square output still requires the correct logical axis order");
+  }
+}
+
+void axisAndMultiplyTests() {
+  auto merge = symbolicPlan(
+      "rule r {(outer: reduce_sum (inner: reduce_sum A)) => (reduce_sum A)}");
+  proved(merge);
+  auto move = symbolicPlan(
+      "rule r {(r: reduce_sum (p: transpose A)) => (transpose (reduce_sum "
+      "A))}");
+  proved(move);
+  expect(proveRule(move, 50000).status == ProofStatus::Proved,
+         "transpose/reduction inference fits a bounded metadata budget");
+  expect(verify(move, move.proof, 50000).status == ProofStatus::Proved,
+         "independent map verification fits the same budget");
+  Context theory{move, 1000000};
+  theory.sourceScope(move.lhs);
+  Lowerer source{theory};
+  source.lower(move.lhs);
+  auto p = make(Symbol::Kind::Field, "permutation", 1, 0);
+  auto r = make(Symbol::Kind::Field, "dimensions", 0, 0);
+  auto twice = [](const S& x) {
+    return call("inverse", {call("inverse", {x})});
+  };
+  expect(equal(theory.canonical(twice(p)), p),
+         "source legality permits full permutation cancellation");
+  auto partial = theory.canonical(twice(r));
+  expect(!equal(partial, r),
+         "a partial axis list does not justify inverse cancellation");
+  Metadata partialMetadata{{{2, 3, 4}}, {{0, {{2}}}, {1, {{2, 0, 1}}}}};
+  tepl::test::ConstructorEvaluator partialEval(partialMetadata, move.proof);
+  bool undefined = false;
+  try {
+    partialEval.eval(partial);
+  } catch (const std::exception&) {
+    undefined = true;
+  }
+  expect(undefined, "independent interpreter preserves undefined inverse");
+  bool unproved = false;
+  try {
+    theory.wellFormed(twice(r));
+  } catch (const ProofFailure&) {
+    unproved = true;
+  }
+  expect(unproved && !theory.guards().empty(),
+         "partial inverse is rejected without an explicit condition");
+  expect(!theory.entails(call("axis_partition", {r, call("len", {r})})),
+         "failed obligation did not become an assumption");
+  auto frame = make(Symbol::Kind::AxisGroup, "input0", 0, 0,
+                    {make(Symbol::Kind::Shape, {}, 0)});
+  // A fresh context must agree with the failed context on legality.
+  Context lookup{move, 1000000};
+  lookup.sourceScope(move.lhs);
+  Lowerer lookupSource{lookup};
+  lookupSource.lower(move.lhs);
+  auto incomplete =
+      lookup.positions(call("gather", {frame, r}), call("gather", {frame, p}));
+  expect(callIs(incomplete, "positions"),
+         "partial interfaces retain an explicit position lookup");
+  Context aliases{move, 100000};
+  auto domain = make(Symbol::Kind::Shape, {}, 0);
+  auto x = make(Symbol::Kind::AxisGroup, "x", 0, 0, {domain});
+  auto y = make(Symbol::Kind::AxisGroup, "y", 1, 0, {domain});
+  aliases.learn(call("==", {x, y}));
+  expect(!aliases.entails(call("disjoint", {x, y})),
+         "coordinate aliases are not independent reduction identities");
+  proved(symbolicPlan("rule r {(mul (mul A B) C) => (mul A (mul B C))}"));
+  proved(
+      symbolicPlan("rule r {(mul (add A B) C) => (add (mul A C) (mul B C))}"));
+  proved(
+      symbolicPlan("rule r {(add (mul A C) (mul B C)) => (mul (add A B) C)}"));
+  auto trans = symbolicPlan(
+      "rule r {(p: transpose (mul A B)) => (mul (transpose A) (transpose B))}");
+  proved(trans);
+  expect(symbolicPlan("rule r {(mul A B) => (add A B)}").proof.status ==
+             ProofStatus::Unknown,
+         "different scalar primitives are rejected");
+  expect(symbolicPlan("rule r {(mul (add A B) C) => (add (mul A C) B)}")
+                 .proof.status == ProofStatus::Unknown,
+         "incorrect distribution is rejected");
+  expect(symbolicPlan("rule r {(mul A B) => (mul B A)}", false).proof.status ==
+             ProofStatus::Unknown,
+         "multiplication commutativity requires algebraic policy");
+  auto renamed = replace(dialect, "op multiply(", "op scalar_product(");
+  renamed = replace(renamed, "alias: mul", "alias: times");
+  proved(
+      symbolicPlan("rule r {(times (add A B) C) => "
+                   "(add (times A C) (times B C))}",
+                   true, renamed));
+  // Specialize the same compiled constructors at different ranks, axis orders,
+  // and domains. No concrete metadata is used by the compiler.
+  for (const List& shape :
+       {List{}, List{2}, List{2, 3}, List{2, 1, 3, 2}, List{2, 0, 3, 2}}) {
+    auto rank = shape.size();
+    auto input = data(shape, 1), b = data(shape, 2), c = data(shape, 3);
+    equal(multiply(add(input, b), c), add(multiply(input, c), multiply(b, c)));
+    for (std::size_t mask = 0; mask < (std::size_t{1} << rank); ++mask) {
+      List inner, outer;
+      for (std::size_t axis = 0; axis < rank; ++axis)
+        if (mask & (std::size_t{1} << axis)) inner.push_back(axis);
+      std::reverse(inner.begin(), inner.end());
+      auto retained = remaining(rank, inner);
+      for (std::size_t axis = 0; axis < retained.size(); axis += 2)
+        outer.push_back(axis);
+      std::reverse(outer.begin(), outer.end());
+      Metadata m{{shape}, {{0, {outer}}, {1, {inner}}}};
+      tepl::test::ConstructorEvaluator eval(m, merge.proof);
+      expect(eval.applicable(), "merged reduction needs no extra guard");
+      auto fields = eval.construct();
+      equal(reduceSum(reduceSum(input, inner), outer),
+            reduceSum(input, fields.at(2)[0]));
+    }
+    List permutation(rank);
+    std::iota(permutation.begin(), permutation.end(), 0);
+    do {
+      Metadata tm{{shape, shape}, {{0, {permutation}}}};
+      tepl::test::ConstructorEvaluator transEval(tm, trans.proof);
+      auto tf = transEval.construct();
+      equal(transpose(multiply(input, b), permutation),
+            multiply(transpose(input, tf.at(1)[0]), transpose(b, tf.at(2)[0])));
+      for (std::size_t mask = 0; mask < (std::size_t{1} << rank); ++mask) {
+        List dims;
+        for (std::size_t axis = 0; axis < rank; ++axis)
+          if (mask & (std::size_t{1} << axis)) dims.push_back(axis);
+        std::reverse(dims.begin(), dims.end());
+        Metadata rm{{shape}, {{0, {dims}}, {1, {permutation}}}};
+        tepl::test::ConstructorEvaluator moveEval(rm, move.proof);
+        expect(moveEval.applicable(),
+               "transpose/reduction needs no extra guard");
+        auto f = moveEval.construct();
+        equal(reduceSum(transpose(input, permutation), dims),
+              transpose(reduceSum(input, f.at(3)[0]), f.at(2)[0]));
+      }
+    } while (std::next_permutation(permutation.begin(), permutation.end()));
+  }
+  auto bad = move.proof;
+  bad.constructors.at(3)[0] = make(Symbol::Kind::List);
+  expect(verify(move, bad).status == ProofStatus::Unknown,
+         "wrong reduction attribute is rejected");
+}
+}  // namespace
+int main(int argc, char** argv) {
+  try {
+    expect(argc == 2, "dialect argument");
+    std::string err;
+    auto files = std::unique_ptr<rules_cc::cc::runfiles::Runfiles>(
+        rules_cc::cc::runfiles::Runfiles::Create(argv[0], &err));
+    expect(bool(files), err);
+    std::ifstream input(files->Rlocation(argv[1]));
+    dialect = {std::istreambuf_iterator<char>(input), {}};
+    expect(!dialect.empty(), "read dialect");
+    symbolicTests();
+    selectedShapeAssociationTests();
+    dotChainAssociationTests();
+    explicitConditionTests();
+    partialAssociationTests();
+    contextStateTests();
+    fixedAxisCompositionTests();
+    axisAndMultiplyTests();
+    scalarTests();
+    broadcastTests();
+    const std::string distribute =
+        "rule r { (d: dot (add A B) C) => (add (dot A C) (dot B C)) }";
+    // Compile once, then specialize the same plan across ranks and
+    // legal/illegal metadata.
+    const auto distribution_plan = symbolicPlan(distribute);
+    const std::vector<List> matrix{{1}, {0}, {}, {}};
+    auto result =
+        infer(distribution_plan, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}});
+    found(result);
+    expect(result.attributes.size() == 2, "two auto descriptors");
+    found(run("rule r { (d: dot (let T = (add A B)) C) => (dot T C) }",
+              {{{2, 3}, {2, 3}, {}, {3, 4}}, {{0, matrix}}}));
+    for (const auto& [id, fields] : result.attributes)
+      expect(fields == matrix, "distribution mappings reconstructed");
+    auto a = data({2, 3}, 1), b = data({2, 3}, 2), c = data({3, 4}, 3);
+    equal(dot(add(a, b), c, matrix), add(dot(a, c, result.attributes.at(1)),
+                                         dot(b, c, result.attributes.at(2))));
+    expect(std::find(result.trace.begin(), result.trace.end(),
+                     "law: product-distributivity") != result.trace.end(),
+           "distribution trace");
+    expect(std::find(result.trace.begin(), result.trace.end(),
+                     "law: reduction-linearity") != result.trace.end(),
+           "reduction trace");
+
+    std::vector<List> mixed{{1, 3}, {2, 0}, {2}, {3}};
+    auto multi =
+        infer(distribution_plan,
+              {{{7, 3, 5, 11}, {7, 3, 5, 11}, {11, 13, 3, 5}}, {{0, mixed}}});
+    found(multi);
+    auto ma = data({7, 3, 5, 11}, 1), mb = data({7, 3, 5, 11}, 2),
+         mc = data({11, 13, 3, 5}, 3);
+    equal(dot(add(ma, mb), mc, mixed),
+          add(dot(ma, mc, multi.attributes.at(1)),
+              dot(mb, mc, multi.attributes.at(2))));
+    for (auto rank : {0, 1, 20, 100}) {
+      List s(rank, 2), axes(rank);
+      std::iota(axes.begin(), axes.end(), 0);
+      found(infer(distribution_plan, {{s, s, s}, {{0, {{}, {}, axes, axes}}}}));
+    }
+    found(infer(distribution_plan, {{{2, 0}, {2, 0}, {0, 4}}, {{0, matrix}}}));
+    expect(infer(distribution_plan, {{{2, 3}, {2, 4}, {3, 4}}, {{0, matrix}}})
+                   .status == Status::IllegalMetadata,
+           "source addition shape mismatch");
+    expect(infer(distribution_plan, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}},
+                 {1, 1000})
+                   .status == Status::Unknown,
+           "term budget is unknown");
+    expect(infer(distribution_plan, {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}},
+                 {256, 1})
+                   .status == Status::Unknown,
+           "work budget is unknown");
+
+    auto sum =
+        run("rule r { (d: reduce_sum (add A B)) => (add (reduce_sum A) "
+            "(reduce_sum B)) }",
+            {{{2, 3, 4, 5}, {2, 3, 4, 5}}, {{0, {{1, 3}}}}});
+    found(sum);
+    for (const auto& [id, fields] : sum.attributes)
+      expect(fields == std::vector<List>{{1, 3}}, "reduction attributes");
+    found(run("rule r { (d: reduce_sum A) => (reduce_sum A) }",
+              {{{2, 3}}, {{0, {{}}}}}));
+    found(run("rule r { (d: reduce_sum A) => (reduce_sum A) }",
+              {{{2, 3}}, {{0, {{0, 1}}}}}));
+
+    found(run("rule r { (p: transpose A) => (transpose A) }",
+              {{{2, 3, 4}}, {{0, {{2, 0, 1}}}}}));
+    auto composed = run(
+        "rule r { (outer: transpose (inner: transpose A)) => (transpose A) }",
+        {{{2, 3, 4}}, {{0, {{1, 0, 2}}}, {1, {{2, 0, 1}}}}});
+    found(composed);
+    auto input_tensor = data({2, 3, 4}, 1);
+    equal(transpose(transpose(input_tensor, {2, 0, 1}), {1, 0, 2}),
+          transpose(input_tensor, composed.attributes.at(2)[0]));
+    auto trans =
+        run("rule r { (d: dot A B) => (dot (cycle: transpose A) B) derive "
+            "{cycle.attrs={permutation:[1,2,0]} } }",
+            {{{3, 2, 4}, {3, 5}}, {{0, {{0}, {0}, {}, {}}}}});
+    found(trans);
+    expect(trans.attributes.at(2) == std::vector<List>{{2}, {0}, {}, {}},
+           "inverse contraction positions after transpose");
+    auto ta = data({3, 2, 4}, 1), tb = data({3, 5}, 2);
+    equal(dot(ta, tb, {{0}, {0}, {}, {}}),
+          dot(transpose(ta, trans.attributes.at(1)[0]), tb,
+              trans.attributes.at(2)));
+    expect(run("rule r { (d: dot A B) => (dot (cycle: transpose A) B) derive "
+               "{cycle.attrs={permutation:[1,2,0]} } }",
+               {{{2, 4, 3}, {3, 5}}, {{0, {{2}, {0}, {}, {}}}}})
+                   .status == Status::Unknown,
+           "output-order obstruction is not a general impossibility claim");
+    found(run("rule r { (d: dot A B) => (dot (transpose A) B) }",
+              {{{2, 3}, {3, 4}}, {{0, matrix}}}));
+    found(
+        run("rule r { (p: transpose (d: dot A B)) => (dot (transpose B) "
+            "(transpose A)) }",
+            {{{2, 3}, {3, 4}}, {{0, {{1, 0}}}, {1, matrix}}}));
+    expect(run("rule r { (p: transpose A) => (transpose A) }",
+               {{{2, 3}}, {{0, {{0, 0}}}}})
+                   .status == Status::IllegalMetadata,
+           "bad source permutation");
+    expect(run("rule r { (p: transpose A) => (out: transpose A) derive "
+               "{out.attrs={permutation:[0,0]} } }",
+               {{{2, 3}}, {{0, {{1, 0}}}}})
+                   .status == Status::Unknown,
+           "illegal explicit permutation rejected");
+    auto association =
+        run("rule r { (d: dot (inner: dot A B) C) => (dot A (dot B C)) }",
+            {{{2, 3}, {3, 4}, {4, 5}}, {{0, matrix}, {1, matrix}}});
+    found(association);
+    auto aa = data({2, 3}, 1), ab = data({3, 4}, 2), ac = data({4, 5}, 3);
+    equal(dot(dot(aa, ab, matrix), ac, matrix),
+          dot(aa, dot(ab, ac, association.attributes.at(3)),
+              association.attributes.at(2)));
+    auto lora =
+        run("rule r { (outer: dot X (add W (inner: dot A B))) => (add (dot X "
+            "W) (dot (dot X A) B)) }",
+            {{{3, 4}, {4, 5}, {4, 2}, {2, 5}}, {{0, matrix}, {1, matrix}}});
+    found(lora);
+    auto lx = data({3, 4}, 1), lw = data({4, 5}, 2), la = data({4, 2}, 3),
+         lr = data({2, 5}, 4);
+    equal(dot(lx, add(lw, dot(la, lr, matrix)), matrix),
+          add(dot(lx, lw, lora.attributes.at(2)),
+              dot(dot(lx, la, lora.attributes.at(4)), lr,
+                  lora.attributes.at(3))));
+    found(run("rule r { (add A (add B C)) => (add (add A B) C) }",
+              {{{2, 3}, {2, 3}, {2, 3}}, {}}));
+    expect(run("rule r { (add A B) => A }", {{{2, 3}, {2, 3}}, {}}).status ==
+               Status::Unknown,
+           "unequal terms never produce a witness");
+    expect(
+        run("rule r { (d: dot A A) => (dot A A) }", {{{2, 2}}, {{0, matrix}}})
+                .status == Status::Unknown,
+        "repeated-factor matching is explicitly unsupported");
+    auto strict = analyze(distribute, false);
+    expect(strict.ok(), "strict plan compiles");
+    expect(infer(*strict.program->rules[0].semantic_plan,
+                 {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}})
+                   .status == Status::Unknown,
+           "strict policy does not silently apply algebraic laws");
+
+    auto renamed = replace(dialect, "dot_general", "contract");
+    renamed = replace(renamed, "alias: dot", "alias: arbitrary");
+    renamed = replace(renamed, "lhs_contracting_dimensions", "left_axes");
+    renamed = replace(renamed, "bind K", "bind Reduction");
+    renamed = replace(renamed, "Reduce(K,", "Reduce(Reduction,");
+    found(
+        run("rule r { (d: arbitrary (add A B) C) => (add (arbitrary A C) "
+            "(arbitrary B C)) }",
+            {{{2, 3}, {2, 3}, {3, 4}}, {{0, matrix}}}, {}, renamed));
+    error(
+        "dialect D { op f(x:tensor)->tensor { axes { bind S {missing: "
+        "all_axes(x)} yield S } semantics {yield x } } }",
+        "unknown binding operand");
+    error(
+        "dialect D { op f(x:tensor)->tensor { axes { let K=all_axes(x) bind S "
+        "{x:K} yield S } semantics {yield Reduce(K,x) } } }",
+        "exported bind group");
+    error(
+        "dialect D { op f(x:tensor)->tensor { axes {bind S {x:all_axes(x)} "
+        "yield S } semantics {yield Reduce(S,x) } } }",
+        "exactly the free groups");
+    auto checked = analyze(distribute);
+    auto dump = tepl::core::formatProgram(*checked.program);
+    expect(dump.find("lhs-graph:") != std::string::npos &&
+               dump.find("constructor auto#") != std::string::npos &&
+               dump.find("status=proved") != std::string::npos,
+           "compiler graph and symbolic constructor proof dump");
+    expect(laws().size() >= 6, "explicit algebraic law registry");
+    std::cout << "semantic tests passed\n";
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << '\n';
+    return 1;
+  }
+}

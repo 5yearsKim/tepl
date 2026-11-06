@@ -15,6 +15,12 @@
   --md-typeset-a-color: var(--md-primary-fg-color);
 }
 
+.md-typeset .tepl-home-title img {
+  display: inline-block;
+  margin-right: 0.25rem;
+  vertical-align: middle;
+}
+
 .md-typeset .tepl-badges > p {
   display: flex;
   flex-wrap: wrap;

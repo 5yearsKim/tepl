@@ -1,9 +1,8 @@
 #pragma once
-#include <string>
-
 #include "src/codegen/rust/names.h"
 namespace tepl::codegen::rust {
-std::string emitDialect(const core::Program&, const Names&,
+std::string emitDialect(const executable::ProgramData&, const Names&,
                         const DialectNames&);
-std::string emitOpUnion(const Names&);
+std::string emitProgram(const executable::ProgramData&, const Names&,
+                        const std::string& policy);
 }  // namespace tepl::codegen::rust

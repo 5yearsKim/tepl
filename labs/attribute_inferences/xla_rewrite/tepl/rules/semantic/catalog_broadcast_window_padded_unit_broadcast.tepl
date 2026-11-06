@@ -1,0 +1,31 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Catalog: broadcast-window-padded-unit-broadcast
+// Scope: Rank-one f32 unit input, symmetric padding, every window includes the sole unpadded value.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_window_padded_unit_broadcast {
+  X: f32[One]
+
+  (attr_w: hlo.reduce_window_sum
+    (attr_p: hlo.nonnegative_pad X 0.0:f32)
+    0.0:f32)
+  =>
+  (attr_b: hlo.broadcast (attr_scalar: hlo.reshape X))
+
+  where
+    One == 1
+      && attr_p.attrs.low == attr_p.attrs.high
+      && attr_p.attrs.interior == [0]
+      && attr_w.attrs.window_dimensions == [u64(attr_p.attrs.low[0]) + 1]
+      && attr_w.attrs.window_strides == [1]
+      && attr_w.attrs.base_dilations == [1]
+      && attr_w.attrs.window_dilations == [1]
+      && attr_w.attrs.padding_low == [0]
+      && attr_w.attrs.padding_high == [0] derive {
+    attr_scalar.attrs = { shape: [] }
+    attr_b.attrs = {
+      dimensions: [],
+      new_extents: [u64(attr_p.attrs.low[0]) + 1]
+    }
+  }
+}

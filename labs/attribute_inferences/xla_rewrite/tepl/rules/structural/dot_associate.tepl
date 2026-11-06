@@ -1,0 +1,34 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+use hlo::{
+  add,
+  mul,
+  negate,
+  subtract,
+  zero_like,
+  transpose,
+  broadcast,
+  reduce_sum,
+  reverse,
+  slice,
+  dot
+}
+
+rule dot_associate {
+  X: [M, K]
+  Y: [K, N]
+  Z: [N, P]
+
+  (attr_outer: dot (attr_inner: dot X Y) Z)
+  =>
+  (dot[attr_inner.attrs] X (dot[attr_outer.attrs] Y Z))
+
+  where
+    attr_inner.attrs.lhs_batching_dimensions == []
+      && attr_inner.attrs.rhs_batching_dimensions == []
+      && attr_inner.attrs.lhs_contracting_dimensions == [1]
+      && attr_inner.attrs.rhs_contracting_dimensions == [0]
+      && attr_outer.attrs.lhs_batching_dimensions == []
+      && attr_outer.attrs.rhs_batching_dimensions == []
+      && attr_outer.attrs.lhs_contracting_dimensions == [1]
+      && attr_outer.attrs.rhs_contracting_dimensions == [0]
+}

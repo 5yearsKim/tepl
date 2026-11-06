@@ -1,0 +1,108 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "definitions",
+    srcs = ["definition.cc"],
+    hdrs = ["definition.h", "scalar.h"],
+    deps = ["//src/shared/metadata"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "model",
+    srcs = ["ir.cc", "print.cc"],
+    hdrs = ["ir.h"],
+    deps = [
+        ":definitions",
+        ":symbolic_model",
+        "//src/shared/catalog:ids",
+        "//src/shared/catalog",
+        "//src/shared/metadata",
+        "//src/shared/types",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Shared symbolic reasoning has no dependency on synthesis or verification.
+cc_library(
+    name = "reasoning",
+    srcs = ["context.cc", "graph.cc", "metadata_lowering.cc", "value_lowering.cc"] + glob([
+        "index_maps/*.cc",
+        "symbolic/*.cc",
+    ]),
+    hdrs = ["context.h", "graph.h", "proof/proof_policy.h"] + glob(
+        ["index_maps/*.h", "symbolic/*.h"],
+        exclude = ["symbolic/symbol.h", "symbolic/key.h"],
+    ),
+    deps = [":model", "//src/shared/builtins", "//src/shared/types"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "proof",
+    srcs = ["proof/verify.cc"],
+    hdrs = ["proof/verify.h"],
+    deps = [":model", ":reasoning"],
+    visibility = ["//visibility:public"],
+)
+
+# Orchestration is the only layer that needs both candidate generation and proof.
+cc_library(
+    name = "rule_proof",
+    srcs = ["prove_rule.cc"],
+    hdrs = ["prove_rule.h"],
+    deps = [":model", ":proof", "//src/core/attr_synth", "//src/inference"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "semantics",
+    srcs = [
+        "plan.cc", "program.cc", "materialize.cc", "completion.cc",
+        "compilation_context.h", "materialize.h", "completion.h",
+    ],
+    hdrs = ["verify.h", "inspect.h"],
+    deps = [
+        ":model",
+        ":reasoning",
+        ":rule_proof",
+        ":verified_model",
+        ":inspection_model",
+        "//src/core/attr_synth:ordered",
+        "//src/inference",
+        "//src/core/checking:model",
+        "//src/core/checking:ir",
+        "//src/shared/diagnostics",
+        "//src/shared/catalog",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "report",
+    srcs = ["report.cc", "metadata_print.cc", "metadata_print.h"],
+    hdrs = ["report.h"],
+    deps = [":inspection_model", "//src/core/checking:ir"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "verified_model",
+    hdrs = ["program.h", "verified_ir.h", "options.h"],
+    deps = ["//src/core:tables", "//src/shared/catalog", "//src/shared/diagnostics"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "inspection_model",
+    hdrs = ["inspection.h"],
+    deps = [":model", "//src/core/checking:ir"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "symbolic_model",
+    hdrs = ["symbolic/symbol.h", "symbolic/key.h"],
+    deps = ["//src/shared/source"],
+    visibility = ["//visibility:public"],
+)

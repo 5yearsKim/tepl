@@ -1,0 +1,20 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Catalog: broadcast-reshape-broadcast
+// Scope: Rank-one base; reshape merges only two broadcast-created trailing axes.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_reshape_broadcast {
+  X: [N]
+
+  (attr_r: hlo.reshape (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast X)
+
+  where
+    attr_b.attrs.dimensions == [0]
+      && len(attr_b.attrs.new_extents) == 2
+      && attr_r.attrs.shape == [N, product(attr_b.attrs.new_extents)] derive {
+    attr_out.attrs = {
+      dimensions: [0],
+      new_extents: [product(attr_b.attrs.new_extents)]
+    }
+  }
+}

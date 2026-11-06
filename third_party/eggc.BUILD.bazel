@@ -1,0 +1,13 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+cc_library(
+    name = "eggc",
+    hdrs = glob(["include/**/*.hpp", "include/**/*.tpp"]),
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)
+filegroup(
+    name = "headers",
+    srcs = glob(["include/**/*.hpp", "include/**/*.tpp"]),
+    visibility = ["//visibility:public"],
+)
+exports_files(["include/eggc/all.hpp"])

@@ -1,0 +1,10 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_concat_flatten {
+  (attr_outer: hlo.concatenate X (attr_inner: hlo.concatenate Y Z))
+  =>
+  (hlo.concatenate[attr_outer.attrs] X Y Z)
+
+  where attr_outer.attrs.dimension == attr_inner.attrs.dimension
+}

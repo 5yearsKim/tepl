@@ -1,0 +1,23 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_reduce_compose_general {
+  X: [Dims...]
+
+  (attr_outer: hlo.reduce (attr_inner: hlo.reduce X Init) Init)
+  =>
+  (attr_out: hlo.reduce X Init)
+
+  where attr_inner.attrs.body == attr_outer.attrs.body derive {
+    let axes = range(len(Dims))
+    let lifted = gather(
+      exclude(axes, attr_inner.attrs.dimensions),
+      attr_outer.attrs.dimensions
+    )
+    let both = concat(attr_inner.attrs.dimensions, lifted)
+    attr_out.attrs = {
+      ..attr_inner.attrs,
+      dimensions: exclude(axes, exclude(axes, both))
+    }
+  }
+}

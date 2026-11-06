@@ -1,0 +1,10 @@
+
+HloModule FoldConvTransposePreservesConvAttributes
+
+ENTRY entry_computation {
+  input = f32[1,4] parameter(0)
+  filter = f32[2,4] parameter(1)
+  filter_t = f32[4,2] transpose(filter), dimensions={1,0}
+  ROOT conv = f32[1,2] convolution(input, filter_t), dim_labels=bf_io->bf,
+      convolution_kind=fprop, backend_config="fake_conv_config"
+}

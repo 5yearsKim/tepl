@@ -2,14 +2,14 @@
 #include <string>
 #include <variant>
 
-#include "src/ast/print.h"
-#include "src/parse.h"
+#include "src/core/syntax/parse.h"
+#include "src/core/syntax/print.h"
 
 int main() {
   for (const auto* name : {"bool", "i8", "i16", "i32", "i64", "u8", "u16",
                            "u32", "u64", "f16", "bf16", "f32", "f64"}) {
     const auto source = "rule r { X: " + std::string(name) +
-                        "[Batch..., M, _] X => X where { $check(X); } }";
+                        "[Batch..., M, _] X => X where true }";
     const auto parsed = tepl::parse(source);
     assert(parsed.ok());
     const auto& rule = parsed.program->rules.front();
@@ -32,9 +32,10 @@ int main() {
         tepl::parse("rule r { 001:" + std::string(dtype) + " => -1.2500:f32 }");
     assert(parsed.ok());
     const auto& rule = parsed.program->rules.front();
-    const auto& integer = std::get<tepl::ast::IntegerLiteral>(rule.lhs->value);
+    const auto& integer =
+        std::get<tepl::syntax::IntegerLiteral>(rule.lhs->value);
     assert(integer.digits == "001" && integer.dtype->name == dtype);
-    const auto& decimal = std::get<tepl::ast::FloatLiteral>(rule.rhs->value);
+    const auto& decimal = std::get<tepl::syntax::FloatLiteral>(rule.rhs->value);
     assert(decimal.digits == "-1.2500" && decimal.dtype->name == "f32");
     const auto printed = tepl::formatAst(*parsed.program);
     assert(printed.find("integer 001:" + std::string(dtype)) !=

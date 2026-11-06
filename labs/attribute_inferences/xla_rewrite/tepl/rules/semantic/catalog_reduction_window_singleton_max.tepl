@@ -1,0 +1,28 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Catalog: reduction-window-singleton-max
+// Scope: Unit windows and nonnegative edge padding; scalar initializer preserved.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_reduction_window_singleton_max {
+  X: [Dims...]
+  Init: []
+
+  (attr_w: hlo.reduce_window_max X Init)
+  =>
+  (attr_p: hlo.nonnegative_pad
+    (hlo.maximum X (attr_b: hlo.broadcast Init))
+    Init)
+
+  where
+    attr_w.attrs.window_dimensions == [1 for d in Dims]
+      && attr_w.attrs.window_strides == [1 for d in Dims]
+      && attr_w.attrs.base_dilations == [1 for d in Dims]
+      && attr_w.attrs.window_dilations == [1 for d in Dims] derive {
+    attr_b.attrs = { dimensions: [], new_extents: Dims }
+    attr_p.attrs = {
+      low: attr_w.attrs.padding_low,
+      high: attr_w.attrs.padding_high,
+      interior: [0 for d in Dims]
+    }
+  }
+}

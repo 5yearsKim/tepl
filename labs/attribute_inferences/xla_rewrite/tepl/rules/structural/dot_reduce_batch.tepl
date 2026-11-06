@@ -1,0 +1,23 @@
+from "dialects/hlo_structural.tepl" import HLO as hlo
+use hlo::{dot, reduce_sum}
+
+rule dot_reduce_batch {
+  X: [K]
+  Y: [K]
+
+  (attr_r: reduce_sum (attr_d: dot X Y)) => (attr_out: dot X Y)
+
+  where
+    attr_d.attrs.lhs_batching_dimensions == [0]
+      && attr_d.attrs.rhs_batching_dimensions == [0]
+      && attr_d.attrs.lhs_contracting_dimensions == []
+      && attr_d.attrs.rhs_contracting_dimensions == []
+      && attr_r.attrs.dimensions == [0] derive {
+    attr_out.attrs = {
+      lhs_batching_dimensions: [],
+      rhs_batching_dimensions: [],
+      lhs_contracting_dimensions: [0],
+      rhs_contracting_dimensions: [0]
+    }
+  }
+}

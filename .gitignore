@@ -12,4 +12,10 @@
 # Documentation environment and build output
 /.venv-docs/
 /site/
-/tools/__pycache__/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+# Rust build output
+/runtime/rust/target/

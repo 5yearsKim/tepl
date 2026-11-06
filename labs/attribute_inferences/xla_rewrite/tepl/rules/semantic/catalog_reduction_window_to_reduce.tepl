@@ -1,0 +1,42 @@
+from "dialects/hlo.tepl" import HLO as hlo
+
+// Catalog: reduction-window-to-reduce
+// Scope: Arbitrary-rank f32 zero-initialized sum windows, each axis unit or full.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_reduction_window_to_reduce {
+  X: f32[Dims...]
+
+  (attr_w: hlo.reduce_window_sum X 0.0:f32)
+  =>
+  (attr_shape: hlo.reshape (attr_r: hlo.reduce_sum X))
+
+  where
+    attr_w.attrs.window_strides == [1 for d in Dims]
+      && attr_w.attrs.base_dilations == [1 for d in Dims]
+      && attr_w.attrs.window_dilations == [1 for d in Dims]
+      && attr_w.attrs.padding_low == [0 for d in Dims]
+      && attr_w.attrs.padding_high == [0 for d in Dims]
+      && all(
+        [
+          attr_w.attrs.window_dimensions[i] == 1
+            || attr_w.attrs.window_dimensions[i] == Dims[i]
+          for i in range(len(Dims))
+        ]
+      ) derive {
+    attr_r.attrs = {
+      dimensions: exclude(
+        range(len(Dims)),
+        [
+          if attr_w.attrs.window_dimensions[i] == 1 then i else len(Dims)
+          for i in range(len(Dims))
+        ]
+      )
+    }
+    attr_shape.attrs = {
+      shape: [
+        if attr_w.attrs.window_dimensions[i] == 1 then Dims[i] else 1
+        for i in range(len(Dims))
+      ]
+    }
+  }
+}

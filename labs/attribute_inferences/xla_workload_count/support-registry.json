@@ -1,0 +1,330 @@
+{
+  "version": 1,
+  "xla_revision": "39c348196c834a7ee45a57f5b44688d53ae99a64",
+  "original_source_sha256": "30bbbaf5c9f260f43b368a564d6c05f342baafde4ce6ea31f3289fd779a0eb06",
+  "instrumented_source_sha256": "20055410a2b3119d6cacfdaa15f1feeb3ddd8ecf52fbb225d7bcd13a303ffd24",
+  "semantic_profiles": {
+    "hlo.tepl": {
+      "path": "../xla_rewrite/tepl/dialects/hlo.tepl",
+      "sha256": "dbb9cd54ab5657656cfad70722241a816e5b324a61833fe90f882e677e000aa9"
+    },
+    "axis_views.tepl": {
+      "path": "../xla_rewrite/tepl/dialects/axis_views.tepl",
+      "sha256": "b264a0d9f6ad16c4b0f7a42fe76174335418219160208cc977546469279d1b4a"
+    }
+  },
+  "normalization": [
+    {
+      "exclude_line": 9009,
+      "paired_line": 9023,
+      "reason": "State-only MarkAsChanged before the same reduce/reshape replacement"
+    }
+  ],
+  "rules": {
+    "AS-10505": {
+      "function": "FoldConvInputPad",
+      "family": "convolution",
+      "description": "fold zero input padding into convolution window padding/dilation",
+      "semantic_status": "outside",
+      "evidence": "HLO.pad; HLO.convolution; original AlgebraicSimplifier lines 10440-10505",
+      "reason": "Pad has no value semantics in the current profile, and the restricted convolution declaration does not model window padding or input base dilation. Native applicability checks alone do not provide these missing contracts."
+    },
+    "AS-934": {
+      "function": "HandleAdd",
+      "family": "add",
+      "description": "canonicalize constant + x to x + constant",
+      "semantic_status": "direct",
+      "evidence": "HLO.add; add_constant_order; original AlgebraicSimplifier lines 930-936",
+      "reason": "Pointwise Add is commutative in the declared algebraic model. Retain native dtype and constant recognition; no literal payload transformation is needed."
+    },
+    "AS-2311": {
+      "function": "HandleConstant",
+      "family": "constant",
+      "description": "uniform literal -> broadcast of its first scalar element",
+      "semantic_status": "conditional",
+      "evidence": "HLO.broadcast; original AlgebraicSimplifier lines 2302-2311",
+      "reason": "Broadcast is modeled, but this branch reads a general literal payload and creates a scalar literal. A uniform-literal semantic adapter and payload extraction are needed; current event records do not provide them."
+    },
+    "AS-9050": {
+      "function": "HandleReduce",
+      "family": "reduce",
+      "description": "move reshape of retained dimensions after generic reduction",
+      "semantic_status": "outside",
+      "evidence": "HLO.reshape; HLO.reduce; original AlgebraicSimplifier lines 9028-9050",
+      "reason": "This branch permits general splitting/merging of retained dimensions and generic reducers. Neither general reshape value semantics nor arbitrary reducer semantics is present in the current profile."
+    },
+    "AS-9835": {
+      "function": "HandleSelect",
+      "family": "select",
+      "description": "select(true, x, y) -> x",
+      "semantic_status": "direct",
+      "evidence": "HLO.select; original AlgebraicSimplifier lines 9833-9835",
+      "reason": "Select has a value clause. Fixed true predicate; host retains literal/splat recognition. This exact workload port has not been checked."
+    },
+    "AS-5690": {
+      "function": "HandleBroadcast",
+      "family": "broadcast",
+      "description": "broadcast(iota) -> iota with remapped dimension",
+      "semantic_status": "outside",
+      "evidence": "HLO.iota; original AlgebraicSimplifier lines 5688-5694",
+      "reason": "The current iota declaration provides dtype and shape but no coordinate-value semantics; broadcast semantics alone cannot validate this transformation."
+    },
+    "AS-6750": {
+      "function": "HandleReshape",
+      "family": "reshape",
+      "description": "compose consecutive reshapes",
+      "semantic_status": "outside",
+      "evidence": "HLO.reshape",
+      "reason": "General reshape composition requires coordinate linearization; reshape declaration has no value/axis semantics."
+    },
+    "AS-5605": {
+      "function": "HandleBroadcast",
+      "family": "broadcast",
+      "description": "element-count-preserving broadcast -> reshape",
+      "semantic_status": "unit_view_candidate",
+      "evidence": "HLO.broadcast;AxisViews",
+      "reason": "Positive-size element-count-preserving sorted broadcast inserts only unit axes. Model output reshape as a unit-axis view; audit zero-element cases separately."
+    },
+    "AS-8661": {
+      "function": "ReplaceReduceWithReshape",
+      "family": "reduce",
+      "description": "element-count-preserving reduction -> reshape",
+      "semantic_status": "conditional",
+      "evidence": "HLO.reduce_sum;AxisViews",
+      "reason": "Unit-axis reduction can use current semantics for zero-initialized sum, but the source helper accepts generic reducers. Per-application reducer/init details are not logged."
+    },
+    "AS-5165": {
+      "function": "HandleMultiply",
+      "family": "multiply",
+      "description": "move scalar constant into broadcasted multiply",
+      "semantic_status": "direct",
+      "evidence": "catalog_broadcast_multiply_constant_into_broadcast",
+      "reason": "Product and broadcast semantics; an accepted algebraic counterpart exists."
+    },
+    "AS-2614": {
+      "function": "HandleDivide",
+      "family": "divide",
+      "description": "divide by broadcast -> multiply by broadcast reciprocal",
+      "semantic_status": "direct",
+      "evidence": "catalog_broadcast_divide_broadcast",
+      "reason": "Divide, Product and broadcast have value semantics. Existing counterpart is modeled but its default proof is unresolved."
+    },
+    "AS-6744": {
+      "function": "HandleReshape",
+      "family": "reshape",
+      "description": "remove shape-preserving reshape",
+      "semantic_status": "unit_view_candidate",
+      "evidence": "AxisViews",
+      "reason": "Shape-preserving reshape can normalize to identity (empty unit-axis removal); native general reshape has no value clause."
+    },
+    "AS-5389": {
+      "function": "HandleGetTupleElement",
+      "family": "tuple",
+      "description": "get_tuple_element(tuple(...), i) -> operand i",
+      "semantic_status": "outside",
+      "evidence": "tuple/get_tuple_element",
+      "reason": "No tuple/projection tensor-value contracts in the current HLO semantic profile."
+    },
+    "AS-10187": {
+      "function": "operator()",
+      "family": "transpose",
+      "description": "transpose(dot(x, y)) -> dot(y, x)",
+      "semantic_status": "direct",
+      "evidence": "dot_transpose_output;dot_swap_operands",
+      "reason": "Dot and transpose value/axis contracts; existing counterparts retain output-order/batch conditions."
+    },
+    "AS-5645": {
+      "function": "HandleBroadcast",
+      "family": "broadcast",
+      "description": "remove unit-inserting reshape before broadcast",
+      "semantic_status": "unit_view_candidate",
+      "evidence": "catalog_broadcast_inserted_unit_dims",
+      "reason": "Source reshape is restricted to inserting unit axes; normalize it as a broadcast/view. Existing representative case is narrower than full branch."
+    },
+    "AS-5681": {
+      "function": "HandleBroadcast",
+      "family": "broadcast",
+      "description": "permutation/subset of scalar broadcast -> broadcast",
+      "semantic_status": "conditional",
+      "evidence": "scalar_broadcast_transpose;scalar_broadcast_reverse",
+      "reason": "One source branch covers several indexing/permutation operations. Only modeled cases are supported; the event log does not identify the affected operation per application."
+    },
+    "AS-9023": {
+      "function": "HandleReduce",
+      "family": "reduce",
+      "description": "move reshape through reduction",
+      "semantic_status": "outside",
+      "evidence": "HLO.reshape;HLO.reduce",
+      "reason": "Source combines general reshape and generic reduction. Both exceed the current profile; restricted specializations would be new ports."
+    },
+    "AS-2478": {
+      "function": "HandleDivide",
+      "family": "divide",
+      "description": "x / 1 -> x",
+      "semantic_status": "direct",
+      "evidence": "expr_divide_one",
+      "reason": "Pointwise divide and fixed literal one; host retains literal/splat recognition."
+    },
+    "AS-6898": {
+      "function": "HandleReshape",
+      "family": "reshape",
+      "description": "reshape(broadcast(x)) -> broadcast(x)",
+      "semantic_status": "outside",
+      "evidence": "HLO.reshape",
+      "reason": "Existing native reshape declaration has no value semantics. A context-specific broadcast-only coordinate adapter would require an additional semantic port beyond existing unit views."
+    },
+    "AS-2744": {
+      "function": "RemoveDegenerateDimensionFromDot",
+      "family": "dot",
+      "description": "remove unit dimensions from dot; reshape output",
+      "semantic_status": "unit_view_candidate",
+      "evidence": "AxisViews;HLO.dot_general;HLO.broadcast",
+      "reason": "Remove unit dimensions from operands and restore result unit dimensions; needs view-normalized port and guards."
+    },
+    "AS-2824": {
+      "function": "SimplifyTransposeOfBroadcast",
+      "family": "transpose",
+      "description": "transpose(broadcast(x)) -> broadcast(x)",
+      "semantic_status": "direct",
+      "evidence": "catalog_broadcast_transpose_broadcast",
+      "reason": "Transpose/broadcast coordinate contracts."
+    },
+    "AS-5723": {
+      "function": "HandleBroadcast",
+      "family": "broadcast",
+      "description": "remove unit dimensions from broadcast operand",
+      "semantic_status": "unit_view_candidate",
+      "evidence": "catalog_broadcast_drop_unit_dims",
+      "reason": "Source explicitly removes only size-one axes. Existing AxisViews.remove_unit_axes models this restriction."
+    },
+    "AS-9840": {
+      "function": "HandleSelect",
+      "family": "select",
+      "description": "select(false, x, y) -> y",
+      "semantic_status": "direct",
+      "evidence": "HLO.select",
+      "reason": "Select has a value clause. Fixed false predicate; host retains literal/splat recognition. This exact workload port has not been checked."
+    },
+    "AS-1405": {
+      "function": "HandleAnd",
+      "family": "boolean",
+      "description": "true && x -> x",
+      "semantic_status": "direct",
+      "evidence": "catalog_elementwise_and_true",
+      "reason": "Boolean and has a value clause and a scalar accepted counterpart; retain source PRED/literal conditions."
+    },
+    "AS-2317": {
+      "function": "HandleConstant",
+      "family": "constant",
+      "description": "iota-valued literal -> iota",
+      "semantic_status": "outside",
+      "evidence": "HLO.iota;literal payload",
+      "reason": "Iota has shape/dtype declarations only; coordinate-to-value and general literal-payload semantics are missing."
+    },
+    "AS-2590": {
+      "function": "operator()",
+      "family": "divide",
+      "description": "division by constant -> multiplication by reciprocal",
+      "semantic_status": "conditional",
+      "evidence": "HLO.divide;HLO.multiply",
+      "reason": "Arithmetic expressions are representable, but the source branch evaluates and materializes a reciprocal constant payload; general literal-value lowering is missing."
+    },
+    "AS-2742": {
+      "function": "RemoveDegenerateDimensionFromDot",
+      "family": "dot",
+      "description": "remove unit dimensions from dot; unchanged output shape",
+      "semantic_status": "unit_view_candidate",
+      "evidence": "AxisViews;HLO.dot_general",
+      "reason": "Dot operand reshapes remove only unit dimensions. Needs a restricted view-normalized port; no claim of general reshape support."
+    },
+    "AS-3785": {
+      "function": "RewriteAsMultiplyDotWithZeroLhsContractingDim",
+      "family": "dot",
+      "description": "dot without contracting dimensions -> broadcast multiply",
+      "semantic_status": "direct",
+      "evidence": "dot_no_contraction",
+      "reason": "Dot without contraction is representable using Product and Broadcast. Keep source precision/type conditions."
+    },
+    "AS-5025": {
+      "function": "HandleMultiply",
+      "family": "multiply",
+      "description": "x * 1 -> x",
+      "semantic_status": "direct",
+      "evidence": "expr_multiply_one",
+      "reason": "Pointwise Product and fixed one; host retains literal/splat recognition."
+    },
+    "AS-5056": {
+      "function": "HandleMultiply",
+      "family": "multiply",
+      "description": "(-x) * (-y) -> x * y",
+      "semantic_status": "direct",
+      "evidence": "multiply_negatives",
+      "reason": "Negate and Product have value clauses; existing algebraic counterpart."
+    },
+    "AS-5132": {
+      "function": "HandleMultiply",
+      "family": "multiply",
+      "description": "reassociate multiplication of constants",
+      "semantic_status": "direct",
+      "evidence": "multiply_constants",
+      "reason": "Product reassociation is represented with captured constants; retain arithmetic policy and host constant recognition."
+    },
+    "AS-5761": {
+      "function": "HandleCompare",
+      "family": "compare",
+      "description": "known nonnegative x < 0 -> false",
+      "semantic_status": "conditional",
+      "evidence": "HLO.compare",
+      "reason": "Compare operation is modeled, but general IsNonNegative value-analysis facts are not supplied to TEPL by the current rule interface."
+    },
+    "AS-5767": {
+      "function": "HandleCompare",
+      "family": "compare",
+      "description": "known nonnegative x >= 0 -> true",
+      "semantic_status": "conditional",
+      "evidence": "HLO.compare",
+      "reason": "Same missing nonnegative-value applicability fact; predicate semantics alone does not validate this rewrite."
+    },
+    "AS-6358": {
+      "function": "TryToSinkBroadcastAfterElementwiseOps",
+      "family": "broadcast",
+      "description": "sink elementwise operation through broadcasts; per user",
+      "semantic_status": "conditional",
+      "evidence": "broadcast_add;broadcast_multiply",
+      "reason": "Source accepts generic elementwise f, including operations without a current value contract. Need the concrete user opcode; it was not logged."
+    },
+    "AS-6945": {
+      "function": "HandleReshape",
+      "family": "reshape",
+      "description": "reshape(iota) -> coordinate arithmetic",
+      "semantic_status": "outside",
+      "evidence": "HLO.iota;HLO.reshape",
+      "reason": "Iota coordinate values and mixed-radix reshape semantics are missing."
+    },
+    "AS-8870": {
+      "function": "HandleReduce",
+      "family": "reduce",
+      "description": "move negate through sum reduction",
+      "semantic_status": "direct",
+      "evidence": "reduce_negate",
+      "reason": "Source branch explicitly checks add combiner and zero initializer, matching reduce_sum and Negate."
+    },
+    "AS-10114": {
+      "function": "HandleTranspose",
+      "family": "transpose",
+      "description": "remove identity transpose",
+      "semantic_status": "direct",
+      "evidence": "transpose_identity",
+      "reason": "Permutation identity guard and transpose contract."
+    },
+    "AS-10118": {
+      "function": "HandleTranspose",
+      "family": "transpose",
+      "description": "compose consecutive transposes",
+      "semantic_status": "direct",
+      "evidence": "transpose_compose",
+      "reason": "Transpose composition contract and accepted counterpart."
+    }
+  },
+  "support_meaning": "Static semantic representation with retained XLA applicability checks; not successful TEPL verification or delegation."
+}

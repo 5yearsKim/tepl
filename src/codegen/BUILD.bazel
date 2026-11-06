@@ -1,27 +1,54 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("//:tools/embed_templates.bzl", "embed_rust_templates", "embed_templates")
-
-embed_rust_templates(
-    name = "embed_rust_templates",
-    srcs = ["//templates/rust:templates"],
-    out = "rust/template_files.h",
-)
-
-embed_templates(
-    name = "embed_cpp_templates",
-    language = "cpp",
-    srcs = ["//templates/cpp:templates"],
-    out = "cpp/template_files.h",
-)
 
 cc_library(
     name = "codegen",
-    srcs = glob(["*.cc", "common/*.cc", "rust/*.cc", "cpp/*.cc"]),
-    hdrs = glob(["*.h", "common/*.h", "rust/*.h", "cpp/*.h"]) + [":embed_rust_templates", ":embed_cpp_templates"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//src/core:ir",
-        "//src/support:process",
-        "//src/support:temporary_directory",
+    srcs = [
+        "generate.cc",
+        "cpp/backend.cc",
+        "cpp/names.cc",
+        "cpp/paths.cc",
+        "cpp/dialect_emitter.cc",
+        "cpp/expression_emitter.cc",
+        "cpp/metadata_emitter.cc",
+        "cpp/rule_emitter.cc",
+        "cpp/graph_emitter.cc",
+        "common/project_plan.cc",
+        "rust/backend.cc",
+        "rust/names.cc",
+        "rust/dialect_emitter.cc",
+        "rust/expression_emitter.cc",
+        "rust/metadata_emitter.cc",
+        "rust/rule_emitter.cc",
+        "rust/graph_emitter.cc",
     ],
+    hdrs = [
+        "generate.h", "options.h", "output.h",
+        "common/project_plan.h",
+        "cpp/backend.h",
+        "cpp/names.h",
+        "cpp/paths.h",
+        "cpp/code_writer.h",
+        "cpp/dialect_emitter.h",
+        "cpp/expression_emitter.h",
+        "cpp/metadata_emitter.h",
+        "cpp/rule_emitter.h",
+        "cpp/graph_emitter.h",
+        "rust/backend.h", "rust/names.h", "rust/code_writer.h", "rust/paths.h",
+        "rust/dialect_emitter.h", "rust/expression_emitter.h", "rust/metadata_emitter.h",
+        "rust/rule_emitter.h", "rust/graph_emitter.h",
+    ],
+    deps = [
+        "//src/executable",
+        "//src/shared/builtins",
+        "//src/shared/builtins:intrinsics",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "write",
+    srcs = ["write.cc"],
+    hdrs = ["write.h"],
+    deps = [":codegen", "//src/support:process", "//src/support:temporary_directory"],
+    visibility = ["//visibility:public"],
 )

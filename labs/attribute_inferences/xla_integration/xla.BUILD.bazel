@@ -1,0 +1,6 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+cc_binary(
+ name="experiment",srcs=["xla_driver.cc","transpose_folding.cc","transpose_folding.h","bridge.h","upstream_builders.inc"],
+ copts=["-std=c++17","-fexceptions"],linkopts=["-ldl"],linkstatic=True,
+ deps=["//xla/service:transpose_folding","//xla/service:hlo_verifier","//xla/service:shape_inference","//xla/hlo/parser:hlo_parser","//xla/hlo/evaluator:hlo_evaluator","//xla/hlo/builder:xla_builder","//xla/hlo/ir:hlo","//xla:literal_util","//xla:shape_util","//xla:util","//xla:xla_data_proto_cc","//xla/tsl/platform:errors","//xla/tsl/platform:statusor","@com_google_absl//absl/status","@com_google_absl//absl/status:statusor","@com_google_absl//absl/status:status_macros","@com_google_absl//absl/container:flat_hash_set","@com_google_absl//absl/algorithm:container","@com_google_absl//absl/log:check","@com_google_absl//absl/strings:string_view","@com_google_absl//absl/types:span","@llvm-project//llvm:Support"],
+)

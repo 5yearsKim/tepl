@@ -60,13 +60,16 @@ nav:
           - Run your first rewrite: tutorial/cpp/02_run.md
           - Add tensor analysis: tutorial/cpp/03_analyse.md
   - Advanced:
+      - Greedy rewriting: advanced/greedy_rewriting.md
       - Attributes and conditions: advanced/attributes_and_conditions.md
       - Binding and early pruning: advanced/binding_and_early_pruning.md
-      - Custom analysis: advanced/custom_analysis.md
+      - Tensor analysis: advanced/custom_analysis.md
   - Reference:
       - CLI: references/cli.md
       - Shapes: references/shape.md
       - Dtypes: references/dtype.md
+      - Scalar semantics: references/scalar-semantics.md
+      - Metadata reasoning: references/metadata-reasoning.md
       - Built-in functions: references/built-ins.md
   - Contributing:
       - Developer guide: developer_guide.md

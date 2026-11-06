@@ -1,0 +1,46 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "rewrite",
+    srcs = [
+        "builder.cc",
+        "engine.cc",
+        "axis_analysis.cc",
+        "evaluator.cc",
+        "matcher.cc",
+        "printer.cc",
+        "value.cc",
+        "operators.cc",
+        "intrinsics.cc",
+        "builtins/dispatch.cc",
+        "builtins/list.cc",
+        "builtins/integer.cc",
+        "builtins/shape.cc",
+        "builtins/dtype.cc",
+        "evaluation_support.cc",
+    ],
+    hdrs = [
+        "builder.h",
+        "engine.h",
+        "axis_analysis.h",
+        "evaluator.h",
+        "matcher.h",
+        "printer.h",
+        "value.h",
+        "operators.h",
+        "intrinsics.h",
+        "builtins/dispatch.h",
+        "builtins/implementation.h",
+        "evaluation_support.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["//src/shared/catalog", "//src/executable", "//src/inference"],
+)
+
+cc_library(
+    name = "cli",
+    srcs = ["cli.cc"],
+    hdrs = ["cli.h"],
+    visibility = ["//visibility:public"],
+    deps = [":rewrite"],
+)

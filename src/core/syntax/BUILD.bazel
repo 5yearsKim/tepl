@@ -1,0 +1,17 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "model",
+    srcs = ["print.cc", "snapshot.cc"],
+    hdrs = ["ast.h", "print.h", "snapshot.h"],
+    deps = ["//src/shared/types", "//src/shared/source"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "syntax",
+    srcs = glob(["builder*.cc"]) + ["parse.cc"] + ["builder.h", "builder_detail.h"],
+    hdrs = ["parse.h"],
+    deps = [":model", "//grammar:parser", "//src/shared/diagnostics"],
+    visibility = ["//visibility:public"],
+)

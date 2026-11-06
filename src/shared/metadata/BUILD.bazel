@@ -1,0 +1,14 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+cc_library(
+    name = "metadata",
+    srcs = ["types.cc", "ordered.cc"],
+    hdrs = glob(["*.h"]),
+    deps = [
+        "//src/shared/types",
+        "//src/shared/catalog:ids",
+        "//src/shared/builtins",
+        "//src/shared/source",
+    ],
+    visibility = ["//visibility:public"],
+)
