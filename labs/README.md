@@ -10,10 +10,7 @@ mathematical arguments and finite theorem checks are in
 | [rust-egg](rust-egg/README.md) | Maintained Rust/egg application with generated transpose rules |
 | [tutorial_cpp](tutorial_cpp/README.md) | Maintained C++20/egg-c CMake application |
 | [tutorial_rust](tutorial_rust/README.md) | Historical tutorial fixtures using retired descriptor syntax |
-| [xla_rewrite](xla_rewrite/README.md) | Pinned XLA catalog, canonical axis-only tasks, compilation/verification measurements |
-| [reasoning_scalability](reasoning_scalability/README.md) | Main scaling experiment: rank-polymorphic chain/additive compilation and matching metadata execution |
-| [accepted_core](accepted_core/README.md) | Core/extension correctness tests with independent numerical references |
-| [attribute_inference](attribute_inference/README.md) | Historical full/partial-auto cohorts and recorded rechecks |
+| [attribute_inferences](attribute_inferences/README.md) | Attribute-inference validation, scalability, XLA integration, and workload analysis |
 
 An experiment README should identify scope, reproduction commands, primary
 reports, and result locations. Detailed measurements belong in `reports/` with

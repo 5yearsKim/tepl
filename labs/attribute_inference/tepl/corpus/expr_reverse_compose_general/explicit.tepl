@@ -1,6 +1,0 @@
-from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
-
-// Expression check under the source conditions recorded in the catalog.
-rule expr_reverse_compose_general {
-    (hlo.reverse[@outer] (hlo.reverse[@inner] X)) => (hlo.reverse[@out] X) derive { @out = { dimensions: concat(exclude(@inner.dimensions, @outer.dimensions), exclude(@outer.dimensions, @inner.dimensions)) }; }
-}

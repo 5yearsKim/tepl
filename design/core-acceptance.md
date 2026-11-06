@@ -21,7 +21,3 @@ Portable programs use format version 4 and retain DAG predicates and builders.
 Canonical constructors remain sound for legal zero/singleton extents; completeness
 claims retain their original extent domain. Generated C++/Rust support symbolic
 programs; metadata DAG export remains explicitly unsupported.
-
-Validation: `//labs/accepted_core:acceptance_test` and
-`//labs/accepted_core:extensions_test` exercise dense reference equivalence,
-canonical DAG integrity, dtype contracts, supplied fields and metadata helpers.

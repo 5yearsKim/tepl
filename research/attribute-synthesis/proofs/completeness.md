@@ -802,7 +802,7 @@ in Section 11 and the metadata-weighted extension of Section 12 are likewise
 not integrated. General proofs of some such rules
 do not imply complete attribute search.
 
-The frozen [XLA classification](../../../labs/xla_rewrite/coverage/data/synthesis_classification.json)
+The frozen [XLA classification](../../../labs/attribute_inferences/xla_rewrite/coverage/data/synthesis_classification.json)
 and recorded measurements predate these mathematical extensions. This proof revision
 does not reclassify cases or increase a reported completeness-coverage count;
 that requires a fresh audit of the full admission conditions and case domains.

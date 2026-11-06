@@ -1,9 +1,0 @@
-from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
-use hlo::{reduce_sum};
-
-rule reduce_compose_leading {
-    X: [I, J, K]
-    (reduce_sum[@outer] (reduce_sum[@inner] X)) => (reduce_sum[auto] X)
-    where { @inner.dimensions == [0] && @outer.dimensions == [0] }
-
-}

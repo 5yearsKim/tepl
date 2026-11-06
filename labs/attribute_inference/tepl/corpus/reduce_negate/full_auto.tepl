@@ -1,7 +1,0 @@
-from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
-
-rule reduce_negate {
-    (reduce_sum[@r] (negate X)) => (negate (reduce_sum[auto] X))
-}

@@ -1531,7 +1531,7 @@ axis relationships can increase the number of symbolic partitions and the
 size of normalized expressions. Verification and inference use finite proof
 budgets, so a rule may remain unresolved when the required reasoning exceeds
 those budgets. The XLA evaluation measures coverage. The dedicated
-[scaling experiment](../labs/reasoning_scalability/README.md) measures
+[scaling experiment](../labs/attribute_inferences/reasoning_scalability/README.md) measures
 rank-polymorphic dot-chain and additive-term compilation, plus execution of
 compiled metadata programs as rank increases. These controlled families do not
 establish scalability across arbitrary compositions or axis layouts. Future

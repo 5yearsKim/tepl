@@ -1,9 +1,0 @@
-from "../../../../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo;
-use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
-        reduce_sum, reverse, slice, dot};
-
-rule reverse_add_scalar {
-    (reverse[@r] (add X (broadcast[@b] C)))
-    => (add (reverse[auto] X) (broadcast[auto] C))
-    where { @b.dimensions == [] }
-}
