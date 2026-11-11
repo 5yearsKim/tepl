@@ -1,0 +1,187 @@
+[
+  {
+    "id": "synthetic_reassociate",
+    "category": "Synthetic",
+    "equation": "ik,jk,jl->il",
+    "shapes": [
+      [
+        2,
+        10
+      ],
+      [
+        100,
+        10
+      ],
+      [
+        100,
+        10
+      ]
+    ],
+    "dtype": "float64",
+    "paths": {
+      "opt_flops": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "opt_size": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "id": "synthetic_hyperedge",
+    "category": "Synthetic",
+    "equation": "ij,jk,jl->ikl",
+    "shapes": [
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        3,
+        5
+      ]
+    ],
+    "dtype": "float32",
+    "paths": {
+      "opt_flops": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "opt_size": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "id": "synthetic_unary_sum",
+    "category": "Synthetic",
+    "equation": "ix,j,jk->ik",
+    "shapes": [
+      [
+        2,
+        3
+      ],
+      [
+        4
+      ],
+      [
+        4,
+        5
+      ]
+    ],
+    "dtype": "int32",
+    "paths": {
+      "opt_flops": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "opt_size": [
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "id": "synthetic_complex",
+    "category": "Synthetic",
+    "equation": "ij,jk->ik",
+    "shapes": [
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        4
+      ]
+    ],
+    "dtype": "complex64",
+    "paths": {
+      "opt_flops": [
+        [
+          0,
+          1
+        ]
+      ],
+      "opt_size": [
+        [
+          0,
+          1
+        ]
+      ]
+    }
+  },
+  {
+    "id": "synthetic_diagonal",
+    "category": "Synthetic",
+    "equation": "ii,ij->j",
+    "shapes": [
+      [
+        3,
+        3
+      ],
+      [
+        3,
+        4
+      ]
+    ],
+    "dtype": "float64",
+    "paths": {
+      "opt_flops": [
+        [
+          0,
+          1
+        ]
+      ],
+      "opt_size": [
+        [
+          0,
+          1
+        ]
+      ]
+    }
+  }
+]

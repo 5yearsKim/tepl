@@ -1,0 +1,237 @@
+{
+  "size": 16,
+  "guard_policy": "domain",
+  "total": {
+    "cases": 168,
+    "represented": 117,
+    "verified": 226,
+    "nonidentical": 228,
+    "identical": 6,
+    "extent_excluded": 2,
+    "inference_status": {
+      "verified": 226,
+      "outside_core_extent_domain": 2,
+      "identical_structure": 6
+    },
+    "representation_reasons": {
+      "unsupported_dtype": 43,
+      "trace_or_diagonal": 8
+    },
+    "positions_per_rule_median": 63.0,
+    "positions_per_rule_min": 32,
+    "positions_per_rule_max": 211,
+    "positions_per_rule_p95": 137,
+    "axis_fields": 13828,
+    "nonempty_axis_fields": 7096,
+    "empty_axis_fields": 6732,
+    "axis_positions": 15928,
+    "contracting_positions": 3216,
+    "batching_positions": 9260,
+    "reduction_positions": 44,
+    "permutation_positions": 3408,
+    "rhs_operations": 3658,
+    "rhs_contractions": 3390
+  },
+  "by_category": {
+    "Graphical models": {
+      "cases": 10,
+      "represented": 10,
+      "verified": 18,
+      "nonidentical": 20,
+      "identical": 0,
+      "extent_excluded": 2,
+      "inference_status": {
+        "verified": 18,
+        "outside_core_extent_domain": 2
+      },
+      "representation_reasons": {},
+      "positions_per_rule_median": 48.0,
+      "positions_per_rule_min": 41,
+      "positions_per_rule_max": 70,
+      "positions_per_rule_p95": 70,
+      "axis_fields": 1118,
+      "nonempty_axis_fields": 572,
+      "empty_axis_fields": 546,
+      "axis_positions": 898,
+      "contracting_positions": 164,
+      "batching_positions": 448,
+      "reduction_positions": 20,
+      "permutation_positions": 266,
+      "rhs_operations": 308,
+      "rhs_contractions": 270
+    },
+    "Tensor network language models": {
+      "cases": 25,
+      "represented": 14,
+      "verified": 28,
+      "nonidentical": 28,
+      "identical": 0,
+      "extent_excluded": 0,
+      "inference_status": {
+        "verified": 28
+      },
+      "representation_reasons": {
+        "unsupported_dtype": 11
+      },
+      "positions_per_rule_median": 51.0,
+      "positions_per_rule_min": 47,
+      "positions_per_rule_max": 56,
+      "positions_per_rule_p95": 56,
+      "axis_fields": 1708,
+      "nonempty_axis_fields": 914,
+      "empty_axis_fields": 794,
+      "axis_positions": 1432,
+      "contracting_positions": 780,
+      "batching_positions": 276,
+      "reduction_positions": 0,
+      "permutation_positions": 376,
+      "rhs_operations": 448,
+      "rhs_contractions": 420
+    },
+    "Model counting": {
+      "cases": 50,
+      "represented": 50,
+      "verified": 100,
+      "nonidentical": 100,
+      "identical": 0,
+      "extent_excluded": 0,
+      "inference_status": {
+        "verified": 100
+      },
+      "representation_reasons": {},
+      "positions_per_rule_median": 78.5,
+      "positions_per_rule_min": 50,
+      "positions_per_rule_max": 211,
+      "positions_per_rule_p95": 173,
+      "axis_fields": 6108,
+      "nonempty_axis_fields": 3198,
+      "empty_axis_fields": 2910,
+      "axis_positions": 8852,
+      "contracting_positions": 272,
+      "batching_positions": 7092,
+      "reduction_positions": 10,
+      "permutation_positions": 1478,
+      "rhs_operations": 1608,
+      "rhs_contractions": 1500
+    },
+    "Quantum computing": {
+      "cases": 32,
+      "represented": 0,
+      "verified": 0,
+      "nonidentical": 0,
+      "identical": 0,
+      "extent_excluded": 0,
+      "inference_status": {},
+      "representation_reasons": {
+        "unsupported_dtype": 32
+      },
+      "positions_per_rule_median": null,
+      "positions_per_rule_min": null,
+      "positions_per_rule_max": null,
+      "positions_per_rule_p95": null,
+      "axis_fields": 0,
+      "nonempty_axis_fields": 0,
+      "empty_axis_fields": 0,
+      "axis_positions": 0,
+      "contracting_positions": 0,
+      "batching_positions": 0,
+      "reduction_positions": 0,
+      "permutation_positions": 0,
+      "rhs_operations": 0,
+      "rhs_contractions": 0
+    },
+    "Random": {
+      "cases": 16,
+      "represented": 9,
+      "verified": 18,
+      "nonidentical": 18,
+      "identical": 0,
+      "extent_excluded": 0,
+      "inference_status": {
+        "verified": 18
+      },
+      "representation_reasons": {
+        "trace_or_diagonal": 7
+      },
+      "positions_per_rule_median": 43.0,
+      "positions_per_rule_min": 34,
+      "positions_per_rule_max": 70,
+      "positions_per_rule_p95": 70,
+      "axis_fields": 1112,
+      "nonempty_axis_fields": 556,
+      "empty_axis_fields": 556,
+      "axis_positions": 904,
+      "contracting_positions": 496,
+      "batching_positions": 96,
+      "reduction_positions": 14,
+      "permutation_positions": 298,
+      "rhs_operations": 302,
+      "rhs_contractions": 270
+    },
+    "Structural": {
+      "cases": 21,
+      "represented": 21,
+      "verified": 36,
+      "nonidentical": 36,
+      "identical": 6,
+      "extent_excluded": 0,
+      "inference_status": {
+        "verified": 36,
+        "identical_structure": 6
+      },
+      "representation_reasons": {},
+      "positions_per_rule_median": 57.0,
+      "positions_per_rule_min": 32,
+      "positions_per_rule_max": 80,
+      "positions_per_rule_p95": 80,
+      "axis_fields": 2196,
+      "nonempty_axis_fields": 1030,
+      "empty_axis_fields": 1166,
+      "axis_positions": 2034,
+      "contracting_positions": 1420,
+      "batching_positions": 0,
+      "reduction_positions": 0,
+      "permutation_positions": 614,
+      "rhs_operations": 576,
+      "rhs_contractions": 540
+    },
+    "Weighted model counting": {
+      "cases": 14,
+      "represented": 13,
+      "verified": 26,
+      "nonidentical": 26,
+      "identical": 0,
+      "extent_excluded": 0,
+      "inference_status": {
+        "verified": 26
+      },
+      "representation_reasons": {
+        "trace_or_diagonal": 1
+      },
+      "positions_per_rule_median": 66.0,
+      "positions_per_rule_min": 43,
+      "positions_per_rule_max": 100,
+      "positions_per_rule_p95": 100,
+      "axis_fields": 1586,
+      "nonempty_axis_fields": 826,
+      "empty_axis_fields": 760,
+      "axis_positions": 1808,
+      "contracting_positions": 84,
+      "batching_positions": 1348,
+      "reduction_positions": 0,
+      "permutation_positions": 376,
+      "rhs_operations": 416,
+      "rhs_contractions": 390
+    }
+  },
+  "metric_definition": {
+    "axis_fields": "RHS axis-list fields completed, including empty lists",
+    "axis_positions": "integer entries in those lists, counted per occurrence; both sides of a paired axis count",
+    "scope": "reachable replacement operations of independently verified directed rewrites only",
+    "exclusions": "no credit for reference witnesses, identical pairs, skipped or failed transformations"
+  },
+  "input_sha256": "b67ac3cb8644fe80463857592684f74b1403c1b109045347c6f0c80802b78a8b",
+  "measurement_script_sha256": "ad33fd77fb09065bd24f8276f0808eccd6299f1872854c29cfc72a44623bc936",
+  "benchmark_sha256": "fc41bbcd05bae916732639fde81264fc8464bd5d7d634517c7ef53753125c4c5",
+  "source_provenance_sha256": "710da3207360e2a9310c9185beb3a9f701695438a3a143849f4e85aeec9f310a"
+}

@@ -1,0 +1,15 @@
+{
+  "parent_count": 168,
+  "case_count": 168,
+  "sizes": [
+    16
+  ],
+  "seed": 42,
+  "input_sha256": "fb6977198ea8386c35956fa25065b7c2d3fef8b7205501b286936c99b9a733d6",
+  "generator_sha256": "0c0c94468399768566f623acd5d677a710302c8d4a1b1bde5e8e891b2cc54044",
+  "sampling": "up to 64 seeded starting tensors; first largest BFS neighborhood",
+  "omitted": [],
+  "boundary_policy": "retain every index in original output or outside selected tensor set",
+  "dtype_and_extents": "unchanged",
+  "target_policy": "restrict both original paths; no synthetic alternative"
+}

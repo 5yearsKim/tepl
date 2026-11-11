@@ -1,0 +1,9 @@
+category,cases,represented,nonidentical,verified,axis_fields,axis_positions,positions_per_rule_median,positions_per_rule_p95,positions_per_rule_min,positions_per_rule_max,contracting_positions,batching_positions,reduction_positions,permutation_positions,nonempty_axis_fields,empty_axis_fields,rhs_operations,rhs_contractions
+Graphical models,10,10,20,18,1118,898,48.0,70,41,70,164,448,20,266,572,546,308,270
+Tensor network language models,25,14,28,28,1708,1432,51.0,56,47,56,780,276,0,376,914,794,448,420
+Model counting,50,50,100,100,6108,8852,78.5,173,50,211,272,7092,10,1478,3198,2910,1608,1500
+Quantum computing,32,0,0,0,0,0,,,,,0,0,0,0,0,0,0,0
+Random,16,9,18,18,1112,904,43.0,70,34,70,496,96,14,298,556,556,302,270
+Structural,21,21,36,36,2196,2034,57.0,80,32,80,1420,0,0,614,1030,1166,576,540
+Weighted model counting,14,13,26,26,1586,1808,66.0,100,43,100,84,1348,0,376,826,760,416,390
+Total,168,117,228,226,13828,15928,63.0,137,32,211,3216,9260,44,3408,7096,6732,3658,3390

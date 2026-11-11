@@ -1,0 +1,6015 @@
+[
+  {
+    "id": "gm_1fas__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 172.69964299339335,
+        "compiled": true,
+        "rewrite_process_ms": 193.5359549970599,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 45,
+          "contracting_positions": 2,
+          "batching_positions": 30,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 172.81838100461755,
+        "compiled": true,
+        "rewrite_process_ms": 203.59815801202785,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 45,
+          "contracting_positions": 2,
+          "batching_positions": 30,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 104.9949540029047
+  },
+  {
+    "id": "gm_1kp6__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 174.81373899499886,
+        "compiled": true,
+        "rewrite_process_ms": 242.2469080047449,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 45,
+          "contracting_positions": 2,
+          "batching_positions": 30,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 193.1694140075706,
+        "compiled": true,
+        "rewrite_process_ms": 231.6843400039943,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 45,
+          "contracting_positions": 2,
+          "batching_positions": 30,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 102.21376799745485
+  },
+  {
+    "id": "gm_BN_13__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 188.49009499535896,
+        "compiled": true,
+        "rewrite_process_ms": 231.22311900078785,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 65,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 32,
+          "axis_positions": 70,
+          "contracting_positions": 8,
+          "batching_positions": 26,
+          "reduction_positions": 4,
+          "permutation_positions": 32,
+          "rhs_operations": 20,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 238.38764600805007,
+        "compiled": true,
+        "rewrite_process_ms": 266.3387829961721,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 65,
+          "nonempty_axis_fields": 37,
+          "empty_axis_fields": 28,
+          "axis_positions": 70,
+          "contracting_positions": 8,
+          "batching_positions": 26,
+          "reduction_positions": 4,
+          "permutation_positions": 32,
+          "rhs_operations": 20,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 113.355469002272
+  },
+  {
+    "id": "gm_Promedas_33__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 155.1735889952397,
+        "compiled": true,
+        "rewrite_process_ms": 235.4666650062427,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 41,
+          "contracting_positions": 24,
+          "batching_positions": 6,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 161.5002309990814,
+        "compiled": true,
+        "rewrite_process_ms": 240.42593999183737,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 41,
+          "contracting_positions": 24,
+          "batching_positions": 6,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 98.1041260092752
+  },
+  {
+    "id": "gm_mastermind_03_08_05-0000__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 174.33658700610977,
+        "compiled": true,
+        "rewrite_process_ms": 230.59330000251066,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 55,
+          "contracting_positions": 20,
+          "batching_positions": 18,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 196.86288699449506,
+        "compiled": true,
+        "rewrite_process_ms": 244.57256199093536,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 55,
+          "contracting_positions": 20,
+          "batching_positions": 18,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 117.80396700487472
+  },
+  {
+    "id": "gm_myciel5g_3_wcsp__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 177.03310199431144,
+        "compiled": true,
+        "rewrite_process_ms": 229.29786398890428,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 46,
+          "contracting_positions": 2,
+          "batching_positions": 28,
+          "reduction_positions": 0,
+          "permutation_positions": 16,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 167.24796099879313,
+        "compiled": true,
+        "rewrite_process_ms": 226.77527398627717,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 46,
+          "contracting_positions": 2,
+          "batching_positions": 28,
+          "reduction_positions": 0,
+          "permutation_positions": 16,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 119.27738800295629
+  },
+  {
+    "id": "gm_pedigree38__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "outside_core_extent_domain"
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "outside_core_extent_domain"
+      }
+    ],
+    "representation_ms": 121.60479500016663
+  },
+  {
+    "id": "gm_pedigree50__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 199.13759500195738,
+        "compiled": true,
+        "rewrite_process_ms": 287.3058240074897,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 67,
+          "nonempty_axis_fields": 39,
+          "empty_axis_fields": 28,
+          "axis_positions": 50,
+          "contracting_positions": 20,
+          "batching_positions": 20,
+          "reduction_positions": 6,
+          "permutation_positions": 4,
+          "rhs_operations": 22,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 172.9020990023855,
+        "compiled": true,
+        "rewrite_process_ms": 278.20497400534805,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 67,
+          "nonempty_axis_fields": 41,
+          "empty_axis_fields": 26,
+          "axis_positions": 50,
+          "contracting_positions": 20,
+          "batching_positions": 20,
+          "reduction_positions": 6,
+          "permutation_positions": 4,
+          "rhs_operations": 22,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 126.82843299990054
+  },
+  {
+    "id": "gm_queen5_5_3.wcsp__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 184.70202399475966,
+        "compiled": true,
+        "rewrite_process_ms": 231.18656700535212,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 48,
+          "contracting_positions": 2,
+          "batching_positions": 32,
+          "reduction_positions": 0,
+          "permutation_positions": 14,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 212.79248999780975,
+        "compiled": true,
+        "rewrite_process_ms": 227.91552200214937,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 48,
+          "contracting_positions": 2,
+          "batching_positions": 32,
+          "reduction_positions": 0,
+          "permutation_positions": 14,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 105.94069000217132
+  },
+  {
+    "id": "gm_queen5_5_4_wcsp__local_16",
+    "category": "Graphical models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 184.7056690021418,
+        "compiled": true,
+        "rewrite_process_ms": 220.55693299626,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 49,
+          "contracting_positions": 2,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 175.79559099976905,
+        "compiled": true,
+        "rewrite_process_ms": 230.79074900306296,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 49,
+          "contracting_positions": 2,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 117.50529399432708
+  },
+  {
+    "id": "lm_batch_likelihood_brackets_3_16d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 157.75165299419314,
+        "compiled": true,
+        "rewrite_process_ms": 237.26590600563213,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 48,
+          "contracting_positions": 18,
+          "batching_positions": 18,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 172.51221399055794,
+        "compiled": true,
+        "rewrite_process_ms": 214.53762699093204,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 48,
+          "contracting_positions": 18,
+          "batching_positions": 18,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 110.69823599245865
+  },
+  {
+    "id": "lm_batch_likelihood_brackets_4_12d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 175.5972350074444,
+        "compiled": true,
+        "rewrite_process_ms": 271.8968620029045,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 37,
+          "empty_axis_fields": 24,
+          "axis_positions": 52,
+          "contracting_positions": 22,
+          "batching_positions": 16,
+          "reduction_positions": 0,
+          "permutation_positions": 14,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 214.44910000718664,
+        "compiled": true,
+        "rewrite_process_ms": 237.77085200708825,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 39,
+          "empty_axis_fields": 22,
+          "axis_positions": 52,
+          "contracting_positions": 22,
+          "batching_positions": 16,
+          "reduction_positions": 0,
+          "permutation_positions": 14,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 148.9921839965973
+  },
+  {
+    "id": "lm_batch_likelihood_brackets_4_16d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 174.53057599777821,
+        "compiled": true,
+        "rewrite_process_ms": 236.16713199589867,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 51,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 205.31463000224903,
+        "compiled": true,
+        "rewrite_process_ms": 242.23661900032312,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 140.84337299573235
+  },
+  {
+    "id": "lm_batch_likelihood_brackets_4_4d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 233.6398509942228,
+        "compiled": true,
+        "rewrite_process_ms": 255.77230099588633,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 50,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 183.35847699199803,
+        "compiled": true,
+        "rewrite_process_ms": 277.20508999482263,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 50,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 119.59817499155179
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_3_12d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 171.11410498910118,
+        "compiled": true,
+        "rewrite_process_ms": 274.10764701198786,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 39,
+          "empty_axis_fields": 22,
+          "axis_positions": 50,
+          "contracting_positions": 38,
+          "batching_positions": 8,
+          "reduction_positions": 0,
+          "permutation_positions": 4,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 203.87321199814323,
+        "compiled": true,
+        "rewrite_process_ms": 248.53564900695346,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 39,
+          "empty_axis_fields": 22,
+          "axis_positions": 50,
+          "contracting_positions": 38,
+          "batching_positions": 8,
+          "reduction_positions": 0,
+          "permutation_positions": 4,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 140.19381999969482
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_12d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 191.09707200550474,
+        "compiled": true,
+        "rewrite_process_ms": 255.97155500145163,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 49,
+          "contracting_positions": 10,
+          "batching_positions": 20,
+          "reduction_positions": 0,
+          "permutation_positions": 19,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 171.503367004334,
+        "compiled": true,
+        "rewrite_process_ms": 278.57807200052775,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 49,
+          "contracting_positions": 10,
+          "batching_positions": 20,
+          "reduction_positions": 0,
+          "permutation_positions": 19,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 136.04421100171749
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_14c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_16c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_16d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 187.92192700493615,
+        "compiled": true,
+        "rewrite_process_ms": 242.8670060035074,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 55,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 199.02545800141525,
+        "compiled": true,
+        "rewrite_process_ms": 272.6167220098432,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 55,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 134.3514329928439
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_18c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_20c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_20d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 204.71890400222037,
+        "compiled": true,
+        "rewrite_process_ms": 242.45972400240134,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 47,
+          "contracting_positions": 0,
+          "batching_positions": 30,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 184.38279899419285,
+        "compiled": true,
+        "rewrite_process_ms": 292.6413679961115,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 47,
+          "contracting_positions": 0,
+          "batching_positions": 30,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 132.2823529917514
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_4d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 226.29519199836068,
+        "compiled": true,
+        "rewrite_process_ms": 240.9286510082893,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 52,
+          "contracting_positions": 36,
+          "batching_positions": 6,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 198.01672799803782,
+        "compiled": true,
+        "rewrite_process_ms": 238.89058599888813,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 52,
+          "contracting_positions": 36,
+          "batching_positions": 6,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 111.6007180098677
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_4_8d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 196.15326401253697,
+        "compiled": true,
+        "rewrite_process_ms": 266.5760420059087,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 47,
+          "contracting_positions": 0,
+          "batching_positions": 30,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 197.03826500335708,
+        "compiled": true,
+        "rewrite_process_ms": 248.00715901074,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 47,
+          "contracting_positions": 0,
+          "batching_positions": 30,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 124.41691999265458
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_5_14c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_5_16c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_5_16d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 219.04484400874935,
+        "compiled": true,
+        "rewrite_process_ms": 253.63534200005233,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 37,
+          "empty_axis_fields": 24,
+          "axis_positions": 54,
+          "contracting_positions": 34,
+          "batching_positions": 6,
+          "reduction_positions": 0,
+          "permutation_positions": 14,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 208.75954598886892,
+        "compiled": true,
+        "rewrite_process_ms": 244.81989500054624,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 37,
+          "empty_axis_fields": 24,
+          "axis_positions": 54,
+          "contracting_positions": 34,
+          "batching_positions": 6,
+          "reduction_positions": 0,
+          "permutation_positions": 14,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 134.02794799185358
+  },
+  {
+    "id": "lm_batch_likelihood_sentence_5_18c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_first_last_brackets_4_16d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 195.8584969979711,
+        "compiled": true,
+        "rewrite_process_ms": 288.1535909982631,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 179.32449698855635,
+        "compiled": true,
+        "rewrite_process_ms": 247.55918800656218,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 51,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 118.19487999309786
+  },
+  {
+    "id": "lm_first_last_sentence_4_14c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_first_last_sentence_4_16c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_first_last_sentence_4_16d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 239.0987109974958,
+        "compiled": true,
+        "rewrite_process_ms": 260.4704719997244,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 56,
+          "contracting_positions": 44,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 233.7206740048714,
+        "compiled": true,
+        "rewrite_process_ms": 296.81220100610517,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 56,
+          "contracting_positions": 44,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 145.94034799665678
+  },
+  {
+    "id": "lm_first_last_sentence_4_18c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_first_last_sentence_4_20c__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "lm_first_last_sentence_4_20d__local_16",
+    "category": "Tensor network language models",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 202.54763300181367,
+        "compiled": true,
+        "rewrite_process_ms": 262.8146979986923,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 54,
+          "contracting_positions": 36,
+          "batching_positions": 4,
+          "reduction_positions": 0,
+          "permutation_positions": 14,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 193.433153006481,
+        "compiled": true,
+        "rewrite_process_ms": 266.34388699312694,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 54,
+          "contracting_positions": 36,
+          "batching_positions": 4,
+          "reduction_positions": 0,
+          "permutation_positions": 14,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 109.34983000333887
+  },
+  {
+    "id": "mc_2020_017__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 235.64549699949566,
+        "compiled": true,
+        "rewrite_process_ms": 226.53334100323264,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 91,
+          "contracting_positions": 0,
+          "batching_positions": 82,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 178.12101999879815,
+        "compiled": true,
+        "rewrite_process_ms": 240.8082479960285,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 91,
+          "contracting_positions": 0,
+          "batching_positions": 82,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 129.85123899125028
+  },
+  {
+    "id": "mc_2020_062__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 202.02004900784232,
+        "compiled": true,
+        "rewrite_process_ms": 300.23151899513323,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 91,
+          "contracting_positions": 0,
+          "batching_positions": 82,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 205.3841650049435,
+        "compiled": true,
+        "rewrite_process_ms": 316.18896398867946,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 91,
+          "contracting_positions": 0,
+          "batching_positions": 82,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 124.72844400326721
+  },
+  {
+    "id": "mc_2020_082__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 203.41285000904463,
+        "compiled": true,
+        "rewrite_process_ms": 289.3301019939827,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 137,
+          "contracting_positions": 0,
+          "batching_positions": 118,
+          "reduction_positions": 0,
+          "permutation_positions": 19,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 211.81822699145414,
+        "compiled": true,
+        "rewrite_process_ms": 261.49470900418237,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 137,
+          "contracting_positions": 0,
+          "batching_positions": 118,
+          "reduction_positions": 0,
+          "permutation_positions": 19,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 134.98309699934907
+  },
+  {
+    "id": "mc_2020_175__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 208.59822900092695,
+        "compiled": true,
+        "rewrite_process_ms": 260.6586339970818,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 92,
+          "contracting_positions": 4,
+          "batching_positions": 78,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 197.63988199701998,
+        "compiled": true,
+        "rewrite_process_ms": 293.527271001949,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 92,
+          "contracting_positions": 4,
+          "batching_positions": 78,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 116.61459499737248
+  },
+  {
+    "id": "mc_2020_arjun_042__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 215.65339199150912,
+        "compiled": true,
+        "rewrite_process_ms": 288.9927020005416,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 173,
+          "contracting_positions": 0,
+          "batching_positions": 146,
+          "reduction_positions": 0,
+          "permutation_positions": 27,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 214.2500519985333,
+        "compiled": true,
+        "rewrite_process_ms": 322.64097400184255,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 173,
+          "contracting_positions": 0,
+          "batching_positions": 146,
+          "reduction_positions": 0,
+          "permutation_positions": 27,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 147.20575799583457
+  },
+  {
+    "id": "mc_2020_arjun_046__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 194.00481700722594,
+        "compiled": true,
+        "rewrite_process_ms": 255.32946999010164,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 131,
+          "contracting_positions": 0,
+          "batching_positions": 110,
+          "reduction_positions": 0,
+          "permutation_positions": 21,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 239.50911599968094,
+        "compiled": true,
+        "rewrite_process_ms": 330.80640800471883,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 131,
+          "contracting_positions": 0,
+          "batching_positions": 110,
+          "reduction_positions": 0,
+          "permutation_positions": 21,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 132.30942501104437
+  },
+  {
+    "id": "mc_2020_arjun_057__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 212.91753200057428,
+        "compiled": true,
+        "rewrite_process_ms": 271.52431500144303,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 141,
+          "contracting_positions": 0,
+          "batching_positions": 114,
+          "reduction_positions": 0,
+          "permutation_positions": 27,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 208.93028899445198,
+        "compiled": true,
+        "rewrite_process_ms": 306.4837090059882,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 141,
+          "contracting_positions": 0,
+          "batching_positions": 114,
+          "reduction_positions": 0,
+          "permutation_positions": 27,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 142.56739200209267
+  },
+  {
+    "id": "mc_2020_arjun_061__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 237.49916499946266,
+        "compiled": true,
+        "rewrite_process_ms": 250.85708900587633,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 106,
+          "contracting_positions": 2,
+          "batching_positions": 84,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 236.44220699497964,
+        "compiled": true,
+        "rewrite_process_ms": 294.34038601175416,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 106,
+          "contracting_positions": 2,
+          "batching_positions": 84,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 134.56932400004007
+  },
+  {
+    "id": "mc_2020_arjun_102__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 218.4486710029887,
+        "compiled": true,
+        "rewrite_process_ms": 269.87806499528233,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 139,
+          "contracting_positions": 2,
+          "batching_positions": 118,
+          "reduction_positions": 0,
+          "permutation_positions": 19,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 220.86100399610586,
+        "compiled": true,
+        "rewrite_process_ms": 282.58475399343297,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 139,
+          "contracting_positions": 2,
+          "batching_positions": 118,
+          "reduction_positions": 0,
+          "permutation_positions": 19,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 137.89738299965393
+  },
+  {
+    "id": "mc_2020_arjun_115__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 231.97165099554695,
+        "compiled": true,
+        "rewrite_process_ms": 344.3175979919033,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 200,
+          "contracting_positions": 0,
+          "batching_positions": 164,
+          "reduction_positions": 0,
+          "permutation_positions": 36,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 262.72341299045365,
+        "compiled": true,
+        "rewrite_process_ms": 419.8615720088128,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 200,
+          "contracting_positions": 0,
+          "batching_positions": 164,
+          "reduction_positions": 0,
+          "permutation_positions": 36,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 149.50407099968288
+  },
+  {
+    "id": "mc_2021_027__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 215.16313499887474,
+        "compiled": true,
+        "rewrite_process_ms": 241.8998159992043,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 76,
+          "contracting_positions": 4,
+          "batching_positions": 52,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 236.03971299598925,
+        "compiled": true,
+        "rewrite_process_ms": 242.84159200033173,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 76,
+          "contracting_positions": 4,
+          "batching_positions": 52,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 169.3997649999801
+  },
+  {
+    "id": "mc_2021_036__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 173.19757500081323,
+        "compiled": true,
+        "rewrite_process_ms": 314.91816400375683,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 66,
+          "contracting_positions": 2,
+          "batching_positions": 52,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 175.05480299587362,
+        "compiled": true,
+        "rewrite_process_ms": 280.5333299911581,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 66,
+          "contracting_positions": 2,
+          "batching_positions": 52,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 140.20432099641766
+  },
+  {
+    "id": "mc_2021_065__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 219.08328200515825,
+        "compiled": true,
+        "rewrite_process_ms": 283.1584759987891,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 71,
+          "contracting_positions": 6,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 217.52228900732007,
+        "compiled": true,
+        "rewrite_process_ms": 334.46869598992635,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 71,
+          "contracting_positions": 6,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 159.4456050079316
+  },
+  {
+    "id": "mc_2021_074__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 243.11477100127377,
+        "compiled": true,
+        "rewrite_process_ms": 239.93673699442297,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 118,
+          "contracting_positions": 0,
+          "batching_positions": 108,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 227.71232698869426,
+        "compiled": true,
+        "rewrite_process_ms": 326.6918020090088,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 118,
+          "contracting_positions": 0,
+          "batching_positions": 108,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 152.60692799347453
+  },
+  {
+    "id": "mc_2021_075__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 205.67717899393756,
+        "compiled": true,
+        "rewrite_process_ms": 349.50979000132065,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 70,
+          "contracting_positions": 6,
+          "batching_positions": 46,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 201.67034200858325,
+        "compiled": true,
+        "rewrite_process_ms": 237.8822729951935,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 70,
+          "contracting_positions": 6,
+          "batching_positions": 46,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 135.9567729959963
+  },
+  {
+    "id": "mc_2021_arjun_007__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 211.61223298986442,
+        "compiled": true,
+        "rewrite_process_ms": 280.4043609939981,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 96,
+          "contracting_positions": 0,
+          "batching_positions": 78,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 218.50913000525907,
+        "compiled": true,
+        "rewrite_process_ms": 307.13504600862507,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 96,
+          "contracting_positions": 0,
+          "batching_positions": 78,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 140.1835110009415
+  },
+  {
+    "id": "mc_2021_arjun_031__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 262.161828999524,
+        "compiled": true,
+        "rewrite_process_ms": 327.90742098586634,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 103,
+          "contracting_positions": 0,
+          "batching_positions": 90,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 251.5516849962296,
+        "compiled": true,
+        "rewrite_process_ms": 270.97346099617425,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 103,
+          "contracting_positions": 0,
+          "batching_positions": 90,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 148.60380100435577
+  },
+  {
+    "id": "mc_2021_arjun_171__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 209.2278039926896,
+        "compiled": true,
+        "rewrite_process_ms": 354.8998619953636,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 95,
+          "contracting_positions": 2,
+          "batching_positions": 76,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 216.81340401119087,
+        "compiled": true,
+        "rewrite_process_ms": 299.1567769931862,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 95,
+          "contracting_positions": 2,
+          "batching_positions": 76,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 135.90573699912056
+  },
+  {
+    "id": "mc_2021_arjun_179__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 294.15605899703223,
+        "compiled": true,
+        "rewrite_process_ms": 365.94704899471253,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 82,
+          "contracting_positions": 0,
+          "batching_positions": 60,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 245.83051000081468,
+        "compiled": true,
+        "rewrite_process_ms": 281.52209099789616,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 82,
+          "contracting_positions": 0,
+          "batching_positions": 60,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 165.17041400948074
+  },
+  {
+    "id": "mc_2022_025__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 227.09102199587505,
+        "compiled": true,
+        "rewrite_process_ms": 246.44780899689067,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 62,
+          "nonempty_axis_fields": 32,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 0,
+          "batching_positions": 38,
+          "reduction_positions": 1,
+          "permutation_positions": 12,
+          "rhs_operations": 17,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 244.48545700579416,
+        "compiled": true,
+        "rewrite_process_ms": 233.8355770043563,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 62,
+          "nonempty_axis_fields": 32,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 0,
+          "batching_positions": 38,
+          "reduction_positions": 1,
+          "permutation_positions": 12,
+          "rhs_operations": 17,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 146.7327880091034
+  },
+  {
+    "id": "mc_2022_029__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 202.51718600047752,
+        "compiled": true,
+        "rewrite_process_ms": 376.4538260002155,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 63,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 0,
+          "batching_positions": 38,
+          "reduction_positions": 2,
+          "permutation_positions": 11,
+          "rhs_operations": 18,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 237.5307390029775,
+        "compiled": true,
+        "rewrite_process_ms": 270.6724620074965,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 63,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 0,
+          "batching_positions": 38,
+          "reduction_positions": 2,
+          "permutation_positions": 11,
+          "rhs_operations": 18,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 153.2745220029028
+  },
+  {
+    "id": "mc_2022_079__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 186.66814800235443,
+        "compiled": true,
+        "rewrite_process_ms": 351.3518700056011,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 71,
+          "contracting_positions": 4,
+          "batching_positions": 58,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 202.7966430032393,
+        "compiled": true,
+        "rewrite_process_ms": 233.72160800499842,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 71,
+          "contracting_positions": 4,
+          "batching_positions": 58,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 128.2378339965362
+  },
+  {
+    "id": "mc_2022_085__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 249.7040040034335,
+        "compiled": true,
+        "rewrite_process_ms": 293.99889400519896,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 87,
+          "contracting_positions": 0,
+          "batching_positions": 78,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 229.69080500479322,
+        "compiled": true,
+        "rewrite_process_ms": 280.9270059951814,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 87,
+          "contracting_positions": 0,
+          "batching_positions": 78,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 139.15106900094543
+  },
+  {
+    "id": "mc_2022_087__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 228.8644420041237,
+        "compiled": true,
+        "rewrite_process_ms": 258.2006220036419,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 70,
+          "contracting_positions": 4,
+          "batching_positions": 58,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 221.0024599917233,
+        "compiled": true,
+        "rewrite_process_ms": 246.68815999757499,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 70,
+          "contracting_positions": 4,
+          "batching_positions": 58,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 122.10654899536166
+  },
+  {
+    "id": "mc_2022_167__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 252.60541100578848,
+        "compiled": true,
+        "rewrite_process_ms": 312.8621140058385,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 50,
+          "contracting_positions": 2,
+          "batching_positions": 36,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 235.27591599849984,
+        "compiled": true,
+        "rewrite_process_ms": 257.4070499977097,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 50,
+          "contracting_positions": 2,
+          "batching_positions": 36,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 134.6851699927356
+  },
+  {
+    "id": "mc_2022_arjun_037__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 214.95439899445046,
+        "compiled": true,
+        "rewrite_process_ms": 308.4976340032881,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 81,
+          "contracting_positions": 8,
+          "batching_positions": 62,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 227.24742599530146,
+        "compiled": true,
+        "rewrite_process_ms": 294.73337699892,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 37,
+          "empty_axis_fields": 24,
+          "axis_positions": 81,
+          "contracting_positions": 8,
+          "batching_positions": 62,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 147.62907300610095
+  },
+  {
+    "id": "mc_2022_arjun_069__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 300.02416799834464,
+        "compiled": true,
+        "rewrite_process_ms": 304.9671430053422,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 62,
+          "nonempty_axis_fields": 38,
+          "empty_axis_fields": 24,
+          "axis_positions": 96,
+          "contracting_positions": 8,
+          "batching_positions": 70,
+          "reduction_positions": 2,
+          "permutation_positions": 16,
+          "rhs_operations": 17,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 257.61674500245135,
+        "compiled": true,
+        "rewrite_process_ms": 366.3547420001123,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 62,
+          "nonempty_axis_fields": 38,
+          "empty_axis_fields": 24,
+          "axis_positions": 96,
+          "contracting_positions": 8,
+          "batching_positions": 70,
+          "reduction_positions": 2,
+          "permutation_positions": 16,
+          "rhs_operations": 17,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 147.66867499565706
+  },
+  {
+    "id": "mc_2023_002__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 233.2053550053388,
+        "compiled": true,
+        "rewrite_process_ms": 317.498127988074,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 53,
+          "contracting_positions": 6,
+          "batching_positions": 40,
+          "reduction_positions": 0,
+          "permutation_positions": 7,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 288.47888599557336,
+        "compiled": true,
+        "rewrite_process_ms": 323.65650399879087,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 53,
+          "contracting_positions": 6,
+          "batching_positions": 40,
+          "reduction_positions": 0,
+          "permutation_positions": 7,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 138.69555699056946
+  },
+  {
+    "id": "mc_2023_075__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 252.0754299912369,
+        "compiled": true,
+        "rewrite_process_ms": 240.28585001360625,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 76,
+          "contracting_positions": 2,
+          "batching_positions": 64,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 217.72527298890054,
+        "compiled": true,
+        "rewrite_process_ms": 291.6569829976652,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 76,
+          "contracting_positions": 2,
+          "batching_positions": 64,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 142.27667500381358
+  },
+  {
+    "id": "mc_2023_151__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 232.02228000445757,
+        "compiled": true,
+        "rewrite_process_ms": 281.5108210052131,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 63,
+          "contracting_positions": 4,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 242.33884100976866,
+        "compiled": true,
+        "rewrite_process_ms": 348.73336099553853,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 63,
+          "contracting_positions": 4,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 139.47997099603526
+  },
+  {
+    "id": "mc_2023_186__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 291.971188999014,
+        "compiled": true,
+        "rewrite_process_ms": 287.311605992727,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 93,
+          "contracting_positions": 2,
+          "batching_positions": 80,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 214.41099799994845,
+        "compiled": true,
+        "rewrite_process_ms": 299.06686100002844,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 93,
+          "contracting_positions": 2,
+          "batching_positions": 80,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 154.773069996736
+  },
+  {
+    "id": "mc_2023_188__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 217.44867699453607,
+        "compiled": true,
+        "rewrite_process_ms": 287.4051520047942,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 64,
+          "contracting_positions": 6,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 199.63648199336603,
+        "compiled": true,
+        "rewrite_process_ms": 251.18098400707822,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 64,
+          "contracting_positions": 6,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 154.86360399518162
+  },
+  {
+    "id": "mc_2023_199__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 205.79057501163334,
+        "compiled": true,
+        "rewrite_process_ms": 291.4516580058262,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 116,
+          "contracting_positions": 0,
+          "batching_positions": 104,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 211.26323701173533,
+        "compiled": true,
+        "rewrite_process_ms": 277.21479699539486,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 116,
+          "contracting_positions": 0,
+          "batching_positions": 104,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 201.67460999800824
+  },
+  {
+    "id": "mc_2023_arjun_071__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 259.0666489995783,
+        "compiled": true,
+        "rewrite_process_ms": 342.91448700241745,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 211,
+          "contracting_positions": 0,
+          "batching_positions": 182,
+          "reduction_positions": 0,
+          "permutation_positions": 29,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 409.6541379985865,
+        "compiled": true,
+        "rewrite_process_ms": 338.14975299173966,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 211,
+          "contracting_positions": 0,
+          "batching_positions": 182,
+          "reduction_positions": 0,
+          "permutation_positions": 29,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 226.57391500251833
+  },
+  {
+    "id": "mc_2023_arjun_117__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 268.9575410040561,
+        "compiled": true,
+        "rewrite_process_ms": 351.7413499939721,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 86,
+          "contracting_positions": 0,
+          "batching_positions": 70,
+          "reduction_positions": 0,
+          "permutation_positions": 16,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 238.3661669882713,
+        "compiled": true,
+        "rewrite_process_ms": 435.80687600478996,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 86,
+          "contracting_positions": 0,
+          "batching_positions": 70,
+          "reduction_positions": 0,
+          "permutation_positions": 16,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 141.95219399698544
+  },
+  {
+    "id": "mc_2023_arjun_133__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 219.9236070009647,
+        "compiled": true,
+        "rewrite_process_ms": 378.2972500048345,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 84,
+          "contracting_positions": 4,
+          "batching_positions": 70,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 197.66240500030108,
+        "compiled": true,
+        "rewrite_process_ms": 245.4732839978533,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 84,
+          "contracting_positions": 4,
+          "batching_positions": 70,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 155.95013499842025
+  },
+  {
+    "id": "mc_rw_32.sk_4_38__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 196.33800900192,
+        "compiled": true,
+        "rewrite_process_ms": 277.07202300371137,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 60,
+          "contracting_positions": 2,
+          "batching_positions": 46,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 277.3745829908876,
+        "compiled": true,
+        "rewrite_process_ms": 314.0529600059381,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 60,
+          "contracting_positions": 2,
+          "batching_positions": 46,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 138.58681499550585
+  },
+  {
+    "id": "mc_rw_blasted_TR_b14_1_linear__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 232.3213360068621,
+        "compiled": true,
+        "rewrite_process_ms": 311.7809379909886,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 0,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 286.3119760004338,
+        "compiled": true,
+        "rewrite_process_ms": 245.71283299883362,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 0,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 17,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 143.3404200070072
+  },
+  {
+    "id": "mc_rw_blasted_case1_b14_even3__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 250.81874799798243,
+        "compiled": true,
+        "rewrite_process_ms": 262.05224500154145,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 65,
+          "contracting_positions": 8,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 228.8206539960811,
+        "compiled": true,
+        "rewrite_process_ms": 279.4841839931905,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 65,
+          "contracting_positions": 8,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 132.50365400745068
+  },
+  {
+    "id": "mc_rw_blasted_case3__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 199.85801799339242,
+        "compiled": true,
+        "rewrite_process_ms": 284.1810539975995,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 76,
+          "contracting_positions": 2,
+          "batching_positions": 56,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 210.13544000743423,
+        "compiled": true,
+        "rewrite_process_ms": 331.41290600178763,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 76,
+          "contracting_positions": 2,
+          "batching_positions": 56,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 173.5757729911711
+  },
+  {
+    "id": "mc_rw_blasted_squaring12__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 195.12413299526088,
+        "compiled": true,
+        "rewrite_process_ms": 284.63758699945174,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 86,
+          "contracting_positions": 0,
+          "batching_positions": 76,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 277.1366420056438,
+        "compiled": true,
+        "rewrite_process_ms": 320.9310550009832,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 86,
+          "contracting_positions": 0,
+          "batching_positions": 76,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 192.92471700464375
+  },
+  {
+    "id": "mc_rw_blockmap_05_01.net__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 190.8154260017909,
+        "compiled": true,
+        "rewrite_process_ms": 295.91930999595206,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 52,
+          "contracting_positions": 10,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 243.81616899336223,
+        "compiled": true,
+        "rewrite_process_ms": 288.9150189876091,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 52,
+          "contracting_positions": 10,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 154.14205400156789
+  },
+  {
+    "id": "mc_rw_c1908.isc__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 229.99595198780298,
+        "compiled": true,
+        "rewrite_process_ms": 275.2375679992838,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 60,
+          "contracting_positions": 8,
+          "batching_positions": 42,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 192.96996800403576,
+        "compiled": true,
+        "rewrite_process_ms": 234.38978599733673,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 60,
+          "contracting_positions": 8,
+          "batching_positions": 42,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 151.78596500481945
+  },
+  {
+    "id": "mc_rw_c7552.isc__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 207.4124080099864,
+        "compiled": true,
+        "rewrite_process_ms": 290.7885889871977,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 66,
+          "contracting_positions": 4,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 244.13228400226217,
+        "compiled": true,
+        "rewrite_process_ms": 349.16361000796314,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 66,
+          "contracting_positions": 4,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 154.3849669978954
+  },
+  {
+    "id": "mc_rw_log-1__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 206.1779690120602,
+        "compiled": true,
+        "rewrite_process_ms": 269.3788350006798,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 58,
+          "contracting_positions": 2,
+          "batching_positions": 44,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 244.20109699713066,
+        "compiled": true,
+        "rewrite_process_ms": 270.53862500179093,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 58,
+          "contracting_positions": 2,
+          "batching_positions": 44,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 178.3850630017696
+  },
+  {
+    "id": "mc_rw_or-70-20-4__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 315.1340169861214,
+        "compiled": true,
+        "rewrite_process_ms": 252.02137901214883,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 74,
+          "contracting_positions": 4,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 224.7412980068475,
+        "compiled": true,
+        "rewrite_process_ms": 308.7456969951745,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 74,
+          "contracting_positions": 4,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 149.02600699861068
+  },
+  {
+    "id": "mc_rw_or-70-5-6-UC-10__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 296.70870800327975,
+        "compiled": true,
+        "rewrite_process_ms": 316.05567000224255,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 73,
+          "contracting_positions": 6,
+          "batching_positions": 46,
+          "reduction_positions": 0,
+          "permutation_positions": 21,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 311.6154529998312,
+        "compiled": true,
+        "rewrite_process_ms": 410.72265700495336,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 73,
+          "contracting_positions": 6,
+          "batching_positions": 46,
+          "reduction_positions": 0,
+          "permutation_positions": 21,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 163.93188400252257
+  },
+  {
+    "id": "mc_rw_s510.bench__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 210.92746400972828,
+        "compiled": true,
+        "rewrite_process_ms": 396.2624100095127,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 61,
+          "contracting_positions": 4,
+          "batching_positions": 46,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 209.99879400187638,
+        "compiled": true,
+        "rewrite_process_ms": 265.95104999432806,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 61,
+          "contracting_positions": 4,
+          "batching_positions": 46,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 148.0925489886431
+  },
+  {
+    "id": "mc_rw_s510_15_7__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 206.16289600729942,
+        "compiled": true,
+        "rewrite_process_ms": 297.5189370044973,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 59,
+          "contracting_positions": 4,
+          "batching_positions": 44,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 204.65715099999215,
+        "compiled": true,
+        "rewrite_process_ms": 279.1148959950078,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 59,
+          "contracting_positions": 4,
+          "batching_positions": 44,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 139.05631899251603
+  },
+  {
+    "id": "mc_rw_sat-grid-pbl-0020__local_16",
+    "category": "Model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 242.8602489962941,
+        "compiled": true,
+        "rewrite_process_ms": 315.5324580002343,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 104,
+          "contracting_positions": 4,
+          "batching_positions": 80,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 238.29183899215423,
+        "compiled": true,
+        "rewrite_process_ms": 406.6656679933658,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 104,
+          "contracting_positions": 4,
+          "batching_positions": 80,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 145.83120100724045
+  },
+  {
+    "id": "qc_circuit_n47_m14_s0_e0_pEFGH__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuit_n49_m14_s9_e6_pEFGH_simplified__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuit_n53_m12_s2_e8_pABCDCDAB_simplified__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuit_n53_m20_s5_e22_pABCDCDAB__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuit_patch_n53_m16_s10_e28_pABCDCDAB__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuit_patch_n53_m16_s19_e28_pABCDCDAB_simplified__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuits-1__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuits-14__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuits-18__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuits-2__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuits-35__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuits-42__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuits-7__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_circuits-8__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_maxcut_n18_r17_p100__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_maxcut_n24_r20_p10__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_maxcut_n25_r4_p4__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_maxcut_n27_r6_p5__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_maxcut_n28_r3_p3__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_maxcut_n29_r4_p10__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_qft_27__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_qft_28__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_qft_30__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_rand_google53_25_50__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_rand_google53_26_15__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_rand_google53_27_20__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_rand_supremacy2d_1_12_400__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_rand_supremacy2d_4_4_100__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_rand_supremacy2d_7_2_800__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_variational_29__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_variational_30__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "qc_variational_31__local_16",
+    "category": "Quantum computing",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "unsupported_dtype"
+  },
+  {
+    "id": "rnd_mixed_01__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 222.03726900625043,
+        "compiled": true,
+        "rewrite_process_ms": 334.64304701192304,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 62,
+          "nonempty_axis_fields": 34,
+          "empty_axis_fields": 28,
+          "axis_positions": 70,
+          "contracting_positions": 8,
+          "batching_positions": 32,
+          "reduction_positions": 1,
+          "permutation_positions": 29,
+          "rhs_operations": 17,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 256.67784600227606,
+        "compiled": true,
+        "rewrite_process_ms": 305.3318800084526,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 62,
+          "nonempty_axis_fields": 32,
+          "empty_axis_fields": 30,
+          "axis_positions": 70,
+          "contracting_positions": 8,
+          "batching_positions": 32,
+          "reduction_positions": 1,
+          "permutation_positions": 29,
+          "rhs_operations": 17,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 173.2921740040183
+  },
+  {
+    "id": "rnd_mixed_02__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "trace_or_diagonal"
+  },
+  {
+    "id": "rnd_mixed_03__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 261.4662709966069,
+        "compiled": true,
+        "rewrite_process_ms": 389.24473299994133,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 67,
+          "nonempty_axis_fields": 37,
+          "empty_axis_fields": 30,
+          "axis_positions": 63,
+          "contracting_positions": 20,
+          "batching_positions": 16,
+          "reduction_positions": 6,
+          "permutation_positions": 21,
+          "rhs_operations": 22,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 271.1195209994912,
+        "compiled": true,
+        "rewrite_process_ms": 450.8291520032799,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 67,
+          "nonempty_axis_fields": 39,
+          "empty_axis_fields": 28,
+          "axis_positions": 63,
+          "contracting_positions": 20,
+          "batching_positions": 16,
+          "reduction_positions": 6,
+          "permutation_positions": 21,
+          "rhs_operations": 22,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 201.22227199317422
+  },
+  {
+    "id": "rnd_mixed_04__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "trace_or_diagonal"
+  },
+  {
+    "id": "rnd_mixed_05__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 251.04548899980728,
+        "compiled": true,
+        "rewrite_process_ms": 290.75792399817146,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 38,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 293.64122200058773,
+        "compiled": true,
+        "rewrite_process_ms": 272.2193499939749,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 38,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 178.58338099904358
+  },
+  {
+    "id": "rnd_mixed_06__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "trace_or_diagonal"
+  },
+  {
+    "id": "rnd_mixed_07__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "trace_or_diagonal"
+  },
+  {
+    "id": "rnd_mixed_08__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "trace_or_diagonal"
+  },
+  {
+    "id": "rnd_mixed_09__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 198.29438700980972,
+        "compiled": true,
+        "rewrite_process_ms": 309.46848398889415,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 43,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 229.97323400340974,
+        "compiled": true,
+        "rewrite_process_ms": 318.0655620089965,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 43,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 191.2463549961103
+  },
+  {
+    "id": "rnd_mixed_10__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 243.51989501155913,
+        "compiled": true,
+        "rewrite_process_ms": 302.6789740106324,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 38,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 185.98224299785215,
+        "compiled": true,
+        "rewrite_process_ms": 466.7583129921695,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 38,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 150.53906000684947
+  },
+  {
+    "id": "rnd_mixed_11__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "trace_or_diagonal"
+  },
+  {
+    "id": "rnd_mixed_12__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "trace_or_diagonal"
+  },
+  {
+    "id": "rnd_oe_01__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 306.46476200490724,
+        "compiled": true,
+        "rewrite_process_ms": 421.66015999100637,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 68,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 30,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 221.14176000468433,
+        "compiled": true,
+        "rewrite_process_ms": 343.94517399778124,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 25,
+          "empty_axis_fields": 36,
+          "axis_positions": 68,
+          "contracting_positions": 38,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 30,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 165.4136729921447
+  },
+  {
+    "id": "rnd_oe_02__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 234.0893189975759,
+        "compiled": true,
+        "rewrite_process_ms": 321.55576099467,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 57,
+          "contracting_positions": 32,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 25,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 261.2621869920986,
+        "compiled": true,
+        "rewrite_process_ms": 332.79047399992123,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 25,
+          "empty_axis_fields": 36,
+          "axis_positions": 57,
+          "contracting_positions": 32,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 25,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 162.28044300805777
+  },
+  {
+    "id": "rnd_oe_03__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 246.58011800784152,
+        "compiled": true,
+        "rewrite_process_ms": 317.04775999241974,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 34,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 4,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 219.9006620066939,
+        "compiled": true,
+        "rewrite_process_ms": 267.12861099804286,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 34,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 4,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 145.41523301159032
+  },
+  {
+    "id": "rnd_oe_04__local_16",
+    "category": "Random",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 218.6121029953938,
+        "compiled": true,
+        "rewrite_process_ms": 294.6053890045732,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 41,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 259.36440100485925,
+        "compiled": true,
+        "rewrite_process_ms": 295.5250619997969,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 41,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 11,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 148.50194100290537
+  },
+  {
+    "id": "str_ctg_lattice_01__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 280.99213499808684,
+        "compiled": true,
+        "rewrite_process_ms": 397.8117529914016,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 62,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 229.9916710035177,
+        "compiled": true,
+        "rewrite_process_ms": 333.1565840053372,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 62,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 200.81385699450038
+  },
+  {
+    "id": "str_ctg_lattice_02__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 227.79520800395403,
+        "compiled": true,
+        "rewrite_process_ms": 319.4404630048666,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 63,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 21,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 241.0983839945402,
+        "compiled": true,
+        "rewrite_process_ms": 407.3826929961797,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 63,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 21,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 149.99396399070974
+  },
+  {
+    "id": "str_ctg_lattice_03__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 274.84154200647026,
+        "compiled": true,
+        "rewrite_process_ms": 396.56163500330877,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 63,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 21,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 205.67795100214425,
+        "compiled": true,
+        "rewrite_process_ms": 273.1794059945969,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 63,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 21,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 161.0688959917752
+  },
+  {
+    "id": "str_ctg_lattice_04__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 226.1455800035037,
+        "compiled": true,
+        "rewrite_process_ms": 310.26486901100725,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 64,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 231.31591100536752,
+        "compiled": true,
+        "rewrite_process_ms": 285.55486899858806,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 64,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 130.43736999679822
+  },
+  {
+    "id": "str_ctg_regular_01__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 302.69388799206354,
+        "compiled": true,
+        "rewrite_process_ms": 375.3878139978042,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 80,
+          "contracting_positions": 50,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 30,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 246.76202599948738,
+        "compiled": true,
+        "rewrite_process_ms": 346.1609329970088,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 80,
+          "contracting_positions": 50,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 30,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 188.6620659934124
+  },
+  {
+    "id": "str_ctg_regular_02__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 249.5036760083167,
+        "compiled": true,
+        "rewrite_process_ms": 272.6492889923975,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 64,
+          "contracting_positions": 34,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 30,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 315.5233319994295,
+        "compiled": true,
+        "rewrite_process_ms": 273.98107999761123,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 25,
+          "empty_axis_fields": 36,
+          "axis_positions": 64,
+          "contracting_positions": 34,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 30,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 148.91053600877058
+  },
+  {
+    "id": "str_ctg_regular_03__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 262.65368099848274,
+        "compiled": true,
+        "rewrite_process_ms": 313.12099199567456,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 48,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 228.8960349978879,
+        "compiled": true,
+        "rewrite_process_ms": 318.09305600472726,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 25,
+          "empty_axis_fields": 36,
+          "axis_positions": 48,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 204.04215599410236
+  },
+  {
+    "id": "str_ctg_regular_04__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 348.7529900012305,
+        "compiled": true,
+        "rewrite_process_ms": 398.3345899905544,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 48,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 312.189390999265,
+        "compiled": true,
+        "rewrite_process_ms": 316.45520200254396,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 48,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 18,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 157.74788899580017
+  },
+  {
+    "id": "str_matrix_chain_multiplication_100__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "identical_structure"
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "identical_structure"
+      }
+    ],
+    "representation_ms": 188.30744399747346
+  },
+  {
+    "id": "str_matrix_chain_multiplication_1000__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 200.75036100752186,
+        "compiled": true,
+        "rewrite_process_ms": 375.15690599684604,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 32,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 2,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 263.32148000074085,
+        "compiled": true,
+        "rewrite_process_ms": 420.07432199898176,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 32,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 2,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 145.42456399067305
+  },
+  {
+    "id": "str_mps_varying_inner_product_200__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 203.79010899341665,
+        "compiled": true,
+        "rewrite_process_ms": 283.90916099306196,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 48,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 6,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 236.31774498790037,
+        "compiled": true,
+        "rewrite_process_ms": 317.510125998524,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 48,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 6,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 138.01181699091103
+  },
+  {
+    "id": "str_mps_varying_inner_product_2000__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 234.39765999501105,
+        "compiled": true,
+        "rewrite_process_ms": 305.79682800453156,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 48,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 6,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 209.52874899376184,
+        "compiled": true,
+        "rewrite_process_ms": 300.54227300570346,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 48,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 6,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 183.85331500030588
+  },
+  {
+    "id": "str_nw_ftps_open_28__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "identical_structure"
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "identical_structure"
+      }
+    ],
+    "representation_ms": 142.00251999136526
+  },
+  {
+    "id": "str_nw_ftps_open_30__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 273.8406939897686,
+        "compiled": true,
+        "rewrite_process_ms": 346.9638880051207,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 50,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 248.66800499148667,
+        "compiled": true,
+        "rewrite_process_ms": 327.9441649938235,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 50,
+          "contracting_positions": 30,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 20,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 195.80453800153919
+  },
+  {
+    "id": "str_nw_ftps_open_32__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "identical_structure"
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "identical_structure"
+      }
+    ],
+    "representation_ms": 147.7884980122326
+  },
+  {
+    "id": "str_nw_mera_closed_120__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 263.997998990817,
+        "compiled": true,
+        "rewrite_process_ms": 296.60158600017894,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 57,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 15,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 233.10933000175282,
+        "compiled": true,
+        "rewrite_process_ms": 339.7953410021728,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 57,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 15,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 178.04757099656854
+  },
+  {
+    "id": "str_nw_mera_closed_247__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 226.0956219979562,
+        "compiled": true,
+        "rewrite_process_ms": 471.83907200815156,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 48,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 6,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 204.9186340009328,
+        "compiled": true,
+        "rewrite_process_ms": 312.59200899512507,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 48,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 6,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 147.94425800209865
+  },
+  {
+    "id": "str_nw_mera_open_26__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 242.12981799792033,
+        "compiled": true,
+        "rewrite_process_ms": 382.24928799900226,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 259.812714997679,
+        "compiled": true,
+        "rewrite_process_ms": 418.44128699449357,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 51,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 9,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 207.21390598919243
+  },
+  {
+    "id": "str_nw_peps_closed_325__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 365.6543459946988,
+        "compiled": true,
+        "rewrite_process_ms": 316.1220619949745,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 64,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 303.1632729980629,
+        "compiled": true,
+        "rewrite_process_ms": 361.33311499725096,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 64,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 154.60514299047645
+  },
+  {
+    "id": "str_nw_peps_closed_333__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 234.96571299619973,
+        "compiled": true,
+        "rewrite_process_ms": 336.71172299364116,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 27,
+          "empty_axis_fields": 34,
+          "axis_positions": 57,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 15,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 250.0838130072225,
+        "compiled": true,
+        "rewrite_process_ms": 333.463226997992,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 57,
+          "contracting_positions": 42,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 15,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 196.0025790031068
+  },
+  {
+    "id": "str_nw_peps_open_30__local_16",
+    "category": "Structural",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 243.5486759932246,
+        "compiled": true,
+        "rewrite_process_ms": 330.05319599760696,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 70,
+          "contracting_positions": 44,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 26,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 284.99858400027733,
+        "compiled": true,
+        "rewrite_process_ms": 460.77549300389364,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 29,
+          "empty_axis_fields": 32,
+          "axis_positions": 70,
+          "contracting_positions": 44,
+          "batching_positions": 0,
+          "reduction_positions": 0,
+          "permutation_positions": 26,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 201.43148000352085
+  },
+  {
+    "id": "wmc_2021_061__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 220.02988199528772,
+        "compiled": true,
+        "rewrite_process_ms": 253.69369800318964,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 64,
+          "contracting_positions": 4,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 206.55534899560735,
+        "compiled": true,
+        "rewrite_process_ms": 293.90437800611835,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 64,
+          "contracting_positions": 4,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 137.77769599983003
+  },
+  {
+    "id": "wmc_2021_130__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 246.4677100069821,
+        "compiled": true,
+        "rewrite_process_ms": 308.27813599898946,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 100,
+          "contracting_positions": 0,
+          "batching_positions": 84,
+          "reduction_positions": 0,
+          "permutation_positions": 16,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 228.79436300718226,
+        "compiled": true,
+        "rewrite_process_ms": 304.7737549932208,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 100,
+          "contracting_positions": 0,
+          "batching_positions": 84,
+          "reduction_positions": 0,
+          "permutation_positions": 16,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 130.01191600051243
+  },
+  {
+    "id": "wmc_2021_145__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 201.46972801012453,
+        "compiled": true,
+        "rewrite_process_ms": 385.27696399251,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 66,
+          "contracting_positions": 4,
+          "batching_positions": 52,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 214.19615400373004,
+        "compiled": true,
+        "rewrite_process_ms": 245.6049040047219,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 66,
+          "contracting_positions": 4,
+          "batching_positions": 52,
+          "reduction_positions": 0,
+          "permutation_positions": 10,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 134.70954399963375
+  },
+  {
+    "id": "wmc_2021_183__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 240.49445799028035,
+        "compiled": true,
+        "rewrite_process_ms": 305.62726499920245,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 77,
+          "contracting_positions": 2,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 25,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 250.4786019999301,
+        "compiled": true,
+        "rewrite_process_ms": 323.0679139960557,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 77,
+          "contracting_positions": 2,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 25,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 131.37504599581007
+  },
+  {
+    "id": "wmc_2021_187__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 393.6567790078698,
+        "compiled": true,
+        "rewrite_process_ms": 486.0565359995235,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 79,
+          "contracting_positions": 0,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 29,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 313.6935960064875,
+        "compiled": true,
+        "rewrite_process_ms": 379.9104579957202,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 79,
+          "contracting_positions": 0,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 29,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 148.8827170105651
+  },
+  {
+    "id": "wmc_2022_004__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 262.07907099160366,
+        "compiled": true,
+        "rewrite_process_ms": 313.59113700455055,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 74,
+          "contracting_positions": 2,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 241.76066399377305,
+        "compiled": true,
+        "rewrite_process_ms": 367.00170699623413,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 74,
+          "contracting_positions": 2,
+          "batching_positions": 50,
+          "reduction_positions": 0,
+          "permutation_positions": 22,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 148.65895999537315
+  },
+  {
+    "id": "wmc_2022_038__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "unsupported",
+    "directions": [],
+    "reason": "trace_or_diagonal"
+  },
+  {
+    "id": "wmc_2022_051__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 233.9296040008776,
+        "compiled": true,
+        "rewrite_process_ms": 319.63444501161575,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 25,
+          "empty_axis_fields": 36,
+          "axis_positions": 62,
+          "contracting_positions": 4,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 24,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 236.35079499217682,
+        "compiled": true,
+        "rewrite_process_ms": 278.6141960095847,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 62,
+          "contracting_positions": 4,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 24,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 153.7984280003002
+  },
+  {
+    "id": "wmc_2022_060__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 224.86443500383757,
+        "compiled": true,
+        "rewrite_process_ms": 295.91914800403174,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 83,
+          "contracting_positions": 2,
+          "batching_positions": 74,
+          "reduction_positions": 0,
+          "permutation_positions": 7,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 235.05096300505102,
+        "compiled": true,
+        "rewrite_process_ms": 274.43917200434953,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 83,
+          "contracting_positions": 2,
+          "batching_positions": 74,
+          "reduction_positions": 0,
+          "permutation_positions": 7,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 162.5886929978151
+  },
+  {
+    "id": "wmc_2022_082__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 290.8723930013366,
+        "compiled": true,
+        "rewrite_process_ms": 295.1186440041056,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 43,
+          "contracting_positions": 4,
+          "batching_positions": 26,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 180.48363001435064,
+        "compiled": true,
+        "rewrite_process_ms": 261.54460800171364,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 43,
+          "contracting_positions": 4,
+          "batching_positions": 26,
+          "reduction_positions": 0,
+          "permutation_positions": 13,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 204.55473999027163
+  },
+  {
+    "id": "wmc_2023_035__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 210.16392100136727,
+        "compiled": true,
+        "rewrite_process_ms": 287.12291100237053,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 48,
+          "contracting_positions": 10,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 4,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 207.19374799227808,
+        "compiled": true,
+        "rewrite_process_ms": 283.23843200632837,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 37,
+          "empty_axis_fields": 24,
+          "axis_positions": 48,
+          "contracting_positions": 10,
+          "batching_positions": 34,
+          "reduction_positions": 0,
+          "permutation_positions": 4,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 175.5433729995275
+  },
+  {
+    "id": "wmc_2023_036__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 227.24247899896,
+        "compiled": true,
+        "rewrite_process_ms": 401.2746869993862,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 66,
+          "contracting_positions": 2,
+          "batching_positions": 52,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 222.29494999919552,
+        "compiled": true,
+        "rewrite_process_ms": 293.01881800347473,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 31,
+          "empty_axis_fields": 30,
+          "axis_positions": 66,
+          "contracting_positions": 2,
+          "batching_positions": 52,
+          "reduction_positions": 0,
+          "permutation_positions": 12,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 151.67757400195114
+  },
+  {
+    "id": "wmc_2023_141__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 249.273361012456,
+        "compiled": true,
+        "rewrite_process_ms": 392.801292007789,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 80,
+          "contracting_positions": 2,
+          "batching_positions": 70,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 212.52899199316744,
+        "compiled": true,
+        "rewrite_process_ms": 226.66446999937762,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 80,
+          "contracting_positions": 2,
+          "batching_positions": 70,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 126.43254100112244
+  },
+  {
+    "id": "wmc_2023_152__local_16",
+    "category": "Weighted model counting",
+    "tensors": 16,
+    "representation": "ok",
+    "directions": [
+      {
+        "direction": "opt_flops_to_opt_size",
+        "status": "verified",
+        "compile_ms": 251.20493999565952,
+        "compiled": true,
+        "rewrite_process_ms": 282.17642700474244,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 35,
+          "empty_axis_fields": 26,
+          "axis_positions": 62,
+          "contracting_positions": 6,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      },
+      {
+        "direction": "opt_size_to_opt_flops",
+        "status": "verified",
+        "compile_ms": 187.77567100187298,
+        "compiled": true,
+        "rewrite_process_ms": 236.7516770027578,
+        "applied": true,
+        "axis_inference": {
+          "axis_fields": 61,
+          "nonempty_axis_fields": 33,
+          "empty_axis_fields": 28,
+          "axis_positions": 62,
+          "contracting_positions": 6,
+          "batching_positions": 48,
+          "reduction_positions": 0,
+          "permutation_positions": 8,
+          "rhs_operations": 16,
+          "rhs_contractions": 15
+        }
+      }
+    ],
+    "representation_ms": 141.15149900317192
+  }
+]

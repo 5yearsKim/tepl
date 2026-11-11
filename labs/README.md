@@ -7,6 +7,7 @@ mathematical arguments and finite theorem checks are in
 
 | Lab | Purpose and status |
 | --- | --- |
+| [einsum_benchmark](einsum_benchmark/README.md) | 16-input Einsum contraction-path rewrites and inferred-axis measurements |
 | [rust-egg](rust-egg/README.md) | Maintained Rust/egg application with generated transpose rules |
 | [tutorial_cpp](tutorial_cpp/README.md) | Maintained C++20/egg-c CMake application |
 | [tutorial_rust](tutorial_rust/README.md) | Historical tutorial fixtures using retired descriptor syntax |

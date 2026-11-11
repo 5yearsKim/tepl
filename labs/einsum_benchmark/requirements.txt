@@ -1,0 +1,2 @@
+# Only needed to read the official NumPy tensor pickle files.
+numpy>=1.26
