@@ -374,7 +374,14 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
         "source_field2",
         "source_field3",
         "singleton",
-        "broadcast_transpose_extents"
+        "broadcast_transpose_extents",
+        "source_node_shape",
+        "merge_insertion_extents",
+        "scatter",
+        "defined",
+        "extents_at_least",
+        "orientation_check",
+        "reversal_axes"
       ]
     },
     "position": {
@@ -1452,6 +1459,45 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
       ],
       "additionalProperties": false
     },
+    "inference_metadata_term": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "$ref": "#/$defs/string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference_metadata_term"
+          }
+        }
+      },
+      "required": [
+        "op",
+        "args"
+      ],
+      "additionalProperties": false
+    },
+    "inference_supplied_field": {
+      "type": "object",
+      "properties": {
+        "descriptor": {
+          "$ref": "#/$defs/id"
+        },
+        "field": {
+          "$ref": "#/$defs/id"
+        },
+        "value": {
+          "$ref": "#/$defs/inference_metadata_term"
+        }
+      },
+      "required": [
+        "descriptor",
+        "field",
+        "value"
+      ],
+      "additionalProperties": false
+    },
     "inference_program": {
       "type": "object",
       "properties": {
@@ -1475,6 +1521,21 @@ inline constexpr std::string_view kSchema = R"TEPL_SCHEMA({
           "items": {
             "$ref": "#/$defs/inference_component"
           }
+        },
+        "supplied": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference_supplied_field"
+          }
+        },
+        "supplied_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inference_metadata_term"
+          }
+        },
+        "restricted_insertion": {
+          "$ref": "#/$defs/bool"
         }
       },
       "required": [

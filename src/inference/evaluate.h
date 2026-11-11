@@ -28,6 +28,7 @@ struct SourceNetwork {
   AxisSequence classes;
   std::map<std::size_t, AxisSequence> inputs;
   AxisSequence output;
+  std::vector<bool> port_orientations, output_orientations;
   bool operator==(const SourceNetwork&) const = default;
 };
 struct Requirements {

@@ -1,0 +1,17 @@
+// From paper evaluation/unified-construction/inputs/catalog_broadcast_transpose_broadcast.tepl
+// Only syntax migration and dialect qualification; guards and supplied fields retained.
+rule broadcast_transpose_broadcast {
+    X: [Dims...]
+    (p: TensorLang.transpose (b: TensorLang.broadcast X)) => (out: TensorLang.broadcast X)
+    derive {
+        let n = len(p.attrs.permutation)
+        let inv = [sum([if p.attrs.permutation[j] == i then j else 0 for j in range(n)]) for i in range(n)]
+        let d = gather(inv, b.attrs.dimensions)
+        let oldnew = exclude(range(n), b.attrs.dimensions)
+        let allpos = concat(b.attrs.dimensions, oldnew)
+        let allshape = concat(Dims, b.attrs.new_extents)
+        let oldshape = [sum([if allpos[j] == i then allshape[j] else 0 for j in range(n)]) for i in range(n)]
+        let newpos = exclude(range(n), d)
+        out.attrs = {dimensions: auto, new_extents: gather(gather(oldshape, p.attrs.permutation), newpos)}
+    }
+}

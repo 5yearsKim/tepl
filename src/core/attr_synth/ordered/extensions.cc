@@ -2,6 +2,9 @@
 
 #include <charconv>
 #include <functional>
+
+#include "src/core/semantics/symbolic/expr.h"
+#include "src/inference/insertion.h"
 namespace tepl::core::attr_synth::ordered {
 using namespace semantics;
 namespace {
@@ -68,8 +71,50 @@ std::optional<inference::MetadataTerm> metadataTerm(const SymbolPtr& s) {
   }
   return comprehension(std::move(out));
 }
+bool prepareInsertion(const Plan& p, inference::Program& program) {
+  if (!inference::insertionCandidate(program)) return false;
+  for (const auto& assumption : p.assumptions)
+    if (containsHole(assumption)) return false;
+  auto prepared = program;
+  prepared.supplied.clear();
+  prepared.supplied_checks.clear();
+  const auto& root = program.replacement.back();
+  for (const auto& node : program.replacement) {
+    if (!node.descriptor) continue;
+    const auto& descriptor = p.descriptors.at(*node.descriptor);
+    if (node.node == root.node && node.kind == inference::Kind::Broadcast) {
+      if (!descriptor.isAuto(node.fields[0]) ||
+          descriptor.isAuto(node.fields[1]))
+        return false;
+      auto value = metadataTerm(descriptor.fields.at(node.fields[1]));
+      if (!value) return false;
+      prepared.supplied.push_back({*node.descriptor, node.fields[1], *value});
+    } else if (!descriptor.allAuto()) {
+      return false;
+    }
+  }
+  for (const auto& raw : p.derived_metadata) {
+    auto value = metadataTerm(raw);
+    if (!value) return false;
+    prepared.supplied_checks.push_back(*value);
+  }
+  prepared.restricted_insertion = true;
+  try {
+    inference::emitInsertion(prepared);
+  } catch (const std::invalid_argument&) {
+    return false;
+  }
+  program = std::move(prepared);
+  return true;
+}
 bool suppliedExtensionFields(const Plan& p, const inference::Program& program,
                              const inference::MetadataFacts& f) {
+  if (program.restricted_insertion) {
+    auto expected = program;
+    return prepareInsertion(p, expected) &&
+           expected.supplied == program.supplied &&
+           expected.supplied_checks == program.supplied_checks;
+  }
   auto b = inference::emitExtension(program);
   std::set<std::string> safe;
   std::function<void(const inference::MetadataTerm&)> remember =

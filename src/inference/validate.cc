@@ -4,6 +4,7 @@
 
 #include "src/inference/evaluate.h"
 #include "src/inference/extensions.h"
+#include "src/inference/insertion.h"
 
 namespace tepl::inference {
 namespace {
@@ -155,6 +156,11 @@ std::vector<Component> decompose(const Program& p) {
 void validate(const Program& p) {
   require(p.mode == Mode::Synthesize || p.mode == Mode::Validate,
           "unknown inference mode");
+  require(p.restricted_insertion ||
+              (p.supplied.empty() && p.supplied_checks.empty()),
+          "supplied insertion programs require the restricted insertion path");
+  require(!p.restricted_insertion || insertionCandidate(p),
+          "invalid restricted insertion syntax");
   auto expected = decompose(p);
   require(p.components == expected,
           "incorrect compiled component decomposition");

@@ -92,6 +92,7 @@ struct Replay {
   Status invalid;
   SourceNetwork network;
   AxisSequence parent;
+  std::vector<bool> parity;
   std::map<std::size_t, AxisSequence> outputs;
   std::map<std::size_t, std::vector<AxisSequence>> groups;
 
@@ -116,28 +117,41 @@ struct Replay {
       }
     }
     parent.resize(network.ports.size());
+    parity.resize(parent.size());
     std::iota(parent.begin(), parent.end(), AxisId{0});
   }
-  AxisId root(AxisId a) {
+  std::pair<AxisId, bool> signedRoot(AxisId a) {
     auto r = a;
+    bool bit = false;
     while (parent[r] != r) {
       work.tick();
+      bit = bit != parity[r];
       r = parent[r];
     }
+    const bool total = bit;
     while (parent[a] != a) {
       work.tick();
       auto next = parent[a];
+      bool edge = parity[a];
       parent[a] = r;
+      parity[a] = bit;
+      bit = bit != edge;
       a = next;
     }
-    return r;
+    return {r, total};
   }
-  void join(AxisId a, AxisId b) {
-    a = root(a);
-    b = root(b);
+  AxisId root(AxisId a) { return signedRoot(a).first; }
+  void join(AxisId a, AxisId b, bool left_bit, bool right_bit) {
+    auto [ar, ap] = signedRoot(a);
+    auto [br, bp] = signedRoot(b);
+    a = ar;
+    b = br;
     if (network.ports[a].extent != network.ports[b].extent)
       throw Failure{invalid, "paired extents differ"};
-    parent[std::max(a, b)] = std::min(a, b);
+    if (a == b) throw Failure{invalid, "source contains a reflection cycle"};
+    auto high = std::max(a, b);
+    parent[high] = std::min(a, b);
+    parity[high] = (left_bit != right_bit) != (ap != bp);
   }
   void selection(const List& a, std::size_t rank, AxisSet& used) {
     work.size(a.size());
@@ -150,12 +164,15 @@ struct Replay {
   }
   SourceNetwork run(const std::vector<Instruction>& code) {
     std::vector<AxisSequence> layouts(code.size());
+    std::vector<std::vector<bool>> bits(code.size());
     for (std::size_t id = 0; id < code.size(); ++id) {
       work.tick();
       const auto& n = code[id];
       auto& out = layouts[id];
+      auto& output_bits = bits[id];
       if (n.kind == Kind::Input) {
         out = network.inputs.at(*n.capture);
+        output_bits.resize(out.size());
       } else if (n.kind == Kind::Addition) {
         const auto& left = layouts[n.inputs[0]];
         const auto& right = layouts[n.inputs[1]];
@@ -169,6 +186,7 @@ struct Replay {
         // This schedule checks source legality only. Additive equivalence is
         // checked in separate component networks; never join their ports here.
         out = left;
+        output_bits = bits[n.inputs[0]];
         groups[n.node].resize(5);
         groups[n.node][4] = out;
       } else {
@@ -180,6 +198,7 @@ struct Replay {
         if (fields.size() != n.fields.size())
           throw Failure{invalid, "descriptor field count differs"};
         const auto& left = layouts[n.inputs[0]];
+        const auto& left_bits = bits[n.inputs[0]];
         auto& g = groups[n.node];
         g.resize(5);
         AxisSet left_used, right_used;
@@ -189,7 +208,15 @@ struct Replay {
           selection(permutation, left.size(), left_used);
           if (permutation.size() != left.size())
             throw Failure{invalid, "permutation is not full rank"};
-          for (auto i : permutation) out.push_back(left[i]);
+          for (auto i : permutation) {
+            out.push_back(left[i]);
+            output_bits.push_back(left_bits[i]);
+          }
+        } else if (n.kind == Kind::Reverse) {
+          selection(fields[n.fields[0]], left.size(), left_used);
+          out = left;
+          output_bits = left_bits;
+          for (auto i : left_used) output_bits[i] = !output_bits[i];
         } else if (n.kind == Kind::Summation) {
           const auto& dimensions = fields[n.fields[0]];
           selection(dimensions, left.size(), left_used);
@@ -198,11 +225,13 @@ struct Replay {
             work.tick();
             if (!left_used.contains(i)) {
               out.push_back(left[i]);
+              output_bits.push_back(left_bits[i]);
               g[2].push_back(left[i]);
             }
           }
         } else {
           const auto& right = layouts[n.inputs[1]];
+          const auto& right_bits = bits[n.inputs[1]];
           const auto& lb = fields[n.fields[0]];
           const auto& rb = fields[n.fields[1]];
           const auto& lk = fields[n.fields[2]];
@@ -214,11 +243,14 @@ struct Replay {
           if (lb.size() != rb.size() || lk.size() != rk.size())
             throw Failure{invalid, "paired lists have unequal lengths"};
           for (std::size_t i = 0; i < lb.size(); ++i)
-            join(left[lb[i]], right[rb[i]]);
+            join(left[lb[i]], right[rb[i]], left_bits[lb[i]],
+                 right_bits[rb[i]]);
           for (std::size_t i = 0; i < lk.size(); ++i)
-            join(left[lk[i]], right[rk[i]]);
+            join(left[lk[i]], right[rk[i]], left_bits[lk[i]],
+                 right_bits[rk[i]]);
           for (auto i : lb) {
             out.push_back(left[i]);
+            output_bits.push_back(left_bits[i]);
             g[0].push_back(left[i]);
           }
           for (auto i : lk) g[1].push_back(left[i]);
@@ -226,6 +258,7 @@ struct Replay {
             work.tick();
             if (!left_used.contains(i)) {
               out.push_back(left[i]);
+              output_bits.push_back(left_bits[i]);
               g[2].push_back(left[i]);
             }
           }
@@ -233,6 +266,7 @@ struct Replay {
             work.tick();
             if (!right_used.contains(i)) {
               out.push_back(right[i]);
+              output_bits.push_back(right_bits[i]);
               g[3].push_back(right[i]);
             }
           }
@@ -241,8 +275,14 @@ struct Replay {
       outputs[n.node] = out;
     }
     network.output = layouts.back();
-    for (std::size_t i = 0; i < parent.size(); ++i)
-      network.classes.push_back(root(i));
+    for (std::size_t i = 0; i < parent.size(); ++i) {
+      auto [r, bit] = signedRoot(i);
+      network.classes.push_back(r);
+      network.port_orientations.push_back(bit);
+    }
+    for (std::size_t i = 0; i < network.output.size(); ++i)
+      network.output_orientations.push_back(
+          bits.back()[i] != signedRoot(network.output[i]).second);
     auto normalize = [&](AxisSequence& a) {
       for (auto& x : a) {
         work.tick();
@@ -536,7 +576,14 @@ Result run(const Program& p, const Metadata& m, const Limits& limits,
 
 Result replaySource(const Program& p, const Metadata& m, const Limits& limits,
                     bool allow_degenerate) {
-  if (hasExtensions(p)) {
+  auto unsupported = [](const auto& code) {
+    return std::any_of(code.begin(), code.end(), [](const auto& n) {
+      return n.kind != Kind::Input && n.kind != Kind::Permutation &&
+             n.kind != Kind::Summation && n.kind != Kind::Contraction &&
+             n.kind != Kind::Addition && n.kind != Kind::Reverse;
+    });
+  };
+  if (unsupported(p.source) || unsupported(p.replacement)) {
     Result r;
     r.status = Status::Unsupported;
     r.reason = "schema extensions require schema emission";

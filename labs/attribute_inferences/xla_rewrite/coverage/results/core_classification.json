@@ -1,0 +1,353 @@
+{
+  "measured_utc": "2026-11-11T08:40:54.888428+00:00",
+  "backend": "native --core; algebraic policy",
+  "compiler_sha256": "23f94ecf29d75243af4e69fc0e36c53d9967d8fe2b5f34f912f1f3cbe2eeb6c4",
+  "audit_sha256": "68d23793bb4decbbfae8fa120fec794d921817848c1088ee2f9a9d92888d7c60",
+  "dialect_sha256": "6f04521d0a71c606489aba83684733df96fc84137d266d10c0dcf715d64bf02a",
+  "dispatch_sources": {
+    "src/inference/emission.cc": "9f941928d5b6d67aaccf13b686a3d45ad27b3d40c25dd05a32a01930651b9e81",
+    "src/inference/insertion.cc": "0c6718ec0c93b3449f4ad92f6234f388c8b35dc13755328a9fff17915761e209",
+    "src/core/attr_synth/ordered/extensions.cc": "2e8acc8169cc3ce879d450d7835d9e6acb5dd2c7fd0879d599bbc5ecd01861f1"
+  },
+  "populations": {
+    "audited_axis_forms": 38,
+    "historically_inferred": 31,
+    "main_theorem_scope": 21
+  },
+  "counts": {
+    "constructive_core": 10,
+    "restricted_insertion": 8,
+    "legacy_schema": 3
+  },
+  "cases": [
+    {
+      "case": "transpose_compose",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/transpose_compose.tepl",
+      "source_sha256": "655999a05f7b335c6743b5c964b3980bbf9678d2a496d92e779951804723f0d0",
+      "migrated_source_sha256": "d48db16132fb53ff3353a8aa1c5795212f52d96a48599947e710b04ef525ac11",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "input",
+        "permutation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "scalar_broadcast_reverse",
+      "classification": "main_theorem_reduction",
+      "source": "evaluation/unified-construction/inputs/scalar_broadcast_reverse.tepl",
+      "source_sha256": "048a770725e4d4634f761f642a6d7f3ada6c2bb3916dcaadb3b7ae8077367e8a",
+      "migrated_source_sha256": "7cde796d684d864efcc5ece3829a17b96b0febb1cfa664dc44fca560487fd45e",
+      "path": "restricted_insertion",
+      "instruction_kinds": [
+        "broadcast",
+        "input",
+        "reverse"
+      ],
+      "metadata_blocks": 2,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "scalar_broadcast_transpose",
+      "classification": "main_theorem_reduction",
+      "source": "evaluation/unified-construction/inputs/scalar_broadcast_transpose.tepl",
+      "source_sha256": "4c1b9006c5b94f3dcba8b8d0ce5fd0cf853d1e793edb8fea17b6c666ad6426d8",
+      "migrated_source_sha256": "2b8a49742a1a1aa0d5227502956ef05b480422156ac489dfd48fb49390a6c3d4",
+      "path": "restricted_insertion",
+      "instruction_kinds": [
+        "broadcast",
+        "input",
+        "permutation"
+      ],
+      "metadata_blocks": 2,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "reduce_compose",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/reduce_compose.tepl",
+      "source_sha256": "d59026b9f3e794a9294ea167f6e8466669920f7560a1fd096c664234531347b1",
+      "migrated_source_sha256": "21f19d7934b7bbe6c360a5bd4e5b112ff2ca76c3e8d3077756b0153f4bf469ec",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "input",
+        "summation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "reduce_transpose",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/reduce_transpose.tepl",
+      "source_sha256": "0017c9363a2dfe583233e4d7051c83309997f6f085e911ca714e55673774056c",
+      "migrated_source_sha256": "b60fa5644d9acdf96765f4cf4dcf88304b5eb60f0108fa9cbebbb59db1496fb4",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "input",
+        "permutation",
+        "summation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "reverse_compose_disjoint",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/reverse_compose_disjoint.tepl",
+      "source_sha256": "98f53aa534fff95617bc9bc56b086f81cafb83fdf700ee74671cee713bbac854",
+      "migrated_source_sha256": "ca4f381b11a8cc382cee40351d4b907869d119925b815ebd86ab3d0bba1c66d5",
+      "path": "legacy_schema",
+      "instruction_kinds": [
+        "input",
+        "reverse"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "dot_associate",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/dot_associate.tepl",
+      "source_sha256": "7d140765c1c11f985825a6807c07c1cfbda4ba8b11b8543eba9d5d4b45a54c08",
+      "migrated_source_sha256": "5496f2db73ef9d377f3f2051ff681999e02cdfb8c9bb9a71dc8a85b562c17f12",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "contraction",
+        "input"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "dot_transpose_output",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/dot_transpose_output.tepl",
+      "source_sha256": "199462098489d415b7b16ccc144841c30e6b3045da33e21a17a5bfdbaa8f8ea7",
+      "migrated_source_sha256": "e29cf20edf4a953e882789daaf652f6b010a079b4435d63bbade4507641e29fb",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "contraction",
+        "input",
+        "permutation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "dot_move_reverse",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/dot_move_reverse.tepl",
+      "source_sha256": "d8d7da93d22f579981bd70968d3e4ebac1525fc3ae3026dc9d65806672a8871f",
+      "migrated_source_sha256": "e98943e910edfc6bc88d91f98ec85a083c41067953733547d6957eca8c75d31f",
+      "path": "legacy_schema",
+      "instruction_kinds": [
+        "contraction",
+        "input",
+        "reverse"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "reduce_compose_leading",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/reduce_compose_leading.tepl",
+      "source_sha256": "78c7a6a255ad64a61811bffc6d678fa34c3e9c415e060d3b22566f283ad86cdd",
+      "migrated_source_sha256": "bae3fdf4ca54decbac399704819ac9afb9cdccd4dc940eb55eb5c443d162d428",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "input",
+        "summation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "broadcast_compose_append",
+      "classification": "main_theorem_reduction",
+      "source": "evaluation/unified-construction/inputs/broadcast_compose_append.tepl",
+      "source_sha256": "cd8ede18aa7ab8fd12cfd837efce8a6888dc6fbdb82cf93515ac0e088c57261b",
+      "migrated_source_sha256": "3c24d77dd565b883bf75820e013b17873cab1ca8d5d8a7706f00a585c0764c63",
+      "path": "restricted_insertion",
+      "instruction_kinds": [
+        "broadcast",
+        "input"
+      ],
+      "metadata_blocks": 2,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "dot_swap_operands",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/dot_swap_operands.tepl",
+      "source_sha256": "2ca556aff36ff57d29fe8c27840e1907a6ac1de714617f06b9f65dd0116a1915",
+      "migrated_source_sha256": "f508e38499e4f8be2f9eb6d9e30b5e949b8d98950e9635b1806fbd402e6d8a4e",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "contraction",
+        "input",
+        "permutation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "dot_reduce_batch",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/dot_reduce_batch.tepl",
+      "source_sha256": "5cef72a42d6a37f9f71d7ccb0c41cd327658ff1374f590434ab6d604e30ff194",
+      "migrated_source_sha256": "13c6ddb5cc8eac8000cf7e04e4e433fc74d924f4759783aaebfcc220309cb783",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "contraction",
+        "input",
+        "summation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "expr_reverse_compose_general",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/expr_reverse_compose_general.tepl",
+      "source_sha256": "6c7475096add0dd5ae198fb8b1159dec844f8dd14e9e9de63bd7bf54b9bf1f3c",
+      "migrated_source_sha256": "9867c2f8bc51414f63f7e616fd52ae6b347f7fbc41d6e14080cc8ae66915a899",
+      "path": "legacy_schema",
+      "instruction_kinds": [
+        "input",
+        "reverse"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "catalog_broadcast_transpose",
+      "classification": "main_theorem_reduction",
+      "source": "evaluation/unified-construction/inputs/catalog_broadcast_transpose.tepl",
+      "source_sha256": "563acb82bf18282f7cbda74970eb730a5c2e6cc2543147d86e7aacfd2717a4f9",
+      "migrated_source_sha256": "e38efa90a9708e48ed6f430267a56010af9f709ce86b54282a0f8a9a558314ed",
+      "path": "restricted_insertion",
+      "instruction_kinds": [
+        "broadcast",
+        "input",
+        "permutation"
+      ],
+      "metadata_blocks": 2,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "catalog_broadcast_inserted_unit_dims",
+      "classification": "main_theorem_reduction",
+      "source": "evaluation/unified-construction/inputs/catalog_broadcast_inserted_unit_dims.tepl",
+      "source_sha256": "40708cb132fdcf6031b7d74b20718498f1c7c5fe742b3a4757fbc8efb8875740",
+      "migrated_source_sha256": "7510f2dfedf179b9b4e166abc740f82b4d4844733cc0316c7c8d9222cd93d20a",
+      "path": "restricted_insertion",
+      "instruction_kinds": [
+        "broadcast",
+        "input"
+      ],
+      "metadata_blocks": 2,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "catalog_broadcast_transpose_broadcast",
+      "classification": "main_theorem_reduction",
+      "source": "evaluation/unified-construction/inputs/catalog_broadcast_transpose_broadcast.tepl",
+      "source_sha256": "c03a8e863697cbaf4a4fdfa7170b4ba0cf3caa9bf7f87a7f18ea8e6a9193d0da",
+      "migrated_source_sha256": "98f82fcccd6344bf2b00e710bdd0cca6d98ab90909ab45950e7ab381ede4f1b8",
+      "path": "restricted_insertion",
+      "instruction_kinds": [
+        "broadcast",
+        "input",
+        "permutation"
+      ],
+      "metadata_blocks": 2,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "catalog_dot_transpose_both_operands",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/catalog_dot_transpose_both_operands.tepl",
+      "source_sha256": "4c45dfd326a03fc1e914a4b987885254ced57a64dbc88d69c29596656ec2bfa1",
+      "migrated_source_sha256": "cde50d5bfb289fad81055ab0c571b8c694c93b62e591ae0a9eed51147111ea22",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "contraction",
+        "input",
+        "permutation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "catalog_dot_move_broadcast",
+      "classification": "main_theorem_reduction",
+      "source": "evaluation/unified-construction/inputs/catalog_dot_move_broadcast.tepl",
+      "source_sha256": "6958ecd84ce11ce828d80242ec247577f3f5fdfe648da591f6b3d87fa755a2bd",
+      "migrated_source_sha256": "e14e41cfc4b97147f3bea93be81fecf93b2c4d93fa8d8d7c78d01f11d7369daa",
+      "path": "restricted_insertion",
+      "instruction_kinds": [
+        "broadcast",
+        "contraction",
+        "input",
+        "summation"
+      ],
+      "metadata_blocks": 2,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "catalog_dot_reduce_output_free",
+      "classification": "main_theorem_form",
+      "source": "evaluation/unified-construction/inputs/catalog_dot_reduce_output_free.tepl",
+      "source_sha256": "05338c1a5de875992d7bb91f5f2d9fd82722927a9a91a3a6f3eb2a010e66789f",
+      "migrated_source_sha256": "699102548faf993db055a1e039b4f5ebbe44d024406b00bb375736508f82b13d",
+      "path": "constructive_core",
+      "instruction_kinds": [
+        "contraction",
+        "input",
+        "summation"
+      ],
+      "metadata_blocks": 1,
+      "compiled": true,
+      "portable_validated": true
+    },
+    {
+      "case": "catalog_reduction_broadcast_original_axes",
+      "classification": "main_theorem_reduction",
+      "source": "evaluation/unified-construction/inputs/catalog_reduction_broadcast_original_axes.tepl",
+      "source_sha256": "40436b1e523c4f27e6714951f5a1ce878e6e66bab5372895058272aa49a7cafd",
+      "migrated_source_sha256": "1910b4511b1ff3cae6bd8eabd96f14970e2d2fbb6f62452b3b63dee6e4f97d48",
+      "path": "restricted_insertion",
+      "instruction_kinds": [
+        "broadcast",
+        "input",
+        "summation"
+      ],
+      "metadata_blocks": 2,
+      "compiled": true,
+      "portable_validated": true
+    }
+  ]
+}

@@ -391,3 +391,18 @@ sh_test(
     data = [":codegen_semantic_reference", "//:tepl", "//:cpp_codegen_sources", "@eggc//:headers", "@eggc//:include/eggc/all.hpp"] + glob(["codegen/rust/*.tepl", "codegen/cpp/*.cc", "codegen/cpp/*.tepl"]),
     env_inherit = ["PATH", "HOME", "CXX"],
 )
+
+cc_test(
+    name = "insertion_test",
+    size = "medium",
+    srcs = ["insertion_test.cc"],
+    args = [
+        "$(rlocationpath //tests/fixtures:semantic/dialects/tensor.tepl)",
+        "$(rlocationpath //tests/fixtures:restricted_insertion/scalar_broadcast_reverse.tepl)",
+    ],
+    data = ["//tests/fixtures:semantic/dialects/tensor.tepl"] + [
+        "//tests/fixtures:restricted_insertion/" + name + ".tepl"
+        for name in ["scalar_broadcast_reverse", "scalar_broadcast_transpose", "broadcast_compose_append", "catalog_broadcast_transpose", "catalog_broadcast_inserted_unit_dims", "catalog_broadcast_transpose_broadcast", "catalog_dot_move_broadcast", "catalog_reduction_broadcast_original_axes"]
+    ],
+    deps = ["//src/core:pipeline", "//src/core/attr_synth:ordered", "//src/core/semantics:proof", "//src/executable", "//src/inference", "//src/rewrite", "@rules_cc//cc/runfiles"],
+)

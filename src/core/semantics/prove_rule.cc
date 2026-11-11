@@ -54,7 +54,7 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
     }
     if (extensions) {
       try {
-        inference::emitExtension(admission.program);
+        inference::emit(admission.program);
       } catch (const std::invalid_argument&) {
         proof.reason = "outside supported view/reindexing schemas";
         return proof;
@@ -130,10 +130,15 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
     proof.status = ProofStatus::Proved;
     proof.core = std::move(admission.program);
     proof.reason =
-        extensions ? "core schema and supplied metadata validated; sound for "
-                     "all legal extents"
-                   : "conditional DAG builder is sound for all legal extents";
-    proof.steps.push_back("verified: conditional core emission theorem");
+        proof.core->restricted_insertion
+            ? "restricted insertion reduction; constructive core metadata DAG"
+        : extensions ? "core schema and supplied metadata validated; sound for "
+                       "all legal extents"
+                     : "conditional DAG builder is sound for all legal extents";
+    proof.steps.push_back(proof.core->restricted_insertion
+                              ? "verified: restricted insertion normalization "
+                                "and auxiliary permutation"
+                              : "verified: conditional core emission theorem");
     return proof;
   }
   for (auto strategy :

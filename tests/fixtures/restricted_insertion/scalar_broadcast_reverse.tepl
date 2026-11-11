@@ -1,0 +1,9 @@
+// From paper evaluation/unified-construction/inputs/scalar_broadcast_reverse.tepl
+// Only syntax migration and dialect qualification; guards and supplied fields retained.
+rule scalar_broadcast_reverse {
+    (attr_r: reverse (attr_b: broadcast C)) => (axis_eval_0: broadcast C)
+    where  attr_b.attrs.dimensions == [] 
+derive {
+ axis_eval_0.attrs = {dimensions: auto, new_extents: attr_b.attrs.new_extents}
+}
+}

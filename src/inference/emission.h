@@ -36,7 +36,14 @@ enum class Op {
   SourceField2,
   SourceField3,
   Singleton,
-  BroadcastTransposeExtents
+  BroadcastTransposeExtents,
+  SourceNodeShape,
+  MergeInsertionExtents,
+  Scatter,
+  Defined,
+  ExtentsAtLeast,
+  OrientationCheck,
+  ReversalAxes
 };
 struct Expression {
   Op op;
@@ -55,11 +62,20 @@ struct EmissionBlock {
 struct Emission {
   Program original;
   std::vector<EmissionBlock> blocks;
+  struct Insertion {
+    std::size_t placement = 0, extents = 0, supplied = 0, compatible = 0;
+    std::optional<std::size_t> descriptor, auxiliary;
+    bool operator==(const Insertion&) const = default;
+  };
+  std::optional<Insertion> insertion;
   bool operator==(const Emission&) const = default;
 };
 // Total structural emission on validated synthesis programs, modulo resources.
 // Never reads concrete ranks/fields, a rule guard, or a proof context.
 Emission emit(const Program&);
+EmissionBlock emitCoreBlock(const Program&);
+Result executeCoreBlock(const EmissionBlock&, const Metadata&, const Limits&,
+                        bool build, ExecutionTiming* = nullptr);
 // Replay source once, evaluate the total predicate, then evaluate builders only
 // on success. Impossible denotes a false predicate within the stated domain.
 Result predicate(const Emission&, const Metadata&, const Limits& = {});

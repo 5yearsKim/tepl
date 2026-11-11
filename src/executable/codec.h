@@ -808,6 +808,20 @@ struct Codec<inference::Op> {
         return "singleton";
       case inference::Op::BroadcastTransposeExtents:
         return "broadcast_transpose_extents";
+      case inference::Op::SourceNodeShape:
+        return "source_node_shape";
+      case inference::Op::MergeInsertionExtents:
+        return "merge_insertion_extents";
+      case inference::Op::Scatter:
+        return "scatter";
+      case inference::Op::Defined:
+        return "defined";
+      case inference::Op::ExtentsAtLeast:
+        return "extents_at_least";
+      case inference::Op::OrientationCheck:
+        return "orientation_check";
+      case inference::Op::ReversalAxes:
+        return "reversal_axes";
     }
     throw std::invalid_argument("invalid emission_op");
   }
@@ -842,6 +856,14 @@ struct Codec<inference::Op> {
     if (j == "singleton") return inference::Op::Singleton;
     if (j == "broadcast_transpose_extents")
       return inference::Op::BroadcastTransposeExtents;
+    if (j == "source_node_shape") return inference::Op::SourceNodeShape;
+    if (j == "merge_insertion_extents")
+      return inference::Op::MergeInsertionExtents;
+    if (j == "scatter") return inference::Op::Scatter;
+    if (j == "defined") return inference::Op::Defined;
+    if (j == "extents_at_least") return inference::Op::ExtentsAtLeast;
+    if (j == "orientation_check") return inference::Op::OrientationCheck;
+    if (j == "reversal_axes") return inference::Op::ReversalAxes;
     throw std::invalid_argument("invalid emission_op");
   }
 };
@@ -1084,6 +1106,16 @@ template <>
 struct Codec<inference::Component> {
   static Json pack(const inference::Component&);
   static inference::Component unpack(const Json&);
+};
+template <>
+struct Codec<inference::MetadataTerm> {
+  static Json pack(const inference::MetadataTerm&);
+  static inference::MetadataTerm unpack(const Json&);
+};
+template <>
+struct Codec<inference::SuppliedField> {
+  static Json pack(const inference::SuppliedField&);
+  static inference::SuppliedField unpack(const Json&);
 };
 template <>
 struct Codec<inference::Program> {
@@ -2235,12 +2267,46 @@ inline inference::Component Codec<inference::Component>::unpack(const Json& j) {
   v.replacement = detail::unpack<decltype(v.replacement)>(j.at("replacement"));
   return v;
 }
+inline Json Codec<inference::MetadataTerm>::pack(
+    const inference::MetadataTerm& v) {
+  Json j = Json::object();
+  j["op"] = detail::pack(v.op);
+  j["args"] = detail::pack(v.args);
+  return j;
+}
+inline inference::MetadataTerm Codec<inference::MetadataTerm>::unpack(
+    const Json& j) {
+  inference::MetadataTerm v{};
+  v.op = detail::unpack<decltype(v.op)>(j.at("op"));
+  v.args = detail::unpack<decltype(v.args)>(j.at("args"));
+  return v;
+}
+inline Json Codec<inference::SuppliedField>::pack(
+    const inference::SuppliedField& v) {
+  Json j = Json::object();
+  j["descriptor"] = detail::pack(v.descriptor);
+  j["field"] = detail::pack(v.field);
+  j["value"] = detail::pack(v.value);
+  return j;
+}
+inline inference::SuppliedField Codec<inference::SuppliedField>::unpack(
+    const Json& j) {
+  inference::SuppliedField v{};
+  v.descriptor = detail::unpack<decltype(v.descriptor)>(j.at("descriptor"));
+  v.field = detail::unpack<decltype(v.field)>(j.at("field"));
+  v.value = detail::unpack<decltype(v.value)>(j.at("value"));
+  return v;
+}
 inline Json Codec<inference::Program>::pack(const inference::Program& v) {
   Json j = Json::object();
   j["mode"] = detail::pack(v.mode);
   j["source"] = detail::pack(v.source);
   j["replacement"] = detail::pack(v.replacement);
   if (!v.components.empty()) j["components"] = detail::pack(v.components);
+  if (!v.supplied.empty()) j["supplied"] = detail::pack(v.supplied);
+  if (!v.supplied_checks.empty())
+    j["supplied_checks"] = detail::pack(v.supplied_checks);
+  if (v.restricted_insertion) j["restricted_insertion"] = true;
   return j;
 }
 inline inference::Program Codec<inference::Program>::unpack(const Json& j) {
@@ -2250,6 +2316,14 @@ inline inference::Program Codec<inference::Program>::unpack(const Json& j) {
   v.replacement = detail::unpack<decltype(v.replacement)>(j.at("replacement"));
   if (j.contains("components"))
     v.components = detail::unpack<decltype(v.components)>(j.at("components"));
+  if (j.contains("supplied"))
+    v.supplied = detail::unpack<decltype(v.supplied)>(j.at("supplied"));
+  if (j.contains("supplied_checks"))
+    v.supplied_checks =
+        detail::unpack<decltype(v.supplied_checks)>(j.at("supplied_checks"));
+  if (j.contains("restricted_insertion"))
+    v.restricted_insertion = detail::unpack<decltype(v.restricted_insertion)>(
+        j.at("restricted_insertion"));
   return v;
 }
 inline Json Codec<inference::Expression>::pack(const inference::Expression& v) {

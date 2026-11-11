@@ -731,6 +731,7 @@ struct ExtensionVM {
   const Limits& lim;
   std::size_t remaining;
   std::map<std::size_t, List> values;
+  std::vector<List> shapes;
   void charge(std::size_t n = 1) {
     if (n > remaining)
       throw ExtensionStop{Status::ResourceLimit, "schema metadata work limit"};
@@ -786,11 +787,48 @@ struct ExtensionVM {
                               "schema extent representation limit"};
         out.push_back(x);
       }
+    } else if (e.op == Op::SourceNodeShape) {
+      out = shapes.at(e.capture);
+      charge(out.size());
     } else if (e.op == Op::Singleton) {
       if (e.capture >
           static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()))
         throw ExtensionStop{Status::ResourceLimit, "schema constant range"};
       out = {static_cast<std::int64_t>(e.capture)};
+    } else if (e.op == Op::MergeInsertionExtents || e.op == Op::Scatter) {
+      const auto& a = eval(e.args.at(0));
+      const auto& c = eval(e.args.at(1));
+      const auto& d = eval(e.args.at(2));
+      if (e.op == Op::Scatter) {
+        require(a.size() == c.size() && d.size() == 1 && d[0] >= 0);
+        bound(d[0]);
+        out.assign(d[0], 0);
+        std::set<std::int64_t> seen;
+        for (std::size_t i = 0; i < a.size(); ++i) {
+          charge();
+          require(a[i] >= 0 && a[i] < d[0] && seen.insert(a[i]).second);
+          out[a[i]] = c[i];
+        }
+      } else {
+        // Inner embedding/extents, then outer embedding/extents.
+        const auto& f = eval(e.args.at(3));
+        require(d.size() == a.size() + c.size());
+        auto rank = d.size() + f.size();
+        bound(rank);
+        List inserted(rank, -1);
+        std::size_t next = 0;
+        for (std::size_t i = 0; i < d.size(); ++i) {
+          charge();
+          require(d[i] >= 0 && static_cast<std::size_t>(d[i]) < rank);
+          if (!has(a, i)) inserted[d[i]] = c.at(next++);
+        }
+        next = 0;
+        for (std::size_t i = 0; i < rank; ++i) {
+          charge();
+          if (!has(d, i)) inserted[i] = f.at(next++);
+          if (inserted[i] >= 0) out.push_back(inserted[i]);
+        }
+      }
     } else if (e.op == Op::BroadcastTransposeExtents) {
       const auto& shape = eval(e.args.at(0));
       const auto& dims = eval(e.args.at(1));
@@ -828,6 +866,19 @@ struct ExtensionVM {
         case Op::Length:
           out = {static_cast<std::int64_t>(a.size())};
           break;
+        case Op::Defined:
+          out = {1};
+          break;
+        case Op::ExtentsAtLeast: {
+          require(c.size() == 1);
+          bool valid = true;
+          for (auto value : a) {
+            charge();
+            valid &= value >= c[0];
+          }
+          out = {valid ? 1 : 0};
+          break;
+        }
         case Op::Range:
           require(a.size() == 1 && a[0] >= 0);
           bound(a[0]);
@@ -913,7 +964,6 @@ struct ExtensionVM {
     return values.emplace(id, std::move(out)).first->second;
   }
   void sourceLegality() {
-    std::vector<List> shapes;
     for (std::size_t i = 0; i < b.source.source.size(); ++i) {
       charge();
       const auto& n = b.source.source[i];
@@ -1024,7 +1074,7 @@ Result executeExtension(const Emission& e, const Metadata& m,
                         ExecutionTiming* timing) {
   if (timing) *timing = {};
   Result r;
-  ExtensionVM vm{e.blocks.at(0), m, limits, limits.work, {}};
+  ExtensionVM vm{e.blocks.at(0), m, limits, limits.work, {}, {}};
   try {
     vm.sourceLegality();
     {
@@ -1049,5 +1099,39 @@ Result executeExtension(const Emission& e, const Metadata& m,
   }
   r.work = limits.work - vm.remaining;
   return r;
+}
+MetadataResult executeMetadata(const EmissionBlock& block, const Metadata& m,
+                               const Limits& limits,
+                               const std::vector<std::size_t>& outputs,
+                               std::optional<std::size_t> feasible) {
+  MetadataResult result;
+  ExtensionVM vm{block, m, limits, limits.work, {}, {}};
+  try {
+    vm.sourceLegality();
+    for (auto id : block.checks)
+      if (vm.eval(id) != List{1}) {
+        result.status = Status::OutsideDomain;
+        result.reason = "restricted insertion normalization condition failed";
+        result.work = limits.work - vm.remaining;
+        return result;
+      }
+    for (auto id : outputs) result.values[id] = vm.eval(id);
+    if (feasible && vm.eval(*feasible) != List{1}) {
+      result.status = Status::Impossible;
+      result.reason = "incompatible supplied insertion extents";
+      result.work = limits.work - vm.remaining;
+      return result;
+    }
+    for (const auto& [descriptor, fields] : block.attributes)
+      for (auto field : fields)
+        result.attributes[descriptor].push_back(vm.eval(field));
+    result.status = Status::Analyzed;
+  } catch (const ExtensionStop& stop) {
+    result.status = stop.status;
+    result.reason = stop.reason;
+    result.attributes.clear();
+  }
+  result.work = limits.work - vm.remaining;
+  return result;
 }
 }  // namespace tepl::inference

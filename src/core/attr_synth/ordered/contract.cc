@@ -4,6 +4,7 @@
 #include <set>
 #include <stdexcept>
 
+#include "src/core/attr_synth/ordered/extensions.h"
 #include "src/inference/evaluate.h"
 #include "src/inference/extensions.h"
 
@@ -213,6 +214,7 @@ Admission admit(const Plan& p, inference::Mode mode, bool extensions) {
   try {
     out.program.components = inference::decompose(out.program);
     inference::validate(out.program);
+    if (extensions) prepareInsertion(p, out.program);
     if (extensions && !inference::hasExtensions(out.program))
       out.reason =
           "supplied fields remain outside canonical synthesis admission";

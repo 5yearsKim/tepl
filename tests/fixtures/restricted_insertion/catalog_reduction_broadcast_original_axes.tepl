@@ -1,0 +1,12 @@
+// From paper evaluation/unified-construction/inputs/catalog_reduction_broadcast_original_axes.tepl
+// Only syntax migration and dialect qualification; guards and supplied fields retained.
+rule catalog_reduction_broadcast_original_axes {
+    X: [N]
+     (attr_r: TensorLang.reduce_sum (attr_b: TensorLang.broadcast X)) => (attr_out: TensorLang.broadcast (axis_eval_0: TensorLang.reduce_sum X))
+     where  attr_b.attrs.dimensions==[0] && len(attr_b.attrs.new_extents)==1 && attr_r.attrs.dimensions==[0] 
+     
+derive {
+ axis_eval_0.attrs = {dimensions: auto}
+ attr_out.attrs = {dimensions: auto, new_extents: attr_b.attrs.new_extents}
+}
+}

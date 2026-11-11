@@ -6,6 +6,8 @@ Extent, coordinate, and general fields remain supplied. The runner does not use
 whole-descriptor inference, partial variants, an explicit-baseline comparison,
 or legacy non-axis synthesis.
 
+- [Current core classification](reports/core_classification.md): 21 forms in the
+  main-theorem scope; measured native dispatch is 18 constructive and 3 specialized.
 - [Current report](reports/attribute_synthesis.md): measured scope, inference,
   verification-only outcomes, and unresolved cases.
 - [Semantic support inventory](reports/semantic_support.md):

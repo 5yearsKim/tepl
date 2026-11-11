@@ -97,8 +97,10 @@ enum('inference_mode','inference::Mode','synthesize:Synthesize validate:Validate
 enum('inference_kind','inference::Kind','input:Input permutation:Permutation contraction:Contraction summation:Summation addition:Addition reverse:Reverse broadcast:Broadcast multiplication:Multiplication negation:Negation unit_removal:UnitRemoval')
 struct('inference_instruction','inference::Instruction','kind:inference_kind node:id capture:id? descriptor:id? operation:id? inputs:id[] captures:id[] fields:id[]')
 struct('inference_component','inference::Component','source:inference_instruction[] replacement:inference_instruction[]')
-struct('inference_program','inference::Program','mode:inference_mode source:inference_instruction[] replacement:inference_instruction[] components:inference_component[]')
-enum('emission_op','inference::Op','input:Input output:Output empty:Empty union:Union intersect:Intersect difference:Difference filter:Filter concat:Concat positions:Positions equal:Equal same_set:SameSet distinct:Distinct subset:Subset source_field:SourceField source_extents:SourceExtents source_shape:SourceShape length:Length range:Range plus:Plus gather:Gather inverse:Inverse symmetric_difference:SymmetricDifference complement:Complement pullback:Pullback remap:Remap source_field2:SourceField2 source_field3:SourceField3 singleton:Singleton broadcast_transpose_extents:BroadcastTransposeExtents')
+struct('inference_metadata_term','inference::MetadataTerm','op:string args:inference_metadata_term[]')
+struct('inference_supplied_field','inference::SuppliedField','descriptor:id field:id value:inference_metadata_term')
+struct('inference_program','inference::Program','mode:inference_mode source:inference_instruction[] replacement:inference_instruction[] components:inference_component[] supplied:inference_supplied_field[] supplied_checks:inference_metadata_term[] restricted_insertion:bool')
+enum('emission_op','inference::Op','input:Input output:Output empty:Empty union:Union intersect:Intersect difference:Difference filter:Filter concat:Concat positions:Positions equal:Equal same_set:SameSet distinct:Distinct subset:Subset source_field:SourceField source_extents:SourceExtents source_shape:SourceShape length:Length range:Range plus:Plus gather:Gather inverse:Inverse symmetric_difference:SymmetricDifference complement:Complement pullback:Pullback remap:Remap source_field2:SourceField2 source_field3:SourceField3 singleton:Singleton broadcast_transpose_extents:BroadcastTransposeExtents source_node_shape:SourceNodeShape merge_insertion_extents:MergeInsertionExtents scatter:Scatter defined:Defined extents_at_least:ExtentsAtLeast orientation_check:OrientationCheck reversal_axes:ReversalAxes')
 struct('emission_expression','inference::Expression','op:emission_op args:id[] capture:id')
 struct('core_program','inference::Portable','program:inference_program nodes:emission_expression[][] checks:id[][] attributes:id[][][]')
 struct('rule','Rule','id:id name:string source_name:string origin:origin captures:capture[] dimensions:dimension[] descriptors:descriptor[] lhs:pattern* constraints:constraint[] conditions:expr*[] feasibility:symbol*[] locals:local[] derivations:derivation[] rhs:build* dtypes:dtype_variable[] inference:inference_program? core:core_program?')
@@ -159,7 +161,9 @@ for name,(typ,fields,init) in D.items():
     if name == 'rule':
         defs[name]['required'].remove('inference')
         defs[name]['required'].remove('core')
-    if name == 'inference_program': defs[name]['required'].remove('components')
+    if name == 'inference_program':
+        for key in ('components', 'supplied', 'supplied_checks', 'restricted_insertion'):
+            defs[name]['required'].remove(key)
     code += ['template<> struct Codec<'+typ+'> { static Json pack(const '+typ+'&); static '+typ+' unpack(const Json&); };']
 for name,(typ,values) in V.items():
     defs[name]={'oneOf':[obj({'kind':{'const':tag},'data':ref(t)}) for tag,t in values.items()]}
@@ -177,8 +181,10 @@ for name,(typ,fields,init) in D.items():
             code += ['if(!v.label.empty()) j["label"] = v.label;']
         elif name=='rule' and key in ('inference','core'):
             code += ['if(v.'+key+') j["'+key+'"] = detail::pack(v.'+key+');']
-        elif name=='inference_program' and key=='components':
-            code += ['if(!v.components.empty()) j["components"] = detail::pack(v.components);']
+        elif name=='inference_program' and key in ('components','supplied','supplied_checks'):
+            code += ['if(!v.'+key+'.empty()) j["'+key+'"] = detail::pack(v.'+key+');']
+        elif name=='inference_program' and key=='restricted_insertion':
+            code += ['if(v.restricted_insertion) j["restricted_insertion"] = true;']
         elif name=='graph_node' and key=='shape':
             code+=['j["shape"]=nullptr; if(v.shape){j["shape"]=Json::array();for(auto d:*v.shape)j["shape"].push_back(std::to_string(d));}']
         elif name=='axis_value' and key=='constant': code+=['j["constant"]=std::to_string(v.constant);']
@@ -189,8 +195,8 @@ for name,(typ,fields,init) in D.items():
             code += ['if(j.contains("label")) v.label = j.at("label").get<std::string>();']
         elif name=='rule' and key in ('inference','core'):
             code += ['if(j.contains("'+key+'")) v.'+key+' = detail::unpack<decltype(v.'+key+')>(j.at("'+key+'"));']
-        elif name=='inference_program' and key=='components':
-            code += ['if(j.contains("components")) v.components = detail::unpack<decltype(v.components)>(j.at("components"));']
+        elif name=='inference_program' and key in ('components','supplied','supplied_checks','restricted_insertion'):
+            code += ['if(j.contains("'+key+'")) v.'+key+' = detail::unpack<decltype(v.'+key+')>(j.at("'+key+'"));']
         elif name=='graph_node' and key=='shape':
             code+=['if(!j.at("shape").is_null()){v.shape.emplace();for(const auto& d:j.at("shape"))v.shape->push_back(parseExtent(d.get<std::string>()));}']
         elif name=='axis_value' and key=='constant': code+=['v.constant=parseSigned(j.at("constant").get<std::string>());']

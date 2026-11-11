@@ -1,0 +1,58 @@
+[
+  {
+    "case": "scalar_broadcast_reverse",
+    "paper_source": "evaluation/unified-construction/inputs/scalar_broadcast_reverse.tepl",
+    "paper_sha256": "048a770725e4d4634f761f642a6d7f3ada6c2bb3916dcaadb3b7ae8077367e8a",
+    "fixture": "scalar_broadcast_reverse.tepl",
+    "fixture_sha256": "39c68f48f9e775d3e9dc294a33ad7b0551d7cd53a1413b67d04b9dba6d71b32b"
+  },
+  {
+    "case": "scalar_broadcast_transpose",
+    "paper_source": "evaluation/unified-construction/inputs/scalar_broadcast_transpose.tepl",
+    "paper_sha256": "4c1b9006c5b94f3dcba8b8d0ce5fd0cf853d1e793edb8fea17b6c666ad6426d8",
+    "fixture": "scalar_broadcast_transpose.tepl",
+    "fixture_sha256": "afe7a50e2e061274aba16a184ada13e549a400db203d67fa2c7b88ed49083a1e"
+  },
+  {
+    "case": "broadcast_compose_append",
+    "paper_source": "evaluation/unified-construction/inputs/broadcast_compose_append.tepl",
+    "paper_sha256": "cd8ede18aa7ab8fd12cfd837efce8a6888dc6fbdb82cf93515ac0e088c57261b",
+    "fixture": "broadcast_compose_append.tepl",
+    "fixture_sha256": "4cff2993b7173cb901a83ce7c9b0334d0c75bca2a4bf70ce5e699f43f25f62ee"
+  },
+  {
+    "case": "catalog_broadcast_transpose",
+    "paper_source": "evaluation/unified-construction/inputs/catalog_broadcast_transpose.tepl",
+    "paper_sha256": "563acb82bf18282f7cbda74970eb730a5c2e6cc2543147d86e7aacfd2717a4f9",
+    "fixture": "catalog_broadcast_transpose.tepl",
+    "fixture_sha256": "b611a37bdbac5e8f13cc114beaeb709fa1aa708480b93fb39d39e1a03a050831"
+  },
+  {
+    "case": "catalog_broadcast_inserted_unit_dims",
+    "paper_source": "evaluation/unified-construction/inputs/catalog_broadcast_inserted_unit_dims.tepl",
+    "paper_sha256": "40708cb132fdcf6031b7d74b20718498f1c7c5fe742b3a4757fbc8efb8875740",
+    "fixture": "catalog_broadcast_inserted_unit_dims.tepl",
+    "fixture_sha256": "e266b359835af1cff6152fa381978e1c00d7db94d49777cc5e87b8ee999cf2a6"
+  },
+  {
+    "case": "catalog_broadcast_transpose_broadcast",
+    "paper_source": "evaluation/unified-construction/inputs/catalog_broadcast_transpose_broadcast.tepl",
+    "paper_sha256": "c03a8e863697cbaf4a4fdfa7170b4ba0cf3caa9bf7f87a7f18ea8e6a9193d0da",
+    "fixture": "catalog_broadcast_transpose_broadcast.tepl",
+    "fixture_sha256": "ce5d7694114492e28a9d7aff228cb56ef7f6d3a8b5876978312e7e352c891f2a"
+  },
+  {
+    "case": "catalog_dot_move_broadcast",
+    "paper_source": "evaluation/unified-construction/inputs/catalog_dot_move_broadcast.tepl",
+    "paper_sha256": "6958ecd84ce11ce828d80242ec247577f3f5fdfe648da591f6b3d87fa755a2bd",
+    "fixture": "catalog_dot_move_broadcast.tepl",
+    "fixture_sha256": "aa3cef5ad31ae2396ea522d1bd154965b322f812fb312fc97ee40de3a7031c09"
+  },
+  {
+    "case": "catalog_reduction_broadcast_original_axes",
+    "paper_source": "evaluation/unified-construction/inputs/catalog_reduction_broadcast_original_axes.tepl",
+    "paper_sha256": "40436b1e523c4f27e6714951f5a1ce878e6e66bab5372895058272aa49a7cafd",
+    "fixture": "catalog_reduction_broadcast_original_axes.tepl",
+    "fixture_sha256": "b15e4396b039c2d567847258eaaafc6e29321a01af68a563683ba1ff73955338"
+  }
+]

@@ -1,0 +1,12 @@
+// From paper evaluation/unified-construction/inputs/catalog_dot_move_broadcast.tepl
+// Only syntax migration and dialect qualification; guards and supplied fields retained.
+rule catalog_dot_move_broadcast {
+    X: [K] Y: [J,N]
+     (attr_d: TensorLang.dot (attr_b: TensorLang.broadcast X) Y) => (attr_out: TensorLang.dot X (attr_sum: TensorLang.reduce_sum Y))
+     where  attr_b.attrs.dimensions==[0] && attr_b.attrs.new_extents==[J] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] 
+     
+derive {
+ attr_sum.attrs = {dimensions: auto}
+ attr_out.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto}
+}
+}

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace tepl::inference {
@@ -41,6 +42,16 @@ struct Component {
   std::vector<Instruction> source, replacement;
   bool operator==(const Component&) const = default;
 };
+struct MetadataTerm {
+  std::string op;
+  std::vector<MetadataTerm> args;
+  bool operator==(const MetadataTerm&) const = default;
+};
+struct SuppliedField {
+  std::size_t descriptor = 0, field = 0;
+  MetadataTerm value;
+  bool operator==(const SuppliedField&) const = default;
+};
 struct Program {
   Mode mode = Mode::Synthesize;
   // Postorder schedules; each root is the final instruction. Reversing the
@@ -49,6 +60,9 @@ struct Program {
   // Empty for a single component. Source expansion preserves captured
   // descriptors; replacement schedules contain original, independent holes.
   std::vector<Component> components;
+  std::vector<SuppliedField> supplied;
+  std::vector<MetadataTerm> supplied_checks;
+  bool restricted_insertion = false;
   bool operator==(const Program&) const = default;
 };
 

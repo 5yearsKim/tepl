@@ -1,0 +1,10 @@
+// From paper evaluation/unified-construction/inputs/catalog_broadcast_transpose.tepl
+// Only syntax migration and dialect qualification; guards and supplied fields retained.
+rule catalog_broadcast_transpose {
+    (attr_b: TensorLang.broadcast X) => (attr_p: TensorLang.transpose X)
+     where  attr_b.attrs.new_extents == [] 
+     
+derive {
+ attr_p.attrs = {permutation: auto}
+}
+}
