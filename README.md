@@ -13,7 +13,7 @@
 
 <p align="center"><strong>TEPL: <em>Write tensor rewrites that read like math.</em></strong></p>
 
-<p align="center"><a href="https://5yearskim.github.io/tepl/">Official Documentation</a></p>
+<p align="center"><a href="http://anonymous.4open.science/r/tepl/">Official Documentation</a></p>
 
 The same tensor computation can be expressed in different ways—with very different costs. In machine learning, choosing the right form can make a big difference: depending on tensor dimensions, `(XA)B` can require far less computation than `X(AB)`.
 
@@ -208,4 +208,4 @@ highlighting and code formatting to your editor.
 - [Your first rewrite](docs/getting-started/first-rewrite.md)
 - [Design philosophy](docs/design_philosophy.md)
 - [Core concepts](docs/language/core-concepts.md)
-- [Docs](https://5yearskim.github.io/tepl/)
+- [Docs](http://anonymous.4open.science/r/tepl/)
