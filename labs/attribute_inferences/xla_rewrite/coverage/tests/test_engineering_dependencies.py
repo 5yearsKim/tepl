@@ -1,10 +1,9 @@
 """Engineering provenance is independent of theory prose and paper exports."""
 
 import copy
-import json
 import unittest
 
-from _support import HERE
+from _support import HERE, measurement_fixture
 from scripts import run_synthesis, synthesis_report
 from scripts.paths import ROOT
 
@@ -40,7 +39,7 @@ class EngineeringDependenciesTest(unittest.TestCase):
         self.assertFalse(any(path.startswith("research/") for path in dependencies))
 
     def test_reports_do_not_require_theory_metadata(self):
-        data = json.loads((HERE / "results/synthesis.json").read_text())
+        data, _ = measurement_fixture()
         for row in data["results"]:
             for key in tuple(row):
                 if key.startswith("theorem_"):

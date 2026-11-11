@@ -263,8 +263,8 @@ def render(catalog, assessment, manifest, measured):
         f"Including retained pilot variants, compilation accepted **{len(compiled)} of {len(results)} "
         f"explicit cases**, spanning **{len(compiled_ids)} catalog schemas**. "
         "Each case supplies its RHS attributes. "
-        "Value-equivalence results are in the separate "
-        "[axis-only evaluation](attribute_synthesis.md).",
+        "Native core scope and implementation paths are in the separate "
+        "[core classification](core_classification.md).",
         "",
         "Both measurements use the self-contained HLO project configured by "
         "[tepl.toml](../../tepl/tepl.toml). Compilation uses "

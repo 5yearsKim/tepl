@@ -13,5 +13,5 @@ positions, shape metadata, and bounded symbolic proof search, never tensor-entry
 grids.
 
 [Paired timings and compiler/run identities](../results/unit_view_cost.json)
-provide the individual observations. The [current evaluation](attribute_synthesis.md)
-reports verification outcomes separately.
+provide the individual observations. The [core classification](core_classification.md)
+reports current native core implementation paths separately.

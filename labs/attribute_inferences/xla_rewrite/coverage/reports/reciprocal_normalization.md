@@ -18,10 +18,8 @@ nonzero. Rechecking the original cases with this compiler still returns unknown:
 - `catalog_broadcast_transpose_broadcast`: supplied metadata uses a comprehension
   outside the supported pointwise definedness fragment.
 
-No change to the metadata checker is claimed. The original 30/32 result and the
-separate expanded run remain frozen and are not recomputed by this companion
-experiment. The 2:f32 case uses the algebraic floating policy; it is not a
-strict IEEE floating-point equivalence claim.
+No change to the metadata checker is claimed. The 2:f32 case uses the algebraic
+floating policy; it is not a strict IEEE floating-point equivalence claim.
 
 To reproduce from the repository root:
 

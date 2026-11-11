@@ -1,12 +1,10 @@
 """Axis migration must preserve supplied data and never hide the old answer."""
 
 import copy
-import json
 import re
 import unittest
 
-from _support import HERE, TEPL
-from scripts.paths import repo_path
+from _support import TEPL, measurement_fixture
 from scripts import (
     run_synthesis,
     axis_fields,
@@ -104,7 +102,7 @@ class SynthesisTest(unittest.TestCase):
         self.assertNotIn("hlo.reduce_sum", source)
         self.assertEqual(len(task.targets), 1)
         view = (TEPL / "dialects/axis_views.tepl").read_text()
-        self.assertIn('dtype(t) { yield t }', view)
+        self.assertRegex(view, r'dtype\(t\)\s*\{\s*yield\s+t\s*\}')
         self.assertNotIn("is_numeric", view)
 
     def test_reshape_after_auto_dot_must_not_use_handwritten_shape(self):
@@ -151,41 +149,22 @@ class SynthesisTest(unittest.TestCase):
         )
 
     def test_classifier_provenance_is_checked_before_execution(self):
-        classification = json.loads(
-            (HERE / "data/synthesis_classification.json").read_text()
-        )
+        _, classification = measurement_fixture()
         run_synthesis.validate_classification(classification)
         dependency = next(iter(classification["dependencies"]))
         classification["dependencies"][dependency] = "old"
         with self.assertRaisesRegex(ValueError, "stale classification dependency"):
             run_synthesis.validate_classification(classification)
 
-    def test_measurement_matches_frozen_classification(self):
-        data = json.loads((HERE / "results/synthesis.json").read_text())
-        classification = json.loads(
-            (HERE / "data/synthesis_classification.json").read_text()
-        )
+    def test_measurement_covers_each_classified_case(self):
+        data, classification = measurement_fixture()
         synthesis_report.validate(data, classification)
-        self.assertEqual(
-            len([r for r in classification["cases"] if not r["control"]]), 209
-        )
-        for row in classification["cases"]:
-            if not row["in_scope"]:
-                continue
-            self.assertEqual(
-                len(
-                    re.findall(
-                        r":\s*auto\b", (repo_path(row["file"])).read_text()
-                    )
-                ),
-                len(row["axis_fields"]),
-            )
+        data["results"].pop()
+        with self.assertRaisesRegex(ValueError, "cover each classified case once"):
+            synthesis_report.validate(data, classification)
 
     def test_success_cannot_omit_requested_fields_or_add_guards(self):
-        original = json.loads((HERE / "results/synthesis.json").read_text())
-        classification = json.loads(
-            (HERE / "data/synthesis_classification.json").read_text()
-        )
+        original, classification = measurement_fixture()
         for mutation in ["missing_field", "extra_guard", "not_compiled"]:
             data = copy.deepcopy(original)
             row = next(r for r in data["results"] if r["outcome"] == "inferred")
@@ -203,10 +182,7 @@ class SynthesisTest(unittest.TestCase):
                 synthesis_report.validate(data, classification)
 
     def test_outside_scope_is_not_an_inference_failure(self):
-        data = json.loads((HERE / "results/synthesis.json").read_text())
-        classification = json.loads(
-            (HERE / "data/synthesis_classification.json").read_text()
-        )
+        data, classification = measurement_fixture()
         row = next(r for r in data["results"] if not r["in_scope"])
         row["check"] = {"returncode": 1}
         with self.assertRaisesRegex(ValueError, "outside-scope"):

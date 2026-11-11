@@ -7,7 +7,7 @@ express, compile and verify.
 - [TEPL project](tepl/README.md): local HLO dialects, explicit rules and input graphs.
 - [Coverage](coverage/README.md): experiment inputs, tools and reproduction commands.
 - [Operation-family coverage](coverage/reports/operation_families.md): overlapping case counts by participating operations, with separate transpose and reshape families.
-- [Attribute synthesis report](coverage/reports/attribute_synthesis.md): field-level axis inference and verification-only outcomes.
+- [Core classification](coverage/reports/core_classification.md): theorem scope and measured constructive/schema dispatch.
 - [Compilation report](coverage/reports/compilation.md): language coverage and executable compilation.
 
 `catalog/` contains the source-based catalog. `tepl/` contains the executable

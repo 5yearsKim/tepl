@@ -1,8 +1,8 @@
 # Axis-Only Evaluation Protocol
 
-This protocol replaces the old descriptor-inference experiment. The
-[current report](attribute_synthesis.md) contains the measured counts; earlier
-112/97 and 33-axis-case proposals were estimates, not frozen target results.
+This protocol defines full-corpus axis-inference measurement. Current native
+core scope and implementation paths are reported in the
+[core classification](core_classification.md).
 
 ## Scope and migration
 
@@ -75,6 +75,6 @@ gaps are not infeasibility certificates. The negative control must fail.
 
 Freeze hashes of original and canonical sources, classifier, normalizers,
 runner, and compiler before execution. The runner rejects input changes
-during measurement. Archive old measurements and publish fresh results with
+during measurement. Publish fresh results with
 commands, diagnostics, proof evidence, timings, compile/validation evidence,
 and artifact hashes. Reproduction commands are in the [coverage README](../README.md).

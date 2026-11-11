@@ -1,9 +1,8 @@
 # Semantic support inventory
 
-This is an additional inventory of the 209 concrete cases in the frozen
-axis-only evaluation. A subsequent [separate run](expanded_semantics.md) tested
-the eleven newly included cases with a different compiler; the tables below
-preserve the inventory and the original frozen results. Cases and schemas are different
+This inventory covers the 209 concrete cases in the axis-only corpus. A
+[separate run](expanded_semantics.md) tested the eleven additional cases with
+a different compiler; the tables below describe operation support and task scope. Cases and schemas are different
 units: the cases represent 199 of the 239 cataloged schemas. The negative
 control is separate. Semantic support here means the operations have local
 value-semantic declarations, or an existing checked unit-view adapter, under
@@ -13,7 +12,7 @@ source-side domain condition has been audited.
 
 ## Semantic inventory and RHS tasks
 
-| RHS task | Semantically modeled candidates | Previously evaluated | Newly included, not evaluated |
+| RHS task | Semantically modeled candidates | Baseline protocol scope | Additional scope |
 |---|---:|---:|---:|
 | At least one original RHS axis field | 38 | 32 | 6 |
 | Supplied non-axis RHS attributes only | 9 | 5 | 4 |
@@ -41,22 +40,16 @@ The new axis cases are `slice_reverse`, `expr_slice_reverse_general`,
 axis fields were inspected with the existing role-directed `AxisTask` parser;
 their subsequent outcomes are in the separate run.
 
-## Verification-only outcomes
+## Current core coverage
 
-| RHS task | Verified | Unresolved | Not tested | Total |
-|---|---:|---:|---:|---:|
-| Supplied non-axis attributes only | 4 | 1 | 4 | 9 |
-| No RHS attributes | 61 | 14 | 1 | 76 |
-
-The tested results are those of the frozen run in [attribute_synthesis.md](attribute_synthesis.md).
-Success requires semantic proof and executable compilation and validation; the
-unresolved cases are not infeasibility results. Original source conditions,
-semantic restrictions, and arithmetic policy continue to apply. The new cases'
-separate run is reported in [expanded_semantics.md](expanded_semantics.md).
+The inventory screens operation semantics; it does not establish successful
+attribute synthesis. Current native core scope and implementation paths are
+reported in [core_classification.md](core_classification.md). The separate
+expanded experiment is reported in [expanded_semantics.md](expanded_semantics.md).
 
 Inventory procedure: exclude the negative control; for each recorded case,
 check its `required_operations` against [hlo_support.json](../data/hlo_support.json),
 then retain the four already-evaluated cases with checked unit-view adapters.
-Use the frozen [classification](../data/synthesis_classification.json) and
-[results](../results/synthesis.json) for existing tasks and outcomes; inspect
-new cases with `AxisTask` from [axis_fields.py](../scripts/axis_fields.py).
+Use the [input classification](../data/synthesis_classification.json) for task
+roles and normalization metadata; inspect new cases with `AxisTask` from
+[axis_fields.py](../scripts/axis_fields.py).

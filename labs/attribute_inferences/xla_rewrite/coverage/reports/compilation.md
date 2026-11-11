@@ -15,7 +15,7 @@ These are manual expressibility assessments. They identify which language mechan
 
 The structural corpus includes a designated rule for each of the **192 originally expressible schemas**. **192/192 designated rules compile**. Each rule has an explicit catalog ID, RHS metadata and scope. Some implementations select a fixed rank, opcode or padding domain; their compilation establishes those written cases.
 
-Including retained pilot variants, compilation accepted **209 of 209 explicit cases**, spanning **199 catalog schemas**. Each case supplies its RHS attributes. Value-equivalence results are in the separate [axis-only evaluation](attribute_synthesis.md).
+Including retained pilot variants, compilation accepted **209 of 209 explicit cases**, spanning **199 catalog schemas**. Each case supplies its RHS attributes. Native core scope and implementation paths are in the separate [core classification](core_classification.md).
 
 Both measurements use the self-contained HLO project configured by [tepl.toml](../../tepl/tepl.toml). Compilation uses [HLO declarations without value semantics](../../tepl/dialects/hlo_structural.tepl); axis-only verification uses migrated rules with the local [semantic HLO profile](../../tepl/dialects/hlo.tepl). Every compilation case has a source counterpart; scope exclusions and unresolved cases are reported separately. Imports resolve from the project root.
 

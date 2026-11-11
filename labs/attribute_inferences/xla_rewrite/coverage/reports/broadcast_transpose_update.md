@@ -5,8 +5,7 @@ expresses the same general-rank insertion-only broadcast/transpose graph as the
 frozen `catalog_broadcast_transpose_broadcast` task. It computes the supplied
 intermediate shape by placing the input and inserted extents in their original
 positions, then permutes and filters that shape. It does not add conditions or
-supply the RHS axis mapping. The original frozen source, classification, and
-results remain unchanged.
+supply the RHS axis mapping. The source fixture and supplied metadata program define this companion task.
 
 The verifier recognizes two general sequence facts: a unique-match sum over a
 proven permutation computes its inverse (or selects from an equal-length
@@ -31,9 +30,8 @@ in place of that one frozen task, is recorded in
 
 The only case whose outcome changed from the frozen run is the companion
 broadcast–transpose case. Scalar division remains unresolved. The separate
-negative control remains unproved. The new result is not a rerun of the exact
-frozen source expression: that original expression still exceeds the metadata
-checker fragment, so do not overwrite or relabel the historical 30/32 result.
+negative control remains unproved. The result uses the companion expression rather than the original nested
+conditional shape calculation.
 The run has its own compiler and dependency hashes in the JSON. The arithmetic
 policy and success criteria are the same as the [axis-only protocol](axis_only_scope.md).
 

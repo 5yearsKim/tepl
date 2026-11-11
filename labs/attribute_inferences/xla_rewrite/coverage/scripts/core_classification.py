@@ -48,10 +48,6 @@ def report(result):
         "13 is a mathematical classification; it was not evidence that all "
         "13 executed the unsigned constructive algorithm.",
         "",
-        "The separate frozen default-backend evaluation reports 30/32. Its "
-        "population and compiler run differ, so this update does not replace "
-        "that result with 21/32 or silently change its recorded outcomes.",
-        "",
         "## Case-level native dispatch",
         "",
         "| Case | Paper classification | Current path | Compile / portable validation |",

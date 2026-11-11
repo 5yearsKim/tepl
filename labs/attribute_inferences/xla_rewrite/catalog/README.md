@@ -1,6 +1,6 @@
 # XLA Rewrite Catalog
 
-This directory contains the source-based catalog of XLA algebraic rewrites. TEPL compilation and verification results are reported in [coverage/](../coverage/README.md). The [attribute synthesis report](../coverage/reports/attribute_synthesis.md) describes the axis-only evaluation setup, field-level inference, and verification-only results.
+This directory contains the source-based catalog of XLA algebraic rewrites. TEPL compilation and verification results are reported in [coverage/](../coverage/README.md). The [core classification](../coverage/reports/core_classification.md) describes the main-theorem scope and measured native implementation paths.
 
 ## Files
 

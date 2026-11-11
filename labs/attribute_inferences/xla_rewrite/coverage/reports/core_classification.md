@@ -14,8 +14,6 @@ The paper audit classifies **21 cases as main-theorem scope: 13 direct forms + 8
 
 The audit contains 38 axis-inference forms: 31 historically inferred and 7 not proved. Main-theorem scope is **21/38 (55.3%)**, or **21/31 (67.7%)** among historically successful forms. Actual constructive dispatch is **18/38 (47.4%)**, or **18/31 (58.1%)** among historically successful forms. The previous direct-form count 13 is a mathematical classification; it was not evidence that all 13 executed the unsigned constructive algorithm.
 
-The separate frozen default-backend evaluation reports 30/32. Its population and compiler run differ, so this update does not replace that result with 21/32 or silently change its recorded outcomes.
-
 ## Case-level native dispatch
 
 | Case | Paper classification | Current path | Compile / portable validation |
