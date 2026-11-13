@@ -131,7 +131,7 @@ ExecutableProgram load(std::string_view text) {
       throw std::invalid_argument(
           "missing core DAG capability or algebraic policy");
     for (const auto& r : p.ir_.rules)
-      if (r.core && inference::hasExtensions(r.core->program) &&
+      if (r.core && inference::usesSpecializedSchema(r.core->program) &&
           std::find(j.at("capabilities").begin(), j.at("capabilities").end(),
                     "tepl.core-schemas.v1") == j.at("capabilities").end())
         throw std::invalid_argument("missing core schema capability");
@@ -169,7 +169,7 @@ std::string serialize(const ExecutableProgram& p) {
       break;
     }
   for (const auto& r : p.ir_.rules)
-    if (r.core && inference::hasExtensions(r.core->program)) {
+    if (r.core && inference::usesSpecializedSchema(r.core->program)) {
       j["capabilities"].push_back("tepl.core-schemas.v1");
       break;
     }

@@ -508,6 +508,64 @@ void general() {
   verify(renamed, am);
   dialect = saved;
 }
+// Reuse the independent dense oracle for signed programs without insertion.
+void signedCore() {
+  auto prepare = [](const std::string& rule) {
+    auto p = parse(rule, false);
+    expect(p.proof.core && !p.proof.core->restricted_insertion,
+           "pure signed core admission");
+    const auto e = emit(*p.proof.core);
+    expect(!e.insertion && e.blocks.size() == 1 &&
+               !usesSpecializedSchema(*p.proof.core),
+           "signed programs dispatch to generic construction");
+    const auto& expressions = e.blocks[0].expressions;
+    expect(std::any_of(expressions.begin(), expressions.end(), [](auto& x) {
+             return x.op == Op::OrientationCheck;
+           }), "signed core emits orientation feasibility");
+    expect(validatePortable(portable(e)), "signed DAG portable validation");
+    return p;
+  };
+  auto chain = prepare(
+      "rule r {(outer:reverse (inner:reverse X))=>(out:reverse X)}");
+  for (unsigned rank = 0; rank <= 3; ++rank) {
+    Metadata m{{{0, std::vector<std::uint64_t>(rank, 2)}}, {}};
+    for (unsigned a = 0; a < (1u << rank); ++a)
+      for (unsigned b = 0; b < (1u << rank); ++b) {
+        List left, right, expected;
+        for (unsigned i = 0; i < rank; ++i) {
+          if (a & (1u << i)) left.push_back(i);
+          if (b & (1u << i)) right.push_back(i);
+          if ((a ^ b) & (1u << i)) expected.push_back(i);
+        }
+        field(chain, m, "inner", {left});
+        field(chain, m, "outer", {right});
+        auto r = verify(chain, m);
+        expect(r.attributes.at(chain.nodes[node(chain, "out")].descriptor->value)[0]
+                   == expected, "generic reversal chain computes parity");
+      }
+  }
+  auto transfer = prepare(
+      "rule r {(d:dot (r:reverse A) B)=>(q:dot A (v:reverse B))}");
+  for (unsigned extent : {2u, 3u}) {
+    Metadata m{{{0, {extent, extent}}, {1, {extent, extent}}}, {}};
+    dot(transfer, m, "d", {}, {}, {1}, {0});
+    for (List axes : {List{}, List{1}}) {
+      field(transfer, m, "r", {axes});
+      verify(transfer, m);
+    }
+    field(transfer, m, "r", {{0}});
+    verify(transfer, m, Status::Impossible);
+  }
+  auto eliminated = prepare(
+      "rule r {(s:reduce_sum (r:reverse X))=>(t:reduce_sum X)}");
+  Metadata m{{{0, {2, 3}}}, {}};
+  field(eliminated, m, "s", {{0}});
+  field(eliminated, m, "r", {{0}});
+  verify(eliminated, m);
+  field(eliminated, m, "r", {{1}});
+  verify(eliminated, m, Status::Impossible);
+}
+
 }  // namespace
 int main(int argc, char** argv) {
   try {
@@ -517,6 +575,7 @@ int main(int argc, char** argv) {
     dialect = read(runfiles->Rlocation(argv[1]));
     auto fixture = runfiles->Rlocation(argv[2]);
     recorded(fixture.substr(0, fixture.rfind('/')));
+    signedCore();
     boundaries();
     general();
     runtimeGuards();

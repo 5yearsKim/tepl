@@ -18,6 +18,9 @@ MetadataTerm normalizeMetadata(MetadataTerm, const MetadataFacts&);
 bool metadataEqual(const MetadataTerm&, const MetadataTerm&,
                    const MetadataFacts&);
 bool hasExtensions(const Program&);
+// Pure signed core programs use the generic orientation DAG. Other extension
+// operations still require the specialized schema interpreter.
+bool usesSpecializedSchema(const Program&);
 // Rejects every unrecognized graph pair; never falls back to canonical
 // emission.
 EmissionBlock emitExtension(const Program&);
