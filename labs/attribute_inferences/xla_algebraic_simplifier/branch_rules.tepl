@@ -1,0 +1,404 @@
+from "./branch_dialect.tepl" import Branch as h
+use h::{candidate,add,multiply,divide,negate,reshape,broadcast,scalar,iota,reference,first_scalar,reciprocal_literal,clone1,clone2,clone3,dot,transpose,convert,reduce,convolution,coordinate_sum}
+
+rule AS_934 {
+  A: [ADims...]
+  (c: candidate A B C D) => (add B A)
+  where c.attrs.site == 934
+}
+
+rule AS_1405 {
+  A: [ADims...]
+  (c: candidate A B C D) => B
+  where c.attrs.site == 1405
+}
+
+rule AS_2478 {
+  A: [ADims...]
+  (c: candidate A B C D) => A
+  where c.attrs.site == 2478
+}
+
+rule AS_5025 {
+  A: [ADims...]
+  (c: candidate A B C D) => A
+  where c.attrs.site == 5025
+}
+
+rule AS_5056 {
+  A: [ADims...]
+  (c: candidate A B C D) => (multiply A B)
+  where c.attrs.site == 5056
+}
+
+rule AS_5389 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: reference)
+  where c.attrs.site == 5389
+  derive {
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, id: c.attrs.ids[c.attrs.index]}
+  }
+}
+
+rule AS_5605 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: reshape A)
+  where c.attrs.site == 5605
+  derive {
+    r.attrs = {shape: c.attrs.shape, enabled: true}
+  }
+}
+
+rule AS_6744 {
+  A: [ADims...]
+  (c: candidate A B C D) => A
+  where c.attrs.site == 6744
+}
+
+rule AS_6750 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: reshape A)
+  where c.attrs.site == 6750
+  derive {
+    r.attrs = {shape: c.attrs.shape, enabled: true}
+  }
+}
+
+rule AS_8661 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: reshape A)
+  where c.attrs.site == 8661
+  derive {
+    r.attrs = {shape: c.attrs.shape, enabled: true}
+  }
+}
+
+rule AS_9835 {
+  A: [ADims...]
+  (c: candidate A B C D) => B
+  where c.attrs.site == 9835
+}
+
+rule AS_9840 {
+  A: [ADims...]
+  (c: candidate A B C D) => C
+  where c.attrs.site == 9840
+}
+
+rule AS_5761 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: scalar)
+  where c.attrs.site == 5761
+  derive {
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, value: i64(0)}
+  }
+}
+
+rule AS_5767 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: scalar)
+  where c.attrs.site == 5767
+  derive {
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, value: i64(1)}
+  }
+}
+
+rule AS_2317 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: iota)
+  where c.attrs.site == 2317
+  derive {
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, dimension: 0}
+  }
+}
+
+rule AS_2311 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: broadcast (first_scalar A))
+  where c.attrs.site == 2311
+  derive {
+    r.attrs = {shape: c.attrs.shape, dimensions: [], enabled: true}
+  }
+}
+
+rule AS_5690 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: iota)
+  where c.attrs.site == 5690
+  derive {
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, dimension: c.attrs.a[c.attrs.b[0]]}
+  }
+}
+
+rule AS_5723 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: broadcast (s: reshape A))
+  where c.attrs.site == 5723
+  derive {
+    let keep = exclude([if ADims[i] == 1 then len(ADims) else i for i in range(len(ADims))], [len(ADims)])
+    s.attrs = {shape: gather(ADims, keep), enabled: len(keep) != len(ADims)}
+    r.attrs = {shape: c.attrs.shape, dimensions: gather(c.attrs.a, keep), enabled: true}
+  }
+}
+
+rule AS_2824 {
+  A: [ADims...]
+  (c: candidate A B C D) => (r: broadcast A)
+  where c.attrs.site == 2824
+  derive {
+    let inv = [sum([if c.attrs.b[j] == i then j else 0 for j in range(len(c.attrs.b))]) for i in range(len(c.attrs.b))]
+    r.attrs = {shape: c.attrs.shape, dimensions: gather(inv, c.attrs.a), enabled: true}
+  }
+}
+
+rule AS_5132 {
+  A: [ADims...]
+  B: [BDims...]
+  C: [CDims...]
+  (c: candidate A B C D) => (multiply A (r: broadcast (multiply B C)))
+  where c.attrs.site == 5132
+  derive {
+    r.attrs = {shape: c.attrs.shape, dimensions: [], enabled: len(BDims) == 0 && len(c.attrs.shape) != 0}
+  }
+}
+
+rule AS_5165 {
+  A: [ADims...]
+  B: [BDims...]
+  C: [CDims...]
+  (c: candidate A B C D) => (multiply A (r: broadcast (multiply B (v: broadcast C))))
+  where c.attrs.site == 5165
+  derive {
+    v.attrs = {shape: BDims, dimensions: [], enabled: len(BDims) != 0}
+    r.attrs = {shape: c.attrs.shape, dimensions: c.attrs.a, enabled: true}
+  }
+}
+
+rule AS_2614 {
+  A: [ADims...]
+  B: [BDims...]
+  C: [CDims...]
+  (c: candidate A B C D) => (multiply A (r: broadcast (divide (v: scalar) B)))
+  where c.attrs.site == 2614
+  derive {
+    v.attrs = {shape: BDims, type: c.attrs.type, value: i64(1)}
+    r.attrs = {shape: c.attrs.shape, dimensions: c.attrs.a, enabled: true}
+  }
+}
+
+rule AS_2590 {
+  A: [ADims...]
+  B: [BDims...]
+  C: [CDims...]
+  (c: candidate A B C D) => (multiply A (r: broadcast (reciprocal_literal B)))
+  where c.attrs.site == 2590
+  derive {
+    r.attrs = {shape: CDims, dimensions: c.attrs.a, enabled: c.attrs.index == 1}
+  }
+}
+
+rule AS_5681 {
+  A: [ADims...]
+  B: [BDims...]
+  C: [CDims...]
+  (c: candidate A B C D) => (r: broadcast A)
+  where c.attrs.site == 5681
+  derive {
+    r.attrs = {shape: c.attrs.shape, dimensions: [], enabled: true}
+  }
+}
+
+rule AS_5645 {
+  A: [ADims...]
+  B: [BDims...]
+  C: [CDims...]
+  (c: candidate A B C D) => (r: broadcast A)
+  where c.attrs.site == 5645
+  derive {
+    r.attrs = {shape: c.attrs.shape, dimensions: gather(c.attrs.a, exclude(range(len(c.attrs.a)), c.attrs.b)), enabled: true}
+  }
+}
+
+rule AS_10187 {
+  A: [ADims...]
+  B: [BDims...]
+  C: [CDims...]
+  (c: candidate A B C D) => (r: dot A B)
+  where c.attrs.site == 10187
+  derive {
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, template_id: c.attrs.template_id, lc: c.attrs.b, rc: c.attrs.a, lb: c.attrs.c, rb: c.attrs.d, precision_order: [1,0]}
+  }
+}
+
+rule AS_6358_1 {
+  A: [ADims...] B: [BDims...] C: [CDims...]
+  (c: candidate A B C D) => (r: broadcast (u: clone1 (v0: broadcast A)))
+  where c.attrs.site == 6358 && c.attrs.index == 1
+  derive {
+    v0.attrs = {shape: c.attrs.b, dimensions: [], enabled: len(ADims) == 0}
+    u.attrs = {shape: c.attrs.b, type: c.attrs.type, template_id: c.attrs.template_id}
+    r.attrs = {shape: c.attrs.shape, dimensions: c.attrs.a, enabled: true}
+  }
+}
+
+rule AS_6358_2 {
+  A: [ADims...] B: [BDims...] C: [CDims...]
+  (c: candidate A B C D) => (r: broadcast (u: clone2 (v0: broadcast A) (v1: broadcast B)))
+  where c.attrs.site == 6358 && c.attrs.index == 2
+  derive {
+    v0.attrs = {shape: c.attrs.b, dimensions: [], enabled: len(ADims) == 0}
+    v1.attrs = {shape: c.attrs.b, dimensions: [], enabled: len(BDims) == 0}
+    u.attrs = {shape: c.attrs.b, type: c.attrs.type, template_id: c.attrs.template_id}
+    r.attrs = {shape: c.attrs.shape, dimensions: c.attrs.a, enabled: true}
+  }
+}
+
+rule AS_6358_3 {
+  A: [ADims...] B: [BDims...] C: [CDims...]
+  (c: candidate A B C D) => (r: broadcast (u: clone3 (v0: broadcast A) (v1: broadcast B) (v2: broadcast C)))
+  where c.attrs.site == 6358 && c.attrs.index == 3
+  derive {
+    v0.attrs = {shape: c.attrs.b, dimensions: [], enabled: len(ADims) == 0}
+    v1.attrs = {shape: c.attrs.b, dimensions: [], enabled: len(BDims) == 0}
+    v2.attrs = {shape: c.attrs.b, dimensions: [], enabled: len(CDims) == 0}
+    u.attrs = {shape: c.attrs.b, type: c.attrs.type, template_id: c.attrs.template_id}
+    r.attrs = {shape: c.attrs.shape, dimensions: c.attrs.a, enabled: true}
+  }
+}
+
+rule AS_6898 {
+  dtype TA
+  dtype TB
+  A: TA[ADims...] B: TB[BDims...]
+  (c: candidate A B C D) => (r: broadcast A)
+  where c.attrs.site == 6898
+  derive {
+    let newdims = [sum([if c.attrs.b[j] == dim then c.attrs.c[j] else 0 for j in range(len(c.attrs.b))]) for dim in c.attrs.a]
+    r.attrs = {shape: c.attrs.shape, dimensions: newdims, enabled: true}
+  }
+}
+
+rule AS_6945 {
+  dtype TA
+  dtype TB
+  A: TA[ADims...] B: TB[BDims...]
+  (c: candidate A B C D) => (r: coordinate_sum)
+  where c.attrs.site == 6945
+  derive {
+    let axes = [c.attrs.a[1]-1-i for i in range(c.attrs.a[1]-c.attrs.a[0])]
+    let coefficients = [product(slice(c.attrs.shape, dim+1, c.attrs.a[1])) for dim in axes]
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, axes: axes, coefficients: coefficients}
+  }
+}
+
+rule AS_8870 {
+  dtype TA
+  dtype TB
+  A: TA[ADims...] B: TB[BDims...]
+  (c: candidate A B C D) => (negate (r: reduce A B))
+  where c.attrs.site == 8870
+  derive {
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, template_id: c.attrs.template_id, reuse: true, dimensions: c.attrs.a}
+  }
+}
+
+rule AS_9023 {
+  dtype TA
+  dtype TB
+  A: TA[ADims...] B: TB[BDims...]
+  (c: candidate A B C D) => (r: reduce A B)
+  where c.attrs.site == 9023
+  derive {
+    let retained = exclude(range(len(c.attrs.d)),c.attrs.a)
+    let keep = exclude([if contains(retained,c.attrs.c[j]) then c.attrs.b[j] else len(ADims) for j in range(len(c.attrs.b))],[len(ADims)])
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, template_id: c.attrs.template_id, reuse: false, dimensions: exclude(range(len(ADims)),keep)}
+  }
+}
+
+rule AS_9050 {
+  dtype TA
+  dtype TB
+  A: TA[ADims...] B: TB[BDims...]
+  (c: candidate A B C D) => (r: reshape (u: reduce A B))
+  where c.attrs.site == 9050
+  derive {
+    let dims = [sum([if c.attrs.c[j] == dim then c.attrs.b[j] else 0 for j in range(len(c.attrs.b))]) for dim in c.attrs.a]
+    u.attrs = {shape: gather(ADims,exclude(range(len(ADims)),dims)), type: c.attrs.type, template_id: c.attrs.template_id, reuse: false, dimensions: dims}
+    r.attrs = {shape: c.attrs.shape, enabled: true}
+  }
+}
+
+rule AS_10505 {
+  dtype TA
+  dtype TB
+  A: TA[ADims...] B: TB[BDims...]
+  (c: candidate A B C D) => (r: convolution A B)
+  where c.attrs.site == 10505
+  derive {
+    r.attrs = {shape: c.attrs.shape, type: c.attrs.type, template_id: c.attrs.template_id,
+      low: [c.attrs.low[i] + i64(c.attrs.b[c.attrs.a[i]]) for i in range(len(c.attrs.a))],
+      high: [c.attrs.high[i] + i64(c.attrs.c[c.attrs.a[i]]) for i in range(len(c.attrs.a))],
+      base: [if c.attrs.d[c.attrs.a[i]] != 0 then 1+c.attrs.d[c.attrs.a[i]] else c.attrs.e[i] for i in range(len(c.attrs.a))]}
+  }
+}
+
+rule AS_3785 {
+  dtype TA
+  dtype TB
+  A: TA[ADims...] B: TB[BDims...]
+  (c: candidate A B C D) => (multiply (l: broadcast (cl: convert (tl: transpose A))) (r: broadcast (cr: convert (tr: transpose B))))
+  where c.attrs.site == 3785
+  derive {
+    let lp = concat(c.attrs.c,exclude(range(len(ADims)),concat(c.attrs.c,c.attrs.a)),c.attrs.a)
+    let rp = concat(c.attrs.d,exclude(range(len(BDims)),concat(c.attrs.d,c.attrs.b)),c.attrs.b)
+    tl.attrs = {permutation: lp, enabled: lp != range(len(ADims))}
+    tr.attrs = {permutation: rp, enabled: rp != range(len(BDims))}
+    cl.attrs = {type: c.attrs.type, enabled: TA != c.attrs.type}
+    cr.attrs = {type: c.attrs.type, enabled: TB != c.attrs.type}
+    l.attrs = {shape: c.attrs.shape, dimensions: range(len(ADims)), enabled: len(c.attrs.shape) != len(ADims)}
+    r.attrs = {shape: c.attrs.shape, dimensions: concat(range(len(c.attrs.c)),[len(ADims)+i for i in range(len(c.attrs.shape)-len(ADims))]), enabled: len(c.attrs.shape) != len(BDims)}
+  }
+}
+
+rule AS_2742 {
+  A: [ADims...] B: [BDims...]
+  (c: candidate A B C D) => (out: reshape (u: dot (l: reshape A) (r: reshape B)))
+  where c.attrs.site == 2742
+  derive {
+    let la = exclude([if ADims[i] == 1 then len(ADims) else i for i in range(len(ADims))],[len(ADims)])
+    let ra = exclude([if BDims[i] == 1 then len(BDims) else i for i in range(len(BDims))],[len(BDims)])
+    let ls = gather(ADims,la)
+    let rs = gather(BDims,ra)
+    let lc = exclude([if ADims[dim] == 1 then len(ADims) else dim-sum([if ADims[j] == 1 then 1 else 0 for j in range(dim)]) for dim in c.attrs.a],[len(ADims)])
+    let rc = exclude([if BDims[dim] == 1 then len(BDims) else dim-sum([if BDims[j] == 1 then 1 else 0 for j in range(dim)]) for dim in c.attrs.b],[len(BDims)])
+    let lb = exclude([if ADims[dim] == 1 then len(ADims) else dim-sum([if ADims[j] == 1 then 1 else 0 for j in range(dim)]) for dim in c.attrs.c],[len(ADims)])
+    let rb = exclude([if BDims[dim] == 1 then len(BDims) else dim-sum([if BDims[j] == 1 then 1 else 0 for j in range(dim)]) for dim in c.attrs.d],[len(BDims)])
+    let ds = concat(gather(ls,lb),gather(ls,exclude(range(len(ls)),concat(lb,lc))),gather(rs,exclude(range(len(rs)),concat(rb,rc))))
+    l.attrs = {shape: ls, enabled: len(la) != len(ADims)}
+    r.attrs = {shape: rs, enabled: len(ra) != len(BDims)}
+    u.attrs = {shape: ds, type: c.attrs.type, template_id: c.attrs.template_id, lc: lc, rc: rc, lb: lb, rb: rb, precision_order: [0,1]}
+    out.attrs = {shape: c.attrs.shape, enabled: ds != c.attrs.shape}
+  }
+}
+
+rule AS_2744 {
+  A: [ADims...] B: [BDims...]
+  (c: candidate A B C D) => (out: reshape (u: dot (l: reshape A) (r: reshape B)))
+  where c.attrs.site == 2744
+  derive {
+    let la = exclude([if ADims[i] == 1 then len(ADims) else i for i in range(len(ADims))],[len(ADims)])
+    let ra = exclude([if BDims[i] == 1 then len(BDims) else i for i in range(len(BDims))],[len(BDims)])
+    let ls = gather(ADims,la)
+    let rs = gather(BDims,ra)
+    let lc = exclude([if ADims[dim] == 1 then len(ADims) else dim-sum([if ADims[j] == 1 then 1 else 0 for j in range(dim)]) for dim in c.attrs.a],[len(ADims)])
+    let rc = exclude([if BDims[dim] == 1 then len(BDims) else dim-sum([if BDims[j] == 1 then 1 else 0 for j in range(dim)]) for dim in c.attrs.b],[len(BDims)])
+    let lb = exclude([if ADims[dim] == 1 then len(ADims) else dim-sum([if ADims[j] == 1 then 1 else 0 for j in range(dim)]) for dim in c.attrs.c],[len(ADims)])
+    let rb = exclude([if BDims[dim] == 1 then len(BDims) else dim-sum([if BDims[j] == 1 then 1 else 0 for j in range(dim)]) for dim in c.attrs.d],[len(BDims)])
+    let ds = concat(gather(ls,lb),gather(ls,exclude(range(len(ls)),concat(lb,lc))),gather(rs,exclude(range(len(rs)),concat(rb,rc))))
+    l.attrs = {shape: ls, enabled: len(la) != len(ADims)}
+    r.attrs = {shape: rs, enabled: len(ra) != len(BDims)}
+    u.attrs = {shape: ds, type: c.attrs.type, template_id: c.attrs.template_id, lc: lc, rc: rc, lb: lb, rb: rb, precision_order: [0,1]}
+    out.attrs = {shape: c.attrs.shape, enabled: ds != c.attrs.shape}
+  }
+}
+

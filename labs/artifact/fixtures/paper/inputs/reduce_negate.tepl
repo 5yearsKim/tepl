@@ -1,0 +1,11 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule reduce_negate {
+    (attr_r: reduce_sum (negate X)) => (negate (axis_eval_0: reduce_sum X))
+derive {
+ axis_eval_0.attrs = {dimensions: auto};
+}
+}

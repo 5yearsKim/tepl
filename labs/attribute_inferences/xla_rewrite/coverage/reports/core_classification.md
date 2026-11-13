@@ -74,7 +74,7 @@ Completeness remains conditional on exact-real semantics, input extents at least
 
 ```sh
 bazel build //:tepl
-python3 labs/attribute_inferences/xla_rewrite/coverage/scripts/core_classification.py --paper /path/to/TEPL-paper
+python3 labs/attribute_inferences/xla_rewrite/coverage/scripts/core_classification.py
 bazel test //tests:insertion_test //tests:ordered_synthesis_test --test_output=errors
 ```
 

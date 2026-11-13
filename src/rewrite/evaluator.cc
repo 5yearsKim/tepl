@@ -73,41 +73,41 @@ class MetadataEvaluator {
         [&](const auto& v) -> Value {
           using T = std::decay_t<decltype(v)>;
           using namespace core::metadata;
-          if constexpr (std::is_same_v<T, SymbolRef>)
+          if constexpr (std::is_same_v<T, core::metadata::SymbolRef>)
             return locals.at(v.symbol.value);
-          else if constexpr (std::is_same_v<T, Integer>)
+          else if constexpr (std::is_same_v<T, core::metadata::Integer>)
             return parseInteger(v.spelling);
           else if constexpr (std::is_same_v<T, bool>)
             return v;
           else if constexpr (std::is_same_v<T, core::DType>)
             return std::string(core::dtypeName(v));
-          else if constexpr (std::is_same_v<T, AttributeRef>)
+          else if constexpr (std::is_same_v<T, core::metadata::AttributeRef>)
             return attributeValue(node.attributes.at(v.field));
-          else if constexpr (std::is_same_v<T, Call>) {
+          else if constexpr (std::is_same_v<T, core::metadata::Call>) {
             std::vector<Value> a;
             for (const auto& x : v.arguments) a.push_back(eval(*x));
             return evaluateBuiltin(v.builtin, a, budget);
-          } else if constexpr (std::is_same_v<T, Unary>)
+          } else if constexpr (std::is_same_v<T, core::metadata::Unary>)
             return evaluateOperator(spelling(v.op), {eval(*v.operand)}, budget);
-          else if constexpr (std::is_same_v<T, Binary>) {
+          else if constexpr (std::is_same_v<T, core::metadata::Binary>) {
             if (category(v.op) == BinaryCategory::kLogical)
               return binary(
                   v.op, [&](bool rhs) { return eval(rhs ? *v.rhs : *v.lhs); });
             auto a = eval(*v.lhs), b = eval(*v.rhs);
             return evaluateOperator(spelling(v.op), {a, b}, budget);
-          } else if constexpr (std::is_same_v<T, List>) {
+          } else if constexpr (std::is_same_v<T, core::metadata::List>) {
             rewrite::List xs;
             for (const auto& x : v.elements) xs.push_back(eval(*x));
             budget.size(xs.size());
             return xs;
-          } else if constexpr (std::is_same_v<T, Index>) {
+          } else if constexpr (std::is_same_v<T, core::metadata::Index>) {
             auto value = eval(*v.value);
             auto index = eval(*v.index);
             return evaluateIndex(value, index, budget);
-          } else if constexpr (std::is_same_v<T, Conditional>)
+          } else if constexpr (std::is_same_v<T, core::metadata::Conditional>)
             return eval(boolean(eval(*v.condition)) ? *v.then_value
                                                     : *v.else_value);
-          else if constexpr (std::is_same_v<T, Comprehension>) {
+          else if constexpr (std::is_same_v<T, core::metadata::Comprehension>) {
             auto xs = list(eval(*v.iterable));
             rewrite::List out;
             auto saved = locals;

@@ -1,0 +1,17 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: dot-slice-output
+// Scope: Rank-two dot with arbitrary output starts, sizes and positive strides.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_dot_slice_output {
+    X: [M,K] Y: [K,N]
+     (attr_s: hlo.slice (attr_d: hlo.dot X Y)) => (axis_eval_0: hlo.dot (attr_left: hlo.slice X) (attr_right: hlo.slice Y))
+     where { attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
+     
+derive {
+ attr_left.attrs = {starts: [attr_s.attrs.starts[0],0], sizes: [attr_s.attrs.sizes[0],K], strides: [attr_s.attrs.strides[0],1]};
+ attr_right.attrs = {starts: [0,attr_s.attrs.starts[1]], sizes: [K,attr_s.attrs.sizes[1]], strides: [1,attr_s.attrs.strides[1]]};
+ axis_eval_0.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto};
+}
+}

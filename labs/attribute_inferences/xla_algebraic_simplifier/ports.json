@@ -1,0 +1,388 @@
+{
+  "xla_revision": "39c348196c834a7ee45a57f5b44688d53ae99a64",
+  "original_source_sha256": "30bbbaf5c9f260f43b368a564d6c05f342baafde4ce6ea31f3289fd779a0eb06",
+  "ports": [
+    {
+      "site": 934,
+      "function": "HandleAdd",
+      "description": "canonicalize constant + x to x + constant",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_934"
+      ],
+      "shared_port_site": 934
+    },
+    {
+      "site": 1405,
+      "function": "HandleAnd",
+      "description": "true && x -> x",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_1405"
+      ],
+      "shared_port_site": 1405
+    },
+    {
+      "site": 2311,
+      "function": "HandleConstant",
+      "description": "uniform literal -> broadcast of its first scalar element",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_2311"
+      ],
+      "shared_port_site": 2311
+    },
+    {
+      "site": 2317,
+      "function": "HandleConstant",
+      "description": "iota-valued literal -> iota",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_2317"
+      ],
+      "shared_port_site": 2317
+    },
+    {
+      "site": 2478,
+      "function": "HandleDivide",
+      "description": "x / 1 -> x",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_2478"
+      ],
+      "shared_port_site": 2478
+    },
+    {
+      "site": 2590,
+      "function": "operator()",
+      "description": "division by constant -> multiplication by reciprocal",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_2590"
+      ],
+      "shared_port_site": 2590
+    },
+    {
+      "site": 2614,
+      "function": "HandleDivide",
+      "description": "divide by broadcast -> multiply by broadcast reciprocal",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_2614"
+      ],
+      "shared_port_site": 2614
+    },
+    {
+      "site": 2742,
+      "function": "RemoveDegenerateDimensionFromDot",
+      "description": "remove unit dimensions from dot; unchanged output shape",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_2742"
+      ],
+      "shared_port_site": 2742
+    },
+    {
+      "site": 2744,
+      "function": "RemoveDegenerateDimensionFromDot",
+      "description": "remove unit dimensions from dot; reshape output",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_2744"
+      ],
+      "shared_port_site": 2742
+    },
+    {
+      "site": 2824,
+      "function": "SimplifyTransposeOfBroadcast",
+      "description": "transpose(broadcast(x)) -> broadcast(x)",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_2824"
+      ],
+      "shared_port_site": 2824
+    },
+    {
+      "site": 3785,
+      "function": "RewriteAsMultiplyDotWithZeroLhsContractingDim",
+      "description": "dot without contracting dimensions -> broadcast multiply",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_3785"
+      ],
+      "shared_port_site": 3785
+    },
+    {
+      "site": 5025,
+      "function": "HandleMultiply",
+      "description": "x * 1 -> x",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5025"
+      ],
+      "shared_port_site": 5025
+    },
+    {
+      "site": 5056,
+      "function": "HandleMultiply",
+      "description": "(-x) * (-y) -> x * y",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5056"
+      ],
+      "shared_port_site": 5056
+    },
+    {
+      "site": 5132,
+      "function": "HandleMultiply",
+      "description": "reassociate multiplication of constants",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5132"
+      ],
+      "shared_port_site": 5132
+    },
+    {
+      "site": 5165,
+      "function": "HandleMultiply",
+      "description": "move scalar constant into broadcasted multiply",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5165"
+      ],
+      "shared_port_site": 5165
+    },
+    {
+      "site": 5389,
+      "function": "HandleGetTupleElement",
+      "description": "get_tuple_element(tuple(...), i) -> operand i",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5389"
+      ],
+      "shared_port_site": 5389
+    },
+    {
+      "site": 5605,
+      "function": "HandleBroadcast",
+      "description": "element-count-preserving broadcast -> reshape",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5605"
+      ],
+      "shared_port_site": 5605
+    },
+    {
+      "site": 5645,
+      "function": "HandleBroadcast",
+      "description": "remove unit-inserting reshape before broadcast",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5645"
+      ],
+      "shared_port_site": 5645
+    },
+    {
+      "site": 5681,
+      "function": "HandleBroadcast",
+      "description": "permutation/subset of scalar broadcast -> broadcast",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5681"
+      ],
+      "shared_port_site": 5681
+    },
+    {
+      "site": 5690,
+      "function": "HandleBroadcast",
+      "description": "broadcast(iota) -> iota with remapped dimension",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5690"
+      ],
+      "shared_port_site": 5690
+    },
+    {
+      "site": 5723,
+      "function": "HandleBroadcast",
+      "description": "remove unit dimensions from broadcast operand",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5723"
+      ],
+      "shared_port_site": 5723
+    },
+    {
+      "site": 5761,
+      "function": "HandleCompare",
+      "description": "known nonnegative x < 0 -> false",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5761"
+      ],
+      "shared_port_site": 5761
+    },
+    {
+      "site": 5767,
+      "function": "HandleCompare",
+      "description": "known nonnegative x >= 0 -> true",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_5767"
+      ],
+      "shared_port_site": 5767
+    },
+    {
+      "site": 6358,
+      "function": "TryToSinkBroadcastAfterElementwiseOps",
+      "description": "sink elementwise operation through broadcasts; per user",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_6358_1",
+        "AS_6358_2",
+        "AS_6358_3"
+      ],
+      "shared_port_site": 6358
+    },
+    {
+      "site": 6744,
+      "function": "HandleReshape",
+      "description": "remove shape-preserving reshape",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_6744"
+      ],
+      "shared_port_site": 6744
+    },
+    {
+      "site": 6750,
+      "function": "HandleReshape",
+      "description": "compose consecutive reshapes",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_6750"
+      ],
+      "shared_port_site": 6750
+    },
+    {
+      "site": 6898,
+      "function": "HandleReshape",
+      "description": "reshape(broadcast(x)) -> broadcast(x)",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_6898"
+      ],
+      "shared_port_site": 6898
+    },
+    {
+      "site": 6945,
+      "function": "HandleReshape",
+      "description": "reshape(iota) -> coordinate arithmetic",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_6945"
+      ],
+      "shared_port_site": 6945
+    },
+    {
+      "site": 8661,
+      "function": "ReplaceReduceWithReshape",
+      "description": "element-count-preserving reduction -> reshape",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_8661"
+      ],
+      "shared_port_site": 8661
+    },
+    {
+      "site": 8870,
+      "function": "HandleReduce",
+      "description": "move negate through sum reduction",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_8870"
+      ],
+      "shared_port_site": 8870
+    },
+    {
+      "site": 9023,
+      "function": "HandleReduce",
+      "description": "move reshape through reduction",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_9023"
+      ],
+      "shared_port_site": 9023
+    },
+    {
+      "site": 9050,
+      "function": "HandleReduce",
+      "description": "move reshape of retained dimensions after generic reduction",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_9050"
+      ],
+      "shared_port_site": 9050
+    },
+    {
+      "site": 9835,
+      "function": "HandleSelect",
+      "description": "select(true, x, y) -> x",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_9835"
+      ],
+      "shared_port_site": 9835
+    },
+    {
+      "site": 9840,
+      "function": "HandleSelect",
+      "description": "select(false, x, y) -> y",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_9840"
+      ],
+      "shared_port_site": 9840
+    },
+    {
+      "site": 10114,
+      "function": "HandleTranspose",
+      "description": "remove identity transpose",
+      "deployment": "automatic",
+      "rules": [
+        "transpose_identity"
+      ],
+      "shared_port_site": 10114
+    },
+    {
+      "site": 10118,
+      "function": "HandleTranspose",
+      "description": "compose consecutive transposes",
+      "deployment": "automatic",
+      "rules": [
+        "transpose_compose"
+      ],
+      "shared_port_site": 10118
+    },
+    {
+      "site": 10187,
+      "function": "operator()",
+      "description": "transpose(dot(x, y)) -> dot(y, x)",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_10187"
+      ],
+      "shared_port_site": 10187
+    },
+    {
+      "site": 10505,
+      "function": "FoldConvInputPad",
+      "description": "fold zero input padding into convolution window padding/dilation",
+      "deployment": "explicit_structural",
+      "rules": [
+        "AS_10505"
+      ],
+      "shared_port_site": 10505
+    }
+  ]
+}

@@ -14,6 +14,7 @@ from pathlib import Path
 import tempfile
 
 from restricted_insertion import ROOT, migrate, run, sha
+from paper_inputs import audit_path as resolve_audit, source_path as resolve_source
 
 COVERAGE = Path(__file__).resolve().parents[1]
 MAIN = {"main_theorem_form", "main_theorem_reduction"}
@@ -83,7 +84,7 @@ def report(result):
              "unknowns, and the restricted insertion boundary. Native `--core` "
              "measurements do not establish generated C++/Rust adapter coverage.", "",
              "```sh", "bazel build //:tepl",
-             "python3 labs/attribute_inferences/xla_rewrite/coverage/scripts/core_classification.py --paper /path/to/TEPL-paper",
+             "python3 labs/attribute_inferences/xla_rewrite/coverage/scripts/core_classification.py",
              "bazel test //tests:insertion_test //tests:ordered_synthesis_test --test_output=errors",
              "```", "", f"Measured UTC: `{result['measured_utc']}`.", ""]
     return "\n".join(rows)
@@ -95,10 +96,10 @@ LABELS = {"constructive_core": "Generic construction",
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--paper", type=Path, required=True)
+    parser.add_argument("--paper", type=Path, help="Optional external paper checkout; defaults to bundled inputs")
     parser.add_argument("--compiler", type=Path, default=ROOT / "bazel-bin/tepl")
     args = parser.parse_args()
-    audit_path = args.paper / "evaluation/theorem-scope-audit.json"
+    audit_path = resolve_audit(args.paper)
     audit = json.loads(audit_path.read_text())
     selected = [r for r in audit["records"] if r["classification"] in MAIN]
     assert len(selected) == 21
@@ -151,7 +152,7 @@ def main():
         compiler_hash = sha(compiler)
         for item in audit["records"]:
             name = item.get("source", f"evaluation/unified-construction/inputs/{item['case']}.tepl")
-            cases.append(measure(item, args.paper / name, name, temp))
+            cases.append(measure(item, resolve_source(name, args.paper), name, temp))
         # Separate original frozen control. This is not an extra audited form.
         frozen = ROOT / "labs/attribute_inferences/xla_rewrite/tepl/rules/axis/catalog_broadcast_transpose_broadcast.tepl"
         controls.append(measure({"case": "catalog_broadcast_transpose_broadcast_original",

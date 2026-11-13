@@ -1,0 +1,17 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/axis_views.tepl" import AxisViews as axis_view;
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-drop-unit-dims
+// Scope: Rank-two operand with leading unit axis; broadcast appends axes.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_drop_unit_dims {
+    X: [A,N]
+     (attr_b: hlo.broadcast X) => (attr_out: hlo.broadcast (axis_eval_0: axis_view.remove_unit_axes X))
+     where { A == 1 && attr_b.attrs.dimensions == [0,1] }
+     
+derive {
+ axis_eval_0.attrs = {dimensions: [0]};
+ attr_out.attrs = {dimensions: auto, new_extents: concat([1],attr_b.attrs.new_extents)};
+}
+}

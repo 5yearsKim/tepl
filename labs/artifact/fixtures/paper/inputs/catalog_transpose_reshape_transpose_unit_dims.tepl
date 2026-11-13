@@ -1,0 +1,17 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/axis_views.tepl" import AxisViews as axis_view;
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: transpose-reshape-transpose-unit-dims
+// Scope: Rank-two input with one unit axis.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_transpose_reshape_transpose_unit_dims {
+    X: [A,N]
+     (attr_p: hlo.transpose X) => (axis_eval_1: hlo.broadcast (axis_eval_0: axis_view.remove_unit_axes X))
+     where { A==1 && attr_p.attrs.permutation==[1,0] }
+     
+derive {
+ axis_eval_0.attrs = {dimensions: [0]};
+ axis_eval_1.attrs = {dimensions: [0], new_extents: [1]};
+}
+}

@@ -1,0 +1,1062 @@
+{
+  "scope": "branch substitutions inside AlgebraicSimplifier",
+  "binary_sha256": {
+    "driver": "de136bf24f47e9e154b32caa6a4c9bc23d97566c8ae8e504f3aba8bcb42465f7",
+    "library": "d6f6425347ac4b3cf018f8ade78fe27d3588eae102998b71da8ddd74652b4b0e",
+    "automatic": "a3aeedbac6a6b7e74ad217f45cd239b94046787a0a11ef495f5022549d62ce31",
+    "branches": "af96577262f4f44b200509284cc92661ca49f9b75cc4a13afb25288f8f0aa5a2"
+  },
+  "cases": 47,
+  "verified_sites": [
+    934,
+    1405,
+    2311,
+    2317,
+    2478,
+    2590,
+    2614,
+    2742,
+    2744,
+    2824,
+    3785,
+    5025,
+    5056,
+    5132,
+    5165,
+    5389,
+    5605,
+    5645,
+    5681,
+    5690,
+    5723,
+    5761,
+    5767,
+    6358,
+    6744,
+    6750,
+    6898,
+    6945,
+    8661,
+    8870,
+    9023,
+    9050,
+    9835,
+    9840,
+    10114,
+    10118,
+    10187,
+    10505
+  ],
+  "numerical_input_sets": 141,
+  "results": [
+    {
+      "case": "constant_reciprocal",
+      "expected_site": 2590,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 2590,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 2590
+        }
+      ]
+    },
+    {
+      "case": "divide_broadcast",
+      "expected_site": 2614,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 2614,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 2614
+        }
+      ]
+    },
+    {
+      "case": "multiply_constants",
+      "expected_site": 5132,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5132,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5132
+        }
+      ]
+    },
+    {
+      "case": "multiply_broadcast_constant",
+      "expected_site": 5165,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5165,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5165
+        }
+      ]
+    },
+    {
+      "case": "broadcast_drop_reshape",
+      "expected_site": 5645,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5645,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5645
+        }
+      ]
+    },
+    {
+      "case": "scalar_broadcast_user",
+      "expected_site": 5681,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5681,
+          "tepl": 1
+        },
+        {
+          "applications": 1,
+          "source_site": 6898,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5681
+        },
+        {
+          "applications": 1,
+          "source_site": 6898
+        }
+      ]
+    },
+    {
+      "case": "sink_broadcast_unary",
+      "expected_site": 6358,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 6358,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 6358
+        }
+      ]
+    },
+    {
+      "case": "sink_broadcast_binary",
+      "expected_site": 6358,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 6358,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 6358
+        }
+      ]
+    },
+    {
+      "case": "sink_broadcast_clamp",
+      "expected_site": 6358,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 6358,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 6358
+        }
+      ]
+    },
+    {
+      "case": "sink_broadcast_dtype_guard",
+      "expected_site": null,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": []
+    },
+    {
+      "case": "transpose_dot",
+      "expected_site": 10187,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10187,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10187
+        }
+      ]
+    },
+    {
+      "case": "dot_unit_contract",
+      "expected_site": 2742,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 2742,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 2742
+        }
+      ]
+    },
+    {
+      "case": "dot_unit_output",
+      "expected_site": 2744,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 2744,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 2744
+        }
+      ]
+    },
+    {
+      "case": "dot_no_contract",
+      "expected_site": 3785,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 3785,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 3785
+        }
+      ]
+    },
+    {
+      "case": "reshape_broadcast",
+      "expected_site": 6898,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 6898,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 6898
+        }
+      ]
+    },
+    {
+      "case": "reshape_iota",
+      "expected_site": 6945,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 6945,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 6945
+        }
+      ]
+    },
+    {
+      "case": "reduce_negate",
+      "expected_site": 8870,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 8870,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 8870
+        }
+      ]
+    },
+    {
+      "case": "reduce_reshape_input",
+      "expected_site": 9023,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 9009,
+          "tepl": 0
+        },
+        {
+          "applications": 1,
+          "source_site": 9023,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 9023
+        }
+      ]
+    },
+    {
+      "case": "reduce_reshape_output",
+      "expected_site": 9050,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 9050,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 9050
+        }
+      ]
+    },
+    {
+      "case": "conv_fold_pad",
+      "expected_site": 10505,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10505,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10505
+        }
+      ]
+    },
+    {
+      "case": "conv_fold_pad_signed_window",
+      "expected_site": 10505,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10505,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10505
+        }
+      ]
+    },
+    {
+      "case": "conv_fold_pad_interior",
+      "expected_site": 10505,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10505,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10505
+        }
+      ]
+    },
+    {
+      "case": "add_order",
+      "expected_site": 934,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 934,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 934
+        }
+      ]
+    },
+    {
+      "case": "transpose_identity",
+      "expected_site": 10114,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114
+        }
+      ]
+    },
+    {
+      "case": "and_true",
+      "expected_site": 1405,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 1405,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 1405
+        }
+      ]
+    },
+    {
+      "case": "uniform_constant",
+      "expected_site": 2311,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 2311,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 2311
+        }
+      ]
+    },
+    {
+      "case": "iota_constant",
+      "expected_site": 2317,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 2317,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 2317
+        }
+      ]
+    },
+    {
+      "case": "divide_one",
+      "expected_site": 2478,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 2478,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 2478
+        }
+      ]
+    },
+    {
+      "case": "multiply_one",
+      "expected_site": 5025,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5025,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5025
+        }
+      ]
+    },
+    {
+      "case": "cancel_negates",
+      "expected_site": 5056,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5056,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5056
+        }
+      ]
+    },
+    {
+      "case": "tuple_projection",
+      "expected_site": 5389,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5389,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5389
+        }
+      ]
+    },
+    {
+      "case": "broadcast_to_reshape",
+      "expected_site": 5605,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5605,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5605
+        }
+      ]
+    },
+    {
+      "case": "broadcast_iota",
+      "expected_site": 5690,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5690,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5690
+        }
+      ]
+    },
+    {
+      "case": "broadcast_drop_unit",
+      "expected_site": 5723,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5723,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5723
+        }
+      ]
+    },
+    {
+      "case": "nonnegative_lt",
+      "expected_site": 5761,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5761,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5761
+        }
+      ]
+    },
+    {
+      "case": "nonnegative_ge",
+      "expected_site": 5767,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 5767,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 5767
+        }
+      ]
+    },
+    {
+      "case": "reshape_identity",
+      "expected_site": 6744,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 6744,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 6744
+        }
+      ]
+    },
+    {
+      "case": "reshape_compose",
+      "expected_site": 6750,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 6750,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 6750
+        }
+      ]
+    },
+    {
+      "case": "reduce_unit",
+      "expected_site": 8661,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 8661,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 8661
+        }
+      ]
+    },
+    {
+      "case": "select_true",
+      "expected_site": 9835,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 9835,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 9835
+        }
+      ]
+    },
+    {
+      "case": "select_false",
+      "expected_site": 9840,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 9840,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 9840
+        }
+      ]
+    },
+    {
+      "case": "transpose_broadcast",
+      "expected_site": 2824,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 2824,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 2824
+        }
+      ]
+    },
+    {
+      "case": "transpose_f32",
+      "expected_site": 10118,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114,
+          "tepl": 1
+        },
+        {
+          "applications": 1,
+          "source_site": 10118,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114
+        },
+        {
+          "applications": 1,
+          "source_site": 10118
+        }
+      ]
+    },
+    {
+      "case": "transpose_bf16",
+      "expected_site": 10118,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114,
+          "tepl": 1
+        },
+        {
+          "applications": 1,
+          "source_site": 10118,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114
+        },
+        {
+          "applications": 1,
+          "source_site": 10118
+        }
+      ]
+    },
+    {
+      "case": "transpose_s32",
+      "expected_site": 10118,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114,
+          "tepl": 1
+        },
+        {
+          "applications": 1,
+          "source_site": 10118,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114
+        },
+        {
+          "applications": 1,
+          "source_site": 10118
+        }
+      ]
+    },
+    {
+      "case": "transpose_pred",
+      "expected_site": 10118,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114,
+          "tepl": 1
+        },
+        {
+          "applications": 1,
+          "source_site": 10118,
+          "tepl": 1
+        }
+      ],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": [
+        {
+          "applications": 1,
+          "source_site": 10114
+        },
+        {
+          "applications": 1,
+          "source_site": 10118
+        }
+      ]
+    },
+    {
+      "case": "no_match",
+      "expected_site": null,
+      "graph_equal": true,
+      "numerical_input_sets": 3,
+      "rewrite_applications": [],
+      "scope": "one AlgebraicSimplifier invocation followed by DCE",
+      "tepl_applications": []
+    }
+  ],
+  "all_workload_variants_covered": true,
+  "covered_workload_variants": [
+    934,
+    1405,
+    2311,
+    2317,
+    2478,
+    2590,
+    2614,
+    2742,
+    2744,
+    2824,
+    3785,
+    5025,
+    5056,
+    5132,
+    5165,
+    5389,
+    5605,
+    5645,
+    5681,
+    5690,
+    5723,
+    5761,
+    5767,
+    6358,
+    6744,
+    6750,
+    6898,
+    6945,
+    8661,
+    8870,
+    9023,
+    9050,
+    9835,
+    9840,
+    10114,
+    10118,
+    10187,
+    10505
+  ]
+}

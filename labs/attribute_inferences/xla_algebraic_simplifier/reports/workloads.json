@@ -1,0 +1,859 @@
+{
+  "provenance": {
+    "schema_version": 1,
+    "started_utc": "2026-11-13T20:10:30.904367+00:00",
+    "xla_revision": "39c348196c834a7ee45a57f5b44688d53ae99a64",
+    "tepl_revision": "301ac2d894163331599b5f3677d319a403a23470",
+    "xla_preparation": {
+      "source_sha256": "9931bf36ebb13c6ce2f2b982d7a518db2750ba09d248025a41bb4880fbb24d4e",
+      "xla_revision": "39c348196c834a7ee45a57f5b44688d53ae99a64",
+      "files": {
+        "driver.cc": "65c5e69240e1f5abf8cb9c93b753007c82e2fa92fb35dae9bcf9803e57da3ddb",
+        "bridge.h": "c2d6de597946f15ffc2737347532bd1f7424bc9d295287849eb2e6965450c84c",
+        "branch_builder.cc": "29feb68c1f805c16ca5cca31f44b5d6fc667bb9ba1ef5a5b248104a488b69b9c",
+        "branch_builder.h": "9906dbaf57131317d5e71c4447d5402e687990272e2c453d3461535ca8258815",
+        "pipeline_driver.cc": "095d6ab52fb74f39b0f7491038be01e1a2e0d7203096c74cc606d7d900fff754",
+        "BUILD.bazel": "36b2441f9aac6c1e54055af61065eee88a73874dea3c878913e6bd3f393411c0"
+      }
+    },
+    "binaries": {
+      "driver": "e9c33633f7db1ef4db7570b6ff5e995c1547b1cda6de359c59d1a4708a77acba",
+      "library": "d6f6425347ac4b3cf018f8ade78fe27d3588eae102998b71da8ddd74652b4b0e",
+      "compiler": "17c57d7fe5d63eaa14c6b574f445a29a1428b2eee445a6840c4235f6b28e9cf0"
+    },
+    "sources": {
+      "labs/attribute_inferences/xla_algebraic_simplifier/branch_rules.tepl": "980b51b2345d7d3008065239397c39621e44d5087fa5f2c01ead3e5fe738b528",
+      "labs/attribute_inferences/xla_algebraic_simplifier/xla.BUILD.bazel": "36b2441f9aac6c1e54055af61065eee88a73874dea3c878913e6bd3f393411c0",
+      "labs/attribute_inferences/xla_algebraic_simplifier/bridge.h": "c2d6de597946f15ffc2737347532bd1f7424bc9d295287849eb2e6965450c84c",
+      "labs/attribute_inferences/xla_algebraic_simplifier/ports.json": "32912012900e2f2bb77a68752689fa693b23a09fb0afebbff9135c04aca91018",
+      "labs/attribute_inferences/xla_algebraic_simplifier/test_prepare.py": "eb69a91322122efe7f0dbf5305092595686fb8e1eebff40ef754cffdae81a153",
+      "labs/attribute_inferences/xla_algebraic_simplifier/test_branch_bridge.py": "af1232adc1cacf83e04c1e9ae05d67f1a6117e802ad3ef6cbc700f51f5e53a27",
+      "labs/attribute_inferences/xla_algebraic_simplifier/branch_bridge.cc": "3825297a4f53a706a80891815748816a1a755e45235d7e6b88a63d3c40c572b3",
+      "labs/attribute_inferences/xla_algebraic_simplifier/test_bridge.py": "ac944accfc028dd4645d91596b201f1f162501281d61d415d09322bf5fe38bf7",
+      "labs/attribute_inferences/xla_algebraic_simplifier/bridge.cc": "848e591c702bfa2447e300894fb16870ffdd6b3b0df3227dbd66f234e251afc5",
+      "labs/attribute_inferences/xla_algebraic_simplifier/prepare_xla.py": "d8e326a101d0ac168e7063545d37bcb687020c7b8717e3fb8fe047726c3fc86b",
+      "labs/attribute_inferences/xla_algebraic_simplifier/BUILD.bazel": "e368df92b52fb80c3258a9f48d060781bdae87ca288c5e1d99d0c18db7f07541",
+      "labs/attribute_inferences/xla_algebraic_simplifier/test_integration.py": "e2611c7c3a5ffec6320a81a9782e1941cde47505a27e591b372a46003cebcad7",
+      "labs/attribute_inferences/xla_algebraic_simplifier/test_protocol.py": "db4c513b8b4001b6c74dcb3fe5268774e3133d0a135a896771fae09a4e85a79a",
+      "labs/attribute_inferences/xla_algebraic_simplifier/pipeline_driver.cc": "095d6ab52fb74f39b0f7491038be01e1a2e0d7203096c74cc606d7d900fff754",
+      "labs/attribute_inferences/xla_algebraic_simplifier/run_workloads.py": "10812c1104c6c04c1a34008838c2180e4778fc3b5e058271374942661bc4e322",
+      "labs/attribute_inferences/xla_algebraic_simplifier/rules.tepl": "194dec0d386e912418790f328bbe4733bb0acc8821116525b846b36b58968c78",
+      "labs/attribute_inferences/xla_algebraic_simplifier/driver.cc": "65c5e69240e1f5abf8cb9c93b753007c82e2fa92fb35dae9bcf9803e57da3ddb",
+      "labs/attribute_inferences/xla_algebraic_simplifier/test_branches.py": "cd2b152808c687177b2d47659c858e6477bdb6d036a7d7bbb88fbfbde30bb672",
+      "labs/attribute_inferences/xla_algebraic_simplifier/branch_builder.cc": "29feb68c1f805c16ca5cca31f44b5d6fc667bb9ba1ef5a5b248104a488b69b9c",
+      "labs/attribute_inferences/xla_algebraic_simplifier/branch_hooks.py": "dbb205ab39baf4cdef403ec834d5cf01e977c23e97488a2f07ea4bac1d8f88f1",
+      "labs/attribute_inferences/xla_algebraic_simplifier/branch_builder.h": "9906dbaf57131317d5e71c4447d5402e687990272e2c453d3461535ca8258815",
+      "labs/attribute_inferences/xla_algebraic_simplifier/branch_dialect.tepl": "2118a7c03c0a8422c486a56a548f479842430d0b32feff239a410622347577cf",
+      "labs/attribute_inferences/xla_algebraic_simplifier/workloads/gpt2-export-provenance.json": "7c4f68b28af52bf2cffcedf4706e053b2558aaf2dd4c7482322962bb9b0c2f55",
+      "labs/attribute_inferences/xla_algebraic_simplifier/workloads/manifest.json": "aecc077351c59534056ae645c6351f438d569f45a278805fc3d9d4b4278ff216",
+      "labs/attribute_inferences/xla_algebraic_simplifier/workloads/dlrm.hlo": "bcd909a69b73d178c2b864ffdf533b08834502f24a15a90881f709feeece9820",
+      "labs/attribute_inferences/xla_algebraic_simplifier/workloads/gpt2.hlo": "53bec5b66247425467af81ad5d2f122845bf2cbb0b2e6925b646e739ee950904",
+      "labs/attribute_inferences/xla_algebraic_simplifier/workloads/vit.hlo": "6fe057aac995fd754451005d811ce182b7a470fd610af7d73bf0d939fe47bd28",
+      "labs/attribute_inferences/xla_algebraic_simplifier/workloads/resnet.hlo": "2da96f473e7ec112e97dad463577da4eda70f849e874353916dc89bb3df61281"
+    },
+    "protocol": "paired_normal_cpu_pipeline_v1",
+    "mode": "strict",
+    "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.43",
+    "input_manifest_sha256": "aecc077351c59534056ae645c6351f438d569f45a278805fc3d9d4b4278ff216",
+    "cpu": {
+      "logical_cpus": 22,
+      "processor": "",
+      "model": "Intel(R) Core(TM) Ultra 7 155H",
+      "flags": [
+        "fpu",
+        "vme",
+        "de",
+        "pse",
+        "tsc",
+        "msr",
+        "pae",
+        "mce",
+        "cx8",
+        "apic",
+        "sep",
+        "mtrr",
+        "pge",
+        "mca",
+        "cmov",
+        "pat",
+        "pse36",
+        "clflush",
+        "dts",
+        "acpi",
+        "mmx",
+        "fxsr",
+        "sse",
+        "sse2",
+        "ss",
+        "ht",
+        "tm",
+        "pbe",
+        "syscall",
+        "nx",
+        "pdpe1gb",
+        "rdtscp",
+        "lm",
+        "constant_tsc",
+        "art",
+        "arch_perfmon",
+        "pebs",
+        "bts",
+        "rep_good",
+        "nopl",
+        "xtopology",
+        "nonstop_tsc",
+        "cpuid",
+        "aperfmperf",
+        "tsc_known_freq",
+        "pni",
+        "pclmulqdq",
+        "dtes64",
+        "monitor",
+        "ds_cpl",
+        "vmx",
+        "smx",
+        "est",
+        "tm2",
+        "ssse3",
+        "sdbg",
+        "fma",
+        "cx16",
+        "xtpr",
+        "pdcm",
+        "pcid",
+        "sse4_1",
+        "sse4_2",
+        "x2apic",
+        "movbe",
+        "popcnt",
+        "tsc_deadline_timer",
+        "aes",
+        "xsave",
+        "avx",
+        "f16c",
+        "rdrand",
+        "lahf_lm",
+        "abm",
+        "3dnowprefetch",
+        "cpuid_fault",
+        "epb",
+        "ssbd",
+        "ibrs",
+        "ibpb",
+        "stibp",
+        "ibrs_enhanced",
+        "tpr_shadow",
+        "flexpriority",
+        "ept",
+        "vpid",
+        "ept_ad",
+        "fsgsbase",
+        "tsc_adjust",
+        "bmi1",
+        "avx2",
+        "smep",
+        "bmi2",
+        "erms",
+        "invpcid",
+        "rdseed",
+        "adx",
+        "smap",
+        "clflushopt",
+        "clwb",
+        "intel_pt",
+        "sha_ni",
+        "xsaveopt",
+        "xsavec",
+        "xgetbv1",
+        "xsaves",
+        "split_lock_detect",
+        "user_shstk",
+        "avx_vnni",
+        "dtherm",
+        "ida",
+        "arat",
+        "pln",
+        "pts",
+        "hwp",
+        "hwp_notify",
+        "hwp_act_window",
+        "hwp_epp",
+        "hwp_pkg_req",
+        "hfi",
+        "vnmi",
+        "umip",
+        "pku",
+        "ospke",
+        "waitpkg",
+        "gfni",
+        "vaes",
+        "vpclmulqdq",
+        "rdpid",
+        "bus_lock_detect",
+        "movdiri",
+        "movdir64b",
+        "fsrm",
+        "md_clear",
+        "serialize",
+        "arch_lbr",
+        "ibt",
+        "flush_l1d",
+        "arch_capabilities"
+      ]
+    },
+    "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+    "checkout_patch_sha256": "7760646ae5ea9625d5c1a83d6f7eb9aae910864fac2a61297aa24b4ab203be6a",
+    "xla_checkout_patch_sha256": "657c7b5b645d60bc1170e56a3f5605b30d94cb97cb2b146ce096aafc9d19ffdc",
+    "program_sha256": {
+      "rules": "0c7365d2c7c317a0568144cf8b2f5882d3ed494415154c4df2534d4968a468d9",
+      "branch_rules": "428ca91526bc281e91c06c1fd214ccef8916f704b10790162a27f6f6568af8ff"
+    },
+    "input_sets": 3,
+    "atol": 1e-05,
+    "rtol": 1e-05,
+    "timeout_seconds": 1800,
+    "shortform_constants": "finite",
+    "timing_claim": false,
+    "compile_commands": [
+      [
+        "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-2/bin/compiler",
+        "compile",
+        "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-2/source/xla_algebraic_simplifier/rules.tepl",
+        "--core",
+        "--semantic-policy",
+        "algebraic",
+        "-o",
+        "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-2/rules.json"
+      ],
+      [
+        "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-2/bin/compiler",
+        "compile",
+        "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-2/source/xla_algebraic_simplifier/branch_rules.tepl",
+        "-o",
+        "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-2/branch_rules.json"
+      ]
+    ]
+  },
+  "workloads": [
+    {
+      "all_observed_variants_delegated": true,
+      "baseline_pass_invocations": 8,
+      "distinct_variants": 32,
+      "final_graphs_equal": true,
+      "integrated_pass_invocations": 8,
+      "mode": "strict",
+      "outputs": [
+        {
+          "equal": true,
+          "seed": 1
+        },
+        {
+          "equal": true,
+          "seed": 2
+        },
+        {
+          "equal": true,
+          "seed": 3
+        }
+      ],
+      "rewrite_counts_equal": true,
+      "rules": [
+        {
+          "applications": 1,
+          "function": "HandleAnd",
+          "original_line": 1405,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "HandleConstant",
+          "original_line": 2317,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 4,
+          "function": "HandleDivide",
+          "original_line": 2478,
+          "tepl_applications": 4
+        },
+        {
+          "applications": 1,
+          "function": "operator()",
+          "original_line": 2590,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 16,
+          "function": "HandleDivide",
+          "original_line": 2614,
+          "tepl_applications": 16
+        },
+        {
+          "applications": 1,
+          "function": "RemoveDegenerateDimensionFromDot",
+          "original_line": 2742,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 2,
+          "function": "RemoveDegenerateDimensionFromDot",
+          "original_line": 2744,
+          "tepl_applications": 2
+        },
+        {
+          "applications": 2,
+          "function": "SimplifyTransposeOfBroadcast",
+          "original_line": 2824,
+          "tepl_applications": 2
+        },
+        {
+          "applications": 1,
+          "function": "RewriteAsMultiplyDotWithZeroLhsContractingDim",
+          "original_line": 3785,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "HandleMultiply",
+          "original_line": 5025,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "HandleMultiply",
+          "original_line": 5056,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "HandleMultiply",
+          "original_line": 5132,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 17,
+          "function": "HandleMultiply",
+          "original_line": 5165,
+          "tepl_applications": 17
+        },
+        {
+          "applications": 12,
+          "function": "HandleGetTupleElement",
+          "original_line": 5389,
+          "tepl_applications": 12
+        },
+        {
+          "applications": 24,
+          "function": "HandleBroadcast",
+          "original_line": 5605,
+          "tepl_applications": 24
+        },
+        {
+          "applications": 5,
+          "function": "HandleBroadcast",
+          "original_line": 5645,
+          "tepl_applications": 5
+        },
+        {
+          "applications": 5,
+          "function": "HandleBroadcast",
+          "original_line": 5681,
+          "tepl_applications": 5
+        },
+        {
+          "applications": 2,
+          "function": "HandleBroadcast",
+          "original_line": 5723,
+          "tepl_applications": 2
+        },
+        {
+          "applications": 1,
+          "function": "HandleCompare",
+          "original_line": 5761,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "HandleCompare",
+          "original_line": 5767,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "TryToSinkBroadcastAfterElementwiseOps",
+          "original_line": 6358,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 14,
+          "function": "HandleReshape",
+          "original_line": 6744,
+          "tepl_applications": 14
+        },
+        {
+          "applications": 44,
+          "function": "HandleReshape",
+          "original_line": 6750,
+          "tepl_applications": 44
+        },
+        {
+          "applications": 4,
+          "function": "HandleReshape",
+          "original_line": 6898,
+          "tepl_applications": 4
+        },
+        {
+          "applications": 1,
+          "function": "HandleReshape",
+          "original_line": 6945,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 22,
+          "function": "ReplaceReduceWithReshape",
+          "original_line": 8661,
+          "tepl_applications": 22
+        },
+        {
+          "applications": 1,
+          "function": "HandleReduce",
+          "original_line": 8870,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 5,
+          "function": "HandleReduce",
+          "original_line": 9023,
+          "tepl_applications": 5
+        },
+        {
+          "applications": 2,
+          "function": "HandleSelect",
+          "original_line": 9840,
+          "tepl_applications": 2
+        },
+        {
+          "applications": 1,
+          "function": "HandleTranspose",
+          "original_line": 10114,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "HandleTranspose",
+          "original_line": 10118,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 6,
+          "function": "operator()",
+          "original_line": 10187,
+          "tepl_applications": 6
+        }
+      ],
+      "scope": "all AlgebraicSimplifier invocations in paired normal CPU compilations",
+      "shortform_constants": {
+        "floating_literals_initialized": 0,
+        "integer_literals_initialized": 1,
+        "placeholders": 1,
+        "policy": "finite_inputs_v2"
+      },
+      "tepl_applications": 201,
+      "total_applications": 201,
+      "unported_sites": [],
+      "workload": "dlrm",
+      "input_sha256": "bcd909a69b73d178c2b864ffdf533b08834502f24a15a90881f709feeece9820",
+      "final_hlo_sha256": {
+        "baseline": "05be939415efe1547557d926b5bb5c827cdb411ae3decc74a4b601cbabda2710",
+        "tepl": "05be939415efe1547557d926b5bb5c827cdb411ae3decc74a4b601cbabda2710"
+      },
+      "paper_reference": {
+        "rules": 32,
+        "firings": 201,
+        "modeled": 20
+      },
+      "paper_reference_counts_match": true
+    },
+    {
+      "all_observed_variants_delegated": true,
+      "baseline_pass_invocations": 7,
+      "distinct_variants": 14,
+      "final_graphs_equal": true,
+      "integrated_pass_invocations": 7,
+      "mode": "strict",
+      "outputs": [
+        {
+          "equal": true,
+          "seed": 1
+        },
+        {
+          "equal": true,
+          "seed": 2
+        },
+        {
+          "equal": true,
+          "seed": 3
+        }
+      ],
+      "rewrite_counts_equal": true,
+      "rules": [
+        {
+          "applications": 62,
+          "function": "operator()",
+          "original_line": 2590,
+          "tepl_applications": 62
+        },
+        {
+          "applications": 12,
+          "function": "HandleDivide",
+          "original_line": 2614,
+          "tepl_applications": 12
+        },
+        {
+          "applications": 220,
+          "function": "HandleBroadcast",
+          "original_line": 5605,
+          "tepl_applications": 220
+        },
+        {
+          "applications": 110,
+          "function": "HandleBroadcast",
+          "original_line": 5645,
+          "tepl_applications": 110
+        },
+        {
+          "applications": 41,
+          "function": "HandleBroadcast",
+          "original_line": 5681,
+          "tepl_applications": 41
+        },
+        {
+          "applications": 24,
+          "function": "HandleBroadcast",
+          "original_line": 5690,
+          "tepl_applications": 24
+        },
+        {
+          "applications": 234,
+          "function": "HandleBroadcast",
+          "original_line": 5723,
+          "tepl_applications": 234
+        },
+        {
+          "applications": 12,
+          "function": "TryToSinkBroadcastAfterElementwiseOps",
+          "original_line": 6358,
+          "tepl_applications": 12
+        },
+        {
+          "applications": 121,
+          "function": "HandleReshape",
+          "original_line": 6744,
+          "tepl_applications": 121
+        },
+        {
+          "applications": 620,
+          "function": "HandleReshape",
+          "original_line": 6750,
+          "tepl_applications": 620
+        },
+        {
+          "applications": 65,
+          "function": "HandleReshape",
+          "original_line": 6898,
+          "tepl_applications": 65
+        },
+        {
+          "applications": 72,
+          "function": "HandleReshape",
+          "original_line": 6945,
+          "tepl_applications": 72
+        },
+        {
+          "applications": 2,
+          "function": "ReplaceReduceWithReshape",
+          "original_line": 8661,
+          "tepl_applications": 2
+        },
+        {
+          "applications": 98,
+          "function": "HandleTranspose",
+          "original_line": 10114,
+          "tepl_applications": 98
+        }
+      ],
+      "scope": "all AlgebraicSimplifier invocations in paired normal CPU compilations",
+      "shortform_constants": {
+        "floating_literals_initialized": 0,
+        "integer_literals_initialized": 0,
+        "placeholders": 0,
+        "policy": "finite_inputs_v2"
+      },
+      "tepl_applications": 1693,
+      "total_applications": 1693,
+      "unported_sites": [],
+      "workload": "gpt2",
+      "input_sha256": "53bec5b66247425467af81ad5d2f122845bf2cbb0b2e6925b646e739ee950904",
+      "final_hlo_sha256": {
+        "baseline": "9bb41257162d1cfbc6a081493f132a1c34df6a88fd9a8b19cd67850ddbe2caad",
+        "tepl": "9bb41257162d1cfbc6a081493f132a1c34df6a88fd9a8b19cd67850ddbe2caad"
+      },
+      "paper_reference": {
+        "rules": 14,
+        "firings": 1693,
+        "modeled": 6
+      },
+      "paper_reference_counts_match": true
+    },
+    {
+      "all_observed_variants_delegated": true,
+      "baseline_pass_invocations": 8,
+      "distinct_variants": 16,
+      "final_graphs_equal": true,
+      "integrated_pass_invocations": 8,
+      "mode": "strict",
+      "outputs": [
+        {
+          "equal": true,
+          "seed": 1
+        },
+        {
+          "equal": true,
+          "seed": 2
+        },
+        {
+          "equal": true,
+          "seed": 3
+        }
+      ],
+      "rewrite_counts_equal": true,
+      "rules": [
+        {
+          "applications": 1,
+          "function": "HandleAdd",
+          "original_line": 934,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 75,
+          "function": "operator()",
+          "original_line": 2590,
+          "tepl_applications": 75
+        },
+        {
+          "applications": 12,
+          "function": "HandleDivide",
+          "original_line": 2614,
+          "tepl_applications": 12
+        },
+        {
+          "applications": 1,
+          "function": "RemoveDegenerateDimensionFromDot",
+          "original_line": 2744,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 246,
+          "function": "HandleBroadcast",
+          "original_line": 5605,
+          "tepl_applications": 246
+        },
+        {
+          "applications": 12,
+          "function": "HandleBroadcast",
+          "original_line": 5645,
+          "tepl_applications": 12
+        },
+        {
+          "applications": 90,
+          "function": "HandleBroadcast",
+          "original_line": 5681,
+          "tepl_applications": 90
+        },
+        {
+          "applications": 296,
+          "function": "HandleBroadcast",
+          "original_line": 5723,
+          "tepl_applications": 296
+        },
+        {
+          "applications": 97,
+          "function": "TryToSinkBroadcastAfterElementwiseOps",
+          "original_line": 6358,
+          "tepl_applications": 97
+        },
+        {
+          "applications": 72,
+          "function": "HandleReshape",
+          "original_line": 6744,
+          "tepl_applications": 72
+        },
+        {
+          "applications": 629,
+          "function": "HandleReshape",
+          "original_line": 6750,
+          "tepl_applications": 629
+        },
+        {
+          "applications": 136,
+          "function": "HandleReshape",
+          "original_line": 6898,
+          "tepl_applications": 136
+        },
+        {
+          "applications": 1,
+          "function": "ReplaceReduceWithReshape",
+          "original_line": 8661,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 12,
+          "function": "HandleReduce",
+          "original_line": 9050,
+          "tepl_applications": 12
+        },
+        {
+          "applications": 25,
+          "function": "HandleSelect",
+          "original_line": 9835,
+          "tepl_applications": 25
+        },
+        {
+          "applications": 144,
+          "function": "HandleTranspose",
+          "original_line": 10114,
+          "tepl_applications": 144
+        }
+      ],
+      "scope": "all AlgebraicSimplifier invocations in paired normal CPU compilations",
+      "shortform_constants": {
+        "floating_literals_initialized": 200,
+        "integer_literals_initialized": 1,
+        "placeholders": 201,
+        "policy": "finite_inputs_v2"
+      },
+      "tepl_applications": 1849,
+      "total_applications": 1849,
+      "unported_sites": [],
+      "workload": "vit",
+      "input_sha256": "6fe057aac995fd754451005d811ce182b7a470fd610af7d73bf0d939fe47bd28",
+      "final_hlo_sha256": {
+        "baseline": "ef23403f65d102e795a825e4eec9603c528cef889e145c5d872f95e8d3fbbf57",
+        "tepl": "ef23403f65d102e795a825e4eec9603c528cef889e145c5d872f95e8d3fbbf57"
+      },
+      "paper_reference": {
+        "rules": 17,
+        "firings": 1850,
+        "modeled": 9
+      },
+      "paper_reference_counts_match": false
+    },
+    {
+      "all_observed_variants_delegated": true,
+      "baseline_pass_invocations": 9,
+      "distinct_variants": 10,
+      "final_graphs_equal": true,
+      "integrated_pass_invocations": 9,
+      "mode": "strict",
+      "outputs": [
+        {
+          "equal": true,
+          "seed": 1
+        },
+        {
+          "equal": true,
+          "seed": 2
+        },
+        {
+          "equal": true,
+          "seed": 3
+        }
+      ],
+      "rewrite_counts_equal": true,
+      "rules": [
+        {
+          "applications": 1,
+          "function": "operator()",
+          "original_line": 2590,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "HandleDivide",
+          "original_line": 2614,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 1,
+          "function": "RemoveDegenerateDimensionFromDot",
+          "original_line": 2744,
+          "tepl_applications": 1
+        },
+        {
+          "applications": 161,
+          "function": "HandleBroadcast",
+          "original_line": 5605,
+          "tepl_applications": 161
+        },
+        {
+          "applications": 159,
+          "function": "HandleBroadcast",
+          "original_line": 5645,
+          "tepl_applications": 159
+        },
+        {
+          "applications": 6,
+          "function": "HandleBroadcast",
+          "original_line": 5681,
+          "tepl_applications": 6
+        },
+        {
+          "applications": 161,
+          "function": "HandleBroadcast",
+          "original_line": 5723,
+          "tepl_applications": 161
+        },
+        {
+          "applications": 483,
+          "function": "HandleReshape",
+          "original_line": 6750,
+          "tepl_applications": 483
+        },
+        {
+          "applications": 53,
+          "function": "HandleReshape",
+          "original_line": 6898,
+          "tepl_applications": 53
+        },
+        {
+          "applications": 1,
+          "function": "FoldConvInputPad",
+          "original_line": 10505,
+          "tepl_applications": 1
+        }
+      ],
+      "scope": "all AlgebraicSimplifier invocations in paired normal CPU compilations",
+      "shortform_constants": {
+        "floating_literals_initialized": 0,
+        "integer_literals_initialized": 0,
+        "placeholders": 0,
+        "policy": "finite_inputs_v2"
+      },
+      "tepl_applications": 1027,
+      "total_applications": 1027,
+      "unported_sites": [],
+      "workload": "resnet",
+      "input_sha256": "2da96f473e7ec112e97dad463577da4eda70f849e874353916dc89bb3df61281",
+      "final_hlo_sha256": {
+        "baseline": "4d15e90eac33e11e5e2d366d56ba7e94dc3746be3acc535300452f348eb77618",
+        "tepl": "4d15e90eac33e11e5e2d366d56ba7e94dc3746be3acc535300452f348eb77618"
+      },
+      "paper_reference": {
+        "rules": 10,
+        "firings": 1027,
+        "modeled": 5
+      },
+      "paper_reference_counts_match": true
+    }
+  ]
+}

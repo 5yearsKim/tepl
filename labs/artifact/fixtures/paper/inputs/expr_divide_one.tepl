@@ -1,0 +1,7 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_divide_one {
+    X: [] (hlo.divide X 1) => X
+}

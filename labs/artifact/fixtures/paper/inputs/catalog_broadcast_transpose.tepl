@@ -1,0 +1,14 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-transpose
+// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_transpose {
+    (attr_b: hlo.broadcast X) => (attr_p: hlo.transpose X)
+     where { attr_b.attrs.new_extents == [] }
+     
+derive {
+ attr_p.attrs = {permutation: auto};
+}
+}

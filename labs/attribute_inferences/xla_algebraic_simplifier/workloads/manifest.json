@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "xla_revision": "39c348196c834a7ee45a57f5b44688d53ae99a64",
+  "paper_revision": "130052b1e92c23dfe390e244b4fcdffbde8bd0a1",
+  "workloads": [
+    {
+      "name": "dlrm",
+      "file": "dlrm.hlo",
+      "sha256": "bcd909a69b73d178c2b864ffdf533b08834502f24a15a90881f709feeece9820",
+      "source_evidence": "xla-rewrite-count/inputs/dlrm.hlo",
+      "reference_counts": {
+        "rules": 32,
+        "firings": 201,
+        "modeled": 20
+      },
+      "elided_literals": 1,
+      "elided_floating_literals": 0,
+      "elided_integer_literals": 1
+    },
+    {
+      "name": "gpt2",
+      "file": "gpt2.hlo",
+      "sha256": "53bec5b66247425467af81ad5d2f122845bf2cbb0b2e6925b646e739ee950904",
+      "source_evidence": "xla-rewrite-count-models/gpt2/input.hlo",
+      "reference_counts": {
+        "rules": 14,
+        "firings": 1693,
+        "modeled": 6
+      },
+      "elided_literals": 0,
+      "elided_floating_literals": 0,
+      "elided_integer_literals": 0
+    },
+    {
+      "name": "vit",
+      "file": "vit.hlo",
+      "sha256": "6fe057aac995fd754451005d811ce182b7a470fd610af7d73bf0d939fe47bd28",
+      "source_evidence": "xla-rewrite-count-models/vit/input.hlo",
+      "reference_counts": {
+        "rules": 17,
+        "firings": 1850,
+        "modeled": 9
+      },
+      "elided_literals": 201,
+      "elided_floating_literals": 200,
+      "elided_integer_literals": 1
+    },
+    {
+      "name": "resnet",
+      "file": "resnet.hlo",
+      "sha256": "2da96f473e7ec112e97dad463577da4eda70f849e874353916dc89bb3df61281",
+      "source_evidence": "xla-rewrite-count-models/resnet/input.hlo",
+      "reference_counts": {
+        "rules": 10,
+        "firings": 1027,
+        "modeled": 5
+      },
+      "elided_literals": 0,
+      "elided_floating_literals": 0,
+      "elided_integer_literals": 0
+    }
+  ],
+  "input_protocol": "Exact retained HLO files, with an explicitly recorded shortform-constant initialization policy and deterministic runtime arguments; no pretrained weights."
+}

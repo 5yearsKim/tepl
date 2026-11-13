@@ -1,0 +1,16 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: reduction-broadcast-original-axes
+// Scope: Sum specialization; rank-one base and one broadcast-created axis.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_reduction_broadcast_original_axes {
+    X: [N]
+     (attr_r: hlo.reduce_sum (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast (axis_eval_0: hlo.reduce_sum X))
+     where { attr_b.attrs.dimensions==[0] && len(attr_b.attrs.new_extents)==1 && attr_r.attrs.dimensions==[0] }
+     
+derive {
+ axis_eval_0.attrs = {dimensions: auto};
+ attr_out.attrs = {dimensions: auto, new_extents: attr_b.attrs.new_extents};
+}
+}

@@ -1,0 +1,72 @@
+{
+  "scope": "All AlgebraicSimplifier invocations in one normal XLA CPU compilation per workload",
+  "additional_model_compilations": 3,
+  "numerical_executions": 0,
+  "dlrm_measurement": "Previously recorded result, replayed without recompilation",
+  "semantic_model_coverage": "Direct semantic representations plus restricted unit-axis normalization candidates; not TEPL acceptance or delegation",
+  "rule_identity": "Successful source-branch variant; equivalent branches remain separate variants",
+  "workloads": [
+    {
+      "workload": "DLRM training FP32",
+      "rule_variants": 32,
+      "applications": 201,
+      "semantic_model_variants": 20,
+      "associated_native_applications": 103,
+      "direct_variants": 14,
+      "unit_view_candidates": 6,
+      "conditional_variants": 6,
+      "outside_variants": 6,
+      "pass_invocations": 8
+    },
+    {
+      "workload": "ViT mixed BF16/FP32",
+      "rule_variants": 17,
+      "applications": 1850,
+      "semantic_model_variants": 9,
+      "associated_native_applications": 809,
+      "direct_variants": 4,
+      "unit_view_candidates": 5,
+      "conditional_variants": 5,
+      "outside_variants": 3,
+      "pass_invocations": 8
+    },
+    {
+      "workload": "ResNet-50 FP32",
+      "rule_variants": 10,
+      "applications": 1027,
+      "semantic_model_variants": 5,
+      "associated_native_applications": 483,
+      "direct_variants": 1,
+      "unit_view_candidates": 4,
+      "conditional_variants": 2,
+      "outside_variants": 3,
+      "pass_invocations": 9
+    },
+    {
+      "workload": "GPT-2 small FP32",
+      "rule_variants": 14,
+      "applications": 1693,
+      "semantic_model_variants": 6,
+      "associated_native_applications": 795,
+      "direct_variants": 2,
+      "unit_view_candidates": 4,
+      "conditional_variants": 4,
+      "outside_variants": 4,
+      "pass_invocations": 7
+    }
+  ],
+  "union": {
+    "distinct_variants": 38,
+    "semantic_model_variants": 22
+  },
+  "validation": {
+    "frozen_manifests_valid": true,
+    "per_rule_totals_valid": true,
+    "semantic_reviews_complete": true,
+    "resnet_final_matches_prior_uninstrumented_hlo": true,
+    "resnet_final_sha256": "4d15e90eac33e11e5e2d366d56ba7e94dc3746be3acc535300452f348eb77618",
+    "vit_uninstrumented_comparison_measured": false,
+    "gpt2_uninstrumented_comparison_measured": false,
+    "classification_pipeline_offline_checks": "6 passed"
+  }
+}

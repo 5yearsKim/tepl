@@ -1,4 +1,0 @@
-load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-cc_binary(name="tepl_xla.so",srcs=["bridge.cc","bridge.h"],linkshared=True,deps=["//src/executable","//src/rewrite"])
-load("@rules_cc//cc:cc_test.bzl", "cc_test")
-cc_test(name="bridge_test",size="small",srcs=["bridge.cc","bridge.h","bridge_test.cc"],args=["$(rootpath inferred.json)","$(rootpath inferred.tepl)"],data=["inferred.json","inferred.tepl"],deps=["//src/executable","//src/rewrite","//src/core:pipeline"])

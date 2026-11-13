@@ -1,0 +1,14 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-divide-broadcast
+// Scope: Scalar Y broadcast to an arbitrary output shape.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_divide_broadcast {
+    Y: []
+     (hlo.divide X (attr_b: hlo.broadcast Y)) => (hlo.multiply X (axis_eval_0: hlo.broadcast (hlo.divide 1 Y)))
+     where { attr_b.attrs.dimensions == [] }
+derive {
+ axis_eval_0.attrs = {dimensions: auto, new_extents: attr_b.attrs.new_extents};
+}
+}

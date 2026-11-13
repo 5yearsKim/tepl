@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+from paper_inputs import audit_path as resolve_audit, source_path as resolve_source
 
 ROOT = Path(__file__).resolve().parents[5]
 FIXTURES = ROOT / "tests/fixtures/restricted_insertion"
@@ -37,11 +38,11 @@ def migrate(raw):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--paper", type=Path, required=True)
+    parser.add_argument("--paper", type=Path, help="Optional external paper checkout; defaults to bundled inputs")
     parser.add_argument("--compiler", type=Path, default=ROOT / "bazel-bin/tepl")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    audit_path = args.paper / "evaluation/theorem-scope-audit.json"
+    audit_path = resolve_audit(args.paper)
     audit = json.loads(audit_path.read_text())
     records = {r["case"]: r for r in audit["records"]
                if r["classification"] == "main_theorem_reduction"}
@@ -51,9 +52,9 @@ def main():
     dialect = ROOT / "labs/attribute_inferences/xla_rewrite/tepl/dialects/hlo.tepl"
     with tempfile.TemporaryDirectory(prefix="tepl-insertion-") as temp:
         for item in provenance:
-            original = args.paper / records[item["case"]]["source"]
+            original = resolve_source(records[item["case"]]["source"], args.paper)
             fixture = FIXTURES / item["fixture"]
-            assert str(original.relative_to(args.paper)) == item["paper_source"]
+            assert records[item["case"]]["source"] == item["paper_source"]
             assert sha(original) == item["paper_sha256"], original
             assert sha(fixture) == item["fixture_sha256"], fixture
             migrated = migrate(original.read_text())

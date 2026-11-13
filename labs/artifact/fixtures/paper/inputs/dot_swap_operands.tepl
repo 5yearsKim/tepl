@@ -1,0 +1,17 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{dot, transpose};
+
+rule dot_swap_operands {
+    X: [M, K]
+    Y: [K, N]
+    (attr_d: dot X Y) => (attr_p: transpose (attr_out: dot Y X))
+    where { attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []
+         && attr_d.attrs.lhs_contracting_dimensions == [1]
+         && attr_d.attrs.rhs_contracting_dimensions == [0] }
+    
+derive {
+ attr_out.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto};
+ attr_p.attrs = {permutation: auto};
+}
+}

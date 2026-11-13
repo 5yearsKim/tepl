@@ -1,0 +1,15 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-slice-broadcast-only
+// Scope: Rank-one X maps to axis zero; only newly created axes are sliced.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_slice_broadcast_only {
+    X: [N]
+     (attr_s: hlo.slice (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast X)
+     where { attr_b.attrs.dimensions == [0] && attr_s.attrs.starts[0]==0 && attr_s.attrs.sizes[0]==N && attr_s.attrs.strides[0]==1 }
+     
+derive {
+ attr_out.attrs = {dimensions: auto, new_extents: slice(attr_s.attrs.sizes,1,len(attr_s.attrs.sizes))};
+}
+}

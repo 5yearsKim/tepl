@@ -1,0 +1,120 @@
+// Structural deployment interface for candidates selected by XLA guards.
+// These declarations do not assert tensor-value proofs for the host branches.
+dialect Branch {
+  op candidate(a: tensor, b: tensor, c: tensor, d: tensor) -> tensor {
+    attrs {
+      site: u64
+      shape: extent[]
+      type: dtype
+      template_id: u64
+      a: u64[]
+      b: u64[]
+      c: u64[]
+      d: u64[]
+      e: u64[]
+      low: i64[]
+      high: i64[]
+      ids: u64[]
+      index: u64
+    }
+    dtype(a, b, c, d) { yield attrs.type }
+    shape(a, b, c, d) { yield attrs.shape }
+  }
+  op add(a: tensor, b: tensor) -> tensor {
+    dtype(a, b) { assert a == b yield a }
+    shape(a, b) { assert a == b yield a }
+  }
+  op multiply(a: tensor, b: tensor) -> tensor {
+    dtype(a, b) { assert a == b yield a }
+    shape(a, b) { assert a == b yield a }
+  }
+  op divide(a: tensor, b: tensor) -> tensor {
+    dtype(a, b) { assert a == b yield a }
+    shape(a, b) { assert a == b yield a }
+  }
+  op negate(a: tensor) -> tensor {
+    dtype(a) { yield a }
+    shape(a) { yield a }
+  }
+  op reshape(a: tensor) -> tensor {
+    attrs { shape: extent[] enabled: bool }
+    dtype(a) { yield a }
+    shape(a) { assert product(a) == product(attrs.shape) yield attrs.shape }
+  }
+  op broadcast(a: tensor) -> tensor {
+    attrs { shape: extent[] dimensions: axis[] enabled: bool }
+    dtype(a) { yield a }
+    shape(a) { yield attrs.shape }
+  }
+  op scalar() -> tensor {
+    attrs { shape: extent[] type: dtype value: i64 }
+    dtype() { yield attrs.type }
+    shape() { yield attrs.shape }
+  }
+  op iota() -> tensor {
+    attrs { shape: extent[] type: dtype dimension: axis }
+    dtype() { yield attrs.type }
+    shape() { yield attrs.shape }
+  }
+  op reference() -> tensor {
+    attrs { shape: extent[] type: dtype id: u64 }
+    dtype() { yield attrs.type }
+    shape() { yield attrs.shape }
+  }
+  op first_scalar(a: tensor) -> tensor {
+    dtype(a) { yield a }
+    shape(a) { yield [] }
+  }
+  op reciprocal_literal(a: tensor) -> tensor {
+    dtype(a) { yield a }
+    shape(a) { yield a }
+  }
+  op clone1(a: tensor) -> tensor {
+    attrs { shape: extent[] type: dtype template_id: u64 }
+    dtype(a) { yield attrs.type }
+    shape(a) { yield attrs.shape }
+  }
+  op clone2(a: tensor, b: tensor) -> tensor {
+    attrs { shape: extent[] type: dtype template_id: u64 }
+    dtype(a,b) { yield attrs.type }
+    shape(a,b) { yield attrs.shape }
+  }
+  op clone3(a: tensor, b: tensor, c: tensor) -> tensor {
+    attrs { shape: extent[] type: dtype template_id: u64 }
+    dtype(a,b,c) { yield attrs.type }
+    shape(a,b,c) { yield attrs.shape }
+  }
+  op dot(a: tensor, b: tensor) -> tensor {
+    attrs { shape: extent[] type: dtype template_id: u64
+      lc: axis[] rc: axis[] lb: axis[] rb: axis[] precision_order: u64[] }
+    dtype(a,b) { yield attrs.type }
+    shape(a,b) { yield attrs.shape }
+  }
+  op transpose(a: tensor) -> tensor {
+    attrs { permutation: axis[] enabled: bool }
+    dtype(a) {yield a}
+    shape(a) {yield gather(a,attrs.permutation)}
+  }
+  op convert(a: tensor) -> tensor {
+    attrs { type: dtype enabled: bool }
+    dtype(a) {yield attrs.type}
+    shape(a) {yield a}
+  }
+  op reduce(a: tensor, init: tensor) -> tensor {
+    attrs {shape: extent[] type: dtype template_id: u64 dimensions: axis[] reuse: bool}
+    dtype(a,b) {yield attrs.type}
+    shape(a,b) {yield attrs.shape}
+  }
+  op convolution(a: tensor, b: tensor) -> tensor {
+    attrs {shape: extent[] type: dtype template_id: u64 low: i64[] high: i64[] base: u64[]}
+    dtype(a,b) {yield attrs.type}
+    shape(a,b) {yield attrs.shape}
+  }
+  // Generic lowering of an explicitly supplied coordinate linear combination.
+  // The rule computes axes, coefficients, and their order; the host emits HLO.
+  op coordinate_sum() -> tensor {
+    attrs {shape: extent[] type: dtype axes: axis[] coefficients: u64[]}
+    dtype() {yield attrs.type}
+    shape() {yield attrs.shape}
+  }
+}
