@@ -595,6 +595,15 @@ bool hasExtensions(const Program& p) {
   };
   return test(p.source) || test(p.replacement);
 }
+bool usesSpecializedSchema(const Program& p) {
+  auto test = [](const auto& code) {
+    return std::any_of(code.begin(), code.end(), [](const auto& n) {
+      return n.kind == Kind::Broadcast || n.kind == Kind::Multiplication ||
+             n.kind == Kind::Negation || n.kind == Kind::UnitRemoval;
+    });
+  };
+  return test(p.source) || test(p.replacement);
+}
 EmissionBlock emitExtension(const Program& p) { return Builder{p, {}}.run(); }
 MetadataTerm emissionTerm(const EmissionBlock& b, std::size_t id) {
   const auto& e = b.expressions.at(id);

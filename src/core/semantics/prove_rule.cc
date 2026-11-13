@@ -43,7 +43,8 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
       admission =
           attr_synth::ordered::admit(plan, inference::Mode::Synthesize, true);
     const bool extensions =
-        admission.admitted() && inference::hasExtensions(admission.program);
+        admission.admitted() &&
+        inference::usesSpecializedSchema(admission.program);
     if (!admission.admitted() ||
         (!extensions && !plan.derived_metadata.empty())) {
       proof.reason =
@@ -52,11 +53,18 @@ RuleProof proveRule(const Plan& plan, std::size_t max_work, ProofTiming* timing,
           admission.reason;
       return proof;
     }
+    if (!extensions)
+      for (const auto& n : admission.program.replacement)
+        if (n.descriptor && !plan.descriptors.at(*n.descriptor).allAuto()) {
+          proof.reason = "generic core requires independent automatic RHS fields";
+          return proof;
+        }
     if (extensions) {
       try {
         inference::emit(admission.program);
-      } catch (const std::invalid_argument&) {
-        proof.reason = "outside supported view/reindexing schemas";
+      } catch (const std::invalid_argument& e) {
+        proof.reason =
+            std::string("outside supported view/reindexing schemas: ") + e.what();
         return proof;
       }
     }

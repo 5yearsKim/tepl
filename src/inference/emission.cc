@@ -342,7 +342,7 @@ Emission emit(const Program& p) {
   Emission out;
   out.original = p;
   if (p.restricted_insertion) return emitInsertion(p);
-  if (hasExtensions(p)) {
+  if (usesSpecializedSchema(p)) {
     out.blocks.push_back(emitExtension(p));
     return out;
   }
@@ -427,7 +427,7 @@ Result runEmission(const Emission& e, const Metadata& m, const Limits& limits,
   if (timing) *timing = {};
   if (e.insertion)
     return executeInsertion(e, m, limits, build, allow_degenerate, timing);
-  if (hasExtensions(e.original))
+  if (usesSpecializedSchema(e.original))
     return executeExtension(e, m, limits, build, timing);
   return runCore(e.original, e.blocks, m, limits, build, allow_degenerate,
                  timing);

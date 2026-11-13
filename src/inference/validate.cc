@@ -122,7 +122,7 @@ std::map<std::vector<std::size_t>, Code> components(Alternatives alternatives) {
 std::vector<Component> decompose(const Program& p) {
   schedule(p.source);
   schedule(p.replacement);
-  if (hasExtensions(p)) {
+  if (usesSpecializedSchema(p)) {
     require(p.source.back().captures == p.replacement.back().captures,
             "schema captures must match");
     for (const auto* code : {&p.source, &p.replacement}) {

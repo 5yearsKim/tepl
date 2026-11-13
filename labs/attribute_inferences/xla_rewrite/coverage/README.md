@@ -2,7 +2,9 @@
 
 [Current core classification](reports/core_classification.md) records 21 forms
 in the main-theorem scope. Measured native dispatch uses constructive metadata
-DAGs for 18 forms and specialized schemas for three existing reversal forms.
+DAGs for all 21 forms: 13 direct constructions (including reversal) and eight
+normalization followed by construction. All 38 audited forms and the original
+broadcast–transpose control are measured with the same compiler binary.
 [Results and hashes](results/core_classification.json) identify the measured
 compiler, inputs, and implementation paths.
 
@@ -14,11 +16,13 @@ From the repository root:
 bazel build //:tepl
 python3 labs/attribute_inferences/xla_rewrite/coverage/scripts/core_classification.py \
   --paper /path/to/TEPL-paper
-bazel test //tests:insertion_test --test_output=all
+bazel test //tests:insertion_test //tests:ordered_synthesis_test --test_output=errors
 ```
 
 The runner reads the paper audit and its rule inputs without modifying them.
-It compiles and portable-validates the 21 main-theorem forms using `--core`.
+It compiles and portable-validates all 21 main-theorem forms using `--core`,
+and records current outcomes for every other audited case. Historical results
+and current native core results are reported separately.
 The insertion regression checks the eight generic reductions, including the
 recorded normalized unit insertion. [Implementation scope](../../../../docs/references/restricted-axis-insertion.md)
 describes the normalization, constructive builder, assumptions, and limits.
