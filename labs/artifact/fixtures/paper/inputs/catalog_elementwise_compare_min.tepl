@@ -1,0 +1,13 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-compare-min
+// Scope: Written operand/opcode variant under the catalog conditions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_compare_min {
+    (attr_c: hlo.compare A (hlo.minimum A B)) => (axis_eval_0: hlo.compare A B)
+     where { attr_c.attrs.direction == 3 }
+derive {
+ axis_eval_0.attrs = {direction: attr_c.attrs.direction};
+}
+}

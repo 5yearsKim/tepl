@@ -1,0 +1,9 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-select-predicate-identity
+// Scope: Scalar literal instance; source conditions retained in the catalog.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_select_predicate_identity {
+    P: bool[] (hlo.select P 1:bool 0:bool) => P
+}

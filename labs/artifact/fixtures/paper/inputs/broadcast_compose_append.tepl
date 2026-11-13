@@ -1,0 +1,14 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{broadcast};
+
+rule broadcast_compose_append {
+    X: [Dims...]
+    (attr_outer: broadcast (attr_inner: broadcast X)) => (attr_out: broadcast X)
+    where { attr_inner.attrs.dimensions == range(len(Dims))
+         && attr_outer.attrs.dimensions == range(len(Dims) + len(attr_inner.attrs.new_extents)) }
+    
+derive {
+ attr_out.attrs = {dimensions: auto, new_extents: concat(attr_inner.attrs.new_extents, attr_outer.attrs.new_extents)};
+}
+}

@@ -1,0 +1,10 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_slice_compose_general {
+    (attr_outer: hlo.slice (attr_inner: hlo.slice X)) => (attr_out: hlo.slice X) where { attr_inner.attrs.strides == [1 for s in attr_inner.attrs.strides] && attr_outer.attrs.strides == [1 for s in attr_outer.attrs.strides] } 
+derive {
+ attr_out.attrs = {starts: [attr_inner.attrs.starts[i] + attr_outer.attrs.starts[i] for i in range(len(attr_outer.attrs.starts))], sizes: attr_outer.attrs.sizes, strides: attr_outer.attrs.strides};
+}
+}

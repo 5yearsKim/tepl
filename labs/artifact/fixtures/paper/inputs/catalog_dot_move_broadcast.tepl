@@ -1,0 +1,16 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: dot-move-broadcast
+// Scope: One broadcast-created contraction axis; replacement dot is an outer product.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_dot_move_broadcast {
+    X: [K] Y: [J,N]
+     (attr_d: hlo.dot (attr_b: hlo.broadcast X) Y) => (attr_out: hlo.dot X (attr_sum: hlo.reduce_sum Y))
+     where { attr_b.attrs.dimensions==[0] && attr_b.attrs.new_extents==[J] && attr_d.attrs.lhs_batching_dimensions==[] && attr_d.attrs.rhs_batching_dimensions==[] && attr_d.attrs.lhs_contracting_dimensions==[1] && attr_d.attrs.rhs_contracting_dimensions==[0] }
+     
+derive {
+ attr_sum.attrs = {dimensions: auto};
+ attr_out.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto};
+}
+}

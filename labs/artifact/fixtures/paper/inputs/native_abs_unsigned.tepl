@@ -1,0 +1,11 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// elementwise-abs-nonnegative: unsigned types establish nonnegativity directly.
+// This instance does not implement general value-range analysis.
+rule native_abs_unsigned {
+    dtype T;
+    X: T[Dims...]
+    (hlo.abs X) => X
+    where { is_unsigned_integer(T) }
+}

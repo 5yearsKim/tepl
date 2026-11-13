@@ -1,0 +1,10 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-compare-self
+// Scope: Integral scalar EQ/GE/LE cases; false-result directions can use a separate rule.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_compare_self {
+    X: i32[] (attr_c: hlo.compare X X) => 1:bool
+     where { attr_c.attrs.direction == 0 || attr_c.attrs.direction == 2 || attr_c.attrs.direction == 4 }
+}

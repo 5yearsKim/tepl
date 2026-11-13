@@ -1,0 +1,18 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// One spatial dimension; kernel and output feature axes are last.
+rule expr_convolution_scale_filter_bias {
+    X: [N, H, C]
+    W: [KW, C, F]
+    Bias: [N, O, F]
+    Scale: [F]
+    (hlo.multiply (hlo.add (attr_conv: hlo.convolution X W) Bias) (attr_output: hlo.broadcast Scale)) => (hlo.add (axis_eval_0: hlo.convolution X (hlo.multiply W (attr_kernel: hlo.broadcast Scale))) (hlo.multiply Bias (axis_eval_1: hlo.broadcast Scale)))
+    where { attr_output.attrs.dimensions == [2] && attr_output.attrs.new_extents == [N, O] }
+    
+derive {
+ attr_kernel.attrs = {dimensions: auto, new_extents: [KW, C]};
+ axis_eval_0.attrs = {strides: attr_conv.attrs.strides, dilations: attr_conv.attrs.dilations};
+ axis_eval_1.attrs = {dimensions: auto, new_extents: attr_output.attrs.new_extents};
+}
+}

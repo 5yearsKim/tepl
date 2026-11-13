@@ -1,0 +1,16 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-multiply-constant-into-broadcast
+// Scope: Scalar factor C is a captured scalar; literal-only profitability does not affect the identity.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_multiply_constant_into_broadcast {
+    Y: [Dims...] C: []
+     (hlo.multiply (hlo.multiply X (attr_out: hlo.broadcast C)) (attr_b: hlo.broadcast Y)) => (hlo.multiply X (axis_eval_0: hlo.broadcast (hlo.multiply Y (attr_base: hlo.broadcast C))))
+     where { attr_out.attrs.dimensions == [] }
+     
+derive {
+ attr_base.attrs = {dimensions: auto, new_extents: Dims};
+ axis_eval_0.attrs = {dimensions: auto, new_extents: attr_b.attrs.new_extents};
+}
+}

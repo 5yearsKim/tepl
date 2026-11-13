@@ -1,0 +1,9 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-divide-sqrt
+// Scope: Written operand/opcode variant under the catalog conditions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_divide_sqrt {
+    (hlo.divide X (hlo.sqrt Y)) => (hlo.multiply X (hlo.rsqrt Y))
+}

@@ -1,0 +1,38 @@
+{
+  "model": "Hugging Face FlaxGPT2LMHeadModel, standard GPT-2 small architecture",
+  "config_url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/config.json",
+  "config_sha256": "0daed7749b4f02b8f76240d5444551d7b08712dab4d0adb8239c56ba823bb7b4",
+  "source_url": "https://github.com/huggingface/transformers/blob/v4.55.4/src/transformers/models/gpt2/modeling_flax_gpt2.py",
+  "batch": 1,
+  "sequence_length": 16,
+  "dtype": "float32",
+  "layers": 12,
+  "heads": 12,
+  "hidden_width": 768,
+  "vocabulary": 50257,
+  "max_positions": 1024,
+  "parameter_count": 124439808,
+  "parameter_tensors": 148,
+  "parameters": "Abstract shape/dtype tree lowered as runtime arguments; no initialized or pretrained weights",
+  "inputs": "Runtime parameters, token IDs, attention mask, and position IDs",
+  "mode": "Deterministic forward logits, no KV cache, no generation loop",
+  "numerical_executions": 0,
+  "pretrained_weight_downloads": 0,
+  "versions": {
+    "python": "3.12.13",
+    "jax": "0.7.2",
+    "flax": "0.12.0",
+    "numpy": "2.5.4",
+    "transformers": "4.55.4"
+  },
+  "source_hashes": {
+    "transformers.models.gpt2.modeling_flax_gpt2": "201947955159c3e3bf040ae4e69a8c25693ec2c4d534b40b79fe8c18d0e50919",
+    "transformers.models.gpt2.configuration_gpt2": "a1676b0550e680fa90276a2bcf310b6ea91b13f86f2a4f4ea78a70b445cdde16",
+    "transformers.modeling_flax_utils": "4db683065b03e80e2787dc647815b51fb6f161cc6c41703865eb1763645e2527",
+    "transformers.modeling_flax_outputs": "d51421e954c8215821d8e304f8491474973635d062e531170470850aea45012b",
+    "transformers.modeling_flax_pytorch_utils": "ae17b0b2a97b3adb973eaa4e4558a0ac6cf0f2c00f7132bb0f4cf8956c00633d",
+    "transformers.activations": "044f510850aa8214c8212e6b572691213a36ff56d977fc723da81be1ea10b8bb"
+  },
+  "hlo_sha256": "53bec5b66247425467af81ad5d2f122845bf2cbb0b2e6925b646e739ee950904",
+  "hlo_bytes": 170099
+}

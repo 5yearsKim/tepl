@@ -1,0 +1,12 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{slice};
+
+rule slice_compose_zero_starts {
+    (attr_outer: slice (attr_inner: slice X)) => (axis_eval_0: slice X)
+    where { attr_inner.attrs.starts == [0] && attr_outer.attrs.starts == [0]
+         && attr_inner.attrs.strides == [1] && attr_outer.attrs.strides == [1] }
+derive {
+ axis_eval_0.attrs = {starts: attr_outer.attrs.starts, sizes: attr_outer.attrs.sizes, strides: attr_outer.attrs.strides};
+}
+}

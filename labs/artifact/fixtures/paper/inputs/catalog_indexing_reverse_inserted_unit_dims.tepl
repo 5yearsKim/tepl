@@ -1,0 +1,17 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/axis_views.tepl" import AxisViews as axis_view;
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: indexing-reverse-inserted-unit-dims
+// Scope: Insert one leading unit axis into rank-one input.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_indexing_reverse_inserted_unit_dims {
+    X: [N]
+     (attr_r: hlo.reverse (axis_eval_0: hlo.broadcast X)) => (axis_eval_1: hlo.broadcast (attr_out: hlo.reverse X))
+     where { [1,N]==[1,N]  && (axis_eval_0.attrs.dimensions == [1]) && (axis_eval_0.attrs.new_extents == [1])}
+     
+derive {
+ attr_out.attrs = {dimensions: auto};
+ axis_eval_1.attrs = {dimensions: [1], new_extents: [1]};
+}
+}

@@ -1,0 +1,9 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-max-monotone
+// Scope: tanh member of the finite monotone-opcode family.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_max_monotone {
+    (hlo.maximum (hlo.tanh X) (hlo.tanh Y)) => (hlo.tanh (hlo.maximum X Y))
+}

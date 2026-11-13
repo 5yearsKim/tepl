@@ -1,0 +1,9 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-min-identity
+// Scope: Scalar literal instance; source conditions retained in the catalog.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_min_identity {
+    X: i32[] (hlo.minimum X 2147483647:i32) => X
+}

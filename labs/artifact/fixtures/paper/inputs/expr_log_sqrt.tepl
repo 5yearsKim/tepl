@@ -1,0 +1,8 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_log_sqrt {
+    X: []
+    (hlo.log (hlo.sqrt X)) => (hlo.multiply 0.5 (hlo.log X))
+}

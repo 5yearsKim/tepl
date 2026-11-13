@@ -1,0 +1,9 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule reverse_cancel {
+    (attr_outer: reverse (attr_inner: reverse X)) => X
+    where { attr_outer.attrs.dimensions == attr_inner.attrs.dimensions }
+}

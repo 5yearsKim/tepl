@@ -204,7 +204,11 @@ void guardsAndFailure() {
     assert(
         failed);  // Evaluation failures remain distinct from non-application.
   }
-  p = compile("rule r {(copy X)=>(scalar X)}" + graph);
+  p = compile(
+      "dialect Bad {op bad_scalar(x:tensor)->tensor {"
+      "dtype(t){yield t} shape(s){assert len(s)==0 yield []}}} "
+      "rule r {(copy X)=>(Bad.bad_scalar X)}" +
+      graph);
   {
     bool failed = false;
     try {
@@ -308,6 +312,29 @@ void metadataAndDepth() {
   }
   assert(rejected);
 }
+void metadataLiteralPrograms() {
+  // These operation contracts exercise the runtime metadata interpreter, both
+  // on imported graph nodes and on nodes constructed by a replacement rule.
+  for (const auto& expression :
+       {std::string("[]"), std::string("[7,s[0]+1]"),
+        std::string("[if i==0 then 5 else s[i]+1 for i in range(len(s))]")}) {
+    auto p = compile(
+        "dialect M {op custom(a:tensor)->tensor {dtype(t){yield t} "
+        "shape(s){yield " +
+        expression +
+        "}}}\nrule r {(copy (M.custom X)) => (M.custom X)}\n"
+        "graph g {input X:f32[2,3] yield (copy (M.custom X))}");
+    auto loaded = executable::load(executable::serialize(p));
+    auto result = rewrite::run(loaded, loaded.ir().graphs[0]);
+    assert(result.rewrite_count == 1);
+    const auto& root = result.graph.nodes[result.graph.root];
+    auto expected = expression == "[]"           ? std::vector<uint64_t>{}
+                    : expression == "[7,s[0]+1]" ? std::vector<uint64_t>{7, 3}
+                                                 : std::vector<uint64_t>{5, 4};
+    assert(root.shape && *root.shape == expected &&
+           root.dtype == core::DType::kF32);
+  }
+}
 void automatic(const std::string& path) {
   std::ifstream f(path);
   std::string definitions{std::istreambuf_iterator<char>(f), {}};
@@ -364,6 +391,7 @@ int main(int argc, char** argv) {
     guardsAndFailure();
     sharingAndLimits();
     metadataAndDepth();
+    metadataLiteralPrograms();
     std::unique_ptr<rules_cc::cc::runfiles::Runfiles> files(
         rules_cc::cc::runfiles::Runfiles::Create(argv[0]));
     assert(argc == 2);

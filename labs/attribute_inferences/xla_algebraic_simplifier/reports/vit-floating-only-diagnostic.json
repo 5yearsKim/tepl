@@ -1,0 +1,143 @@
+{
+  "all_observed_variants_delegated": true,
+  "baseline_pass_invocations": 8,
+  "distinct_variants": 17,
+  "final_graphs_equal": true,
+  "integrated_pass_invocations": 8,
+  "mode": "strict",
+  "outputs": [],
+  "rewrite_counts_equal": true,
+  "rules": [
+    {
+      "applications": 1,
+      "function": "HandleAdd",
+      "original_line": 934,
+      "tepl_applications": 1
+    },
+    {
+      "applications": 1,
+      "function": "HandleConstant",
+      "original_line": 2311,
+      "tepl_applications": 1
+    },
+    {
+      "applications": 75,
+      "function": "operator()",
+      "original_line": 2590,
+      "tepl_applications": 75
+    },
+    {
+      "applications": 12,
+      "function": "HandleDivide",
+      "original_line": 2614,
+      "tepl_applications": 12
+    },
+    {
+      "applications": 1,
+      "function": "RemoveDegenerateDimensionFromDot",
+      "original_line": 2744,
+      "tepl_applications": 1
+    },
+    {
+      "applications": 246,
+      "function": "HandleBroadcast",
+      "original_line": 5605,
+      "tepl_applications": 246
+    },
+    {
+      "applications": 12,
+      "function": "HandleBroadcast",
+      "original_line": 5645,
+      "tepl_applications": 12
+    },
+    {
+      "applications": 90,
+      "function": "HandleBroadcast",
+      "original_line": 5681,
+      "tepl_applications": 90
+    },
+    {
+      "applications": 296,
+      "function": "HandleBroadcast",
+      "original_line": 5723,
+      "tepl_applications": 296
+    },
+    {
+      "applications": 97,
+      "function": "TryToSinkBroadcastAfterElementwiseOps",
+      "original_line": 6358,
+      "tepl_applications": 97
+    },
+    {
+      "applications": 72,
+      "function": "HandleReshape",
+      "original_line": 6744,
+      "tepl_applications": 72
+    },
+    {
+      "applications": 629,
+      "function": "HandleReshape",
+      "original_line": 6750,
+      "tepl_applications": 629
+    },
+    {
+      "applications": 136,
+      "function": "HandleReshape",
+      "original_line": 6898,
+      "tepl_applications": 136
+    },
+    {
+      "applications": 1,
+      "function": "ReplaceReduceWithReshape",
+      "original_line": 8661,
+      "tepl_applications": 1
+    },
+    {
+      "applications": 12,
+      "function": "HandleReduce",
+      "original_line": 9050,
+      "tepl_applications": 12
+    },
+    {
+      "applications": 25,
+      "function": "HandleSelect",
+      "original_line": 9835,
+      "tepl_applications": 25
+    },
+    {
+      "applications": 144,
+      "function": "HandleTranspose",
+      "original_line": 10114,
+      "tepl_applications": 144
+    }
+  ],
+  "scope": "all AlgebraicSimplifier invocations in paired normal CPU compilations",
+  "shortform_constants": {
+    "floating_literals_initialized": 200,
+    "placeholders": 201,
+    "policy": "finite_floating_v1"
+  },
+  "tepl_applications": 1850,
+  "total_applications": 1850,
+  "unported_sites": [],
+  "numerical_validation": "failed: non-finite output",
+  "input_policy": "finite_floating_v1; original synthetic integer placeholder",
+  "failure": {
+    "reason": "driver_failure",
+    "argv": [
+      "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-1/bin/driver",
+      "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-1/bin/library",
+      "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-1/rules.json",
+      "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-1/branch_rules.json",
+      "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-1/vit/input.hlo",
+      "/home/onion/Projects/tepl/labs/artifact/output/branch-integration/workloads-1/vit",
+      "strict",
+      "finite"
+    ],
+    "returncode": 1,
+    "retained_graph_sha256": {
+      "baseline.final.hlo": "f92d50a3eedd42619fb1f33c2b98464ae9f6942de8f26140f2eb8f33dbb1733b",
+      "tepl.final.hlo": "f92d50a3eedd42619fb1f33c2b98464ae9f6942de8f26140f2eb8f33dbb1733b"
+    }
+  }
+}

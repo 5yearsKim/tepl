@@ -1,0 +1,8 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
+cc_binary(
+    name = "tepl_algebraic.so",
+    srcs = ["bridge.cc", "bridge.h", "branch_bridge.cc"],
+    linkshared = True,
+    deps = ["//src/executable", "//src/rewrite", "@nlohmann_json//:json"],
+)

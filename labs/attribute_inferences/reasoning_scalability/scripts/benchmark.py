@@ -78,7 +78,7 @@ def prepare():
         path.write_text(header + source)
         cases.append(dict(case_id=name, panel=panel, x=size, mode='automatic', rank='polymorphic', validation_ranks=list(VALIDATION_RANKS),
                           dots_per_term=DOTS_PER_TERM if panel == 'b' else size,
-                          expected_constructors=expected, file=path.relative_to(b.ROOT).as_posix(),
+                          expected_constructors=expected, file=Path(os.path.relpath(path, b.ROOT)).as_posix(),
                           input_hash=b.digest(path)))
     for size in CHAIN_SIZES:
         name, source = b.dot_source(size)
@@ -90,7 +90,7 @@ def prepare():
     runtime.write_text(header + 'rule runtime {(dot (dot A B) C)=>(dot A (dot B C))}\n')
     manifest = dict(schema_version=4, seed=SEED, cases=cases, ranks=list(RANKS),
                     chain_sizes=list(CHAIN_SIZES), terms=list(TERMS), dots_per_term=DOTS_PER_TERM,
-                    runtime_file=runtime.relative_to(b.ROOT).as_posix(), runtime_input_hash=b.digest(runtime),
+                    runtime_file=Path(os.path.relpath(runtime, b.ROOT)).as_posix(), runtime_input_hash=b.digest(runtime),
                     dense_reference_checks=validate_workloads(), rank_polymorphic=True,
                     reference_batch_shapes=[list(x) for x in REFERENCE_BATCH_SHAPES], validation_ranks=list(VALIDATION_RANKS))
     b.save_json(MANIFEST, manifest)
@@ -102,8 +102,12 @@ def fingerprint(binary):
     paths += [b.HERE / 'inference_benchmark.cc', b.HERE / 'BUILD.bazel',
               b.HERE / 'scripts/workloads.py', b.HERE / 'scripts/benchmark.py', b.DIALECT,
               b.ROOT / '.bazelrc', b.ROOT / 'MODULE.bazel', MANIFEST, DIRECTORY / 'tepl.toml']
+    def name(path):
+        if path.is_relative_to(b.ROOT):
+            return str(path.relative_to(b.ROOT))
+        return 'run-inputs/' + str(path.relative_to(DIRECTORY))
     return dict(binary_hash=b.digest(binary),
-                dependencies={str(p.relative_to(b.ROOT)): b.digest(p) for p in paths})
+                dependencies={name(p): b.digest(p) for p in paths})
 
 
 def validate(data, binary=None):
@@ -221,14 +225,23 @@ def render(data):
 
 
 def main():
+    global OUTPUT, DIRECTORY, MANIFEST, RESULT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, default=b.ROOT / 'bazel-bin/labs/attribute_inferences/reasoning_scalability/inference_benchmark')
+    parser.add_argument('--out', type=Path, help='Fresh output directory; preserves the default recorded run')
     parser.add_argument('--warmups', type=int, default=3)
     parser.add_argument('--repetitions', type=int, default=20)
     parser.add_argument('--prepare', action='store_true')
     parser.add_argument('--report', action='store_true')
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
+    if args.out:
+        OUTPUT = args.out.resolve()
+        DIRECTORY = OUTPUT / 'inputs'
+        MANIFEST = DIRECTORY / 'manifest.json'
+        RESULT = OUTPUT / 'performance.json'
+        if not (args.check or args.report) and OUTPUT.exists() and any(OUTPUT.iterdir()):
+            parser.error('choose a new or empty --out directory')
     if args.warmups < 0 or args.repetitions < 2:
         parser.error('need nonnegative warmups and at least two repetitions')
     binary = args.binary.resolve()

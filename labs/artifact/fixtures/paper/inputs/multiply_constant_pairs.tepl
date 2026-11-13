@@ -1,0 +1,8 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule multiply_constant_pairs {
+    (mul (mul X C1) (mul Y C2)) => (mul (mul X Y) (mul C1 C2))
+}

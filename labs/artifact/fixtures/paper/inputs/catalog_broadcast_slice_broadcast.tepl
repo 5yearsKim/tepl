@@ -1,0 +1,15 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: broadcast-slice-broadcast
+// Scope: Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_broadcast_slice_broadcast {
+    X: [Dims...]
+     (attr_s: hlo.slice (attr_b: hlo.broadcast X)) => (attr_out: hlo.broadcast (attr_inner: hlo.slice X))
+     
+derive {
+ attr_inner.attrs = {starts: gather(attr_s.attrs.starts,attr_b.attrs.dimensions), sizes: gather(attr_s.attrs.sizes,attr_b.attrs.dimensions), strides: gather(attr_s.attrs.strides,attr_b.attrs.dimensions)};
+ attr_out.attrs = {dimensions: auto, new_extents: gather(attr_s.attrs.sizes,exclude(range(len(attr_s.attrs.sizes)),attr_b.attrs.dimensions))};
+}
+}

@@ -1,0 +1,2742 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "add_zero",
+      "rule_name": "add_zero",
+      "catalog_id": "elementwise-add-zero",
+      "required_operations": [
+        "add",
+        "zero_like"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One operand order. zero_like models a shaped literal zero; no HLO literal matcher is evaluated.",
+      "source": "inputs/add_zero.tepl",
+      "source_sha256": "48d16757fa42029db85a4ad6dc3569b236fcc6ef6dc3b0b1c51398ba1d5738d1",
+      "paper_accepted": true
+    },
+    {
+      "case": "add_constant_order",
+      "rule_name": "add_constant_order",
+      "catalog_id": "elementwise-add-constant-order",
+      "required_operations": [
+        "add"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Proves commutation for arbitrary operands, including the catalog constant case. Constant/nonconstant matching is not implemented here.",
+      "source": "inputs/add_constant_order.tepl",
+      "source_sha256": "74cd0f532fe1f8e3877212527748f601d2fcf8f22ece18136ee054d5c5f37dd9",
+      "paper_accepted": true
+    },
+    {
+      "case": "add_constants",
+      "rule_name": "add_constants",
+      "catalog_id": "elementwise-add-constants",
+      "required_operations": [
+        "add"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "C1/C2 remain tensor captures; proves the equation for all values, including constants. RHS constant folding is outside this check.",
+      "source": "inputs/add_constants.tepl",
+      "source_sha256": "bc6d28cd54be3262b7f42ceeeca72d4e6489304a71e5a87439b5bc9acbd5a704",
+      "paper_accepted": true
+    },
+    {
+      "case": "subtract_add_constants",
+      "rule_name": "subtract_add_constants",
+      "catalog_id": "elementwise-subtract-add-constants",
+      "required_operations": [
+        "add",
+        "subtract"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "C1/C2 are tensor captures; the algebraic equation holds for all values. No literal folding.",
+      "source": "inputs/subtract_add_constants.tepl",
+      "source_sha256": "4f965a81e702b479ebb795e937d859c36d335b606d8477a74afacb1005198e9f",
+      "paper_accepted": true
+    },
+    {
+      "case": "add_subtract_cancel",
+      "rule_name": "add_subtract_cancel",
+      "catalog_id": "elementwise-add-subtract-cancel",
+      "required_operations": [
+        "add",
+        "subtract"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/add_subtract_cancel.tepl",
+      "source_sha256": "0d90938fbdb0e66a273c0c8c0ef6343346b0cf5cc112599535cd63a58837a406",
+      "paper_accepted": true
+    },
+    {
+      "case": "factor_common_product",
+      "rule_name": "factor_common_product",
+      "catalog_id": "elementwise-factor-common-product",
+      "required_operations": [
+        "add",
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One matched factor order under algebraic policy; source numerical gates remain an integration obligation.",
+      "source": "inputs/factor_common_product.tepl",
+      "source_sha256": "a27ad3746cef7364d8ebf07fd1012be2a64dcc2cc19ad30f46d0026cae2f8305",
+      "paper_accepted": true
+    },
+    {
+      "case": "subtract_self",
+      "rule_name": "subtract_self",
+      "catalog_id": "elementwise-subtract-self",
+      "required_operations": [
+        "subtract",
+        "zero_like"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/subtract_self.tepl",
+      "source_sha256": "b92aac7a5c14dbba045ea0ab3488dd15d71dcd8a950c6717775e2f9b277385ab",
+      "paper_accepted": true
+    },
+    {
+      "case": "subtract_zero",
+      "rule_name": "subtract_zero",
+      "catalog_id": "elementwise-subtract-zero",
+      "required_operations": [
+        "subtract",
+        "zero_like"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/subtract_zero.tepl",
+      "source_sha256": "bf36329aab7b06234cbb710cf67b9d554ac1d16f46fec87cf60404625816fe8d",
+      "paper_accepted": true
+    },
+    {
+      "case": "subtract_constant",
+      "rule_name": "subtract_constant",
+      "catalog_id": "elementwise-subtract-constant",
+      "required_operations": [
+        "add",
+        "negate",
+        "subtract"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "C is a tensor capture; proves a general identity containing the constant case. No literal evaluator.",
+      "source": "inputs/subtract_constant.tepl",
+      "source_sha256": "2fe6beab95c8aef8999ca675b533033e9c891a09fb362a056efd20b021598330",
+      "paper_accepted": true
+    },
+    {
+      "case": "subtract_subtract_cancel",
+      "rule_name": "subtract_subtract_cancel",
+      "catalog_id": "elementwise-subtract-subtract-cancel",
+      "required_operations": [
+        "subtract"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/subtract_subtract_cancel.tepl",
+      "source_sha256": "f9712a93b649ac4221845ef73cdc85c8cd1c8b8850c8f59a5c92576a9bb38a0d",
+      "paper_accepted": true
+    },
+    {
+      "case": "subtract_add_cancel",
+      "rule_name": "subtract_add_cancel",
+      "catalog_id": "elementwise-subtract-add-cancel",
+      "required_operations": [
+        "add",
+        "negate",
+        "subtract"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/subtract_add_cancel.tepl",
+      "source_sha256": "b5839e18eed8c4f118d4b97bcfd8e5fbf34e472711b3b0f4111c5f8ee20bd021",
+      "paper_accepted": true
+    },
+    {
+      "case": "add_subtract_cancel_right",
+      "rule_name": "add_subtract_cancel_right",
+      "catalog_id": "elementwise-add-subtract-cancel-right",
+      "required_operations": [
+        "add",
+        "subtract"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/add_subtract_cancel_right.tepl",
+      "source_sha256": "06d1df864efa1f4121e0928fb18fd38c7a7fe3040e005de9279b7f63c6934850",
+      "paper_accepted": true
+    },
+    {
+      "case": "multiply_zero",
+      "rule_name": "multiply_zero",
+      "catalog_id": "elementwise-multiply-zero",
+      "required_operations": [
+        "multiply",
+        "zero_like"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "zero_like models literal zero. Requires algebraic arithmetic policy.",
+      "source": "inputs/multiply_zero.tepl",
+      "source_sha256": "a81432207a4fdb062c1bce80fafbdd5dafa8de7dc45153fd171a98dddbb7a943",
+      "paper_accepted": true
+    },
+    {
+      "case": "multiply_negatives",
+      "rule_name": "multiply_negatives",
+      "catalog_id": "elementwise-multiply-negatives",
+      "required_operations": [
+        "multiply",
+        "negate"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/multiply_negatives.tepl",
+      "source_sha256": "8b2748e4d4a6b7945543f65f205b325d30490befdfeeadd84f92b8c9d2117f0e",
+      "paper_accepted": true
+    },
+    {
+      "case": "multiply_constant_pairs",
+      "rule_name": "multiply_constant_pairs",
+      "catalog_id": "elementwise-multiply-constant-pairs",
+      "required_operations": [
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "C1/C2 are tensor captures; no literal folding.",
+      "source": "inputs/multiply_constant_pairs.tepl",
+      "source_sha256": "a67f4ac1c4f1e155fdfa5b3eb823e254e6698ac3add1f8c9b5e147ced22a64dd",
+      "paper_accepted": true
+    },
+    {
+      "case": "multiply_constants",
+      "rule_name": "multiply_constants",
+      "catalog_id": "elementwise-multiply-constants",
+      "required_operations": [
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "C1/C2 are tensor captures; no literal folding.",
+      "source": "inputs/multiply_constants.tepl",
+      "source_sha256": "964f5d9a4eb7f2e32e31372726eef7014c227653b9b318a8ebd3779ad4312760",
+      "paper_accepted": true
+    },
+    {
+      "case": "double_negate",
+      "rule_name": "double_negate",
+      "catalog_id": "elementwise-double-negate",
+      "required_operations": [
+        "negate"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/double_negate.tepl",
+      "source_sha256": "b015d3a6052ca6c9b09f974e475eab3512b0dc5cdfb278df217e2f5174fd3080",
+      "paper_accepted": true
+    },
+    {
+      "case": "transpose_identity",
+      "rule_name": "transpose_identity",
+      "catalog_id": "transpose-reshape-transpose-identity",
+      "required_operations": [
+        "transpose"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/transpose_identity.tepl",
+      "source_sha256": "067bfac53c38930579d0e2d6db9b5afef82f8e8f9346164df99d51b12f8d7ace",
+      "paper_accepted": true
+    },
+    {
+      "case": "transpose_compose",
+      "rule_name": "transpose_compose",
+      "catalog_id": "transpose-reshape-transpose-compose",
+      "required_operations": [
+        "transpose"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_combined",
+          "operation": "transpose",
+          "field": "permutation",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "One written operand order of the catalog equation, under the algebraic arithmetic model; source numerical policy is not executed.",
+      "source": "inputs/transpose_compose.tepl",
+      "source_sha256": "655999a05f7b335c6743b5c964b3980bbf9678d2a496d92e779951804723f0d0",
+      "paper_accepted": true
+    },
+    {
+      "case": "broadcast_add",
+      "rule_name": "broadcast_add",
+      "catalog_id": "broadcast-elementwise",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@247",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Only binary addition, equal base shapes, identical broadcast maps and added extents; excludes other elementwise functions and scalar expansion.",
+      "source": "inputs/broadcast_add.tepl",
+      "source_sha256": "db212dac80518c111db4f976bb7b1e0a95a3661c9085672674483218063cf8a4",
+      "paper_accepted": true
+    },
+    {
+      "case": "broadcast_multiply",
+      "rule_name": "broadcast_multiply",
+      "catalog_id": "broadcast-elementwise",
+      "required_operations": [
+        "broadcast_in_dim",
+        "multiply"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@252",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Only binary multiplication, equal base shapes, identical maps and added extents.",
+      "source": "inputs/broadcast_multiply.tepl",
+      "source_sha256": "18bcae1a626d79445e706a491ea5c6e9d6e72bb27be0462f8a8ac100ad82cfc0",
+      "paper_accepted": true
+    },
+    {
+      "case": "scalar_broadcast_reverse",
+      "rule_name": "scalar_broadcast_reverse",
+      "catalog_id": "broadcast-scalar-through-indexing",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reverse"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@237",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Only the reverse member of the parameterized indexing schema; input broadcast map is empty.",
+      "source": "inputs/scalar_broadcast_reverse.tepl",
+      "source_sha256": "048a770725e4d4634f761f642a6d7f3ada6c2bb3916dcaadb3b7ae8077367e8a",
+      "paper_accepted": true
+    },
+    {
+      "case": "scalar_broadcast_transpose",
+      "rule_name": "scalar_broadcast_transpose",
+      "catalog_id": "broadcast-scalar-through-indexing",
+      "required_operations": [
+        "broadcast_in_dim",
+        "transpose"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Only a rank-two transpose with permutation [1,0] and scalar broadcast.",
+      "source": "inputs/scalar_broadcast_transpose.tepl",
+      "source_sha256": "4c1b9006c5b94f3dcba8b8d0ce5fd0cf853d1e793edb8fea17b6c666ad6426d8",
+      "paper_accepted": true
+    },
+    {
+      "case": "reduce_negate",
+      "rule_name": "reduce_negate",
+      "catalog_id": "reduction-negate",
+      "required_operations": [
+        "negate",
+        "reduce_sum"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@226",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Only sum with implicit zero initializer, matching the catalog arithmetic case.",
+      "source": "inputs/reduce_negate.tepl",
+      "source_sha256": "ac4f46ed494e31a5469247a39e053569ebf366f9c110639f3d535ef360e8e3bd",
+      "paper_accepted": true
+    },
+    {
+      "case": "reduce_compose",
+      "rule_name": "reduce_compose",
+      "catalog_id": "reduction-compose",
+      "required_operations": [
+        "reduce_sum"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-three sum, inner axis 1 then outer axis 1; symbolic extents. Does not cover arbitrary combiners/initializers.",
+      "source": "inputs/reduce_compose.tepl",
+      "source_sha256": "d59026b9f3e794a9294ea167f6e8466669920f7560a1fd096c664234531347b1",
+      "paper_accepted": true
+    },
+    {
+      "case": "reduce_transpose",
+      "rule_name": "reduce_transpose",
+      "catalog_id": "reduction-transpose",
+      "required_operations": [
+        "reduce_sum",
+        "transpose"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-two transpose [1,0], sum over output axis 0, implicit zero initializer.",
+      "source": "inputs/reduce_transpose.tepl",
+      "source_sha256": "0017c9363a2dfe583233e4d7051c83309997f6f085e911ca714e55673774056c",
+      "paper_accepted": true
+    },
+    {
+      "case": "reverse_cancel",
+      "rule_name": "reverse_cancel",
+      "catalog_id": "indexing-reverse-compose",
+      "required_operations": [
+        "reverse"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Identical ordered dimension lists; a subset of general symmetric-difference composition.",
+      "source": "inputs/reverse_cancel.tepl",
+      "source_sha256": "17d799c1f28dea8e984c8bde71f10e3e423689b89134649e62a512ecccc064da",
+      "paper_accepted": true
+    },
+    {
+      "case": "reverse_compose_disjoint",
+      "rule_name": "reverse_compose_disjoint",
+      "catalog_id": "indexing-reverse-compose",
+      "required_operations": [
+        "reverse"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-two disjoint lists [0] and [1]; probes a case beyond identical-list cancellation.",
+      "source": "inputs/reverse_compose_disjoint.tepl",
+      "source_sha256": "98f53aa534fff95617bc9bc56b086f81cafb83fdf700ee74671cee713bbac854",
+      "paper_accepted": true
+    },
+    {
+      "case": "reverse_add_scalar",
+      "rule_name": "reverse_add_scalar",
+      "catalog_id": "indexing-reverse-elementwise",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim",
+        "reverse"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@248",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@274",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Only addition and a scalar broadcast; tests the compound rule directly, not a two-rule sequence.",
+      "source": "inputs/reverse_add_scalar.tepl",
+      "source_sha256": "66aa413fb48e6d6953b5b4532cd79408ea5327a8c4fce07a66ef63f49d56d1f1",
+      "paper_accepted": true
+    },
+    {
+      "case": "dot_associate",
+      "rule_name": "dot_associate",
+      "catalog_id": "dot-associate",
+      "required_operations": [
+        "dot_general"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@295",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@295",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@295",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@295",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@270",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@270",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@270",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@270",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Ordinary rank-two matrix products without batch axes; every attribute is reused explicitly.",
+      "source": "inputs/dot_associate.tepl",
+      "source_sha256": "7d140765c1c11f985825a6807c07c1cfbda4ba8b11b8543eba9d5d4b45a54c08",
+      "paper_accepted": true
+    },
+    {
+      "case": "dot_transpose_output",
+      "rule_name": "dot_transpose_output",
+      "catalog_id": "dot-transpose-output",
+      "required_operations": [
+        "dot_general",
+        "transpose"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-two matrix product, output transpose [1,0]; explicit swapped contraction attributes.",
+      "source": "inputs/dot_transpose_output.tepl",
+      "source_sha256": "199462098489d415b7b16ccc144841c30e6b3045da33e21a17a5bfdbaa8f8ea7",
+      "paper_accepted": true
+    },
+    {
+      "case": "dot_move_reverse",
+      "rule_name": "dot_move_reverse",
+      "catalog_id": "dot-move-reverse",
+      "required_operations": [
+        "dot_general",
+        "reverse"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@268",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@247",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@247",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@247",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@247",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-one inner product; reversal of its sole contracting axis; no free/batch axes.",
+      "source": "inputs/dot_move_reverse.tepl",
+      "source_sha256": "d8d7da93d22f579981bd70968d3e4ebac1525fc3ae3026dc9d65806672a8871f",
+      "paper_accepted": true
+    },
+    {
+      "case": "reduce_compose_leading",
+      "rule_name": "reduce_compose_leading",
+      "catalog_id": "reduction-compose",
+      "required_operations": [
+        "reduce_sum"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-three sum with inner axis 0 then outer axis 0; implicit zero initializer. Compared with the nonleading-axis case.",
+      "source": "inputs/reduce_compose_leading.tepl",
+      "source_sha256": "78c7a6a255ad64a61811bffc6d678fa34c3e9c415e060d3b22566f283ad86cdd",
+      "paper_accepted": true
+    },
+    {
+      "case": "broadcast_compose_append",
+      "rule_name": "broadcast_compose_append",
+      "catalog_id": "broadcast-compose",
+      "required_operations": [
+        "broadcast_in_dim"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Arbitrary input rank, broadcasts only append new dimensions; concatenates new extents explicitly.",
+      "source": "inputs/broadcast_compose_append.tepl",
+      "source_sha256": "cd8ede18aa7ab8fd12cfd837efce8a6888dc6fbdb82cf93515ac0e088c57261b",
+      "paper_accepted": true
+    },
+    {
+      "case": "dot_swap_operands",
+      "rule_name": "dot_swap_operands",
+      "catalog_id": "dot-swap-parameter-operand",
+      "required_operations": [
+        "dot_general",
+        "transpose"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_p",
+          "operation": "transpose",
+          "field": "permutation",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-two matrix product. Proves the identity for any captured X/Y; does not implement parameter-like policy screening.",
+      "source": "inputs/dot_swap_operands.tepl",
+      "source_sha256": "2ca556aff36ff57d29fe8c27840e1907a6ac1de714617f06b9f65dd0116a1915",
+      "paper_accepted": true
+    },
+    {
+      "case": "dot_no_contraction",
+      "rule_name": "dot_no_contraction",
+      "catalog_id": "dot-no-contraction",
+      "required_operations": [
+        "broadcast_in_dim",
+        "dot_general",
+        "multiply"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_left",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_right",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-one operands, no batches or contractions; same-type ideal arithmetic, no conversions.",
+      "source": "inputs/dot_no_contraction.tepl",
+      "source_sha256": "a0648beb9b429bc508998a8fb94a6c2977e9e272e2aaacea4f6b6dd6f193caf1",
+      "paper_accepted": true
+    },
+    {
+      "case": "dot_reduce_product",
+      "rule_name": "dot_reduce_product",
+      "catalog_id": "dot-reduce-product",
+      "required_operations": [
+        "dot_general",
+        "multiply",
+        "reduce_sum"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_r",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-one inner product to multiply then sum; same-type ideal arithmetic, no widened accumulation.",
+      "source": "inputs/dot_reduce_product.tepl",
+      "source_sha256": "d172baa95e7e9ec3eb94370c8ac3db4d33d800e5fc1bc7bdd25f44ff8f931ea7",
+      "paper_accepted": true
+    },
+    {
+      "case": "dot_reduce_batch",
+      "rule_name": "dot_reduce_batch",
+      "catalog_id": "dot-reduce-output-batch",
+      "required_operations": [
+        "dot_general",
+        "reduce_sum"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-one batched product reduced over its sole batch axis; no remaining output axes.",
+      "source": "inputs/dot_reduce_batch.tepl",
+      "source_sha256": "5cef72a42d6a37f9f71d7ccb0c41cd327658ff1374f590434ab6d604e30ff194",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_divide_one",
+      "rule_name": "expr_divide_one",
+      "catalog_id": "elementwise-divide-one",
+      "required_operations": [
+        "divide"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal member; source numeric assumptions apply.",
+      "source": "inputs/expr_divide_one.tepl",
+      "source_sha256": "26e07535fbb95d46624ed3ec9d0e247726eaee68a671732ed26a2e24611c527e",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_divide_two_quotients",
+      "rule_name": "expr_divide_two_quotients",
+      "catalog_id": "elementwise-divide-two-quotients",
+      "required_operations": [
+        "divide",
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Algebraic equation; denominator and numeric assumptions remain source conditions.",
+      "source": "inputs/expr_divide_two_quotients.tepl",
+      "source_sha256": "199904ca0892d7b84033aaa88b60ab886cdc820a903c32f9b596c3f4ed23ec0f",
+      "paper_accepted": false
+    },
+    {
+      "case": "expr_divide_left_quotient",
+      "rule_name": "expr_divide_left_quotient",
+      "catalog_id": "elementwise-divide-left-quotient",
+      "required_operations": [
+        "divide",
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Algebraic equation under source conditions.",
+      "source": "inputs/expr_divide_left_quotient.tepl",
+      "source_sha256": "630fb279a3c263c005aabb07b40271f340614ef075d57b5a6729b11ae44d400c",
+      "paper_accepted": false
+    },
+    {
+      "case": "expr_divide_right_quotient",
+      "rule_name": "expr_divide_right_quotient",
+      "catalog_id": "elementwise-divide-right-quotient",
+      "required_operations": [
+        "divide",
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Algebraic equation under source conditions.",
+      "source": "inputs/expr_divide_right_quotient.tepl",
+      "source_sha256": "e9c031a559cbee9e8da997d12722c4926c79c347c367c79b3fd14b0a9586cc90",
+      "paper_accepted": false
+    },
+    {
+      "case": "expr_multiply_one",
+      "rule_name": "expr_multiply_one",
+      "catalog_id": "elementwise-multiply-one",
+      "required_operations": [
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal member; tensor splat matching is an adapter detail.",
+      "source": "inputs/expr_multiply_one.tepl",
+      "source_sha256": "381bfbf3f4a065326dd673787cceffa1adb0765262a0992fcc5dd3ff901dc6be",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_square_abs",
+      "rule_name": "expr_square_abs",
+      "catalog_id": "elementwise-square-abs",
+      "required_operations": [
+        "abs",
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Noncomplex mathematical values; source numeric conditions apply.",
+      "source": "inputs/expr_square_abs.tepl",
+      "source_sha256": "37c34711566a0cffb9f820efd5da20f139df0a31ae7d7effb61996c51b30b402",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_multiply_exponentials",
+      "rule_name": "expr_multiply_exponentials",
+      "catalog_id": "elementwise-multiply-exponentials",
+      "required_operations": [
+        "add",
+        "exp",
+        "multiply"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Mathematical equation; source fast-math gate is recorded in the catalog.",
+      "source": "inputs/expr_multiply_exponentials.tepl",
+      "source_sha256": "48152ce24d78ee6cd98f3c2c8b0ab424bd7122d27a2d93c24e8da11b987a3f25",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_double_not",
+      "rule_name": "expr_double_not",
+      "catalog_id": "elementwise-double-not",
+      "required_operations": [
+        "logical_not"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Logical/bitwise operation supplied by a dialect declaration. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "source": "inputs/expr_double_not.tepl",
+      "source_sha256": "e6ebc13038686df9fc12dcc392a52adfb02205b4aaf060002a89323e1e318b90",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_xor_self",
+      "rule_name": "expr_xor_self",
+      "catalog_id": "elementwise-xor-self",
+      "required_operations": [
+        "logical_xor"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar integer member; literal dtype follows the matched rule context. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "source": "inputs/expr_xor_self.tepl",
+      "source_sha256": "6b491219bab7a08e6ae8a514e4c317abdc976731b18f202bb5b38c87dbc661ad",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_xor_zero",
+      "rule_name": "expr_xor_zero",
+      "catalog_id": "elementwise-xor-zero",
+      "required_operations": [
+        "logical_xor"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar integer member. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "source": "inputs/expr_xor_zero.tepl",
+      "source_sha256": "a8f3fa3f3c135c74407435bc808db9413d2691d7c30d855d09c68af1c1117f09",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_and_zero",
+      "rule_name": "expr_and_zero",
+      "catalog_id": "elementwise-and-zero",
+      "required_operations": [
+        "logical_and"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar integer member. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "source": "inputs/expr_and_zero.tepl",
+      "source_sha256": "fcc8da8e4433b3fd3ae5c61e0d2b1353144b84dee2e8aabbfc8494ea89548965",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_or_zero",
+      "rule_name": "expr_or_zero",
+      "catalog_id": "elementwise-or-zero",
+      "required_operations": [
+        "logical_or"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar integer member. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "source": "inputs/expr_or_zero.tepl",
+      "source_sha256": "e515199adf4580e4fc6849c37e0927695a479c6fc64b6916f42a728282d21bba",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_log_exp",
+      "rule_name": "expr_log_exp",
+      "catalog_id": "elementwise-log-exp",
+      "required_operations": [
+        "exp",
+        "log"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Real mathematical values; source fast-math gate remains a source condition.",
+      "source": "inputs/expr_log_exp.tepl",
+      "source_sha256": "013daf507ed6a15e11e375e507f19261af828d611adc459c608948ca068396a7",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_log_sqrt",
+      "rule_name": "expr_log_sqrt",
+      "catalog_id": "elementwise-log-sqrt",
+      "required_operations": [
+        "log",
+        "multiply",
+        "sqrt"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar X; real domain and source numeric assumptions apply.",
+      "source": "inputs/expr_log_sqrt.tepl",
+      "source_sha256": "514eaecca64140654f40146b2907cdec3fc7ddae45f5c15be9f5404ee8f53eb5",
+      "paper_accepted": false
+    },
+    {
+      "case": "expr_maximum_self",
+      "rule_name": "expr_maximum_self",
+      "catalog_id": "elementwise-max-self",
+      "required_operations": [
+        "maximum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Operation semantics and source numeric policy supplied by target dialect.",
+      "source": "inputs/expr_maximum_self.tepl",
+      "source_sha256": "2153f6901fa96ccc585f9772255956d6f81a28be0a59d2a1a45887ed7e92f375",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_maximum_nested",
+      "rule_name": "expr_maximum_nested",
+      "catalog_id": "elementwise-max-nested-left",
+      "required_operations": [
+        "maximum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One matched operand form; source ordering retained.",
+      "source": "inputs/expr_maximum_nested.tepl",
+      "source_sha256": "65d3a3a1259a4ebf71c507f4650509c792678ed1d1293f55e8ce5d49da1e266d",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_maximum_nested_right",
+      "rule_name": "expr_maximum_nested_right",
+      "catalog_id": "elementwise-max-nested-right",
+      "required_operations": [
+        "maximum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand order matches the catalog.",
+      "source": "inputs/expr_maximum_nested_right.tepl",
+      "source_sha256": "f2754906055e80f998f427355b03d64f23604a730e5e1133cb37d3e671bbc976",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_minimum_self",
+      "rule_name": "expr_minimum_self",
+      "catalog_id": "elementwise-min-self",
+      "required_operations": [
+        "minimum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Operation semantics supplied by target dialect.",
+      "source": "inputs/expr_minimum_self.tepl",
+      "source_sha256": "dff82f0ec80d263a7108fe105e6d0bee6de90bac9e651c4e3e65074d9e093132",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_minimum_nested",
+      "rule_name": "expr_minimum_nested",
+      "catalog_id": "elementwise-min-nested-left",
+      "required_operations": [
+        "minimum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "One matched operand form.",
+      "source": "inputs/expr_minimum_nested.tepl",
+      "source_sha256": "2fe86934c0323b2f78763734ab5b86b917316cf20351e997315a888468af26ab",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_minimum_nested_right",
+      "rule_name": "expr_minimum_nested_right",
+      "catalog_id": "elementwise-min-nested-right",
+      "required_operations": [
+        "minimum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand order matches the catalog.",
+      "source": "inputs/expr_minimum_nested_right.tepl",
+      "source_sha256": "deac8d01cd359a1411b686991f9f44f9cfe4b808803eb40949c4d0e57809c758",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_select_identical",
+      "rule_name": "expr_select_identical",
+      "catalog_id": "elementwise-select-identical",
+      "required_operations": [
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Shared selected operand; target supplies compatible shape/dtype metadata. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/expr_select_identical.tepl",
+      "source_sha256": "7b3cfce90db6dd4ff91841adb2cb0d648b7eaecb3ecb3b1c32eae797dddc396d",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_select_not",
+      "rule_name": "expr_select_not",
+      "catalog_id": "elementwise-select-not",
+      "required_operations": [
+        "logical_not",
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Predicate operation supplied by target dialect. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/expr_select_not.tepl",
+      "source_sha256": "df6c85529ca0dab7f8e9738b51dd859b29eda81a8d4f00f83ff603663f551f19",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_power_zero",
+      "rule_name": "expr_power_zero",
+      "catalog_id": "elementwise-power-zero",
+      "required_operations": [
+        "power"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal exponent member.",
+      "source": "inputs/expr_power_zero.tepl",
+      "source_sha256": "35f66575f6f4751b644b3e1c93039ac262758469054e88e5f583f5b6d5cd9c8e",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_power_one",
+      "rule_name": "expr_power_one",
+      "catalog_id": "elementwise-power-one",
+      "required_operations": [
+        "power"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal exponent member.",
+      "source": "inputs/expr_power_one.tepl",
+      "source_sha256": "058328d68dd76c31b3f6b72eceeeeb54855ff3237ba9a50d3746f7032c186d03",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_power_two",
+      "rule_name": "expr_power_two",
+      "catalog_id": "elementwise-power-two",
+      "required_operations": [
+        "multiply",
+        "power"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal exponent member.",
+      "source": "inputs/expr_power_two.tepl",
+      "source_sha256": "e16b772fa218d9cd0652494b9b25503ad992f30632e7a7490df34759873ab689",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_power_three",
+      "rule_name": "expr_power_three",
+      "catalog_id": "elementwise-power-three",
+      "required_operations": [
+        "multiply",
+        "power"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal exponent member.",
+      "source": "inputs/expr_power_three.tepl",
+      "source_sha256": "fccdcbe9b9fa186dc6614438184eec66eb689d93018a0b97bdff10badd1aba19",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_power_reciprocal",
+      "rule_name": "expr_power_reciprocal",
+      "catalog_id": "elementwise-power-reciprocal",
+      "required_operations": [
+        "divide",
+        "power"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar nonintegral member under the source conditions.",
+      "source": "inputs/expr_power_reciprocal.tepl",
+      "source_sha256": "af41f615d2cebf159b8e42adff68ab603852e589e777980af6066a7cd10bb0a2",
+      "paper_accepted": false
+    },
+    {
+      "case": "expr_remainder_compose",
+      "rule_name": "expr_remainder_compose",
+      "catalog_id": "elementwise-remainder-compose",
+      "required_operations": [
+        "remainder"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Same divisor capture; target remainder semantics retained.",
+      "source": "inputs/expr_remainder_compose.tepl",
+      "source_sha256": "351608639c6b00648ce44043ff9dc5a357cb863ab1ac9771a467b14fe73f8565",
+      "paper_accepted": false
+    },
+    {
+      "case": "expr_reverse_compose_general",
+      "rule_name": "expr_reverse_compose_general",
+      "catalog_id": "indexing-reverse-compose",
+      "required_operations": [
+        "reverse"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "General symmetric difference computed with existing list builtins; no auto.",
+      "source": "inputs/expr_reverse_compose_general.tepl",
+      "source_sha256": "6c7475096add0dd5ae198fb8b1159dec844f8dd14e9e9de63bd7bf54b9bf1f3c",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_and_true",
+      "rule_name": "catalog_elementwise_and_true",
+      "catalog_id": "elementwise-and-true",
+      "required_operations": [
+        "logical_and"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "source": "inputs/catalog_elementwise_and_true.tepl",
+      "source_sha256": "ad21e7f2f3669246a58dfd3b1bb06fdc8afd982b91309de407750c52db6cd66d",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_or_true",
+      "rule_name": "catalog_elementwise_or_true",
+      "catalog_id": "elementwise-or-true",
+      "required_operations": [
+        "logical_or"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified.",
+      "source": "inputs/catalog_elementwise_or_true.tepl",
+      "source_sha256": "5246c57f118443c23c5c043a6d550ae9b2809b4d7c15bc25a0cb04ff25bf9dd3",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_divide_exponentials",
+      "rule_name": "catalog_elementwise_divide_exponentials",
+      "catalog_id": "elementwise-divide-exponentials",
+      "required_operations": [
+        "divide",
+        "exp",
+        "subtract"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_divide_exponentials.tepl",
+      "source_sha256": "89dd55bdf5af6399ef9a3432709724e8802f9eb27dbf4c3f86c996feb9bb4b44",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_divide_exponential",
+      "rule_name": "catalog_elementwise_divide_exponential",
+      "catalog_id": "elementwise-divide-exponential",
+      "required_operations": [
+        "divide",
+        "exp",
+        "multiply",
+        "negate"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_divide_exponential.tepl",
+      "source_sha256": "2500e319cd4df6cfd47861df225b2f5e2ea91e32f359595f614d7ef0b0b41ed2",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_divide_power",
+      "rule_name": "catalog_elementwise_divide_power",
+      "catalog_id": "elementwise-divide-power",
+      "required_operations": [
+        "divide",
+        "multiply",
+        "negate",
+        "power"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_divide_power.tepl",
+      "source_sha256": "5af11bfbfffa1004254475a535ba4cbb22a197a9890d3cbc6e423d8780423149",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_elementwise_divide_sqrt",
+      "rule_name": "catalog_elementwise_divide_sqrt",
+      "catalog_id": "elementwise-divide-sqrt",
+      "required_operations": [
+        "divide",
+        "multiply",
+        "rsqrt",
+        "sqrt"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_divide_sqrt.tepl",
+      "source_sha256": "46a05e74f64d756bfa36d24d7704f8dda69535aa636c65e134f30e54b9dcaae7",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_elementwise_divide_rsqrt",
+      "rule_name": "catalog_elementwise_divide_rsqrt",
+      "catalog_id": "elementwise-divide-rsqrt",
+      "required_operations": [
+        "divide",
+        "multiply",
+        "rsqrt",
+        "sqrt"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_divide_rsqrt.tepl",
+      "source_sha256": "150c0adc2f87dd70455b3cd3a21b480e97e0d213d41f58bf7ad17def336e5a8d",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_elementwise_log_power",
+      "rule_name": "catalog_elementwise_log_power",
+      "catalog_id": "elementwise-log-power",
+      "required_operations": [
+        "abs",
+        "compare",
+        "log",
+        "multiply",
+        "power",
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/catalog_elementwise_log_power.tepl",
+      "source_sha256": "8a69a3386a853e64afd8dd5f847459017270bd8442bc9e368a80ad230d75f4ee",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_elementwise_log_rsqrt",
+      "rule_name": "catalog_elementwise_log_rsqrt",
+      "catalog_id": "elementwise-log-rsqrt",
+      "required_operations": [
+        "log",
+        "multiply",
+        "rsqrt"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "source": "inputs/catalog_elementwise_log_rsqrt.tepl",
+      "source_sha256": "4147fbd0a24ca4453acd14bd5244c14564efa9efb816d48916fc991948868bf9",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_elementwise_max_identity",
+      "rule_name": "catalog_elementwise_max_identity",
+      "catalog_id": "elementwise-max-identity",
+      "required_operations": [
+        "maximum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "source": "inputs/catalog_elementwise_max_identity.tepl",
+      "source_sha256": "1e8f73d087173b2560bc761758f3bb0178d5dea7cde4e87cfb22966cc4dfba74",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_min_identity",
+      "rule_name": "catalog_elementwise_min_identity",
+      "catalog_id": "elementwise-min-identity",
+      "required_operations": [
+        "minimum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "source": "inputs/catalog_elementwise_min_identity.tepl",
+      "source_sha256": "2ac0ffba482e18e6dbc4dbfd51529f55119d79cb3f84e1ee46565847626d7112",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_max_nested_right_reorder",
+      "rule_name": "catalog_elementwise_max_nested_right_reorder",
+      "catalog_id": "elementwise-max-nested-right-reorder",
+      "required_operations": [
+        "maximum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_max_nested_right_reorder.tepl",
+      "source_sha256": "c5ca151c04fbf887b3c1872d2a15a52d287bd449711ee48aaa14320e914aca02",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_min_nested_right_reorder",
+      "rule_name": "catalog_elementwise_min_nested_right_reorder",
+      "catalog_id": "elementwise-min-nested-right-reorder",
+      "required_operations": [
+        "minimum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_min_nested_right_reorder.tepl",
+      "source_sha256": "c2e5e5daaeebcda7bb011aad3441a18c0fce079e06a166f1139de266acd29c3d",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_max_clamp_bound",
+      "rule_name": "catalog_elementwise_max_clamp_bound",
+      "catalog_id": "elementwise-max-clamp-bound",
+      "required_operations": [
+        "clamp",
+        "maximum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_max_clamp_bound.tepl",
+      "source_sha256": "1d1f33cba6328d4ae93e0542eb17c16874a11156368816646b5c924a10608b5b",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_elementwise_max_monotone",
+      "rule_name": "catalog_elementwise_max_monotone",
+      "catalog_id": "elementwise-max-monotone",
+      "required_operations": [
+        "maximum",
+        "tanh"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "tanh member of the finite monotone-opcode family.",
+      "source": "inputs/catalog_elementwise_max_monotone.tepl",
+      "source_sha256": "de04afd075d1b3c69c3301002b22e56c71a4d09755331f8c2ba772dc2153d9c4",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_clamp_clamp",
+      "rule_name": "catalog_elementwise_clamp_clamp",
+      "catalog_id": "elementwise-clamp-clamp",
+      "required_operations": [
+        "clamp"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_clamp_clamp.tepl",
+      "source_sha256": "e87919edbaf61328f488b4ed212f5894235d9dbbe5acca171e2376a255258a96",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_power_exp",
+      "rule_name": "catalog_elementwise_power_exp",
+      "catalog_id": "elementwise-power-exp",
+      "required_operations": [
+        "exp",
+        "multiply",
+        "power"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_power_exp.tepl",
+      "source_sha256": "974fb99564f68a32255549751a4d8d50cba65370bda0d9f314d1e045d62db3b5",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_sqrt_square",
+      "rule_name": "catalog_elementwise_sqrt_square",
+      "catalog_id": "elementwise-sqrt-square",
+      "required_operations": [
+        "abs",
+        "multiply",
+        "sqrt"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_sqrt_square.tepl",
+      "source_sha256": "fb7ee7b62b467541cdef46716f099d47207d20acd74d541cbcd85473bfcdb863",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_compare_self",
+      "rule_name": "catalog_elementwise_compare_self",
+      "catalog_id": "elementwise-compare-self",
+      "required_operations": [
+        "compare"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Integral scalar EQ/GE/LE cases; false-result directions can use a separate rule.",
+      "source": "inputs/catalog_elementwise_compare_self.tepl",
+      "source_sha256": "078b24a733f08eb26ec8fbee31b6d1cfdcd4a7a1c80bc0fb021ab0bb7dbab401",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_compare_predicate_false",
+      "rule_name": "catalog_elementwise_compare_predicate_false",
+      "catalog_id": "elementwise-compare-predicate-false",
+      "required_operations": [
+        "compare"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "source": "inputs/catalog_elementwise_compare_predicate_false.tepl",
+      "source_sha256": "b4a0a8282a8a02998cffb75584a1ede46012a62c85c92ba9e2e66ccad2327bea",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_compare_predicate_true",
+      "rule_name": "catalog_elementwise_compare_predicate_true",
+      "catalog_id": "elementwise-compare-predicate-true",
+      "required_operations": [
+        "compare"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog.",
+      "source": "inputs/catalog_elementwise_compare_predicate_true.tepl",
+      "source_sha256": "78dd129a10dfad90ab750d2b5345cea090b99d504ce468939df810e6d7d46c5d",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_compare_selected_mask",
+      "rule_name": "catalog_elementwise_compare_selected_mask",
+      "catalog_id": "elementwise-compare-selected-mask",
+      "required_operations": [
+        "compare",
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/catalog_elementwise_compare_selected_mask.tepl",
+      "source_sha256": "9636949a0a475150fe14f817a93bfe860fe570b78f5bebf8a058510154c72444",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_compare_max",
+      "rule_name": "catalog_elementwise_compare_max",
+      "catalog_id": "elementwise-compare-max",
+      "required_operations": [
+        "compare",
+        "maximum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_compare_max.tepl",
+      "source_sha256": "b12ee9d92e96217cbe53941efb4e2fb65ba678fe3f1cf84b7da8bf4417ee87d1",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_compare_min",
+      "rule_name": "catalog_elementwise_compare_min",
+      "catalog_id": "elementwise-compare-min",
+      "required_operations": [
+        "compare",
+        "minimum"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "scope": "Written operand/opcode variant under the catalog conditions.",
+      "source": "inputs/catalog_elementwise_compare_min.tepl",
+      "source_sha256": "b2e2dcef04d1ab06d50e45f94d1e45897dd854453cad70e3cc4ef9f27cdffe6f",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_select_predicate_identity",
+      "rule_name": "catalog_elementwise_select_predicate_identity",
+      "catalog_id": "elementwise-select-predicate-identity",
+      "required_operations": [
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/catalog_elementwise_select_predicate_identity.tepl",
+      "source_sha256": "75210a37d80ee5e275e37ec0624b914d0f5208fdfda94816eccac1f663ce10ba",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_select_predicate_not",
+      "rule_name": "catalog_elementwise_select_predicate_not",
+      "catalog_id": "elementwise-select-predicate-not",
+      "required_operations": [
+        "logical_not",
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Scalar literal instance; source conditions retained in the catalog. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/catalog_elementwise_select_predicate_not.tepl",
+      "source_sha256": "e6ddb9c6c797759ebd9f5d4cb05920eb9a44041965520dd7be0c8c82aa07b877",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_select_compare_gt",
+      "rule_name": "catalog_elementwise_select_compare_gt",
+      "catalog_id": "elementwise-select-compare-gt",
+      "required_operations": [
+        "compare",
+        "logical_or",
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/catalog_elementwise_select_compare_gt.tepl",
+      "source_sha256": "3951bd3c7e1bc72687e368bfafc965ffc6a548e06f2064379bc295dfb90deedf",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_elementwise_select_compare_lt",
+      "rule_name": "catalog_elementwise_select_compare_lt",
+      "catalog_id": "elementwise-select-compare-lt",
+      "required_operations": [
+        "compare",
+        "logical_and",
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO logical operations use Boolean tensors; integer bitwise variants are not verified. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/catalog_elementwise_select_compare_lt.tepl",
+      "source_sha256": "83470ca2de63a709d1de24b9ae3bfdbe75fd4a6facffbc49e40c81477626b555",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_elementwise_select_compare_eq",
+      "rule_name": "catalog_elementwise_select_compare_eq",
+      "catalog_id": "elementwise-select-compare-eq",
+      "required_operations": [
+        "compare",
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/catalog_elementwise_select_compare_eq.tepl",
+      "source_sha256": "b0391d2238493bec58476f84abfa35d18426118579bfebd336d757036dd948e6",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_elementwise_select_compare_ne",
+      "rule_name": "catalog_elementwise_select_compare_ne",
+      "catalog_id": "elementwise-select-compare-ne",
+      "required_operations": [
+        "compare",
+        "select"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Written operand/opcode variant under the catalog conditions. Local HLO select requires the predicate and both branches to have the same shape.",
+      "source": "inputs/catalog_elementwise_select_compare_ne.tepl",
+      "source_sha256": "f4966b8e8db56aca4605f3d74a7f543fe3d6f0a2e648012ac7c338f94bfa8967",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_broadcast_divide_broadcast",
+      "rule_name": "catalog_broadcast_divide_broadcast",
+      "catalog_id": "broadcast-divide-broadcast",
+      "required_operations": [
+        "broadcast_in_dim",
+        "divide",
+        "multiply"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@336",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Scalar Y broadcast to an arbitrary output shape.",
+      "source": "inputs/catalog_broadcast_divide_broadcast.tepl",
+      "source_sha256": "1c92675520e4d755235ab3917ac1dec32df7585302783bbf687ad20d904d69ba",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_broadcast_multiply_constant_into_broadcast",
+      "rule_name": "catalog_broadcast_multiply_constant_into_broadcast",
+      "catalog_id": "broadcast-multiply-constant-into-broadcast",
+      "required_operations": [
+        "broadcast_in_dim",
+        "multiply"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_base",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true
+        },
+        {
+          "node": "rhs@477",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Scalar factor C is a captured scalar; literal-only profitability does not affect the identity.",
+      "source": "inputs/catalog_broadcast_multiply_constant_into_broadcast.tepl",
+      "source_sha256": "0f331629599b2d875dc2358d91288e58c849be1b1cb7aabec3d57cf7305067d6",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_broadcast_transpose",
+      "rule_name": "catalog_broadcast_transpose",
+      "catalog_id": "broadcast-transpose",
+      "required_operations": [
+        "broadcast_in_dim",
+        "transpose"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_p",
+          "operation": "transpose",
+          "field": "permutation",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "source": "inputs/catalog_broadcast_transpose.tepl",
+      "source_sha256": "563acb82bf18282f7cbda74970eb730a5c2e6cc2543147d86e7aacfd2717a4f9",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_broadcast_inserted_unit_dims",
+      "rule_name": "catalog_broadcast_inserted_unit_dims",
+      "catalog_id": "broadcast-inserted-unit-dims",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reshape"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [
+        {
+          "kind": "unit_only_reshape",
+          "side": "lhs",
+          "node": "attr_r",
+          "input_shape": [
+            "N"
+          ],
+          "target_shape": [
+            "1",
+            "N"
+          ],
+          "dropped_axes": [],
+          "inserted_axes": [
+            0
+          ]
+        }
+      ],
+      "task": "axis_inference",
+      "scope": "Rank-one X; reshape inserts a leading unit axis; the outer broadcast appends axes.",
+      "source": "inputs/catalog_broadcast_inserted_unit_dims.tepl",
+      "source_sha256": "40708cb132fdcf6031b7d74b20718498f1c7c5fe742b3a4757fbc8efb8875740",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_broadcast_drop_unit_dims",
+      "rule_name": "catalog_broadcast_drop_unit_dims",
+      "catalog_id": "broadcast-drop-unit-dims",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reshape"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [
+        {
+          "kind": "unit_only_reshape",
+          "side": "rhs",
+          "node": "attr_r",
+          "input_shape": [
+            "1",
+            "N"
+          ],
+          "target_shape": [
+            "N"
+          ],
+          "dropped_axes": [
+            0
+          ],
+          "inserted_axes": []
+        }
+      ],
+      "task": "axis_inference",
+      "scope": "Rank-two operand with leading unit axis; broadcast appends axes.",
+      "source": "inputs/catalog_broadcast_drop_unit_dims.tepl",
+      "source_sha256": "d53db0c7bfdc1ba009ee69a322bf598f2c93501088ecebcfb2c87bf1bedbe205",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_broadcast_transpose_broadcast",
+      "rule_name": "broadcast_transpose_broadcast",
+      "catalog_id": "broadcast-transpose-broadcast",
+      "required_operations": [
+        "broadcast_in_dim",
+        "transpose"
+      ],
+      "axis_fields": [
+        {
+          "node": "out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "General insertion-only broadcast/permutation equation; source sorted-map/layout policy remains in the catalog.",
+      "source": "inputs/catalog_broadcast_transpose_broadcast.tepl",
+      "source_sha256": "c03a8e863697cbaf4a4fdfa7170b4ba0cf3caa9bf7f87a7f18ea8e6a9193d0da",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_transpose_reshape_transpose_unit_dims",
+      "rule_name": "catalog_transpose_reshape_transpose_unit_dims",
+      "catalog_id": "transpose-reshape-transpose-unit-dims",
+      "required_operations": [
+        "reshape",
+        "transpose"
+      ],
+      "axis_fields": [],
+      "normalizations": [
+        {
+          "kind": "unit_only_reshape",
+          "side": "rhs",
+          "node": "attr_r",
+          "input_shape": [
+            "1",
+            "N"
+          ],
+          "target_shape": [
+            "N",
+            "1"
+          ],
+          "dropped_axes": [
+            0
+          ],
+          "inserted_axes": [
+            1
+          ]
+        }
+      ],
+      "task": "supplied_non_axis",
+      "scope": "Rank-two input with one unit axis.",
+      "source": "inputs/catalog_transpose_reshape_transpose_unit_dims.tepl",
+      "source_sha256": "4d245feae09160a25d544b5b792c25b508866548a4fa83356e2e6dfba0a47e0a",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_indexing_reverse_trivial",
+      "rule_name": "catalog_indexing_reverse_trivial",
+      "catalog_id": "indexing-reverse-trivial",
+      "required_operations": [
+        "reverse"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "source": "inputs/catalog_indexing_reverse_trivial.tepl",
+      "source_sha256": "9f559b6328ffce2f8faacbff771fc2ec009fdd57e26e6312be633bc2bd4c0d09",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_indexing_reverse_inserted_unit_dims",
+      "rule_name": "catalog_indexing_reverse_inserted_unit_dims",
+      "catalog_id": "indexing-reverse-inserted-unit-dims",
+      "required_operations": [
+        "reshape",
+        "reverse"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [
+        {
+          "kind": "unit_only_reshape",
+          "side": "lhs",
+          "node": "attr_shape",
+          "input_shape": [
+            "N"
+          ],
+          "target_shape": [
+            "1",
+            "N"
+          ],
+          "dropped_axes": [],
+          "inserted_axes": [
+            0
+          ]
+        },
+        {
+          "kind": "unit_only_reshape",
+          "side": "rhs",
+          "node": "",
+          "input_shape": [
+            "N"
+          ],
+          "target_shape": [
+            "1",
+            "N"
+          ],
+          "dropped_axes": [],
+          "inserted_axes": [
+            0
+          ]
+        }
+      ],
+      "task": "axis_inference",
+      "scope": "Insert one leading unit axis into rank-one input.",
+      "source": "inputs/catalog_indexing_reverse_inserted_unit_dims.tepl",
+      "source_sha256": "3c71b5ad090648d5d58f8465f0544d6755a8dab11ce0d5dbb4256610eb57dd49",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_dot_transpose_both_operands",
+      "rule_name": "catalog_dot_transpose_both_operands",
+      "catalog_id": "dot-transpose-both-operands",
+      "required_operations": [
+        "dot_general",
+        "transpose"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@383",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@383",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@383",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@383",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@354",
+          "operation": "transpose",
+          "field": "permutation",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-two matrix transposes, no batches.",
+      "source": "inputs/catalog_dot_transpose_both_operands.tepl",
+      "source_sha256": "4c45dfd326a03fc1e914a4b987885254ced57a64dbc88d69c29596656ec2bfa1",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_dot_move_broadcast",
+      "rule_name": "catalog_dot_move_broadcast",
+      "catalog_id": "dot-move-broadcast",
+      "required_operations": [
+        "broadcast_in_dim",
+        "dot_general",
+        "reduce_sum"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_sum",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "One broadcast-created contraction axis; replacement dot is an outer product.",
+      "source": "inputs/catalog_dot_move_broadcast.tepl",
+      "source_sha256": "6958ecd84ce11ce828d80242ec247577f3f5fdfe648da591f6b3d87fa755a2bd",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_dot_reduce_output_free",
+      "rule_name": "catalog_dot_reduce_output_free",
+      "catalog_id": "dot-reduce-output-free",
+      "required_operations": [
+        "dot_general",
+        "reduce_sum"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@376",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Reduce the left free axis of a rank-two dot; implicit sum initializer zero.",
+      "source": "inputs/catalog_dot_reduce_output_free.tepl",
+      "source_sha256": "05338c1a5de875992d7bb91f5f2d9fd82722927a9a91a3a6f3eb2a010e66789f",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_dot_scalar_multipliers",
+      "rule_name": "catalog_dot_scalar_multipliers",
+      "catalog_id": "dot-scalar-multipliers",
+      "required_operations": [
+        "broadcast_in_dim",
+        "dot_general",
+        "multiply"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": true
+        },
+        {
+          "node": "rhs@487",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@487",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@487",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@487",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Scalar factor pulled from a rank-two f32 dot; source constant/profitability screening is outside the algebraic identity.",
+      "source": "inputs/catalog_dot_scalar_multipliers.tepl",
+      "source_sha256": "6799c8f91881774f197c8dd9f5a7c15695c45f85bb66718ad4a54432145fb09e",
+      "paper_accepted": true
+    },
+    {
+      "case": "catalog_reduction_broadcast_original_axes",
+      "rule_name": "catalog_reduction_broadcast_original_axes",
+      "catalog_id": "reduction-broadcast-original-axes",
+      "required_operations": [
+        "broadcast_in_dim",
+        "reduce_sum"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@387",
+          "operation": "reduce_sum",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Sum specialization; rank-one base and one broadcast-created axis.",
+      "source": "inputs/catalog_reduction_broadcast_original_axes.tepl",
+      "source_sha256": "40436b1e523c4f27e6714951f5a1ce878e6e66bab5372895058272aa49a7cafd",
+      "paper_accepted": true
+    },
+    {
+      "case": "native_abs_unsigned",
+      "rule_name": "native_abs_unsigned",
+      "catalog_id": "elementwise-abs-nonnegative",
+      "required_operations": [
+        "abs"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Arbitrary-rank unsigned integer tensor; is_unsigned_integer establishes nonnegativity. Signed/floating range analysis is not implemented.",
+      "source": "inputs/native_abs_unsigned.tepl",
+      "source_sha256": "731cd5076716c09c76ecf4bc5920173c08a345b151f02c99c963f1a1702ac256",
+      "paper_accepted": true
+    },
+    {
+      "case": "slice_identity",
+      "rule_name": "slice_identity",
+      "catalog_id": "indexing-slice-identity",
+      "required_operations": [
+        "slice"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "attribute_free",
+      "scope": "Rank-one positive-size slice; empty outputs are excluded by the supplied dialect.",
+      "source": "inputs/slice_identity.tepl",
+      "source_sha256": "1480f248a1e8fe6e32c84a8305f95cca11151fb39c3e13665577b4cbe3f94729",
+      "paper_accepted": true
+    },
+    {
+      "case": "slice_compose",
+      "rule_name": "slice_compose",
+      "catalog_id": "indexing-slice-compose",
+      "required_operations": [
+        "slice"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "scope": "Rank-one, positive-size, unit-stride slices with an explicit computed start.",
+      "source": "inputs/slice_compose.tepl",
+      "source_sha256": "1e2a30a3a0927191de845d04752c702dce111c644322d14a2341a5be6c9d778c",
+      "paper_accepted": false
+    },
+    {
+      "case": "slice_reverse",
+      "rule_name": "slice_reverse",
+      "catalog_id": "indexing-slice-reverse",
+      "required_operations": [
+        "reverse",
+        "slice"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@233",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-one, positive-size, unit-stride slice of a reversed axis; explicit reflected start.",
+      "source": "inputs/slice_reverse.tepl",
+      "source_sha256": "76cc3668c5347150b21527f650bfaa7f6aafcaec1dd1ed614fec3db0ca4047ab",
+      "paper_accepted": false
+    },
+    {
+      "case": "slice_compose_zero_starts",
+      "rule_name": "slice_compose_zero_starts",
+      "catalog_id": "indexing-slice-compose",
+      "required_operations": [
+        "slice"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "scope": "Rank-one, positive-size, unit-stride slices with both starts zero. Copies outer attributes; avoids computed constructors.",
+      "source": "inputs/slice_compose_zero_starts.tepl",
+      "source_sha256": "87d2b353db8f13a7e21b888c9dcd83e71497aa3685adafe2b20ffdb5696c00de",
+      "paper_accepted": true
+    },
+    {
+      "case": "expr_slice_compose_general",
+      "rule_name": "expr_slice_compose_general",
+      "catalog_id": "indexing-slice-compose",
+      "required_operations": [
+        "slice"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "scope": "Arbitrary-rank unit-stride composition; explicit metadata arithmetic and comprehensions.",
+      "source": "inputs/expr_slice_compose_general.tepl",
+      "source_sha256": "8dbcb41a3a288d33f3fbfcf2dd6abbb8ba884a22ea6d5682590aef6322b7d487",
+      "paper_accepted": false
+    },
+    {
+      "case": "expr_slice_reverse_general",
+      "rule_name": "expr_slice_reverse_general",
+      "catalog_id": "indexing-slice-reverse",
+      "required_operations": [
+        "reverse",
+        "slice"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@216",
+          "operation": "reverse",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Arbitrary-rank positive-size strided slice; explicit reflected starts. Empty output cases can be handled separately.",
+      "source": "inputs/expr_slice_reverse_general.tepl",
+      "source_sha256": "d91f5f4dfa8be6b0287aa6536cb11ffd1a2dbe5631ff9022a6689d17e1abb6c3",
+      "paper_accepted": false
+    },
+    {
+      "case": "expr_convolution_scale_filter_bias",
+      "rule_name": "expr_convolution_scale_filter_bias",
+      "catalog_id": "convolution-scale-filter-bias",
+      "required_operations": [
+        "add",
+        "broadcast_in_dim",
+        "convolution",
+        "multiply"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_kernel",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@474",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "One spatial dimension with fixed kernel/output feature positions. Proves expression of explicit scale broadcasts and convolution attribute reuse; source constant and numerical-policy conditions remain in the catalog.",
+      "source": "inputs/expr_convolution_scale_filter_bias.tepl",
+      "source_sha256": "a699c2b53132bbccc50d82c4e7b30e3ab5ccad1abffe2ab91909c96f962e2ff5",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_broadcast_slice_broadcast_only",
+      "rule_name": "catalog_broadcast_slice_broadcast_only",
+      "catalog_id": "broadcast-slice-broadcast-only",
+      "required_operations": [
+        "broadcast_in_dim",
+        "slice"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-one X maps to axis zero; only newly created axes are sliced.",
+      "source": "inputs/catalog_broadcast_slice_broadcast_only.tepl",
+      "source_sha256": "3b965321d8bcab4b59899248ff70d37069141cd8cad272886406641431a99a31",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_broadcast_slice_broadcast",
+      "rule_name": "catalog_broadcast_slice_broadcast",
+      "catalog_id": "broadcast-slice-broadcast",
+      "required_operations": [
+        "broadcast_in_dim",
+        "slice"
+      ],
+      "axis_fields": [
+        {
+          "node": "attr_out",
+          "operation": "broadcast_in_dim",
+          "field": "dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "source": "inputs/catalog_broadcast_slice_broadcast.tepl",
+      "source_sha256": "cd833ac1e1632e655fca6b1c2be444dd67b674c66cbf9fb4c7f5e835d8d04bc6",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_indexing_slice_singleton_stride",
+      "rule_name": "catalog_indexing_slice_singleton_stride",
+      "catalog_id": "indexing-slice-singleton-stride",
+      "required_operations": [
+        "slice"
+      ],
+      "axis_fields": [],
+      "normalizations": [],
+      "task": "supplied_non_axis",
+      "scope": "Arbitrary tensor shapes under the catalog arithmetic/applicability assumptions.",
+      "source": "inputs/catalog_indexing_slice_singleton_stride.tepl",
+      "source_sha256": "dea02af707790625789cc92359651ddc27ebb346a2257d62307bf9da3a8e497c",
+      "paper_accepted": false
+    },
+    {
+      "case": "catalog_dot_slice_output",
+      "rule_name": "catalog_dot_slice_output",
+      "catalog_id": "dot-slice-output",
+      "required_operations": [
+        "dot_general",
+        "slice"
+      ],
+      "axis_fields": [
+        {
+          "node": "rhs@335",
+          "operation": "dot_general",
+          "field": "lhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@335",
+          "operation": "dot_general",
+          "field": "rhs_contracting_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@335",
+          "operation": "dot_general",
+          "field": "lhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        },
+        {
+          "node": "rhs@335",
+          "operation": "dot_general",
+          "field": "rhs_batching_dimensions",
+          "role": "axis",
+          "list": true,
+          "forced": false
+        }
+      ],
+      "normalizations": [],
+      "task": "axis_inference",
+      "scope": "Rank-two dot with arbitrary output starts, sizes and positive strides.",
+      "source": "inputs/catalog_dot_slice_output.tepl",
+      "source_sha256": "56904bdc86f36698e5e2f8005ed7c8b7dadc4b698ba05f2bb49c3dfabaeef902",
+      "paper_accepted": false
+    }
+  ]
+}

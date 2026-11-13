@@ -1,0 +1,18 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule dot_move_reverse {
+    X: [K]
+    Y: [K]
+    (attr_d: dot (attr_r: reverse X) Y) => (axis_eval_1: dot X (axis_eval_0: reverse Y))
+    where { attr_r.attrs.dimensions == [0]
+         && attr_d.attrs.lhs_batching_dimensions == [] && attr_d.attrs.rhs_batching_dimensions == []
+         && attr_d.attrs.lhs_contracting_dimensions == [0]
+         && attr_d.attrs.rhs_contracting_dimensions == [0] }
+derive {
+ axis_eval_0.attrs = {dimensions: auto};
+ axis_eval_1.attrs = {lhs_contracting_dimensions: auto, rhs_contracting_dimensions: auto, lhs_batching_dimensions: auto, rhs_batching_dimensions: auto};
+}
+}

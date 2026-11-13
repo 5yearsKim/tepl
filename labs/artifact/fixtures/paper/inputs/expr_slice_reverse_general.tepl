@@ -1,0 +1,11 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Expression check under the source conditions recorded in the catalog.
+rule expr_slice_reverse_general {
+    X: [Dims...] (attr_s: hlo.slice (attr_r: hlo.reverse X)) => (axis_eval_0: hlo.reverse (attr_out: hlo.slice X)) where { all([n > 0 for n in attr_s.attrs.sizes]) } 
+derive {
+ attr_out.attrs = {starts: [if contains(attr_r.attrs.dimensions, i) then i64(Dims[i] - 1 - (u64(attr_s.attrs.starts[i]) + (attr_s.attrs.sizes[i] - 1) * u64(attr_s.attrs.strides[i]))) else attr_s.attrs.starts[i] for i in range(len(Dims))], sizes: attr_s.attrs.sizes, strides: attr_s.attrs.strides};
+ axis_eval_0.attrs = {dimensions: auto};
+}
+}

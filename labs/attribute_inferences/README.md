@@ -7,9 +7,8 @@ tests, and recorded evidence.
 | Experiment | Purpose |
 | --- | --- |
 | [reasoning_scalability](reasoning_scalability/README.md) | Compilation scaling and runtime metadata feasibility/construction costs |
-| [xla_integration](xla_integration/) | XLA transpose-folding bridge and pinned upstream pass fixtures |
 | [xla_rewrite](xla_rewrite/README.md) | XLA rewrite catalog, axis-inference coverage, and compilation validation |
-| [xla_workflow](xla_workflow/README.md) | Integration of compiled TEPL rules into the XLA CPU pipeline |
+| [xla_algebraic_simplifier](xla_algebraic_simplifier/README.md) | Replacement construction at 38 AlgebraicSimplifier workload branches, branch controls, and strict CPU-pipeline comparison |
 | [xla_workload_count](xla_workload_count/README.md) | Workload rewrite counts and reviewed semantic applicability; does not measure inference or delegation |
 
 Reproduction commands use paths relative to the repository root. Frozen results
@@ -23,3 +22,8 @@ retained in older records do not invalidate implementation measurements.
 
 Mathematical arguments and proofs live in
 [research/attribute-synthesis](../../research/attribute-synthesis/README.md).
+
+The paper's bundled inputs and reproduction entry point live in
+[artifact](../artifact/README.md). Retired transpose-folding experiments are
+preserved in `../archive/transpose-folding.tar.gz`, with per-file hashes in
+`../archive/transpose-folding.json`.

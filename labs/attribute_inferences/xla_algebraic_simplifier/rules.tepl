@@ -1,0 +1,12 @@
+from "../xla_rewrite/tepl/dialects/hlo.tepl" import HLO as hlo
+use hlo::{transpose}
+
+rule transpose_identity {
+  X: [Dims...]
+  (t: transpose X) => X
+  where t.attrs.permutation == range(len(Dims))
+}
+
+rule transpose_compose {
+  (outer: transpose (inner: transpose X)) => (result: transpose X)
+}

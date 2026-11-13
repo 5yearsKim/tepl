@@ -1,0 +1,12 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule scalar_broadcast_reverse {
+    (attr_r: reverse (attr_b: broadcast C)) => (axis_eval_0: broadcast C)
+    where { attr_b.attrs.dimensions == [] }
+derive {
+ axis_eval_0.attrs = {dimensions: auto, new_extents: attr_b.attrs.new_extents};
+}
+}

@@ -1,0 +1,15 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+use hlo::{add, mul, negate, subtract, zero_like, transpose, broadcast,
+        reduce_sum, reverse, slice, dot};
+
+rule slice_reverse {
+    X: [N]
+    (attr_s: slice (attr_r: reverse X)) => (axis_eval_0: reverse (attr_out: slice X))
+    where { attr_r.attrs.dimensions == [0] && attr_s.attrs.strides == [1] }
+    
+derive {
+ attr_out.attrs = {starts: [i64(N - u64(attr_s.attrs.starts[0]) - attr_s.attrs.sizes[0])], sizes: attr_s.attrs.sizes, strides: attr_s.attrs.strides};
+ axis_eval_0.attrs = {dimensions: auto};
+}
+}

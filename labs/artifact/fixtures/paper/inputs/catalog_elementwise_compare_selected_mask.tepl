@@ -1,0 +1,14 @@
+// Canonical axis-only evaluation task; no descriptor or non-axis inference.
+from "dialects/hlo.tepl" import HLO as hlo;
+
+// Catalog: elementwise-compare-selected-mask
+// Scope: Scalar literal instance; source conditions retained in the catalog.
+// Source arithmetic/applicability conditions are recorded in the manifest.
+rule catalog_elementwise_compare_selected_mask {
+    A: [] B: []
+     (attr_ne: hlo.compare (hlo.select (attr_ge: hlo.compare A B) 1 0) 0) => (axis_eval_0: hlo.compare A B)
+     where { attr_ge.attrs.direction == 2 && attr_ne.attrs.direction == 1 }
+derive {
+ axis_eval_0.attrs = {direction: attr_ge.attrs.direction};
+}
+}
